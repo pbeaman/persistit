@@ -1,0 +1,40 @@
+prop datapath=$datapath$
+prop logpath=$logpath$
+
+logpath $logpath$/result_$timestamp$.log
+
+
+#Stress-11 test mixture, multithread, large pool, transactions
+
+
+clearprops
+prop buffer.count.8192=12000
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop pwjpath=$datapath$/persistit.pwj
+prop pwjsize=8M
+prop pwjcount=6
+prop rmiport=1099
+
+delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+
+init
+multithread
+test com.persistit.stress.Stress1 repeat=10 count=25000
+test com.persistit.stress.Stress1 repeat=10 count=25000
+test com.persistit.stress.Stress1txn repeat=10 count=25000
+test com.persistit.stress.Stress2 repeat=2 count=2500 size=20000 seed=117
+test com.persistit.stress.Stress2txn repeat=2 count=2500 size=4000 seed=118
+test com.persistit.stress.Stress3 repeat=5 count=25000 seed=119
+test com.persistit.stress.Stress3txn repeat=5 count=25000 seed=120
+test com.persistit.stress.Stress5 repeat=5 count=25000
+test com.persistit.stress.Stress3txn repeat=5 count=25000
+test com.persistit.stress.Stress2txn repeat=5 count=25000
+test com.persistit.stress.Stress6 repeat=10 count=500 size=250
+test com.persistit.stress.Stress6 repeat=10 count=500 size=250
+test com.persistit.stress.Stress8txn repeat=2 count=1000 size=1000 seed=1
+test com.persistit.stress.Stress8txn repeat=2 count=1000 size=1000 seed=2
+icheck persistit
+waitIfFailed Please examine the failure!
+close
+
+

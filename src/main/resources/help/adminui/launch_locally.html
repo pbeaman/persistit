@@ -1,0 +1,38 @@
+<html>
+<head>
+  <link rel="stylesheet" href="persistit_help.css" type="text/css" />
+</head>
+<body>
+<h1>Launching AdminUI Locally</h1>
+<p>If you are running a Persistit-based application on a computer with a
+  keyboard, mouse and display, you can start the AdminUI locally,
+  running within the same JVM as the application. To do this:
+</p>
+<ul>
+  <li>
+  <p>Specify the property value
+    <br></br>
+    <br><span class="code">showgui = true</span></br>
+    <br></br>
+    <br>in the Persistit configuration file,</br>
+  </p>
+  </li>
+  <li>
+  <p>Or add the option
+    <br></br>
+    <br><span class="code">-Dcom.persistit.showgui=true</span>
+    <br></br>
+    <br>to your command line, or</br>
+  </p>
+  </li>
+  <li>
+  <p>Or invoke the method
+    <br></br>
+    <br><span class="code">Persistit.getInstance().setupGUI(true);</span></br>
+    <br></br>
+    <br>within your application code.</br>
+  </p>
+  </li>
+</ul>
+</body>
+</html>

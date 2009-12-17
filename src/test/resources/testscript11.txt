@@ -1,0 +1,27 @@
+#Stress-10 test mixture, multithread, large pool, temporary volume
+
+delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+
+clearprops
+prop buffer.count.8192=50000
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:100M,extensionSize:100,maximumSize:50G
+prop pwjpath=$datapath$/persistit.pwj
+prop pwjsize=50M
+prop pwjcount=5
+prop rmiport=1099
+
+init
+multithread
+test com.persistit.stress.Stress11 repeat=1 count=1000000 size=200 seed=1
+test com.persistit.stress.Stress11 repeat=1 count=1000000 size=200 seed=2
+test com.persistit.stress.Stress11 repeat=1 count=1000000 size=200 seed=3
+test com.persistit.stress.Stress11 repeat=1 count=1000000 size=200 seed=4
+test com.persistit.stress.Stress11 repeat=1 count=1000000 size=200 seed=5
+test com.persistit.stress.Stress11 repeat=1 count=1000000 size=200 seed=6
+test com.persistit.stress.Stress11 repeat=1 count=1000000 size=200 seed=7
+test com.persistit.stress.Stress11 repeat=1 count=1000000 size=200 seed=8
+test com.persistit.stress.Stress11 repeat=1 count=1000000 size=200 seed=9
+test com.persistit.stress.Stress11 repeat=1 count=1000000 size=200 seed=10
+icheck persistit
+waitIfFailed Please examine the failure!
+close

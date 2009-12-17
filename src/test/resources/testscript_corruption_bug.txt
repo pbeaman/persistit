@@ -1,0 +1,70 @@
+prop datapath=$datapath$
+prop logpath=$logpath$
+
+logpath $logpath$/result_$timestamp$.log
+
+// ----------------------------- Unit Tests ----------------------
+delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj
+
+clearprops
+prop buffer.count.8192=2000
+prop volume.1=$datapath$/persistit_1.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M,alias:persistit
+prop volume.2=$datapath$/test_system.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop volume.3=$datapath$/test_txn.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop pwjpath=$datapath$/persistit.pwj
+prop pwjsize=2M
+prop pwjcount=2
+prop rmiport=1099
+
+init
+
+#Unit KeyCoderTest1
+test com.persistit.unit.UnitTestRunner com.persistit.unit.KeyCoderTest1
+#Unit ICheck
+icheck persistit
+
+waitIfFailed Please examine the failure!
+close
+
+
+// ----------------------- Stress Tests ----------------------
+#Stress-1 simple test
+
+delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+clearprops
+
+prop datapath=$datapath$
+prop logpath=$logpath$
+
+logpath $logpath$/result_$timestamp$.log
+
+
+prop buffer.count.8192=500
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M,alias:persistit
+prop pwjpath=$datapath$/persistit.pwj
+prop pwjsize=512K
+prop pwjcount=2
+prop rmiport=1099
+
+init
+test com.persistit.stress.Stress1 repeat=10 count=25000 op=wrt
+icheck persistit
+waitIfFailed Please examine the failure!
+close
+
+#Stress-2 simple multithreaded test
+
+delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+
+init
+multithread
+test com.persistit.stress.Stress1 repeat=5 count=25000 op=wrtd splay=3
+test com.persistit.stress.Stress1 repeat=5 count=25000 op=wtrd splay=17
+test com.persistit.stress.Stress1 repeat=5 count=25000 op=wtrd splay=19
+test com.persistit.stress.Stress1 repeat=5 count=25000 op=wrtd splay=23
+test com.persistit.stress.Stress1 repeat=5 count=25000 op=wrtd splay=29
+
+icheck persistit
+waitIfFailed Please examine the failure!
+close
+

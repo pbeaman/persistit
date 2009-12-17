@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='ISO-8859-1'  ?>
+<!DOCTYPE toc
+  PUBLIC "-//Sun Microsystems Inc.//DTD JavaHelp TOC Version 2.0//EN"
+         "../dtd/toc_2_0.dtd">
+<toc version="2.0">
+<tocitem text="Persistit AdminUI" image="toplevelfolder">
+
+  <tocitem text="Persistit AdminUI Online Help" target="adminui.intro" />
+  <tocitem text="Launching AdminUI Locally" target="adminui.launch_locally" />
+  <tocitem text="Launching AdminUI Remotely" target="adminui.launch_remotely" />
+  <tocitem text="The AdminUI Menu" target="adminui.menu" />
+  <tocitem text="AdminUI Panels Overview" target="adminui.panels_overview" />
+  <tocitem text="Summary Panel" target="adminui.summary_panel" />
+  <tocitem text="Buffers Panel" target="adminui.buffers_panel" />
+  <tocitem text="Trees Panel" target="adminui.trees_panel" />
+  <tocitem text="Tasks Panel" target="adminui.tasks_panel" />
+
+</tocitem>
+</toc>

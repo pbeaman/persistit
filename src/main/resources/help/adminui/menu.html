@@ -1,0 +1,222 @@
+<html>
+<head>
+  <link rel="stylesheet" href="persistit_help.css" type="text/css" />
+</head>
+<body>
+<h1>The AdminUI Menu</h1>
+<p>AdminUI menu items include:
+</p>
+<table border="0">
+  <tr valign="top">
+    <td>
+      <u><b>Menu</b></u>
+    </td>
+    <td>
+      <u><b>Sub Menu</b></u>
+    </td>
+    <td>
+      <u><b>Description &amp; Use</b></u>
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+      <b>File</b>
+    </td>
+    <td>
+      <em>Connect</em>
+    </td>
+    <td>
+      Specify a remote Persistit instance to connect to and manage.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Disconnect</em>
+    </td>
+    <td>
+      Close the connection to a remote Persistit instance.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Freeze Persistit Updates</em>
+    </td>
+    <td>
+      Toggle the <i>Update Suspended</i> flag.
+      When set, Persistit stalls any thread that is attempting to update the
+      database.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Suspend Persistit Shutdown</em>
+    </td>
+    <td>
+      Toggles the <i>Shutdown Suspended</i> flag.
+      When set, Persistit stalls any thread that is attempting to execute the
+      <span class="code">close</span> method.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Flush all data to Disk</em>
+    </td>
+    <td>
+      Invokes the Persistit <span class="code">flush</span> and
+      <span class="code">sync</span> methods to force all updates to
+      disk.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Close Persistit Now</em>
+    </td>
+    <td>
+      Invokes the Persistit <span class="code">close</span> method.
+      Use with care because subsequent database operations within the
+      application will fail.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Exit</em>
+    </td>
+    <td>
+      Close and exit the AdminUI application.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+      <b>View</b>
+    </td>
+    <td>
+      <em>Refresh</em>
+    </td>
+    <td>
+      Set the display refresh time interval. Choices include 2, 5, 10,
+      30 and 60 seconds. Refresh Once turns off automatic refresh.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Wrap Mode</em>
+    </td>
+    <td>
+      Controls whether long text lines displayed in multi-line text
+      boxes are wrapped, and if so whether they are wrapped on word or
+      character boundaries.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Font</em>
+    </td>
+    <td>
+      Selects Default or Monospaced font for various text information
+      display fields. In some circumstances Monospaced font may enhance
+      legibility.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Select</em>
+    </td>
+    <td>
+      (Trees Panel only) Populate the data table display with selected
+      key/value pairs from a tree.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+      <b>Tasks</b>
+    </td>
+    <td>
+      <em>New Task</em>
+    </td>
+    <td>
+      Select a Task to set up and execute
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Suspend Tasks</em>
+    </td>
+    <td>
+      (Tasks Panel only) Suspend the selected Tasks.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Resume Tasks</em>
+    </td>
+    <td>
+      (Tasks Panel only) Resume execution of selected suspended Tasks.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Terminate Tasks</em>
+    </td>
+    <td>
+      (Tasks Panel only) Terminate execution of selected Tasks.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>Remove Tasks</em>
+    </td>
+    <td>
+      (Tasks Panel only) Terminates and removes selected Tasks from
+      the task list.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+      <b>Help</b>
+    </td>
+    <td>
+      <em>Help</em>
+    </td>
+    <td>
+      Display this help system.
+    </td>
+  </tr>
+  <tr valign="top">
+    <td>
+    </td>
+    <td>
+      <em>About</em>
+    </td>
+    <td>
+      Display copyright and version information about Persistit.
+    </td>
+  </tr>
+</table>
+</body>
+</html>

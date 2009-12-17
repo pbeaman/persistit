@@ -1,0 +1,91 @@
+prop datapath=$datapath$
+prop logpath=$logpath$
+
+logpath $logpath$/result_$timestamp$.log
+
+delete $datapath$/persistit.v01 $datapath$/tempvol.v01 $datapath$/persistit.pwj
+
+clearprops
+prop buffer.count.8192=256
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop volume.2=$datapath$/tempvol.v01,temporary,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop pwjpath=$datapath$/persistit.pwj
+prop pwjsize=128K
+prop pwjcount=1
+prop pwjdelete=true
+prop rmiport=1099
+
+init
+
+#UnitTest: SimpleTest1 on temporary and permanent volumes
+
+multithread
+test com.persistit.unit.UnitTestRunner com.persistit.unit.SimpleTest1 p
+test com.persistit.unit.UnitTestRunner com.persistit.unit.SimpleTest1 t
+close
+
+init
+multithread
+test com.persistit.unit.UnitTestRunner com.persistit.unit.SimpleTest1 p1
+test com.persistit.unit.UnitTestRunner com.persistit.unit.SimpleTest1 t1
+close
+
+init
+multithread
+test com.persistit.unit.UnitTestRunner com.persistit.unit.SimpleTest1 p2
+test com.persistit.unit.UnitTestRunner com.persistit.unit.SimpleTest1 t2
+close
+
+#Stress test mixture, multithread, small pool - TEMPORARY VOLUME
+
+delete $datapath$/persistit.v01 $datapath$/tempvol.v01 $datapath$/persistit.pwj
+
+clearprops
+prop buffer.count.8192=256
+prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop pwjpath=$datapath$/persistit.pwj
+prop pwjsize=128K
+prop pwjcount=1
+prop pwjdelete=true
+prop rmiport=1099
+
+init
+multithread
+test com.persistit.stress.Stress1 repeat=10 count=10000
+test com.persistit.stress.Stress2 repeat=5 count=10000 seed=117
+test com.persistit.stress.Stress3 repeat=5 count=10000 seed=119
+test com.persistit.stress.Stress5 repeat=20 count=2000
+test com.persistit.stress.Stress5 repeat=20 count=2000
+test com.persistit.stress.Stress6 repeat=10 count=500 size=250
+test com.persistit.stress.Stress7 repeat=10 count=500 size=250 seed=122
+icheck persistit
+waitIfFailed Please examine the failure!
+close
+
+#Stress test mixture, multithread, small pool - PERMANENT VOLUME
+
+delete $datapath$/persistit.v01 $datapath$/tempvol.v01 $datapath$/persistit.pwj
+
+clearprops
+prop buffer.count.8192=256
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop pwjpath=$datapath$/persistit.pwj
+prop pwjsize=128K
+prop pwjcount=1
+prop pwjdelete=true
+prop rmiport=1099
+
+init
+multithread
+test com.persistit.stress.Stress1 repeat=10 count=10000
+test com.persistit.stress.Stress2 repeat=5 count=10000 seed=117
+test com.persistit.stress.Stress3 repeat=5 count=10000 seed=119
+test com.persistit.stress.Stress5 repeat=20 count=2000
+test com.persistit.stress.Stress5 repeat=20 count=2000
+test com.persistit.stress.Stress6 repeat=10 count=500 size=250
+test com.persistit.stress.Stress7 repeat=10 count=500 size=250 seed=122
+icheck persistit
+waitIfFailed Please examine the failure!
+close
+
+

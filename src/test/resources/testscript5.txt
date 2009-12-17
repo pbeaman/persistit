@@ -1,0 +1,30 @@
+prop datapath=$datapath$
+prop logpath=$logpath$
+
+logpath $logpath$/result_$timestamp$.log
+
+
+#Stress-5 index file list, multithread, small pool
+
+delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+
+clearprops
+prop buffer.count.8192=200
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop pwjpath=$datapath$/persistit.pwj
+prop pwjsize=256K
+prop pwjcount=2
+prop rmiport=1099
+
+init
+multithread
+test com.persistit.stress.Stress3 repeat=1 count=5000 seed=115
+test com.persistit.stress.Stress3 repeat=1 count=5000 seed=116
+test com.persistit.stress.Stress3 repeat=1 count=5000 seed=117
+test com.persistit.stress.Stress3 repeat=1 count=5000 seed=118
+test com.persistit.stress.Stress3 repeat=1 count=5000 seed=119
+icheck persistit
+waitIfFailed Please examine the failure!
+close
+#
+

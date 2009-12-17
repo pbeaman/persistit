@@ -1,0 +1,49 @@
+prop datapath=$datapath$
+prop logpath=$logpath$
+
+logpath $logpath$/result_$timestamp$.log
+
+clearprops
+prop buffer.count.8192=512
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop pwjpath=$datapath$/persistit.pwj
+prop pwjsize=1M
+prop pwjcount=1
+prop rmiport=1099
+prop pages=true
+prop syncio=true
+
+init
+icheck persistit
+waitIfFailed Please examine the failure!
+close
+
+#Stress-99 test mixture, multithread, small pool, small extension size
+
+delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+
+clearprops
+prop buffer.count.8192=1024
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop pwjpath=$datapath$/persistit.pwj
+prop pwjsize=4M
+prop pwjcount=4
+prop rmiport=1099
+prop pages=true
+prop syncio=true
+
+init
+multithread
+
+init
+multithread
+test com.persistit.stress.Stress1 repeat=10 count=10000
+test com.persistit.stress.Stress2 repeat=5 count=10000 seed=117
+test com.persistit.stress.Stress3 repeat=5 count=10000 seed=119
+test com.persistit.stress.Stress5 repeat=20 count=2000
+test com.persistit.stress.Stress6 repeat=10 count=500 size=250
+test com.persistit.stress.Stress7 repeat=10 count=500 size=250 seed=121
+icheck persistit
+waitIfFailed Please examine the failure!
+close
+
