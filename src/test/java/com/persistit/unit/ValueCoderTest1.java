@@ -26,10 +26,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import junit.framework.TestCase;
-
 import com.persistit.Exchange;
-import com.persistit.Persistit;
 import com.persistit.Value;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.ValueCoder;

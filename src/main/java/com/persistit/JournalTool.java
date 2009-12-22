@@ -23,15 +23,12 @@ import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.*;
-import java.text.*;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Stack;
 
-import com.persistit.Exchange;
-import com.persistit.Key;
-import com.persistit.Persistit;
-import com.persistit.Util;
-import com.persistit.Volume;
-import com.persistit.Journal;
 import com.persistit.exception.PersistitException;
 
 /**

@@ -17,7 +17,9 @@
  * Created on Apr 21, 2005
  */
 package com.persistit.tools;
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.Writer;
 /**
  * @author Peter Beaman
  * @version 1.0

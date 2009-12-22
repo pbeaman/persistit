@@ -18,7 +18,6 @@
 package com.persistit.test;
 
 import com.persistit.IntegrityCheck;
-import com.persistit.Persistit;
 import com.persistit.Volume;
 
 public class IntegrityTest extends TestRunner.Test {

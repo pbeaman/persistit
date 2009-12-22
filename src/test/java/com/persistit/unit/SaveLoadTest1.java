@@ -22,9 +22,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.TreeMap;
 
-import junit.framework.TestCase;
-
-import com.persistit.Persistit;
 import com.persistit.PersistitMap;
 import com.persistit.StreamLoader;
 import com.persistit.StreamSaver;

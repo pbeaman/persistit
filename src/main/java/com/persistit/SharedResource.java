@@ -17,8 +17,6 @@
  
 package com.persistit;
 
-import java.util.List;
-
 import com.persistit.exception.InUseException;
 
 /**

@@ -21,7 +21,6 @@ package com.persistit.stress;
 import java.util.Arrays;
 
 import com.persistit.ArgParser;
-import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;

@@ -17,9 +17,6 @@
 package com.persistit.encoding;
 
 import com.persistit.Value;
-import com.persistit.encoding.CoderContext;
-import com.persistit.encoding.CoderManager;
-import com.persistit.encoding.ValueCoder;
 import com.persistit.exception.ConversionException;
 
 public class EnumValueCoder

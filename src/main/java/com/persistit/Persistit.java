@@ -35,8 +35,6 @@ import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Stack;
 
-import javax.rmi.CORBA.PortableRemoteObjectDelegate;
-
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;

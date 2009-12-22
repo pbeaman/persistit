@@ -20,11 +20,8 @@ package com.persistit.unit;
 
 import java.io.IOException;
 
-import junit.framework.TestCase;
-
 import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.Persistit;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
 

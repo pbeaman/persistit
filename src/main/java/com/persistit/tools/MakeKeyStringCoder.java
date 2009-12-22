@@ -17,8 +17,10 @@
  * Created on Aug 17, 2004
  */
 package com.persistit.tools;
-import java.util.*;
-import java.text.*;
+import java.text.CollationKey;
+import java.text.Collator;
+import java.text.RuleBasedCollator;
+import java.util.Locale;
 
 import com.persistit.Util;
 

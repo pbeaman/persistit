@@ -18,8 +18,6 @@
  */
 package com.persistit.unit;
 
-import junit.framework.TestCase;
-
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 

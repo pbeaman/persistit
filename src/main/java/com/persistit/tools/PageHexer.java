@@ -17,9 +17,15 @@
  * Created on Mar 10, 2005
  */
 package com.persistit.tools;
-import java.io.*;
-import java.util.*;
-import com.persistit.*;
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.RandomAccessFile;
+import java.util.ArrayList;
+
+import com.persistit.Util;
 /**
  * @author Peter Beaman
  * @version 1.0

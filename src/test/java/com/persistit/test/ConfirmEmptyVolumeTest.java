@@ -17,7 +17,6 @@
 
 package com.persistit.test;
 
-import com.persistit.Persistit;
 import com.persistit.Volume;
 
 public class ConfirmEmptyVolumeTest extends TestRunner.Test {

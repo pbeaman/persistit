@@ -18,9 +18,7 @@
 package com.persistit.stress;
 
 import com.persistit.ArgParser;
-import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.Persistit;
 import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
 import com.persistit.Value;

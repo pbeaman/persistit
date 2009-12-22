@@ -21,11 +21,8 @@ package com.persistit.unit;
 import java.lang.reflect.Array;
 import java.util.TreeMap;
 
-import junit.framework.TestCase;
-
 import com.persistit.DefaultObjectCoder;
 import com.persistit.Exchange;
-import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
 
 public class ValueCoderTest2 extends PersistitTestCase {

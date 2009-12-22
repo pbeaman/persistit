@@ -26,9 +26,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.TreeMap;
 
-import junit.framework.TestCase;
-
-import com.persistit.Persistit;
 import com.persistit.Util;
 import com.persistit.Value;
 

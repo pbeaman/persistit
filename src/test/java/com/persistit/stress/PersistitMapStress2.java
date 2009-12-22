@@ -23,7 +23,6 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import com.persistit.ArgParser;
-import com.persistit.Exchange;
 import com.persistit.PersistitMap;
 import com.persistit.Value;
 import com.persistit.test.TestRunner;

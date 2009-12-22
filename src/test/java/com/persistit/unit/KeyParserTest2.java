@@ -18,12 +18,9 @@
  */
 package com.persistit.unit;
 
-import junit.framework.TestCase;
-
 import com.persistit.Key;
 import com.persistit.KeyFilter;
 import com.persistit.KeyParser;
-import com.persistit.Persistit;
 
 public class KeyParserTest2 extends PersistitTestCase {
     

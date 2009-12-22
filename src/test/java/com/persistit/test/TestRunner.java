@@ -38,7 +38,6 @@ import com.persistit.ArgParser;
 import com.persistit.LogBase;
 import com.persistit.Persistit;
 import com.persistit.Util;
-import com.persistit.unit.PersistitTestCase;
 
 /**
  * 

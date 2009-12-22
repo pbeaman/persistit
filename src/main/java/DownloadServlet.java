@@ -4,7 +4,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
 import com.persistit.tools.PersistitWebDataBean;
 /**

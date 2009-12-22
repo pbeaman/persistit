@@ -22,11 +22,9 @@ import java.util.Date;
 import java.util.Properties;
 
 import junit.framework.AssertionFailedError;
-import junit.framework.TestCase;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.Persistit;
 import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
 

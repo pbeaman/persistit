@@ -20,9 +20,7 @@ package com.persistit.stress;
 import java.util.Random;
 
 import com.persistit.ArgParser;
-import com.persistit.Debug;
 import com.persistit.Exchange;
-import com.persistit.Persistit;
 import com.persistit.Value;
 import com.persistit.test.TestRunner;
 

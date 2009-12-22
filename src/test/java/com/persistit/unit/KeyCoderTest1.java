@@ -22,10 +22,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 
 import junit.framework.Assert;
-import junit.framework.TestCase;
 
 import com.persistit.Key;
-import com.persistit.Persistit;
 import com.persistit.Util;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.KeyCoder;

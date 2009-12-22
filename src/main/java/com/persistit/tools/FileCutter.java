@@ -17,7 +17,7 @@
  * Created on Mar 10, 2005
  */
 package com.persistit.tools;
-import java.io.*;
+import java.io.RandomAccessFile;
 /**
  * @author Peter Beaman
  * @version 1.0

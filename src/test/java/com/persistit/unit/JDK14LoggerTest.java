@@ -18,13 +18,7 @@
  */
 package com.persistit.unit;
 
-import java.util.logging.Logger;
-
-import junit.framework.TestCase;
-
-import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
-import com.persistit.logging.JDK14LoggingAdapter;
 
 public class JDK14LoggerTest extends PersistitTestCase {
 

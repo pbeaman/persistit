@@ -27,10 +27,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
-import junit.framework.TestCase;
-
 import com.persistit.Exchange;
-import com.persistit.Persistit;
 import com.persistit.Value;
 import com.persistit.encoding.CollectionValueCoder;
 import com.persistit.exception.PersistitException;

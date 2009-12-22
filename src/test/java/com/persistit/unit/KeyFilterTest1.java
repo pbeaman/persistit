@@ -20,13 +20,10 @@ package com.persistit.unit;
 
 import java.util.TreeMap;
 
-import junit.framework.TestCase;
-
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
 import com.persistit.KeyState;
-import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
 
 /**

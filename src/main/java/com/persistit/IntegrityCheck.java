@@ -18,8 +18,8 @@
  */
 package com.persistit;
 
-import java.util.BitSet;
 import java.util.ArrayList;
+import java.util.BitSet;
 
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;

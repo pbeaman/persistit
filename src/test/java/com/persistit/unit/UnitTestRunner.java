@@ -18,7 +18,6 @@
  */
 package com.persistit.unit;
 
-import com.persistit.Persistit;
 import com.persistit.test.TestRunner;
 
 public class UnitTestRunner extends TestRunner.Test {

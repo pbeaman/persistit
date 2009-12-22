@@ -22,10 +22,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import junit.framework.Assert;
-import junit.framework.TestCase;
 
 import com.persistit.Key;
-import com.persistit.Persistit;
 import com.persistit.Util;
 
 public class KeyTest1 extends PersistitTestCase {

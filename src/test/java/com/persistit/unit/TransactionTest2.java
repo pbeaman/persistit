@@ -26,7 +26,6 @@ import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
-import com.persistit.test.TestRunner;
 
 /**
  * Demonstrates the use of Persisit Transactions. This demo runs multiple

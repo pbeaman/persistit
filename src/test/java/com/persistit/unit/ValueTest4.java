@@ -29,8 +29,6 @@ import java.io.ObjectStreamField;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-import junit.framework.TestCase;
-
 import com.persistit.DefaultCoderManager;
 import com.persistit.DefaultValueCoder;
 import com.persistit.Exchange;

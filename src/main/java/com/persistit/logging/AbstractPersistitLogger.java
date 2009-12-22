@@ -20,7 +20,6 @@ package com.persistit.logging;
 
 import java.util.Stack;
 
-import com.persistit.Persistit;
 import com.persistit.PrewriteJournal;
 
 /**

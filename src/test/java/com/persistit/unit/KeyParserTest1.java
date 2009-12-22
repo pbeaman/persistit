@@ -18,8 +18,6 @@
  */
 package com.persistit.unit;
 
-import junit.framework.TestCase;
-
 import com.persistit.Key;
 import com.persistit.KeyParser;
 import com.persistit.Persistit;

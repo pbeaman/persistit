@@ -22,8 +22,6 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 
-import com.persistit.Persistit;
-
 /**
  * The default implementation of logging for Persistit.  Writes log
  * messages to a file.
