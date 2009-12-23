@@ -108,7 +108,7 @@ public abstract class PersistitScriptedTestCase extends TestCase {
 		} catch (final InterruptedException ie) {
 		}
 		_started = true;
-		_startTime = TestRunner.ts();
+		_startTime = ScriptedTestRunner.ts();
 
 		println("Starting unit=" + getUnitName() + " test=" + getTestName()
 				+ " " + getName() + " at ts=" + _startTime);
@@ -134,14 +134,14 @@ public abstract class PersistitScriptedTestCase extends TestCase {
 				}
 			}
 		}
-		_finishTime = TestRunner.ts();
+		_finishTime = ScriptedTestRunner.ts();
 		println("Finished unit=" + getUnitName() + " test=" + getTestName()
 				+ " " + getName() + " at ts=" + _finishTime + " - elapsed="
 				+ (_finishTime - _startTime) + " - "
 				+ (_result == null ? "PASSED" : _result.toString()));
 		println();
 		if ((_result != null) && !_result._passed) {
-			TestRunner.logMessage("Failed test unit=" + getUnitName() + " test="
+			ScriptedTestRunner.logMessage("Failed test unit=" + getUnitName() + " test="
 					+ getTestName() + " " + getName());
 			_result.logFailure();
 		}
@@ -190,7 +190,7 @@ public abstract class PersistitScriptedTestCase extends TestCase {
 		if (_unit == null) {
 			_unit = new PersistitScriptedTestUnit("Standalone", 0);
 		}
-		TestRunner._verbose = true;
+		ScriptedTestRunner._verbose = true;
 		println();
 		println("-> " + toString() + " - " + shortDescription());
 		println();
@@ -249,7 +249,7 @@ public abstract class PersistitScriptedTestCase extends TestCase {
 	}
 
 	protected String tsString() {
-		long time = TestRunner.ts();
+		long time = ScriptedTestRunner.ts();
 		_sb.setLength(0);
 		_sb.append("         ");
 		for (int i = 8; --i >= 0;) {

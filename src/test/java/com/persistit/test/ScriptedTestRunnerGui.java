@@ -54,8 +54,6 @@ import javax.swing.text.PlainDocument;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 
-import org.junit.Ignore;
-
 /**
  * 
  * Framework for running tests on Persistit.
@@ -64,8 +62,7 @@ import org.junit.Ignore;
  * intended to permit long-term unattended testing.
  * 
  */
-@Ignore
-public class TestRunnerGui extends JFrame {
+public class ScriptedTestRunnerGui extends JFrame {
 
     /**
      * 
@@ -79,7 +76,7 @@ public class TestRunnerGui extends JFrame {
     TestTableModel _testTableModel;
     DisplayPanel _displayPanel = new DisplayPanel();
 
-    public TestRunnerGui() {
+    public ScriptedTestRunnerGui() {
         setSize(1000, 800);
         setLocation(100, 100);
         setTitle("TestRunnerGui");
@@ -372,8 +369,8 @@ public class TestRunnerGui extends JFrame {
     public static void main(final String[] args) throws Exception {
         setUIFont(new FontUIResource("SanSerif", Font.PLAIN, 13));
 
-        final TestRunner runner = new TestRunner();
-        final TestRunnerGui gui = new TestRunnerGui();
+        final ScriptedTestRunner runner = new ScriptedTestRunner();
+        final ScriptedTestRunnerGui gui = new ScriptedTestRunnerGui();
 
         runner.setGui(gui);
         runner.parseScript(args);

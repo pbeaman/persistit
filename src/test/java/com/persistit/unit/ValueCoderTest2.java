@@ -32,6 +32,11 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
     @Override
     public void setUp() throws Exception {
     	super.setUp();
+
+        DefaultObjectCoder.registerObjectCoder(_persistit, Vehicle.class,
+            new String[] { "id" }, new String[] { "id", "description", "speed",
+                "wheels", "passengers", "canFly", "other1", "other2" });
+
     	_exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
     }
     
@@ -306,11 +311,6 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
     }
 
     public void runAllTests() throws Exception {
-        _exchange = _persistit.getExchange("persistit", "ValueCoderTest2", true);
-
-        DefaultObjectCoder.registerObjectCoder(_persistit, Vehicle.class,
-            new String[] { "id" }, new String[] { "id", "description", "speed",
-                "wheels", "passengers", "canFly", "other1", "other2" });
         test1();
         test2();
         test3();

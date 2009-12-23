@@ -29,8 +29,6 @@ import java.util.Date;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
-import org.junit.Ignore;
-
 import com.persistit.ArgParser;
 import com.persistit.Persistit;
 import com.persistit.Util;
@@ -43,8 +41,8 @@ import com.persistit.Util;
  * intended to permit long-term unattended testing.
  * 
  */
-@Ignore
-public class TestRunner {
+
+public class ScriptedTestRunner {
 
 	private final static int PROGRESS_LOG_INTERVAL = 600000;
 
@@ -99,7 +97,7 @@ public class TestRunner {
 	private final ArrayList<PersistitScriptedTestUnit> _units = new ArrayList<PersistitScriptedTestUnit>();
 	private final ArrayList<PersistitScriptedTestCase> _allTests = new ArrayList<PersistitScriptedTestCase>();
 
-	private TestRunnerGui _gui;
+	private ScriptedTestRunnerGui _gui;
 
 	/**
 	 * Runs a series of tests.
@@ -107,7 +105,7 @@ public class TestRunner {
 	 * @param args
 	 */
 	public static void main(final String[] args) throws Exception {
-		final TestRunner runner = new TestRunner();
+		final ScriptedTestRunner runner = new ScriptedTestRunner();
 		runner.parseScript(args);
 		if (!runner._scriptError) {
 			runner.execute();
@@ -758,11 +756,11 @@ public class TestRunner {
 		return System.currentTimeMillis() - _testLogTime;
 	}
 
-	public void setGui(final TestRunnerGui gui) {
+	public void setGui(final ScriptedTestRunnerGui gui) {
 		_gui = gui;
 	}
 
-	public TestRunnerGui getGui() {
+	public ScriptedTestRunnerGui getGui() {
 		return _gui;
 	}
 

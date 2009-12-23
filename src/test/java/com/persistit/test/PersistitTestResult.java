@@ -13,7 +13,7 @@ public class PersistitTestResult {
 	Throwable _throwable;
 	PersistitTestResult[] _results;
 
-	long _timestamp = TestRunner.ts();
+	long _timestamp = ScriptedTestRunner.ts();
 	long _elapsedTime = 0;
 
 	protected PersistitTestResult(final boolean passed) {
@@ -51,7 +51,7 @@ public class PersistitTestResult {
 				}
 			}
 
-			TestRunner.logMessage("Multithreaded Test Failure: " + failCount
+			ScriptedTestRunner.logMessage("Multithreaded Test Failure: " + failCount
 					+ " threads failed", depth);
 
 			for (int index = 0; index < _results.length; index++) {
@@ -61,20 +61,20 @@ public class PersistitTestResult {
 				}
 			}
 		} else if (_throwable != null) {
-			TestRunner.logMessage(_throwable.toString(), depth);
+			ScriptedTestRunner.logMessage(_throwable.toString(), depth);
 			final String s = LogBase.detailString(_throwable).replace('\r',
 					' ');
 			final StringTokenizer st = new StringTokenizer(s, "\n");
 			while (st.hasMoreTokens()) {
-				TestRunner.logMessage(st.nextToken(), depth + 1);
-				if (!TestRunner._verbose) {
+				ScriptedTestRunner.logMessage(st.nextToken(), depth + 1);
+				if (!ScriptedTestRunner._verbose) {
 					break;
 				}
 			}
 		} else if (_message != null) {
-			TestRunner.logMessage(_message, depth);
+			ScriptedTestRunner.logMessage(_message, depth);
 		} else {
-			TestRunner.logMessage("Unspecified failure", depth);
+			ScriptedTestRunner.logMessage("Unspecified failure", depth);
 		}
 	}
 

@@ -22,6 +22,7 @@ public abstract class PersistitUnitTestCase extends TestCase {
     @Override
     public void tearDown() throws Exception {
         _persistit.close();
+        _persistit = null;
     }
     
     public abstract void runAllTests() throws Exception;
@@ -31,13 +32,13 @@ public abstract class PersistitUnitTestCase extends TestCase {
     }
     
     protected void initAndRunTest() throws Exception {
-        _persistit.initialize(getProperties());
+        setUp();
         try {
         	runAllTests();
         } catch (final Throwable t) {
             t.printStackTrace();
         } finally {
-            _persistit.close();
+            tearDown();
         }
     }
     

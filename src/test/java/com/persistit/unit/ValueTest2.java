@@ -39,7 +39,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
     @Override
     public void setUp() throws Exception {
     	super.setUp();
-    	_exchange =  _persistit.getExchange("persistit", "test", true);
+    	_exchange =  _persistit.getExchange("persistit", getClass().getSimpleName(), true);
     }
     
     @Override

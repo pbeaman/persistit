@@ -5,7 +5,7 @@ package com.persistit.test;
 
 import java.util.ArrayList;
 
-import com.persistit.test.TestRunner.Command;
+import com.persistit.test.ScriptedTestRunner.Command;
 
 public class PersistitScriptedTestUnit {
 	String _name;
@@ -21,7 +21,7 @@ public class PersistitScriptedTestUnit {
 	public PersistitTestResult execute() {
 		final ArrayList results = new ArrayList();
 		final int size = _commands.size();
-		for (int index = 0; !TestRunner._stopAll && (index < size); index++) {
+		for (int index = 0; !ScriptedTestRunner._stopAll && (index < size); index++) {
 			final PersistitTestResult result = ((Command) _commands.get(index))
 					.execute();
 			if (result != null) {
@@ -32,6 +32,6 @@ public class PersistitScriptedTestUnit {
 			}
 		}
 		return new PersistitTestResult(_passed, (PersistitTestResult[]) results
-				.toArray(TestRunner.EMPTY_RESULT_ARRAY));
+				.toArray(ScriptedTestRunner.EMPTY_RESULT_ARRAY));
 	}
 }
