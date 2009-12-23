@@ -32,9 +32,21 @@ import com.persistit.Value;
 import com.persistit.encoding.CollectionValueCoder;
 import com.persistit.exception.PersistitException;
 
-public class ValueTest2 extends PersistitTestCase {
+public class ValueTest2 extends PersistitUnitTestCase {
 
     Exchange _exchange;
+    
+    @Override
+    public void setUp() throws Exception {
+    	super.setUp();
+    	_exchange =  _persistit.getExchange("persistit", "test", true);
+    }
+    
+    @Override
+    public void tearDown() throws Exception {
+    	_persistit.releaseExchange(_exchange);
+    	super.tearDown();
+    }
 
     // Make a pretty big TreeMap to serialize and check
     public void test1() throws PersistitException {
@@ -778,7 +790,7 @@ public class ValueTest2 extends PersistitTestCase {
         new ValueTest2().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
 //        try {
 //            // Enable the security manager
 //            System.out.println("Attempting to install SecurityManager");

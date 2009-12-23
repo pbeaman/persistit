@@ -26,7 +26,7 @@ import com.persistit.exception.PersistitException;
 
 
 public class ValueTest5
-extends PersistitTestCase
+extends PersistitUnitTestCase
 {
     /**
      * Tests JSA 1.1 default serialization. Requires the
@@ -65,6 +65,18 @@ extends PersistitTestCase
 
     }
     
+    @Override
+    public void setUp() throws Exception {
+    	super.setUp();
+    	_exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
+    }
+    
+    @Override
+    public void tearDown() throws Exception {
+    	_persistit.releaseExchange(_exchange);
+    	super.tearDown();
+    }
+
     public void test1()
     throws PersistitException
     {
@@ -86,7 +98,7 @@ extends PersistitTestCase
         new ValueTest5().initAndRunTest();
     }
     
-    public void runTest()
+    public void runAllTests()
     throws Exception
     {
         _exchange = _persistit.getExchange("persistit", "ValueTest5", true);

@@ -963,13 +963,13 @@ public final class Value
      */
     public boolean isNull()
     {
-        return type() == TYPE_NULL;
+        return getTypeHandle() == TYPE_NULL;
     }
     
     
     boolean isAntiValue()
     {
-        return type() == CLASS_ANTIVALUE;
+        return getTypeHandle() == CLASS_ANTIVALUE;
     }
     
     /**

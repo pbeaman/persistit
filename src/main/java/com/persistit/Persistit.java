@@ -38,7 +38,6 @@ import java.util.Stack;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
-import com.persistit.exception.LicenseExpiredException;
 import com.persistit.exception.LogInitializationException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -344,7 +343,6 @@ public class Persistit implements BuildConstants {
 	private ThreadLocal _transactionThreadLocal = new ThreadLocal();
 	private ThreadLocal _waitingThreadLocal = new ThreadLocal();
 	private ThreadLocal _throttleThreadLocal = new ThreadLocal();
-	private LicenseControl _licenseControl = new LicenseControl(this);
 
 	private ManagementImpl _management;
 
@@ -645,13 +643,6 @@ public class Persistit implements BuildConstants {
 					throw new LogInitializationException(e);
 				}
 			}
-			_licenseControl.initialize();
-			_logBase.log(LogBase.LOG_LICENSE, _licenseControl.toString());
-
-			if (!_licenseControl.isValid()) {
-				throw new LicenseExpiredException(_licenseControl.toString());
-			}
-
 			StringBuffer sb = new StringBuffer();
 
 			int bufferSize = Buffer.MIN_BUFFER_SIZE;
@@ -860,12 +851,6 @@ public class Persistit implements BuildConstants {
 		volume.getPool().invalidate(volume);
 		if (delete)
 			volume.getPool().delete(volume);
-	}
-
-	void checkLicense() throws PersistitException {
-		if (!_licenseControl.isValid()) {
-			throw new LicenseExpiredException(_licenseControl.toString());
-		}
 	}
 
 	void checkThreadId() throws WrongThreadException {

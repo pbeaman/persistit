@@ -29,7 +29,7 @@ import java.util.TreeMap;
 import com.persistit.Util;
 import com.persistit.Value;
 
-public class ValueTest1 extends PersistitTestCase {
+public class ValueTest1 extends PersistitUnitTestCase {
     
     private static class S implements Serializable {
 
@@ -97,7 +97,7 @@ public class ValueTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
-    private void test3() {
+    public void test3() {
         System.out.print("test3 ");
         final Value value = new Value(_persistit);
         value.setStreamMode(true);
@@ -139,7 +139,7 @@ public class ValueTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
-    private void test4() {
+    public void test4() {
         System.out.print("test4 ");
         final Value value = new Value(_persistit);
 
@@ -157,7 +157,7 @@ public class ValueTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
-    private void test5() {
+    public void test5() {
         System.out.print("test5 ");
         final Value value = new Value(_persistit);
         final String[] sa1 = { "a", "bb", "ccc", "dddd", "eeeee" };
@@ -177,7 +177,7 @@ public class ValueTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
-    private void test6() {
+    public void test6() {
         System.out.print("test6 ");
         final Value value = new Value(_persistit);
         final byte[][] ba1 =
@@ -197,7 +197,7 @@ public class ValueTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
-    private void test7() {
+    public void test7() {
         System.out.print("test7 ");
         final Value value = new Value(_persistit);
         final String[][] sa1 =
@@ -228,7 +228,7 @@ public class ValueTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
-    private void test8() {
+    public void test8() {
         System.out.print("test8 ");
         final Value value = new Value(_persistit);
         final Date date = new Date();
@@ -265,7 +265,7 @@ public class ValueTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
-    private void test9() {
+    public void test9() {
         System.out.print("test9 ");
         final Object[] objects = new Object[8];
         objects[0] = new Date();
@@ -364,7 +364,7 @@ public class ValueTest1 extends PersistitTestCase {
         new ValueTest1().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
 
         test1();
         test2();

@@ -18,12 +18,15 @@
  */
 package com.persistit.unit;
 
+import org.junit.Test;
+
 import com.persistit.Key;
 import com.persistit.KeyFilter;
 import com.persistit.KeyParser;
 
-public class KeyParserTest2 extends PersistitTestCase {
+public class KeyParserTest2 extends PersistitUnitTestCase {
     
+    @Test
     public void test1() {
         System.out.print("test1 ");
         final KeyFilter filter =
@@ -43,6 +46,7 @@ public class KeyParserTest2 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() {
         System.out.print("test2 ");
         final KeyFilter filter =
@@ -67,6 +71,7 @@ public class KeyParserTest2 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() {
         System.out.print("test3 ");
         final KeyFilter filter =
@@ -91,6 +96,7 @@ public class KeyParserTest2 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test4() {
         System.out.println("test4 ");
         final KeyParser parser = new KeyParser("{*,>100:200,*<}");
@@ -124,14 +130,16 @@ public class KeyParserTest2 extends PersistitTestCase {
     }
 
     public static void main(final String[] args) throws Exception {
-        new KeyParserTest2().runTest();
+        new KeyParserTest2().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
+    	setUp();
         test1();
         test2();
         test3();
         test4();
+        
     }
 
 }

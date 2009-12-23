@@ -25,7 +25,7 @@ import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
 import com.persistit.logging.Log4JAdapter;
 
-public class Log4JLoggerTest extends PersistitTestCase {
+public class Log4JLoggerTest extends PersistitUnitTestCase {
     
     public void test1() throws PersistitException {
         System.out.print("test1 ");
@@ -33,10 +33,10 @@ public class Log4JLoggerTest extends PersistitTestCase {
     }
 
     public static void main(final String[] args) throws Exception {
-        new Log4JLoggerTest().runTest();
+        new Log4JLoggerTest().runAllTests();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         final Logger logger =
             Logger.getLogger("com.persistit.unit.JDK14LoggerTest");
         // Set up a simple configuration that logs on the console.

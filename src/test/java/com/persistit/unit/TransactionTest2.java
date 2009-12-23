@@ -34,7 +34,7 @@ import com.persistit.exception.RollbackException;
  * 
  * @version 1.0
  */
-public class TransactionTest2 extends PersistitTestCase {
+public class TransactionTest2 extends PersistitUnitTestCase {
 
     final static Object LOCK = new Object();
 
@@ -87,7 +87,7 @@ public class TransactionTest2 extends PersistitTestCase {
     }
 
     @Override
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
     }
 

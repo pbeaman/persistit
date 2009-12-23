@@ -23,15 +23,18 @@ import java.lang.reflect.Constructor;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 
+import org.junit.Test;
+
 import com.persistit.DefaultCoderManager;
 import com.persistit.exception.PersistitException;
 
-public class DefaultCoderManagerTest extends PersistitTestCase implements Serializable {
+public class DefaultCoderManagerTest extends PersistitUnitTestCase implements Serializable {
 
     private static final long serialVersionUID = 1L;
     
     String _volumeName = "persistit";
 
+    @Test
     public void test1() throws PersistitException {
         // Tests join calculation.
         //
@@ -113,7 +116,7 @@ public class DefaultCoderManagerTest extends PersistitTestCase implements Serial
         new DefaultCoderManagerTest().initAndRunTest();
     }
     
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
     }
 }

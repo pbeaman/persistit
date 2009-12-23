@@ -18,10 +18,13 @@
  */
 package com.persistit.unit;
 
+import org.junit.Test;
+
 import com.persistit.exception.PersistitException;
 
-public class JDK14LoggerTest extends PersistitTestCase {
+public class JDK14LoggerTest extends PersistitUnitTestCase {
 
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
         System.out.println("- done");
@@ -31,7 +34,7 @@ public class JDK14LoggerTest extends PersistitTestCase {
         new JDK14LoggerTest().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
     }
 

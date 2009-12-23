@@ -18,34 +18,35 @@
  */
 package com.persistit.unit;
 
-import com.persistit.test.TestRunner;
+import com.persistit.test.PersistitScriptedTestCase;
+import com.persistit.test.PersistitTestResult;
 
-public class UnitTestRunner extends TestRunner.Test {
+/**
+ * Adapter that allows the TestRunner to run unit tests
+ * 
+ * @author peter
+ *
+ */
+public class UnitTestRunner extends PersistitScriptedTestCase {
     boolean _done;
     String _className;
     String[] _args;
 
-    @Override
-    protected void setupTest(final String[] args) {
-        _className = args[0];
-        _args = args;
-    }
-
 
     @Override
-    public void runTest() {
+    public void executeTest() {
         try {
             System.out.println("Running Unit Test " + _className);
             final Class cl = Class.forName(_className);
-            final PersistitTestCase testCase = (PersistitTestCase)cl.newInstance();
+            final PersistitUnitTestCase testCase = (PersistitUnitTestCase)cl.newInstance();
             testCase.setPersistit(_persistit);
-            testCase.runTest();
+            testCase.runAllTests();
             _done = true;
         } catch (final Exception e) {
             _done = true;
             final Throwable t = e;
             // if (e.getCause() != null) t = e.getCause();
-            _result = new TestRunner.Result(false, t);
+            _result = new PersistitTestResult(false, t);
         }
     }
 

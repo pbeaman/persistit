@@ -40,7 +40,7 @@ import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.ValueCoder;
 import com.persistit.exception.PersistitException;
 
-public class ValueTest4 extends PersistitTestCase {
+public class ValueTest4 extends PersistitUnitTestCase {
 
     /**
      * Tests JSA 1.1 default serialization. Requires the
@@ -324,6 +324,19 @@ public class ValueTest4 extends PersistitTestCase {
             return "E" + super.toString() + (_thread != null ? "" : "");
         }
     }
+    
+    
+    @Override
+    public void setUp() throws Exception {
+    	super.setUp();
+    	_exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
+    }
+    
+    @Override
+    public void tearDown() throws Exception {
+    	_persistit.releaseExchange(_exchange);
+    	super.tearDown();
+    }
 
     public void test1() throws PersistitException {
         System.out.print("test1 ");
@@ -490,7 +503,7 @@ public class ValueTest4 extends PersistitTestCase {
         new ValueTest4().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         final CoderManager cm = _persistit.getCoderManager();
         _persistit.setCoderManager(new DefaultCoderManager(_persistit,
             "com.persistit.unit.ValueTest4$*"));

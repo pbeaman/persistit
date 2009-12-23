@@ -24,7 +24,7 @@ import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.exception.PersistitException;
 
-public class TreeTest1 extends PersistitTestCase {
+public class TreeTest1 extends PersistitUnitTestCase {
     
     public void test1() throws PersistitException {
         System.out.print("test1 ");
@@ -87,7 +87,7 @@ public class TreeTest1 extends PersistitTestCase {
         new TreeTest1().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
         test2();
     }

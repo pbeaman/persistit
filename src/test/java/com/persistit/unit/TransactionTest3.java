@@ -28,7 +28,7 @@ import com.persistit.Key;
 import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
 
-public class TransactionTest3 extends PersistitTestCase {
+public class TransactionTest3 extends PersistitUnitTestCase {
     
     public void test1() throws PersistitException {
         System.out.print("test1 ");
@@ -495,7 +495,7 @@ public class TransactionTest3 extends PersistitTestCase {
         new TransactionTest3().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
         ex.removeAll();
         test1();

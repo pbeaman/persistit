@@ -20,8 +20,8 @@ package com.persistit.test;
 import com.persistit.IntegrityCheck;
 import com.persistit.Volume;
 
-public class IntegrityTest extends TestRunner.Test {
-    String[] _args;
+public class IntegrityTest extends PersistitScriptedTestCase {
+
     Volume[] _volumes;
     IntegrityCheck[] _ichecks;
     int _icheckIndex = -1;
@@ -72,19 +72,18 @@ public class IntegrityTest extends TestRunner.Test {
     }
 
     @Override
-    public void setupTest(String[] args) {
-
-        if (args.length == 0) {
-            args = new String[] { "persistit" };
+    public void setUp() throws Exception {
+    	super.setUp();
+        if (_args.length == 0) {
+            _args = new String[] { "persistit" };
         }
 
-        _args = args;
-        _volumes = new Volume[args.length];
+        _volumes = new Volume[_args.length];
 
-        for (int index = 0; index < args.length; index++) {
-            final Volume volume = getPersistit().getVolume(args[index]);
+        for (int index = 0; index < _args.length; index++) {
+            final Volume volume = getPersistit().getVolume(_args[index]);
             if (volume == null) {
-                println("Volume name not found: " + args[index]);
+                println("Volume name not found: " + _args[index]);
             } else {
                 _volumes[index] = volume;
             }
@@ -92,16 +91,15 @@ public class IntegrityTest extends TestRunner.Test {
     }
 
     @Override
-    protected void tearDownTest() {
+    public void tearDown() throws Exception {
         _volumes = null;
-
+        super.tearDown();
     }
 
-    @Override
-    public void runTest() {
+    public void test1() {
         _ichecks = new IntegrityCheck[_volumes.length];
-        final TestRunner.Result[] results =
-            new TestRunner.Result[_volumes.length];
+        final PersistitTestResult[] results =
+            new PersistitTestResult[_volumes.length];
         int resultCount = 0;
         boolean passed = true;
         try {
@@ -116,7 +114,7 @@ public class IntegrityTest extends TestRunner.Test {
                     println(" - " + icheck.toString(true));
 
                     _result =
-                        new TestRunner.Result(!icheck.hasFaults(), icheck
+                        new PersistitTestResult(!icheck.hasFaults(), icheck
                             .toString());
 
                     results[_icheckIndex] = _result;
@@ -127,22 +125,27 @@ public class IntegrityTest extends TestRunner.Test {
                     resultCount++;
                 } else {
                     _result =
-                        new TestRunner.Result(false, "Volume name "
+                        new PersistitTestResult(false, "Volume name "
                             + _args[_icheckIndex] + " not found");
                     results[_icheckIndex] = _result;
                     resultCount++;
                 }
             }
             if (resultCount > 1) {
-                _result = new TestRunner.Result(passed, results);
+                _result = new PersistitTestResult(passed, results);
             }
 
         } catch (final Exception ex) {
-            _result = new TestRunner.Result(false, ex);
+            _result = new PersistitTestResult(false, ex);
             println(ex.toString());
         }
         println();
         print("done");
+    }
+    
+    @Override
+    public void executeTest() throws Exception {
+    	test1();
     }
 
     public static void main(final String[] args) throws Exception {

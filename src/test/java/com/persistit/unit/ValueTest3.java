@@ -39,7 +39,7 @@ import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.ValueCoder;
 import com.persistit.exception.PersistitException;
 
-public class ValueTest3 extends PersistitTestCase {
+public class ValueTest3 extends PersistitUnitTestCase {
 
     /**
      * Tests JSA 1.1 default serialization. Requires the
@@ -323,6 +323,19 @@ public class ValueTest3 extends PersistitTestCase {
         }
     }
 
+    
+    @Override
+    public void setUp() throws Exception {
+    	super.setUp();
+    	_exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
+    }
+    
+    @Override
+    public void tearDown() throws Exception {
+    	_persistit.releaseExchange(_exchange);
+    	super.tearDown();
+    }
+
     public void test1() throws PersistitException {
         System.out.print("test1 ");
         final S s = new S();
@@ -488,7 +501,7 @@ public class ValueTest3 extends PersistitTestCase {
         new ValueTest3().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         _exchange = _persistit.getExchange("persistit", "ValueTest3", true);
 
         test1();

@@ -28,7 +28,7 @@ import com.persistit.Value;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
 
-public class TransactionTest1 extends PersistitTestCase {
+public class TransactionTest1 extends PersistitUnitTestCase {
     
     public void test1() throws PersistitException {
         System.out.print("test1 ");
@@ -317,7 +317,7 @@ public class TransactionTest1 extends PersistitTestCase {
         new TransactionTest1().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
         test2();
         test3();

@@ -20,15 +20,18 @@ package com.persistit.unit;
 
 import java.io.IOException;
 
+import org.junit.Test;
+
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
 
-public class JoinTest1 extends PersistitTestCase {
+public class JoinTest1 extends PersistitUnitTestCase {
 
     String _volumeName = "persistit";
 
+    @Test
     public void test1() throws PersistitException {
         // Tests join calculation.
         //
@@ -194,7 +197,7 @@ public class JoinTest1 extends PersistitTestCase {
         new JoinTest1().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
     }
 }

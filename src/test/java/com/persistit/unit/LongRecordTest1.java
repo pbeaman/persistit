@@ -28,13 +28,13 @@ import com.persistit.exception.PersistitException;
  * @author Peter Beaman
  * @version 1.0
  */
-public class LongRecordTest1 extends PersistitTestCase {
+public class LongRecordTest1 extends PersistitUnitTestCase {
     
     public static void main(final String[] args) throws Exception {
         new LongRecordTest1().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
         test2();
         test3();

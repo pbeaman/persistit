@@ -21,6 +21,8 @@ package com.persistit.unit;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+import org.junit.Test;
+
 import junit.framework.Assert;
 
 import com.persistit.Key;
@@ -31,11 +33,12 @@ import com.persistit.encoding.KeyRenderer;
 import com.persistit.encoding.KeyStringCoder;
 import com.persistit.exception.ConversionException;
 
-public class KeyCoderTest1 extends PersistitTestCase {
+public class KeyCoderTest1 extends PersistitUnitTestCase {
     
     Key _key1;
     Key _key2;
 
+    @Test
     public void test1() {
         System.out.print("test1 ");
         final KeyStringCoder coder = new TestStringCoder();
@@ -66,6 +69,7 @@ public class KeyCoderTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() throws MalformedURLException {
         System.out.print("test2 ");
         final KeyCoder coder = new TestKeyRenderer();
@@ -116,7 +120,7 @@ public class KeyCoderTest1 extends PersistitTestCase {
         new KeyCoderTest1().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
         test2();
     }

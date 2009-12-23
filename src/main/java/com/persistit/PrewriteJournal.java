@@ -1953,7 +1953,6 @@ extends SharedResource
         {
             boolean _kicked;
             boolean _frozen;
-            long _lastLicenseCheck;
 
             private WriterThread(int index)
             {
@@ -1987,13 +1986,6 @@ extends SharedResource
                         long now = now();
                         if (_persistit.getLogBase().isLoggable(LogBase.LOG_WAIT1)) {
                             _persistit.getLogBase().log(LogBase.LOG_WAIT1, _generation);
-                        }
-                        
-                        if (now - _lastLicenseCheck > _writerPollInterval)
-                        {
-                            _lastLicenseCheck = now;
-                            _persistit.checkLicense();
-                            _frozen = false;
                         }
                         
                         synchronized(this)

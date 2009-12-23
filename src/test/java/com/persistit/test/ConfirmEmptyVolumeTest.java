@@ -19,8 +19,8 @@ package com.persistit.test;
 
 import com.persistit.Volume;
 
-public class ConfirmEmptyVolumeTest extends TestRunner.Test {
-    String[] _args;
+public class ConfirmEmptyVolumeTest extends PersistitScriptedTestCase {
+
     Volume[] _volumes;
 
     private final static String SHORT_DESCRIPTION = "Confirm volume is empty";
@@ -48,19 +48,19 @@ public class ConfirmEmptyVolumeTest extends TestRunner.Test {
     }
 
     @Override
-    public void setupTest(String[] args) {
-
-        if (args.length == 0) {
-            args = new String[] { "persistit" };
+    public void setUp() throws Exception {
+    	super.setUp();
+        if (_args.length == 0) {
+            _args = new String[] { "persistit" };
         }
 
-        _args = args;
-        _volumes = new Volume[args.length];
 
-        for (int index = 0; index < args.length; index++) {
-            final Volume volume = getPersistit().getVolume(args[index]);
+        _volumes = new Volume[_args.length];
+
+        for (int index = 0; index < _args.length; index++) {
+            final Volume volume = getPersistit().getVolume(_args[index]);
             if (volume == null) {
-                println("Volume name not found: " + args[index]);
+                println("Volume name not found: " + _args[index]);
             } else {
                 _volumes[index] = volume;
             }
@@ -68,15 +68,14 @@ public class ConfirmEmptyVolumeTest extends TestRunner.Test {
     }
 
     @Override
-    protected void tearDownTest() {
+    public void tearDown() throws Exception {
         _volumes = null;
-
+        super.tearDown();
     }
 
-    @Override
-    public void runTest() {
-        final TestRunner.Result[] results =
-            new TestRunner.Result[_volumes.length];
+    public void test1() {
+        final PersistitTestResult[] results =
+            new PersistitTestResult[_volumes.length];
         int resultCount = 0;
         boolean passed = true;
         try {
@@ -86,7 +85,7 @@ public class ConfirmEmptyVolumeTest extends TestRunner.Test {
                     final String[] treeNames = volume.getTreeNames();
                     final boolean empty = treeNames.length == 0;
                     if (empty) {
-                        results[resultCount] = new TestRunner.Result(true);
+                        results[resultCount] = new PersistitTestResult(true);
                     } else {
                         final StringBuffer sb = new StringBuffer();
                         for (int i = 0; i < treeNames.length; i++) {
@@ -94,28 +93,33 @@ public class ConfirmEmptyVolumeTest extends TestRunner.Test {
                             sb.append(" ");
                         }
                         results[resultCount] =
-                            new TestRunner.Result(false, sb.toString());
+                            new PersistitTestResult(false, sb.toString());
                         passed = false;
                     }
                     resultCount++;
                 } else {
                     _result =
-                        new TestRunner.Result(false, "Volume name "
+                        new PersistitTestResult(false, "Volume name "
                             + _args[index] + " not found");
                     results[index] = _result;
                     resultCount++;
                 }
             }
             if (resultCount > 1) {
-                _result = new TestRunner.Result(passed, results);
+                _result = new PersistitTestResult(passed, results);
             }
 
         } catch (final Exception ex) {
-            _result = new TestRunner.Result(false, ex);
+            _result = new PersistitTestResult(false, ex);
             println(ex.toString());
         }
         println();
         print("done");
+    }
+    
+    @Override
+    public void executeTest() throws Exception {
+    	test1();
     }
 
     public static void main(final String[] args) throws Exception {

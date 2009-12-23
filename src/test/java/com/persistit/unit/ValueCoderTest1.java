@@ -35,7 +35,7 @@ import com.persistit.encoding.ValueRenderer;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.PersistitException;
 
-public class ValueCoderTest1 extends PersistitTestCase {
+public class ValueCoderTest1 extends PersistitUnitTestCase {
 
     Exchange _exchange;
 
@@ -252,7 +252,7 @@ public class ValueCoderTest1 extends PersistitTestCase {
         new ValueCoderTest1().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         try {
             _persistit.getCoderManager().registerValueCoder(TreeMap.class,
                 new MapValueRenderer(TreeMap.class));

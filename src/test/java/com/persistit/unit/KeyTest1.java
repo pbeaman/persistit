@@ -21,12 +21,14 @@ package com.persistit.unit;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import org.junit.Test;
+
 import junit.framework.Assert;
 
 import com.persistit.Key;
 import com.persistit.Util;
 
-public class KeyTest1 extends PersistitTestCase {
+public class KeyTest1 extends PersistitUnitTestCase {
     
     private final Key _key1 = new Key(_persistit);
     private final Key _key2 = new Key(_persistit);
@@ -65,6 +67,7 @@ public class KeyTest1 extends PersistitTestCase {
             Double.MIN_VALUE / 4.0, Double.NaN, Double.NEGATIVE_INFINITY,
             Double.POSITIVE_INFINITY };
 
+    @Test
     public void test1() {
         System.out.print("test1 ");
         for (int index = 0; index < TEST_LONGS.length; index++) {
@@ -85,13 +88,13 @@ public class KeyTest1 extends PersistitTestCase {
 
             debugAssert(lv1 == lv2);
 
-            Assert.assertNull(test1a(lv1));
-            Assert.assertNull(test1a(-lv1));
+            Assert.assertNull(t1a(lv1));
+            Assert.assertNull(t1a(-lv1));
         }
         System.out.println("- done");
     }
 
-    private String test1a(final long lv) {
+    private String t1a(final long lv) {
 
         _key1.clear().append((byte) lv);
         if (_key1.indexTo(0).decodeByte() != (byte) lv) {
@@ -137,6 +140,7 @@ public class KeyTest1 extends PersistitTestCase {
 
     }
 
+    @Test
     public void test2() {
         System.out.print("test2 ");
         for (int i1 = 0; i1 < TEST_LONGS.length; i1++) {
@@ -168,6 +172,7 @@ public class KeyTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() {
         System.out.print("test3 ");
         for (int index = 0; index < TEST_FLOATS.length; index++) {
@@ -191,6 +196,7 @@ public class KeyTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test4() {
         System.out.print("test4 ");
         for (int i1 = 0; i1 < TEST_FLOATS.length; i1++) {
@@ -236,6 +242,7 @@ public class KeyTest1 extends PersistitTestCase {
         return f1 == f2;
     }
 
+    @Test
     public void test5() {
         System.out.print("test5 ");
         for (int index = 0; index < TEST_DOUBLES.length; index++) {
@@ -259,7 +266,8 @@ public class KeyTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
-    public void test6() {
+   @Test
+   public void test6() {
         System.out.print("test6 ");
         for (int i1 = 0; i1 < TEST_DOUBLES.length; i1++) {
             for (int i2 = 0; i2 < TEST_DOUBLES.length; i2++) {
@@ -298,6 +306,7 @@ public class KeyTest1 extends PersistitTestCase {
      * Verify key type ordering
      * 
      */
+   @Test
     public void test7() {
         System.out.print("test7 ");
 
@@ -380,17 +389,22 @@ public class KeyTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    // Note: this test has been run with INCREMENT = 1 (i.e., every int value),
+    // that's too slow (5 minutes) for unit tests in normal builds.
+    //
+    private static final int INCREMENT = 123; 
+
+    @Test
     public void test8() {
         System.out.print("test8 ");
-
         final int start = Integer.MIN_VALUE;
         final int end = Integer.MAX_VALUE;
-        for (int u = start; u < end; u++) {
+        for (int u = start; u < end; u+=INCREMENT) {
             if ((u % 100000000) == 0) {
                 System.out.print(" " + u);
             }
             _key1.clear().append(u);
-            final int v = _key1.clear().decodeInt();
+            final int v = _key1.reset().decodeInt();
             if (u != v) {
                 assertEquals(u, v);
             }
@@ -399,6 +413,7 @@ public class KeyTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test9() {
         System.out.print("test9 ");
 
@@ -426,6 +441,7 @@ public class KeyTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test10() {
         System.out.print("test10 ");
 
@@ -451,13 +467,14 @@ public class KeyTest1 extends PersistitTestCase {
 
             assertEquals(biv1, biv2);
 
-            Assert.assertNull(test1a(lv1));
-            Assert.assertNull(test1a(-lv1));
+            Assert.assertNull(t1a(lv1));
+            Assert.assertNull(t1a(-lv1));
         }
 
         System.out.println("- done");
     }
 
+    @Test
     public void test11() {
         System.out.print("test11 ");
         for (int i1 = 0; i1 < TEST_LONGS.length; i1++) {
@@ -492,6 +509,7 @@ public class KeyTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test12() {
         System.out.print("test12 ");
         final Key key = new Key(_persistit);
@@ -519,6 +537,7 @@ public class KeyTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test13() {
         System.out.print("test13 ");
         final StringBuffer sb = new StringBuffer();
@@ -603,11 +622,11 @@ public class KeyTest1 extends PersistitTestCase {
         return f1 == f2;
     }
 
-    public static void main(final String[] args) throws Exception {
-        new KeyTest1().runTest();
-    }
+//    public static void main(final String[] args) throws Exception {
+//        new KeyTest1().runTest();
+//    }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
         test2();
         test3();
@@ -615,9 +634,8 @@ public class KeyTest1 extends PersistitTestCase {
         test5();
         test6();
         test7();
-        // Tests 8 and 9 run for a long time.
-        // test8();
-        // test9();
+        test8();
+        test9();
         test10();
         test11();
         test12();

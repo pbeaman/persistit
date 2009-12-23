@@ -54,6 +54,8 @@ import javax.swing.text.PlainDocument;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 
+import org.junit.Ignore;
+
 /**
  * 
  * Framework for running tests on Persistit.
@@ -62,6 +64,7 @@ import javax.swing.text.StyleConstants;
  * intended to permit long-term unattended testing.
  * 
  */
+@Ignore
 public class TestRunnerGui extends JFrame {
 
     /**
@@ -106,7 +109,7 @@ public class TestRunnerGui extends JFrame {
                     if (!lsm.getValueIsAdjusting()) {
                         final int index = lsm.getMinSelectionIndex();
                         if (index != -1) {
-                            final TestRunner.Test test =
+                            final PersistitScriptedTestCase test =
                                 _testTableModel.getTest(index);
                             _displayPanel.setTest(test);
                         }
@@ -165,7 +168,7 @@ public class TestRunnerGui extends JFrame {
          */
         private static final long serialVersionUID = 1L;
 
-        TestRunner.Test _test;
+        PersistitScriptedTestCase _test;
 
         JTextArea _textArea = new JTextArea();
 
@@ -216,7 +219,7 @@ public class TestRunnerGui extends JFrame {
             }
         };
 
-        private void setTest(final TestRunner.Test test) {
+        private void setTest(final PersistitScriptedTestCase test) {
             if ((_test != null) && (_test.getDocument() != null)) {
                 _test.getDocument().removeDocumentListener(_listener);
             }
@@ -243,7 +246,7 @@ public class TestRunnerGui extends JFrame {
         }
     }
 
-    public void addTest(final TestRunner.Test test) {
+    public void addTest(final PersistitScriptedTestCase test) {
 
         final PlainDocument doc = new PlainDocument();
         final PrintStream ps =
@@ -289,7 +292,7 @@ public class TestRunnerGui extends JFrame {
             _flusher.start();
         }
 
-        public void addTest(final TestRunner.Test test) {
+        public void addTest(final PersistitScriptedTestCase test) {
             _list.add(test);
             SwingUtilities.invokeLater(new Runnable() {
                 public void run() {
@@ -306,12 +309,12 @@ public class TestRunnerGui extends JFrame {
             return _list.size();
         }
 
-        public TestRunner.Test getTest(final int row) {
-            return (TestRunner.Test) _list.get(row);
+        public PersistitScriptedTestCase getTest(final int row) {
+            return (PersistitScriptedTestCase) _list.get(row);
         }
 
         public Object getValueAt(final int row, final int column) {
-            final TestRunner.Test test = (TestRunner.Test) _list.get(row);
+            final PersistitScriptedTestCase test = (PersistitScriptedTestCase) _list.get(row);
             if (test == null) {
                 return null;
             }
@@ -377,7 +380,7 @@ public class TestRunnerGui extends JFrame {
         runner.execute();
     }
 
-    public void setupConsoleOutput(final TestRunner.Test test) {
+    public void setupConsoleOutput(final PersistitScriptedTestCase test) {
         final PlainDocument doc = new PlainDocument();
         final PrintStream ps =
             new PrintStream(new ConsoleOutputStream(doc, false));

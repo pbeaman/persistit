@@ -20,6 +20,8 @@ package com.persistit.unit;
 
 import java.util.TreeMap;
 
+import org.junit.Test;
+
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
@@ -29,9 +31,9 @@ import com.persistit.exception.PersistitException;
 /**
  * @version 1.0
  */
-public class KeyFilterTest1 extends PersistitTestCase {
+public class KeyFilterTest1 extends PersistitUnitTestCase {
     
-    
+    @Test
     public void test1() {
         System.out.print("test1 ");
         final Key key = new Key(_persistit);
@@ -112,6 +114,7 @@ public class KeyFilterTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() {
         System.out.print("test2 ");
         final Key key = new Key(_persistit);
@@ -130,6 +133,7 @@ public class KeyFilterTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() throws PersistitException {
         System.out.print("test3 ");
         final Exchange ex = _persistit.getExchange("persistit", "KeyFilter1", true);
@@ -190,6 +194,7 @@ public class KeyFilterTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test4() throws PersistitException {
         System.out.print("test4 ");
         final TreeMap treeMap = new TreeMap();
@@ -335,6 +340,7 @@ public class KeyFilterTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test5() throws PersistitException {
         System.out.print("test5 ");
         KeyFilter filter;
@@ -351,7 +357,7 @@ public class KeyFilterTest1 extends PersistitTestCase {
         new KeyFilterTest1().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
         test2();
         test3();

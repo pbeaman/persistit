@@ -37,7 +37,7 @@ import com.persistit.PersistitMap;
 import com.persistit.Util;
 import com.persistit.exception.PersistitException;
 
-public class PersistitMapTest extends PersistitTestCase {
+public class PersistitMapTest extends PersistitUnitTestCase {
 
     private final Object[] TEST_VALUES =
         new Object[] { "Value 0", "Value 1", new Integer(2), new TreeMap(),
@@ -466,11 +466,11 @@ public class PersistitMapTest extends PersistitTestCase {
         final Exchange ex =
             _persistit.getExchange("persistit", "PersistitMapTest", true);
 
+        int NUM_ROWS = 10000; // 1 mill
+
         {
             final PersistitMap pmap = new PersistitMap(ex);
             pmap.clear();
-
-            int NUM_ROWS = 1000000; // 1 mill
 
             System.out.println("starting add of " + NUM_ROWS);
 
@@ -493,9 +493,7 @@ public class PersistitMapTest extends PersistitTestCase {
             //
             PersistitMap persistitMap = new PersistitMap(ex);
 
-            int NUM_ROWS = 1000000; // 1 mill
-
-            int NUM_READS = 100000; // 100k
+            int NUM_READS = NUM_ROWS / 10; // 100k
 
             Random rand = new Random(NUM_ROWS);
 
@@ -622,7 +620,7 @@ public class PersistitMapTest extends PersistitTestCase {
         new PersistitMapTest().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
          test1();
          test2();
          test3();

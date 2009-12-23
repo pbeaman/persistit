@@ -18,6 +18,8 @@
  */
 package com.persistit.unit;
 
+import org.junit.Test;
+
 import com.persistit.Key;
 import com.persistit.KeyParser;
 import com.persistit.Persistit;
@@ -25,7 +27,7 @@ import com.persistit.Persistit;
 /**
  * @version 1.0
  */
-public class KeyParserTest1 extends PersistitTestCase {
+public class KeyParserTest1 extends PersistitUnitTestCase {
     
     private static final Persistit _persistit = new Persistit();
     
@@ -41,6 +43,7 @@ public class KeyParserTest1 extends PersistitTestCase {
 
     public static String[] INVALID_STRINGS = {};
 
+    @Test
     public void test1() {
         final Key key = new Key(_persistit);
         System.out.print("test1 ");
@@ -56,6 +59,7 @@ public class KeyParserTest1 extends PersistitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test2() {
         System.out.print("test2 ");
         System.out.println("- done");
@@ -78,7 +82,7 @@ public class KeyParserTest1 extends PersistitTestCase {
         new KeyParserTest1().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
         test2();
     }

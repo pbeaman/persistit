@@ -6,7 +6,7 @@ import junit.framework.TestCase;
 
 import com.persistit.Persistit;
 
-public abstract class PersistitTestCase extends TestCase {
+public abstract class PersistitUnitTestCase extends TestCase {
 
     protected Persistit _persistit = new Persistit();
     
@@ -24,7 +24,7 @@ public abstract class PersistitTestCase extends TestCase {
         _persistit.close();
     }
     
-    public abstract void runTest() throws Exception;
+    public abstract void runAllTests() throws Exception;
     
     public void setPersistit(final Persistit persistit) {
         _persistit = persistit;
@@ -33,7 +33,7 @@ public abstract class PersistitTestCase extends TestCase {
     protected void initAndRunTest() throws Exception {
         _persistit.initialize(getProperties());
         try {
-            runTest();
+        	runAllTests();
         } catch (final Throwable t) {
             t.printStackTrace();
         } finally {

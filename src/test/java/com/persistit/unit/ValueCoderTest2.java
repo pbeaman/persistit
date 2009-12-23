@@ -25,9 +25,21 @@ import com.persistit.DefaultObjectCoder;
 import com.persistit.Exchange;
 import com.persistit.exception.PersistitException;
 
-public class ValueCoderTest2 extends PersistitTestCase {
+public class ValueCoderTest2 extends PersistitUnitTestCase {
     
     Exchange _exchange;
+    
+    @Override
+    public void setUp() throws Exception {
+    	super.setUp();
+    	_exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
+    }
+    
+    @Override
+    public void tearDown() throws Exception {
+    	_persistit.releaseExchange(_exchange);
+    	super.tearDown();
+    }
 
     static class Vehicle {
         String id;
@@ -293,7 +305,7 @@ public class ValueCoderTest2 extends PersistitTestCase {
         new ValueCoderTest2().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         _exchange = _persistit.getExchange("persistit", "ValueCoderTest2", true);
 
         DefaultObjectCoder.registerObjectCoder(_persistit, Vehicle.class,

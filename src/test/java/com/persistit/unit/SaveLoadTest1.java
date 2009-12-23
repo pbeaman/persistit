@@ -27,7 +27,7 @@ import com.persistit.StreamLoader;
 import com.persistit.StreamSaver;
 import com.persistit.exception.PersistitException;
 
-public class SaveLoadTest1 extends PersistitTestCase {
+public class SaveLoadTest1 extends PersistitUnitTestCase {
     
     public void test1() throws PersistitException, IOException {
         System.out.print("test1 ");
@@ -57,7 +57,7 @@ public class SaveLoadTest1 extends PersistitTestCase {
         new SaveLoadTest1().initAndRunTest();
     }
 
-    public void runTest() throws Exception {
+    public void runAllTests() throws Exception {
         test1();
     }
 
