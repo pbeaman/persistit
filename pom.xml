@@ -25,11 +25,13 @@
 			<artifactId>mail</artifactId>
 			<version>1.4</version>
 		</dependency>
+<!--
 		<dependency>
 			<groupId>javax.help</groupId>
 			<artifactId>search</artifactId>
 			<version>2.0.02</version>
 		</dependency>
+-->
 	</dependencies>
 
 	<build>
