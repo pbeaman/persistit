@@ -23,7 +23,7 @@ import java.util.Properties;
 
 public class UnitTestProperties {
 	
-	private final static String DATA_PATH = "/tmp/persistit_test_data";
+	public final static String DATA_PATH = "/tmp/persistit_test_data";
     /**
      * Returns a Properties object with settings appropriate for unit tests -
      * i.e., very small allocations.

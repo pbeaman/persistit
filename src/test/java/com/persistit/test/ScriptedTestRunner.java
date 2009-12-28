@@ -32,6 +32,7 @@ import java.util.StringTokenizer;
 import com.persistit.ArgParser;
 import com.persistit.Persistit;
 import com.persistit.Util;
+import com.persistit.unit.UnitTestProperties;
 
 /**
  * 
@@ -61,9 +62,9 @@ public class ScriptedTestRunner {
 	private final static String SPACES = "                                   ";
 
 	private final static String[] ARGS_TEMPLATE = {
-			"script|String:./testscript.txt|Script file name",
-			"logpath|String:./", "datapath|String:./data", "select|String:*",
-			"_flag|v|Verbose log to console",
+			"script|String:./src/test/resources/testscript.txt|Script file name",
+			"logpath|String:./", "datapath|String:" + UnitTestProperties.DATA_PATH, 
+			"select|String:*", "_flag|v|Verbose log to console",
 			"_flag|g|Launch diagnostic GUI on Persistit init", };
 
 	private final static String[] EMPTY_STRING_ARRAY = new String[0];
