@@ -2140,7 +2140,7 @@ implements Comparable
         {
             return (byte)decodeInt();
         }
-        throw new ConversionException("Invalid short type " + type);
+        throw new ConversionException("Invalid byte type " + type);
     }
     
     /**
@@ -2174,7 +2174,7 @@ implements Comparable
         {
             return (char)decodeInt();
         }
-        throw new ConversionException("Invalid short type " + type);
+        throw new ConversionException("Invalid char type " + type);
     }
     
     /**
