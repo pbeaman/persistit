@@ -15,5 +15,5 @@ $ mvn install:install-file -DgroupId=javax.help -DartifactId=search -Dversion=2.
 #
 # Install jars in your local repository
 #
-$ mvn clean source:jar
+$ mvn clean source:jar install
 
