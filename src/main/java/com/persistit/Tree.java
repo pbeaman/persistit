@@ -71,18 +71,18 @@ extends SharedResource
         _initialized = true; 
     }
     
-    Volume getVolume()
+    public Volume getVolume()
     {
         return _volume;
     }
     
-	String getName()
+	public String getName()
     {
         mustBeInitialized();
 		return _name;
 	}
 
-	int getTreeIndex()
+	public int getTreeIndex()
     {
         mustBeInitialized();
 		return _treeIndex;
