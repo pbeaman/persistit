@@ -181,6 +181,7 @@ extends Task
         }
         _handler =
             new ImportHandler(
+            	_persistit,
                 selectedVolumeName, 
                 selectedTreeName, 
                 createMissingVolumes, 
@@ -342,8 +343,9 @@ extends Task
         return true;
     }
 
-    public class ImportHandler
+    public static class ImportHandler
     {
+    	protected Persistit _persistit;
         protected String _selectedVolumeName;
         protected String _selectedTreeName;
         protected KeyFilter _keyFilter;
@@ -353,18 +355,20 @@ extends Task
         protected boolean _createMissingVolumes;
         protected boolean _createMissingTrees;
         
-        public ImportHandler()
+        public ImportHandler(Persistit persistit)
         {
-            this(null, null, true, true, null);
+            this(persistit, null, null, true, true, null);
         }
         
         public ImportHandler(
+        	Persistit persistit,
             String selectedVolumeName, 
             String selectedTreeName, 
             boolean createMissingVolumes, 
             boolean createMissingTrees,
             KeyFilter keyFilter)
         {
+        	_persistit = persistit;
             _selectedTreeName = selectedTreeName;
             _selectedVolumeName = selectedVolumeName;
             _createMissingTrees = createMissingTrees;
