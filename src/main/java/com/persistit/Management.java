@@ -673,6 +673,29 @@ extends Remote
     public void stopTask(long taskId, boolean remove)
     throws RemoteException;
     
+    public DisplayFilter getDisplayFilter()
+    throws RemoteException;
+
+	public void setDisplayFilter(DisplayFilter displayFilter)
+    throws RemoteException;
+
+
+    /**
+     * A DisplayFilter formats the String value presented in the Tree tab
+     * of the AdminUI. Invoke {@link ManagementImpl#setDisplayFilter(DisplayFilter)} 
+     * to supplyu a non-default DisplayFilter. 
+     * @author peter
+     *
+     */
+    public interface DisplayFilter {
+
+    	public String toKeyDisplayString(final Exchange exchange);
+    	
+    	public String toValueDisplayString(final Exchange exchange);
+    	
+    }
+
+   
     /**
      * Base class for all management data structures that retain the time at
      * which the information was recorded.

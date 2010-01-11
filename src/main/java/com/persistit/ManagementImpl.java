@@ -66,14 +66,27 @@ implements Management, BuildConstants
     private static long _taskIdCounter;
     
 	private transient Persistit _persistit;
-    private boolean _registered = false;
+	private transient DisplayFilter _displayFilter;
+	
+	private boolean _registered = false;
     private String _registeredHostName;
     private HashMap _tasks = new HashMap();
-    
-    
+     
     public ManagementImpl(Persistit persistit)
     {
     	_persistit = persistit;
+    	_displayFilter = new DisplayFilter() {
+
+			@Override
+			public String toKeyDisplayString(Exchange exchange) {
+				return exchange.getKey().toString();
+			}
+
+			@Override
+			public String toValueDisplayString(Exchange exchange) {
+				return exchange.getValue().toString();
+			}
+    	};
     }
     
     /**
@@ -292,8 +305,8 @@ implements Management, BuildConstants
                     
                     if (decodeStrings)
                     {
-                        record._keyString = exchange.getKey().toString();
-                        record._valueString = exchange.getValue().toString();
+                    	record._keyString = _displayFilter.toKeyDisplayString(exchange);
+                    	record._valueString = _displayFilter.toValueDisplayString(exchange);
                     }
                     
                     if (forward)
@@ -1074,6 +1087,14 @@ implements Management, BuildConstants
             }
         }
     }
+    
+    public DisplayFilter getDisplayFilter() {
+		return _displayFilter;
+	}
+
+	public void setDisplayFilter(DisplayFilter displayFilter) {
+		_displayFilter = displayFilter;
+	}
 
     void register(String hostName, String portString)
     {
