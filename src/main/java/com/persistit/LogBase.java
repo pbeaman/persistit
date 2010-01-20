@@ -74,19 +74,19 @@ public class LogBase
 
     private static int _logId = 0;
     
-    final static int LOG_GENERAL = addLogTemplate(ALWAYS, LIFECYCLE, "Persistit: {0}");
-    final static int LOG_DEBUG = addLogTemplate(ALWAYS, DEBUG, "{0}");
-    final static int LOG_COPYRIGHT = addLogTemplate(ALWAYS, LIFECYCLE, Persistit.copyright());
-    final static int LOG_START = addLogTemplate(ALWAYS, LIFECYCLE, "START");
-    final static int LOG_END = addLogTemplate(ALWAYS, LIFECYCLE, "END");
+    final static int LOG_GENERAL = addLogTemplate(INFO, LIFECYCLE, "Persistit: {0}");
+    final static int LOG_DEBUG = addLogTemplate(INFO, DEBUG, "{0}");
+    final static int LOG_COPYRIGHT = addLogTemplate(INFO, LIFECYCLE, Persistit.copyright());
+    final static int LOG_START = addLogTemplate(INFO, LIFECYCLE, "START");
+    final static int LOG_END = addLogTemplate(INFO, LIFECYCLE, "END");
     final static int LOG_LICENSE = addLogTemplate(INFO, LIFECYCLE, "LICENSE");
     final static int LOG_LICENSE_EXPIRED = addLogTemplate(WARNING, LIFECYCLE, "LICENSE_EXPIRED");
     public final static int LOG_EXCEPTION = addLogTemplate(SEVERE, ALL, "EXCEPTION");
     final static int LOG_INIT_ALLOCATE_BUFFERS = addLogTemplate(INFO, LIFECYCLE, "INIT_ALLOCATE_BUFFERS");
     final static int LOG_INIT_OPEN_VOLUME = addLogTemplate(INFO, LIFECYCLE, "INIT_OPEN_VOLUME");
-    final static int LOG_INIT_RECOVER_BEGIN = addLogTemplate(ALWAYS, LIFECYCLE, "INIT_RECOVER_BEGIN");
+    final static int LOG_INIT_RECOVER_BEGIN = addLogTemplate(WARNING, LIFECYCLE, "INIT_RECOVER_BEGIN");
     final static int LOG_INIT_RECOVER_PLAN = addLogTemplate(FINE, LIFECYCLE, "INIT_RECOVER_PLAN");
-    final static int LOG_INIT_RECOVER_END = addLogTemplate(ALWAYS, LIFECYCLE, "INIT_RECOVER_END");
+    final static int LOG_INIT_RECOVER_END = addLogTemplate(WARNING, LIFECYCLE, "INIT_RECOVER_END");
     final static int LOG_RECOVERY_FAILURE1 = addLogTemplate(SEVERE, LIFECYCLE, "RECOVERY_FAILURE1");
     final static int LOG_RECOVERY_FAILURE2 = addLogTemplate(WARNING, LIFECYCLE, "RECOVERY_FAILURE2");
     final static int LOG_TXN_EXCEPTION = addLogTemplate(SEVERE, PERSISTIT, "TXN_EXCEPTION");
