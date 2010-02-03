@@ -1065,6 +1065,28 @@ public class KeyFilter
         return rangeTerm(fromValue, toValue, true, true, context);
     }
     
+    /**
+     * Returns a <tt>Term</tt> that accepts a range of values.  The range
+     * optionally includes these two values and all values that lie 
+     * between them according to the 
+     * <a href="Key.html#_keyOrdering">key ordering specification</a>.
+     * 
+     * @param fromValue The first value that will be selected by this term
+     * 
+     * @param toValue   The last value that will be selected by this term
+     * 
+     * @param leftInclusive Indicates whether a value exactly matching 
+     *          <tt>fromValue</tt> should be selected by this <tt>Term</tt>.
+     * 
+     * @param rightInclusive Indicates whether a value exactly matching
+     *          <tt>toValue</tt> should be selected by this <tt>Term</tt>.
+     * 
+     * @return  The <tt>term</tt>
+     * 
+     * @throws IllegalArgumentException if <tt>fromValue</tt> follows
+     *      <tt>toValue</tt>.
+     */
+
     public static Term rangeTerm(
         Object fromValue, 
         Object toValue, 
@@ -1128,6 +1150,41 @@ public class KeyFilter
             return new RangeTerm(leftBytes, rightBytes, leftInclusive, rightInclusive);
         }
         else return new SimpleTerm(leftBytes);
+    }
+    
+    /**
+     * Returns a <tt>Term</tt> that accepts a range of values.  The
+     * range is specified by values already encoded in two supplied
+     * {@link Key}s. The index of each Key object should be set on
+     * entry to the segment to be used in constructing the RangeTerm.
+     * As a side-effect, the index of each key is advanced to the
+     * next segment. If the two key segments are identical and if both
+     * leftInclusive and rightInclusive are true, this method
+     * returns a SimpleTerm containing the segment.
+     * 
+     * @param fromKey A <tt>Key</tt? from which the low value in
+     * 		    the range is extracted
+     * 
+     * @param toKey A <tt>Key</tt? from which the high value in
+     * 		    the range is extracted
+     * 
+     * @param leftInclusive Indicates whether a value exactly matching 
+     *          <tt>fromValue</tt> should be selected by this <tt>Term</tt>.
+     * 
+     * @param rightInclusive Indicates whether a value exactly matching
+     *          <tt>toValue</tt> should be selected by this <tt>Term</tt>.
+     * 
+     * @return The <tt>term</tt>
+     */
+    public static Term termFromKeySegments(Key fromKey, Key toKey, boolean leftInclusive, boolean rightInclusive) {
+        byte[] leftBytes = segmentBytes(fromKey);
+        byte[] rightBytes = segmentBytes(toKey);
+        toKey.nextElementIndex();
+        if (leftInclusive && rightInclusive && compare(leftBytes, rightBytes) == 0) {
+        	return new SimpleTerm(leftBytes);
+        } else {
+        	return new RangeTerm(leftBytes, rightBytes, leftInclusive, rightInclusive);
+        }
     }
     
     /**
