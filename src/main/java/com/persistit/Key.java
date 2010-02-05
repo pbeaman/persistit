@@ -1241,7 +1241,7 @@ implements Comparable
      * @param key   The code on which to count matching bytes
      * 
      * @return      The index of the first byte of this key that is unequal
-     *              to the byte in the correponding position of the supplied
+     *              to the byte in the corresponding position of the supplied
      *              <tt>Key</tt>.
      */
     public int firstUniqueByteIndex(Key key)

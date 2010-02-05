@@ -352,6 +352,19 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         filter = new KeyFilter("{\"id\", : (long) 200 }");
         System.out.println("- done");
     }
+    
+    @Test
+    public void test6() throws PersistitException {
+        System.out.print("test6 ");
+        final Exchange ex = _persistit.getExchange("persistit", "KeyFilter1", true);
+        ex.removeAll();
+        final KeyFilter filter = new KeyFilter("{2,*,4,(long)1004:(long)1007,3,>*<}");
+        ex.append(2).append(1L).append(4).append(1006L).append(3).append(1005007L);
+        ex.getValue().put("test6");
+        ex.store();
+        ex.clear().append(Key.BEFORE);
+        assertTrue(ex.traverse(Key.GTEQ, filter, 0));
+    }
 
     public static void main(final String[] args) throws Exception {
         new KeyFilterTest1().initAndRunTest();
@@ -363,6 +376,7 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         test3();
         test4();
         test5();
+        test6();
     }
 
 }
