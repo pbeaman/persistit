@@ -153,7 +153,6 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
                     true, null), });
         final KeyFilter kf = new KeyFilter().append(orTerm);
 
-        System.out.println("- done");
         ex.to(Key.BEFORE);
         boolean[] traversed = new boolean[100];
         while (ex.next()) {
@@ -364,6 +363,8 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         ex.store();
         ex.clear().append(Key.BEFORE);
         assertTrue(ex.traverse(Key.GTEQ, filter, 0));
+        System.out.println("- done");
+
     }
 
     public static void main(final String[] args) throws Exception {

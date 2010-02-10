@@ -605,7 +605,9 @@ public class KeyFilter
 
         boolean forward(Key key, int offset, int length)
         {
-            if (this == ALL) return false;
+            if (this == ALL) {
+            	return true;
+            }
             
             byte[] keyBytes = key.getEncodedBytes();
             
@@ -629,7 +631,9 @@ public class KeyFilter
 
         boolean backward(Key key, int offset, int length)
         {
-            if (this == ALL) return false;
+            if (this == ALL) {
+            	return false;
+            }
 
             byte[] keyBytes = key.getEncodedBytes();
             
@@ -1368,6 +1372,10 @@ public class KeyFilter
      * than <i>W</i> if <tt>forward</tt> is <tt>false</tt>.
      * </p>
      * <p>
+     * As a side-effect, this method resets the supplied key's index to 0 (see
+     * {@link Key#reset()}.
+     * </p>
+     * <p>
      * Note that this method does not necessarily find a key that actually
      * exists in a Persistit tree, but rather a key value from which traversal 
      * in a tree can proceed. The {@link Exchange#traverse(Key.Direction,
@@ -1386,7 +1394,10 @@ public class KeyFilter
      */
     public boolean traverse(Key key, boolean forward)
     {
-        return traverse(key, 0, forward);
+    	key.setIndex(0);
+        final boolean result = traverse(key, 0, forward);
+        key.setIndex(0);
+        return result;
     }
     
     private boolean traverse(Key key, int level, boolean forward)
@@ -1394,7 +1405,7 @@ public class KeyFilter
         int index = key.getIndex();
         if (index >= key.getEncodedSize())
         {
-            if (forward) key.nudgeUp();
+            if (forward) key.nudgeUp2();
             else key.nudgeDown();
             return true;
         }
