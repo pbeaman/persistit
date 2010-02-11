@@ -2,10 +2,10 @@
 
 <project>
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>com.akiba</groupId>
-	<artifactId>akiba-persistit</artifactId>
+	<groupId>com.akiban</groupId>
+	<artifactId>akiban-persistit</artifactId>
 	<packaging>jar</packaging>
-	<name>akiba-persistit</name>
+	<name>akiban-persistit</name>
 	<version>2.0.1</version>
 
 	<dependencies>
