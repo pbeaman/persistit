@@ -31,6 +31,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.FileInputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.URL;
@@ -1530,7 +1531,15 @@ implements UtilControl, Runnable, AdminCommand
         {
             public void run()
             {
-                refresh(false);
+            	try {
+					SwingUtilities.invokeAndWait(new Runnable() {
+						public void run() {
+					        refresh(false);
+						}
+					});
+				} catch (InterruptedException e) {
+				} catch (InvocationTargetException e) {
+				}
             }
         };
         
