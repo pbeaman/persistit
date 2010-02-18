@@ -65,26 +65,25 @@ extends Task
      * Package-private constructor for use in a {@link Task}.
      *
      */
-    StreamLoader(final Persistit persistit)
+    StreamLoader()
     {
-    	super(persistit);
     }
     
     public StreamLoader(final Persistit persistit, final DataInputStream dis)
     {
-    	this(persistit);
+    	super(persistit);
         _dis = dis;
     }
     
     public StreamLoader(final Persistit persistit, BufferedInputStream bos)
     {
-    	this(persistit);
+    	super(persistit);
         _dis = new DataInputStream(bos);
     }
     
     public StreamLoader(final Persistit persistit, InputStream os)
     {
-    	this(persistit);
+    	super(persistit);
         _dis = new DataInputStream(
             new BufferedInputStream(os, DEFAULT_BUFFER_SIZE));
     }

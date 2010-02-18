@@ -52,7 +52,6 @@ public class IntegrityCheck extends Task {
     public final static int MAX_FAULTS = 200;
     public final static int MAX_WALK_RIGHT = 1000;
 
-    private Persistit _persistit;
     private Tree _currentTree;
     private LongBitSet _usedPageBits = new LongBitSet();
     private long _totalPages = 0;
@@ -81,6 +80,13 @@ public class IntegrityCheck extends Task {
     // Used in checking long values
     private Value _value = new Value((Persistit) null);
 
+    /**
+     * Package-private constructor for use in a {@link Task}.
+     */
+    IntegrityCheck()
+    {
+    }
+    
     public IntegrityCheck(Persistit persistit) {
         super(persistit);
         _persistit = persistit;

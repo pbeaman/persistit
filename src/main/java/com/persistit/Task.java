@@ -93,7 +93,7 @@ implements Runnable, BuildConstants
     /**
      * The Persistit instance this Task runs against.
      */
-    protected final Persistit _persistit;
+    protected Persistit _persistit;
     /**
      * Task ID for this task
      */
@@ -169,7 +169,15 @@ implements Runnable, BuildConstants
      */
     protected Thread _thread;
     
+    protected Task() {
+    	
+    }
+    
     protected Task(final Persistit persistit) {
+    	setPersistit(persistit);
+    }
+    
+    protected void setPersistit(final Persistit persistit) {
     	_persistit = persistit;
     }
     /**

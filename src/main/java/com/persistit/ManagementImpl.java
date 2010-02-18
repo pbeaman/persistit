@@ -964,6 +964,7 @@ implements Management, BuildConstants
         {
             Class clazz = Class.forName(className);
             Task task = (Task)(clazz.newInstance());
+            task.setPersistit(_persistit);
             task.setup(taskId, description, owner, args, maximumTime, verbosity);
             _tasks.put(new Long(taskId), task);
             task.start();

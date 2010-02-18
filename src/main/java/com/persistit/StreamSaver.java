@@ -123,10 +123,9 @@ extends Task
      * must be called to specify trees and the output file name.
      *
      */
-    StreamSaver(final Persistit persistit)
+    StreamSaver()
     {
-    	super(persistit);
-    	_lastKey = new Key(persistit);
+    	_lastKey = new Key((Persistit)null);
     }
     /**
      * Construct a StreamSaver from the provided DataOutputStream. 
@@ -136,7 +135,7 @@ extends Task
      */
     public StreamSaver(final Persistit persistit, final DataOutputStream dos)
     {
-    	this(persistit);
+    	super(persistit);
         _dos = dos;
     }
     
@@ -149,7 +148,7 @@ extends Task
     public StreamSaver(final Persistit persistit, final File file)
     throws FileNotFoundException
     {
-    	this(persistit);
+    	super(persistit);
         _dos = 
             new DataOutputStream(
                 new BufferedOutputStream(
@@ -166,7 +165,7 @@ extends Task
     public StreamSaver(final Persistit persistit, final String pathName)
     throws FileNotFoundException
     {
-    	this(persistit);
+    	super(persistit);
         _dos = 
             new DataOutputStream(
                 new BufferedOutputStream(
@@ -185,7 +184,7 @@ extends Task
     public StreamSaver(final Persistit persistit, final File file, int bufferSize)
     throws FileNotFoundException
     {
-    	this(persistit);
+    	super(persistit);
         _dos = 
             new DataOutputStream(
                 new BufferedOutputStream(
@@ -203,7 +202,7 @@ extends Task
     public StreamSaver(final Persistit persistit, final String pathName, int bufferSize)
     throws FileNotFoundException
     {
-    	this(persistit);
+    	super(persistit);
         _dos = 
             new DataOutputStream(
                 new BufferedOutputStream(
