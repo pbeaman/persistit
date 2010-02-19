@@ -136,6 +136,7 @@ extends Task
     public StreamSaver(final Persistit persistit, final DataOutputStream dos)
     {
     	super(persistit);
+    	_lastKey = new Key(persistit);
         _dos = dos;
     }
     
@@ -148,12 +149,10 @@ extends Task
     public StreamSaver(final Persistit persistit, final File file)
     throws FileNotFoundException
     {
-    	super(persistit);
-        _dos = 
-            new DataOutputStream(
+    	this(persistit, new DataOutputStream(
                 new BufferedOutputStream(
                     new FileOutputStream(file),
-                    DEFAULT_BUFFER_SIZE));
+                    DEFAULT_BUFFER_SIZE)));
     }
     
     /**
@@ -165,12 +164,10 @@ extends Task
     public StreamSaver(final Persistit persistit, final String pathName)
     throws FileNotFoundException
     {
-    	super(persistit);
-        _dos = 
-            new DataOutputStream(
+    	this(persistit, new DataOutputStream(
                 new BufferedOutputStream(
                     new FileOutputStream(pathName),
-                    DEFAULT_BUFFER_SIZE));
+                    DEFAULT_BUFFER_SIZE)));
     }
     
     
@@ -184,12 +181,10 @@ extends Task
     public StreamSaver(final Persistit persistit, final File file, int bufferSize)
     throws FileNotFoundException
     {
-    	super(persistit);
-        _dos = 
-            new DataOutputStream(
+    	this(persistit, new DataOutputStream(
                 new BufferedOutputStream(
                     new FileOutputStream(file),
-                    bufferSize));
+                    bufferSize)));
     }
     
     /**
@@ -202,12 +197,10 @@ extends Task
     public StreamSaver(final Persistit persistit, final String pathName, int bufferSize)
     throws FileNotFoundException
     {
-    	super(persistit);
-        _dos = 
-            new DataOutputStream(
+    	this(persistit, new DataOutputStream(
                 new BufferedOutputStream(
                     new FileOutputStream(pathName),
-                    bufferSize));
+                    bufferSize)));
     }
     
     /**
