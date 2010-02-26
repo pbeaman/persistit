@@ -90,7 +90,7 @@ public class LogBase
     final static int LOG_RECOVERY_FAILURE1 = addLogTemplate(SEVERE, LIFECYCLE, "RECOVERY_FAILURE1");
     final static int LOG_RECOVERY_FAILURE2 = addLogTemplate(WARNING, LIFECYCLE, "RECOVERY_FAILURE2");
     final static int LOG_TXN_EXCEPTION = addLogTemplate(SEVERE, PERSISTIT, "TXN_EXCEPTION");
-    final static int LOG_TXN_NOT_COMMITTED = addLogTemplate(WARNING, PERSISTIT, "TXN_NOT_COMMITTED");
+    final static int LOG_TXN_NOT_COMMITTED = addLogTemplate(FINE, PERSISTIT, "TXN_NOT_COMMITTED");
     final static int LOG_TXN_RECOVERY_START = addLogTemplate(FINE, LIFECYCLE, "TXN_RECOVERY_START");
     final static int LOG_TXN_RECOVERY_FAILURE = addLogTemplate(SEVERE, LIFECYCLE, "TXN_RECOVERY_FAILURE");
     final static int LOG_TXN_RECOVERY_END = addLogTemplate(FINE, LIFECYCLE, "TXN_RECOVERY_END");
