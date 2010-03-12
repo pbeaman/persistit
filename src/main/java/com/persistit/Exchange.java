@@ -2338,7 +2338,7 @@ implements BuildConstants
                                 {
                                     //
                                     // The physical traversal went to a child
-                                    // of the next sibling (i.e. a neice or
+                                    // of the next sibling (i.e. a niece or
                                     // nephew), so therefore there must not be
                                     // a record associated with the key value
                                     // we are going to return.  This makes
