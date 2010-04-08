@@ -1672,13 +1672,14 @@ implements Comparable
         int size = _size;
         if (v >= 0)
         {
-            int scale;
-            if      (v > 0x0FFFFFFF) scale = 0;
-            else if (v > 0x001FFFFF) scale = 1;
-            else if (v > 0x00003FFF) scale = 2;
-            else if (v > 0x0000007F) scale = 3;
-            else if (v > 0x00000000) scale = 4;
-            else scale = 5;
+            final int scale;
+            if (v == 0) scale = 5;
+            else if (v < 0x00000080) scale = 4;
+            else if (v < 0x00004000) scale = 3;
+            else if (v < 0x00200000) scale = 2;
+            else if (v < 0x10000000) scale = 1;
+            else scale = 0;
+            
             _bytes[size++] = (byte)(TYPE_INT + EWIDTH_INT * 2 - scale);
             switch(scale)
             {

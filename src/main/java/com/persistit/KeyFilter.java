@@ -606,6 +606,8 @@ public class KeyFilter
         boolean forward(Key key, int offset, int length)
         {
             if (this == ALL) {
+            	key.setEncodedSize(offset + length);
+            	key.nudgeUp();
             	return true;
             }
             
@@ -632,7 +634,9 @@ public class KeyFilter
         boolean backward(Key key, int offset, int length)
         {
             if (this == ALL) {
-            	return false;
+            	key.setEncodedSize(offset + length);
+            	key.nudgeDown();
+            	return true;
             }
 
             byte[] keyBytes = key.getEncodedBytes();
@@ -831,6 +835,7 @@ public class KeyFilter
             if (compare == 0 && !_rightInclusive)
             {
                 key.setEncodedSize(offset + length);
+                key.nudgeDown();
                 return true;
             }
             else if (compare > 0)

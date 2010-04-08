@@ -257,6 +257,7 @@ extends SharedResource
         {
             _initialized = false;
             _generation = -1;
+            super.setValid(false);
         }
     }
     

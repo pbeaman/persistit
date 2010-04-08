@@ -290,6 +290,7 @@ implements BuildConstants
         _isDirectoryExchange = true;
         _transaction = _persistit.getTransaction();
         _timeout = _persistit.getDefaultTimeout();
+        _treeGeneration = -1;
         
         initCache();
     }
@@ -316,7 +317,7 @@ implements BuildConstants
         if (_volume != volume || _tree != tree)
         {
             _volume = volume;
-            _tree = volume.getTree(treeName, create);
+            _tree = tree;
             _treeGeneration = -1;
             initCache();
         }
@@ -331,7 +332,7 @@ implements BuildConstants
         
         _rootPage = exchange._rootPage;
         _treeDepth = exchange._treeDepth;
-        _treeGeneration = exchange._treeGeneration;
+        _treeGeneration = -1;
         _transaction = _persistit.getTransaction();
         _cacheDepth = exchange._cacheDepth;
         _timeout = exchange._timeout;
@@ -1457,7 +1458,8 @@ implements BuildConstants
                         {
                             treeClaimRequired = true;
                             treeWriterClaimRequired = true;
-                            throw RetryException.NO_DELAY;
+                            continue;
+                            //throw RetryException.NO_DELAY;
                         }
                         if (Debug.ENABLED) Debug.$assert(value.getPointerValue() > 0);
                         insertIndexLevel(key, value);
@@ -3049,7 +3051,15 @@ implements BuildConstants
     {
         checkOwnerThread();
         final int lockedResourceCount = _persistit.getLockManager().getLockedResourceCount();
-        _volume.removeTree(_tree);
+        boolean inTxn = _transaction.isActive();
+        clear();
+        _value.clear();
+        if (inTxn) {
+        	_transaction.removeTree(this);
+        } else {
+        	_volume.removeTree(_tree);
+        }
+    	initCache();
         _persistit.getLockManager().verifyNoStrayResourceClaims(lockedResourceCount);
     }
     /**
@@ -3065,7 +3075,7 @@ implements BuildConstants
     }
     
     /**
-     * Removes all keys in this <tt>Exchange</tt>'s <tt>Tree</tt>.
+     * Remove all keys in this <tt>Exchange</tt>'s <tt>Tree</tt>.
      * @return  <tt>true</tt> if there were key/value pairs removed
      * @throws PersistitException
      */

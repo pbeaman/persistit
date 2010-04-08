@@ -20,8 +20,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.Enumeration;
-import java.util.Hashtable;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.NoSuchElementException;
 import java.util.Stack;
 import java.util.StringTokenizer;
@@ -37,7 +37,6 @@ import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.TimeoutException;
-import com.persistit.exception.TreeNotFoundException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeFullException;
@@ -180,17 +179,17 @@ extends SharedResource
     
     // String name --> Tree tree
     
-    private Hashtable _treeNameHashTable = new Hashtable();
+    private HashMap<String, Tree> _treeNameHashMap = new HashMap<String, Tree>();
     
     // Tree index --> Tree tree
-    private Hashtable _treeIndexHashTable = new Hashtable();
+    private HashMap<Integer, Tree> _treeIndexHashMap = new HashMap<Integer, Tree>();
     
     private int _maxTreeIndex = 0;
     
     private boolean _closed;
     private Tree _directoryTree;
     
-    private Vector _deallocationList = new Vector();
+    private ArrayList<DeallocationChain> _deallocationList = new ArrayList<DeallocationChain>();
     
     private String _drive = "unknown";
     
@@ -1576,7 +1575,7 @@ extends SharedResource
                     Debug.$assert(chain._leftPage != left);
                 }
             }
-            _deallocationList.addElement(
+            _deallocationList.add(
                 new DeallocationChain(
                     treeIndex, left, right));
         }
@@ -1608,10 +1607,8 @@ extends SharedResource
     void commitAllTreeUpdates()
     throws RetryException, PersistitException
     {
-        Enumeration enumeration = _treeNameHashTable.elements();
-        while (enumeration.hasMoreElements())
+        for (final Tree tree : _treeNameHashMap.values())
         {
-            Tree tree = (Tree)enumeration.nextElement();
             tree.commit();
         }
     }
@@ -1622,12 +1619,12 @@ extends SharedResource
     void commitAllDeferredDeallocations()
     throws RetryException, PersistitException
     {
-        Vector list;
+        final ArrayList<DeallocationChain> list;
         synchronized(_lock)
         {
             if (_deallocationList.size() == 0) return;
             list = _deallocationList;
-            _deallocationList = new Vector();
+            _deallocationList = new ArrayList<DeallocationChain>();
         }
         
         if (Debug.ENABLED && list.size() > 1)
@@ -1675,7 +1672,7 @@ extends SharedResource
                     chain._treeIndex,
                     chain._leftPage,
                     chain._rightPage);
-                list.removeElementAt(list.size() - 1);
+                list.remove(list.size() - 1);
             }
         }
         finally
@@ -1694,13 +1691,7 @@ extends SharedResource
                     }
                     else
                     {
-                        for (int index = 0; index < list.size(); index++)
-                        {
-                            // using only 1.1 API in case we ever need
-                            // to backport.
-                            Object element = list.get(index);
-                            _deallocationList.add(element);
-                        }
+                        _deallocationList.addAll(list);
                     }
                 }
             }
@@ -1750,14 +1741,14 @@ extends SharedResource
             {
                 synchronized(_lock)
                 {
-                    tree = (Tree)_treeNameHashTable.get(name);
+                    tree = (Tree)_treeNameHashMap.get(name);
                     if (tree == null)
                     {
                         tree = new Tree(_persistit, this);
                         claimed = tree.claim(true);   // will always succeed
                         if (Debug.ENABLED) Debug.$assert(claimed);
                         
-                        _treeNameHashTable.put(name, tree);
+                        _treeNameHashMap.put(name, tree);
                         virgin = true;
                     }
                 }
@@ -1814,7 +1805,7 @@ extends SharedResource
                         synchronized(_lock)
                         {
                             if (claimed) tree.release();
-                            _treeNameHashTable.remove(name);
+                            _treeNameHashMap.remove(name);
                             tree = null;
                         }
                     }
@@ -1853,54 +1844,6 @@ extends SharedResource
         }
     }
     
-    /**
-     * Look up a Tree by treeIndex.  Used internally by journaling
-     * subsystem.
-     * @param treeIndex
-     * @return  The corresponding Tree, if there is one.  If not, throws
-     *          a TreeNotFoundException.
-     * @throws PersistitException
-     */
-    Tree getTree(int treeIndex)
-    throws PersistitException
-    {
-        Tree tree = null;
-        Integer treeIndexKey = new Integer(treeIndex);
-        synchronized(_lock)
-        {
-            tree = (Tree)_treeIndexHashTable.get(treeIndexKey);
-            if (tree != null) return tree;
-        }
-        
-        Exchange ex = directoryExchange();
-        ex.clear().append(DIRECTORY_TREE_NAME).append(BY_INDEX).append(treeIndex);
-        Value value = ex.fetch().getValue();
-        
-        tree = new Tree(_persistit, this);
-        
-        if (value.isDefined())
-        {
-            tree.load(value);
-            tree.setValid(true);
-            
-            String treeName = tree.getName();
-            // At the moment this is a thread-private copy.  Now we will register
-            // it if another Thread hasn't already done so.
-            synchronized(_lock)
-            {
-                Tree registeredTree = (Tree)_treeNameHashTable.get(treeName);
-                if (registeredTree != null) return registeredTree;
-                _treeNameHashTable.put(treeName, tree);
-                _treeIndexHashTable.put(treeIndexKey, tree);
-                return tree;
-            }
-        }
-        
-        else
-        {
-            throw new TreeNotFoundException("TreeIndex=" + treeIndex);
-        }
-    }
     
     void updateTree(Tree tree)
     throws PersistitException
@@ -1947,13 +1890,13 @@ extends SharedResource
      *          name and it was removed, otherwise <tt>false</tt>.
      * @throws PersistitException
      */
-    public boolean removeTree(String treeName)
+    boolean removeTree(String treeName)
     throws PersistitException
     {
         Tree tree = null;
         synchronized(_lock)
         {
-            tree = (Tree)_treeNameHashTable.get(treeName);
+            tree = (Tree)_treeNameHashMap.get(treeName);
         }
         if (tree != null) return removeTree(tree);
         else return false;
@@ -2002,8 +1945,8 @@ extends SharedResource
 
             synchronized(_lock)
             {
-                _treeNameHashTable.remove(tree.getName());
-                _treeIndexHashTable.remove(new Integer(treeIndex));
+                _treeNameHashMap.remove(tree.getName());
+                _treeIndexHashMap.remove(new Integer(treeIndex));
                 tree.invalidate();
             }
             
@@ -2130,14 +2073,11 @@ extends SharedResource
      */
     Tree[] getTrees()
     {
-        int size = _treeNameHashTable.values().size();
-        Enumeration enumeration = _treeNameHashTable.elements();
+        int size = _treeNameHashMap.values().size();
         Tree[] trees = new Tree[size];
-        for (int index = 0; index < size; index++)
-        {
-            if (!enumeration.hasMoreElements()) break;
-            
-            trees[index] = (Tree)enumeration.nextElement();
+        int index = 0;
+        for (final Tree tree : _treeNameHashMap.values()) {
+            trees[index++] = tree;
         }
         return trees;
     }
@@ -2156,7 +2096,7 @@ extends SharedResource
         {
             synchronized(_lock)
             {
-                tree = (Tree)_treeNameHashTable.get(name);
+                tree = (Tree)_treeNameHashMap.get(name);
                 if (tree == null)
                 {
                     tree = new Tree(_persistit, this);
@@ -2265,7 +2205,7 @@ extends SharedResource
         }
         
         tree.initialize(treeName, treeIndex);
-        _treeIndexHashTable.put(new Integer(treeIndex), tree);
+        _treeIndexHashMap.put(new Integer(treeIndex), tree);
         tree.claim(true);
         tree.changeRootPageAddr(rootPage, 1);
         tree.release();
@@ -2531,11 +2471,10 @@ extends SharedResource
         DeallocationChain dc = null;
         synchronized(_lock)
         {
-            Vector list = _deallocationList;
+            final ArrayList<DeallocationChain> list = _deallocationList;
             if (list != null && list.size() > 0)
             {
-                dc = (DeallocationChain)list.get(list.size() - 1);
-                list.setSize(list.size() - 1);
+            	dc = list.remove(list.size() - 1);
             }
         }
         if (dc != null)
@@ -2567,7 +2506,7 @@ extends SharedResource
                     {
                         synchronized(_lock)
                         {
-                            _deallocationList.addElement(dc);
+                            _deallocationList.add(dc);
                         }
                     }
                 }

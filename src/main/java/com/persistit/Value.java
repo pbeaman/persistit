@@ -1953,6 +1953,97 @@ public final class Value
     
     /**
      * Decodes the object value represented by the current state of this
+     * <tt>Value</tt>.  This method is identical to {@link #get()}
+     * except that in <a href="#_streamMode">Stream Mode</a> the pointer
+     * to the next retrieved value is not advanced.
+     * 
+     * @return          The value as a Object.
+     * 
+     * @throws          ConversionException if this <tt>Value</tt> does not 
+     *                  currently represent data of a recognizable class.
+     * 
+     * @throws          MalformedValueException if this <tt>Value</tt> is 
+     *                  structurally corrupt.
+     */
+    public Object peek()
+    {
+        return peek(null, null);
+    }
+    
+    /**
+     * <p>
+     * Decodes the object value represented by the current state of this
+     * <tt>Value</tt>.  This method is identical to {@link #get(Object)}
+     * except that in <a href="#_streamMode">Stream Mode</a> the pointer
+     * to the next retrieved value is not advanced.
+     * </p>
+     * <p>
+     * This variant of <tt>get</tt> <i>may</i> modify and return the target
+     * object supplied as a parameter, rather than creating a new object.
+     * This behavior will occur only if the encoded value has a registered
+     * {@link ValueRenderer}.  See the documentation for <tt>ValueRenderer</tt>
+     * for more information.
+     * </p>
+     * 
+     * @param target    A mutable object into which a {@link ValueRenderer}
+     *                  <i>may</i> decode this <tt>Value</tt>.
+     * 
+     * @return          The value as a Object.
+     * 
+     * @throws          ConversionException if this <tt>Value</tt> does not 
+     *                  currently represent data of a recognizable class.
+     * 
+     * @throws          MalformedValueException if this <tt>Value</tt> is 
+     *                  structurally corrupt.
+     */
+    public Object peek(Object target)
+    {
+        return peek(target, null);
+    }
+
+
+    /**
+     * <p>
+     * Decodes the object value represented by the current state of this
+     * <tt>Value</tt>.  This method is identical to {@link #get(Object, CoderContext)}
+     * except that in <a href="#_streamMode">Stream Mode</a> the pointer
+     * to the next retrieved value is not advanced.
+     * </p> 
+     * 
+     * @param target    A mutable object into which a {@link ValueRenderer}
+     *                  <i>may</i> decode this <tt>Value</tt>.
+     * 
+     * @return          The value as a Object.
+     * 
+     * @throws          ConversionException if this <tt>Value</tt> does not 
+     *                  currently represent data of a recognizable class.
+     * 
+     * @throws          MalformedValueException if this <tt>Value</tt> is 
+     *                  structurally corrupt.
+     */
+    public Object peek(Object target, CoderContext context) {
+    	final Object object;
+        final int saveDepth = _depth;
+        final int saveLevel = _level;
+        final int saveNext = _next;
+        final int saveEnd = _end;
+        final boolean saveAtomic = _atomicIncrementArmed;
+        try {
+        	object = get(target, context);
+        }
+        finally
+        {
+            _atomicIncrementArmed = saveAtomic;
+            _end = saveEnd;
+            _next = saveNext;
+            _level = saveLevel;
+            _depth = saveDepth;
+        }
+        return object;
+    }
+    
+    /**
+     * Decodes the object value represented by the current state of this
      * <tt>Value</tt>.  If the represented value is primitive, this method
      * returns the wrapped object of the corresponding class.  For example,
      * if the value represents an <tt>int</tt>, this method returns a

@@ -15,9 +15,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 
 public class LockManager {
-    private final Map<Thread, ResourceTracker> _resourceTrackerMap =
-        new ConcurrentHashMap<Thread, ResourceTracker>();
+	
+    private final ThreadLocal<ResourceTracker> _resourceThreadLocal = new ThreadLocal<ResourceTracker>();
 
+    private final Map<Thread, ResourceTracker> _resourceTrackerMap = new ConcurrentHashMap<Thread, ResourceTracker>();
+    
     static class ResourceTracker {
         private final List<SharedResource> _resources =
             new ArrayList<SharedResource>();
@@ -81,11 +83,11 @@ public class LockManager {
     }
 
     private ResourceTracker getMyResourceTracker() {
-        final Thread myThread = Thread.currentThread();
-        ResourceTracker tracker = _resourceTrackerMap.get(myThread);
-        if (tracker == null) {
+    	ResourceTracker tracker = _resourceThreadLocal.get();
+    	if (tracker == null) {
             tracker = new ResourceTracker();
-            _resourceTrackerMap.put(myThread, tracker);
+            _resourceTrackerMap.put(Thread.currentThread(), tracker);
+            _resourceThreadLocal.set(tracker);
         }
         return tracker;
     }

@@ -16,7 +16,9 @@
  */
 package com.persistit;
 
-import java.util.Hashtable;
+import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.Vector;
 
 import com.persistit.exception.InvalidKeyException;
@@ -312,8 +314,8 @@ public class Transaction
     private final Key _rootKey;
     
     private final InternalHashSet _touchedPagesSet = new InternalHashSet();
-    private final Hashtable _treeHandlesByName = new Hashtable();
-    private final Hashtable _treesByHandle = new Hashtable();
+    private final HashMap<Tree, Integer> _treeHandlesByName = new HashMap<Tree, Integer>();
+    private final HashMap<Integer, Tree> _treesByHandle = new HashMap<Integer, Tree>();
     
     private long _expirationTime;
     private long _timeout = Persistit.DEFAULT_TIMEOUT_VALUE;
@@ -446,26 +448,29 @@ public class Transaction
         
         int handle;
         if (_ex1 == null) setupExchanges();
+        final Exchange ex = new Exchange(_ex1);
+        ex.ignoreTransactions();
         
-        _ex1.clear()
+        ex.clear()
             .append('@')
             .append(tree.getName())
-            .append(tree.getVolume().getId())
-            .fetch();
-        if (_ex1.getValue().isDefined())
+            .append(tree.getVolume().getId());
+        ex.fetch();
+        if (ex.getValue().isDefined())
         {
-            handle = _ex1.getValue().getInt();
+            handle = ex.getValue().getInt();
         }
         else
         {
-            Value value = _ex1.getValue();
+            Value value = ex.getValue();
             Volume volume = tree.getVolume();
-            _ex1.clear().append('@');
-            handle = (int)_ex1.incrementValue();
-            _ex1.append(tree.getName())
+            ex.clear().append('@');
+            handle = (int)ex.incrementValue();
+            ex.append(tree.getName())
                 .append(tree.getVolume().getId());
             value.put(handle);
-            _ex1.store();
+            ex.store();
+            value.clear();
             value.setStreamMode(true);
             try
             {
@@ -473,7 +478,7 @@ public class Transaction
                 value.put(volume.getPathName());
                 value.put(volume.getAlias());
                 value.put(tree.getName());
-                _ex1.clear().append('@').append(handle).store();
+                ex.clear().append('@').append(handle).store();
             }
             finally
             {
@@ -481,8 +486,10 @@ public class Transaction
             }
         }
         Integer handleObject = new Integer(handle);
+        
         _treeHandlesByName.put(tree, handleObject);
         _treesByHandle.put(handleObject, tree);
+        
         return handle;
     }
     
@@ -491,11 +498,15 @@ public class Transaction
     {
         Integer handleObject = new Integer(handle);
         Tree tree = (Tree)_treesByHandle.get(handleObject);
+        
         if (tree == null)
         {
             if (_ex1 == null) setupExchanges();
-            _ex1.clear().append('@').append(handle).fetch();
-            Value value = _ex1.getValue();
+            final Exchange ex = new Exchange(_ex1);
+
+            ex.clear().append('@').append(handle).fetch();
+            Value value = ex.getValue();
+            
             if (value.isDefined())
             {
                 String volumePathName;
@@ -528,10 +539,49 @@ public class Transaction
                 {
                     throw new TreeNotFoundException(treeName);
                 }
+                _treeHandlesByName.remove(tree);
+                _treesByHandle.remove(handleObject);
+                
+                _treeHandlesByName.put(tree, handleObject);
+                _treesByHandle.put(handleObject, tree);
 
             }
         }
+        if (!tree.isValid() || !tree.isInitialized()) {
+        	final Tree newTree = tree.getVolume().getTree(tree.getName(), false);
+            _treeHandlesByName.remove(tree);
+            _treesByHandle.remove(handleObject);
+            tree = newTree;
+            _treeHandlesByName.put(tree, handleObject);
+            _treesByHandle.put(handleObject, tree);
+        }
         return tree;
+    }
+    
+    private synchronized void removeTreeHandle(final Tree tree)
+    throws PersistitException
+    {
+        int handle;
+        if (_ex1 == null) setupExchanges();
+        
+        final Exchange ex = new Exchange(_ex1);
+        ex.ignoreTransactions();
+        
+        ex.clear()
+            .append('@')
+            .append(tree.getName())
+            .append(tree.getVolume().getId())
+            .fetch();
+        if (ex.getValue().isDefined())
+        {
+            handle = ex.getValue().getInt();
+            ex.remove();
+            ex.clear().append('@').append(handle).remove();
+            Integer handleObject = new Integer(handle);
+            
+            _treeHandlesByName.remove(tree);
+            _treesByHandle.remove(handleObject);
+        }
     }
     
     /**
@@ -1605,6 +1655,18 @@ public class Transaction
         _pendingStoreCount++;
     }
     
+    boolean removeTree(Exchange exchange)
+    throws PersistitException {
+    	exchange.getAuxiliaryKey1().clear().append(Key.BEFORE);
+    	exchange.getAuxiliaryKey2().clear().append(Key.AFTER);
+    	boolean removed = remove(exchange, exchange.getAuxiliaryKey1(), exchange.getAuxiliaryKey2(), false);
+    	exchange.getValue().clear();
+    	exchange.clear();
+    	prepareTxnExchange(exchange.getTree(), exchange.getKey(), 'D');
+    	_ex1.storeInternal(_ex1.getKey(), exchange.getValue(), 0, false, false);
+    	return removed;
+    }
+    
     boolean remove(Exchange exchange, Key key1, Key key2, boolean fetchFirst)
     throws PersistitException
     {
@@ -1728,12 +1790,14 @@ public class Transaction
         int currentTreeHandle = -1;
         Tree currentTree = null;
         
+        final Set<Tree> removedTrees = new HashSet<Tree>();
+        
         while(_ex1.traverse(Key.GT, true))
         {
             Key key1 = _ex1.getKey();
             key1.reset();
             char type = key1.decodeChar();
-            if (type != 'R' && type != 'S') continue;
+            if (type != 'R' && type != 'S' && type != 'D') continue;
             
             int treeHandle = key1.decodeInt();
             if (treeHandle != currentTreeHandle ||
@@ -1771,7 +1835,17 @@ public class Transaction
                     txnValue.getEncodedBytes()[0] = (byte)Buffer.LONGREC_TYPE;
                 }
                 _ex2.storeInternal(key2, txnValue, 0, false, false);
+                removedTrees.remove(_ex2.getTree());
             }
+            else if (type == 'D')
+            {
+            	removedTrees.add(_ex2.getTree());
+            }
+        }
+        
+        for (final Tree tree : removedTrees) {
+        	removeTreeHandle(tree);
+        	tree.getVolume().removeTree(tree);
         }
     }
     
