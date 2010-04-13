@@ -99,7 +99,7 @@ implements UtilControl, Runnable, AdminCommand
     final static String BUNDLE_NAME = "com.persistit.ui.AdminUI";
     final static String SPLASH_FILE_NAME = "persistit_splash.png";
     final static String DEFAULT_RMI_HOST = "localhost:1099";
-    final static boolean ENABLE_SPLASH = true;
+    final static boolean ENABLE_SPLASH = false;
     final static String DEFAULT_CONFIG_FILE = "adminui.properties";
     final static String CONFIG_FILE_PROPERTY = "com.persistit.ui.properties";
     final static String JAVA_HELP_JAR = "jhbasic.jar";

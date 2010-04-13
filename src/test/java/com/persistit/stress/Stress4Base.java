@@ -28,7 +28,7 @@ import com.persistit.exception.PersistitException;
 /**
  * A basic test sequence:
  * 
- * 1. Delete all � to clean 2. Sequential Fixed-length set/get/traverse/reverse
+ * 1. Delete all to clean 2. Sequential Fixed-length set/get/traverse/reverse
  * traverse/remove 3. Child key insert / traverse / reverse /remove 4.
  * Sequential Replacement / Elongation / Shortening 5. Random insertion /
  * replacement / elongation / shortening 6. Long records insert / grow / shrink /
