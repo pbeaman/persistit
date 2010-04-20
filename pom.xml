@@ -2,11 +2,11 @@
 
 <project>
 	<modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>com.akiban</groupId>
-        <artifactId>akiban</artifactId>
-        <version>1.0.0</version>
-    </parent>
+	<parent>
+		<groupId>com.akiban</groupId>
+		<artifactId>akiban</artifactId>
+		<version>1.0.0</version>
+	</parent>
 	<artifactId>akiban-persistit</artifactId>
 	<packaging>jar</packaging>
 	<name>akiban-persistit</name>
@@ -16,7 +16,7 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.7</version>
+			<version>4.8.1</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -70,6 +70,22 @@
 						<include>**/*Test?.java</include>
 					</includes>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>rmic-maven-plugin</artifactId>
+				<version>1.0</version>
+				<configuration>
+					<outputDirectory>target/classes/</outputDirectory>
+				</configuration>
+				<executions>
+					<execution>
+						<id>rmi compilation</id>
+						<goals>
+							<goal>rmic</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 
