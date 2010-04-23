@@ -48,17 +48,25 @@ public abstract class PersistitScriptedTestCase extends TestCase {
 	StringBuffer _sb = new StringBuffer();
 
 	protected int _dotGranularity = 1000;
+	
+	private boolean _persistitInitialized;
 
 	@Override
 	public void setUp() throws Exception {
-		_persistit = new Persistit();
-		_persistit.initialize(UnitTestProperties.getProperties());
+		if (_persistit == null) {
+			_persistit = new Persistit();
+			_persistit.initialize(UnitTestProperties.getProperties());
+			_persistitInitialized = true;
+		}
 	}
 
 	@Override
 	public void tearDown() throws Exception {
-		_persistit.close();
-		_persistit = null;
+		if (_persistitInitialized) {
+			_persistit.close();
+			_persistit = null;
+			_persistitInitialized = true;
+		}
 	}
 
 	protected abstract void executeTest() throws Exception;
@@ -198,10 +206,14 @@ public abstract class PersistitScriptedTestCase extends TestCase {
 		println();
 		_args = args;
 		setUp();
-		executeTest();
-		tearDown();
-		_persistit.close();
-
+		try {
+			executeTest();
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			tearDown();
+			//_persistit.close();		
+		}
 		println();
 		println("<- " + toString() + " - " + status());
 		if (isFailed()) {

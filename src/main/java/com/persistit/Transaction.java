@@ -318,7 +318,7 @@ public class Transaction
     private final HashMap<Integer, Tree> _treesByHandle = new HashMap<Integer, Tree>();
     
     private long _expirationTime;
-    private long _timeout = Persistit.DEFAULT_TIMEOUT_VALUE;
+    private long _timeout;
     
     private long _rollbackDelay = 50;
     
@@ -405,6 +405,7 @@ public class Transaction
         _rollbackDelay = 
             persistit.getLongProperty("rollbackDelay", 10, 0, 100000);
         _rootKey = new Key(_persistit);
+        _timeout = _persistit.getDefaultTimeout();
     }
     
     private Transaction() {

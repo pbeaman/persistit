@@ -130,7 +130,7 @@ public class Persistit implements BuildConstants {
 	 * Default maximum time (in milliseconds) to allow for successful completion
 	 * of an operation.
 	 */
-	static final long DEFAULT_TIMEOUT_VALUE = 10000; // Five seconds
+	static final long DEFAULT_TIMEOUT_VALUE = 30000; // Thirty seconds
 	/**
 	 * Upper bound maximum time (in milliseconds) to allow for successful
 	 * completion of an operation. This is the maximum timeout value you can
