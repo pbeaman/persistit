@@ -16,9 +16,12 @@
  */
  
 package com.persistit;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -137,6 +140,8 @@ extends SharedResource
 
     private final static int HEADER_SIZE = Buffer.MIN_BUFFER_SIZE;
     
+    private final static boolean DEBUG_WRITE_LOG = false;
+    
     private long _id;
 
     private String _pathName;
@@ -176,6 +181,12 @@ extends SharedResource
     
     private Stack _rafStack = new Stack();
     private Stack _rafStackRW = new Stack();
+    
+    
+    private PrintWriter printWriter;
+    private long lastPageWritten;
+    private long lastFlushTime;
+    
     
     // String name --> Tree tree
     
@@ -2405,7 +2416,7 @@ extends SharedResource
     throws IOException, InvalidPageAddressException,
            ReadOnlyVolumeException, VolumeClosedException
     {
-        
+        long elapsed = System.nanoTime();
         if (_readOnly)
         {
             throw new ReadOnlyVolumeException(this.getPathName());
@@ -2449,6 +2460,22 @@ extends SharedResource
             {
                 Debug.endIOEvent(iev, exception);
             }
+        }
+        
+        if (DEBUG_WRITE_LOG) {
+	        synchronized(_lock) {
+	        	if (printWriter == null) {
+	        		final File file = new File(this._pathName + "_writeLog");
+	        		printWriter = new PrintWriter(new BufferedWriter(new FileWriter(file)));
+	        	}
+	        	elapsed = System.nanoTime() - elapsed;
+	        	printWriter.printf("Write page=%8d, delta=%8d usec=%8d\n", page, page - lastPageWritten, elapsed / 1000);
+	        	lastPageWritten = page;
+	        	if (_lastWriteTime - lastFlushTime > 5000) {
+	        		printWriter.flush();
+	        		lastFlushTime = _lastWriteTime;
+	        	}
+	        }
         }
     }
     

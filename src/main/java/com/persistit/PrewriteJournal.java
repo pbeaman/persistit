@@ -169,7 +169,7 @@ extends SharedResource
      */
     public final static int MINIMUM_PWJB_SIZE = 64 * 1024;
     public final static int DEFAULT_BUFFER_SIZE = 2 * 1024 * 1024;
-    public final static int MAXIMUM_PWJB_SIZE = Integer.MAX_VALUE;
+    public final static int MAXIMUM_PWJB_SIZE = 256 * 1024 * 1024;
 
     public final static int DEFAULT_BUFFER_COUNT = 2;
     public final static int MINIMUM_PWJB_COUNT = 1;
@@ -261,18 +261,18 @@ extends SharedResource
     PrewriteJournal(
     	final Persistit persistit,
         final String pathName,
-        final int pwjbSize,
+        final int pwjSize,
         final int pwjbCount,
         final boolean syncIO,
         final boolean deleteOnClose)
     throws PersistitException
     {
     	super(persistit);
-        if (pwjbSize < MINIMUM_PWJB_SIZE ||
-            pwjbSize > MAXIMUM_PWJB_SIZE)
+        if (pwjSize < MINIMUM_PWJB_SIZE ||
+            pwjSize > MAXIMUM_PWJB_SIZE)
         {
             throw new IllegalArgumentException(
-                "Invalid prewrite journal buffer size: " + pwjbSize);
+                "Invalid prewrite journal buffer size: " + pwjSize);
         }
         if (pwjbCount < 1 || pwjbCount > MAXIMUM_PWJB_COUNT)
         {
@@ -287,9 +287,9 @@ extends SharedResource
         {
             RandomAccessFile raf = new RandomAccessFile(pathName, "rw");
             
-            _pwjbSize = pwjbSize;
+            _pwjbSize = pwjSize / pwjbCount;
             _pwjbCount = pwjbCount;
-            long totalSize = pwjbSize * pwjbCount;
+            long totalSize = _pwjbSize * _pwjbCount;
             
             raf.setLength(totalSize);
             raf.close();
