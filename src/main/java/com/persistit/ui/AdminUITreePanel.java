@@ -330,6 +330,7 @@ implements AdminCommand
         if (!equals(newName, _selectedVolumeName))
         {
             _logicalRecordArrayModel.setInfoArray(null);
+            _selectedTreeName = null;
             _selectedVolumeName = newName;
         }
     }
