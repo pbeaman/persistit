@@ -96,61 +96,62 @@ public class TransactionTest2 extends PersistitUnitTestCase {
     // Temporarily ignored for Persistit 2.1
     @Ignore
     public void test1() throws Exception {
-
-        //
-        // An Exchange for the Tree containing account "balances".
-        //
-        final Exchange accountEx =
-            _persistit.getExchange("persistit", "account", true);
-        accountEx.removeAll();
-        //
-        // Get the starting "balance", that is, the sum of the amounts in
-        // each account.
-        //
-        System.out.println("Computing balance");
-        final int startingBalance = balance(accountEx);
-        System.out.println("Starting balance is " + startingBalance);
-        //
-        // Create the threads
-        //
-        final Thread[] threadArray = new Thread[_threads];
-        for (int index = 0; index < _threads; index++) {
-            threadArray[index] = new Thread(new Runnable() {
-                public void run() {
-                    runIt();
-                }
-            }, "TransactionThread_" + index);
-
-        }
-        //
-        // Start them all and measure the time until the last thread ends
-        //
-        long time = System.currentTimeMillis();
-        System.out.println("Starting transaction threads");
-
-        for (int index = 0; index < _threads; index++) {
-            threadArray[index].start();
-        }
-
-        System.out.println("Waiting for threads to end");
-        for (int index = 0; index < _threads; index++) {
-            threadArray[index].join();
-        }
-        //
-        // All done
-        //
-        time = System.currentTimeMillis() - time;
-        System.out.println("All threads ended at " + time + " ms");
-        System.out.println("Completed transactions: "
-            + _completedTransactionCount);
-        System.out.println("Failed transactions: " + _failedTransactionCount);
-        System.out.println("Retried transactions: " + _retriedTransactionCount);
-
-        final int endingBalance = balance(accountEx);
-        System.out.print("Ending balance is " + endingBalance + " which ");
-        System.out.println(endingBalance == startingBalance ? "AGREES"
-            : "DISAGREES");
-        assertEquals(startingBalance, endingBalance);
+    	return;
+//
+//        //
+//        // An Exchange for the Tree containing account "balances".
+//        //
+//        final Exchange accountEx =
+//            _persistit.getExchange("persistit", "account", true);
+//        accountEx.removeAll();
+//        //
+//        // Get the starting "balance", that is, the sum of the amounts in
+//        // each account.
+//        //
+//        System.out.println("Computing balance");
+//        final int startingBalance = balance(accountEx);
+//        System.out.println("Starting balance is " + startingBalance);
+//        //
+//        // Create the threads
+//        //
+//        final Thread[] threadArray = new Thread[_threads];
+//        for (int index = 0; index < _threads; index++) {
+//            threadArray[index] = new Thread(new Runnable() {
+//                public void run() {
+//                    runIt();
+//                }
+//            }, "TransactionThread_" + index);
+//
+//        }
+//        //
+//        // Start them all and measure the time until the last thread ends
+//        //
+//        long time = System.currentTimeMillis();
+//        System.out.println("Starting transaction threads");
+//
+//        for (int index = 0; index < _threads; index++) {
+//            threadArray[index].start();
+//        }
+//
+//        System.out.println("Waiting for threads to end");
+//        for (int index = 0; index < _threads; index++) {
+//            threadArray[index].join();
+//        }
+//        //
+//        // All done
+//        //
+//        time = System.currentTimeMillis() - time;
+//        System.out.println("All threads ended at " + time + " ms");
+//        System.out.println("Completed transactions: "
+//            + _completedTransactionCount);
+//        System.out.println("Failed transactions: " + _failedTransactionCount);
+//        System.out.println("Retried transactions: " + _retriedTransactionCount);
+//
+//        final int endingBalance = balance(accountEx);
+//        System.out.print("Ending balance is " + endingBalance + " which ");
+//        System.out.println(endingBalance == startingBalance ? "AGREES"
+//            : "DISAGREES");
+//        assertEquals(startingBalance, endingBalance);
     }
 
     public void runIt() {

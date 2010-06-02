@@ -156,10 +156,10 @@ public class Persistit implements BuildConstants {
 	 * Property name for specifying the file specification for the log.
 	 */
 	public final static String LOG_PATH_PROPERTY_NAME = "logpath";
-	
+
 	/**
-	 * Default path name for the log.  Note, sequence suffix
-	 * in the form .nnnnnn will be appended.
+	 * Default path name for the log. Note, sequence suffix in the form .nnnnnn
+	 * will be appended.
 	 */
 	public final static String DEFAULT_LOG_PATH = "persistit_log";
 	/**
@@ -309,7 +309,6 @@ public class Persistit implements BuildConstants {
 
 	private final LogBase _logBase = new LogBase(this);
 
-
 	private boolean _suspendShutdown;
 	private boolean _suspendUpdates;
 
@@ -324,9 +323,9 @@ public class Persistit implements BuildConstants {
 	private ManagementImpl _management;
 
 	private final Journal _journal = new Journal(this);
-	
+
 	private final LogManager _logManager = new LogManager(this);
-	
+
 	private final TimestampAllocator _timestampAllocator = new TimestampAllocator();
 
 	private Stack _exchangePool = new Stack();
@@ -347,6 +346,8 @@ public class Persistit implements BuildConstants {
 
 	private long _nextThrottleBumpTime;
 	private long _localThrottleCount;
+
+	private volatile Thread _shutdownHook;
 
 	/**
 	 * <p>
@@ -459,7 +460,7 @@ public class Persistit implements BuildConstants {
 		}
 		return text;
 	}
-	
+
 	public Properties getProperties() {
 		return _properties;
 	}
@@ -651,13 +652,12 @@ public class Persistit implements BuildConstants {
 				}
 				bufferSize <<= 1;
 			}
-			
+
 			String logPath = getProperty(LOG_PATH_PROPERTY_NAME,
 					DEFAULT_LOG_PATH);
 
 			int logSize = (int) getLongProperty(LOG_SIZE_PROPERTY_NAME,
-					LogManager.DEFAULT_LOG_SIZE,
-					LogManager.MINIMUM_LOG_SIZE,
+					LogManager.DEFAULT_LOG_SIZE, LogManager.MINIMUM_LOG_SIZE,
 					LogManager.MAXIMUM_LOG_SIZE);
 
 			_logManager.init(logPath, logSize);
@@ -685,7 +685,7 @@ public class Persistit implements BuildConstants {
 					}
 				}
 			}
-			
+
 			String rmiHost = getProperty(RMI_REGISTRY_HOST_PROPERTY);
 			String rmiPort = getProperty(RMI_REGISTRY_PORT);
 			String jmxParams = getProperty(JMX_PARAMS);
@@ -730,17 +730,22 @@ public class Persistit implements BuildConstants {
 
 			_initialized = true;
 			_closed = false;
-			Runtime.getRuntime().addShutdownHook(new Thread(new Runnable(){
-				public void run() {
-					try {
-						System.out.println("Closing persistit in shutdown hook");
-						close();
-					} catch (PersistitException e) {
-						
+			if (_shutdownHook == null) {
+				_shutdownHook = new Thread(new Runnable() {
+					public void run() {
+						try {
+							_shutdownHook = null;
+							System.out
+									.println("Closing persistit in shutdown hook");
+							close();
+						} catch (PersistitException e) {
+
+						}
 					}
-				}
-			},
-			"ShutdownHook"));
+				}, "ShutdownHook");
+
+				Runtime.getRuntime().addShutdownHook(_shutdownHook);
+			}
 			fullyInitialized = true;
 		} finally {
 			// clean up?? TODO
@@ -759,27 +764,27 @@ public class Persistit implements BuildConstants {
 	 */
 
 	void performRecoveryProcessing(String pwjPath) throws PersistitException {
-//		RecoveryPlan plan = new RecoveryPlan(this);
-//		try {
-//			plan.open(pwjPath);
-//			if (plan.isHealthy() && plan.hasUncommittedPages()) {
-//				if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_BEGIN)) {
-//					_logBase.log(_logBase.LOG_INIT_RECOVER_BEGIN);
-//				}
-//
-//				if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_PLAN)) {
-//					_logBase.log(_logBase.LOG_INIT_RECOVER_PLAN, plan.dump());
-//				}
-//
-//				plan.commit(false);
-//
-//				if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_END)) {
-//					_logBase.log(_logBase.LOG_INIT_RECOVER_END);
-//				}
-//			}
-//		} finally {
-//			plan.close();
-//		}
+		// RecoveryPlan plan = new RecoveryPlan(this);
+		// try {
+		// plan.open(pwjPath);
+		// if (plan.isHealthy() && plan.hasUncommittedPages()) {
+		// if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_BEGIN)) {
+		// _logBase.log(_logBase.LOG_INIT_RECOVER_BEGIN);
+		// }
+		//
+		// if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_PLAN)) {
+		// _logBase.log(_logBase.LOG_INIT_RECOVER_PLAN, plan.dump());
+		// }
+		//
+		// plan.commit(false);
+		//
+		// if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_END)) {
+		// _logBase.log(_logBase.LOG_INIT_RECOVER_END);
+		// }
+		// }
+		// } finally {
+		// plan.close();
+		// }
 	}
 
 	private void setupJournal() throws PersistitException {
@@ -829,7 +834,7 @@ public class Persistit implements BuildConstants {
 		Long idKey = new Long(volume.getId());
 		_volumesById.remove(idKey);
 		_volumes.remove(volume);
-//		volume.getPool().invalidate(volume);
+		// volume.getPool().invalidate(volume);
 		if (delete)
 			volume.getPool().delete(volume);
 	}
@@ -1436,7 +1441,14 @@ public class Persistit implements BuildConstants {
 		if (_closed || !_initialized) {
 			return;
 		}
-
+		if (_shutdownHook != null) {
+			try {
+				Runtime.getRuntime().removeShutdownHook(_shutdownHook);
+			} catch (IllegalStateException ise) {
+				// no matter
+			}
+			_shutdownHook = null;
+		}
 		// Wait for UI to go down.
 		while (_suspendShutdown) {
 			try {
@@ -1446,7 +1458,7 @@ public class Persistit implements BuildConstants {
 		}
 
 		flush();
-		
+
 		final List<Volume> volumes = new ArrayList<Volume>(_volumes);
 		for (final Volume volume : volumes) {
 			volume.close();
@@ -1454,25 +1466,25 @@ public class Persistit implements BuildConstants {
 
 		_journal.close();
 		_closed = true;
-		
+
 		for (final BufferPool pool : _bufferPoolTable.values()) {
 			pool.close();
 		}
-		
+
 		_logBase.logend();
 		_volumes.clear();
 		_volumesById.clear();
 		_bufferPoolTable.clear();
 		_transactionThreadLocal.set(null);
 		_waitingThreadLocal.set(null);
-		
+
 		if (_management != null) {
 			_management.unregister();
 			_management = null;
 		}
-		
+
 		_logManager.close();
-		
+
 		while (!_volumes.isEmpty()) {
 			removeVolume(_volumes.get(0), false);
 		}
@@ -1625,11 +1637,11 @@ public class Persistit implements BuildConstants {
 	Journal getJournal() {
 		return _journal;
 	}
-	
+
 	LogManager getLogManager() {
 		return _logManager;
 	}
-	
+
 	TimestampAllocator getTimestampAllocator() {
 		return _timestampAllocator;
 	}
