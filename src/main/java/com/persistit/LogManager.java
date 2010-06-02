@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.persistit.exception.CorruptLogException;
@@ -47,7 +48,7 @@ public class LogManager {
 
 	private final static String PATH_FORMAT = "%s.%06d";
 
-	private final static String PATH_PATTERN = ".+\\.\\d{6}";
+	private final static String PATH_PATTERN = ".+\\.(\\d{6})";
 
 	private final Map<VolumePage, FileAddress> _pageMap = new HashMap<VolumePage, FileAddress>();
 
@@ -288,6 +289,8 @@ public class LogManager {
 		_volumeToHandleMap.clear();
 
 		final File[] files = files();
+		int nextGeneration = 0;
+		final Pattern pattern = Pattern.compile(PATH_PATTERN);
 		try {
 			for (final File file : files) {
 				final FileChannel channel = new FileInputStream(file)
@@ -303,7 +306,13 @@ public class LogManager {
 					}
 					bufferAddress += readBuffer.position();
 				}
+				final Matcher matcher = pattern.matcher(file.getName());
+				if (matcher.matches()) {
+					nextGeneration = Math.max(nextGeneration, Integer
+							.parseInt(matcher.group(1)));
+				}
 			}
+			_generation = nextGeneration;
 		} catch (IOException ioe) {
 			ioe.printStackTrace(); // TODO
 		} catch (LogNotClosedException e) {
@@ -323,7 +332,7 @@ public class LogManager {
 		readBuffer.get(_bytes, 0, LogRecord.OVERHEAD);
 		final char type = LogRecord.getType(_bytes);
 		switch (type) {
-		
+
 		case LogRecord.TYPE_IV: {
 			final int recordSize = LogRecord.getLength(_bytes);
 			if (recordSize > LogRecord.IV.MAX_LENGTH) {
@@ -348,7 +357,7 @@ public class LogManager {
 			_volumeToHandleMap.put(vd, handle);
 			break;
 		}
-		
+
 		case LogRecord.TYPE_IT: {
 			final int recordSize = LogRecord.getLength(_bytes);
 			if (recordSize > LogRecord.IT.MAX_LENGTH) {
@@ -374,7 +383,7 @@ public class LogManager {
 			// TODO
 			break;
 		}
-		
+
 		case LogRecord.TYPE_PA: {
 			final int recordSize = LogRecord.getLength(_bytes);
 			if (recordSize > Buffer.MAX_BUFFER_SIZE + LogRecord.PA.OVERHEAD) {
