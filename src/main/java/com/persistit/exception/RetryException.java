@@ -17,27 +17,20 @@
  
 package com.persistit.exception;
 /**
- * Thrown to signify internal congestion of the prewrite journal.
- * This exception should always be caught and handled within the
- * Persistit implementation, and never thrown to application code.
+ * Thrown when a method must back off and retry.
  *
- * @version 1.0
+ * @version 2.1
  */
 public class RetryException
 extends PersistitException
 {
-    private static final long serialVersionUID = -3725349634092933730L;
+
+	private static final long serialVersionUID = 2499610291488873031L;
+	
+	public final static RetryException SINGLE = new RetryException();
     
-    public final static RetryException NO_DELAY = new RetryException(-1);
-    private long _generation;
-    
-    public RetryException(long generation)
+    public RetryException()
     {
-        _generation = generation;
-    }
-    
-    public long getGeneration()
-    {
-        return _generation;
+
     }
 }

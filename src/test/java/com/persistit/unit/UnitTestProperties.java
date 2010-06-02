@@ -42,6 +42,7 @@ public class UnitTestProperties {
         p.setProperty("pwjdelete", "true");
         p.setProperty("pwjsize", "128K");
         p.setProperty("pwjcount", "1");
+        p.setProperty("logpath", "${datapath}/persistit_log");
         return p;
     }
 
@@ -63,6 +64,7 @@ public class UnitTestProperties {
         p.setProperty("pwjdelete", "true");
         p.setProperty("pwjsize", "16M");
         p.setProperty("pwjcount", "2");
+        p.setProperty("logpath", "${datapath}/persistit_log");
         return p;
     }
 
@@ -78,6 +80,7 @@ public class UnitTestProperties {
         p.setProperty("pwjdelete", "true");
         p.setProperty("pwjsize", "1M");
         p.setProperty("pwjcount", "1");
+        p.setProperty("logpath", "${datapath}/persistit_alt_log");
         return p;
     }
     

@@ -93,7 +93,8 @@ extends SharedResource
         return _initialized;
     }
 
-    public int hashCode()
+    @Override
+	public int hashCode()
     {
         if (_hashCode < 0)
         {
@@ -102,7 +103,8 @@ extends SharedResource
         return _hashCode;
     }
     
-    public boolean equals(Object o)
+    @Override
+	public boolean equals(Object o)
     {
         if (o instanceof Tree)
         {
@@ -166,7 +168,7 @@ extends SharedResource
             exchange.setRootLevelInfo(
                 _rootPageAddr, 
                 _depth, 
-                _generation);
+                _timestamp);
         }
     }
     
@@ -256,7 +258,7 @@ extends SharedResource
         synchronized(_lock)
         {
             _initialized = false;
-            _generation = -1;
+            _timestamp = -1;
             super.setValid(false);
         }
     }
@@ -267,7 +269,8 @@ extends SharedResource
      * its depth.
      * @return  A displayable summary
      */
-    public String toString()
+    @Override
+	public String toString()
     {
         return "<Tree " + _name +
                " treeIndex=" + _treeIndex + 

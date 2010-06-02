@@ -90,7 +90,7 @@ public class Util
     {
         if (Persistit.BIG_ENDIAN)
         {
-            return (long) (bytes[index + 7] & 0xFF)       | 
+            return (bytes[index + 7] & 0xFF)       | 
                    (long) (bytes[index + 6] & 0xFF) << 8  | 
                    (long) (bytes[index + 5] & 0xFF) << 16 | 
                    (long) (bytes[index + 4] & 0xFF) << 24 | 
@@ -101,7 +101,7 @@ public class Util
         }
         else
         {
-            return (long) (bytes[index + 0] & 0xFF)       | 
+            return (bytes[index + 0] & 0xFF)       | 
                    (long) (bytes[index + 1] & 0xFF) << 8  | 
                    (long) (bytes[index + 2] & 0xFF) << 16 | 
                    (long) (bytes[index + 3] & 0xFF) << 24 | 

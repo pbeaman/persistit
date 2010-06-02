@@ -99,13 +99,12 @@ implements AdminCommand
                 "TreeInfo",
                 ui);
         
-        TableSorter treeTableSorter = new TableSorter(_treeInfoArrayModel);
-        _treeTable = new JTable(treeTableSorter);
+        _treeTable = new JTable(_treeInfoArrayModel);
+        _treeTable.setAutoCreateRowSorter(true);
         _treeTable.setPreferredScrollableViewportSize(new Dimension(500, 50));
         _treeTable.setAutoCreateColumnsFromModel(false);
         _treeTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         _treeInfoArrayModel.formatColumns(_treeTable, null);
-        treeTableSorter.setTableHeader(_treeTable.getTableHeader());
         
         _volumeList.getSelectionModel().addListSelectionListener(
             new ListSelectionListener()

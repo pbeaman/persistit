@@ -99,13 +99,12 @@ implements AdminCommand
             "TASK.1", 
             _adminUI.createMenuArray(this, "TaskPanelMenu", "TASK"));
 
-         TableSorter taskTableSorter = new TableSorter(_taskStatusArrayModel);
-        _taskTable = new JTable(taskTableSorter);
+        _taskTable = new JTable(_taskStatusArrayModel);
+        _taskTable.setAutoCreateRowSorter(true);
         _taskTable.setPreferredScrollableViewportSize(new Dimension(800, 100));
         _taskTable.setAutoCreateColumnsFromModel(false);
         _taskTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         _taskStatusArrayModel.formatColumns(_taskTable, null);
-        taskTableSorter.setTableHeader(_taskTable.getTableHeader());
         
         _taskTable.getSelectionModel().addListSelectionListener(
             new ListSelectionListener()

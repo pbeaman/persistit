@@ -527,6 +527,7 @@ public class KeyFilter {
 		 * 
 		 * @return A canonical String representation
 		 */
+		@Override
 		public String toString() {
 			return toString(null);
 		}
@@ -574,6 +575,7 @@ public class KeyFilter {
 			_itemBytes = bytes;
 		}
 
+		@Override
 		public int hashCode() {
 			if (_hashCode == -1) {
 				_hashCode = byteHash(_itemBytes) & 0x7FFFFFFF;
@@ -581,6 +583,7 @@ public class KeyFilter {
 			return _hashCode;
 		}
 
+		@Override
 		public boolean equals(Object object) {
 			if (object instanceof SimpleTerm) {
 				SimpleTerm t = (SimpleTerm) object;
@@ -602,6 +605,7 @@ public class KeyFilter {
 		 * 
 		 * @return A canonical String representation
 		 */
+		@Override
 		public void toString(CoderContext context, StringBuffer sb) {
 			if (this == ALL)
 				sb.append("*");
@@ -612,6 +616,7 @@ public class KeyFilter {
 			}
 		}
 
+		@Override
 		boolean selected(byte[] keyBytes, int offset, int length) {
 			if (this == ALL)
 				return true;
@@ -625,6 +630,7 @@ public class KeyFilter {
 			return true;
 		}
 
+		@Override
 		boolean forward(Key key, int offset, int length) {
 			if (this == ALL) {
 				key.setEncodedSize(offset + length);
@@ -647,6 +653,7 @@ public class KeyFilter {
 				return false;
 		}
 
+		@Override
 		boolean backward(Key key, int offset, int length) {
 			if (this == ALL) {
 				key.setEncodedSize(offset + length);
@@ -669,10 +676,12 @@ public class KeyFilter {
 				return false;
 		}
 
+		@Override
 		byte[] leftBytes() {
 			return _itemBytes;
 		}
 
+		@Override
 		byte[] rightBytes() {
 			return _itemBytes;
 		}
@@ -714,6 +723,7 @@ public class KeyFilter {
 		 * @return <tt>true</tt> if the supplied object is equal to this
 		 *         <tt>Term</tt>; otherwise <tt>false</tt>.
 		 */
+		@Override
 		public boolean equals(Object object) {
 			if (object instanceof RangeTerm) {
 				RangeTerm t = (RangeTerm) object;
@@ -731,6 +741,7 @@ public class KeyFilter {
 		 * 
 		 * @return The hash code
 		 */
+		@Override
 		public int hashCode() {
 			if (_hashCode == -1) {
 				_hashCode = (byteHash(_itemFromBytes) ^ byteHash(_itemToBytes)
@@ -753,6 +764,7 @@ public class KeyFilter {
 		 * 
 		 * @return A canonical String representation
 		 */
+		@Override
 		public void toString(CoderContext context, StringBuffer sb) {
 			Key workKey = new Key((Persistit) null);
 			boolean allInclusive = _leftInclusive && _rightInclusive;
@@ -767,6 +779,7 @@ public class KeyFilter {
 				sb.append(_rightInclusive ? "]" : ")");
 		}
 
+		@Override
 		boolean selected(byte[] keyBytes, int offset, int length) {
 			int compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
 					_itemFromBytes.length);
@@ -782,6 +795,7 @@ public class KeyFilter {
 			return true;
 		}
 
+		@Override
 		boolean forward(Key key, int offset, int length) {
 			byte[] keyBytes = key.getEncodedBytes();
 
@@ -819,6 +833,7 @@ public class KeyFilter {
 			}
 		}
 
+		@Override
 		boolean backward(Key key, int offset, int length) {
 			byte[] keyBytes = key.getEncodedBytes();
 
@@ -849,10 +864,12 @@ public class KeyFilter {
 			}
 		}
 
+		@Override
 		byte[] leftBytes() {
 			return _itemFromBytes;
 		}
 
+		@Override
 		byte[] rightBytes() {
 			return _itemToBytes;
 		}
@@ -893,6 +910,7 @@ public class KeyFilter {
 		 * 
 		 * @return A canonical String representation
 		 */
+		@Override
 		public void toString(CoderContext context, StringBuffer sb) {
 			sb.append("{");
 			for (int index = 0; index < _terms.length; index++) {
@@ -914,6 +932,7 @@ public class KeyFilter {
 		 * @return <tt>true</tt> if the supplied object is equal to this
 		 *         <tt>Term</tt>; otherwise <tt>false</tt>.
 		 */
+		@Override
 		public boolean equals(Object object) {
 			if (object instanceof OrTerm) {
 				OrTerm t = (OrTerm) object;
@@ -933,6 +952,7 @@ public class KeyFilter {
 		 * 
 		 * @return The hash code
 		 */
+		@Override
 		public int hashCode() {
 			if (_hashCode == -1) {
 				for (int index = 0; index < _terms.length; index++) {
@@ -943,6 +963,7 @@ public class KeyFilter {
 			return _hashCode;
 		}
 
+		@Override
 		boolean selected(byte[] keyBytes, int offset, int length) {
 			for (int index = 0; index < _terms.length; index++) {
 				if (_terms[index].selected(keyBytes, offset, length)) {
@@ -952,6 +973,7 @@ public class KeyFilter {
 			return false;
 		}
 
+		@Override
 		boolean forward(Key key, int offset, int length) {
 			for (int index = 0; index < _terms.length; index++) {
 				if (_terms[index].forward(key, offset, length))
@@ -960,6 +982,7 @@ public class KeyFilter {
 			return false;
 		}
 
+		@Override
 		boolean backward(Key key, int offset, int length) {
 			for (int index = _terms.length; --index >= 0;) {
 				if (_terms[index].backward(key, offset, length))
@@ -968,10 +991,12 @@ public class KeyFilter {
 			return false;
 		}
 
+		@Override
 		byte[] leftBytes() {
 			return null;
 		}
 
+		@Override
 		byte[] rightBytes() {
 			return null;
 		}
@@ -1271,6 +1296,7 @@ public class KeyFilter {
 	 * 
 	 * @return The canonical string representation
 	 */
+	@Override
 	public String toString() {
 		StringBuffer sb = new StringBuffer();
 		sb.append("{");

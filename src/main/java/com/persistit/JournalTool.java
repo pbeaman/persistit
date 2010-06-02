@@ -689,7 +689,8 @@ public class JournalTool
             }
         }
 
-        public String toString()
+        @Override
+		public String toString()
         {
             StringBuffer sb = new StringBuffer();
             toString(sb);

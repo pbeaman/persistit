@@ -4,16 +4,34 @@ prop logpath=$logpath$
 logpath $logpath$/result_$timestamp$.log
 
 // ----------------------------- Unit Tests ----------------------
-delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01
+delete $datapath$/persistit_log.000001
+delete $datapath$/persistit_log.000002
+delete $datapath$/persistit_log.000003
+delete $datapath$/persistit_log.000004
+delete $datapath$/persistit_log.000005
+delete $datapath$/persistit_log.000006
+delete $datapath$/persistit_log.000007
+delete $datapath$/persistit_log.000008
+delete $datapath$/persistit_log.000009
+delete $datapath$/persistit_log.000010
+delete $datapath$/persistit_log.000011
+delete $datapath$/persistit_log.000012
+delete $datapath$/persistit_log.000013
+delete $datapath$/persistit_log.000014
+delete $datapath$/persistit_log.000015
+delete $datapath$/persistit_log.000016
+delete $datapath$/persistit_log.000017
+delete $datapath$/persistit_log.000018
+delete $datapath$/persistit_log.000019
+delete $datapath$/persistit_log.000020
 
-#Stress-huge test mixture, multithread, small pool, temporary volume
+#Stress-huge test mixture, multithread
 
 clearprops
-prop buffer.count.8192=80000
+prop buffer.count.8192=50000
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:100M,extensionSize:100M,maximumSize:10G
-prop pwjpath=$datapath$/persistit.pwj
-prop pwjsize=100M
-prop pwjcount=4
+prop logpath=$datapath$/persistit_log
 prop rmiport=1099
 
 init

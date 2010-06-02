@@ -606,7 +606,8 @@ extends Task
         }
     }
     
-    protected void setupTask(String[] args)
+    @Override
+	protected void setupTask(String[] args)
     throws PersistitException, IOException
     {
         _taskTrees = parseTreeList(args[0]);
@@ -621,14 +622,16 @@ extends Task
                     DEFAULT_BUFFER_SIZE));
     }
     
-    protected void runTask()
+    @Override
+	protected void runTask()
     throws PersistitException, IOException
     {
         saveTrees(_taskTrees, _taskKeyFilter);
         close();
     }
     
-    public String getStatus()
+    @Override
+	public String getStatus()
     {
         if (_lastTree == null)
         {

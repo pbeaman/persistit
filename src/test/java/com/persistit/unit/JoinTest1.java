@@ -117,47 +117,47 @@ public class JoinTest1 extends PersistitUnitTestCase {
         value.putString(sb);
         exchange.store();
 
-        // key.clear().append("C").append(3);
-        // setupString(sb, 1000);
-        // value.putString(sb);
-        // exchange.store();
-        //        
-        // for (int len = 1000; len < 1600; len += 1)
-        // {
-        // key.clear().append("A").append(1);
-        // setupString(sb, len);
-        // value.putString(sb);
-        // exchange.store();
-        //
-        // key.clear().append("A").append(2);
-        // setupString(sb, len);
-        // value.putString(sb);
-        // exchange.store();
-        //
-        // key.clear().append("A").append(3);
-        // setupString(sb, len);
-        // value.putString(sb);
-        // exchange.store();
-        //
-        // key.clear().append("A").append(4);
-        // setupString(sb, len);
-        // value.putString(sb);
-        // exchange.store();
-        //
-        // key.clear().append("C").append(1);
-        // setupString(sb, len);
-        // value.putString(sb);
-        // exchange.store();
-        //
-        // key.clear().append("C").append(2);
-        // setupString(sb, len);
-        // value.putString(sb);
-        // exchange.store();
-        //
-        // }
-        //        
-        // // Now the page should be split with the {"B", "z"} on the edge.
-        //
+         key.clear().append("C").append(3);
+         setupString(sb, 1000);
+         value.putString(sb);
+         exchange.store();
+                
+         for (int len = 1000; len < 1600; len += 1)
+         {
+         key.clear().append("A").append(1);
+         setupString(sb, len);
+         value.putString(sb);
+         exchange.store();
+        
+         key.clear().append("A").append(2);
+         setupString(sb, len);
+         value.putString(sb);
+         exchange.store();
+        
+         key.clear().append("A").append(3);
+         setupString(sb, len);
+         value.putString(sb);
+         exchange.store();
+        
+         key.clear().append("A").append(4);
+         setupString(sb, len);
+         value.putString(sb);
+         exchange.store();
+        
+         key.clear().append("C").append(1);
+         setupString(sb, len);
+         value.putString(sb);
+         exchange.store();
+        
+         key.clear().append("C").append(2);
+         setupString(sb, len);
+         value.putString(sb);
+         exchange.store();
+        
+         }
+                
+         // Now the page should be split with the {"B", "z"} on the edge.
+        
         key.clear().append("A").append(1);
         exchange.fetch();
 

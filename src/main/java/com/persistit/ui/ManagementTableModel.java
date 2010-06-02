@@ -152,22 +152,24 @@ extends AbstractTableModel
     
     public void setInfoArray(Object[] array)
     {
-        int oldLength = _infoArray == null ? 0 : _infoArray.length;
-        int newLength = array == null ? 0 : array.length;
-        if (oldLength != newLength && oldLength != 0)
-        {
-            fireTableRowsDeleted(0, oldLength);
-        }
-        Object[] oldArray = _infoArray;
-        _infoArray = array;
-        if (oldLength != newLength)
-        {
-            fireTableRowsInserted(0, newLength);
-        }
-        else if (newLength > 0)
-        {
-            fireTableRowsUpdated(0, newLength);
-        }
+//        int oldLength = _infoArray == null ? 0 : _infoArray.length;
+//        int newLength = array == null ? 0 : array.length;
+//        if (oldLength != newLength && oldLength != 0)
+//        {
+//            fireTableRowsDeleted(0, oldLength);
+//        }
+//        Object[] oldArray = _infoArray;
+//        _infoArray = array;
+//        if (oldLength != newLength)
+//        {
+//            fireTableRowsInserted(0, newLength);
+//        }
+//        else if (newLength > 0)
+//        {
+//            fireTableRowsUpdated(0, newLength);
+//        }
+    	_infoArray = array;
+    	fireTableDataChanged();
     }
     
     public Object[] getInfoArray()

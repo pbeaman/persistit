@@ -349,7 +349,8 @@ implements KeyRenderer
      * @return  a new instance of the Class for which this
      *          <tt>DefaultObjectCoder</tt> is registered.
      */
-    protected Object newInstance()
+    @Override
+	protected Object newInstance()
     {
         return super.newInstance();
     }
@@ -635,7 +636,8 @@ implements KeyRenderer
      * 
      * @return A String description.
      */
-    public String toString()
+    @Override
+	public String toString()
     {
         StringBuffer sb = new StringBuffer();
         sb.append("DefaultObjectCoder(");

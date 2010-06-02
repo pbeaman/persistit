@@ -615,22 +615,22 @@ implements Management, BuildConstants
     {
         if (statusCode == null) return 0;
         int status = 0;
-        if (statusCode.indexOf('v') >= 0) status |= Buffer.VALID_MASK;
-        if (statusCode.indexOf('d') >= 0) status |= Buffer.DIRTY_MASK;
-        if (statusCode.indexOf('r') >= 0) status |= Buffer.CLAIMED_MASK;
-        if (statusCode.indexOf('w') >= 0) status |= Buffer.WRITER_MASK;
-        if (statusCode.indexOf('s') >= 0) status |= Buffer.SUSPENDED_MASK;
-        if (statusCode.indexOf('c') >= 0) status |= Buffer.CLOSING_MASK;
-        if (statusCode.indexOf('p') >= 0) status |= Buffer.PERMANENT_MASK;
+        if (statusCode.indexOf('v') >= 0) status |= SharedResource.VALID_MASK;
+        if (statusCode.indexOf('d') >= 0) status |= SharedResource.DIRTY_MASK;
+        if (statusCode.indexOf('r') >= 0) status |= SharedResource.CLAIMED_MASK;
+        if (statusCode.indexOf('w') >= 0) status |= SharedResource.WRITER_MASK;
+        if (statusCode.indexOf('s') >= 0) status |= SharedResource.SUSPENDED_MASK;
+        if (statusCode.indexOf('c') >= 0) status |= SharedResource.CLOSING_MASK;
+        if (statusCode.indexOf('p') >= 0) status |= SharedResource.PERMANENT_MASK;
         
         if (statusCode.indexOf('a') >= 0) status |=
-            (Buffer.PERMANENT_MASK | 
-             Buffer.CLOSING_MASK | 
-             Buffer.SUSPENDED_MASK |
-             Buffer.WRITER_MASK |
-             Buffer.CLAIMED_MASK |
-             Buffer.DIRTY_MASK |
-             Buffer.VALID_MASK);
+            (SharedResource.PERMANENT_MASK | 
+             SharedResource.CLOSING_MASK | 
+             SharedResource.SUSPENDED_MASK |
+             SharedResource.WRITER_MASK |
+             SharedResource.CLAIMED_MASK |
+             SharedResource.DIRTY_MASK |
+             SharedResource.VALID_MASK);
         
         // select none
         if (status == 0) status = 0x80000000;
@@ -749,50 +749,6 @@ implements Management, BuildConstants
             throw new WrappedRemoteException(pe);
         }
         return null;
-    }
-    
-    /**
-     * Returns a structure containing information about the status of
-     * the <tt>PrewriteJournal</tt>.
-     * @return  the status
-     */
-    public PrewriteJournalInfo getPrewriteJournalInfo()
-    {
-        PrewriteJournalInfo info = new PrewriteJournalInfo();
-        _persistit.getPrewriteJournal().populateInfo(info);
-        return info;
-    }
-    
-    /**
-     * Returns an array of structures containing information about each of the
-     * consitutent <tt>PrewriteJournalBuffer</tt>s in the 
-     * <tt>PrewriteJournal</tt>.
-     * 
-     * @return  the array
-     */
-    public PrewriteJournalBufferInfo[] getPrewriteJournalBufferInfoArray()
-    {
-        PrewriteJournal pwj = _persistit.getPrewriteJournal();
-        int count = pwj.getPwjbCount();
-        PrewriteJournalBufferInfo[] results = 
-            new PrewriteJournalBufferInfo[count];
-        for (int index = 0; index < count; index++)
-        {
-            results[index] = new PrewriteJournalBufferInfo();
-        }
-        pwj.populateInfo(results);
-        return results;
-    }
-    
-    /**
-     * Returns a multi-line displayable string denoting the current status
-     * of the <tt>PrewriteJournal</tt>.
-     * 
-     * @return  the displayable status.
-     */
-    public String getPrewriteJournalStatusString()
-    {
-        return _persistit.getPrewriteJournal().displayStatus();
     }
     
     /**

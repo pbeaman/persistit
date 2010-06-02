@@ -513,33 +513,6 @@ extends Remote
     throws RemoteException;
     
     /**
-     * Returns a structure containing information about the status of
-     * the <tt>PrewriteJournal</tt>.
-     * @return  the status
-     */
-    public PrewriteJournalInfo getPrewriteJournalInfo()
-    throws RemoteException;
-    
-    /**
-     * Returns an array of structures containing information about each of the
-     * consitutent <tt>PrewriteJournalBuffer</tt>s in the 
-     * <tt>PrewriteJournal</tt>.
-     * 
-     * @return  the array
-     */
-    public PrewriteJournalBufferInfo[] getPrewriteJournalBufferInfoArray()
-    throws RemoteException;
-    
-    /**
-     * Returns a multi-line displayable string denoting the current status
-     * of the <tt>PrewriteJournal</tt>.
-     * 
-     * @return  the displayable status.
-     */
-    public String getPrewriteJournalStatusString()
-    throws RemoteException;
-
-    /**
      * Parses the supply String to determine whether it is a valid
      * <tt>KeyFilter</tt>. Returns the index of the first incorrect 
      * character in the supplied String, or -1 if the string is a valid
@@ -892,9 +865,7 @@ extends Remote
         long _rightSiblingAddress;
         String _volumeName;
         long _volumeId;
-        long _generation;
-        long _reservation;
-        long _changeCount;
+        long timestamp;
         int _bufferSize;
         int _availableBytes;
         int _alloc;
@@ -1081,33 +1052,13 @@ extends Remote
         }
         
         /**
-         * Returns the generation number for this <tt>Buffer</tt>.  The
-         * generation number increases as the state of the buffer changes.  
-         * @return  The current generation
-         */
-        public long getGeneration()
-        {
-            return _generation;
-        }
-        
-        /**
-         * Returns the reservation id for this <tt>Buffer</tt>, or 0 if it
-         * is not reserved.  A buffer is in the reserved state during updates.
-         * @return  The reservation id
-         */
-        public long getReservation()
-        {
-            return _reservation;
-        }
-        
-        /**
-         * Returns the count of times the state of the page occuping this buffer
+         * Returns the count of times the state of the page occupying this buffer
          * has changed.
          * @return  The change count
          */
-        public long getChangeCount()
+        public long getTimestamp()
         {
-            return _changeCount;
+            return timestamp;
         }
         
         /**
@@ -1188,8 +1139,7 @@ extends Remote
                 " alloc=" + _alloc + 
                 " slack=" + _slack +
                 " index=" + _poolIndex +
-                " change count=" + _changeCount +
-                " generation=" + _generation;
+                " change count=" + timestamp;
         }
     }
     
@@ -1234,7 +1184,7 @@ extends Remote
             _pathName = vol.getPathName();
             _id = vol.getId();
             _createTime = vol.getCreateTime();
-            _generation = vol.getGeneration();
+            _generation = vol.getTimestamp();
             _getCounter = vol.getGetCounter();
             _readCounter = vol.getReadCounter();
             _writeCounter = vol.getWriteCounter();
@@ -1480,7 +1430,8 @@ extends Remote
          * Returns the path name of this Volume
          * @return     The path name 
          */
-        public String toString()
+        @Override
+		public String toString()
         {
             return _pathName;
         }
@@ -1490,7 +1441,8 @@ extends Remote
          * the same volume name and id as this one. 
          * @return  <tt>true</tt> if equal, otherwise <tt>false</tt>
          */
-        public boolean equals(Object object)
+        @Override
+		public boolean equals(Object object)
         {
             return
                 object instanceof VolumeInfo &&
@@ -1600,7 +1552,8 @@ extends Remote
          * Returns the name of the tree.
          * @return  The name of the tree
          */
-        public String toString()
+        @Override
+		public String toString()
         {
             return _name;
         }
@@ -1610,7 +1563,8 @@ extends Remote
          * the same index and name is this one. 
          * @return  <tt>true</tt> if equal, otherwise <tt>false</tt>
          */
-        public boolean equals(Object object)
+        @Override
+		public boolean equals(Object object)
         {
             return
                 object instanceof TreeInfo &&
@@ -1800,355 +1754,7 @@ extends Remote
             return _garbageRightPage;
         }
     }
-    
-    /**
-     * Exposes information about the prewrite journal.  The
-     * method {@link #getPrewriteJournalInfo} method returns an
-     * object of this class.
-     */
-    public static class PrewriteJournalInfo
-    extends AcquisitionTimeBase
-    implements Serializable
-    {
-        public final static long serialVersionUID = 3698249424062678324L;
         
-        boolean _open;
-        boolean _syncIO;
-        boolean _deleteOnClose;
-        boolean _quiescent;
-        long _pwjbSize;
-        int _pwjbCount;
-        long _writerPollInteval;
-        long _openTime;
-        String _pathName;
-        long _currentGeneration;
-        long _committedGeneration;
-        long _reservationCount;
-        long _unreservationCount;
-        
-        /**
-         * Returns whether the PrewriteJournal subsystem is open.
-         * @return  <tt>true</tt> if the PrewriteJournal is open
-         */
-        public boolean isOpen()
-        {
-            return _open;
-        }
-        
-        /**
-         * Indicates whether synchronous I/O is enabled.  If so then the
-         * PrewriteJournal issues sync() requests to the underlying file system
-         * at appropriate times to ensure that all operation system buffers 
-         * have been written to disk.
-         * 
-         * @return  <tt>true</tt> if synchronous I/O is enabled, otherwise 
-         *          <tt>false</tt>.
-         */
-        public boolean isSyncIO()
-        {
-            return _syncIO;
-        }
-        
-        /**
-         * Indicates whether delete-on-close is enabled.  If so then on normal
-         * shutdown Persistit will delete the prewrite journal file.
-         * @return  <tt>true</tt> if delete-on-close behavior is enabled,
-         *          otherwise <tt>false</tt>.
-         */
-        public boolean isDeleteOnClose()
-        {
-            return _deleteOnClose;
-        }
-        
-        /**
-         * Indicates whether the prewrite journal is fully caught up.
-         * This is a transient indication valid only instantaneously.
-         * 
-         * @return  <tt>true</tt> if the prewrite journal is caught up.
-         */
-        public boolean isQuiescent()
-        {
-            return _quiescent;
-        }
-        
-        /**
-         * Returns the size of each prewrite journal buffer.  The total size
-         * of the prewrite journal file is
-         * <pre>
-         * <code>pwjbSize * pwjbCount</code>
-         * </pre>
-         * @return  the size of each prewrite journal buffer
-         */
-        public long getPwjbSize()
-        {
-            return _pwjbSize;
-        }
-        
-        /**
-         * Returns the number prewrite journal buffers.  The total size
-         * of the prewrite journal file is
-         * <pre>
-         * <code>pwjbSize * pwjbCount</code>
-         * </pre>
-         * This value also determines the number of background 
-         * concurrent writer threads.
-         *  
-         * @return  the number of prewrite journal buffers
-         */
-        public int getPwjbCount()
-        {
-            return _pwjbCount;
-        }
-        
-        /**
-         * Returns the maximum time, in milliseconds, before a dirty buffer
-         * (a buffer with modified content) will be written to its the 
-         * backing volume file. 
-         * 
-         * @return  The maximum time a buffer is permitted to stay dirty
-         */
-        public long getWriterPollInterval()
-        {
-            return _writerPollInteval;
-        }
-        
-        /**
-         * Returns the time (in milliseconds since January 1, 1970 00:00:00 GMT)
-         * at which this PrewriteJournal was opened.
-         * @return  the open time
-         */
-        public long getOpenTime()
-        {
-            return _openTime;
-        }
-        /**
-         * Returns the full path name of the prewrite journal file.
-         * @return  the path name
-         */
-        public String getPathName()
-        {
-            return _pathName;
-        }
-        
-        /**
-         * Returns the generation counter for the current generation.  This
-         * counter increases each time a prewrite journal buffer becomes
-         * newly available to receive updates.
-         * @return  the current generation
-         */
-        public long getCurrentGeneration()
-        {
-            return _currentGeneration;
-        }
-        
-        /**
-         * <p>
-         * Returns the generation counter for the most recently committed
-         * generation. This counter increases each time a generation becomes
-         * committed. A committed generation contains updates that are
-         * guaranteed to be present subsequent to recovery in the event of
-         * an abrupt termination.
-         * </p>
-         * <p>
-         * (Note that if the {@link #isSyncIO} flag is false, a committed
-         * generation can be lost if the operating system fails to write 
-         * all file updates held in its write-behind buffers prior to a crash.)
-         * </p>
-         * @return  the committed generation
-         */
-        public long getCommittedGeneration()
-        {
-            return _committedGeneration;
-        }
-        
-        /**
-         * Returns the count of pages reserved in the current generation
-         * 
-         * @return  the reservation count
-         */
-        public long getReservationCount()
-        {
-            return _reservationCount;
-        }
-        
-        /**
-         * Returns the count of page reservations subsequently removed from the current
-         * generation
-         * @return  the count of reservation removals
-         */
-        public long getUnreservationCount()
-        {
-            return _unreservationCount;
-        }
-            
-    }
-    
-    /**
-     * Exposes information about one of the prewrite journal buffers.  The
-     * <tt>pwjbCount</tt> configuration parameter determines how many
-     * prewrite journal buffers are allocated. The method
-     * {@link #getPrewriteJournalBufferInfoArray} returns an array of
-     * <tt>PrewriteJournalBufferInfo</tt> elements, each describing one of
-     * the allocated buffers.
-     */
-    public static class PrewriteJournalBufferInfo
-    extends AcquisitionTimeBase
-    implements Serializable
-    {
-        public final static long serialVersionUID = 4669032926141973157L;
-        
-        int _index;
-        long _filePosition;
-        long _generation;
-        String _state;
-        long _nextAvail;
-        int _reservedBufferCount;
-        int _copiedBufferCount;
-        int _writtenBufferCount;
-        long _timeSinceLastCommitted;
-        long _timeSinceLastWritten;
-        boolean _stop;
-
-        /**
-         * Return index of this <tt>PrewriteJournalBuffer</tt>. The index is
-         * an ordinal number between 0 and (<tt>pwjbCount - 1</tt>).
-         * @return  the index
-         */
-        public int getIndex()
-        {
-            return _index;
-        }
-        
-        /**
-         * Returns the position in the prewrite journal file where this buffer
-         * will be written.  This position depends on <tt>pwjbSize</tt> and the
-         * this <tt>PrewriteJournalBuffer</tt>'s index.
-         * @return  the file position
-         */
-        public long getFilePosition()
-        {
-            return _filePosition;
-        }
-        
-        /**
-         * Returns the generation currently being held in this
-         * <tt>PrewriteJournalBuffer</tt>.
-         * 
-         * @return  the generation
-         */
-        public long getGeneration()
-        {
-            return _generation;
-        }
-        
-        /**
-         * Returns the current state of this <tt>PrewriteJournalBuffer</tt>.
-         * Possible states are:
-         * <pre><code>
-         *   SHUTDOWN
-         *   EMPTY
-         *   AVAILABLE
-         *   CLOSED
-         *   COPYING
-         *   COMMITTING
-         *   WRITING
-         *   DONE
-         * </code></pre>
-         * @return  the state
-         */
-        public String getState()
-        {
-            return _state;
-        }
-        
-        /**
-         * Offset to first unused byte in this <tt>PrewriteJournalBuffer</tt>.
-         * This value increases as buffers are reserved. 
-         * @return  offset to next available location in the buffer
-         */
-        public long getNextAvail()
-        {
-            return _nextAvail;
-        }
-        
-        /**
-         * Count of <tt>Buffer</tt>s reserved in this 
-         * <tt>PrewriteJournalBuffer</tt>. 
-         * @return  the reserved buffer count
-         */
-        public int getReservedBufferCount()
-        {
-            return _reservedBufferCount;
-        }
-        
-        /**
-         * Count of <tt>Buffer</tt>s actually copied into this 
-         * <tt>PrewriteJournalBuffer</tt>. 
-         * @return  the copied buffer count
-         */
-        public int getCopiedBufferCount()
-        {
-            return _copiedBufferCount;
-        }
-        
-        /**
-         * Count of <tt>Buffer</tt>s written from this 
-         * <tt>PrewriteJournalBuffer</tt> into the volume file.
-         * @return  the written buffer count
-         */
-        public int getWrittenBufferCount()
-        {
-            return _writtenBufferCount;
-        }
-        
-        /**
-         * Indicates whether the thread servicing this
-         * <tt>PrewriteJournalBuffer</tt> should stop.  This flag is
-         * set during Persistit shutdown.
-         * @return  <tt>true</tt> if Persistit is requesting the thread to
-         *          stop, otherwise <tt>false</tt>.
-         */
-        public boolean isStopped()
-        {
-            return _stop;
-        }
-        
-        /**
-         * Returns the time interval, in milliseconds, since the pages contained
-         * in  this <tt>PrewriteJournalBuffer</tt> were last committed to the
-         * prewrite journal file
-         * @return  the time since last committed
-         */
-        public long getTimeSinceLastCommitted()
-        {
-            return _timeSinceLastCommitted;
-        }
-        
-        /**
-         * Returns the time interval, in milliseconds, since the pages contained
-         * in this <tt>PrewriteJournalBuffer</tt> were last written to their
-         * respective volume files.
-         * @return  the time since last written
-         */
-        public long getTimeSinceLastWritten()
-        {
-            return _timeSinceLastWritten;
-        }
-        
-        /**
-         * Tests whether the supplied object is a 
-         * <tt>PrewriteJournalBufferInfo</tt> with 
-         * the same generation count is this one. 
-         * @return  <tt>true</tt> if equal
-         */
-        public boolean equals(Object object)
-        {
-            return
-                object instanceof PrewriteJournalBufferInfo &&
-                ((PrewriteJournalBufferInfo)object).getGeneration() == _generation;
-        }
-    }
-    
     /**
      * Structure that describes the current status of a long-running utility
      * task.  See {@link #queryTaskStatus} for further information.
@@ -2294,7 +1900,8 @@ extends Remote
          * the same taskId is this one. 
          * @return  <tt>true</tt> if equal, otherwise <tt>false</tt>
          */
-        public boolean equals(Object object)
+        @Override
+		public boolean equals(Object object)
         {
             return
                 object instanceof TaskStatus &&
@@ -2319,7 +1926,8 @@ extends Remote
             _cause = cause;
         }
         
-        public Throwable getCause()
+        @Override
+		public Throwable getCause()
         {
             return _cause;
         }

@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Stack;
@@ -45,7 +45,6 @@ import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
-import com.persistit.exception.WrongThreadException;
 import com.persistit.logging.AbstractPersistitLogger;
 import com.persistit.logging.DefaultPersistitLogger;
 
@@ -84,12 +83,12 @@ public class Persistit implements BuildConstants {
 	/**
 	 * This version of Persistit
 	 */
-	public final static String VERSION = "Persistit JSA 1.2.0161-20091206"
+	public final static String VERSION = "Persistit JSA 2.1-20100512"
 			+ (Debug.ENABLED ? "-DEBUG" : "");
 	/**
 	 * The internal version number
 	 */
-	public final static int BUILD_ID = 161;
+	public final static int BUILD_ID = 21001;
 	/**
 	 * The copyright notice
 	 */
@@ -154,29 +153,20 @@ public class Persistit implements BuildConstants {
 	 */
 	public final static String VOLUME_PROPERTY_PREFIX = "volume.";
 	/**
-	 * Default prewrite journal file path
+	 * Property name for specifying the file specification for the log.
 	 */
-	public final static String DEFAULT_PREWRITE_JOURNAL_NAME = "persistit.pwj";
+	public final static String LOG_PATH_PROPERTY_NAME = "logpath";
+	
 	/**
-	 * Property name for specifying the file specification for the prewrite
-	 * journal file.
+	 * Default path name for the log.  Note, sequence suffix
+	 * in the form .nnnnnn will be appended.
 	 */
-	public final static String PREWRITE_JOURNAL_PROPERTY_PATH = "pwjpath";
+	public final static String DEFAULT_LOG_PATH = "persistit_log";
 	/**
 	 * Property name for specifying the size of each prewrite journal, e.g.,
 	 * "pwjsize=512K".
 	 */
-	public final static String PREWRITE_JOURNAL_PROPERTY_SIZE = "pwjsize";
-	/**
-	 * Property name for specifying the number of prewrite journal buffers. The
-	 * specified count must be between 1 and 8.
-	 */
-	public final static String PREWRITE_JOURNAL_PROPERTY_COUNT = "pwjcount";
-	/**
-	 * Property name for specifying whether the prewrite journal file should be
-	 * deleted up clean exit of the JVM.
-	 */
-	public final static String PREWRITE_JOURNAL_DELETE_ON_CLOSE = "pwjdelete";
+	public final static String LOG_SIZE_PROPERTY_NAME = "logsize";
 
 	/**
 	 * Default System Volume Name
@@ -203,12 +193,6 @@ public class Persistit implements BuildConstants {
 	 * messages. Property value must be "true" or "false".
 	 */
 	public final static String VERBOSE_PROPERTY = "verbose";
-	/**
-	 * Property name for specifing whether Persistit should perform I/O
-	 * synchronization operation after file writes. Property value must be
-	 * "true" or "false".
-	 */
-	public final static String SYNCIO_PROPERTY = "syncio";
 	/**
 	 * Property name for specifying whether Persistit should retry read
 	 * operations that fail due to IOExceptions.
@@ -303,12 +287,6 @@ public class Persistit implements BuildConstants {
 	private final static long GIGA = MEGA * KILO;
 	private final static long TERA = GIGA * KILO;
 
-	private final static ThreadLocal EXEMPT_THREAD_COUNT = BUILD_SINGLE_THREAD ? new ThreadLocal()
-			: null;
-
-	private final static WrongThreadException THREAD_IDENTITY_EXCEPTION = BUILD_SINGLE_THREAD ? new WrongThreadException()
-			: null;
-
 	/**
 	 * If a thread waits longer than this, apply throttle to slow down other
 	 * threads.
@@ -321,9 +299,9 @@ public class Persistit implements BuildConstants {
 	 * Start time
 	 */
 	private final long _startTime = System.currentTimeMillis();
-	private final HashMap _bufferPoolTable = new HashMap();
-	private final ArrayList _volumes = new ArrayList();
-	private final HashMap _volumesById = new HashMap();
+	private final HashMap<Integer, BufferPool> _bufferPoolTable = new HashMap<Integer, BufferPool>();
+	private final ArrayList<Volume> _volumes = new ArrayList<Volume>();
+	private final HashMap<Long, Volume> _volumesById = new HashMap<Long, Volume>();
 	private Properties _properties = new Properties();
 
 	private boolean _initialized;
@@ -331,7 +309,6 @@ public class Persistit implements BuildConstants {
 
 	private final LogBase _logBase = new LogBase(this);
 
-	private PrewriteJournal _prewriteJournal = null;
 
 	private boolean _suspendShutdown;
 	private boolean _suspendUpdates;
@@ -340,13 +317,17 @@ public class Persistit implements BuildConstants {
 
 	private CoderManager _coderManager;
 	private ClassIndex _classIndex = new ClassIndex(this);
-	private ThreadLocal _transactionThreadLocal = new ThreadLocal();
+	private ThreadLocal<Transaction> _transactionThreadLocal = new ThreadLocal<Transaction>();
 	private ThreadLocal _waitingThreadLocal = new ThreadLocal();
 	private ThreadLocal _throttleThreadLocal = new ThreadLocal();
 
 	private ManagementImpl _management;
 
-	private Journal _journal = new Journal(this);
+	private final Journal _journal = new Journal(this);
+	
+	private final LogManager _logManager = new LogManager(this);
+	
+	private final TimestampAllocator _timestampAllocator = new TimestampAllocator();
 
 	private Stack _exchangePool = new Stack();
 
@@ -477,6 +458,10 @@ public class Persistit implements BuildConstants {
 			p = text.indexOf("${");
 		}
 		return text;
+	}
+	
+	public Properties getProperties() {
+		return _properties;
 	}
 
 	/**
@@ -657,8 +642,8 @@ public class Persistit implements BuildConstants {
 						BufferPool.MAXIMUM_POOL_COUNT);
 
 				if (count != -1) {
-					if (_logBase.isLoggable(_logBase.LOG_INIT_ALLOCATE_BUFFERS)) {
-						_logBase.log(_logBase.LOG_INIT_ALLOCATE_BUFFERS, count,
+					if (_logBase.isLoggable(LogBase.LOG_INIT_ALLOCATE_BUFFERS)) {
+						_logBase.log(LogBase.LOG_INIT_ALLOCATE_BUFFERS, count,
 								bufferSize);
 					}
 					BufferPool pool = new BufferPool(count, bufferSize, this);
@@ -666,32 +651,17 @@ public class Persistit implements BuildConstants {
 				}
 				bufferSize <<= 1;
 			}
+			
+			String logPath = getProperty(LOG_PATH_PROPERTY_NAME,
+					DEFAULT_LOG_PATH);
 
-			String pwjPath = getProperty(PREWRITE_JOURNAL_PROPERTY_PATH,
-					DEFAULT_PREWRITE_JOURNAL_NAME);
+			int logSize = (int) getLongProperty(LOG_SIZE_PROPERTY_NAME,
+					LogManager.DEFAULT_LOG_SIZE,
+					LogManager.MINIMUM_LOG_SIZE,
+					LogManager.MAXIMUM_LOG_SIZE);
 
-			int pwjSize = (int) getLongProperty(PREWRITE_JOURNAL_PROPERTY_SIZE,
-					PrewriteJournal.DEFAULT_BUFFER_SIZE,
-					PrewriteJournal.MINIMUM_PWJB_SIZE,
-					PrewriteJournal.MAXIMUM_PWJB_SIZE);
-
-			int pwjCount = (int) getLongProperty(
-					PREWRITE_JOURNAL_PROPERTY_COUNT,
-					PrewriteJournal.DEFAULT_BUFFER_COUNT,
-					PrewriteJournal.MINIMUM_PWJB_COUNT,
-					PrewriteJournal.MAXIMUM_PWJB_COUNT);
-
-			boolean syncIo = (boolean) getBooleanProperty(SYNCIO_PROPERTY, true);
-
-			boolean deletePwjOnExit = getBooleanProperty(
-					PREWRITE_JOURNAL_DELETE_ON_CLOSE, false);
-			//
-			// Recover any committed but unwritten pages from the
-			// prewrite journal;
-			//
-			performRecoveryProcessing(pwjPath);
-			_prewriteJournal = new PrewriteJournal(this, pwjPath, pwjSize,
-					pwjCount, syncIo, deletePwjOnExit);
+			_logManager.init(logPath, logSize);
+			_logManager.recover();
 
 			for (Enumeration enumeration = properties.propertyNames(); enumeration
 					.hasMoreElements();) {
@@ -707,15 +677,15 @@ public class Persistit implements BuildConstants {
 					if (isOne) {
 						String volumeSpecification = getProperty(key);
 
-						if (_logBase.isLoggable(_logBase.LOG_INIT_OPEN_VOLUME)) {
-							_logBase.log(_logBase.LOG_INIT_OPEN_VOLUME, Volume
+						if (_logBase.isLoggable(LogBase.LOG_INIT_OPEN_VOLUME)) {
+							_logBase.log(LogBase.LOG_INIT_OPEN_VOLUME, Volume
 									.describe(volumeSpecification));
 						}
 						Volume.loadVolume(this, volumeSpecification);
 					}
 				}
 			}
-
+			
 			String rmiHost = getProperty(RMI_REGISTRY_HOST_PROPERTY);
 			String rmiPort = getProperty(RMI_REGISTRY_PORT);
 			String jmxParams = getProperty(JMX_PARAMS);
@@ -760,6 +730,17 @@ public class Persistit implements BuildConstants {
 
 			_initialized = true;
 			_closed = false;
+			Runtime.getRuntime().addShutdownHook(new Thread(new Runnable(){
+				public void run() {
+					try {
+						System.out.println("Closing persistit in shutdown hook");
+						close();
+					} catch (PersistitException e) {
+						
+					}
+				}
+			},
+			"ShutdownHook"));
 			fullyInitialized = true;
 		} finally {
 			// clean up?? TODO
@@ -778,27 +759,27 @@ public class Persistit implements BuildConstants {
 	 */
 
 	void performRecoveryProcessing(String pwjPath) throws PersistitException {
-		RecoveryPlan plan = new RecoveryPlan(this);
-		try {
-			plan.open(pwjPath);
-			if (plan.isHealthy() && plan.hasUncommittedPages()) {
-				if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_BEGIN)) {
-					_logBase.log(_logBase.LOG_INIT_RECOVER_BEGIN);
-				}
-
-				if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_PLAN)) {
-					_logBase.log(_logBase.LOG_INIT_RECOVER_PLAN, plan.dump());
-				}
-
-				plan.commit(false);
-
-				if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_END)) {
-					_logBase.log(_logBase.LOG_INIT_RECOVER_END);
-				}
-			}
-		} finally {
-			plan.close();
-		}
+//		RecoveryPlan plan = new RecoveryPlan(this);
+//		try {
+//			plan.open(pwjPath);
+//			if (plan.isHealthy() && plan.hasUncommittedPages()) {
+//				if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_BEGIN)) {
+//					_logBase.log(_logBase.LOG_INIT_RECOVER_BEGIN);
+//				}
+//
+//				if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_PLAN)) {
+//					_logBase.log(_logBase.LOG_INIT_RECOVER_PLAN, plan.dump());
+//				}
+//
+//				plan.commit(false);
+//
+//				if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_END)) {
+//					_logBase.log(_logBase.LOG_INIT_RECOVER_END);
+//				}
+//			}
+//		} finally {
+//			plan.close();
+//		}
 	}
 
 	private void setupJournal() throws PersistitException {
@@ -829,7 +810,7 @@ public class Persistit implements BuildConstants {
 	synchronized void addVolume(Volume volume)
 			throws VolumeAlreadyExistsException {
 		Long idKey = new Long(volume.getId());
-		Volume otherVolume = (Volume) _volumesById.get(idKey);
+		Volume otherVolume = _volumesById.get(idKey);
 		if (otherVolume != null) {
 			throw new VolumeAlreadyExistsException("Volume " + otherVolume
 					+ " has same ID");
@@ -848,33 +829,9 @@ public class Persistit implements BuildConstants {
 		Long idKey = new Long(volume.getId());
 		_volumesById.remove(idKey);
 		_volumes.remove(volume);
-		volume.getPool().invalidate(volume);
+//		volume.getPool().invalidate(volume);
 		if (delete)
 			volume.getPool().delete(volume);
-	}
-
-	void checkThreadId() throws WrongThreadException {
-		if (BUILD_SINGLE_THREAD) {
-			Integer exemptionCount = (Integer) EXEMPT_THREAD_COUNT.get();
-			if (exemptionCount == null || exemptionCount.intValue() <= 0) {
-				throw THREAD_IDENTITY_EXCEPTION;
-			}
-		}
-	}
-
-	void setExemptThreadId(boolean exempt) {
-		if (BUILD_SINGLE_THREAD) {
-			int count = 0;
-			Integer exemptionCount = (Integer) EXEMPT_THREAD_COUNT.get();
-			if (exemptionCount != null) {
-				count = exemptionCount.intValue();
-			}
-			count += exempt ? 1 : -1;
-			if (count <= 0)
-				EXEMPT_THREAD_COUNT.set(null);
-			else
-				EXEMPT_THREAD_COUNT.set(new Integer(count));
-		}
 	}
 
 	/**
@@ -1052,7 +1009,7 @@ public class Persistit implements BuildConstants {
 	public Volume[] getVolumes() {
 		Volume[] list = new Volume[_volumes.size()];
 		for (int index = 0; index < list.length; index++) {
-			list[index] = (Volume) _volumes.get(index);
+			list[index] = _volumes.get(index);
 		}
 		return list;
 	}
@@ -1248,7 +1205,7 @@ public class Persistit implements BuildConstants {
 	 *         <tt>Volume</tt> having the supplied ID value.
 	 */
 	public Volume getVolume(long id) {
-		return (Volume) _volumesById.get(new Long(id));
+		return _volumesById.get(new Long(id));
 	}
 
 	/**
@@ -1278,7 +1235,7 @@ public class Persistit implements BuildConstants {
 	public Volume getVolume(String partialName) {
 		Volume result = null;
 		for (int i = 0; i < _volumes.size(); i++) {
-			Volume vol = (Volume) _volumes.get(i);
+			Volume vol = _volumes.get(i);
 			if (vol.getAlias() != null) {
 				if (partialName.equals(vol.getAlias())) {
 					if (result == null)
@@ -1414,7 +1371,7 @@ public class Persistit implements BuildConstants {
 		Volume volume = getVolume(volumeName);
 		if (volume == null) {
 			if ((_volumes.size() == 1) && (volumeName == dflt)) {
-				volume = (Volume) _volumes.get(0);
+				volume = _volumes.get(0);
 			} else {
 				throw new VolumeNotFoundException(volumeName);
 			}
@@ -1423,22 +1380,12 @@ public class Persistit implements BuildConstants {
 	}
 
 	/**
-	 * Returns the <tt>PrewriteJournal</tt> instance that has been created
-	 * during Persistit initialization.
-	 * 
-	 * @return The PrewriteJournal
-	 */
-	PrewriteJournal getPrewriteJournal() {
-		return _prewriteJournal;
-	}
-
-	/**
 	 * @param size
 	 *            the desired buffer size
 	 * @return the <tt>BufferPool</tt> for the specific buffer size
 	 */
 	BufferPool getBufferPool(int size) {
-		return (BufferPool) _bufferPoolTable.get(new Integer(size));
+		return _bufferPoolTable.get(new Integer(size));
 	}
 
 	/**
@@ -1485,10 +1432,11 @@ public class Persistit implements BuildConstants {
 	 * @return <tt>true</tt> if Persistit was initialized and this invocation
 	 *         closed it, otherwise false.
 	 */
-	public void close() throws PersistitException {
+	public synchronized void close() throws PersistitException {
 		if (_closed || !_initialized) {
 			return;
 		}
+
 		// Wait for UI to go down.
 		while (_suspendShutdown) {
 			try {
@@ -1498,32 +1446,35 @@ public class Persistit implements BuildConstants {
 		}
 
 		flush();
-
-		for (int i = 0; i < _volumes.size(); i++) {
-			Volume vol = (Volume) _volumes.get(0);
-			vol.close();
+		
+		final List<Volume> volumes = new ArrayList<Volume>(_volumes);
+		for (final Volume volume : volumes) {
+			volume.close();
 		}
 
 		_journal.close();
-		_prewriteJournal.close();
 		_closed = true;
-		for (Iterator iterator = _bufferPoolTable.values().iterator(); iterator
-				.hasNext();) {
-			BufferPool pool = (BufferPool) iterator.next();
+		
+		for (final BufferPool pool : _bufferPoolTable.values()) {
 			pool.close();
 		}
+		
 		_logBase.logend();
-
 		_volumes.clear();
 		_volumesById.clear();
 		_bufferPoolTable.clear();
-		_prewriteJournal = null;
 		_transactionThreadLocal.set(null);
 		_waitingThreadLocal.set(null);
-
+		
 		if (_management != null) {
 			_management.unregister();
 			_management = null;
+		}
+		
+		_logManager.close();
+		
+		while (!_volumes.isEmpty()) {
+			removeVolume(_volumes.get(0), false);
 		}
 		_closed = true;
 	}
@@ -1546,7 +1497,7 @@ public class Persistit implements BuildConstants {
 			return false;
 		}
 		_journal.flush();
-		return _prewriteJournal.ensureWritten();
+		return true;
 	}
 
 	/**
@@ -1562,7 +1513,6 @@ public class Persistit implements BuildConstants {
 			return;
 		}
 		ArrayList volumes = _volumes;
-		_prewriteJournal.sync();
 
 		for (int index = 0; index < volumes.size(); index++) {
 			Volume volume = (Volume) volumes.get(index);
@@ -1602,7 +1552,7 @@ public class Persistit implements BuildConstants {
 	 * @return This thread <tt>Transaction</tt> object.
 	 */
 	public Transaction getTransaction() {
-		Transaction txn = (Transaction) _transactionThreadLocal.get();
+		Transaction txn = _transactionThreadLocal.get();
 		if (txn == null) {
 			txn = new Transaction(this);
 			_transactionThreadLocal.set(txn);
@@ -1675,6 +1625,14 @@ public class Persistit implements BuildConstants {
 	Journal getJournal() {
 		return _journal;
 	}
+	
+	LogManager getLogManager() {
+		return _logManager;
+	}
+	
+	TimestampAllocator getTimestampAllocator() {
+		return _timestampAllocator;
+	}
 
 	ThreadLocal getWaitingThreadThreadLocal() {
 		return _waitingThreadLocal;
@@ -1728,7 +1686,7 @@ public class Persistit implements BuildConstants {
 	public void checkAllVolumes() throws PersistitException {
 		IntegrityCheck icheck = new IntegrityCheck(this);
 		for (int index = 0; index < _volumes.size(); index++) {
-			Volume volume = (Volume) _volumes.get(index);
+			Volume volume = _volumes.get(index);
 			System.out.println("Checking " + volume + " ");
 			try {
 				icheck.checkVolume(volume);
@@ -1869,8 +1827,8 @@ public class Persistit implements BuildConstants {
 			throws IllegalAccessException, InstantiationException,
 			ClassNotFoundException, RemoteException {
 		if (_localGUI == null) {
-			if (_logBase.isLoggable(_logBase.LOG_INIT_CREATE_GUI)) {
-				_logBase.log(_logBase.LOG_INIT_CREATE_GUI);
+			if (_logBase.isLoggable(LogBase.LOG_INIT_CREATE_GUI)) {
+				_logBase.log(LogBase.LOG_INIT_CREATE_GUI);
 			}
 			_localGUI = (UtilControl) (Class.forName(PERSISTIT_GUI_CLASS_NAME))
 					.newInstance();

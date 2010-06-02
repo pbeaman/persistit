@@ -20,8 +20,6 @@ package com.persistit.logging;
 
 import java.util.Stack;
 
-import com.persistit.PrewriteJournal;
-
 /**
  * <p>
  * Abstract superclass of logging implementations for Persistit events. 
@@ -217,8 +215,7 @@ public abstract class AbstractPersistitLogger
         if (_logThreadName)
         {
             sb.append("[");
-            sb.append(PrewriteJournal.mediatedThreadName(
-                Thread.currentThread()));
+            sb.append(Thread.currentThread().getName());
             sb.append("] ");
         }
         

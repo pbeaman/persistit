@@ -87,6 +87,7 @@ public class LogBase
     final static int LOG_INIT_RECOVER_BEGIN = addLogTemplate(WARNING, LIFECYCLE, "INIT_RECOVER_BEGIN");
     final static int LOG_INIT_RECOVER_PLAN = addLogTemplate(FINE, LIFECYCLE, "INIT_RECOVER_PLAN");
     final static int LOG_INIT_RECOVER_END = addLogTemplate(WARNING, LIFECYCLE, "INIT_RECOVER_END");
+    final static int LOG_INIT_RECOVER_TERMINTATE = addLogTemplate(WARNING, LIFECYCLE, "INIT_RECOVER_TERMINTATE");
     final static int LOG_RECOVERY_FAILURE1 = addLogTemplate(SEVERE, LIFECYCLE, "RECOVERY_FAILURE1");
     final static int LOG_RECOVERY_FAILURE2 = addLogTemplate(WARNING, LIFECYCLE, "RECOVERY_FAILURE2");
     final static int LOG_TXN_EXCEPTION = addLogTemplate(SEVERE, PERSISTIT, "TXN_EXCEPTION");

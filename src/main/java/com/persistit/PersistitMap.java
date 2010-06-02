@@ -790,7 +790,8 @@ implements SortedMap
             _exception = ee;
         }
         
-        public Throwable getCause()
+        @Override
+		public Throwable getCause()
         {
             return _exception;
         }
@@ -876,7 +877,8 @@ implements SortedMap
          * <tt>ExchangeEntr</tt> instances are equal if their
          * key and value fields are equal.
          */
-        public boolean equals(Object o)
+        @Override
+		public boolean equals(Object o)
         {
             if (o instanceof Map.Entry)
             {
@@ -896,7 +898,8 @@ implements SortedMap
          * Implements the contract for <tt>hashCode</tt>. The hash code
          * is the XOR of the hashCodes of the key and value fields.
          */
-        public int hashCode()
+        @Override
+		public int hashCode()
         {
             return (_key == null  ? 0 : _key.hashCode()) ^
                    (_value == null ? 0 : _value.hashCode());
@@ -1129,7 +1132,8 @@ implements SortedMap
         {
             _keySet = new AbstractSet()
             {
-                public Iterator iterator()
+                @Override
+				public Iterator iterator()
                 {
                     return new ExchangeIterator(
                         PersistitMap.this, 
@@ -1137,12 +1141,14 @@ implements SortedMap
                         _allowConcurrentModification);
                 }
         
-                public int size()
+                @Override
+				public int size()
                 {
                     return PersistitMap.this.size();
                 }
         
-                public boolean contains(Object k)
+                @Override
+				public boolean contains(Object k)
                 {
                     return PersistitMap.this.containsKey(k);
                 }
@@ -1181,7 +1187,8 @@ implements SortedMap
         {
             _values = new AbstractSet()
             {
-                public Iterator iterator()
+                @Override
+				public Iterator iterator()
                 {
                     return new ExchangeIterator(
                         PersistitMap.this, 
@@ -1189,12 +1196,14 @@ implements SortedMap
                         _allowConcurrentModification);
                 }
         
-                public int size()
+                @Override
+				public int size()
                 {
                     return PersistitMap.this.size();
                 }
         
-                public boolean contains(Object v)
+                @Override
+				public boolean contains(Object v)
                 {
                     return PersistitMap.this.containsValue(v);
                 }
@@ -1222,7 +1231,8 @@ implements SortedMap
         {
             _entrySet = new  AbstractSet()
             {
-                public Iterator iterator()
+                @Override
+				public Iterator iterator()
                 {
                     return new ExchangeIterator(
                         PersistitMap.this, 
@@ -1230,12 +1240,14 @@ implements SortedMap
                         _allowConcurrentModification);
                 }
         
-                public int size()
+                @Override
+				public int size()
                 {
                     return PersistitMap.this.size();
                 }
         
-                public boolean contains(Object v)
+                @Override
+				public boolean contains(Object v)
                 {
                     return PersistitMap.this.containsValue(v);
                 }
@@ -1380,7 +1392,8 @@ implements SortedMap
      * @param o object to be compared for equality with this map.
      * @return <tt>true</tt> if the specified object is equal to this map.
      */
-    public boolean equals(Object o)
+    @Override
+	public boolean equals(Object o)
     {
         if (o == this) return true;
         if (!(o instanceof Map)) return false;
@@ -1440,7 +1453,8 @@ implements SortedMap
      * @see Object#equals(Object)
      * @see Set#equals(Object)
      */
-    public int hashCode()
+    @Override
+	public int hashCode()
     {
         int h = 0;
         Iterator i = entrySet().iterator();
@@ -1463,7 +1477,8 @@ implements SortedMap
      *
      * @return a String representation of this map.
      */
-    public String toString()
+    @Override
+	public String toString()
     {
         return "PersistitMap(" + _ex + ")";
     }
@@ -1474,7 +1489,8 @@ implements SortedMap
      *
      * @return a shallow copy of this map.
      */
-    protected Object clone()
+    @Override
+	protected Object clone()
     throws CloneNotSupportedException
     {
         throw new CloneNotSupportedException();

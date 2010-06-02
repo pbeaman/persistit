@@ -76,7 +76,6 @@ implements AdminCommand
     Color _normalForegroundColor;
     
     JTable _volumeTable;
-    ManagementTableModel _prewriteJournalBufferModel;
     ManagementTableModel _volumeInfoArrayModel;
     private Map _menuMap = new HashMap();
     private String _selectedVolumeName;
@@ -123,18 +122,6 @@ implements AdminCommand
         gbc.fill = GridBagConstraints.WEST;
         add(new JLabel(_adminUI.getProperty("volumes")));
         
-        _prewriteJournalBufferModel =
-            new ManagementTableModel(
-                Management.PrewriteJournalBufferInfo.class,
-                "PrewriteJournalBufferInfo",
-                ui);
-        TableSorter pwjTableSorter = new TableSorter(_prewriteJournalBufferModel);
-        final JTable pwjTable = new JTable(pwjTableSorter);
-        pwjTable.setPreferredScrollableViewportSize(new Dimension(800, 60));
-        pwjTable.setAutoCreateColumnsFromModel(false);
-        pwjTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        _prewriteJournalBufferModel.formatColumns(pwjTable, null);
-        pwjTableSorter.setTableHeader(pwjTable.getTableHeader());
         
         _volumeInfoArrayModel =
             new ManagementTableModel(
@@ -142,13 +129,14 @@ implements AdminCommand
                 "VolumeInfo",
                 ui);
         
-        TableSorter volumeTableSorter = new TableSorter(_volumeInfoArrayModel);
-        final JTable volumeTable = new JTable(volumeTableSorter);
+
+        final JTable volumeTable = new JTable(_volumeInfoArrayModel);
+        volumeTable.setAutoCreateRowSorter(true);
         volumeTable.setPreferredScrollableViewportSize(new Dimension(800, 60));
         volumeTable.setAutoCreateColumnsFromModel(false);
         volumeTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         _volumeInfoArrayModel.formatColumns(volumeTable, null);
-        volumeTableSorter.setTableHeader(volumeTable.getTableHeader());
+
         
         
         volumeTable.getSelectionModel().addListSelectionListener(
@@ -176,12 +164,9 @@ implements AdminCommand
             }
         });
     
-        JScrollPane pwjScrollPane = new JScrollPane(pwjTable);
         JScrollPane volumeScrollPane = new JScrollPane(volumeTable);
         
         JPanel pwjPanel = new JPanel(new BorderLayout());
-        pwjPanel.setBorder(_adminUI.createTitledBorder("SummaryPanel.pwjBuffers"));
-        pwjPanel.add(pwjScrollPane, BorderLayout.CENTER);
         
         JPanel volumePanel = new JPanel(new BorderLayout());
         volumePanel.setBorder(_adminUI.createTitledBorder("SummaryPanel.volumes"));
@@ -230,7 +215,6 @@ implements AdminCommand
                 _totalWrites.setText("");
                 _totalGets.setText("");
                 _hitRatio.setText("");
-                _prewriteJournalBufferModel.setInfoArray(null);
                 _volumeInfoArrayModel.setInfoArray(null);
                 _pwjComGen.setText("");
                 _pwjCurGen.setText("");
@@ -305,32 +289,6 @@ implements AdminCommand
                     gets > 0
                     ? _adminUI.formatPercent((double)hits / (double)gets)
                     : "n/a");
-                
-                Management.PrewriteJournalInfo pwi =
-                    management.getPrewriteJournalInfo();
-                
-                _pwjCurGen.setText(
-                    _adminUI.formatLong(
-                        pwi.getCurrentGeneration()));
-                
-                _pwjComGen.setText(
-                    _adminUI.formatLong(
-                        pwi.getCommittedGeneration()));
-            
-                _pwjCount.setText(
-                    _adminUI.formatLong(
-                        pwi.getPwjbCount()));
-        
-                _pwjSize.setText(
-                    _adminUI.formatLong(
-                        pwi.getPwjbSize()));
-        
-                _pwjPath.setText(pwi.getPathName());
-        
-                Management.PrewriteJournalBufferInfo[] pwjia =
-                    management.getPrewriteJournalBufferInfoArray();
-                
-                _prewriteJournalBufferModel.setInfoArray(pwjia);
                 _volumeInfoArrayModel.setInfoArray(via);
             }
         }

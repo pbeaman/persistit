@@ -275,7 +275,8 @@ class WaitingThreadManager
             return _thread;
         }
 
-        public String toString()
+        @Override
+		public String toString()
         {
             return "WaitingThread for " + _thread + 
                    " on resource " + _resource + " " + (_writer ? "W" : "R") +

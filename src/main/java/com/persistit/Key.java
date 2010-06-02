@@ -398,7 +398,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * @version 1.0
  */
 public final class Key
-implements Comparable
+implements Comparable<Object>
 {
     /**
      * Indicates for {@link Exchange#traverse traverse} that the next larger key
@@ -442,11 +442,6 @@ implements Comparable
      * Key that always occupies the right edge of any <tt>Tree</tt>
      */
     public final static Key RIGHT_GUARD_KEY = new Key(null, 1);
-
-    private final static int END = 0;
-    
-    private final static int LEFT_GUARD = 4;
-    private final static int RIGHT_GUARD = 5;
 
     /**
      * Absolute architectural maximum number of bytes in the encoding
@@ -970,7 +965,7 @@ implements Comparable
     public void copyTo(Key key)
     {
         if (key == this) return;
-        if (key._maxSize != _maxSize)
+        if (key._maxSize < _maxSize)
         {
             key._bytes = new byte[_maxSize + 1];
             key._maxSize = _maxSize;
@@ -1357,7 +1352,7 @@ implements Comparable
     }
 
     /**
-     * Returns the index of from which the next invocation of {@link #decode}
+     * Returns the index from which the next invocation of {@link #decode}
      * will decode a key segment.
      * @return      The index
      */    

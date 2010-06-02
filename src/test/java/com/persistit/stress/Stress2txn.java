@@ -105,6 +105,12 @@ public class Stress2txn extends StressBase {
                 txn.commit();
                 break;
             } catch (final RollbackException re) {
+            	if (remainingAttempts % 5 == 0) {
+            		try {
+						Thread.sleep(100);
+					} catch (InterruptedException e) {
+					}
+            	}
                 if (remainingAttempts == 0) {
                     throw re;
                 }

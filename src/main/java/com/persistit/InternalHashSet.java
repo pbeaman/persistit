@@ -64,7 +64,8 @@ class InternalHashSet
             if (_hashCode == -1) _hashCode = hashCode() & 0x7FFFFFFF;
             return _hashCode;
         }
-        public abstract int hashCode();
+        @Override
+		public abstract int hashCode();
     }
     
     Entry lookup(int hashCode)

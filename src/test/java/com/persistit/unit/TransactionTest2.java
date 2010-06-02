@@ -20,6 +20,8 @@ package com.persistit.unit;
 import java.io.PrintStream;
 import java.util.Random;
 
+import org.junit.Ignore;
+
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
@@ -91,6 +93,8 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         test1();
     }
 
+    // Temporarily ignored for Persistit 2.1
+    @Ignore
     public void test1() throws Exception {
 
         //

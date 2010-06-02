@@ -38,4 +38,8 @@ extends PersistitException
     {
         super(ioe);
     }
+    
+    public PersistitIOException(String msg) {
+    	super(msg);
+    }
 }

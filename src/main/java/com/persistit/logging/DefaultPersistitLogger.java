@@ -144,6 +144,9 @@ extends AbstractPersistitLogger
         {
             _logWriter.close();
             _logWriter = null;
+        }
+        
+        if (_logFlusher != null) {
             _logFlusher._stop = true;
             _logFlusher = null;
         }

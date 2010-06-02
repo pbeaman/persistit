@@ -96,7 +96,8 @@ implements Serializable
      * modificiations.
      * @return  The hashCode. 
      */
-    public int hashCode()
+    @Override
+	public int hashCode()
     {
         if (_hashCode < 0)
         {
@@ -117,7 +118,8 @@ implements Serializable
      *          or a <tt>ValueState</tt> whose state represents an identical
      *          object or primitive value.
      */
-    public boolean equals(Object obj)
+    @Override
+	public boolean equals(Object obj)
     {
         if (obj instanceof Value)
         {

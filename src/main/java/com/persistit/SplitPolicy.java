@@ -71,7 +71,8 @@ public abstract class SplitPolicy
     extends SplitPolicy
     {
         
-        int splitFit(
+        @Override
+		int splitFit(
             Buffer buffer,
             int kbOffset,
             int insertAt,
@@ -91,7 +92,8 @@ public abstract class SplitPolicy
             return leftSize;
         }
         
-        public String toString()
+        @Override
+		public String toString()
         {
             return "LEFT_BIAS";
         }
@@ -100,7 +102,8 @@ public abstract class SplitPolicy
     private static class Right
     extends SplitPolicy
     {
-        int splitFit(
+        @Override
+		int splitFit(
             Buffer buffer,
             int kbOffset,
             int insertAt,
@@ -120,7 +123,8 @@ public abstract class SplitPolicy
             return rightSize;
         }
         
-        public String toString()
+        @Override
+		public String toString()
         {
             return "RIGHT_BIAS";
         }
@@ -129,7 +133,8 @@ public abstract class SplitPolicy
     private static class Even
     extends SplitPolicy
     {
-        int splitFit(
+        @Override
+		int splitFit(
             Buffer buffer,
             int kbOffset,
             int insertAt,
@@ -151,7 +156,8 @@ public abstract class SplitPolicy
             return capacity - difference;
         }
         
-        public String toString()
+        @Override
+		public String toString()
         {
             return "EVEN_BIAS";
         }
@@ -160,7 +166,8 @@ public abstract class SplitPolicy
     private static class Nice
     extends SplitPolicy
     {
-        int splitFit(
+        @Override
+		int splitFit(
             Buffer buffer,
             int kbOffset,
             int insertAt,
@@ -183,7 +190,8 @@ public abstract class SplitPolicy
             return capacity * 2 - difference;
         }
         
-        public String toString()
+        @Override
+		public String toString()
         {
             return "NICE_BIAS";
         }

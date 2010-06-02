@@ -26,7 +26,8 @@ public class LockManager {
         private int _offset;
         private boolean _disabled;
 
-        public String toString() {
+        @Override
+		public String toString() {
             return "[" + _offset + "]"
                 + _resources;
         }

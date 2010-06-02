@@ -553,7 +553,8 @@ implements CoderManager
             return true;
         }
         
-        public String toString()
+        @Override
+		public String toString()
         {
             StringBuffer sb = new StringBuffer(_startsWith);
             if (!_exact)

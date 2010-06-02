@@ -88,21 +88,20 @@ implements AdminCommand
                 "BufferInfo",
                 ui);
         
-        TableSorter sorter1 = new TableSorter(_bufferPoolInfoArrayModel);
-        final JTable table1 = new JTable(sorter1);
+        final JTable table1 = new JTable(_bufferPoolInfoArrayModel);
+        table1.setAutoCreateRowSorter(true);
+
         table1.setPreferredScrollableViewportSize(new Dimension(800, 80));
         table1.setAutoCreateColumnsFromModel(false);
         table1.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         _bufferPoolInfoArrayModel.formatColumns(table1, _detailMask);
-        sorter1.setTableHeader(table1.getTableHeader());
         
-        TableSorter sorter2 = new TableSorter(_bufferInfoArrayModel);
-        final JTable table2 = new JTable(sorter2);
+        final JTable table2 = new JTable(_bufferInfoArrayModel);
+        table2.setAutoCreateRowSorter(true);
         table2.setPreferredScrollableViewportSize(new Dimension(800, 400));
         table2.setAutoCreateColumnsFromModel(false);
         table2.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         _bufferInfoArrayModel.formatColumns(table2, _detailMask);
-        sorter2.setTableHeader(table2.getTableHeader());
 
         
         _poolInfoPanel.setBorder(

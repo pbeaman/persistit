@@ -447,7 +447,6 @@ extends Task
                     initialPages,
                     extensionPages,
                     maximumPages,
-                    false,
                     false);
             }
             if (oldExchange != null && oldExchange.getVolume() == _volume)
@@ -527,7 +526,8 @@ extends Task
 
     }
     
-    protected void setupTask(String[] args)
+    @Override
+	protected void setupTask(String[] args)
     throws Exception
     {
         _dis = new DataInputStream(
@@ -540,7 +540,8 @@ extends Task
         _taskCreateMissingTrees = args.length > 5 && "true".equals(args[5]);
     }
     
-    public void runTask()
+    @Override
+	public void runTask()
     throws Exception
     {
         load(
@@ -551,7 +552,8 @@ extends Task
             _taskCreateMissingTrees);
     }
     
-    public String getStatus()
+    @Override
+	public String getStatus()
     {
         if (_handler == null || _handler._tree == null)
         {

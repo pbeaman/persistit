@@ -653,7 +653,8 @@ implements ValueRenderer
     {
         Field _field;
         
-        public String toString()
+        @Override
+		public String toString()
         {
             return "Accessor[" + _field.getName() + "]";
         }
@@ -697,20 +698,23 @@ implements ValueRenderer
             _setMethod = setMethod;
         }
         
-        public String toString()
+        @Override
+		public String toString()
         {
             return "Accessor[" +
                     _getMethod.getName() + "/" + _setMethod.getName() + "]";
         }
         
-        void fromKey(Object object, Key key)
+        @Override
+		void fromKey(Object object, Key key)
         throws Exception
         {
             Object arg = key.decode();
             _setMethod.invoke(object, new Object[] {arg});
         }
         
-        void toKey(Object object, Key key)
+        @Override
+		void toKey(Object object, Key key)
         throws Exception
         {
             Object arg = null;
@@ -718,14 +722,16 @@ implements ValueRenderer
             key.append(arg);
         }
         
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         throws Exception
         {
             Object arg = value.get(null, null);
             _setMethod.invoke(object, new Object[] {arg});
         }
         
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         throws Exception
         {
             Object arg = _getMethod.invoke(object, EMPTY_OBJECT_ARRAY);
@@ -736,14 +742,16 @@ implements ValueRenderer
     private static class ObjectFieldAccessor
     extends Accessor
     {
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         throws Exception
         {
             Object arg = value.get(null, null);
             _field.set(object, arg);
         }
         
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         throws Exception
         {
             Object arg = _field.get(object);
@@ -754,13 +762,15 @@ implements ValueRenderer
     private final static class BooleanFieldAccessor
     extends Accessor
     {
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         throws Exception
         {
             value.put(_field.getBoolean(object));
         }
         
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         throws Exception
         {
             _field.setBoolean(object, value.getBoolean());
@@ -770,13 +780,15 @@ implements ValueRenderer
     private final static class ByteFieldAccessor
     extends Accessor
     {
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         throws Exception
         {
             value.put(_field.getByte(object));
         }
         
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         throws Exception
         {
             _field.setByte(object, value.getByte());
@@ -786,13 +798,15 @@ implements ValueRenderer
     private final static class ShortFieldAccessor
     extends Accessor
     {
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         throws Exception
         {
             value.put(_field.getShort(object));
         }
         
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         throws Exception
         {
             _field.setShort(object, value.getShort());
@@ -802,13 +816,15 @@ implements ValueRenderer
     private final static class CharFieldAccessor
     extends Accessor
     {
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         throws Exception
         {
             value.put(_field.getChar(object));
         }
         
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         throws Exception
         {
             _field.setChar(object, value.getChar());
@@ -818,13 +834,15 @@ implements ValueRenderer
     private final static class IntFieldAccessor
     extends Accessor
     {
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         throws Exception
         {
             value.put(_field.getInt(object));
         }
         
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         throws Exception
         {
             _field.setInt(object, value.getInt());
@@ -834,13 +852,15 @@ implements ValueRenderer
     private final static class LongFieldAccessor
     extends Accessor
     {
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         throws Exception
         {
             value.put(_field.getLong(object));
         }
         
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         throws Exception
         {
             _field.setLong(object, value.getLong());
@@ -850,13 +870,15 @@ implements ValueRenderer
     private final static class FloatFieldAccessor
     extends Accessor
     {
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         throws Exception
         {
             value.put(_field.getFloat(object));
         }
         
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         throws Exception
         {
             _field.setFloat(object, value.getFloat());
@@ -866,13 +888,15 @@ implements ValueRenderer
     private final static class DoubleFieldAccessor
     extends Accessor
     {
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         throws Exception
         {
             value.put(_field.getDouble(object));
         }
         
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         throws Exception
         {
             _field.setDouble(object, value.getDouble());
@@ -882,11 +906,13 @@ implements ValueRenderer
     private final static class NoFieldAccessor
     extends Accessor
     {
-        void toValue(Object object, Value value)
+        @Override
+		void toValue(Object object, Value value)
         {
         }
         
-        void fromValue(Object object, Value value)
+        @Override
+		void fromValue(Object object, Value value)
         {
         }
     }
@@ -940,7 +966,8 @@ implements ValueRenderer
             makeAccessorsAccessible(this);
         }
         
-        public String toString()
+        @Override
+		public String toString()
         {
             StringBuffer sb = new StringBuffer(_name);
             sb.append("[");
@@ -1554,7 +1581,8 @@ implements ValueRenderer
      * 
      * @return A String description.
      */
-    public String toString()
+    @Override
+	public String toString()
     {
         StringBuffer sb = new StringBuffer();
         sb.append("DefaultValueCoder(");

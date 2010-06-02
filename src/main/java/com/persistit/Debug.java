@@ -392,7 +392,8 @@ public class Debug
         int _status;
         Thread _thread;
     
-        public String toString()
+        @Override
+		public String toString()
         {
             if (_thread == null) return "<empty>";
         
@@ -444,7 +445,8 @@ public class Debug
             }
         }
     
-        public String toString()
+        @Override
+		public String toString()
         {
             StringBuffer sb = new StringBuffer("\r\n");
             int start = _next - _events.length + 1;
@@ -548,14 +550,14 @@ public class Debug
                 buffer.getPageAddress(),
                 buffer.getPageType(),
                 eventName,
-                buffer.getChangeCount(),
+                buffer.getTimestamp(),
                 generation);
         if (dpe != null)
         {
             dpe._poolIndex = buffer.getIndex();
             dpe._status = buffer.getStatus();
             dpe._writerThread = buffer.getWriterThread();
-            dpe._bufferGeneration = buffer.getGeneration();
+            dpe._bufferGeneration = buffer.getTimestamp();
         }
         return dpe;
     }
@@ -609,7 +611,8 @@ public class Debug
             }
         }
         
-        public String toString()
+        @Override
+		public String toString()
         {
             StringBuffer sb = new StringBuffer();
             int end = _ioLogCounter;
@@ -636,7 +639,8 @@ public class Debug
         Exception _ex;
         Thread _thread;
         
-        public String toString()
+        @Override
+		public String toString()
         {
             StringBuffer sb = new StringBuffer();
             Util.fill(sb, _id, 5);
