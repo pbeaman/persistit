@@ -54,6 +54,11 @@ implements Comparable, Serializable
         _bytes = new byte[length];
         System.arraycopy(key.getEncodedBytes(), 0, _bytes, 0, length);
     }
+    
+    public KeyState(byte[] data) {
+        _bytes = data;
+    }
+    
     /**
      * Copies the content of this <tt>KeyState</tt> to the supplied 
      * <code>Key</code>.
@@ -69,7 +74,7 @@ implements Comparable, Serializable
         System.arraycopy(_bytes, 0, key.getEncodedBytes(), 0, _bytes.length);
         key.setEncodedSize(_bytes.length);
     }
-
+    
     /**
      * The hash code for this <tt>KeyState</tt>.  The hashCode is the same as
      * for the equivalent <tt>Key</tt>, that is the <tt>Key</tt> from which
@@ -166,7 +171,7 @@ implements Comparable, Serializable
         return 0;
     }
     
-    byte[] getBytes()
+    public byte[] getBytes()
     {
         return _bytes;
     }
