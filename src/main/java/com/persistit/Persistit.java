@@ -734,10 +734,8 @@ public class Persistit implements BuildConstants {
 				_shutdownHook = new Thread(new Runnable() {
 					public void run() {
 						try {
-							_shutdownHook = null;
-							System.out
-									.println("Closing persistit in shutdown hook");
-							close();
+							close0(true);
+							getLogBase().log(LogBase.LOG_SHUTDOWN_HOOK);
 						} catch (PersistitException e) {
 
 						}
@@ -1424,7 +1422,7 @@ public class Persistit implements BuildConstants {
 	 *   {
 	 *      Persisit.close();
 	 *   }
-	 * </pre></code> This pattern ensures that Persistit is closed propertly and
+	 * </pre></code> This pattern ensures that Persistit is closed properly and
 	 * all threads terminated even if the application code throws an exception
 	 * or error.
 	 * </p>
@@ -1437,26 +1435,34 @@ public class Persistit implements BuildConstants {
 	 * @return <tt>true</tt> if Persistit was initialized and this invocation
 	 *         closed it, otherwise false.
 	 */
-	public synchronized void close() throws PersistitException {
+	public void close() throws PersistitException {
+		close0(false);
+	}
+	
+	private synchronized void close0(final boolean byHook) throws PersistitException {
 		if (_closed || !_initialized) {
 			return;
 		}
-		if (_shutdownHook != null) {
+		if (!byHook && _shutdownHook != null) {
 			try {
 				Runtime.getRuntime().removeShutdownHook(_shutdownHook);
 			} catch (IllegalStateException ise) {
-				// no matter
+				// Shouldn't happen
 			}
 			_shutdownHook = null;
 		}
 		// Wait for UI to go down.
-		while (_suspendShutdown) {
+		while (!byHook && _suspendShutdown) {
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException ie) {
 			}
 		}
-
+		
+		if (byHook) {
+			shutdownGUI();
+		}
+		
 		flush();
 
 		final List<Volume> volumes = new ArrayList<Volume>(_volumes);
@@ -1469,6 +1475,13 @@ public class Persistit implements BuildConstants {
 
 		for (final BufferPool pool : _bufferPoolTable.values()) {
 			pool.close();
+		}
+		
+		for (final BufferPool pool : _bufferPoolTable.values()) {
+			int count = pool.countDirty(null);
+			if (count > 0) {
+				System.out.println("Buffer pool " + pool + " has " + count + " stranded dirty buffers");
+			}
 		}
 
 		_logBase.logend();

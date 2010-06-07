@@ -427,7 +427,7 @@ public class LogManager {
 					"Can't handle record of type " + (int) type);
 
 		default:
-			_persistit.getLogBase().log(LogBase.LOG_INIT_RECOVER_TERMINTATE,
+			_persistit.getLogBase().log(LogBase.LOG_INIT_RECOVER_TERMINATE,
 					new FileAddress(file, bufferAddress + from));
 			throw new LogNotClosedException();
 		}

@@ -43,6 +43,12 @@ public class LockManager {
             final int size = _resources.size();
             final int position = size - _offset - 1;
             final SharedResource matchingResource = _resources.get(position);
+            if (matchingResource != resource) {
+            	System.err.println("Mismatched resource being unregistered actual/expected=" + resource + "/" + matchingResource);
+            	for (int i = 0; i < size; i++) {
+            		System.err.println("  " + _resources.get(i) + (i == _offset ? "*" : ""));
+            	}
+            }
             Debug.debug1(matchingResource != resource);
             _resources.remove(position);
             _offset = 0;
