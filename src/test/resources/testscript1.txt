@@ -6,14 +6,12 @@ logpath $logpath$/result_$timestamp$.log
 
 #Stress-99 test mixture, multithread, huge pool, temporary volumes
 
-delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/persistit.pwj $datapath$/persistit_log.000001
 
 clearprops
-prop buffer.count.8192=60000
-prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialSize:10M,extensionSize:10M,maximumSize:4G
-prop pwjpath=$datapath$/persistit.pwj
-prop pwjsize=4M
-prop pwjcount=1
+prop buffer.count.8192=20000
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:10M,extensionSize:10M,maximumSize:4G
+prop logpath=$datapath$/persistit_log
 prop rmiport=1099
 
 init
@@ -21,13 +19,34 @@ multithread
 
 init
 multithread
-test com.persistit.stress.Stress1 repeat=10 count=999999
-test com.persistit.stress.Stress2 repeat=10 count=300000 seed=117
-test com.persistit.stress.Stress5 repeat=50 count=100000
-test com.persistit.stress.Stress6 repeat=3 count=50000 size=250
-test com.persistit.stress.Stress7 repeat=10 count=60000 size=250 seed=121
-test com.persistit.stress.Stress1 repeat=10 count=600000
-test com.persistit.stress.Stress2 repeat=3 count=999999 seed=217
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=10 count=30000 seed=117
+test com.persistit.stress.Stress5 repeat=50 count=10000
+test com.persistit.stress.Stress6 repeat=3 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=6000 size=250 seed=121
+test com.persistit.stress.Stress1 repeat=10 count=60000
+test com.persistit.stress.Stress2 repeat=3 count=1000000 seed=217
+test com.persistit.stress.Stress1 repeat=10 count=1000000
+test com.persistit.stress.Stress2 repeat=10 count=30000 seed=117
+test com.persistit.stress.Stress5 repeat=50 count=10000
+test com.persistit.stress.Stress6 repeat=3 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=6000 size=250 seed=121
+test com.persistit.stress.Stress1 repeat=10 count=60000
+test com.persistit.stress.Stress2 repeat=3 count=1000000 seed=217
+test com.persistit.stress.Stress1 repeat=10 count=1000000
+test com.persistit.stress.Stress2 repeat=10 count=30000 seed=117
+test com.persistit.stress.Stress5 repeat=50 count=10000
+test com.persistit.stress.Stress6 repeat=3 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=6000 size=250 seed=121
+test com.persistit.stress.Stress1 repeat=10 count=60000
+test com.persistit.stress.Stress2 repeat=3 count=1000000 seed=217
+test com.persistit.stress.Stress1 repeat=10 count=1000000
+test com.persistit.stress.Stress2 repeat=10 count=30000 seed=117
+test com.persistit.stress.Stress5 repeat=50 count=10000
+test com.persistit.stress.Stress6 repeat=3 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=6000 size=250 seed=121
+test com.persistit.stress.Stress1 repeat=10 count=60000
+test com.persistit.stress.Stress2 repeat=3 count=100000 seed=217
 icheck persistit
 waitIfFailed Please examine the failure!
 close

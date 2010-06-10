@@ -210,10 +210,11 @@ class WaitingThreadManager
     
     protected static class WaitingThread
     {
+        private final Persistit _persistit;
         /**
          * The Thread that owns this WaitingThread
          */
-        private Thread _thread = Thread.currentThread();
+        private final Thread _thread;
         /**
          * Set at by another thread when notifying this WaitingThread that
          * it should wake up.  If this flag gets set before this WaitingThread
@@ -239,8 +240,6 @@ class WaitingThreadManager
          */
         private Thread _wokenBy = null;
         
-        private Persistit _persistit;
-
         /**
          * Private constructor.  Only the allocate method can construct
          * a WaitingThread.
@@ -248,6 +247,7 @@ class WaitingThreadManager
         private WaitingThread(final Persistit persistit)
         {
         	_persistit = persistit;
+        	_thread = Thread.currentThread();
         }
         
         /**

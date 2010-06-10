@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2004 Persistit Corporation. All Rights Reserved.
  *
  * The Java source code is the confidential and proprietary information
  * of Persistit Corporation ("Confidential Information"). You shall
@@ -453,7 +452,7 @@ public class ScriptedTestRunner {
 								.get(index);
 						final PersistitScriptedTestCase test = command._test;
 						test.initialize(index);
-						_args = command._args;
+						test._args = command._args;
 						test.setUp();
 						if (_gui != null) {
 							_gui.addTest(test);
@@ -497,8 +496,6 @@ public class ScriptedTestRunner {
 						if (_verboseGui) {
 							_persistit.setupGUI(false);
 						}
-						logMessage("initialized Persistit instance: "
-								+ memcheck());
 						return null;
 					} catch (final Throwable t) {
 						_stopAll = true;
@@ -513,7 +510,6 @@ public class ScriptedTestRunner {
 						_persistit.shutdownGUI();
 					}
 					_persistit.close();
-					logMessage("closed Persistit instance: " + memcheck());
 					return null;
 				}
 
@@ -763,27 +759,6 @@ public class ScriptedTestRunner {
 
 	public ScriptedTestRunnerGui getGui() {
 		return _gui;
-	}
-
-	static String memcheck() {
-		long inUseStable = -1;
-		for (int retries = 5; --retries >= 0;) {
-			System.gc();
-			try {
-				Thread.sleep(1000);
-			} catch (final InterruptedException ie) {
-			}
-			final long free = Runtime.getRuntime().freeMemory();
-			final long total = Runtime.getRuntime().totalMemory();
-			final long inUse = total - free;
-			if ((retries <= 2) && (Math.abs(inUseStable - inUse) < 128)) {
-				return " free=" + free + " total=" + total + " inUse=" + inUse;
-			} else {
-				inUseStable = inUse;
-			}
-		}
-		return "Not stable after 10 seconds: lastEstimated inUse="
-				+ inUseStable;
 	}
 
 }

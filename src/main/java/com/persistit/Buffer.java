@@ -292,16 +292,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 	Buffer _prevLru = this;
 
 	/**
-	 * Doubly-linked list of Buffers in least-recently-used order.
-	 */
-	Buffer _findexNextLru = this;
-
-	/**
-	 * Back pointer for least-recently-used list.
-	 */
-	Buffer _findexPrevLru = this;
-
-	/**
 	 * The right sibling page address
 	 */
 	private long _rightSibling;
@@ -326,6 +316,11 @@ public final class Buffer extends SharedResource implements BuildConstants {
 	 */
 	int[] _findexElements;
 
+	/**
+	 * Exclusive lock for the Findex array - needed because
+	 * Page searching updates the Findex even though the page
+	 * has only a reader claim.
+	 */
 	private final Object _findexLock = new Object();
 	/**
 	 * Type code for this page.
@@ -365,11 +360,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 	 * Index within the buffer pool
 	 */
 	private int _poolIndex;
-
-	/**
-	 * Reserved generation
-	 */
-	private long _reservation;
 
 	static int s0;
 	static int s1;
@@ -413,7 +403,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
 		this(original._bufferSize, original._poolIndex, original._pool,
 				original._persistit);
 		_type = original._type;
-		_status = original._status;
+		_status = original._status
+				& ~(SharedResource.CLAIMED_MASK | SharedResource.WRITER_MASK);
 		_page = original._page;
 		_vol = original._vol;
 		_rightSibling = original._rightSibling;
@@ -463,6 +454,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
 	}
 
 	void load() throws InvalidPageStructureException {
+		Debug.$assert(isMine());
+
 		_timestamp = getLong(TIMESTAMP_OFFSET);
 
 		if (_page != 0) {
@@ -519,8 +512,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
 		return true;
 	}
 
-	void dirty() {
-		super.dirty();
+	void setDirty() {
+		super.setDirty();
 		_timestamp = _persistit.getTransaction().getTimestamp();
 		if (Debug.HISTORY_ENABLED)
 			Debug.stateChanged(this, "dirty", -1);
@@ -558,7 +551,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 		if (isGarbagePage()) {
 			Util.clearBytes(_bytes, _keyBlockEnd, _alloc);
 		} else if (isDataPage() || isIndexPage()) {
-			int oldAlloc = _alloc;
 			repack();
 			clearBytes(_keyBlockEnd, _alloc);
 		}
@@ -687,15 +679,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
 	 *            the sibling's address
 	 */
 	void setRightSibling(long pageAddress) {
+		Debug.$assert(isMine());
 		_rightSibling = pageAddress;
-	}
-
-	long getReservedGeneration() {
-		return _reservation;
-	}
-
-	void setReservedGeneration(long reservation) {
-		_reservation = reservation;
 	}
 
 	int getKeyBlockStart() {
@@ -735,13 +720,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
 	 */
 	int findKey(Key key) {
 		synchronized (_findexLock) {
-			if (_findexElements == null)
-				_pool.allocFindex(this);
 			recomputeFindex();
 		}
-
-		if (Debug.ENABLED)
-			checkFindex();
 
 		byte[] kbytes = key.getEncodedBytes();
 		int klength = key.getEncodedSize();
@@ -780,9 +760,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 				if (ENABLE_COUNTERS)
 					s2++;
 				int result = p | (depth << DEPTH_SHIFT);
-				if (Debug.ENABLED)
-					checkFindex();
-
 				return result;
 			}
 
@@ -800,10 +777,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 					if (ENABLE_COUNTERS)
 						s4++;
 					int result = p | (depth << DEPTH_SHIFT);
-
-					if (Debug.ENABLED)
-						checkFindex();
-
 					return result;
 				}
 				if (kb > db) {
@@ -834,9 +807,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 								// that kb > db.
 								//
 								int result = p2 | (depth << DEPTH_SHIFT);
-
-								if (Debug.ENABLED)
-									checkFindex();
 
 								return result;
 							} else if (db2 < kb) {
@@ -895,9 +865,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 									// that kb > db.
 									//
 									int result = right | (depth << DEPTH_SHIFT);
-
-									if (Debug.ENABLED)
-										checkFindex();
 
 									return result;
 								}
@@ -972,9 +939,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 								int result = p | (depth << DEPTH_SHIFT)
 										| FIXUP_MASK;
 
-								if (Debug.ENABLED)
-									checkFindex();
-
 								return result;
 							}
 							matched = false;
@@ -993,10 +957,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 								//
 								int result = p | (depth << DEPTH_SHIFT)
 										| EXACT_MASK;
-
-								if (Debug.ENABLED)
-									checkFindex();
-
 								return result;
 							}
 							// key is longer, so we move to the right
@@ -1007,10 +967,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 							//
 							int result = p | (depth << DEPTH_SHIFT)
 									| FIXUP_MASK;
-
-							if (Debug.ENABLED)
-								checkFindex();
-
 							return result;
 						}
 					}
@@ -1027,10 +983,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 		if (ENABLE_COUNTERS)
 			s8++;
 		int result = right | (depth << DEPTH_SHIFT);
-
-		if (Debug.ENABLED)
-			checkFindex();
-
 		return result;
 	}
 
@@ -1042,47 +994,9 @@ public final class Buffer extends SharedResource implements BuildConstants {
 		_isFindexValid = false;
 	}
 
-	private void checkFindex() {
-		if (Debug.ENABLED) {
-			int[] elements = _findexElements;
-			Debug.$assert(elements != null
-					&& elements[elements.length - 1] == _poolIndex);
-		}
-	}
-
-	private void markFindex() {
-		if (Debug.ENABLED) {
-			int[] elements = _findexElements;
-			Debug.$assert(elements != null);
-			elements[elements.length - 1] = _poolIndex;
-		}
-	}
-
 	void createFindex() {
 		_findexElements = new int[_bufferSize
 				/ (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_DATA)];
-		if (Debug.ENABLED)
-			markFindex();
-	}
-
-	int[] takeFindexElements() {
-		synchronized (_findexLock) {
-			if (Debug.ENABLED)
-				Debug.$assert(isMine());
-			_isFindexValid = false;
-			int[] elements = _findexElements;
-			_findexElements = null;
-			return elements;
-		}
-	}
-
-	void giveFindexElements(int[] elements) {
-		synchronized (_findexLock) {
-			_findexElements = elements;
-			_isFindexValid = false;
-			if (Debug.ENABLED)
-				markFindex();
-		}
 	}
 
 	private void recomputeFindex() {
@@ -1091,10 +1005,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 				verifyFindex();
 			}
 		} else if (isDataPage() || isIndexPage()) {
-
-			if (Debug.ENABLED)
-				checkFindex();
-
 			int start = _keyBlockStart;
 			int end = _keyBlockEnd;
 
@@ -1213,8 +1123,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 
 	private void verifyFindex() {
 		if (Debug.ENABLED) {
-			checkFindex();
-
 			int start = _keyBlockStart;
 			int end = _keyBlockEnd;
 			// This is the index of a Findex array entry that needs to be fixed
@@ -1251,9 +1159,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 					}
 				}
 			}
-			if (Debug.ENABLED)
-				checkFindex();
-
 		}
 	}
 
@@ -1272,8 +1177,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 		}
 		if (!_isFindexValid) {
 			recomputeFindex();
-			if (Debug.ENABLED)
-				checkFindex();
 			return;
 		}
 		if (Debug.ENABLED)
@@ -3514,6 +3417,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
 	 * Repacks the tail blocks so that they are contiguous.
 	 */
 	private void repack() {
+		Debug.$assert(isMine());
+
 		int[] plan = getRepackPlanBuffer();
 		//
 		// Phase 1:
@@ -4207,7 +4112,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
 			putLong(_alloc + GARBAGE_BLOCK_RIGHT_PAGE, right);
 			putLong(_alloc + GARBAGE_BLOCK_EXPECTED_COUNT, expectedCount);
 			bumpGeneration();
-			dirty();
+			setDirty();
 			return true;
 		}
 	}
@@ -4259,11 +4164,12 @@ public final class Buffer extends SharedResource implements BuildConstants {
 		clearBytes(_alloc, _alloc + GARBAGE_BLOCK_SIZE);
 		_alloc += GARBAGE_BLOCK_SIZE;
 		bumpGeneration();
-		dirty();
+		setDirty();
 		return true;
 	}
 
 	void setGarbageLeftPage(int treeIndex, long left) {
+		Debug.$assert(isMine());
 		if (Debug.ENABLED) {
 			if (Debug.ENABLED)
 				Debug.$assert(left > 0 && left <= MAX_VALID_PAGE_ADDR
@@ -4275,7 +4181,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
 		}
 		putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
 		bumpGeneration();
-		dirty();
+		setDirty();
 	}
 
 	void populateInfo(ManagementImpl.BufferInfo info) {

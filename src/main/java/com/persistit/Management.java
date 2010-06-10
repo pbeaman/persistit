@@ -723,7 +723,6 @@ extends Remote
         int _dirtyPageCount;
         int _readerClaimedPageCount;
         int _writerClaimedPageCount;
-        int _reservedPageCount;
         
         /**
          * Returns the size of <tt>Buffer</tt>s managed by this pool.
@@ -822,17 +821,6 @@ extends Remote
         public int getWriterClaimedPageCount()
         {
             return _writerClaimedPageCount;
-        }
-        
-        /**
-         * Get the count of pages having space reserved in the prewrite journal
-         * in preparation for receiving updates.
-         * 
-         * @return  The count of reserved pages
-         */
-        public int getReservedPageCount()
-        {
-            return _reservedPageCount;
         }
     }
     

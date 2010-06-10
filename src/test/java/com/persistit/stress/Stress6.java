@@ -63,7 +63,6 @@ public class Stress6 extends StressBase {
         _ap = new ArgParser("com.persistit.Stress6", _args, ARGS_TEMPLATE);
         _total = _ap.getIntValue("count");
         _repeatTotal = _ap.getIntValue("repeat");
-        _total = _ap.getIntValue("count");
         _size = _ap.getIntValue("size");
 
         _dotGranularity = 100;

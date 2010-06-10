@@ -24,7 +24,6 @@ package com.persistit.exception;
 public class RetryException
 extends PersistitException
 {
-
 	private static final long serialVersionUID = 2499610291488873031L;
 	
 	public final static RetryException SINGLE = new RetryException();

@@ -870,7 +870,7 @@ public class IntegrityCheck extends Task {
 				_value.setPointerValue(page);
 				_value.setPointerPageType(buffer.getPageType());
 
-				exchange.storeInternal(spareKey2, _value, level + 1, false);
+				exchange.storeInternal(spareKey2, _value, level + 1, false, true);
 			} finally {
 				if (buffer != null) {
 					volume.getPool().release(buffer);

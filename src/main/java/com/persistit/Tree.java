@@ -149,7 +149,7 @@ extends SharedResource
         {
           _rootPageAddr = rootPageAddr;
           _depth += deltaDepth;
-          dirty();
+          setDirty();
         }
     }
     
@@ -178,7 +178,7 @@ extends SharedResource
         if (isDirty() && isValid())
         {
             _volume.updateTree(this);
-            clean();    
+            setClean();    
         }
     }
     
@@ -191,7 +191,7 @@ extends SharedResource
         synchronized(_lock)
         {
             _changeCount++;
-            dirty();
+            setDirty();
         }
     }
     

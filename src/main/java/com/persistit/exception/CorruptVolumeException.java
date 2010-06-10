@@ -16,6 +16,8 @@
  */
 package com.persistit.exception;
 
+import com.persistit.Debug;
+
 /**
  * Thrown by {@link com.persistit.Volume} if the volume file being opened is
  * corrupt.  Generally it will be necessary to restore a backup copy of the
@@ -36,6 +38,8 @@ extends PersistitException
     public CorruptVolumeException(String msg)
     {
         super(msg);
+		if (Debug.ENABLED)
+			Debug.debug1(true);
     }
 
 }

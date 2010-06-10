@@ -4,13 +4,14 @@ prop logpath=$logpath$
 logpath $logpath$/result_$timestamp$.log
 
 // ----------------------------- Unit Tests ----------------------
-delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj $datapath$/persistit_log.000001
+
 
 #Stress-12a test mixture, multithread, small pool, temporary volume
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop pwjpath=$datapath$/persistit.pwj
 prop pwjsize=512K
 prop pwjcount=2
@@ -49,13 +50,13 @@ test com.persistit.test.ConfirmEmptyVolumeTest persistit.v01
 close
 
 // ----------------------------- Unit Tests ----------------------
-delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj $datapath$/persistit_log.000001
 
 #Stress-12b test mixture, multithread, small pool, temporary volume
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop pwjpath=$datapath$/persistit.pwj
 prop pwjsize=512K
 prop pwjcount=2
@@ -92,13 +93,13 @@ init
 test com.persistit.test.ConfirmEmptyVolumeTest persistit.v01
 close
 // ----------------------------- Unit Tests ----------------------
-delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj $datapath$/persistit_log.000001
 
 #Stress-12c test mixture, multithread, small pool, temporary volume
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop pwjpath=$datapath$/persistit.pwj
 prop pwjsize=512K
 prop pwjcount=2
@@ -143,7 +144,7 @@ delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop pwjpath=$datapath$/persistit.pwj
 prop pwjsize=512K
 prop pwjcount=2
@@ -182,13 +183,13 @@ test com.persistit.test.ConfirmEmptyVolumeTest persistit.v01
 close
 
 // ----------------------------- Unit Tests ----------------------
-delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj $datapath$/persistit_log.000001
 
 #Stress-12e test mixture, multithread, small pool, temporary volume
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop pwjpath=$datapath$/persistit.pwj
 prop pwjsize=512K
 prop pwjcount=2
@@ -227,13 +228,13 @@ test com.persistit.test.ConfirmEmptyVolumeTest persistit.v01
 close
 // ----------------------------- Unit Tests ----------------------
 
-delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj $datapath$/persistit_log.000001
 
 #Stress-12f test mixture, multithread, small pool, temporary volume
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop pwjpath=$datapath$/persistit.pwj
 prop pwjsize=512K
 prop pwjcount=2
@@ -272,13 +273,13 @@ test com.persistit.test.ConfirmEmptyVolumeTest persistit.v01
 close
 
 // ----------------------------- Unit Tests ----------------------
-delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj $datapath$/persistit_log.000001
 
 #Stress-12g test mixture, multithread, small pool, temporary volume
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop pwjpath=$datapath$/persistit.pwj
 prop pwjsize=512K
 prop pwjcount=2

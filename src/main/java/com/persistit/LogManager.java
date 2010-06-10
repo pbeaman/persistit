@@ -1,9 +1,12 @@
 package com.persistit;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -62,13 +65,13 @@ public class LogManager {
 
 	private final Map<Integer, Tree> _handleToTreeMap = new HashMap<Integer, Tree>();
 
+	private final Persistit _persistit;
+
 	private File _currentFile;
 
 	private FileChannel _currentChannel;
 
 	private long _maximumFileSize;
-
-	private Persistit _persistit;
 
 	private int _writeBufferSize = DEFAULT_BUFFER_SIZE;
 
@@ -88,6 +91,7 @@ public class LogManager {
 
 	private final byte[] _bytes = new byte[4096];
 
+	private PrintWriter textLog;
 	/**
 	 * Log file generation - serves as suffix on file name
 	 */
@@ -100,11 +104,8 @@ public class LogManager {
 	private class LogFlusher extends TimerTask {
 		@Override
 		public void run() {
-			try {
-				force();
-			} catch (PersistitIOException ioe) {
-				ioe.printStackTrace();
-			}
+			force();
+			textLog.flush();
 		}
 	}
 
@@ -122,6 +123,15 @@ public class LogManager {
 		_readBuffer = ByteBuffer.allocateDirect(_readBufferSize);
 		_flushTimer = new Timer("LOG_FLUSHER", true);
 		_flushTimer.schedule(new LogFlusher(), _flushInterval, _flushInterval);
+		try {
+			textLog = new PrintWriter(new BufferedOutputStream(
+					new FileOutputStream(new File(
+							_directory.isDirectory() ? _directory : _directory
+									.getParentFile(), "LogManager_log.txt"),
+							true)));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public synchronized boolean readPageFromLog(final Buffer buffer)
@@ -174,7 +184,13 @@ public class LogManager {
 			} else {
 				_readBuffer.get(buffer.getBytes());
 			}
-
+			textLog.println(String.format(
+					" read %s:%,14d page %,8d, type %2d, "
+							+ "right %,8d, index %,5d, %s", fa.getFile()
+							.getName(), fa.getAddress(), buffer
+							.getPageAddress(), (int) buffer.getByte(0), buffer
+							.getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
+							.getIndex(), buffer.getWriterThread().getName()));
 		} catch (IOException ioe) {
 			throw new PersistitIOException(ioe);
 		}
@@ -213,6 +229,12 @@ public class LogManager {
 		} else {
 			_writeBuffer.put(buffer.getBytes());
 		}
+		textLog.println(String.format("write %s:%,14d page %,8d, type %2d, "
+				+ "right %,8d, index %,5d, %s", _currentFile.getName(),
+				address, buffer.getLong(Buffer.PAGE_ADDRESS_OFFSET),
+				(int) buffer.getByte(0), buffer
+						.getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
+						.getIndex(), Thread.currentThread().getName()));
 		final VolumePage vp = new VolumePage(new VolumeDescriptor(volume),
 				buffer.getPageAddress());
 		final FileAddress fa = new FileAddress(_currentFile, address);
@@ -454,11 +476,10 @@ public class LogManager {
 		_currentChannel = null;
 		_writeBuffer = null;
 		_readBuffer = null;
-		_persistit = null;
 		Arrays.fill(_bytes, (byte) 0);
 	}
 
-	public void force() throws PersistitIOException {
+	public void force() {
 		final MappedByteBuffer mbb;
 		synchronized (this) {
 			mbb = _writeBuffer;

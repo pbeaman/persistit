@@ -54,6 +54,7 @@ class SharedResource extends WaitingThreadManager {
 	 * to a Volume that is being deleted.
 	 */
 	public final static int DELETE_MASK = 0x00040000;
+	
 
 	/**
 	 * Mask for bit field indicating that updates are suspended
@@ -134,23 +135,31 @@ class SharedResource extends WaitingThreadManager {
 	}
 
 	boolean isClean() {
-		return (_status & DIRTY_MASK) == 0;
+		return !isDirty();
 	}
 
 	boolean isDirty() {
-		return (_status & DIRTY_MASK) != 0;
+		synchronized (_lock) {
+			return (_status & DIRTY_MASK) != 0;
+		}
 	}
 
 	public boolean isValid() {
-		return (_status & VALID_MASK) != 0;
+		synchronized (_lock) {
+			return (_status & VALID_MASK) != 0;
+		}
 	}
 
 	public boolean isDeleted() {
-		return (_status & DELETE_MASK) != 0;
+		synchronized (_lock) {
+			return (_status & DELETE_MASK) != 0;
+		}
 	}
 
 	boolean isPermanent() {
-		return (_status & PERMANENT_MASK) != 0;
+		synchronized (_lock) {
+			return (_status & PERMANENT_MASK) != 0;
+		}
 	}
 
 	/**
@@ -159,11 +168,12 @@ class SharedResource extends WaitingThreadManager {
 	 * @return <i>true</i> if this Thread has a writer claim on this page.
 	 */
 	boolean isMine() {
-		if (Debug.ENABLED)
-			Debug
-					.$assert(_writerThread == null
-							|| (_status & WRITER_MASK) != 0);
-		return (_writerThread == Thread.currentThread());
+		synchronized (_lock) {
+			if (Debug.ENABLED)
+				Debug.$assert(_writerThread == null
+						|| (_status & WRITER_MASK) != 0);
+			return (_writerThread == Thread.currentThread());
+		}
 	}
 
 	void setPermanent(boolean b) {
@@ -306,16 +316,21 @@ class SharedResource extends WaitingThreadManager {
 
 				while ((_status & WRITER_MASK) == 0) {
 					WaitingThread wt = dequeue((_status & CLAIMED_MASK) == 0);
-					if (wt == null)
+					if (wt == null) {
 						break;
+					}
 					boolean exclusive = wt.isExclusive();
 					// Here we post the claim on behalf of the waiting process.
 					_status++;
 					if (exclusive) {
 						_status |= WRITER_MASK;
-						if (Debug.ENABLED)
+						if (Debug.ENABLED) {
 							Debug.$assert(_writerThread == null);
+						}
 						_writerThread = wt.getThread();
+						if (Debug.ENABLED) {
+							Debug.$assert(_writerThread != null);
+						}
 					}
 					wt.wake();
 				}
@@ -353,7 +368,13 @@ class SharedResource extends WaitingThreadManager {
 				_status++;
 				if (exclusive) {
 					_status |= WRITER_MASK;
+					if (Debug.ENABLED) {
+						Debug.$assert(_writerThread == null);
+					}
 					_writerThread = wt.getThread();
+					if (Debug.ENABLED) {
+						Debug.$assert(_writerThread != null);
+					}
 				}
 				wt.wake();
 			}
@@ -362,24 +383,22 @@ class SharedResource extends WaitingThreadManager {
 		}
 	}
 
-	void clean() {
+	void setClean() {
 		synchronized (_lock) {
 			_status &= ~DIRTY_MASK;
 		}
 	}
 
-	void dirty() {
+	void setDirty() {
 		synchronized (_lock) {
 			_status |= DIRTY_MASK;
 		}
 	}
-
+	
 	public long getTimestamp() {
-		// No longer synchronized because at all times when the value
-		// really matters, the SharedResource has been claimed, which means
-		// it's generation can't change.
-		//
-		return _timestamp;
+		synchronized (_lock) {
+			return _timestamp;
+		}
 	}
 
 	void setValid(boolean valid) {
@@ -393,14 +412,9 @@ class SharedResource extends WaitingThreadManager {
 	}
 
 	public boolean isAvailable() {
-		return (_status & UNAVAILABLE_MASK) == 0;
-	}
-
-	public boolean isClaimed() {
-		// synchronized(_lock)
-		// {
-		return (_status & (CLAIMED_MASK | WRITER_MASK)) != 0;
-		// }
+		synchronized (_lock) {
+			return (_status & UNAVAILABLE_MASK) == 0;
+		}
 	}
 
 	long bumpGeneration() {
@@ -410,15 +424,21 @@ class SharedResource extends WaitingThreadManager {
 	}
 
 	public int getStatus() {
-		return _status;
+		synchronized (_lock) {
+			return _status;
+		}
 	}
 
 	public String getStatusCode() {
-		return getStatusCode(_status);
+		final int status;
+		synchronized (_lock) {
+			status = _status;
+		}
+		return getStatusCode(status);
 	}
 
 	public String getStatusDisplayString() {
-		int status;
+		final int status;
 		synchronized (_lock) {
 			status = _status;
 		}

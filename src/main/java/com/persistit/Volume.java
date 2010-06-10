@@ -61,7 +61,6 @@ import com.persistit.exception.VolumeFullException;
  */
 public class Volume extends SharedResource {
 	private final static String ATTR_ALIAS = "alias";
-	private final static String ATTR_DRIVE = "drive";
 	private final static String ATTR_CREATE = "create";
 	private final static String ATTR_READONLY = "readOnly";
 	private final static String ATTR_CREATEONLY = "createOnly";
@@ -196,8 +195,6 @@ public class Volume extends SharedResource {
 
 	private ArrayList<DeallocationChain> _deallocationList = new ArrayList<DeallocationChain>();
 
-	private String _drive = "unknown";
-
 	private static class DeallocationChain {
 		int _treeIndex;
 		long _leftPage;
@@ -327,7 +324,6 @@ public class Volume extends SharedResource {
 		try {
 			String dsPath = mainTokenizer.nextToken().trim();
 			String alias = null;
-			String drive = "";
 			boolean readOnly = false;
 			boolean create = false;
 			boolean createOnly = false;
@@ -354,11 +350,6 @@ public class Volume extends SharedResource {
 					String valueString = innerTokenizer.nextToken().trim();
 					if (valueString != null && valueString.length() > 0) {
 						alias = valueString;
-					}
-				} else if (ATTR_DRIVE.equals(attr)) {
-					String valueString = innerTokenizer.nextToken().trim();
-					if (valueString != null && valueString.length() > 0) {
-						drive = valueString;
 					}
 				} else {
 					String valueString = innerTokenizer.nextToken().trim();
@@ -505,9 +496,9 @@ public class Volume extends SharedResource {
 			raf.readFully(bytes);
 
 			if (bytesEqual(bytes, 0, STATUS_CLEAN)) {
-				clean();
+				setClean();
 			} else if (bytesEqual(bytes, 0, STATUS_DIRTY)) {
-				dirty();
+				setDirty();
 			} else {
 				throw new CorruptVolumeException("Invalid status");
 			}
@@ -743,7 +734,7 @@ public class Volume extends SharedResource {
 			// Volume file.
 			//
 			initialize(initialPages);
-			dirty();
+			setDirty();
 			fullyOpen = true;
 		} finally {
 			if (!fullyOpen)
@@ -818,7 +809,7 @@ public class Volume extends SharedResource {
 		if (_readOnly)
 			throw new ReadOnlyVolumeException(toString());
 		putHeaderInfo(_headBuffer.getBytes());
-		_headBuffer.dirty();
+		_headBuffer.setDirty();
 	}
 
 	/**
@@ -852,15 +843,6 @@ public class Volume extends SharedResource {
 		return _alias;
 	}
 
-	/**
-	 * Returns the optional drive name supplied in the configuration for this
-	 * volume. If no drive name was specified, this method returns "unknown"
-	 * 
-	 * @return Name of the drive on which this volume is located.
-	 */
-	public String getDrive() {
-		return _drive;
-	}
 
 	/**
 	 * Returns the buffer size for this volume, one of 1024, 2048, 4096, 8192 or
@@ -918,7 +900,7 @@ public class Volume extends SharedResource {
 			_directoryTree = tree;
 			_directoryRootPage = tree.getRootPageAddr();
 			checkpointMetaData();
-			_headBuffer.dirty();
+			_headBuffer.setDirty();
 		} finally {
 			releaseHeadBuffer();
 		}
@@ -1163,7 +1145,7 @@ public class Volume extends SharedResource {
 								garbageBufferInfo(garbageBuffer), null, null,
 								null, null);
 					}
-					garbageBuffer.dirty();
+					garbageBuffer.setDirty();
 					return;
 				} else {
 					if (_persistit.getLogBase().isLoggable(
@@ -1213,7 +1195,7 @@ public class Volume extends SharedResource {
 				}
 			}
 			garbageBuffer.setRightSibling(garbagePage);
-			garbageBuffer.dirty();
+			garbageBuffer.setDirty();
 			setGarbageRoot(garbageBuffer.getPageAddress());
 		} finally {
 			if (garbageBuffer != null) {
@@ -1308,28 +1290,7 @@ public class Volume extends SharedResource {
 		try {
 			while (list.size() > 0) {
 				DeallocationChain chain = list.get(list.size() - 1);
-				if (Debug.ENABLED) {
-					// try
-					// {
-					// Buffer garbageBuffer = _pool.get(this, chain._leftPage,
-					// false, true);
-					// Debug.stateChanged(garbageBuffer,
-					// "commitDeallocDeferred", -1);
-					// Debug.$assert(
-					// garbageBuffer != null &&
-					// (garbageBuffer.isDataPage() ||
-					// garbageBuffer.isIndexPage()) ||
-					// garbageBuffer.isLongRecordPage() ||
-					// (chain._rightPage == -1 &&
-					// garbageBuffer.isUnallocatedPage()));
-					// garbageBuffer.release();
-					// }
-					// catch (PersistitException pe)
-					// {
-					// }
-					// Debug.stateChanged(chain._leftPage, 29,
-					// "initCommitDeallocDeferred", -1, -1);
-				}
+
 				deallocateGarbageChain(chain._treeIndex, chain._leftPage,
 						chain._rightPage);
 				list.remove(list.size() - 1);
@@ -1468,7 +1429,7 @@ public class Volume extends SharedResource {
 			try {
 				_directoryRootPage = tree.getRootPageAddr();
 				checkpointMetaData();
-				_headBuffer.dirty();
+				_headBuffer.setDirty();
 			} finally {
 				releaseHeadBuffer();
 			}
@@ -1721,7 +1682,7 @@ public class Volume extends SharedResource {
 			rootPageBuffer.init(Buffer.PAGE_TYPE_DATA, "initRootPage");
 			rootPageBuffer.putValue(Key.LEFT_GUARD_KEY, Value.EMPTY_VALUE);
 			rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
-			rootPageBuffer.dirty();
+			rootPageBuffer.setDirty();
 		} finally {
 			_pool.release(rootPageBuffer);
 		}
@@ -2237,7 +2198,7 @@ public class Volume extends SharedResource {
 
 		commitAllTreeUpdates();
 		commitAllDeferredDeallocations();
-		clean();
+		setClean();
 		checkpointMetaData();
 
 		if (!isReadOnly()) {
@@ -2248,7 +2209,7 @@ public class Volume extends SharedResource {
 			}
 		}
 		_headBuffer.setPermanent(false);
-		_headBuffer.clean();
+		_headBuffer.setClean();
 		releaseHeadBuffer();
 
 //		_pool.invalidate(this);
@@ -2287,6 +2248,8 @@ public class Volume extends SharedResource {
 			RandomAccessFile raf = getRafRW();
 			raf.getFD().sync();
 			releaseRafRW(raf);
+			_persistit.getLogManager().force();
+			
 		} catch (VolumeClosedException vce) {
 			// If the Volume is closed, then we sync'ed it then.
 			// Therefore do not throw this Exception, because the caller's
@@ -2352,9 +2315,9 @@ public class Volume extends SharedResource {
 		_initialPages = Util.getLong(bytes, 192);
 
 		if (bytesEqual(bytes, 0, STATUS_CLEAN)) {
-			clean();
+			setClean();
 		} else {
-			dirty();
+			setDirty();
 		}
 	}
 
@@ -2397,49 +2360,6 @@ public class Volume extends SharedResource {
 		return offset;
 	}
 
-	static int confirmMetaData(byte[] bytes, int offset)
-			throws PersistitException {
-		for (int i = 0; i < IDENTIFIER_SIGNATURE.length; i++) {
-			if (offset > bytes.length
-					|| IDENTIFIER_SIGNATURE[i] != bytes[offset++]) {
-				throw new CorruptVolumeException(
-						"Invalid Volume identifier signature");
-			}
-		}
-		/* long id = */Util.getLong(bytes, offset);
-		offset += 8;
-
-		/* int flags = */Util.getChar(bytes, offset);
-		offset += 2;
-
-		/* int bufferSize = */Util.getChar(bytes, offset);
-		offset += 2;
-
-		int len = Util.getChar(bytes, offset);
-		offset += 2;
-
-		offset += len;
-		return offset;
-	}
-
-	static long idFromMetaData(byte[] bytes, int offset) {
-		return Util.getLong(bytes, offset + IDENTIFIER_SIGNATURE.length);
-	}
-
-	static int bufferSizeFromMetaData(byte[] bytes, int offset) {
-		return Util.getChar(bytes, offset + IDENTIFIER_SIGNATURE.length + 10);
-	}
-
-	static String pathNameFromMetaData(byte[] bytes, int offset) {
-		offset += IDENTIFIER_SIGNATURE.length + 12;
-		int len = Util.getChar(bytes, offset);
-		offset += 2;
-		byte[] pathBytes = new byte[len];
-		System.arraycopy(bytes, offset, pathBytes, 0, len);
-		String pathName = new String(pathBytes);
-
-		return pathName;
-	}
 
 	/**
 	 * Returns a hashCode that is invariant for this <tt>Volume</tt>. It is

@@ -117,6 +117,8 @@ public final class Exchange implements BuildConstants {
 
 	private final static int LEFT_CLAIMED = 1;
 	private final static int RIGHT_CLAIMED = 2;
+	
+	private final static long RETRY_SLEEP_TIME = 50;
 
 	private Persistit _persistit;
 
@@ -1006,7 +1008,7 @@ public final class Exchange implements BuildConstants {
 			return -1;
 		} finally {
 			if (oldBuffer != null) {
-				_persistit.getLockManager().setOffset();
+				// _persistit.getLockManager().setOffset();
 				_pool.release(oldBuffer);
 				oldBuffer = null;
 			}
@@ -1129,7 +1131,7 @@ public final class Exchange implements BuildConstants {
 		throttleUpdate();
 		final int lockedResourceCount = _persistit.getLockManager()
 				.getLockedResourceCount();
-		storeInternal(key, value, 0, false);
+		storeInternal(key, value, 0, false, false);
 		_persistit.getLockManager().verifyNoStrayResourceClaims(
 				lockedResourceCount);
 		return this;
@@ -1141,8 +1143,8 @@ public final class Exchange implements BuildConstants {
 	 * 
 	 * @return this Exchange
 	 */
-	void storeInternal(Key key, Value value, int level, boolean fetchFirst)
-			throws PersistitException {
+	void storeInternal(Key key, Value value, int level, boolean fetchFirst,
+			boolean throwRetry) throws PersistitException {
 		boolean treeClaimRequired = false;
 		boolean treeClaimAcquired = false;
 		boolean treeWriterClaimRequired = false;
@@ -1262,14 +1264,16 @@ public final class Exchange implements BuildConstants {
 					if (level >= _cacheDepth) {
 						if (Debug.ENABLED)
 							Debug.$assert(level == _cacheDepth);
-						// TODO - rethink whether whether we really need a write
-						// lock on the tree
-						if (!treeClaimAcquired /* || !_tree.upgradeClaim() */) {
+						//
+						// Need to lock the tree because we may need to change
+						// its root.
+						//
+						if (!treeClaimAcquired || !_tree.upgradeClaim()) {
 							treeClaimRequired = true;
 							treeWriterClaimRequired = true;
-							// continue;
-							throw new RetryException();
+							throw RetryException.SINGLE;
 						}
+
 						if (Debug.ENABLED)
 							Debug.$assert(value.getPointerValue() > 0);
 						insertIndexLevel(key, value);
@@ -1399,6 +1403,24 @@ public final class Exchange implements BuildConstants {
 						level++;
 						continue;
 					}
+
+				} catch (RetryException re) {
+					newLongRecordPointer = 0;
+					oldLongRecordPointer = 0;
+					if (buffer != null) {
+						_pool.release(buffer);
+						buffer = null;
+					}
+
+					if (treeClaimAcquired) {
+						_tree.release();
+						treeClaimAcquired = false;
+						lockedResourceCount--;
+					}
+					if (throwRetry) {
+						throw re;
+					}
+					retrySleep();
 				} finally {
 					if (buffer != null) {
 						_pool.release(buffer);
@@ -1500,7 +1522,7 @@ public final class Exchange implements BuildConstants {
 			value.setPointerValue(-1);
 			buffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
 
-			buffer.dirty();
+			buffer.setDirty();
 
 			if (_isDirectoryExchange) {
 				Tree tree = _volume.getDirectoryTree();
@@ -1544,7 +1566,7 @@ public final class Exchange implements BuildConstants {
 
 		int result = buffer.putValue(key, value, foundAt);
 		if (result != -1) {
-			buffer.dirty();
+			buffer.setDirty();
 			// lc.update(buffer, key, exact ? foundAt : -1);
 			lc.update(buffer, key, result);
 			return false;
@@ -1601,8 +1623,8 @@ public final class Exchange implements BuildConstants {
 				value.setPointerValue(newRightSibling);
 				value.setPointerPageType(rightSibling.getPageType());
 
-				rightSibling.dirty();
-				buffer.dirty();
+				rightSibling.setDirty();
+				buffer.setDirty();
 
 				return true;
 
@@ -2328,7 +2350,7 @@ public final class Exchange implements BuildConstants {
 		throttleUpdate();
 		int lockedResourceCount = _persistit.getLockManager()
 				.getLockedResourceCount();
-		storeInternal(_key, _value, 0, true);
+		storeInternal(_key, _value, 0, true, false);
 		_persistit.getLockManager().verifyNoStrayResourceClaims(
 				lockedResourceCount);
 		_spareValue.copyTo(_value);
@@ -2833,7 +2855,7 @@ public final class Exchange implements BuildConstants {
 										_tree.bumpChangeCount();
 									}
 
-									buffer.dirty();
+									buffer.setDirty();
 									result = foundAt2 > foundAt1;
 									break;
 								}
@@ -3013,8 +3035,8 @@ public final class Exchange implements BuildConstants {
 							if (buffer1.isDataPage()) {
 								_tree.bumpChangeCount();
 							}
-							buffer1.dirty();
-							buffer2.dirty();
+							buffer1.setDirty();
+							buffer2.setDirty();
 
 							long rightGarbagePage = buffer1.getRightSibling();
 
@@ -3061,8 +3083,7 @@ public final class Exchange implements BuildConstants {
 									if (Debug.ENABLED)
 										Debug.$assert(buffer != null);
 
-									if (parentLc._rightBuffer == buffer
-											&& buffer.getReservedGeneration() > 0) {
+									if (parentLc._rightBuffer == buffer) {
 										int foundAt = buffer
 												.findKey(_spareKey1);
 										if (Debug.ENABLED)
@@ -3079,7 +3100,7 @@ public final class Exchange implements BuildConstants {
 										// If it worked then we're done.
 										if (fit != -1) {
 											needsReindex = false;
-											buffer.dirty();
+											buffer.setDirty();
 										}
 									}
 								}
@@ -3112,7 +3133,7 @@ public final class Exchange implements BuildConstants {
 							if (buffer1.isDataPage() && result) {
 								_tree.bumpChangeCount();
 							}
-							buffer1.dirty();
+							buffer1.setDirty();
 						}
 
 						if (level < _cacheDepth - 1) {
@@ -3121,7 +3142,7 @@ public final class Exchange implements BuildConstants {
 					}
 					break;
 				} catch (RetryException re) {
-					//
+					retrySleep();
 				} finally {
 					//
 					// Release all buffers.
@@ -3188,7 +3209,7 @@ public final class Exchange implements BuildConstants {
 								_value.setPointerValue(buffer.getPageAddress());
 								_value.setPointerPageType(buffer.getPageType());
 								storeInternal(_spareKey2, _value, level + 1,
-										false);
+										false, true);
 							} else {
 								if (_persistit.getLogBase().isLoggable(
 										LogBase.LOG_UNINDEXED_PAGE)) {
@@ -3206,6 +3227,12 @@ public final class Exchange implements BuildConstants {
 						}
 					}
 					deferredReindexRequired = false;
+				} catch (RetryException re) {
+					if (buffer != null) {
+						_pool.release(buffer);
+						buffer = null;
+					}
+					retrySleep();
 				} finally {
 					if (buffer != null) {
 						_pool.release(buffer);
@@ -3526,7 +3553,7 @@ public final class Exchange implements BuildConstants {
 				if (end < buffer.getBufferSize()) {
 					buffer.clearBytes(end, buffer.getBufferSize());
 				}
-				buffer.dirty();
+				buffer.setDirty();
 				bufferArray[index] = null;
 				page = buffer.getPageAddress(); // current head of the chain
 				_pool.release(buffer);
@@ -3632,7 +3659,7 @@ public final class Exchange implements BuildConstants {
 					}
 					buffer.setRightSibling(looseChain);
 					looseChain = buffer.getPageAddress();
-					buffer.dirty();
+					buffer.setDirty();
 					_pool.release(buffer);
 					offset -= maxSegmentSize;
 					buffer = null;
@@ -3843,6 +3870,14 @@ public final class Exchange implements BuildConstants {
 		// {
 		// _persistit.throttle();
 		// }
+	}
+	
+	private void retrySleep() {
+		try {
+			Thread.sleep(RETRY_SLEEP_TIME);
+		} catch (InterruptedException e) {
+			// ignore
+		}
 	}
 
 	public KeyHistogram computeHistogram(final Key start, final Key end,

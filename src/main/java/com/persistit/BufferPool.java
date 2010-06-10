@@ -39,6 +39,11 @@ public class BufferPool {
 	 * Default PageWriter polling interval
 	 */
 	private final static long DEFAULT_WRITER_POLL_INTERVAL = 2000;
+
+	/**
+	 * Sleep time when buffers are exhausted
+	 */
+	private final static long RETRY_SLEEP_TIME = 50;
 	/**
 	 * The ratio of hash table slots per buffer in this pool
 	 */
@@ -56,17 +61,9 @@ public class BufferPool {
 	 */
 	public final static int PAGES_PER_BUCKET = 4096;
 
-	/**
-	 * Number of Buffers to allocate per Findex
-	 */
-	private final static int FINDEX_RATIO = 2;
-
-	/**
-	 * Minimum number of Findex arrays to preallocate
-	 */
-	private final static int MINIMUM_FINDEX_COUNT = 4;
-
 	private Persistit _persistit;
+
+	private Buffer _permanentChain;
 
 	/**
 	 * Hash table - fast access to buffer by hash of address.
@@ -101,11 +98,6 @@ public class BufferPool {
 	private Buffer[] _lru = null;
 
 	/**
-	 * Head of doubly-linked list of Buffers with Findex elements in
-	 * least-recently-used order
-	 */
-	private Buffer[] _findexLru = null;
-	/**
 	 * An Object used to lock the buffer management memory structures
 	 */
 	private final Object[] _lock;
@@ -119,12 +111,6 @@ public class BufferPool {
 	 * Count of buffer pool hits (buffer found in pool)
 	 */
 	private AtomicLong _hitCounter = new AtomicLong();
-
-	/**
-	 * Current age - used to determine whether buffer needs to be moved up on
-	 * most recently used list.
-	 */
-	private volatile long _currentAge;
 
 	/**
 	 * Indicates that Persistit has closed this buffer pool.
@@ -172,7 +158,6 @@ public class BufferPool {
 					"Invalid buffer size requested: " + size);
 
 		_bufferCount = count;
-		_currentAge = count + 1;
 		_bufferSize = size;
 		_buffers = new Buffer[count];
 		_bucketCount = (count / PAGES_PER_BUCKET) + 1;
@@ -181,47 +166,30 @@ public class BufferPool {
 
 		_invalidBufferQueue = new Buffer[_bucketCount];
 		_lru = new Buffer[_bucketCount];
-		_findexLru = new Buffer[_bucketCount];
 		_lock = new Object[_bucketCount];
 		for (int bucket = 0; bucket < _bucketCount; bucket++) {
 			_lock[bucket] = new Object();
 		}
 
-		int findexCount = _bufferCount / FINDEX_RATIO;
-
-		if (findexCount < MINIMUM_FINDEX_COUNT * _bucketCount) {
-			findexCount = MINIMUM_FINDEX_COUNT * _bucketCount;
-		}
 		try {
 
-		for (int index = 0; index < count; index++) {
-			Buffer buffer = new Buffer(size, index, this, _persistit);
-			int bucket = index % _bucketCount;
-			buffer._next = _invalidBufferQueue[bucket];
-			_invalidBufferQueue[bucket] = buffer;
-			_buffers[index] = buffer;
-			if (findexCount-- > 0) {
+			for (int index = 0; index < count; index++) {
+				Buffer buffer = new Buffer(size, index, this, _persistit);
+				int bucket = index % _bucketCount;
+				buffer._next = _invalidBufferQueue[bucket];
+				_invalidBufferQueue[bucket] = buffer;
+				_buffers[index] = buffer;
 				buffer.createFindex();
-				if (_findexLru[bucket] == null) {
-					_findexLru[bucket] = buffer;
-					buffer._findexNextLru = buffer;
-					buffer._findexPrevLru = buffer;
-				} else {
-					buffer._findexNextLru = _findexLru[bucket];
-					buffer._findexPrevLru = _findexLru[bucket]._findexPrevLru;
-					_findexLru[bucket]._findexPrevLru._findexNextLru = buffer;
-					_findexLru[bucket]._findexPrevLru = buffer;
-				}
+				created++;
 			}
-			created++;
-		}
 
-		_writers = new PageWriter[_bucketCount];
-		for (int index = 0; index < _bucketCount; index++) {
-			_writers[index] = new PageWriter(index);
-		}
+			_writers = new PageWriter[_bucketCount];
+			for (int index = 0; index < _bucketCount; index++) {
+				_writers[index] = new PageWriter(index);
+			}
 		} catch (OutOfMemoryError e) {
-			System.out.println("Out of memory after creating " + created + " buffers");
+			System.out.println("Out of memory after creating " + created
+					+ " buffers");
 			throw e;
 		}
 
@@ -289,11 +257,8 @@ public class BufferPool {
 		int dirtyPages = 0;
 		int readerClaimedPages = 0;
 		int writerClaimedPages = 0;
-		int reservedPages = 0;
 		for (int index = 0; index < _bufferCount; index++) {
 			Buffer buffer = _buffers[index];
-			if (buffer.getReservedGeneration() > 0)
-				reservedPages++;
 			int status = buffer.getStatus();
 			if ((status & SharedResource.VALID_MASK) != 0)
 				validPages++;
@@ -308,7 +273,6 @@ public class BufferPool {
 		info._dirtyPageCount = dirtyPages;
 		info._readerClaimedPageCount = readerClaimedPages;
 		info._writerClaimedPageCount = writerClaimedPages;
-		info._reservedPageCount = reservedPages;
 		info.updateAcquisitonTime();
 	}
 
@@ -585,8 +549,9 @@ public class BufferPool {
 			//
 			// If already invalid, we're done.
 			//
-			if ((buffer._status & SharedResource.VALID_MASK) == 0)
+			if ((buffer._status & SharedResource.VALID_MASK) == 0) {
 				return;
+			}
 
 			int hash = hashIndex(buffer._vol, buffer._page);
 			//
@@ -653,30 +618,6 @@ public class BufferPool {
 				_lru[bucket]._prevLru._nextLru = buffer;
 				_lru[bucket]._prevLru = buffer;
 			}
-			if (buffer._findexElements != null) {
-				if (_findexLru[bucket] == null) {
-					_findexLru[bucket] = buffer;
-					if (Debug.ENABLED)
-						checkLru(bucket, buffer, true);
-				} else if (buffer.isFindexValid()
-						&& _findexLru[bucket] != buffer) {
-					//
-					// Detach buffer from the list. (Is a no-op for a buffer
-					// that wasn't already on the LRU queue.)
-					//
-					buffer._findexPrevLru._findexNextLru = buffer._findexNextLru;
-					buffer._findexNextLru._findexPrevLru = buffer._findexPrevLru;
-					//
-					// Now splice it in
-					//
-					buffer._findexNextLru = _findexLru[bucket];
-					buffer._findexPrevLru = _findexLru[bucket]._findexPrevLru;
-					_findexLru[bucket]._findexPrevLru._findexNextLru = buffer;
-					_findexLru[bucket]._findexPrevLru = buffer;
-					if (Debug.ENABLED)
-						checkLru(bucket, buffer, true);
-				}
-			}
 		}
 	}
 
@@ -700,14 +641,13 @@ public class BufferPool {
 	Buffer get(Volume vol, long page, boolean writer, boolean wantRead)
 			throws InUseException, InvalidPageAddressException,
 			InvalidPageStructureException, VolumeClosedException,
-			PersistitIOException {
+			PersistitIOException, RetryException {
 		int hash = hashIndex(vol, page);
 		Buffer buffer = null;
 		int bucket = (int) (page % _bucketCount);
 		for (;;) {
 			boolean mustRead = false;
 			boolean mustClaim = false;
-
 			synchronized (_lock[bucket]) {
 				buffer = _hashTable[hash];
 				//
@@ -739,33 +679,47 @@ public class BufferPool {
 					// in the page from the Volume.
 					//
 					buffer = allocBuffer(bucket);
-
-					if (Debug.ENABLED)
-						Debug.$assert(buffer != _hashTable[hash]);
-					if (Debug.ENABLED)
-						Debug.$assert(buffer._next != buffer);
-					if (Debug.ENABLED)
-						Debug.$assert(buffer.isClean());
-
-					buffer._page = page;
-					buffer._vol = vol;
-					buffer._hash = hash;
-					buffer._next = _hashTable[hash];
-					_hashTable[hash] = buffer;
 					//
-					// It's not really valid yet, but it does have a writer
-					// claim on it so no other Thread can access it. In the
-					// meantime, any other Thread seeking access to the same
-					// page will find it.
+					// buffer may be null if allocBuffer found no available
+					// clean buffers. In that case we need to back off and
+					// get some buffers written.
 					//
-					buffer._status |= SharedResource.VALID_MASK;
+					if (buffer != null) {
 
-					if (Debug.ENABLED)
-						Debug.$assert(buffer._next != buffer);
-					mustRead = true;
+						if (Debug.ENABLED) {
+							Debug.$assert(buffer != _hashTable[hash]);
+							Debug.$assert(buffer._next != buffer);
+						}
+
+						buffer._page = page;
+						buffer._vol = vol;
+						buffer._hash = hash;
+						buffer._next = _hashTable[hash];
+						_hashTable[hash] = buffer;
+						//
+						// It's not really valid yet, but it does have a writer
+						// claim on it so no other Thread can access it. In the
+						// meantime, any other Thread seeking access to the same
+						// page will find it.
+						//
+						buffer._status |= SharedResource.VALID_MASK;
+
+						if (Debug.ENABLED)
+							Debug.$assert(buffer._next != buffer);
+						mustRead = true;
+					}
 				}
 			}
-			if (buffer != null) {
+			if (buffer == null) {
+				_writers[bucket].kick();
+				synchronized (_lock[bucket]) {
+					try {
+						_lock[bucket].wait(RETRY_SLEEP_TIME);
+					} catch (InterruptedException e) {
+						// ignore
+					}
+				}
+			} else {
 				if (Debug.ENABLED)
 					Debug.$assert(!mustClaim || !mustRead);
 
@@ -913,20 +867,18 @@ public class BufferPool {
 	 * @return Buffer An available buffer, or <i>null</i> if no buffer is
 	 *         currently available. The buffer has a writer claim.
 	 * @throws InvalidPageStructureException
-	 * @throws RetryException
-	 *             If no buffer is available.
 	 */
 	private Buffer allocBuffer(int bucket) throws PersistitIOException,
-			InvalidPageStructureException {
+			InvalidPageStructureException, RetryException {
 		// No need to synchronize here because the only caller is get(...).
 		Buffer lastBuffer = null;
-		int dirtyBuffers = 0;
-		Buffer buffer = _invalidBufferQueue[bucket];
+
 		boolean found = false;
 
 		/**
 		 * First search the Invalid Buffer Queue
 		 */
+		Buffer buffer = _invalidBufferQueue[bucket];
 		while (buffer != null) {
 			if (Debug.ENABLED)
 				Debug.$assert(buffer._next != buffer);
@@ -939,8 +891,6 @@ public class BufferPool {
 					_invalidBufferQueue[bucket] = buffer._next;
 				found = true;
 				break;
-			} else if (buffer.isDirty()) {
-				dirtyBuffers++;
 			}
 			lastBuffer = buffer;
 			buffer = buffer._next;
@@ -957,144 +907,16 @@ public class BufferPool {
 					detach(buffer);
 					found = true;
 					break;
-				} else if (buffer.isDirty()) {
-					dirtyBuffers++;
 				}
 				buffer = buffer._nextLru;
 				if (buffer == _lru[bucket])
 					break;
 			}
 		}
-		/**
-		 * And finally, search for a dirty buffer near the top of the LRU queue
-		 */
-		if (!found) {
-			buffer = _lru[bucket];
-			while (buffer != null) {
-				if (buffer.isAvailable() && buffer.claim(true, 0)) {
-					detach(buffer);
-					found = true;
-					break;
-				} else if (buffer.isDirty()) {
-					dirtyBuffers++;
-				}
-				buffer = buffer._nextLru;
-				if (buffer == _lru[bucket])
-					break;
-			}
-		}
-
-		boolean manyDirtyReservedBuffers = dirtyBuffers >= (_bufferCount / _bucketCount) / 2;
-		if (manyDirtyReservedBuffers) {
-			// kick the flusher
-		}
-
 		if (found) {
-			/**
-			 * The Buffer could have been dirty or could be been dirtied by
-			 * another thread while claiming it. If it's dirty, just force it
-			 * out to the Log right now.
-			 */
-			if (buffer.isDirty()) {
-				buffer.clearSlack();
-				buffer.save();
-				_persistit.getLogManager().writePageToLog(buffer);
-				buffer.clean();
-			}
 			return buffer;
-		}
-
-		// TODO - fix this for real.
-		throw new IllegalStateException("Buffers exhausted.");
-	}
-
-	void allocFindex(Buffer needyBuffer) {
-		// No need to synchronize here because the only caller is get(...).
-		//
-		if (needyBuffer._findexElements != null)
-			return;
-		int bucket = needyBuffer.getIndex() % _bucketCount;
-		synchronized (_lock[bucket]) {
-			needyBuffer.invalidateFindex();
-			//
-			// Look in the Findex LRU queue for an LRU buffer to reappropriate
-			// to this buffer.
-			//
-			Buffer buffer = _findexLru[bucket];
-			while (buffer != null) {
-				if (buffer._findexElements != null && !buffer.isClaimed()) // a
-				// "quick"
-				// check
-				{
-					if (Debug.ENABLED)
-						Debug.$assert(buffer._next != buffer);
-
-					if (buffer.claim(true, 0)) {
-						int[] elements = buffer.takeFindexElements();
-						buffer.release();
-
-						if (elements != null) {
-							if (_findexLru[bucket] == buffer) {
-								_findexLru[bucket] = buffer._findexNextLru;
-								if (_findexLru[bucket] == buffer) {
-									_findexLru[bucket] = null;
-								}
-							}
-							buffer._findexPrevLru._findexNextLru = buffer._findexNextLru;
-							buffer._findexNextLru._findexPrevLru = buffer._findexPrevLru;
-							buffer._findexPrevLru = buffer;
-							buffer._findexNextLru = buffer;
-							needyBuffer.giveFindexElements(elements);
-							if (Debug.ENABLED)
-								checkLru(bucket, buffer, false);
-							return;
-						}
-					}
-				}
-				buffer = buffer._findexNextLru;
-				if (buffer == _findexLru[bucket])
-					break;
-			}
-			//
-			// Finally, if we can't find any available Findex arrays we'll
-			// create
-			// a new one.
-			//
-			needyBuffer.createFindex();
-		}
-	}
-
-	private void checkLru(int bucket, Buffer b, boolean included) {
-		if (Debug.ENABLED && Debug.VERIFY_PAGES) {
-			boolean found = false;
-			Buffer buffer = _findexLru[bucket];
-			if (buffer == null) {
-				Debug.$assert(!included);
-				return;
-			}
-
-			else if (buffer._findexNextLru == buffer._findexPrevLru) {
-				Debug.$assert(!included || buffer == b);
-				return;
-			}
-
-			else
-				for (int i = 0; i < _buffers.length; i++) {
-					Buffer previous = buffer;
-					buffer = buffer._findexNextLru;
-					if (buffer == b)
-						found = true;
-					Debug.$assert(buffer != null && buffer != previous);
-					Debug.$assert(buffer._findexPrevLru == previous);
-					if (buffer == _findexLru[bucket]) {
-						Debug.$assert(included == found);
-						return;
-					}
-					Debug.$assert(previous != buffer);
-				}
-			Debug.$assert(false);
-
-			return;
+		} else {
+			return null;
 		}
 	}
 
@@ -1112,7 +934,7 @@ public class BufferPool {
 				if (Debug.ENABLED)
 					Debug.$assert(buffer._next != buffer);
 				if (buffer.isDirty()) {
-					if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
+					if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0) {
 						needWriting[count++] = buffer;
 					} else {
 						unavailable++;
@@ -1177,16 +999,20 @@ public class BufferPool {
 						final Volume volume = buffer.getVolume();
 						long page = buffer.getPageAddress();
 						_needWriting[index] = null;
-						boolean claimed = buffer.claim(false, 0);
+						boolean claimed = buffer.claim(true, 0);
 						try {
-							if (claimed && buffer.isDirty()) {
+							if (claimed) {
 								if (volume != null) {
 									buffer.clearSlack();
 									buffer.save();
+									// buffer.releaseWriterClaim();
 									_persistit.getLogManager().writePageToLog(
 											buffer);
+									synchronized (_lock[_bucket]) {
+										_lock[_bucket].notify();
+									}
 								}
-								buffer.clean();
+								buffer.setClean();
 							}
 						} catch (Exception e) {
 							_persistit.getLogBase().log(
@@ -1211,6 +1037,7 @@ public class BufferPool {
 							}
 						}
 					} catch (InterruptedException ie) {
+						// ignore
 					}
 				}
 			} catch (Throwable t) {

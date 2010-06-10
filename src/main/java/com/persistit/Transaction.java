@@ -1566,7 +1566,7 @@ public class Transaction {
 			value.getEncodedBytes()[0] = (byte) NEUTERED_LONGREC;
 
 		}
-		_ex1.storeInternal(_ex1.getKey(), value, 0, false);
+		_ex1.storeInternal(_ex1.getKey(), value, 0, false, false);
 		_pendingStoreCount++;
 	}
 
@@ -1578,7 +1578,7 @@ public class Transaction {
 		exchange.getValue().clear();
 		exchange.clear();
 		prepareTxnExchange(exchange.getTree(), exchange.getKey(), 'D');
-		_ex1.storeInternal(_ex1.getKey(), exchange.getValue(), 0, false);
+		_ex1.storeInternal(_ex1.getKey(), exchange.getValue(), 0, false, false);
 		return removed;
 	}
 
@@ -1676,7 +1676,7 @@ public class Transaction {
 			//
 
 			prepareTxnExchange(tree, key1, 'R');
-			_ex1.storeInternal(_ex1.getKey(), value, 0, false);
+			_ex1.storeInternal(_ex1.getKey(), value, 0, false, false);
 			_pendingRemoveCount++;
 		}
 		//
@@ -1733,7 +1733,7 @@ public class Transaction {
 						&& (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
 					txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
 				}
-				_ex2.storeInternal(key2, txnValue, 0, false);
+				_ex2.storeInternal(key2, txnValue, 0, false, false);
 				removedTrees.remove(_ex2.getTree());
 			} else if (type == 'D') {
 				removedTrees.add(_ex2.getTree());
