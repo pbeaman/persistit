@@ -422,7 +422,7 @@ extends Task
             {
                 if (
                     _volume != null &&
-                    _volume.getPathName().indexOf(_selectedVolumeName) < 0)
+                    _volume.getPath().indexOf(_selectedVolumeName) < 0)
                 {
                     _volume = null;
                 }
@@ -562,7 +562,7 @@ extends Task
         Tree tree = _handler._tree;
         return 
             tree.getName() + 
-            " in " + tree.getVolume().getPathName() + 
+            " in " + tree.getVolume().getPath() + 
             " (" + _dataRecordCount + ")";
     }
 }

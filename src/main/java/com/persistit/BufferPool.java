@@ -63,8 +63,6 @@ public class BufferPool {
 
 	private Persistit _persistit;
 
-	private Buffer _permanentChain;
-
 	/**
 	 * Hash table - fast access to buffer by hash of address.
 	 */
@@ -88,10 +86,18 @@ public class BufferPool {
 	 * Count of separate locks and list structures
 	 */
 	private int _bucketCount;
+
 	/**
 	 * Head of singly-linked list of invalid pages
 	 */
 	private Buffer[] _invalidBufferQueue;
+
+	/**
+	 * Doubly-linked list of permanent Buffers. Note that
+	 * a Buffer on this list cannot also be on the LRU list.
+	 */
+	private Buffer _perm;
+
 	/**
 	 * Head of doubly-linked list of valid page in least-recently-used order
 	 */
@@ -856,6 +862,35 @@ public class BufferPool {
 		buffer.release();
 	}
 
+	void setPermanent(final Buffer buffer, boolean permanent) {
+		if (permanent != buffer.isPermanent()) {
+			buffer.setPermanent(permanent);
+			synchronized (this) {
+				if (permanent) {
+					// Insert
+					if (_perm == null) {
+						_perm = buffer;
+						buffer._nextLru = buffer;
+						buffer._prevLru = buffer;
+					} else {
+						buffer._nextLru = _perm;
+						buffer._prevLru = _perm._prevLru;
+						_perm._prevLru._nextLru = buffer;
+						_perm._prevLru = buffer;
+					}
+				} else {
+					if (_perm == buffer) {
+						_perm = buffer._next == buffer ? null : buffer._next;
+					}
+					buffer._nextLru._prevLru = buffer._prevLru;
+					buffer._prevLru._nextLru = buffer._nextLru;
+					buffer._nextLru = buffer;
+					buffer._prevLru = buffer;
+				}
+			}
+		}
+	}
+
 	/**
 	 * Returns an available buffer. The replacement policy is to return a buffer
 	 * that's already been marked invalid, if available. Otherwise traverse the
@@ -925,6 +960,23 @@ public class BufferPool {
 		int maxCount = needWriting.length;
 		int invalidDepth = 64;
 		int unavailable = 0;
+		synchronized(this) {
+			Buffer buffer = _perm;
+			while (buffer != null && count < maxCount) {
+				if (buffer.isDirty()) {
+					if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
+						needWriting[count++] = buffer;
+					} else {
+						unavailable++;
+					}
+				}
+				buffer = buffer._nextLru;
+				if (buffer == _perm) {
+					break;
+				}
+			}
+		}
+		
 		synchronized (_lock[bucket]) {
 			Buffer buffer = _invalidBufferQueue[bucket];
 			int lruCount = _closed ? maxCount : _bufferCount / _bucketCount / 2;

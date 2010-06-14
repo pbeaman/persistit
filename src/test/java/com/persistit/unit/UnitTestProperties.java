@@ -36,12 +36,8 @@ public class UnitTestProperties {
         p.setProperty("datapath", DATA_PATH);
         p.setProperty("buffer.count.8192", "20");
         p.setProperty("volume.1", "${datapath}/persistit.v01,create,"
-            + "pageSize:8192,initialPages:1,extensionPages:1,"
+            + "pageSize:8192,initialPages:10,extensionPages:10,"
             + "maximumPages:10000");
-        p.setProperty("pwjpath", "${datapath}/persistit_unit_test.pwj");
-        p.setProperty("pwjdelete", "true");
-        p.setProperty("pwjsize", "128K");
-        p.setProperty("pwjcount", "1");
         p.setProperty("logpath", "${datapath}/persistit_log");
         return p;
     }
@@ -60,10 +56,6 @@ public class UnitTestProperties {
         p.setProperty("volume.3", "${datapath}/persistit_txn.v01,create,"
             + "pageSize:8192,initialPages:100,extensionPages:100,"
             + "maximumPages:100000,alias:_txn");
-        p.setProperty("pwjpath", "${datapath}/persistit_unit_test.pwj");
-        p.setProperty("pwjdelete", "true");
-        p.setProperty("pwjsize", "16M");
-        p.setProperty("pwjcount", "2");
         p.setProperty("logpath", "${datapath}/persistit_log");
         return p;
     }
@@ -76,10 +68,6 @@ public class UnitTestProperties {
         p.setProperty("volume.1", "${datapath}/temp.v01,create,"
             + "pageSize:8192,initialPages:4,extensionPages:1,"
             + "maximumPages:100000,alias:persistit,temporary");
-        p.setProperty("pwjpath", "${datapath}/persistit_alt_test.pwj");
-        p.setProperty("pwjdelete", "true");
-        p.setProperty("pwjsize", "1M");
-        p.setProperty("pwjcount", "1");
         p.setProperty("logpath", "${datapath}/persistit_alt_log");
         return p;
     }

@@ -4191,7 +4191,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
 		Volume vol = _vol;
 		if (vol != null) {
 			info._volumeId = vol.getId();
-			info._volumeName = vol.getPathName();
+			info._volumeName = vol.getPath();
 		} else {
 			info._volumeId = 0;
 			info._volumeName = null;

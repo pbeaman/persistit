@@ -286,7 +286,7 @@ class Journal
                     _os.writeInt(threadHandle);
                     _os.writeInt((int)_persistit.elapsedTime());
                     _os.writeLong(volume.getId());
-                    _os.writeUTF(volume.getPathName());
+                    _os.writeUTF(volume.getPath());
                     _os.writeInt(treeIndex);
                     _os.writeUTF(treeName);
                     _os.writeByte(END_MARKER);
@@ -430,7 +430,7 @@ class Journal
             _os.writeInt((int)_persistit.elapsedTime());
             _os.writeInt(treeHandle);
             _os.writeLong(tree.getVolume().getId());
-            _os.writeUTF(tree.getVolume().getPathName());
+            _os.writeUTF(tree.getVolume().getPath());
             _os.writeInt(tree.getTreeIndex());
             _os.writeUTF(tree.getName());
             _os.writeByte(END_MARKER);

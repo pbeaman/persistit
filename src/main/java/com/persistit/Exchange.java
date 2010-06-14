@@ -823,7 +823,7 @@ public final class Exchange implements BuildConstants {
 	 */
 	@Override
 	public String toString() {
-		return "Exchange(Volume=" + _volume.getPathName() + ",Tree="
+		return "Exchange(Volume=" + _volume.getPath() + ",Tree="
 				+ _tree.getName() + "," + ",Key=<" + _key.toString() + ">)";
 
 	}
@@ -3217,7 +3217,7 @@ public final class Exchange implements BuildConstants {
 											LogBase.LOG_UNINDEXED_PAGE,
 											deferredPage, 0, 0, 0, 0,
 											_tree.getName(),
-											_volume.getPathName(), null, null,
+											_volume.getPath(), null, null,
 											null);
 								}
 							}
@@ -3964,7 +3964,6 @@ public final class Exchange implements BuildConstants {
 					histogram.addKeyCopy(_key);
 				}
 			}
-
 		} finally {
 			if (buffer != null) {
 				_pool.release(buffer);

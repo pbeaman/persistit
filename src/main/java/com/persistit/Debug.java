@@ -475,7 +475,7 @@ public class Debug
         if (_dh == null) return null;
         
         // TODO !!
-        String volumeName = volume.getPathName();
+        String volumeName = volume.getPath();
         if (volumeName.indexOf("sys") >= 0 || volumeName.indexOf("txn") >= 0)
         {
             return null;

@@ -1169,7 +1169,7 @@ extends Remote
         VolumeInfo(Volume vol)
         {
             super();
-            _pathName = vol.getPathName();
+            _pathName = vol.getPath();
             _id = vol.getId();
             _createTime = vol.getCreateTime();
             _generation = vol.getTimestamp();
@@ -1190,7 +1190,7 @@ extends Remote
             _maximumPageCount = vol.getMaximumPages();
             _extensionPageCount = vol.getExtensionPages();
             _garbageRootPage = vol.getGarbageRoot();
-            _alias = vol.getAlias();
+            _alias = vol.getName();
         }
         
         /**
@@ -1464,7 +1464,7 @@ extends Remote
             _rootPageAddress = tree.getRootPageAddr();
             _depth = tree.getDepth();
             _status = tree.getStatusCode();
-            _volumePathName = tree.getVolume().getPathName();
+            _volumePathName = tree.getVolume().getPath();
             Thread thread = tree.getWriterThread();
             _writerThreadName = thread == null ? null : thread.getName();
         }

@@ -360,7 +360,7 @@ public class Transaction {
 
 		@Override
 		public String toString() {
-			return "Touched(" + _volume.getPathName() + ", page " + _pageAddr
+			return "Touched(" + _volume.getPath() + ", page " + _pageAddr
 					+ ", changeCount=" + _changeCount + ")";
 		}
 	}
@@ -470,8 +470,8 @@ public class Transaction {
 			value.setStreamMode(true);
 			try {
 				value.put(volume.getId());
-				value.put(volume.getPathName());
-				value.put(volume.getAlias());
+				value.put(volume.getPath());
+				value.put(volume.getName());
 				value.put(tree.getName());
 				ex.clear().append('@').append(handle).store();
 			} finally {
@@ -1686,7 +1686,7 @@ public class Transaction {
 		return result1 || result2;
 	}
 
-	void applyUpdates() throws PersistitException {
+	private void applyUpdates() throws PersistitException {
 		if (_ex1 == null)
 			setupExchanges();
 		_ex1.clear().append('C').fetch();

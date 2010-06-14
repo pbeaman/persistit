@@ -137,7 +137,7 @@ public class IntegrityCheck extends Task {
 						Thread.sleep(3000);
 					}
 					postMessage("Checking " + tree.getName() + " in "
-							+ volume.getPathName(), LOG_VERBOSE);
+							+ volume.getPath(), LOG_VERBOSE);
 					boolean okay = checkTree(tree);
 					appendMessage(okay ? " - OKAY" : " - FAULTS", LOG_VERBOSE);
 				} catch (PersistitException pe) {
@@ -532,7 +532,7 @@ public class IntegrityCheck extends Task {
 								+ " unindexed page"
 								+ (_holeCount > 1 ? "s" : "") + " in tree "
 								+ tree.getName() + " in volume "
-								+ tree.getVolume().getPathName(), LOG_NORMAL);
+								+ tree.getVolume().getPath(), LOG_NORMAL);
 
 						fixIndexHoles();
 
@@ -541,7 +541,7 @@ public class IntegrityCheck extends Task {
 						}
 					} else {
 						postMessage("Tree " + tree.getName() + " in volume "
-								+ tree.getVolume().getPathName() + " has "
+								+ tree.getVolume().getPath() + " has "
 								+ _holeCount + " unindexed page"
 								+ (_holeCount > 1 ? "s" : ""), LOG_NORMAL);
 					}

@@ -54,7 +54,6 @@ class SharedResource extends WaitingThreadManager {
 	 * to a Volume that is being deleted.
 	 */
 	public final static int DELETE_MASK = 0x00040000;
-	
 
 	/**
 	 * Mask for bit field indicating that updates are suspended
@@ -177,10 +176,12 @@ class SharedResource extends WaitingThreadManager {
 	}
 
 	void setPermanent(boolean b) {
-		if (b) {
-			_status |= PERMANENT_MASK;
-		} else {
-			_status &= ~PERMANENT_MASK;
+		synchronized (_lock) {
+			if (b) {
+				_status |= PERMANENT_MASK;
+			} else {
+				_status &= ~PERMANENT_MASK;
+			}
 		}
 	}
 
@@ -394,7 +395,7 @@ class SharedResource extends WaitingThreadManager {
 			_status |= DIRTY_MASK;
 		}
 	}
-	
+
 	public long getTimestamp() {
 		synchronized (_lock) {
 			return _timestamp;

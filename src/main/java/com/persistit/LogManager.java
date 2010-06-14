@@ -91,7 +91,7 @@ public class LogManager {
 
 	private final byte[] _bytes = new byte[4096];
 
-	private PrintWriter textLog;
+//	private PrintWriter textLog;
 	/**
 	 * Log file generation - serves as suffix on file name
 	 */
@@ -105,7 +105,7 @@ public class LogManager {
 		@Override
 		public void run() {
 			force();
-			textLog.flush();
+//			textLog.flush();
 		}
 	}
 
@@ -123,15 +123,15 @@ public class LogManager {
 		_readBuffer = ByteBuffer.allocateDirect(_readBufferSize);
 		_flushTimer = new Timer("LOG_FLUSHER", true);
 		_flushTimer.schedule(new LogFlusher(), _flushInterval, _flushInterval);
-		try {
-			textLog = new PrintWriter(new BufferedOutputStream(
-					new FileOutputStream(new File(
-							_directory.isDirectory() ? _directory : _directory
-									.getParentFile(), "LogManager_log.txt"),
-							true)));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+//		try {
+//			textLog = new PrintWriter(new BufferedOutputStream(
+//					new FileOutputStream(new File(
+//							_directory.isDirectory() ? _directory : _directory
+//									.getParentFile(), "LogManager_log.txt"),
+//							true)));
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
 	}
 
 	public synchronized boolean readPageFromLog(final Buffer buffer)
@@ -184,13 +184,13 @@ public class LogManager {
 			} else {
 				_readBuffer.get(buffer.getBytes());
 			}
-			textLog.println(String.format(
-					" read %s:%,14d page %,8d, type %2d, "
-							+ "right %,8d, index %,5d, %s", fa.getFile()
-							.getName(), fa.getAddress(), buffer
-							.getPageAddress(), (int) buffer.getByte(0), buffer
-							.getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
-							.getIndex(), buffer.getWriterThread().getName()));
+//			textLog.println(String.format(
+//					" read %s:%,14d page %,8d, type %2d, "
+//							+ "right %,8d, index %,5d, %s", fa.getFile()
+//							.getName(), fa.getAddress(), buffer
+//							.getPageAddress(), (int) buffer.getByte(0), buffer
+//							.getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
+//							.getIndex(), buffer.getWriterThread().getName()));
 		} catch (IOException ioe) {
 			throw new PersistitIOException(ioe);
 		}
@@ -229,12 +229,12 @@ public class LogManager {
 		} else {
 			_writeBuffer.put(buffer.getBytes());
 		}
-		textLog.println(String.format("write %s:%,14d page %,8d, type %2d, "
-				+ "right %,8d, index %,5d, %s", _currentFile.getName(),
-				address, buffer.getLong(Buffer.PAGE_ADDRESS_OFFSET),
-				(int) buffer.getByte(0), buffer
-						.getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
-						.getIndex(), Thread.currentThread().getName()));
+//		textLog.println(String.format("write %s:%,14d page %,8d, type %2d, "
+//				+ "right %,8d, index %,5d, %s", _currentFile.getName(),
+//				address, buffer.getLong(Buffer.PAGE_ADDRESS_OFFSET),
+//				(int) buffer.getByte(0), buffer
+//						.getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
+//						.getIndex(), Thread.currentThread().getName()));
 		final VolumePage vp = new VolumePage(new VolumeDescriptor(volume),
 				buffer.getPageAddress());
 		final FileAddress fa = new FileAddress(_currentFile, address);
@@ -251,7 +251,7 @@ public class LogManager {
 			LogRecord.IV.putHandle(_bytes, handle.intValue());
 			LogRecord.IV.putVolumeId(_bytes, volume.getId());
 			LogRecord.IV.putTimestamp(_bytes, 0); // TODO
-			LogRecord.IV.putVolumeName(_bytes, volume.getPathName());
+			LogRecord.IV.putVolumeName(_bytes, volume.getPath());
 			final int recordSize = LogRecord.IV.getLength(_bytes);
 			writeBuffer(recordSize);
 			_writeBuffer.put(_bytes, 0, recordSize);
@@ -584,7 +584,7 @@ public class LogManager {
 		}
 
 		VolumeDescriptor(final Volume volume) {
-			this.path = volume.getPathName();
+			this.path = volume.getPath();
 			this.id = volume.getId();
 		}
 

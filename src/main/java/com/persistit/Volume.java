@@ -17,19 +17,15 @@
 
 package com.persistit;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Stack;
-import java.util.StringTokenizer;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.exception.BufferUnavailableException;
@@ -60,21 +56,6 @@ import com.persistit.exception.VolumeFullException;
  * drive-spanning.
  */
 public class Volume extends SharedResource {
-	private final static String ATTR_ALIAS = "alias";
-	private final static String ATTR_CREATE = "create";
-	private final static String ATTR_READONLY = "readOnly";
-	private final static String ATTR_CREATEONLY = "createOnly";
-	private final static String ATTR_PAGE_SIZE = "pageSize";
-	private final static String ATTR_PAGE2_SIZE = "bufferSize";
-	private final static String ATTR_ID = "id";
-
-	private final static String ATTR_INITIAL_SIZE = "initialSize";
-	private final static String ATTR_EXTENSION_SIZE = "extensionSize";
-	private final static String ATTR_MAXIMUM_SIZE = "maximumSize";
-
-	private final static String ATTR_INITIAL_PAGES = "initialPages";
-	private final static String ATTR_EXTENSION_PAGES = "extensionPages";
-	private final static String ATTR_MAXIMUM_PAGES = "maximumPages";
 	/**
 	 * Designated Tree name for the special directory "tree of trees".
 	 */
@@ -82,30 +63,18 @@ public class Volume extends SharedResource {
 	/**
 	 * Key segment name for index by directory tree name.
 	 */
-	public final static String BY_NAME = "byName";
+	private final static String BY_NAME = "byName";
 	/**
 	 * Key segment name for index by directory tree index.
 	 */
-	public final static String BY_INDEX = "byIndex";
-	/**
-	 * Status information about this Volume. Must be 8 bytes long. Intended to
-	 * human-readable at the top of the file. This status means that the
-	 * database was shut down normally.
-	 */
-	public final static byte[] STATUS_CLEAN = Util.stringToBytes("CLEAN \r\n");
-	/**
-	 * Status information about this Volume. Must be 8 bytes long. Intended to
-	 * human-readable at the top of the file. This status means that the
-	 * database was not shut down normally, and that there may be pending
-	 * updates remaining in the prewrite journal.
-	 */
-	public final static byte[] STATUS_DIRTY = Util.stringToBytes("DIRTY \r\n");
+	private final static String BY_INDEX = "byIndex";
 
 	/**
 	 * Signature value - human and machine readable confirmation that this file
 	 * resulted from Persistit.
 	 */
-	public final static byte[] SIGNATURE = Util.stringToBytes("PERSISTI");
+	private final static byte[] SIGNATURE = Util
+			.stringToBytes("PERSISTIT VOLUME");
 
 	/**
 	 * Volume identifier - human and machine readable confirmation that this is
@@ -117,32 +86,25 @@ public class Volume extends SharedResource {
 	/**
 	 * Current product version number.
 	 */
-	public final static int VERSION = 100;
+	public final static int VERSION = 210;
 	/**
 	 * Minimum product version that can handle Volumes created by this version.
 	 */
-	private final static int MIN_SUPPORTED_VERSION = 100;
+	private final static int MIN_SUPPORTED_VERSION = 210;
 	/**
 	 * Minimum product version that can handle Volumes created by this version.
 	 */
-	private final static int MAX_SUPPORTED_VERSION = 199;
-
-	/**
-	 * Count of RandomAccessFile objects to open for each Volume. These are
-	 * shared among consumer threads.
-	 */
-	private final static int PREALLOCATED_RAF_COUNT = 4;
+	private final static int MAX_SUPPORTED_VERSION = 299;
 
 	private final static int HEADER_SIZE = Buffer.MIN_BUFFER_SIZE;
 
-	private final static boolean DEBUG_WRITE_LOG = false;
-
+	private FileChannel _channel;
+	private String _path;
+	private String _name;
 	private long _id;
-
-	private String _pathName;
-	private byte[] _pathNameBytes;
-	private String _alias;
-	
+	private long _initialPages;
+	private long _maximumPages;
+	private long _extensionPages;
 	private long _openTime;
 	private long _lastReadTime;
 	private long _lastWriteTime;
@@ -151,15 +113,10 @@ public class Volume extends SharedResource {
 	private long _firstAvailablePage;
 	private long _createTime;
 	private long _pageCount;
-	private long _initialPages;
-	private long _extensionPages;
-	private long _maximumPages;
 	private long _directoryRootPage;
 	private long _garbageRoot;
-
 	private int _bufferSize;
 
-	
 	private AtomicLong _readCounter = new AtomicLong();
 	private AtomicLong _writeCounter = new AtomicLong();
 	private AtomicLong _getCounter = new AtomicLong();
@@ -168,18 +125,14 @@ public class Volume extends SharedResource {
 	private AtomicLong _storeCounter = new AtomicLong();
 	private AtomicLong _removeCounter = new AtomicLong();
 
-	private IOException _lastIOException;
-
 	private Buffer _headBuffer;
 	private BufferPool _pool;
 	private boolean _readOnly;
 
-	private Stack _rafStack = new Stack();
-	private Stack _rafStackRW = new Stack();
-
-	private PrintWriter printWriter;
 	private long lastPageWritten;
 	private long lastFlushTime;
+
+	private volatile IOException _lastIOException;
 
 	// String name --> Tree tree
 
@@ -318,130 +271,18 @@ public class Volume extends SharedResource {
 	 * 
 	 * @throws PersistitException
 	 */
-	static Volume loadVolume(final Persistit persistit, final String volumeSpec)
-			throws PersistitException {
-		StringTokenizer mainTokenizer = new StringTokenizer(volumeSpec, ",");
-		try {
-			String dsPath = mainTokenizer.nextToken().trim();
-			String alias = null;
-			boolean readOnly = false;
-			boolean create = false;
-			boolean createOnly = false;
-			int bufferSize = 8192;
-			long id = 0;
-			long initialPages = -1;
-			long extensionPages = -1;
-			long maximumPages = -1;
-			long initialSize = -1;
-			long extensionSize = -1;
-			long maximumSize = -1;
-
-			while (mainTokenizer.hasMoreTokens()) {
-				String token = mainTokenizer.nextToken().trim();
-				StringTokenizer innerTokenizer = new StringTokenizer(token, ":");
-				String attr = innerTokenizer.nextToken().trim();
-				if (ATTR_READONLY.equals(attr))
-					readOnly = true;
-				else if (ATTR_CREATE.equals(attr))
-					create = true;
-				else if (ATTR_CREATEONLY.equals(attr))
-					createOnly = true;
-				else if (ATTR_ALIAS.equals(attr)) {
-					String valueString = innerTokenizer.nextToken().trim();
-					if (valueString != null && valueString.length() > 0) {
-						alias = valueString;
-					}
-				} else {
-					String valueString = innerTokenizer.nextToken().trim();
-					boolean bad = false;
-					long value = Persistit.parseLongProperty(attr, valueString,
-							0, Long.MAX_VALUE);
-
-					if (ATTR_PAGE_SIZE.equals(attr)
-							|| ATTR_PAGE2_SIZE.equals(attr)) {
-						bufferSize = (value > Integer.MAX_VALUE) ? Integer.MAX_VALUE
-								: (int) value;
-					} else if (ATTR_ID.equals(attr)) {
-						id = value;
-					} else if (ATTR_INITIAL_PAGES.equals(attr)) {
-						initialPages = value;
-					} else if (ATTR_EXTENSION_PAGES.equals(attr)) {
-						extensionPages = value;
-					} else if (ATTR_MAXIMUM_PAGES.equals(attr)) {
-						maximumPages = value;
-					} else if (ATTR_INITIAL_SIZE.equals(attr)) {
-						initialSize = value;
-					} else if (ATTR_EXTENSION_SIZE.equals(attr)) {
-						extensionSize = value;
-					} else if (ATTR_MAXIMUM_SIZE.equals(attr)) {
-						maximumSize = value;
-					} else
-						bad = true;
-					if (bad || innerTokenizer.hasMoreTokens()) {
-						throw new InvalidVolumeSpecificationException(
-								volumeSpec);
-					}
-				}
-			}
-			int n = 0;
-			if (readOnly)
-				n++;
-			if (create)
-				n++;
-			if (createOnly)
-				n++;
-			if (n > 1) {
-				throw new InvalidVolumeSpecificationException(volumeSpec
-						+ ": readOnly, create and createOnly "
-						+ "attributes are mutually exclusive");
-			}
-			//
-			// Allows size specification in bytes rather than pages.
-			//
-			if (bufferSize > 0) {
-				if (initialPages == -1 && initialSize > 0) {
-					initialPages = (initialSize + (bufferSize - 1))
-							/ bufferSize;
-				}
-				if (extensionPages == -1 && extensionSize > 0) {
-					extensionPages = (extensionSize + (bufferSize - 1))
-							/ bufferSize;
-				}
-				if (maximumPages == -1 && maximumSize > 0) {
-					maximumPages = (maximumSize + (bufferSize - 1))
-							/ bufferSize;
-				}
-			}
-			Volume vol;
-			if (create || createOnly) {
-				vol = create(persistit, dsPath, alias, id, bufferSize,
-						initialPages, extensionPages, maximumPages, createOnly);
-			} else {
-				vol = openVolume(persistit, dsPath, alias, id, readOnly);
-			}
-			return vol;
-		} catch (NumberFormatException nfe) {
-			throw new InvalidVolumeSpecificationException(volumeSpec
-					+ ": invalid number");
-		} catch (NoSuchElementException nste) {
-			throw new InvalidVolumeSpecificationException(volumeSpec + ": "
-					+ nste);
+	static Volume loadVolume(final Persistit persistit,
+			final VolumeSpecification volumeSpec) throws PersistitException {
+		if (volumeSpec.isCreate() || volumeSpec.isCreateOnly()) {
+			return create(persistit, volumeSpec.getPath(),
+					volumeSpec.getName(), volumeSpec.getId(), volumeSpec
+							.getBufferSize(), volumeSpec.getInitialPages(),
+					volumeSpec.getExtensionPages(), volumeSpec
+							.getMaximumPages(), volumeSpec.isCreateOnly());
+		} else {
+			return openVolume(persistit, volumeSpec.getPath(), volumeSpec
+					.getName(), volumeSpec.getId(), volumeSpec.isReadOnly());
 		}
-	}
-
-	/**
-	 * Produces a displayable form of the volume specification.
-	 * 
-	 * @param volDesc
-	 *            The description
-	 * 
-	 * @return
-	 */
-	static String describe(String volDesc) {
-		int p = volDesc.indexOf(',');
-		if (p < 0)
-			return volDesc;
-		return volDesc.substring(0, p);
 	}
 
 	/**
@@ -465,6 +306,139 @@ public class Volume extends SharedResource {
 	}
 
 	/**
+	 * Creates a new volume
+	 * 
+	 * @param persistit
+	 * @param path
+	 * @param name
+	 * @param id
+	 * @param bufferSize
+	 * @param initialPages
+	 * @param extensionPages
+	 * @param maximumPages
+	 * @throws PersistitException
+	 */
+	private Volume(final Persistit persistit, final String path,
+			final String name, final long id, final int bufferSize,
+			long initialPages, long extensionPages, long maximumPages)
+			throws PersistitException {
+		super(persistit);
+
+		boolean sizeOkay = false;
+		for (int b = Buffer.MIN_BUFFER_SIZE; !sizeOkay
+				&& b <= Buffer.MAX_BUFFER_SIZE; b *= 2) {
+			if (bufferSize == b)
+				sizeOkay = true;
+		}
+
+		if (!sizeOkay) {
+			throw new InvalidVolumeSpecificationException(
+					"Invalid buffer size: " + bufferSize);
+		}
+
+		_pool = _persistit.getBufferPool(bufferSize);
+		if (_pool == null) {
+			throw new BufferUnavailableException("size: " + bufferSize);
+		}
+
+		if (initialPages == 0)
+			initialPages = 1;
+		if (maximumPages == 0)
+			maximumPages = initialPages;
+
+		if (initialPages < 0 || initialPages > Long.MAX_VALUE / bufferSize) {
+			throw new InvalidVolumeSpecificationException(
+					"Invalid initial page count: " + initialPages);
+		}
+
+		if (extensionPages < 0 || extensionPages > Long.MAX_VALUE / bufferSize) {
+			throw new InvalidVolumeSpecificationException(
+					"Invalid extension page count: " + extensionPages);
+		}
+
+		if (maximumPages < initialPages
+				|| maximumPages > Long.MAX_VALUE / bufferSize) {
+			throw new InvalidVolumeSpecificationException(
+					"Invalid maximum page count: " + maximumPages);
+		}
+
+		boolean open = false;
+
+		try {
+			initializePathAndName(path, name, true);
+			
+			_readOnly = false;
+			_bufferSize = bufferSize;
+
+			long now = System.currentTimeMillis();
+			if (id == 0) {
+				_id = (now ^ (((long) path.hashCode()) << 32)) & Long.MAX_VALUE;
+			} else
+				_id = id;
+
+			_highestPageUsed = 0;
+			_createTime = now;
+			_lastExtensionTime = 0;
+			_lastReadTime = 0;
+			_lastWriteTime = 0;
+			_firstAvailablePage = 1;
+			_garbageRoot = 0;
+			_pageCount = 1;
+
+			_persistit.addVolume(this);
+
+			_headBuffer = _pool.get(this, 0, true, false);
+			_pool.setPermanent(_headBuffer, true);
+
+			_headBuffer.clear();
+
+			_initialPages = initialPages;
+			_extensionPages = extensionPages;
+			_maximumPages = maximumPages;
+
+			_pageCount = initialPages;
+			_firstAvailablePage = 1;
+			_highestPageUsed = 0;
+			_garbageRoot = 0;
+			_directoryRootPage = 0;
+			_pool.invalidate(this);
+
+			Tree tree = new Tree(_persistit, this);
+			_directoryTree = tree;
+			putHeaderInfo(_headBuffer.getBytes());
+
+			_channel = new RandomAccessFile(_path, "rw").getChannel();
+			_headBuffer.getByteBuffer().position(0).limit(
+					_headBuffer.getBufferSize());
+			_channel.write(_headBuffer.getByteBuffer(), 0);
+			_channel.force(true);
+
+			if (initialPages > 1) {
+				extend(initialPages);
+			}
+
+			createTree(DIRECTORY_TREE_NAME, tree);
+			checkpointMetaData();
+
+			open = true;
+
+		} catch (IOException ioe) {
+			throw new PersistitIOException(ioe);
+		} finally {
+			if (_headBuffer != null) {
+				if (!open) {
+					_pool.setPermanent(_headBuffer, false);
+				}
+				releaseHeadBuffer();
+			}
+			if (!open) {
+				_persistit.removeVolume(this, false);
+			}
+		}
+
+	}
+
+	/**
 	 * Opens an existing Volume. Throws CorruptVolumeException if the volume
 	 * file does not exist, is too short, or is malformed.
 	 * 
@@ -474,36 +448,32 @@ public class Volume extends SharedResource {
 	 * @param readOnly
 	 * @throws PersistitException
 	 */
-	private Volume(final Persistit persistit, String pathName, String alias,
+	private Volume(final Persistit persistit, String path, String name,
 			long id, boolean readOnly) throws PersistitException {
 		super(persistit);
 		try {
-			_pathName = pathName;
-			_pathNameBytes = Util.stringToBytes(pathName);
-			_alias = alias;
+
+			initializePathAndName(path, name, false);
+
 			_readOnly = readOnly;
+			_channel = new RandomAccessFile(_path, readOnly ? "r" : "rw")
+					.getChannel();
 
-			preallocateRafs();
-
-			RandomAccessFile raf = getRaf();
-			long length = raf.length();
-			if (length < HEADER_SIZE) {
+			long size = _channel.size();
+			if (size < HEADER_SIZE) {
 				throw new CorruptVolumeException("Volume file too short: "
-						+ length);
-			}
-			byte[] bytes = new byte[HEADER_SIZE];
-			raf.seek(0);
-			raf.readFully(bytes);
-
-			if (bytesEqual(bytes, 0, STATUS_CLEAN)) {
-				setClean();
-			} else if (bytesEqual(bytes, 0, STATUS_DIRTY)) {
-				setDirty();
-			} else {
-				throw new CorruptVolumeException("Invalid status");
+						+ size);
 			}
 
-			if (!bytesEqual(bytes, 8, SIGNATURE)) {
+			final ByteBuffer bb = ByteBuffer.allocate(HEADER_SIZE);
+			final byte[] bytes = bb.array();
+			_channel.read(bb, 0);
+
+			//
+			// Check out the fixed Volume file and learn
+			// the buffer size.
+			//
+			if (!bytesEqual(bytes, 0, SIGNATURE)) {
 				throw new CorruptVolumeException("Invalid signature");
 			}
 
@@ -515,23 +485,32 @@ public class Volume extends SharedResource {
 						+ MIN_SUPPORTED_VERSION + " - " + MAX_SUPPORTED_VERSION
 						+ ")");
 			}
+			//
+			// Just to populate _bufferSize.  getHeaderInfo will be called
+			// again below.
+			//
 			getHeaderInfo(bytes);
+			_pool = _persistit.getBufferPool(_bufferSize);
+			if (_pool == null) {
+				throw new BufferUnavailableException("size: " + _bufferSize);
+			}
+			//
+			// Now use the pool to get the page.  This may read a
+			// recently updated copy from the log.
+			//
+			_headBuffer = _pool.get(this, 0, true, true);
+			getHeaderInfo(bytes);
+
 			if (id != 0 && id != _id) {
 				throw new CorruptVolumeException(
 						"Attempt to open with invalid id " + id + " (!= " + _id
 								+ ")");
 			}
 			long expectedLength = _pageCount * _bufferSize;
-			if (length < expectedLength) {
+			if (size < expectedLength) {
 				throw new CorruptVolumeException("Volume file too short: "
-						+ length + " expected: " + expectedLength + " bytes");
+						+ size + " expected: " + expectedLength + " bytes");
 			}
-			_pool = _persistit.getBufferPool(_bufferSize);
-			if (_pool == null) {
-				throw new BufferUnavailableException("size: " + _bufferSize);
-			}
-
-			_headBuffer = _pool.get(this, 0, true, true);
 
 			// TODO -- synchronize opening of Volumes.
 			_persistit.addVolume(this);
@@ -539,29 +518,39 @@ public class Volume extends SharedResource {
 			_directoryTree = new Tree(_persistit, this, DIRECTORY_TREE_NAME, 0,
 					_directoryRootPage);
 
-			if (Debug.ENABLED) {
-				if (_garbageRoot > 0) {
-					Buffer garbageBuffer = null;
-					try {
-						garbageBuffer = _pool.get(this, _garbageRoot, false,
-								true);
-						if (Debug.ENABLED)
-							Debug.$assert(garbageBuffer.isGarbagePage());
-					} finally {
-						if (garbageBuffer != null) {
-							_pool.release(garbageBuffer);
-							garbageBuffer = null;
-						}
-					}
-				}
-			}
-
-			_headBuffer.setPermanent(true);
+			_pool.setPermanent(_headBuffer, true);
 			releaseHeadBuffer();
-
-			releaseRaf(raf);
 		} catch (IOException ioe) {
 			throw new PersistitIOException(ioe);
+		}
+	}
+
+	private void initializePathAndName(final String path, final String name,
+			final boolean create) throws IOException, PersistitException {
+		File file = new File(path);
+		if (create) {
+			if (file.exists() && !file.isDirectory()) {
+				throw new VolumeAlreadyExistsException(file.getPath());
+			}
+		} else {
+			if (!file.exists()) {
+				throw new FileNotFoundException(path);
+			}
+		}
+		if (file.exists() && file.isDirectory() && name != null
+				&& !name.isEmpty()) {
+			file = new File(file, name);
+		}
+		_path = file.getPath();
+		if (name == null || name.isEmpty()) {
+			_name = file.getName();
+			final int p = _name.lastIndexOf('.');
+			if (p > 0) {
+				_name = _name.substring(0, p);
+			}
+
+		} else {
+			_name = name;
 		}
 	}
 
@@ -575,14 +564,14 @@ public class Volume extends SharedResource {
 
 	/**
 	 * Creates a new Volume or open an existing Volume. If a volume having the
-	 * specifed <tt>id</tt> and <tt>pathname</tt> already exists, and if the
+	 * specified <tt>id</tt> and <tt>pathname</tt> already exists, and if the
 	 * mustCreate parameter is false, then this method opens and returns a
 	 * previously existing <tt>Volume</tt>. If <tt>mustCreate</tt> is true and a
 	 * file of the specified name already exists, then this method throws a
 	 * <tt>VolumeAlreadyExistsException</tt>. Otherwise this method creates a
 	 * new empty volume.
 	 * 
-	 * @param pathName
+	 * @param path
 	 *            The full pathname to the file containing the Volume.
 	 * 
 	 * @param alias
@@ -616,20 +605,21 @@ public class Volume extends SharedResource {
 	 * @return the Volume
 	 * @throws PersistitException
 	 */
-	static Volume create(final Persistit persistit, final String pathName,
-			final String alias, final long id, final int bufferSize,
+	static Volume create(final Persistit persistit, final String path,
+			final String name, final long id, final int bufferSize,
 			final long initialPages, final long extensionPages,
 			final long maximumPages, final boolean mustCreate)
 			throws PersistitException {
-		File file = new File(pathName);
+		File file = new File(path);
 		if (file.exists() && file.length() >= HEADER_SIZE) {
 			if (mustCreate) {
-				throw new VolumeAlreadyExistsException(pathName);
+				throw new VolumeAlreadyExistsException(path);
 			}
-			Volume vol = openVolume(persistit, pathName, alias, 0, false);
+			Volume vol = openVolume(persistit, path, name, 0, false);
 			if (vol._bufferSize != bufferSize) {
-				throw new VolumeAlreadyExistsException("Different buffersize: "
-						+ vol);
+				throw new VolumeAlreadyExistsException(
+						"Different buffer size expected/actual=" + bufferSize
+								+ "/" + vol._bufferSize + ": " + vol);
 			}
 			//
 			// Here we overwrite the former growth parameters
@@ -638,165 +628,11 @@ public class Volume extends SharedResource {
 			vol._initialPages = initialPages;
 			vol._extensionPages = extensionPages;
 			vol._maximumPages = maximumPages;
-			//
-			// And set the alias
-			//
-			vol._alias = alias;
+
 			return vol;
-		}
-
-		return new Volume(persistit, pathName, alias, id, bufferSize,
-				initialPages, extensionPages, maximumPages);
-	}
-
-	private Volume(final Persistit persistit, final String pathName,
-			final String alias, final long id, final int bufferSize,
-			long initialPages, long extensionPages, long maximumPages)
-			throws PersistitException {
-		super(persistit);
-		_pool = _persistit.getBufferPool(bufferSize);
-
-		boolean sizeCheck = false;
-		for (int b = Buffer.MIN_BUFFER_SIZE; !sizeCheck
-				&& b <= Buffer.MAX_BUFFER_SIZE; b *= 2) {
-			if (bufferSize == b)
-				sizeCheck = true;
-		}
-
-		if (!sizeCheck) {
-			throw new InvalidVolumeSpecificationException(
-					"Invalid buffer size: " + bufferSize);
-		}
-		if (_pool == null) {
-			throw new BufferUnavailableException("size: " + bufferSize);
-		}
-
-		if (initialPages == 0)
-			initialPages = 1;
-		if (maximumPages == 0)
-			maximumPages = initialPages;
-
-		if (initialPages < 0 || initialPages > Long.MAX_VALUE / bufferSize) {
-			throw new InvalidVolumeSpecificationException(
-					"Invalid initial page count: " + initialPages);
-		}
-
-		if (extensionPages < 0 || extensionPages > Long.MAX_VALUE / bufferSize) {
-			throw new InvalidVolumeSpecificationException(
-					"Invalid extension page count: " + extensionPages);
-		}
-
-		if (maximumPages < initialPages
-				|| maximumPages > Long.MAX_VALUE / bufferSize) {
-			throw new InvalidVolumeSpecificationException(
-					"Invalid maximum page count: " + maximumPages);
-		}
-
-		_pathName = pathName;
-		_pathNameBytes = Util.stringToBytes(pathName);
-		_alias = alias;
-		_readOnly = false;
-
-		try {
-			preallocateRafs();
-		} catch (IOException ioe) {
-			throw new PersistitIOException(ioe);
-		}
-
-		_bufferSize = bufferSize;
-
-		long now = System.currentTimeMillis();
-		if (id == 0) {
-			_id = (now ^ (((long) pathName.hashCode()) << 32)) & Long.MAX_VALUE;
-		} else
-			_id = id;
-		_highestPageUsed = 0;
-		_createTime = now;
-		_lastExtensionTime = 0;
-		_lastReadTime = 0;
-		_lastWriteTime = 0;
-		_firstAvailablePage = 1;
-		_garbageRoot = 0;
-		_pageCount = 1;
-		_persistit.addVolume(this);
-		_headBuffer = _pool.get(this, 0, true, true);
-		_headBuffer.setPermanent(true);
-		boolean fullyOpen = false;
-		try {
-			_headBuffer.clear();
-
-			_initialPages = initialPages;
-			_extensionPages = extensionPages;
-			_maximumPages = maximumPages;
-			//
-			// Note: as a side-effect, this checkpoints all of the above into
-			// the
-			// Volume file.
-			//
-			initialize(initialPages);
-			setDirty();
-			fullyOpen = true;
-		} finally {
-			if (!fullyOpen)
-				_headBuffer.setPermanent(false);
-			releaseHeadBuffer();
-		}
-	}
-
-	private void preallocateRafs() throws PersistitException, IOException {
-		RandomAccessFile[] rafs = new RandomAccessFile[PREALLOCATED_RAF_COUNT];
-
-		if (!_readOnly) {
-			rafs[0] = getRafRW();
-			releaseRafRW(rafs[0]);
-		}
-
-		for (int index = 0; index < rafs.length; index++) {
-			rafs[index] = getRaf();
-		}
-		for (int index = rafs.length; --index >= 0;) {
-			releaseRaf(rafs[index]);
-		}
-	}
-
-	/**
-	 * Reinitializes the volume, removing all existing trees.
-	 */
-	private void initialize(long initialPages) throws PersistitException {
-		if (isReadOnly()) {
-			throw new ReadOnlyVolumeException(toString());
-		}
-		claimHeadBuffer(true);
-		boolean reserved = false;
-
-		try {
-
-			RandomAccessFile raf = null;
-			long newLength = initialPages * _bufferSize;
-			try {
-				raf = getRafRW();
-				raf.setLength(newLength);
-			} catch (IOException ioe) {
-				throw new PersistitIOException(ioe);
-			} finally {
-				if (raf != null)
-					releaseRaf(raf);
-			}
-			_pageCount = initialPages;
-			_firstAvailablePage = 1;
-			_highestPageUsed = 0;
-			_garbageRoot = 0;
-			_directoryRootPage = 0;
-			_pool.invalidate(this);
-
-			Tree tree = new Tree(_persistit, this);
-			_directoryTree = tree;
-
-			createTree(DIRECTORY_TREE_NAME, tree);
-			_directoryRootPage = tree.getRootPageAddr();
-			checkpointMetaData();
-		} finally {
-			releaseHeadBuffer();
+		} else {
+			return new Volume(persistit, path, name, id, bufferSize,
+					initialPages, extensionPages, maximumPages);
 		}
 	}
 
@@ -806,8 +642,9 @@ public class Volume extends SharedResource {
 	 * @throws PMapException
 	 */
 	private void checkpointMetaData() throws ReadOnlyVolumeException {
-		if (_readOnly)
+		if (_readOnly) {
 			throw new ReadOnlyVolumeException(toString());
+		}
 		putHeaderInfo(_headBuffer.getBytes());
 		_headBuffer.setDirty();
 	}
@@ -827,22 +664,18 @@ public class Volume extends SharedResource {
 	 * 
 	 * @return The path name
 	 */
-	public String getPathName() {
-		return _pathName;
+	public String getPath() {
+		return _path;
 	}
 
 	/**
-	 * Returns the "friendly" name specified for the Volume, or <tt>null</tt> if
-	 * there is none. The alias is specified by the optional <tt>alias</tt>
-	 * attribute of the volume specification in the Persistit configuration
-	 * properties.
+	 * Returns the name specified for the Volume.
 	 * 
 	 * @return The alias, or <tt>null</tt> if there is none.
 	 */
-	public String getAlias() {
-		return _alias;
+	public String getName() {
+		return _name;
 	}
-
 
 	/**
 	 * Returns the buffer size for this volume, one of 1024, 2048, 4096, 8192 or
@@ -913,7 +746,7 @@ public class Volume extends SharedResource {
 	 * @return The count
 	 */
 	public long getReadCounter() {
-			return _readCounter.get();
+		return _readCounter.get();
 	}
 
 	/**
@@ -923,7 +756,7 @@ public class Volume extends SharedResource {
 	 * @return The count
 	 */
 	public long getWriteCounter() {
-			return _writeCounter.get();
+		return _writeCounter.get();
 	}
 
 	/**
@@ -934,7 +767,7 @@ public class Volume extends SharedResource {
 	 * @return The count
 	 */
 	public long getGetCounter() {
-			return _getCounter.get();
+		return _getCounter.get();
 	}
 
 	/**
@@ -947,7 +780,7 @@ public class Volume extends SharedResource {
 	 * @return The count of records fetched from this Volume.
 	 */
 	public long getFetchCounter() {
-			return _fetchCounter.get();
+		return _fetchCounter.get();
 	}
 
 	/**
@@ -961,7 +794,7 @@ public class Volume extends SharedResource {
 	 *         Volume.
 	 */
 	public long getTraverseCounter() {
-			return _traverseCounter.get();
+		return _traverseCounter.get();
 	}
 
 	/**
@@ -974,7 +807,7 @@ public class Volume extends SharedResource {
 	 * @return The count of records fetched from this Volume.
 	 */
 	public long getStoreCounter() {
-			return _storeCounter.get();
+		return _storeCounter.get();
 	}
 
 	/**
@@ -986,7 +819,7 @@ public class Volume extends SharedResource {
 	 * @return The count of records fetched from this Volume.
 	 */
 	public long getRemoveCounter() {
-			return _removeCounter.get();
+		return _removeCounter.get();
 	}
 
 	/**
@@ -1090,23 +923,23 @@ public class Volume extends SharedResource {
 	}
 
 	void bumpGetCounter() {
-			_getCounter.incrementAndGet();
+		_getCounter.incrementAndGet();
 	}
 
 	void bumpFetchCounter() {
-			_fetchCounter.incrementAndGet();
+		_fetchCounter.incrementAndGet();
 	}
 
 	void bumpTraverseCounter() {
-			_fetchCounter.incrementAndGet();
+		_fetchCounter.incrementAndGet();
 	}
 
 	void bumpStoreCounter() {
-			_storeCounter.incrementAndGet();
+		_storeCounter.incrementAndGet();
 	}
 
 	void bumpRemoveCounter() {
-			_removeCounter.incrementAndGet();
+		_removeCounter.incrementAndGet();
 	}
 
 	private String garbageBufferInfo(Buffer buffer) {
@@ -1703,88 +1536,6 @@ public class Volume extends SharedResource {
 	}
 
 	/**
-	 * Get a RandomAccessFile object with which to perform reads on this Volume.
-	 * Note that there may be multiple Threads performing reads concurrently on
-	 * separate RandomAccessFile objects referring to the same file.
-	 * <p>
-	 * This method should always be followed by releaseRaf() to allow reuse of
-	 * the RandomAccessFile object that was obtained.
-	 * 
-	 * @return a RandomAccessFile to perform reads on this Volume.
-	 * @throws IOException
-	 * @throws VolumeClosedException
-	 */
-	private RandomAccessFile getRaf() throws VolumeClosedException,
-			PersistitIOException {
-		synchronized (_rafStack) {
-			if (_closed) {
-				throw new VolumeClosedException(this.getPathName());
-			}
-			if (!_rafStack.isEmpty()) {
-				return (RandomAccessFile) _rafStack.pop();
-			}
-		}
-		try {
-			return new RandomAccessFile(_pathName, "r");
-		} catch (IOException ioe) {
-			throw new PersistitIOException(ioe);
-		}
-	}
-
-	/**
-	 * Release a RandomAccessFile obtained from getRaf().
-	 * 
-	 * @param raf
-	 *            The RandomAccessFile obtained previously from getRaf().
-	 */
-	private void releaseRaf(RandomAccessFile raf) {
-		synchronized (_rafStack) {
-			_rafStack.push(raf);
-		}
-	}
-
-	/**
-	 * Get a RandomAccessFile object with which to perform I/O on this Volume.
-	 * Note that there may be multiple Threads performing I/O concurrently on
-	 * separate RandomAccessFile objects referring to the same file. Apparently
-	 * this is okay, at least on Windows.
-	 * <p>
-	 * This method should always be followed by releaseRaf() to allow reuse of
-	 * the RandomAccessFile object that was obtained.
-	 * 
-	 * @return a RandomAccessFile to perform I/O on this Volume.
-	 * @throws IOException
-	 * @throws VolumeClosedException
-	 */
-	private RandomAccessFile getRafRW() throws VolumeClosedException,
-			ReadOnlyVolumeException, IOException {
-		if (_readOnly) {
-			throw new ReadOnlyVolumeException();
-		}
-		synchronized (_rafStackRW) {
-			if (_closed) {
-				throw new VolumeClosedException(this.getPathName());
-			}
-			if (!_rafStackRW.isEmpty()) {
-				return (RandomAccessFile) _rafStackRW.pop();
-			}
-		}
-		return new RandomAccessFile(_pathName, "rw");
-	}
-
-	/**
-	 * Release a RandomAccessFile obtained from getRafRW().
-	 * 
-	 * @param raf
-	 *            The RandomAccessFile obtained previously from getRafRW().
-	 */
-	private void releaseRafRW(RandomAccessFile raf) {
-		synchronized (_rafStackRW) {
-			_rafStackRW.push(raf);
-		}
-	}
-
-	/**
 	 * Returns the <tt>BufferPool</tt> in which this volume's pages are cached.
 	 * 
 	 * @return This volume's </tt>BufferPool</tt>
@@ -1809,20 +1560,22 @@ public class Volume extends SharedResource {
 		if (page < 0 || page >= _pageCount) {
 			throw new InvalidPageAddressException("Page " + page);
 		}
-		Debug.IOLogEvent iev = null;
-		if (Debug.IOLOG_ENABLED) {
-			iev = Debug.startIOEvent("readPage", page);
-		}
-		RandomAccessFile raf = null;
-		Exception exception = null;
 		try {
-			raf = getRaf();
-			raf.seek(page * _bufferSize);
-			raf.read(buffer.getBytes());
-			synchronized (_lock) {
-				_lastReadTime = System.currentTimeMillis();
-				_readCounter.incrementAndGet();
+			final ByteBuffer bb = buffer.getByteBuffer();
+			bb.position(0).limit(buffer.getBufferSize());
+			int read = 0;
+			while (read < buffer.getBufferSize()) {
+				long position = page * _bufferSize + bb.position();
+				int bytesRead = _channel.read(bb, position);
+				if (bytesRead <= 0) {
+					throw new PersistitIOException(
+							"Unable to read bytes at position " + position
+									+ " in " + this);
+				}
+				read += bytesRead;
 			}
+			_lastReadTime = System.currentTimeMillis();
+			_readCounter.incrementAndGet();
 			if (_persistit.getLogBase().isLoggable(LogBase.LOG_READ_OK)) {
 				_persistit.getLogBase().log(LogBase.LOG_READ_OK, page,
 						buffer.getIndex());
@@ -1835,73 +1588,38 @@ public class Volume extends SharedResource {
 								0, 0, ioe, null, null, null, null);
 			}
 			_lastIOException = ioe;
-			exception = ioe;
-
 			throw new PersistitIOException(ioe);
-		} finally {
-			if (raf != null)
-				releaseRaf(raf);
-			if (Debug.IOLOG_ENABLED) {
-				Debug.endIOEvent(iev, exception);
-			}
 		}
 	}
 
-	void writePage(byte[] bytes, int offset, int length, long page)
-			throws IOException, InvalidPageAddressException,
-			ReadOnlyVolumeException, VolumeClosedException {
-		long elapsed = System.nanoTime();
+	void writePage(final Buffer buffer) throws IOException,
+			InvalidPageAddressException, ReadOnlyVolumeException,
+			VolumeClosedException {
+
+		final long page = buffer.getPageAddress();
+		if (page < 0 || page >= _pageCount) {
+			throw new InvalidPageAddressException(buffer.toString());
+		}
+
 		if (_readOnly) {
-			throw new ReadOnlyVolumeException(this.getPathName());
+			throw new ReadOnlyVolumeException(this.getPath());
 		}
 
-		Debug.IOLogEvent iev = null;
-		if (Debug.IOLOG_ENABLED) {
-			iev = Debug.startIOEvent("writePage", page);
-		}
+		final ByteBuffer bb = buffer.getByteBuffer();
+		bb.position(0).limit(buffer.getBufferSize());
 
-		RandomAccessFile raf = null;
-		Exception exception = null;
 		try {
-			raf = getRafRW();
-			raf.seek(page * _bufferSize);
-			raf.write(bytes, offset, length);
-			synchronized (_lock) {
-				_lastWriteTime = System.currentTimeMillis();
-				_writeCounter.incrementAndGet();
-			}
+			_channel.write(bb, buffer.getPageAddress() * _bufferSize);
+
+			_lastWriteTime = System.currentTimeMillis();
+			_writeCounter.incrementAndGet();
 		} catch (IOException ioe) {
 			if (_persistit.getLogBase().isLoggable(LogBase.LOG_WRITE_IOE)) {
 				_persistit.getLogBase().log(LogBase.LOG_WRITE_IOE, page, 0, 0,
 						0, 0, ioe, null, null, null, null);
 			}
 			_lastIOException = ioe;
-			exception = ioe;
 			throw ioe;
-		} finally {
-			if (raf != null)
-				releaseRafRW(raf);
-			if (Debug.IOLOG_ENABLED) {
-				Debug.endIOEvent(iev, exception);
-			}
-		}
-
-		if (DEBUG_WRITE_LOG) {
-			synchronized (_lock) {
-				if (printWriter == null) {
-					final File file = new File(this._pathName + "_writeLog");
-					printWriter = new PrintWriter(new BufferedWriter(
-							new FileWriter(file)));
-				}
-				elapsed = System.nanoTime() - elapsed;
-				printWriter.printf("Write page=%8d, delta=%8d usec=%8d\n",
-						page, page - lastPageWritten, elapsed / 1000);
-				lastPageWritten = page;
-				if (_lastWriteTime - lastFlushTime > 5000) {
-					printWriter.flush();
-					lastFlushTime = _lastWriteTime;
-				}
-			}
 		}
 	}
 
@@ -2124,7 +1842,7 @@ public class Volume extends SharedResource {
 
 		// Check for maximum size
 		if (_maximumPages <= _pageCount) {
-			throw new VolumeFullException(this.getPathName());
+			throw new VolumeFullException(this.getPath());
 		}
 
 		// Do no extend past maximum pages
@@ -2132,45 +1850,32 @@ public class Volume extends SharedResource {
 			pageCount = _maximumPages;
 		}
 
-		long newLength = pageCount * _bufferSize;
-		long currentLength = -1;
+		long newSize = pageCount * _bufferSize;
+		long currentSize = -1;
 
 		claimHeadBuffer(true);
-		boolean reserved = false;
 		try {
-			reserved = true;
-
-			RandomAccessFile raf = getRafRW();
-			currentLength = raf.length();
-
-			Debug.IOLogEvent iev = null;
-			if (Debug.IOLOG_ENABLED) {
-				iev = Debug.startIOEvent("extend from " + currentLength
-						+ " to ", newLength);
-			}
-
-			if (currentLength > newLength) {
+			currentSize = _channel.size();
+			if (currentSize > newSize) {
 				if (_persistit.getLogBase().isLoggable(
 						LogBase.LOG_EXTEND_BADLENGTH)) {
 					_persistit.getLogBase().log(LogBase.LOG_EXTEND_BADLENGTH,
-							currentLength, newLength, 0, 0, 0, this, null,
-							null, null, null);
+							currentSize, newSize, 0, 0, 0, this, null, null,
+							null, null);
 				}
 			}
-			if (currentLength < newLength) {
-				raf.setLength(newLength);
+			if (currentSize < newSize) {
+				final ByteBuffer bb = ByteBuffer.allocate(1);
+				bb.position(0).limit(1);
+				_channel.write(bb, newSize - 1);
+				_channel.force(true);
 				if (_persistit.getLogBase().isLoggable(
 						LogBase.LOG_EXTEND_NORMAL)) {
 					_persistit.getLogBase().log(LogBase.LOG_EXTEND_NORMAL,
-							currentLength, newLength, 0, 0, 0, this, null,
-							null, null, null);
+							currentSize, newSize, 0, 0, 0, this, null, null,
+							null, null);
 				}
 
-			}
-			releaseRafRW(raf);
-
-			if (Debug.IOLOG_ENABLED) {
-				Debug.endIOEvent(iev, null);
 			}
 
 			synchronized (_lock) {
@@ -2182,8 +1887,8 @@ public class Volume extends SharedResource {
 			_lastIOException = ioe;
 			if (_persistit.getLogBase().isLoggable(LogBase.LOG_EXTEND_IOE)) {
 				_persistit.getLogBase().log(LogBase.LOG_EXTEND_BADLENGTH,
-						currentLength, newLength, 0, 0, 0, ioe, this, null,
-						null, null);
+						currentSize, newSize, 0, 0, 0, ioe, this, null, null,
+						null);
 			}
 			throw new PersistitIOException(ioe);
 		} finally {
@@ -2203,57 +1908,34 @@ public class Volume extends SharedResource {
 
 		if (!isReadOnly()) {
 			try {
-				writePage(_headBuffer.getBytes(), 0, _headBuffer.getBufferSize(), 0);
+				writePage(_headBuffer);
 			} catch (IOException e) {
 				throw new PersistitIOException(e);
 			}
 		}
-		_headBuffer.setPermanent(false);
+		_pool.setPermanent(_headBuffer, false);
 		_headBuffer.setClean();
 		releaseHeadBuffer();
 
-//		_pool.invalidate(this);
+		// _pool.invalidate(this);
 
 		synchronized (_lock) {
 			_closed = true;
-
-			while (!_rafStack.isEmpty()) {
-				RandomAccessFile raf = (RandomAccessFile) _rafStack.pop();
-				try {
-					raf.close();
-				} catch (IOException e) {
-					ioe = e;
-				}
-			}
-
-			while (!_rafStackRW.isEmpty()) {
-				RandomAccessFile raf = (RandomAccessFile) _rafStackRW.pop();
-				try {
-					raf.getFD().sync();
-					raf.close();
-				} catch (IOException ioe2) {
-					_lastIOException = ioe2;
-					ioe = ioe2;
-				}
-			}
-//			_persistit.removeVolume(this, false);
 		}
 
-		if (ioe != null)
+		if (ioe != null) {
 			throw new PersistitIOException(ioe);
+		}
 	}
 
 	void sync() throws PersistitIOException, ReadOnlyVolumeException {
+		if (isReadOnly()) {
+			throw new ReadOnlyVolumeException(this.toString());
+		}
 		try {
-			RandomAccessFile raf = getRafRW();
-			raf.getFD().sync();
-			releaseRafRW(raf);
-			_persistit.getLogManager().force();
-			
-		} catch (VolumeClosedException vce) {
-			// If the Volume is closed, then we sync'ed it then.
-			// Therefore do not throw this Exception, because the caller's
-			// intent has been satisfied.
+			if (_channel != null && _channel.isOpen()) {
+				_channel.force(true);
+			}
 		} catch (IOException ioe) {
 			_lastIOException = ioe;
 			throw new PersistitIOException(ioe);
@@ -2261,8 +1943,7 @@ public class Volume extends SharedResource {
 	}
 
 	private void putHeaderInfo(byte[] bytes) {
-		Util.putBytes(bytes, 0, isDirty() ? STATUS_DIRTY : STATUS_CLEAN);
-		Util.putBytes(bytes, 8, SIGNATURE);
+		Util.putBytes(bytes, 0, SIGNATURE);
 		Util.putInt(bytes, 16, VERSION);
 		Util.putInt(bytes, 20, _bufferSize);
 		// 24: long changeCount
@@ -2295,7 +1976,7 @@ public class Volume extends SharedResource {
 		_id = Util.getLong(bytes, 32);
 		_readCounter.set(Util.getLong(bytes, 40));
 		_writeCounter.set(Util.getLong(bytes, 48));
-		_getCounter.set( Util.getLong(bytes, 56));
+		_getCounter.set(Util.getLong(bytes, 56));
 		_openTime = Util.getLong(bytes, 64);
 		_createTime = Util.getLong(bytes, 72);
 		_lastReadTime = Util.getLong(bytes, 80);
@@ -2311,14 +1992,8 @@ public class Volume extends SharedResource {
 		_fetchCounter.set(Util.getLong(bytes, 160));
 		_traverseCounter.set(Util.getLong(bytes, 168));
 		_storeCounter.set(Util.getLong(bytes, 176));
-		_removeCounter.set( Util.getLong(bytes, 184));
+		_removeCounter.set(Util.getLong(bytes, 184));
 		_initialPages = Util.getLong(bytes, 192);
-
-		if (bytesEqual(bytes, 0, STATUS_CLEAN)) {
-			setClean();
-		} else {
-			setDirty();
-		}
 	}
 
 	/**
@@ -2328,66 +2003,7 @@ public class Volume extends SharedResource {
 	 */
 	@Override
 	public String toString() {
-		if (_alias != null)
-			return "Volume(" + _alias + ")";
-		else
-			return "Volume(" + _pathName + ")";
+		return getName() + "(" + getPath() + ")";
 	}
 
-	int metaDataLength() {
-		return _pathNameBytes.length + 20;
-	}
-
-	int writeMetaData(byte[] bytes, int offset) throws IOException {
-		Util.putBytes(bytes, offset, IDENTIFIER_SIGNATURE);
-		offset += IDENTIFIER_SIGNATURE.length;
-
-		Util.putLong(bytes, offset, _id);
-		offset += 8;
-
-		Util.putChar(bytes, offset, _readOnly ? 1 : 0);
-		offset += 2;
-
-		Util.putChar(bytes, offset, _bufferSize);
-		offset += 2;
-
-		Util.putChar(bytes, offset, _pathNameBytes.length);
-		offset += 2;
-
-		Util.putBytes(bytes, offset, _pathNameBytes);
-		offset += _pathNameBytes.length;
-
-		return offset;
-	}
-
-
-	/**
-	 * Returns a hashCode that is invariant for this <tt>Volume</tt>. It is
-	 * based on the volume's permanent ID value. This method is used by the
-	 * prewrite journaling mechanism.
-	 * 
-	 * @return The hash code
-	 */
-	@Override
-	public int hashCode() {
-		return ((int) (_id >>> 32) ^ (int) _id) & 0x7FFFFFFF;
-	}
-
-	/**
-	 * Implements equals. This method is used by the prewrite journaling
-	 * mechanism.
-	 * 
-	 * @param o
-	 *            The object to test for equality.
-	 * @return <tt>true</tt> if the supplied object is equivalent to this
-	 *         <tt>Volume</tt>.
-	 */
-	@Override
-	public boolean equals(Object o) {
-		if (o instanceof Volume) {
-			Volume vol = (Volume) o;
-			return (vol._id == _id) && (vol._pathName.equals(_pathName));
-		} else
-			return false;
-	}
 }

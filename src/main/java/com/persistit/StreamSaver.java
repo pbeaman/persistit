@@ -395,7 +395,7 @@ extends Task
         _dos.writeLong(volume.getExtensionPages());
         _dos.writeLong(volume.getMaximumPages());
         _dos.writeInt(volume.getBufferSize());
-        _dos.writeUTF(volume.getPathName());
+        _dos.writeUTF(volume.getPath());
         _lastVolume = volume;
         _lastTree = null;
         _otherRecordCount++;
@@ -472,7 +472,7 @@ extends Task
         {
             postMessage(
                 "Saving Tree " + exchange.getTree().getName() + 
-                " in volume " + exchange.getVolume().getPathName() + 
+                " in volume " + exchange.getVolume().getPath() + 
                 (filter == null ? "" : " using KeyFilter: " + filter.toString()),
                 LOG_VERBOSE);
         }
@@ -525,7 +525,7 @@ extends Task
     throws PersistitException, IOException
     {
         String[] treeNames = volume.getTreeNames();
-        writeComment("Volume " + volume.getPathName());
+        writeComment("Volume " + volume.getPath());
         for (int index = 0; index < treeNames.length & !_stop; index++)
         {
             boolean selected = true;
@@ -576,7 +576,7 @@ extends Task
             Tree tree = trees[index];
             writeComment(
                 "Tree " + tree.getName() + 
-                " in " + tree.getVolume().getPathName());
+                " in " + tree.getVolume().getPath());
             try
             {
                 Exchange exchange = 
@@ -642,7 +642,7 @@ extends Task
             return
                 "Saving " +
                 _lastTree.getName() + 
-                " in " + _lastTree.getVolume().getPathName() + 
+                " in " + _lastTree.getVolume().getPath() + 
                 " (" + _recordCount + ")";
         }
     }

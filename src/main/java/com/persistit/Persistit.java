@@ -675,11 +675,12 @@ public class Persistit implements BuildConstants {
 						isOne = false;
 					}
 					if (isOne) {
-						String volumeSpecification = getProperty(key);
+						VolumeSpecification volumeSpecification = new VolumeSpecification(
+								getProperty(key));
 
 						if (_logBase.isLoggable(LogBase.LOG_INIT_OPEN_VOLUME)) {
-							_logBase.log(LogBase.LOG_INIT_OPEN_VOLUME, Volume
-									.describe(volumeSpecification));
+							_logBase.log(LogBase.LOG_INIT_OPEN_VOLUME,
+									volumeSpecification.describe());
 						}
 						Volume.loadVolume(this, volumeSpecification);
 					}
@@ -818,9 +819,9 @@ public class Persistit implements BuildConstants {
 			throw new VolumeAlreadyExistsException("Volume " + otherVolume
 					+ " has same ID");
 		}
-		otherVolume = getVolume(volume.getPathName());
+		otherVolume = getVolume(volume.getPath());
 		if (otherVolume != null
-				&& volume.getPathName().equals(otherVolume.getPathName())) {
+				&& volume.getPath().equals(otherVolume.getPath())) {
 			throw new VolumeAlreadyExistsException("Volume " + otherVolume
 					+ " has same path");
 		}
@@ -1132,8 +1133,8 @@ public class Persistit implements BuildConstants {
 	 * @throws PersistitException
 	 */
 	public Volume loadVolume(final String volumeSpec) throws PersistitException {
-		return Volume.loadVolume(this, substituteProperties(volumeSpec,
-				_properties, 0));
+		return Volume.loadVolume(this, new VolumeSpecification(
+				substituteProperties(volumeSpec, _properties, 0)));
 	}
 
 	public boolean deleteVolume(final String volumeName)
@@ -1143,7 +1144,7 @@ public class Persistit implements BuildConstants {
 			return false;
 		} else {
 			removeVolume(volume, true);
-			new File(volume.getPathName()).delete();
+			new File(volume.getPath()).delete();
 			return true;
 		}
 	}
@@ -1213,50 +1214,52 @@ public class Persistit implements BuildConstants {
 
 	/**
 	 * <p>
-	 * Looks up a {@link Volume} by name. The supplied name must match only one
-	 * of the open volumes. If it matches none of the volumes, or if there are
-	 * multiple volumes with matching names, then this method returns
+	 * Looks up a {@link Volume} by name or path. The supplied name must match
+	 * only one of the open volumes. If it matches none of the volumes, or if
+	 * there are multiple volumes with matching names, then this method returns
 	 * <tt>null</tt>.
 	 * </p>
 	 * <p>
 	 * The supplied name can match a volume in one of two ways:
 	 * <ul>
-	 * <li>(a) the volume has an optional alias that is exactly equal to the
-	 * supplied name, or</li>
-	 * <li>(b) the volume does not have an alias, but the supplied name
-	 * partially or fully matches the volume's file name.</li>
+	 * <li>(a) its name by exact match</li>
+	 * <li>(b) its path, by matching the canonical forms of the volume's path
+	 * and the supplied path.</li>
 	 * </ul>
 	 * </p>
 	 * 
-	 * @param partialName
+	 * @param name
 	 *            Name that identifies a volume by matching either its alias (if
 	 *            it has one) or a substring of its file name.
 	 * 
 	 * @return the <tt>Volume</tt>, or <i>null</i> if there is no unique open
 	 *         Volume that matches the supplied <tt>partialName</tt>.
 	 */
-	public Volume getVolume(String partialName) {
+	public Volume getVolume(String name) {
+		if (name == null) {
+			throw new NullPointerException("Null volume name");
+		}
 		Volume result = null;
+		
 		for (int i = 0; i < _volumes.size(); i++) {
 			Volume vol = _volumes.get(i);
-			if (vol.getAlias() != null) {
-				if (partialName.equals(vol.getAlias())) {
-					if (result == null)
-						result = vol;
-					else
-						return null;
+			if (name.equals(vol.getName())) {
+				if (result == null)
+					result = vol;
+				else {
+					return null;
 				}
-			} else {
-				String path = vol.getPathName();
-				int p = path.lastIndexOf(partialName);
-				if (p > -1) {
-					p += partialName.length();
-					if (p > path.lastIndexOf('/') && p > path.lastIndexOf('\\')) {
-						if (result == null)
-							result = vol;
-						else
-							return null;
-					}
+			}
+		}
+		
+		final File file = new File(name);
+		for (int i = 0; i < _volumes.size(); i++) {
+			Volume vol = _volumes.get(i);
+			if (file.equals(new File(vol.getPath()))) {
+				if (result == null)
+					result = vol;
+				else {
+					return null;
 				}
 			}
 		}
@@ -1438,8 +1441,9 @@ public class Persistit implements BuildConstants {
 	public void close() throws PersistitException {
 		close0(false);
 	}
-	
-	private synchronized void close0(final boolean byHook) throws PersistitException {
+
+	private synchronized void close0(final boolean byHook)
+			throws PersistitException {
 		if (_closed || !_initialized) {
 			return;
 		}
@@ -1458,11 +1462,11 @@ public class Persistit implements BuildConstants {
 			} catch (InterruptedException ie) {
 			}
 		}
-		
+
 		if (byHook) {
 			shutdownGUI();
 		}
-		
+
 		flush();
 
 		final List<Volume> volumes = new ArrayList<Volume>(_volumes);
@@ -1476,11 +1480,12 @@ public class Persistit implements BuildConstants {
 		for (final BufferPool pool : _bufferPoolTable.values()) {
 			pool.close();
 		}
-		
+
 		for (final BufferPool pool : _bufferPoolTable.values()) {
 			int count = pool.countDirty(null);
 			if (count > 0) {
-				System.out.println("Buffer pool " + pool + " has " + count + " stranded dirty buffers");
+				System.out.println("Buffer pool " + pool + " has " + count
+						+ " stranded dirty buffers");
 			}
 		}
 
