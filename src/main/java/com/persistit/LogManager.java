@@ -55,7 +55,7 @@ public class LogManager {
 
 	private final Map<VolumePage, FileAddress> _pageMap = new HashMap<VolumePage, FileAddress>();
 
-	private final Map<File, FileChannel> _fileChannelMap = new HashMap<File, FileChannel>();
+	private final Map<File, FileChannel> _readChannelMap = new HashMap<File, FileChannel>();
 
 	private final Map<VolumeDescriptor, Integer> _volumeToHandleMap = new HashMap<VolumeDescriptor, Integer>();
 
@@ -67,9 +67,9 @@ public class LogManager {
 
 	private final Persistit _persistit;
 
-	private File _currentFile;
+	private File _writeChannelFile;
 
-	private FileChannel _currentChannel;
+	private FileChannel _writeChannel;
 
 	private long _maximumFileSize;
 
@@ -91,7 +91,7 @@ public class LogManager {
 
 	private final byte[] _bytes = new byte[4096];
 
-//	private PrintWriter textLog;
+	// private PrintWriter textLog;
 	/**
 	 * Log file generation - serves as suffix on file name
 	 */
@@ -105,7 +105,7 @@ public class LogManager {
 		@Override
 		public void run() {
 			force();
-//			textLog.flush();
+			// textLog.flush();
 		}
 	}
 
@@ -123,15 +123,15 @@ public class LogManager {
 		_readBuffer = ByteBuffer.allocateDirect(_readBufferSize);
 		_flushTimer = new Timer("LOG_FLUSHER", true);
 		_flushTimer.schedule(new LogFlusher(), _flushInterval, _flushInterval);
-//		try {
-//			textLog = new PrintWriter(new BufferedOutputStream(
-//					new FileOutputStream(new File(
-//							_directory.isDirectory() ? _directory : _directory
-//									.getParentFile(), "LogManager_log.txt"),
-//							true)));
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
+		// try {
+		// textLog = new PrintWriter(new BufferedOutputStream(
+		// new FileOutputStream(new File(
+		// _directory.isDirectory() ? _directory : _directory
+		// .getParentFile(), "LogManager_log.txt"),
+		// true)));
+		// } catch (IOException e) {
+		// e.printStackTrace();
+		// }
 	}
 
 	public synchronized boolean readPageFromLog(final Buffer buffer)
@@ -184,13 +184,13 @@ public class LogManager {
 			} else {
 				_readBuffer.get(buffer.getBytes());
 			}
-//			textLog.println(String.format(
-//					" read %s:%,14d page %,8d, type %2d, "
-//							+ "right %,8d, index %,5d, %s", fa.getFile()
-//							.getName(), fa.getAddress(), buffer
-//							.getPageAddress(), (int) buffer.getByte(0), buffer
-//							.getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
-//							.getIndex(), buffer.getWriterThread().getName()));
+			// textLog.println(String.format(
+			// " read %s:%,14d page %,8d, type %2d, "
+			// + "right %,8d, index %,5d, %s", fa.getFile()
+			// .getName(), fa.getAddress(), buffer
+			// .getPageAddress(), (int) buffer.getByte(0), buffer
+			// .getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
+			// .getIndex(), buffer.getWriterThread().getName()));
 		} catch (IOException ioe) {
 			throw new PersistitIOException(ioe);
 		}
@@ -229,15 +229,15 @@ public class LogManager {
 		} else {
 			_writeBuffer.put(buffer.getBytes());
 		}
-//		textLog.println(String.format("write %s:%,14d page %,8d, type %2d, "
-//				+ "right %,8d, index %,5d, %s", _currentFile.getName(),
-//				address, buffer.getLong(Buffer.PAGE_ADDRESS_OFFSET),
-//				(int) buffer.getByte(0), buffer
-//						.getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
-//						.getIndex(), Thread.currentThread().getName()));
+		// textLog.println(String.format("write %s:%,14d page %,8d, type %2d, "
+		// + "right %,8d, index %,5d, %s", _currentFile.getName(),
+		// address, buffer.getLong(Buffer.PAGE_ADDRESS_OFFSET),
+		// (int) buffer.getByte(0), buffer
+		// .getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
+		// .getIndex(), Thread.currentThread().getName()));
 		final VolumePage vp = new VolumePage(new VolumeDescriptor(volume),
 				buffer.getPageAddress());
-		final FileAddress fa = new FileAddress(_currentFile, address);
+		final FileAddress fa = new FileAddress(_writeChannelFile, address);
 		_pageMap.put(vp, fa);
 	}
 
@@ -290,11 +290,17 @@ public class LogManager {
 
 	public synchronized void rollover() throws PersistitIOException {
 		_generation++;
-		final File file = new File(String.format(PATH_FORMAT, _directory,
-				_generation));
-		_currentChannel = getFileChannel(file);
-		_currentFile = file;
-		_fileChannelMap.put(_currentFile, _currentChannel);
+		try {
+			closeWriteChannel();
+			final File file = new File(String.format(PATH_FORMAT, _directory,
+					_generation));
+			final RandomAccessFile raf = new RandomAccessFile(file, "rw");
+			_writeChannel = raf.getChannel();
+			_writeChannelFile = file;
+		} catch (IOException e) {
+			throw new PersistitIOException(e);
+		}
+
 		_writeBufferAddress = 0;
 		// New copies in every log file
 		_handleToTreeMap.clear();
@@ -458,7 +464,10 @@ public class LogManager {
 
 	public synchronized void close() throws PersistitIOException {
 		try {
-			closeChannel();
+			closeWriteChannel();
+			for (final FileChannel channel : _readChannelMap.values()) {
+				channel.close();
+			}
 		} catch (IOException ioe) {
 			throw new PersistitIOException(ioe);
 		}
@@ -466,14 +475,14 @@ public class LogManager {
 			_flushTimer.cancel();
 			_flushTimer = null;
 		}
-		_fileChannelMap.clear();
+		_readChannelMap.clear();
 		_handleToTreeMap.clear();
 		_handleToVolumeMap.clear();
 		_volumeToHandleMap.clear();
 		_treeToHandleMap.clear();
 		_pageMap.clear();
-		_currentFile = null;
-		_currentChannel = null;
+		_writeChannelFile = null;
+		_writeChannel = null;
 		_writeBuffer = null;
 		_readBuffer = null;
 		Arrays.fill(_bytes, (byte) 0);
@@ -502,14 +511,14 @@ public class LogManager {
 			}
 		}
 
-		if (_currentChannel == null
+		if (_writeChannel == null
 				|| _writeBufferAddress + _writeBufferSize > _maximumFileSize) {
 			rollover();
 			rolled = true;
 		}
 
 		try {
-			_writeBuffer = _currentChannel.map(MapMode.READ_WRITE,
+			_writeBuffer = _writeChannel.map(MapMode.READ_WRITE,
 					_writeBufferAddress, _writeBufferSize);
 		} catch (IOException ioe) {
 			throw new PersistitIOException(ioe);
@@ -517,16 +526,16 @@ public class LogManager {
 		return rolled;
 	}
 
-	private void closeChannel() throws IOException {
+	private void closeWriteChannel() throws IOException {
 		if (_writeBuffer != null) {
 			_writeBuffer.force();
 			_writeBufferAddress += _writeBuffer.position();
 			_writeBuffer = null;
 		}
-		if (_currentChannel != null) {
-			_currentChannel.truncate(_writeBufferAddress);
-			_currentChannel.force(true);
-			_currentChannel.close();
+		if (_writeChannel != null) {
+			_writeChannel.truncate(_writeBufferAddress);
+			_writeChannel.force(true);
+			_writeChannel.close();
 		}
 		_writeBufferAddress = 0;
 	}
@@ -560,11 +569,11 @@ public class LogManager {
 	private synchronized FileChannel getFileChannel(final File file)
 			throws PersistitIOException {
 		try {
-			FileChannel fc = _fileChannelMap.get(file);
+			FileChannel fc = _readChannelMap.get(file);
 			if (fc == null) {
-				final RandomAccessFile raf = new RandomAccessFile(file, "rw");
+				final RandomAccessFile raf = new RandomAccessFile(file, "r");
 				fc = raf.getChannel();
-				_fileChannelMap.put(file, fc);
+				_readChannelMap.put(file, fc);
 			}
 			return fc;
 		} catch (IOException ioe) {
