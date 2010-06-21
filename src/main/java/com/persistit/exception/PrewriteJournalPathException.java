@@ -14,30 +14,25 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
-package com.persistit.exception;
 
+package com.persistit.exception;
 
 /**
  * Thrown when the Persistit is unable to open the prewrite journal file
- * specified by Persistit configration properties.  See the
- * {@link com.persistit.Persistit#initialize(java.util.Properties)
- * initialize} method for further information.
- *
+ * specified by Persistit configration properties. See the
+ * {@link com.persistit.Persistit#initialize(java.util.Properties) initialize}
+ * method for further information.
+ * 
  * @version 1.0
  */
-public class PrewriteJournalPathException
-extends PersistitException
-{
+public class PrewriteJournalPathException extends PersistitException {
     private static final long serialVersionUID = 7542536852904653252L;
-    
-    public PrewriteJournalPathException()
-    {
+
+    public PrewriteJournalPathException() {
         super();
     }
 
-    public PrewriteJournalPathException(String msg)
-    {
+    public PrewriteJournalPathException(String msg) {
         super(msg);
     }
 }

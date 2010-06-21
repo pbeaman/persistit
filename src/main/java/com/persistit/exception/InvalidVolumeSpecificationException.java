@@ -17,23 +17,19 @@
 package com.persistit.exception;
 
 /**
- * Thrown by {@link com.persistit.Volume} on an attempt to create a Volume
- * with invalid buffer size, initial size, extension size or maximum size..
- *
+ * Thrown by {@link com.persistit.Volume} on an attempt to create a Volume with
+ * invalid buffer size, initial size, extension size or maximum size..
+ * 
  * @version 1.0
  */
-public class InvalidVolumeSpecificationException
-extends PersistitException
-{
+public class InvalidVolumeSpecificationException extends PersistitException {
     private static final long serialVersionUID = 5310678046457279454L;
-    
-    public InvalidVolumeSpecificationException()
-    {
+
+    public InvalidVolumeSpecificationException() {
         super();
     }
 
-    public InvalidVolumeSpecificationException(String msg)
-    {
+    public InvalidVolumeSpecificationException(String msg) {
         super(msg);
     }
 

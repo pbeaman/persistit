@@ -35,17 +35,18 @@ import com.persistit.exception.PersistitException;
 public class ValueTest2 extends PersistitUnitTestCase {
 
     Exchange _exchange;
-    
+
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
-    	_exchange =  _persistit.getExchange("persistit", getClass().getSimpleName(), true);
+        super.setUp();
+        _exchange = _persistit.getExchange("persistit", getClass()
+                .getSimpleName(), true);
     }
-    
+
     @Override
     public void tearDown() throws Exception {
-    	_persistit.releaseExchange(_exchange);
-    	super.tearDown();
+        _persistit.releaseExchange(_exchange);
+        super.tearDown();
     }
 
     // Make a pretty big TreeMap to serialize and check
@@ -556,8 +557,8 @@ public class ValueTest2 extends PersistitUnitTestCase {
 
         assertEquals(3, value.getArrayLength());
 
-        final String[] s1 =
-            new String[] { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j" };
+        final String[] s1 = new String[] { "a", "b", "c", "d", "e", "f", "g",
+                "h", "i", "j" };
         final String[][] ss1 = new String[][] { s1, s1, s1 };
         final String[][][] sss1 = new String[][][] { ss1, ss1, ss1 };
 
@@ -590,11 +591,10 @@ public class ValueTest2 extends PersistitUnitTestCase {
         final String[] strings = new String[20];
         for (int iter = 0; iter < 10000; iter++) {
             if ((iter % 2000) == 0) {
-                final long inUseMem =
-                    Runtime.getRuntime().totalMemory()
+                final long inUseMem = Runtime.getRuntime().totalMemory()
                         - Runtime.getRuntime().freeMemory();
                 System.out.println("ValueTest2.test5: memory in use="
-                    + inUseMem);
+                        + inUseMem);
             }
             for (int i = 0; i < 20; i++) {
                 if (i >= 10) {
@@ -620,8 +620,8 @@ public class ValueTest2 extends PersistitUnitTestCase {
         final String a1 = "a1";
         final String a2 = "a2";
         final String a3 = "a3";
-        _persistit.getCoderManager().registerValueCoder(
-            CustomSet.class, new CollectionValueCoder());
+        _persistit.getCoderManager().registerValueCoder(CustomSet.class,
+                new CollectionValueCoder());
         final Value value = _exchange.getValue();
         final Map map1 = new TreeMap();
         final CustomSet cs1 = new CustomSet();
@@ -652,8 +652,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         assertEquals(map2.get(z2), cs2);
         assertEquals(map2.get(z3), cs2);
 
-        _persistit.getCoderManager().unregisterValueCoder(
-            CustomSet.class);
+        _persistit.getCoderManager().unregisterValueCoder(CustomSet.class);
         _exchange.clear().append("test6").store();
 
         System.out.println("- done");
@@ -755,10 +754,9 @@ public class ValueTest2 extends PersistitUnitTestCase {
         System.out.print("test9 ");
         final String[] strings = { "a", "b", "c" };
         final HashMap map = new HashMap();
-        final Object[] example =
-            new Object[] { new Byte((byte) 1), new Integer(2), new Long(3L),
-                new Float(4.0F), new Double(5.0), new Date(), "a", strings,
-                "a", strings, null, map, };
+        final Object[] example = new Object[] { new Byte((byte) 1),
+                new Integer(2), new Long(3L), new Float(4.0F), new Double(5.0),
+                new Date(), "a", strings, "a", strings, null, map, };
 
         example[11] = example;
         map.put("aKey", "aValue");
@@ -791,15 +789,15 @@ public class ValueTest2 extends PersistitUnitTestCase {
     }
 
     public void runAllTests() throws Exception {
-//        try {
-//            // Enable the security manager
-//            System.out.println("Attempting to install SecurityManager");
-//            final SecurityManager sm = new SecurityManager();
-//            System.setSecurityManager(sm);
-//        } catch (final SecurityException se) {
-//            se.printStackTrace();
-//        }
-        
+        // try {
+        // // Enable the security manager
+        // System.out.println("Attempting to install SecurityManager");
+        // final SecurityManager sm = new SecurityManager();
+        // System.setSecurityManager(sm);
+        // } catch (final SecurityException se) {
+        // se.printStackTrace();
+        // }
+
         _exchange = _persistit.getExchange("persistit", "ValueTest2", true);
 
         test1();
@@ -823,7 +821,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
                 return false;
             }
             if (a.getClass().getComponentType() != b.getClass()
-                .getComponentType()) {
+                    .getComponentType()) {
                 return false;
             }
             if (Array.getLength(a) != Array.getLength(b)) {
@@ -862,7 +860,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         }
 
         Person(final String lastName, final String firstName, final Date dob,
-            final long salary) {
+                final long salary) {
             this.lastName = lastName;
             this.firstName = firstName;
             this.dob = dob;

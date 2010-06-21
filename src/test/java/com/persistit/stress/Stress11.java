@@ -26,15 +26,13 @@ import com.persistit.test.PersistitTestResult;
 
 public class Stress11 extends StressBase {
 
-    private final static String SHORT_DESCRIPTION =
-        "Random key and value size write/read/delete/traverse loops";
+    private final static String SHORT_DESCRIPTION = "Random key and value size write/read/delete/traverse loops";
 
-    private final static String LONG_DESCRIPTION =
-        "   Simple stress test that randomly inserts, reads, traverses and\r\n"
+    private final static String LONG_DESCRIPTION = "   Simple stress test that randomly inserts, reads, traverses and\r\n"
             + "   deletes records\r\n";
 
-    private final static String[] ARGS_TEMPLATE =
-        { "op|String:wrtd|Operations to perform",
+    private final static String[] ARGS_TEMPLATE = {
+            "op|String:wrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions",
             "count|int:10000:0:1000000000|Number of nodes to populate",
             "size|int:50:1:200000|Size of each data value",
@@ -60,7 +58,7 @@ public class Stress11 extends StressBase {
 
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
+        super.setUp();
         _ap = new ArgParser("com.persistit.Stress11", _args, ARGS_TEMPLATE);
         _opflags = _ap.getStringValue("op");
         _size = _ap.getIntValue("size");
@@ -71,7 +69,8 @@ public class Stress11 extends StressBase {
 
         try {
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit",
+                    _rootName + _threadIndex, true);
             _exs = getPersistit().getExchange("persistit", "shared", true);
         } catch (final Exception ex) {
             handleThrowable(ex);
@@ -115,7 +114,7 @@ public class Stress11 extends StressBase {
                     // write a record
 
                     _exs.clear().append("stress10").append(keyInteger).append(
-                        _threadIndex);
+                            _threadIndex);
                     setupObjectTestValue(_exs, keyInteger, random(20, _size));
 
                     _ex.clear().append(keyInteger);
@@ -134,22 +133,21 @@ public class Stress11 extends StressBase {
                     // fetch a record
 
                     _exs.clear().append("stress10").append(keyInteger).append(
-                        _threadIndex);
+                            _threadIndex);
                     _ex.clear().append(keyInteger);
                     try {
                         _ex.fetch();
                         int size1 = 0;
                         if (_ex.getValue().isDefined()
-                            && !_ex.getValue().isNull()) {
+                                && !_ex.getValue().isNull()) {
                             size1 = _ex.getValue().getInt();
                         }
                         _exs.fetch();
                         final int size2 = _exs.getValue().getEncodedSize();
                         if (size2 != size1) {
-                            _result =
-                                new PersistitTestResult(false, "Value is size "
-                                    + size2 + ", should be " + size1 + " key="
-                                    + _ex.getKey());
+                            _result = new PersistitTestResult(false,
+                                    "Value is size " + size2 + ", should be "
+                                            + size1 + " key=" + _ex.getKey());
                             println(_result);
                             forceStop();
                         }
@@ -166,14 +164,14 @@ public class Stress11 extends StressBase {
 
                     _exs.clear().append("stress10").append(keyInteger);
                     for (int count = 0; (count < random(10, 1000))
-                        && !isStopped(); count++) {
+                            && !isStopped(); count++) {
                         dot();
                         try {
                             if (!_exs.next()) {
                                 break;
                             }
-                            final int curKeyInteger =
-                                _exs.getKey().indexTo(1).decodeInt();
+                            final int curKeyInteger = _exs.getKey().indexTo(1)
+                                    .decodeInt();
                             _exs.append(_threadIndex).fetch().getValue();
                             final int size2 = _exs.getValue().getEncodedSize();
                             _ex.clear().append(curKeyInteger).fetch();
@@ -182,11 +180,10 @@ public class Stress11 extends StressBase {
                                 size1 = _ex.getValue().getInt();
                             }
                             if (size2 != size1) {
-                                _result =
-                                    new PersistitTestResult(false,
+                                _result = new PersistitTestResult(false,
                                         "Value is size " + size2
-                                            + ", should be " + size1 + " key="
-                                            + _ex.getKey());
+                                                + ", should be " + size1
+                                                + " key=" + _ex.getKey());
                                 println(_result);
                                 forceStop();
                             }
@@ -205,7 +202,7 @@ public class Stress11 extends StressBase {
                     // delete a record
 
                     _exs.clear().append("stress10").append(keyInteger).append(
-                        _threadIndex);
+                            _threadIndex);
                     _ex.clear().append(keyInteger);
                     try {
                         _exs.remove();
@@ -230,7 +227,7 @@ public class Stress11 extends StressBase {
     }
 
     protected void setupObjectTestValue(final Exchange ex, final int counter,
-        final int length) {
+            final int length) {
         _objectsCopy.clear();
         for (int index = 0; index < length; index++) {
             Object o;

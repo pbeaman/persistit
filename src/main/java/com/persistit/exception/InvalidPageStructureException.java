@@ -16,20 +16,16 @@
  */
 package com.persistit.exception;
 
-
 /**
- * Thrown when Persistit detects corruption within a page image.  This is a 
- * catastrophic failure that signifies corruption of a volume file. 
- *
+ * Thrown when Persistit detects corruption within a page image. This is a
+ * catastrophic failure that signifies corruption of a volume file.
+ * 
  * @version 1.0
  */
-public class InvalidPageStructureException
-extends PersistitException
-{
+public class InvalidPageStructureException extends PersistitException {
     private static final long serialVersionUID = -1653907911348747889L;
-    
-    public InvalidPageStructureException(String msg)
-    {
+
+    public InvalidPageStructureException(String msg) {
         super(msg);
     }
 

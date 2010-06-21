@@ -26,8 +26,7 @@ public class IntegrityTest extends PersistitScriptedTestCase {
     IntegrityCheck[] _ichecks;
     int _icheckIndex = -1;
 
-    private final static String SHORT_DESCRIPTION =
-        "Perform volume integrity check";
+    private final static String SHORT_DESCRIPTION = "Perform volume integrity check";
 
     private final static String LONG_DESCRIPTION = SHORT_DESCRIPTION;
 
@@ -73,7 +72,7 @@ public class IntegrityTest extends PersistitScriptedTestCase {
 
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
+        super.setUp();
         if (_args.length == 0) {
             _args = new String[] { "persistit" };
         }
@@ -98,8 +97,7 @@ public class IntegrityTest extends PersistitScriptedTestCase {
 
     public void test1() {
         _ichecks = new IntegrityCheck[_volumes.length];
-        final PersistitTestResult[] results =
-            new PersistitTestResult[_volumes.length];
+        final PersistitTestResult[] results = new PersistitTestResult[_volumes.length];
         int resultCount = 0;
         boolean passed = true;
         try {
@@ -107,15 +105,15 @@ public class IntegrityTest extends PersistitScriptedTestCase {
                 final Volume volume = _volumes[_icheckIndex];
                 if (volume != null) {
                     print("Performing integrity check on " + volume);
-                    final IntegrityCheck icheck = new IntegrityCheck(getPersistit());
+                    final IntegrityCheck icheck = new IntegrityCheck(
+                            getPersistit());
                     _ichecks[_icheckIndex] = icheck;
 
                     icheck.checkVolume(volume);
                     println(" - " + icheck.toString(true));
 
-                    _result =
-                        new PersistitTestResult(!icheck.hasFaults(), icheck
-                            .toString());
+                    _result = new PersistitTestResult(!icheck.hasFaults(),
+                            icheck.toString());
 
                     results[_icheckIndex] = _result;
 
@@ -124,8 +122,7 @@ public class IntegrityTest extends PersistitScriptedTestCase {
                     }
                     resultCount++;
                 } else {
-                    _result =
-                        new PersistitTestResult(false, "Volume name "
+                    _result = new PersistitTestResult(false, "Volume name "
                             + _args[_icheckIndex] + " not found");
                     results[_icheckIndex] = _result;
                     resultCount++;
@@ -142,10 +139,10 @@ public class IntegrityTest extends PersistitScriptedTestCase {
         println();
         print("done");
     }
-    
+
     @Override
     public void executeTest() throws Exception {
-    	test1();
+        test1();
     }
 
     public static void main(final String[] args) throws Exception {

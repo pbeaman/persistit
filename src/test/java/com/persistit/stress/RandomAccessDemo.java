@@ -58,8 +58,8 @@ public class RandomAccessDemo implements Runnable {
                 }
 
                 System.out.println(Thread.currentThread() + " finished cycle "
-                    + cycle + " at " + (System.currentTimeMillis() - time)
-                    + " with errorCount=" + errorCount);
+                        + cycle + " at " + (System.currentTimeMillis() - time)
+                        + " with errorCount=" + errorCount);
             }
         } catch (final Exception e) {
             System.out.println("Thread " + Thread.currentThread() + " " + e);

@@ -25,20 +25,20 @@ import com.persistit.test.PersistitTestResult;
  * Adapter that allows the TestRunner to run unit tests
  * 
  * @author peter
- *
+ * 
  */
 public class UnitTestRunner extends PersistitScriptedTestCase {
     boolean _done;
     String _className;
     String[] _args;
 
-
     @Override
     public void executeTest() {
         try {
             System.out.println("Running Unit Test " + _className);
             final Class cl = Class.forName(_className);
-            final PersistitUnitTestCase testCase = (PersistitUnitTestCase)cl.newInstance();
+            final PersistitUnitTestCase testCase = (PersistitUnitTestCase) cl
+                    .newInstance();
             testCase.setPersistit(_persistit);
             testCase.runAllTests();
             _done = true;

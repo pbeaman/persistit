@@ -49,193 +49,193 @@ import java.util.List;
  */
 public class KeyHistogram {
 
-	private final Tree _tree;
+    private final Tree _tree;
 
-	private final Key _startKey;
+    private final Key _startKey;
 
-	private final Key _endKey;
+    private final Key _endKey;
 
-	private final int _requestedSampleSize;
+    private final int _requestedSampleSize;
 
-	private final int _treeDepth;
+    private final int _treeDepth;
 
-	private final int _keyDepth;
+    private final int _keyDepth;
 
-	private final List<KeyCount> _keys = new ArrayList<KeyCount>();
+    private final List<KeyCount> _keys = new ArrayList<KeyCount>();
 
-	private int _modulus = 1;
+    private int _modulus = 1;
 
-	private int _keyCount = 0;
+    private int _keyCount = 0;
 
-	private int _pageCount = 0;
+    private int _pageCount = 0;
 
-	private long _pageBytesTotal = 0;
+    private long _pageBytesTotal = 0;
 
-	private long _pageBytesInUse = 0;
+    private long _pageBytesInUse = 0;
 
-	public static class KeyCount {
+    public static class KeyCount {
 
-		final byte[] _bytes;
+        final byte[] _bytes;
 
-		int _count;
+        int _count;
 
-		private KeyCount(final byte[] bytes, final int count) {
-			_bytes = bytes;
-			_count = count;
-		}
+        private KeyCount(final byte[] bytes, final int count) {
+            _bytes = bytes;
+            _count = count;
+        }
 
-		public byte[] getBytes() {
-			return _bytes;
-		}
+        public byte[] getBytes() {
+            return _bytes;
+        }
 
-		public int getCount() {
-			return _count;
-		}
+        public int getCount() {
+            return _count;
+        }
 
-		private void setCount(final int count) {
-			this._count = count;
-		}
+        private void setCount(final int count) {
+            this._count = count;
+        }
 
-		public String toString() {
-			final Key key = new Key((Persistit) null);
-			System
-					.arraycopy(_bytes, 0, key.getEncodedBytes(), 0,
-							_bytes.length);
-			key.setEncodedSize(_bytes.length);
-			return String.format("%,10d %s", _count, key);
-		}
-	}
+        public String toString() {
+            final Key key = new Key((Persistit) null);
+            System
+                    .arraycopy(_bytes, 0, key.getEncodedBytes(), 0,
+                            _bytes.length);
+            key.setEncodedSize(_bytes.length);
+            return String.format("%,10d %s", _count, key);
+        }
+    }
 
-	public KeyHistogram(final Tree tree, final Key start, final Key end,
-			final int sampleSize, final int keyDepth, final int treeDepth) {
-		_tree = tree;
-		_startKey = start;
-		_endKey = end;
-		_requestedSampleSize = sampleSize;
-		_keyDepth = keyDepth;
-		_treeDepth = treeDepth;
-	}
+    public KeyHistogram(final Tree tree, final Key start, final Key end,
+            final int sampleSize, final int keyDepth, final int treeDepth) {
+        _tree = tree;
+        _startKey = start;
+        _endKey = end;
+        _requestedSampleSize = sampleSize;
+        _keyDepth = keyDepth;
+        _treeDepth = treeDepth;
+    }
 
-	public Tree getTree() {
-		return _tree;
-	}
+    public Tree getTree() {
+        return _tree;
+    }
 
-	public Key getStartKey() {
-		return _startKey;
-	}
+    public Key getStartKey() {
+        return _startKey;
+    }
 
-	public Key getEndKey() {
-		return _endKey;
-	}
+    public Key getEndKey() {
+        return _endKey;
+    }
 
-	public int getKeyCount() {
-		return _keyCount;
-	}
+    public int getKeyCount() {
+        return _keyCount;
+    }
 
-	public int getRequestedSampleSize() {
-		return _requestedSampleSize;
-	}
+    public int getRequestedSampleSize() {
+        return _requestedSampleSize;
+    }
 
-	public int getSampleSize() {
-		return _keys.size();
-	}
+    public int getSampleSize() {
+        return _keys.size();
+    }
 
-	public List<KeyCount> getSamples() {
-		return _keys;
-	}
+    public List<KeyCount> getSamples() {
+        return _keys;
+    }
 
-	public int getTreeDepth() {
-		return _treeDepth;
-	}
+    public int getTreeDepth() {
+        return _treeDepth;
+    }
 
-	public int getKeyDepth() {
-		return _keyDepth;
-	}
+    public int getKeyDepth() {
+        return _keyDepth;
+    }
 
-	public int getPageCount() {
-		return _pageCount;
-	}
+    public int getPageCount() {
+        return _pageCount;
+    }
 
-	public long getPageBytesTotal() {
-		return _pageBytesTotal;
-	}
+    public long getPageBytesTotal() {
+        return _pageBytesTotal;
+    }
 
-	public long getPageBytesInUse() {
-		return _pageBytesInUse;
-	}
+    public long getPageBytesInUse() {
+        return _pageBytesInUse;
+    }
 
-	/**
-	 * Add a key. Keys must be added in key-sort order. If the supplied key is
-	 * the same as the previously added key up to the segment specified by the
-	 * keyDepth property, then accumulate to the same KeyCount bucket. Otherwise
-	 * add a new KeyCount bucket. When the sample list becomes too long, this
-	 * method removes every other sample and aggregates the count values. By so
-	 * doing, this method keeps the number of retained samples relatively small.
-	 * 
-	 * @param key
-	 *            The Key to add to the sample set
-	 */
-	void addKeyCopy(final Key key) {
-		_keyCount++;
-		if (_keyCount % _modulus == 0) {
-			final int length = _keyDepth == 0 ? key.getEncodedSize() : key
-					.indexTo(_keyDepth).getIndex();
-			final int end = _keys.size() - 1;
-			boolean same = false;
-			if (end >= 0) {
-				final byte[] last = _keys.get(end).getBytes();
-				same = last.length == length;
-				for (int index = 0; same && index < length; index++) {
-					same &= last[index] == key.getEncodedBytes()[index];
-				}
-			}
-			if (same) {
-				_keys.get(end).setCount(_keyCount);
-			} else {
-				final byte[] bytes = new byte[length];
-				System.arraycopy(key.getEncodedBytes(), 0, bytes, 0, length);
-				_keys.add(new KeyCount(bytes, _keyCount));
-			}
-		}
-		if (_keys.size() >= _requestedSampleSize * 16) {
-			for (int index = (_keys.size() & 0x7FFFFFFE); (index -= 2) >= 0;) {
-				_keys.remove(index);
-			}
-			_modulus *= 2;
-		}
-	}
+    /**
+     * Add a key. Keys must be added in key-sort order. If the supplied key is
+     * the same as the previously added key up to the segment specified by the
+     * keyDepth property, then accumulate to the same KeyCount bucket. Otherwise
+     * add a new KeyCount bucket. When the sample list becomes too long, this
+     * method removes every other sample and aggregates the count values. By so
+     * doing, this method keeps the number of retained samples relatively small.
+     * 
+     * @param key
+     *            The Key to add to the sample set
+     */
+    void addKeyCopy(final Key key) {
+        _keyCount++;
+        if (_keyCount % _modulus == 0) {
+            final int length = _keyDepth == 0 ? key.getEncodedSize() : key
+                    .indexTo(_keyDepth).getIndex();
+            final int end = _keys.size() - 1;
+            boolean same = false;
+            if (end >= 0) {
+                final byte[] last = _keys.get(end).getBytes();
+                same = last.length == length;
+                for (int index = 0; same && index < length; index++) {
+                    same &= last[index] == key.getEncodedBytes()[index];
+                }
+            }
+            if (same) {
+                _keys.get(end).setCount(_keyCount);
+            } else {
+                final byte[] bytes = new byte[length];
+                System.arraycopy(key.getEncodedBytes(), 0, bytes, 0, length);
+                _keys.add(new KeyCount(bytes, _keyCount));
+            }
+        }
+        if (_keys.size() >= _requestedSampleSize * 16) {
+            for (int index = (_keys.size() & 0x7FFFFFFE); (index -= 2) >= 0;) {
+                _keys.remove(index);
+            }
+            _modulus *= 2;
+        }
+    }
 
-	/**
-	 * Accumulates total number of pages, bytes and bytes-in-use traversed.
-	 * 
-	 * @param size
-	 *            Size of the page
-	 * @param used
-	 *            Number of bytes in use in the page.
-	 */
-	void addPage(final int size, final int used) {
-		_pageCount++;
-		_pageBytesTotal += size;
-		_pageBytesInUse += used;
-	}
+    /**
+     * Accumulates total number of pages, bytes and bytes-in-use traversed.
+     * 
+     * @param size
+     *            Size of the page
+     * @param used
+     *            Number of bytes in use in the page.
+     */
+    void addPage(final int size, final int used) {
+        _pageCount++;
+        _pageBytesTotal += size;
+        _pageBytesInUse += used;
+    }
 
-	/**
-	 * Culls the List of keys down to the requested sample size
-	 */
-	void cull() {
-		final int have = _keys.size();
-		final int want = _requestedSampleSize;
-		int counter = have;
-		for (int index = have; --index >= 0;) {
-			counter += want;
-			if (counter <= have) {
-				_keys.remove(index);
-			} else {
-				counter -= have;
-			}
-		}
-		if (_keys.size() > want) {
-			_keys.remove(0);
-		}
-	}
+    /**
+     * Culls the List of keys down to the requested sample size
+     */
+    void cull() {
+        final int have = _keys.size();
+        final int want = _requestedSampleSize;
+        int counter = have;
+        for (int index = have; --index >= 0;) {
+            counter += want;
+            if (counter <= have) {
+                _keys.remove(index);
+            } else {
+                counter -= have;
+            }
+        }
+        if (_keys.size() > want) {
+            _keys.remove(0);
+        }
+    }
 }

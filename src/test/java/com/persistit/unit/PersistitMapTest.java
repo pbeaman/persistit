@@ -39,21 +39,20 @@ import com.persistit.exception.PersistitException;
 
 public class PersistitMapTest extends PersistitUnitTestCase {
 
-    private final Object[] TEST_VALUES =
-        new Object[] { "Value 0", "Value 1", new Integer(2), new TreeMap(),
-            new S("Serializable4"), new S("Serializable5"),
-            BigDecimal.valueOf(6), new Boolean(true), new Byte((byte) 8),
-            new Short((short) 9), new Character((char) 10), new Integer(11),
-            new Long(12), new Float(13.0f), new Double(14.0d), new Date(), // 15
+    private final Object[] TEST_VALUES = new Object[] { "Value 0", "Value 1",
+            new Integer(2), new TreeMap(), new S("Serializable4"),
+            new S("Serializable5"), BigDecimal.valueOf(6), new Boolean(true),
+            new Byte((byte) 8), new Short((short) 9), new Character((char) 10),
+            new Integer(11), new Long(12), new Float(13.0f), new Double(14.0d),
+            new Date(), // 15
             new ArrayList(), // 16
-        };
+    };
 
-    private final Object[] TEST_KEYS =
-        new Object[] { "key0", "key1", BigDecimal.valueOf(2),
-            new Boolean(true), new Byte((byte) 4), new Short((short) 5),
-            new Character((char) 6), new Integer(7), new Long(8),
-            new Float(9.0f), new Double(10.0d), new Date(), new Integer(12),
-            new byte[] { 1, 2, 3, 4, 5, 0, 1, 2 }, "", // 14
+    private final Object[] TEST_KEYS = new Object[] { "key0", "key1",
+            BigDecimal.valueOf(2), new Boolean(true), new Byte((byte) 4),
+            new Short((short) 5), new Character((char) 6), new Integer(7),
+            new Long(8), new Float(9.0f), new Double(10.0d), new Date(),
+            new Integer(12), new byte[] { 1, 2, 3, 4, 5, 0, 1, 2 }, "", // 14
             new Integer(15), new Integer(16), };
 
     private static class S implements Serializable {
@@ -76,9 +75,8 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.print("test1 ");
 
         final TreeMap tmap = new TreeMap();
-        final PersistitMap pmap =
-            new PersistitMap(_persistit.getExchange("persistit",
-                "PersistitMapTest", true));
+        final PersistitMap pmap = new PersistitMap(_persistit.getExchange(
+                "persistit", "PersistitMapTest", true));
 
         final TreeMap zmap = new TreeMap();
         zmap.put("this", "that");
@@ -128,9 +126,8 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.print("test2 ");
 
         final TreeMap tmap = new TreeMap();
-        final PersistitMap pmap =
-            new PersistitMap(_persistit.getExchange("persistit",
-                "PersistitMapTest", true));
+        final PersistitMap pmap = new PersistitMap(_persistit.getExchange(
+                "persistit", "PersistitMapTest", true));
         final TreeMap zmap = new TreeMap();
         zmap.put("this", "that");
 
@@ -176,9 +173,8 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.print("test3 ");
 
         final TreeMap tmap = new TreeMap();
-        final PersistitMap pmap =
-            new PersistitMap(_persistit.getExchange("persistit",
-                "PersistitMapTest", true));
+        final PersistitMap pmap = new PersistitMap(_persistit.getExchange(
+                "persistit", "PersistitMapTest", true));
 
         tmap.clear();
         pmap.clear();
@@ -190,14 +186,14 @@ public class PersistitMapTest extends PersistitUnitTestCase {
 
         for (int i = 0; i < 10; i++) {
             for (final Iterator iter = tmap.entrySet().iterator(); iter
-                .hasNext();) {
+                    .hasNext();) {
                 final Map.Entry entry = (Map.Entry) iter.next();
                 final int v = ((Integer) entry.getValue()).intValue();
                 entry.setValue(new Integer(v + 1));
             }
 
             for (final Iterator iter = pmap.entrySet().iterator(); iter
-                .hasNext();) {
+                    .hasNext();) {
                 final Map.Entry entry = (Map.Entry) iter.next();
                 final int v = ((Integer) entry.getValue()).intValue();
                 entry.setValue(new Integer(v + 1));
@@ -215,9 +211,8 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.print("test4 ");
 
         final TreeMap tmap = new TreeMap();
-        final PersistitMap pmap =
-            new PersistitMap(_persistit.getExchange("persistit",
-                "PersistitMapTest", true));
+        final PersistitMap pmap = new PersistitMap(_persistit.getExchange(
+                "persistit", "PersistitMapTest", true));
 
         tmap.clear();
         pmap.clear();
@@ -273,9 +268,8 @@ public class PersistitMapTest extends PersistitUnitTestCase {
         System.out.print("test5 ");
 
         final TreeMap tmap = new TreeMap();
-        final PersistitMap pmap =
-            new PersistitMap(_persistit.getExchange("persistit",
-                "PersistitMapTest", true));
+        final PersistitMap pmap = new PersistitMap(_persistit.getExchange(
+                "persistit", "PersistitMapTest", true));
 
         pmap.clear();
         assertTrue(pmap.size() == 0);
@@ -323,9 +317,8 @@ public class PersistitMapTest extends PersistitUnitTestCase {
     public void test6() throws PersistitException {
         System.out.print("test6 ");
 
-        final Exchange ex =
-            _persistit.getExchange("persistit", "PersistitMapTest", true)
-                .append("a").append("b");
+        final Exchange ex = _persistit.getExchange("persistit",
+                "PersistitMapTest", true).append("a").append("b");
 
         final PersistitMap pmap = new PersistitMap(ex);
 
@@ -342,13 +335,13 @@ public class PersistitMapTest extends PersistitUnitTestCase {
             ex.cut(2);
         }
 
-        final PersistitMap.ExchangeIterator iter =
-            (PersistitMap.ExchangeIterator) pmap.keySet().iterator();
+        final PersistitMap.ExchangeIterator iter = (PersistitMap.ExchangeIterator) pmap
+                .keySet().iterator();
 
         iter.setFilterTerm(KeyFilter.orTerm(new KeyFilter.Term[] {
-            KeyFilter.rangeTerm(new Integer(100), new Integer(300)),
-            KeyFilter.rangeTerm(new Integer(800), new Integer(900), false,
-                false), KeyFilter.simpleTerm(new Integer(999)) }));
+                KeyFilter.rangeTerm(new Integer(100), new Integer(300)),
+                KeyFilter.rangeTerm(new Integer(800), new Integer(900), false,
+                        false), KeyFilter.simpleTerm(new Integer(999)) }));
 
         final String s = iter.getKeyFilter().toString();
         final String t = "{\"a\",\"b\",>{100:300,(800:900),999}<}";
@@ -360,7 +353,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
             final Integer key = (Integer) object;
             final int k = key.intValue();
             assertTrue(((k >= 100) && (k <= 300)) || ((k > 800) && (k < 900))
-                || (k == 999));
+                    || (k == 999));
             count++;
         }
         assertEquals(count, 201 + 99 + 1);
@@ -371,8 +364,8 @@ public class PersistitMapTest extends PersistitUnitTestCase {
     public void test7() throws PersistitException {
         System.out.print("test7 ");
 
-        final Exchange ex =
-            _persistit.getExchange("persistit", "PersistitMapTest", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "PersistitMapTest", true);
 
         final PersistitMap pmap = new PersistitMap(ex);
 
@@ -463,8 +456,8 @@ public class PersistitMapTest extends PersistitUnitTestCase {
     public void test8() throws PersistitException {
         System.out.print("test8 ");
 
-        final Exchange ex =
-            _persistit.getExchange("persistit", "PersistitMapTest", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "PersistitMapTest", true);
 
         int NUM_ROWS = 10000; // 1 mill
 
@@ -621,13 +614,13 @@ public class PersistitMapTest extends PersistitUnitTestCase {
     }
 
     public void runAllTests() throws Exception {
-         test1();
-         test2();
-         test3();
-         test4();
-         test5();
-         test6();
-         test7();
+        test1();
+        test2();
+        test3();
+        test4();
+        test5();
+        test6();
+        test7();
         test8();
     }
 

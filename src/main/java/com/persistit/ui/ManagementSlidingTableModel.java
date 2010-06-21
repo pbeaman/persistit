@@ -17,6 +17,7 @@
  * Created on Sep 2, 2004
  */
 package com.persistit.ui;
+
 import java.rmi.RemoteException;
 
 import javax.swing.SwingUtilities;
@@ -25,31 +26,30 @@ import com.persistit.Key;
 import com.persistit.KeyState;
 import com.persistit.Management;
 import com.persistit.Management.LogicalRecordCount;
+
 /**
  * @version 1.0
  */
-class ManagementSlidingTableModel
-extends ManagementTableModel
-{
+class ManagementSlidingTableModel extends ManagementTableModel {
     public final static int DEFAULT_ROW_CACHE_SIZE = 2048;
     public final static int DEFAULT_INITIAL_SIZE_ESTIMATE = 10000;
     public final static int SCROLL_BAR_ESTIMATE_MULTIPLIER = 3;
     public final static int MAXIMUM_GROWTH_ESTIMATE = 100000;
     public final static int DEFAULT_MAXIMUM_VALUE_SIZE = 400;
     public final static int MINIMUM_REQUESTED_ROW_COUNT = 256;
-    
+
     /**
-     * Offset from beginning of logical keyspace to the first row in the
-     * row cache.
+     * Offset from beginning of logical keyspace to the first row in the row
+     * cache.
      */
     private int _offset;
     private boolean _deletingRows;
-    
+
     /**
-     * Size of _infoArray row cache 
+     * Size of _infoArray row cache
      */
     private int _rowCacheSize = DEFAULT_ROW_CACHE_SIZE;
-    
+
     private int _maxValueSize = DEFAULT_MAXIMUM_VALUE_SIZE;
     /**
      * Current estimate of total row count
@@ -57,15 +57,15 @@ extends ManagementTableModel
     private int _currentRowCount;
     /**
      * Indicates whether the total size is definite, meaning that we have
-     * traversed to the end of the logical key space and discovered the
-     * actual count.
+     * traversed to the end of the logical key space and discovered the actual
+     * count.
      */
     private boolean _definite;
     /**
      * Count of valid rows in the row cache.
      */
     private int _valid = 0;
-    
+
     /**
      * The volume name
      */
@@ -79,52 +79,44 @@ extends ManagementTableModel
      * tree are selected.
      */
     private String _keyFilterString;
-    
+
     /**
      * Indicates that the row cache is unstable because a fetch operation is
      * currently pending.
      */
     private boolean _waiting;
+
     /**
-     * Construct a TableModel to display one of the management info
-     * array structures such as BufferInfo[]. Each column is described
-     * by a property defined in the <tt>ResourceBundle</tt> associated
-     * with this class.  The property name is constructed from the last "."
-     * piece of the name of the supplied class and the column index as follows:
-     * <code><pre>
+     * Construct a TableModel to display one of the management info array
+     * structures such as BufferInfo[]. Each column is described by a property
+     * defined in the <tt>ResourceBundle</tt> associated with this class. The
+     * property name is constructed from the last "." piece of the name of the
+     * supplied class and the column index as follows: <code><pre>
      * property Name ::= 
      *      <i>classNameTail</i>.column.<i>columnIndex</i>
-     * </pre></code>
-     * For example, the specification for the first column of the
-     * {@link com.persistit.Management.BufferInfo} class is
-     * <code><pre>
+     * </pre></code> For example, the specification for the first column of the
+     * {@link com.persistit.Management.BufferInfo} class is <code><pre>
      *      BufferInfo.column.0
-     * </pre></code>
-     * The value associated with this property has the following structure:
-     * <code><pre>
+     * </pre></code> The value associated with this property has the following
+     * structure: <code><pre>
      * property Value ::=
      *      <i>accessorMethodName</i>:<i>width</i>:<i>flags</i>:<i>header</i>
-     * </code></pre>
-     * For example
-     * <code><pre>
+     * </code></pre> For example <code><pre>
      *      getRightSiblingAddress:10:A:Right Pointer
-     * </code></pre>
-     * where the <i>accessorMethodName</tt> is simply a method name in the
-     * supplied class (the method must take no arguments), the <i>width</i> is a
-     * percentage of the total table width, and <i>justification</i> is L, C
-     * or R.
+     * </code></pre> where the <i>accessorMethodName</tt> is simply a method
+     * name in the supplied class (the method must take no arguments), the
+     * <i>width</i> is a percentage of the total table width, and
+     * <i>justification</i> is L, C or R.
      * 
      * @param clazz
      */
-    
+
     public ManagementSlidingTableModel(Class clazz, String className, AdminUI ui)
-    throws NoSuchMethodException
-    {
+            throws NoSuchMethodException {
         super(clazz, className, ui);
     }
-    
-    void reset()
-    {
+
+    void reset() {
         _volumeName = null;
         _treeName = null;
         _keyFilterString = null;
@@ -133,238 +125,179 @@ extends ManagementTableModel
         _currentRowCount = DEFAULT_INITIAL_SIZE_ESTIMATE;
         _definite = false;
     }
-    
-    void set(
-        String volumeName, 
-        String treeName,
-        String keyFilterString)
-    {
+
+    void set(String volumeName, String treeName, String keyFilterString) {
         reset();
         _volumeName = volumeName;
         _treeName = treeName;
         _keyFilterString = keyFilterString;
         fireTableDataChanged();
     }
-    
-    boolean isDeletingRows()
-    {
+
+    boolean isDeletingRows() {
         return _deletingRows;
     }
-        
-    public int getRowCount()
-    {
+
+    public int getRowCount() {
         return _currentRowCount;
     }
-    
-    public Object getValueAt(int row, int col)
-    {
-//        if ((row % 1000) == 0 && col == 0) System.out.println("Getting row " + row);
-        if (row < 0 || (_definite && row >= _currentRowCount))
-        {
+
+    public Object getValueAt(int row, int col) {
+        // if ((row % 1000) == 0 && col == 0) System.out.println("Getting row "
+        // + row);
+        if (row < 0 || (_definite && row >= _currentRowCount)) {
             return null;
-        }
-        else if (col >= 0 && (row < _offset || row >= _offset + _valid))
-        {
+        } else if (col >= 0 && (row < _offset || row >= _offset + _valid)) {
             return fetch(row);
-        }
-        else
-        {
+        } else {
             return super.getValueAt(row - _offset, col);
         }
     }
-    
-    private synchronized Object fetch(int row)
-    {
-        if (_waiting)
-        {
+
+    private synchronized Object fetch(int row) {
+        if (_waiting) {
             return _adminUI.getWaitingMessage();
         }
         _waiting = true;
-        
+
         int fromOffset;
         int requestedCount;
         int skipCount = 0;
         boolean forward;
-        
-        if (_valid == 0)
-        {
+
+        if (_valid == 0) {
             forward = true;
             fromOffset = -1;
             requestedCount = row + 1;
-        }
-        else if (row >= _offset + _valid)
-        {
+        } else if (row >= _offset + _valid) {
             forward = true;
             fromOffset = _offset + _valid - 1;
             requestedCount = row - (_offset + _valid) + 1;
-        }
-        else if (row < _offset && row > _offset - row)
-        {
+        } else if (row < _offset && row > _offset - row) {
             forward = false;
             requestedCount = _offset - row;
             fromOffset = _offset;
-        }
-        else
-        {
+        } else {
             forward = true;
             fromOffset = -1;
             requestedCount = row + 1;
         }
-        
-        if (requestedCount < MINIMUM_REQUESTED_ROW_COUNT)
-        {
+
+        if (requestedCount < MINIMUM_REQUESTED_ROW_COUNT) {
             requestedCount = MINIMUM_REQUESTED_ROW_COUNT;
-        }
-        else
-        {
-            if (requestedCount > _rowCacheSize)
-            {
+        } else {
+            if (requestedCount > _rowCacheSize) {
                 skipCount = requestedCount - (_rowCacheSize / 2);
                 requestedCount = _rowCacheSize;
             }
         }
-        
-//        System.out.println(
-//            "new Fetcher(forward=" + forward + 
-//            ",fromOffset=" + fromOffset + ",requestedCount=" + requestedCount + 
-//            ",skipCount=" + skipCount + "): _offset=" + _offset + 
-//            " and _valid=" + _valid); 
-        Fetcher fetcher = new Fetcher(forward, fromOffset, requestedCount, skipCount);
+
+        // System.out.println(
+        // "new Fetcher(forward=" + forward +
+        // ",fromOffset=" + fromOffset + ",requestedCount=" + requestedCount +
+        // ",skipCount=" + skipCount + "): _offset=" + _offset +
+        // " and _valid=" + _valid);
+        Fetcher fetcher = new Fetcher(forward, fromOffset, requestedCount,
+                skipCount);
         new Thread(fetcher).start();
         return _adminUI.getWaitingMessage();
     }
-    
-    private synchronized void receiveData(Fetcher fetcher)
-    {
+
+    private synchronized void receiveData(Fetcher fetcher) {
         _waiting = false;
-        if (fetcher._exception != null)
-        {
+        if (fetcher._exception != null) {
             _adminUI.postException(fetcher._exception);
         }
-        if (fetcher._resultRows == null) return;
-        
-        if (_infoArray == null || _infoArray.length != _rowCacheSize)
-        {
+        if (fetcher._resultRows == null)
+            return;
+
+        if (_infoArray == null || _infoArray.length != _rowCacheSize) {
             _infoArray = new Object[_rowCacheSize];
             _offset = 0;
             _valid = 0;
         }
-        
-        
+
         int count = fetcher._resultRows.length;
         int newValid = _valid + count;
-        
-//        System.out.println(
-//            "receivedData(_offset=" + _offset + 
-//            ",_valid=" + _valid +
-//            ",count=" + count +
-//            ",fetcher._from=" + fetcher._from +
-//            ",fetcher._forward=" + fetcher._forward +
-//            ",fetcher._skipCount=" + fetcher._skipCount +
-//            ",fetcher._requestedCount=" + fetcher._requestedCount
-//            );
-        
+
+        // System.out.println(
+        // "receivedData(_offset=" + _offset +
+        // ",_valid=" + _valid +
+        // ",count=" + count +
+        // ",fetcher._from=" + fetcher._from +
+        // ",fetcher._forward=" + fetcher._forward +
+        // ",fetcher._skipCount=" + fetcher._skipCount +
+        // ",fetcher._requestedCount=" + fetcher._requestedCount
+        // );
+
         int oldOffset = _offset;
         int newOffset = oldOffset;
         int oldRowCount = _currentRowCount;
         int firstUpdatedRow;
         int lastUpdatedRow;
-        
-        int lost = 0;           // rows lost from row cache
-        int kept = _valid;      // rows kept from row cache
-        int cut = 0;            // rows cut from fetcher._resultRows
-        
-        if (fetcher._forward)
-        {
-            if (fetcher._from != _offset + _valid - 1)
-            {
+
+        int lost = 0; // rows lost from row cache
+        int kept = _valid; // rows kept from row cache
+        int cut = 0; // rows cut from fetcher._resultRows
+
+        if (fetcher._forward) {
+            if (fetcher._from != _offset + _valid - 1) {
                 _valid = 0;
                 kept = 0;
                 newValid = count;
                 newOffset = fetcher._from + 1;
             }
-            if (newValid > _rowCacheSize)
-            {
+            if (newValid > _rowCacheSize) {
                 lost = newValid - _rowCacheSize;
                 newOffset += lost;
-                
-                if (lost < _valid)
-                {
+
+                if (lost < _valid) {
                     kept = _valid - lost;
-                    System.arraycopy(
-                        _infoArray,
-                        lost,
-                        _infoArray,
-                        0,
-                        kept);
-                }
-                else
-                {
+                    System.arraycopy(_infoArray, lost, _infoArray, 0, kept);
+                } else {
                     cut = lost - _valid;
                     kept = 0;
                 }
                 newValid = _rowCacheSize;
             }
-            System.arraycopy(
-                fetcher._resultRows, 
-                cut,
-                _infoArray,
-                kept,
-                count - cut);
-                
+            System.arraycopy(fetcher._resultRows, cut, _infoArray, kept, count
+                    - cut);
+
             firstUpdatedRow = newOffset + kept;
             lastUpdatedRow = firstUpdatedRow + count - cut - 1;
-            
-            if (count < fetcher._requestedCount)
-            {
+
+            if (count < fetcher._requestedCount) {
                 changeRowCount(newOffset + newValid, true);
             }
-        }
-        else
-        {
-            if (fetcher._from != _offset)
-            {
+        } else {
+            if (fetcher._from != _offset) {
                 _valid = 0;
                 kept = 0;
                 newValid = count;
                 newOffset = fetcher._from - count;
-            }
-            else
-            {
+            } else {
                 newOffset = oldOffset - count;
             }
-            if (newValid > _rowCacheSize)
-            {
+            if (newValid > _rowCacheSize) {
                 lost = newValid - _rowCacheSize;
-                if (lost < _valid)
-                {
+                if (lost < _valid) {
                     kept = _valid - lost;
-                    System.arraycopy(
-                        _infoArray,
-                        0,
-                        _infoArray,
-                        _valid - kept,
-                        kept);
-                }
-                else
-                {
+                    System.arraycopy(_infoArray, 0, _infoArray, _valid - kept,
+                            kept);
+                } else {
                     cut = lost - _valid;
                     kept = 0;
                 }
                 newValid = _rowCacheSize;
             }
-            System.arraycopy(
-                fetcher._resultRows,
-                0,
-                _infoArray,
-                0,
-                count - cut);
-            
+            System
+                    .arraycopy(fetcher._resultRows, 0, _infoArray, 0, count
+                            - cut);
+
             firstUpdatedRow = newOffset;
             lastUpdatedRow = firstUpdatedRow + count - cut - 1;
-            
-            if (count < fetcher._requestedCount)
-            {
+
+            if (count < fetcher._requestedCount) {
                 _definite = false;
                 _currentRowCount = DEFAULT_INITIAL_SIZE_ESTIMATE;
                 _offset = 0;
@@ -372,57 +305,49 @@ extends ManagementTableModel
         }
         _offset = newOffset;
         _valid = newValid;
-        
-        if (!_definite)
-        {
+
+        if (!_definite) {
             int receivedRowCount = newOffset + newValid;
-            int estimatedRowCount =
-                (newOffset + _valid) * SCROLL_BAR_ESTIMATE_MULTIPLIER;
-            if (estimatedRowCount - receivedRowCount > MAXIMUM_GROWTH_ESTIMATE)
-            {
+            int estimatedRowCount = (newOffset + _valid)
+                    * SCROLL_BAR_ESTIMATE_MULTIPLIER;
+            if (estimatedRowCount - receivedRowCount > MAXIMUM_GROWTH_ESTIMATE) {
                 estimatedRowCount = receivedRowCount + MAXIMUM_GROWTH_ESTIMATE;
             }
-            
-            if (_currentRowCount < estimatedRowCount &&
-                _offset + _valid > _currentRowCount)
-            {
+
+            if (_currentRowCount < estimatedRowCount
+                    && _offset + _valid > _currentRowCount) {
                 changeRowCount(estimatedRowCount, false);
             }
         }
         fireTableRowsUpdated(0, _currentRowCount - 1);
     }
-    
-    private void changeRowCount(int newRowCount, boolean definite)
-    {
-//        System.out.println(
-//            "Changing row count from " + _currentRowCount + 
-//            " to " + newRowCount + 
-//            " definite=" + definite);
-        
+
+    private void changeRowCount(int newRowCount, boolean definite) {
+        // System.out.println(
+        // "Changing row count from " + _currentRowCount +
+        // " to " + newRowCount +
+        // " definite=" + definite);
+
         _deletingRows = true;
-        
+
         int oldRowCount = _currentRowCount;
         _definite = definite;
         _currentRowCount = newRowCount;
-        
-        if (oldRowCount < newRowCount)
-        {
-//            System.out.println("fireTableRowsInserted(" + oldRowCount + "," + (newRowCount - 1) + ")");
+
+        if (oldRowCount < newRowCount) {
+            // System.out.println("fireTableRowsInserted(" + oldRowCount + "," +
+            // (newRowCount - 1) + ")");
             fireTableRowsInserted(oldRowCount, newRowCount - 1);
-        }
-        else if (oldRowCount > newRowCount)
-        {
-//            System.out.println("fireTableRowsDeleted(" + newRowCount + "," + (oldRowCount - 1) + ")");
+        } else if (oldRowCount > newRowCount) {
+            // System.out.println("fireTableRowsDeleted(" + newRowCount + "," +
+            // (oldRowCount - 1) + ")");
             fireTableRowsDeleted(newRowCount, oldRowCount - 1);
         }
-        
+
         _deletingRows = false;
     }
-    
-    
-    private class Fetcher
-    implements Runnable
-    {
+
+    private class Fetcher implements Runnable {
         boolean _forward;
         int _from;
         int _requestedCount;
@@ -430,73 +355,53 @@ extends ManagementTableModel
 
         Object[] _resultRows;
         Exception _exception;
-        
-        Fetcher(boolean forward, int from, int requestedCount, int skipCount)
-        {
+
+        Fetcher(boolean forward, int from, int requestedCount, int skipCount) {
             _forward = forward;
             _from = from;
             _requestedCount = requestedCount;
             _skipCount = skipCount;
         }
-        
-        public void run()
-        {
+
+        public void run() {
             Management.LogicalRecord rec = null;
-            if (_from != -1)
-            {
-                rec = (Management.LogicalRecord)_infoArray[_from - _offset];
+            if (_from != -1) {
+                rec = (Management.LogicalRecord) _infoArray[_from - _offset];
             }
-            KeyState ks = rec == null ? KeyState.LEFT_GUARD_KEYSTATE : rec.getKeyState();
+            KeyState ks = rec == null ? KeyState.LEFT_GUARD_KEYSTATE : rec
+                    .getKeyState();
             Management management = _adminUI.getManagement();
             _resultRows = new Management.LogicalRecord[0];
-            if (management != null)
-            {
-                try
-                {
-                    if (_skipCount > 0)
-                    {
-                        LogicalRecordCount lrc =
-                            management.getLogicalRecordCount(
-                                _volumeName,
-                                _treeName,
-                                _keyFilterString,
-                                ks,
-                                _forward ? Key.GT: Key.LT,
-                                _skipCount);
+            if (management != null) {
+                try {
+                    if (_skipCount > 0) {
+                        LogicalRecordCount lrc = management
+                                .getLogicalRecordCount(_volumeName, _treeName,
+                                        _keyFilterString, ks, _forward ? Key.GT
+                                                : Key.LT, _skipCount);
                         int skipped = lrc.getCount();
-                        if (skipped > 0)
-                        {
+                        if (skipped > 0) {
                             ks = lrc.getKeyState();
-                            _from = _forward ? _from + skipped: _from - skipped;
+                            _from = _forward ? _from + skipped : _from
+                                    - skipped;
                         }
                     }
-                    
-                    _resultRows =
-                        management.getLogicalRecordArray(
-                            _volumeName,
-                            _treeName,
-                            _keyFilterString,
-                            ks,
-                            _forward ? Key.GT : Key.LT,
-                            _requestedCount,
-                            _maxValueSize,
+
+                    _resultRows = management.getLogicalRecordArray(_volumeName,
+                            _treeName, _keyFilterString, ks, _forward ? Key.GT
+                                    : Key.LT, _requestedCount, _maxValueSize,
                             true);
-                }
-                catch (RemoteException remoteException)
-                {
+                } catch (RemoteException remoteException) {
                     // TODO
                     _exception = remoteException;
                 }
             }
-            SwingUtilities.invokeLater(
-                new Runnable()
-                {
-                    public void run()
-                    {
-                        receiveData(Fetcher.this);
-                    }
-                });
+            SwingUtilities.invokeLater(new Runnable() {
+                public void run() {
+                    receiveData(Fetcher.this);
+                }
+            });
         }
     }
-    
+
 }

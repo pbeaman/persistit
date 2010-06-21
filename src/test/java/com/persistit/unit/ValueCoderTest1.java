@@ -38,17 +38,18 @@ import com.persistit.exception.PersistitException;
 public class ValueCoderTest1 extends PersistitUnitTestCase {
 
     Exchange _exchange;
-    
+
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
-    	_exchange =  _persistit.getExchange("persistit", getClass().getSimpleName(), true);
+        super.setUp();
+        _exchange = _persistit.getExchange("persistit", getClass()
+                .getSimpleName(), true);
     }
-    
+
     @Override
     public void tearDown() throws Exception {
-    	_persistit.releaseExchange(_exchange);
-    	super.tearDown();
+        _persistit.releaseExchange(_exchange);
+        super.tearDown();
     }
 
     public void test1() throws PersistitException {
@@ -63,10 +64,10 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         assertEquals(map1, map2);
         final String toString = value.toString();
         assertEquals("(java.util.TreeMap)["
-            + "(Integer)0->\"0\",(Integer)1->\"1\",(Integer)2->\"2\","
-            + "(Integer)3->\"3\",(Integer)4->\"4\",(Integer)5->\"5\","
-            + "(Integer)6->\"6\",(Integer)7->\"7\",(Integer)8->\"8\","
-            + "(Integer)9->\"9\"]", toString);
+                + "(Integer)0->\"0\",(Integer)1->\"1\",(Integer)2->\"2\","
+                + "(Integer)3->\"3\",(Integer)4->\"4\",(Integer)5->\"5\","
+                + "(Integer)6->\"6\",(Integer)7->\"7\",(Integer)8->\"8\","
+                + "(Integer)9->\"9\"]", toString);
         System.out.println("- done");
     }
 
@@ -116,9 +117,9 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         assertEquals(set1, set2);
         final String toString = value.toString();
         assertEquals(
-            "(java.util.TreeSet)[(Integer)0,(Integer)1,(Integer)2,(Integer)3,(Integer)4," 
-        		+"(Integer)5,(Integer)6,(Integer)7,(Integer)8,(Integer)9]",
-            toString);
+                "(java.util.TreeSet)[(Integer)0,(Integer)1,(Integer)2,(Integer)3,(Integer)4,"
+                        + "(Integer)5,(Integer)6,(Integer)7,(Integer)8,(Integer)9]",
+                toString);
         System.out.println("- done");
     }
 
@@ -131,7 +132,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
                 return false;
             }
             if (a.getClass().getComponentType() != b.getClass()
-                .getComponentType()) {
+                    .getComponentType()) {
                 return false;
             }
             if (Array.getLength(a) != Array.getLength(b)) {
@@ -158,7 +159,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
     }
 
     private static class MapValueRenderer implements ValueRenderer,
-        ValueDisplayer {
+            ValueDisplayer {
         Class _clazz;
 
         MapValueRenderer(final Class clazz) {
@@ -166,13 +167,13 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         }
 
         public void put(final Value value, final Object object,
-            final CoderContext context) throws ConversionException {
+                final CoderContext context) throws ConversionException {
             final Map map = (Map) object;
 
             value.put(map.size());
 
             for (final Iterator iter = map.entrySet().iterator(); iter
-                .hasNext();) {
+                    .hasNext();) {
                 final Map.Entry entry = (Map.Entry) iter.next();
                 value.put(entry.getKey());
                 value.put(entry.getValue());
@@ -180,7 +181,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         }
 
         public Object get(final Value value, final Class clazz,
-            final CoderContext context) throws ConversionException {
+                final CoderContext context) throws ConversionException {
             Map map = null;
             try {
                 map = (Map) _clazz.newInstance();
@@ -197,8 +198,8 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         }
 
         public void render(final Value value, final Object target,
-            final Class clazz, final CoderContext context)
-            throws ConversionException {
+                final Class clazz, final CoderContext context)
+                throws ConversionException {
             final Map map = (Map) target;
             final int size = value.getInt();
             for (int index = 0; index < size; index++) {
@@ -209,7 +210,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         }
 
         public void display(final Value value, final StringBuffer sb,
-            final Class clazz, final CoderContext context) {
+                final Class clazz, final CoderContext context) {
             final int size = value.getInt();
             sb.append("[");
             for (int index = 0; index < size; index++) {
@@ -229,7 +230,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         }
 
         public Object get(final Value value, final Class clazz,
-            final CoderContext context) throws ConversionException {
+                final CoderContext context) throws ConversionException {
             Set set = null;
             try {
                 set = (Set) clazz.newInstance();
@@ -248,12 +249,12 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
         }
 
         public void put(final Value value, final Object object,
-            final CoderContext context) {
+                final CoderContext context) {
             final Set set = (Set) object;
             // value.setStreamMode(true);
             value.put(set.size());
             for (final Iterator iterObject = set.iterator(); iterObject
-                .hasNext();) {
+                    .hasNext();) {
                 final Object curObject = iterObject.next();
                 value.put(curObject);
             }
@@ -267,19 +268,19 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
     public void runAllTests() throws Exception {
         try {
             _persistit.getCoderManager().registerValueCoder(TreeMap.class,
-                new MapValueRenderer(TreeMap.class));
+                    new MapValueRenderer(TreeMap.class));
 
             _persistit.getCoderManager().registerValueCoder(HashMap.class,
-                new MapValueRenderer(HashMap.class));
+                    new MapValueRenderer(HashMap.class));
 
             _persistit.getCoderManager().registerValueCoder(TreeSet.class,
-                new TreeSetValueCoder());
+                    new TreeSetValueCoder());
 
             _persistit.getCoderManager().registerValueCoder(Set.class,
-                new TreeSetValueCoder());
-            
-            _exchange =
-                _persistit.getExchange("persistit", "ValueCoderTest1", true);
+                    new TreeSetValueCoder());
+
+            _exchange = _persistit.getExchange("persistit", "ValueCoderTest1",
+                    true);
 
             test1();
             test2();

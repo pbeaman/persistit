@@ -32,7 +32,7 @@ import com.persistit.exception.PersistitException;
  * @version 1.0
  */
 public class KeyFilterTest1 extends PersistitUnitTestCase {
-    
+
     @Test
     public void test1() {
         System.out.print("test1 ");
@@ -60,17 +60,20 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         key.to("z0");
         assertTrue(!kf.selected(key));
 
-        kf =
-            kf.append(
-                KeyFilter.orTerm(new KeyFilter.Term[] {
-                    KeyFilter.rangeTerm(new Integer(100), new Integer(150)),
-                    KeyFilter.rangeTerm(new Integer(200), new Integer(250)),
-                    KeyFilter.rangeTerm(new Integer(300), new Integer(350),
-                        true, false, null), })).limit(2, 5);
+        kf = kf
+                .append(
+                        KeyFilter
+                                .orTerm(new KeyFilter.Term[] {
+                                        KeyFilter.rangeTerm(new Integer(100),
+                                                new Integer(150)),
+                                        KeyFilter.rangeTerm(new Integer(200),
+                                                new Integer(250)),
+                                        KeyFilter.rangeTerm(new Integer(300),
+                                                new Integer(350), true, false,
+                                                null), })).limit(2, 5);
 
         s = kf.toString();
-        String t =
-            "{\"atlantic\",>(float)1.3,\"x\":\"z\",{100:150,200:250,[300:350)},*<}";
+        String t = "{\"atlantic\",>(float)1.3,\"x\":\"z\",{100:150,200:250,[300:350)},*<}";
         assertEquals(t, s);
 
         key.to("x");
@@ -92,8 +95,7 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         assertTrue(kf2.selected(key));
 
         s = kf2.toString();
-        t =
-            "{\"atlantic\",>(float)1.3,\"x\":\"z\",{100:150,200:250,[300:350)},*,*,*<}";
+        t = "{\"atlantic\",>(float)1.3,\"x\":\"z\",{100:150,200:250,[300:350)},*,*,*<}";
         assertEquals(t, s);
 
         key.cut(3);
@@ -136,21 +138,21 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
     @Test
     public void test3() throws PersistitException {
         System.out.print("test3 ");
-        final Exchange ex = _persistit.getExchange("persistit", "KeyFilter1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "KeyFilter1",
+                true);
         final Key key = ex.getKey();
         ex.removeAll();
         for (int i = 0; i < 100; i++) {
             ex.getValue().put("Value " + i);
             ex.to(i).store();
         }
-        final KeyFilter.Term orTerm =
-            KeyFilter.orTerm(new KeyFilter.Term[] {
+        final KeyFilter.Term orTerm = KeyFilter.orTerm(new KeyFilter.Term[] {
                 KeyFilter.rangeTerm(new Integer(10), new Integer(20), true,
-                    false, null),
+                        false, null),
                 KeyFilter.rangeTerm(new Integer(50), new Integer(60), true,
-                    false, null),
+                        false, null),
                 KeyFilter.rangeTerm(new Integer(80), new Integer(90), false,
-                    true, null), });
+                        true, null), });
         final KeyFilter kf = new KeyFilter().append(orTerm);
 
         ex.to(Key.BEFORE);
@@ -166,9 +168,8 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
             }
         }
         for (int k = 0; k < 100; k++) {
-            final boolean expected =
-                ((k >= 10) && (k < 20)) || ((k >= 50) && (k < 60))
-                    || ((k > 80) && (k <= 90));
+            final boolean expected = ((k >= 10) && (k < 20))
+                    || ((k >= 50) && (k < 60)) || ((k > 80) && (k <= 90));
             assertEquals(expected, traversed[k]);
         }
 
@@ -185,9 +186,8 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
             }
         }
         for (int k = 0; k < 100; k++) {
-            final boolean expected =
-                ((k >= 10) && (k < 20)) || ((k >= 50) && (k < 60))
-                    || ((k > 80) && (k <= 90));
+            final boolean expected = ((k >= 10) && (k < 20))
+                    || ((k >= 50) && (k < 60)) || ((k > 80) && (k <= 90));
             assertEquals(expected, traversed[k]);
         }
         System.out.println("- done");
@@ -197,27 +197,30 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
     public void test4() throws PersistitException {
         System.out.print("test4 ");
         final TreeMap treeMap = new TreeMap();
-        final Exchange ex = _persistit.getExchange("persistit", "KeyFilter1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "KeyFilter1",
+                true);
         ex.removeAll();
 
         final Key key = ex.getKey();
         key.clear().append("atlantic");
         key.append((float) 1.3);
-        final KeyFilter kf =
-            new KeyFilter(key).append(
+        final KeyFilter kf = new KeyFilter(key).append(
                 new KeyFilter.Term[] {
-                    KeyFilter.rangeTerm("x", "z"),
-                    KeyFilter.orTerm(new KeyFilter.Term[] {
-                        KeyFilter.rangeTerm(new Integer(100), new Integer(150),
-                            true, false, null),
-                        KeyFilter.rangeTerm(new Integer(200), new Integer(250),
-                            true, false, null),
-                        KeyFilter.rangeTerm(new Integer(300), new Integer(350),
-                            true, false, null), }) }).limit(2, 5);
+                        KeyFilter.rangeTerm("x", "z"),
+                        KeyFilter
+                                .orTerm(new KeyFilter.Term[] {
+                                        KeyFilter.rangeTerm(new Integer(100),
+                                                new Integer(150), true, false,
+                                                null),
+                                        KeyFilter.rangeTerm(new Integer(200),
+                                                new Integer(250), true, false,
+                                                null),
+                                        KeyFilter.rangeTerm(new Integer(300),
+                                                new Integer(350), true, false,
+                                                null), }) }).limit(2, 5);
 
         final String s = kf.toString();
-        final String t =
-            "{\"atlantic\",<(float)1.3,[\"x\":\"z\"),{[100:150),[200:250),[300:350)},*<}";
+        final String t = "{\"atlantic\",<(float)1.3,[\"x\":\"z\"),{[100:150),[200:250),[300:350)},*<}";
 
         key.append("x");
         if (kf.selected(key)) {
@@ -351,14 +354,17 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         filter = new KeyFilter("{\"id\", : (long) 200 }");
         System.out.println("- done");
     }
-    
+
     @Test
     public void test6() throws PersistitException {
         System.out.print("test6 ");
-        final Exchange ex = _persistit.getExchange("persistit", "KeyFilter1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "KeyFilter1",
+                true);
         ex.removeAll();
-        final KeyFilter filter = new KeyFilter("{2,*,4,(long)1004:(long)1007,3,>*<}");
-        ex.append(2).append(1L).append(4).append(1006L).append(3).append(1005007L);
+        final KeyFilter filter = new KeyFilter(
+                "{2,*,4,(long)1004:(long)1007,3,>*<}");
+        ex.append(2).append(1L).append(4).append(1006L).append(3).append(
+                1005007L);
         ex.getValue().put("test6");
         ex.store();
         ex.clear().append(Key.BEFORE);

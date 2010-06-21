@@ -17,27 +17,22 @@
 package com.persistit.exception;
 
 /**
- * Thrown to signify an internal condition that requires special handling
- * during deletion rebalancing.  This exception should always be caught and
- * handled within the Persistit implementation, and never thrown to application
- * code.
- *
+ * Thrown to signify an internal condition that requires special handling during
+ * deletion rebalancing. This exception should always be caught and handled
+ * within the Persistit implementation, and never thrown to application code.
+ * 
  * @version 1.0
  */
-public class RebalanceException
-extends PersistitException
-{
+public class RebalanceException extends PersistitException {
     private static final long serialVersionUID = 5712813170520119517L;
-    
-    public final static RebalanceException SINGLETON =
-        new RebalanceException("Singleton");
-         
-    public RebalanceException()
-    {
+
+    public final static RebalanceException SINGLETON = new RebalanceException(
+            "Singleton");
+
+    public RebalanceException() {
     }
-    
-    public RebalanceException(String msg)
-    {
+
+    public RebalanceException(String msg) {
         super(msg);
     }
 }

@@ -32,8 +32,7 @@ import com.persistit.test.PersistitTestResult;
 public class Stress8txn extends StressBase {
     private final static String SHORT_DESCRIPTION = "Tests transactions";
 
-    private final static String LONG_DESCRIPTION =
-        "   Tests transactions to ensure isolation, atomicity and\r\n"
+    private final static String LONG_DESCRIPTION = "   Tests transactions to ensure isolation, atomicity and\r\n"
             + "   consistency.  Each transaction performs several updates\r\n"
             + "   simulating moving cash between accounts.  To exercise\r\n"
             + "   optimistic concurrency control, several threads should run\r\n"
@@ -51,8 +50,8 @@ public class Stress8txn extends StressBase {
         return LONG_DESCRIPTION;
     }
 
-    private final static String[] ARGS_TEMPLATE =
-        { "repeat|int:1:1:1000000000|Repetitions",
+    private final static String[] ARGS_TEMPLATE = {
+            "repeat|int:1:1:1000000000|Repetitions",
             "count|int:100:0:100000|Number of iterations per cycle",
             "size|int:1000:1:100000000|Number of 'C' accounts",
             "seed|int:1:1:20000|Random seed", };
@@ -63,7 +62,7 @@ public class Stress8txn extends StressBase {
 
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
+        super.setUp();
         _ap = new ArgParser("com.persistit.Stress8txn", _args, ARGS_TEMPLATE);
         _total = _ap.getIntValue("count");
         _repeatTotal = _ap.getIntValue("repeat");
@@ -164,7 +163,7 @@ public class Stress8txn extends StressBase {
             _exs.clear().append("stress8txn");
             while (_exs.next(true)) {
                 if ((_exs.getValue().getType() == String.class)
-                    && (getAccountValue(_exs) > 8000)) {
+                        && (getAccountValue(_exs) > 8000)) {
                     // System.out.println("len=" + getAccountValue(_exs) +
                     // " Key=" + _exs.getKey().toString());
                 }
@@ -216,12 +215,12 @@ public class Stress8txn extends StressBase {
             final int delta = random(-1000, 1000);
             if (_c1 != _c2) {
                 _exs.clear().append("stress8txn").append(_a1).append(_b1)
-                    .append(_c1).fetch();
+                        .append(_c1).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _c1 == 1);
                 _exs.store();
 
                 _exs.clear().append("stress8txn").append(_a1).append(_b1)
-                    .append(_c2).fetch();
+                        .append(_c2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _c2 == 1);
                 _exs.store();
             }
@@ -237,24 +236,24 @@ public class Stress8txn extends StressBase {
             final int delta = random(-1000, 1000);
             if ((_c1 != _c2) || (_b1 != _b2) || (_a1 != _a2)) {
                 _exs.clear().append("stress8txn").append(_a1).append(_b1)
-                    .append(_c1).fetch();
+                        .append(_c1).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _c1 == 1);
                 _exs.store();
 
                 _exs.clear().append("stress8txn").append(_a2).append(_b2)
-                    .append(_c2).fetch();
+                        .append(_c2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _c2 == 1);
                 _exs.store();
             }
 
             if ((_b1 != _b2) || (_a1 != _a2)) {
                 _exs.clear().append("stress8txn").append(_a1).append(_b1)
-                    .fetch();
+                        .fetch();
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _b1 == 1);
                 _exs.store();
 
                 _exs.clear().append("stress8txn").append(_a2).append(_b2)
-                    .fetch();
+                        .fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _b1 == 1);
                 _exs.store();
             }
@@ -281,9 +280,8 @@ public class Stress8txn extends StressBase {
             final int valueB = getAccountValue(_exs);
             final int totalC = accountTotal(_exs);
             if (valueB != totalC) {
-                _result =
-                    new PersistitTestResult(false, "totalC=" + totalC + " valueB=" + valueB
-                        + " at " + _exs);
+                _result = new PersistitTestResult(false, "totalC=" + totalC
+                        + " valueB=" + valueB + " at " + _exs);
             }
         }
     }
@@ -298,9 +296,8 @@ public class Stress8txn extends StressBase {
             final int valueA = getAccountValue(_exs);
             final int totalB = accountTotal(_exs);
             if (valueA != totalB) {
-                _result =
-                    new PersistitTestResult(false, "totalB=" + totalB + " valueA=" + valueA
-                        + " at " + _exs);
+                _result = new PersistitTestResult(false, "totalB=" + totalB
+                        + " valueA=" + valueA + " at " + _exs);
             }
         }
     }
@@ -314,7 +311,8 @@ public class Stress8txn extends StressBase {
             _exs.clear().append("stress8txn");
             final int totalA = accountTotal(_exs);
             if (totalA != 0) {
-                _result = new PersistitTestResult(false, "totalA=" + totalA + " at " + _exs);
+                _result = new PersistitTestResult(false, "totalA=" + totalA
+                        + " at " + _exs);
             }
         }
     }
@@ -353,23 +351,22 @@ public class Stress8txn extends StressBase {
                     totalC += valueC;
                 }
                 if (totalC != valueB) {
-                    _result =
-                        new PersistitTestResult(false, "totalC=" + totalC + " valueB="
-                            + valueB + " at " + exb);
+                    _result = new PersistitTestResult(false, "totalC=" + totalC
+                            + " valueB=" + valueB + " at " + exb);
                     forceStop();
                     return false;
                 }
             }
             if (totalB != valueA) {
-                _result =
-                    new PersistitTestResult(false, "totalB=" + totalB + " valueA=" + valueA
-                        + " at " + exa);
+                _result = new PersistitTestResult(false, "totalB=" + totalB
+                        + " valueA=" + valueA + " at " + exa);
                 forceStop();
                 return false;
             }
         }
         if (totalA != 0) {
-            _result = new PersistitTestResult(false, "totalA=" + totalA + " at " + exa);
+            _result = new PersistitTestResult(false, "totalA=" + totalA
+                    + " at " + exa);
             forceStop();
             return false;
         }
@@ -398,14 +395,14 @@ public class Stress8txn extends StressBase {
     }
 
     private void putAccountValue(final Exchange ex, final int value,
-        final boolean string) {
+            final boolean string) {
         if ((value > 0) && (value < 100000)
-            && ((random(0, 100) == 0) || string)) {
+                && ((random(0, 100) == 0) || string)) {
             _sb.setLength(0);
             int i = 0;
             for (i = 100; i < value; i += 100) {
                 _sb.append("......... ......... ......... ......... ......... "
-                    + "......... ......... ......... .........           ");
+                        + "......... ......... ......... .........           ");
                 int k = i;
                 for (int j = 1; (k != 0) && (j < 10); j++) {
                     _sb.setCharAt(i - j, (char) ('0' + (k % 10)));

@@ -14,28 +14,24 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
+
 package com.persistit.exception;
 
-
 /**
- * Thrown when the Persistit is unable to find the properties file
- * specified by the {@link com.persistit.Persistit#initialize(java.lang.String)
- * initialize} method.
- *
+ * Thrown when the Persistit is unable to find the properties file specified by
+ * the {@link com.persistit.Persistit#initialize(java.lang.String) initialize}
+ * method.
+ * 
  * @version 1.0
  */
-public class PropertiesNotFoundException
-extends PersistitException
-{
+public class PropertiesNotFoundException extends PersistitException {
     private static final long serialVersionUID = -1864473416316472113L;
-    public PropertiesNotFoundException()
-    {
+
+    public PropertiesNotFoundException() {
         super();
     }
 
-    public PropertiesNotFoundException(String msg)
-    {
+    public PropertiesNotFoundException(String msg) {
         super(msg);
     }
 }

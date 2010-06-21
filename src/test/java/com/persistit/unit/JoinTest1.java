@@ -38,8 +38,8 @@ public class JoinTest1 extends PersistitUnitTestCase {
         System.out.print("test1 ");
 
         final StringBuffer sb = new StringBuffer(4000);
-        final Exchange exchange =
-            _persistit.getExchange(_volumeName, "SimpleTest1BadJoin", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName,
+                "SimpleTest1BadJoin", true);
         exchange.removeAll();
         final Key key = exchange.getKey();
         final Value value = exchange.getValue();
@@ -70,13 +70,13 @@ public class JoinTest1 extends PersistitUnitTestCase {
         exchange.store();
 
         key
-            .clear()
-            .append("B")
-            .append(
-                "... a pretty long key value. The goal is to get the the record "
-                    + "for this key into the penultimate slot of the left page, followed "
-                    + "by a short key on the edge.  Then delete that short key, so that"
-                    + "this becomes the edge key.");
+                .clear()
+                .append("B")
+                .append(
+                        "... a pretty long key value. The goal is to get the the record "
+                                + "for this key into the penultimate slot of the left page, followed "
+                                + "by a short key on the edge.  Then delete that short key, so that"
+                                + "this becomes the edge key.");
         setupString(sb, 1);
         value.putString(sb);
         exchange.store();
@@ -117,47 +117,46 @@ public class JoinTest1 extends PersistitUnitTestCase {
         value.putString(sb);
         exchange.store();
 
-         key.clear().append("C").append(3);
-         setupString(sb, 1000);
-         value.putString(sb);
-         exchange.store();
-                
-         for (int len = 1000; len < 1600; len += 1)
-         {
-         key.clear().append("A").append(1);
-         setupString(sb, len);
-         value.putString(sb);
-         exchange.store();
-        
-         key.clear().append("A").append(2);
-         setupString(sb, len);
-         value.putString(sb);
-         exchange.store();
-        
-         key.clear().append("A").append(3);
-         setupString(sb, len);
-         value.putString(sb);
-         exchange.store();
-        
-         key.clear().append("A").append(4);
-         setupString(sb, len);
-         value.putString(sb);
-         exchange.store();
-        
-         key.clear().append("C").append(1);
-         setupString(sb, len);
-         value.putString(sb);
-         exchange.store();
-        
-         key.clear().append("C").append(2);
-         setupString(sb, len);
-         value.putString(sb);
-         exchange.store();
-        
-         }
-                
-         // Now the page should be split with the {"B", "z"} on the edge.
-        
+        key.clear().append("C").append(3);
+        setupString(sb, 1000);
+        value.putString(sb);
+        exchange.store();
+
+        for (int len = 1000; len < 1600; len += 1) {
+            key.clear().append("A").append(1);
+            setupString(sb, len);
+            value.putString(sb);
+            exchange.store();
+
+            key.clear().append("A").append(2);
+            setupString(sb, len);
+            value.putString(sb);
+            exchange.store();
+
+            key.clear().append("A").append(3);
+            setupString(sb, len);
+            value.putString(sb);
+            exchange.store();
+
+            key.clear().append("A").append(4);
+            setupString(sb, len);
+            value.putString(sb);
+            exchange.store();
+
+            key.clear().append("C").append(1);
+            setupString(sb, len);
+            value.putString(sb);
+            exchange.store();
+
+            key.clear().append("C").append(2);
+            setupString(sb, len);
+            value.putString(sb);
+            exchange.store();
+
+        }
+
+        // Now the page should be split with the {"B", "z"} on the edge.
+
         key.clear().append("A").append(1);
         exchange.fetch();
 

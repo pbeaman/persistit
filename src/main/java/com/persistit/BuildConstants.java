@@ -22,8 +22,7 @@ package com.persistit;
  * @author Peter Beaman
  * @version 1.1
  */
-public interface BuildConstants
-{
+public interface BuildConstants {
     final static boolean BUILD_SINGLE_THREAD = false;
-    final static boolean BUILD_RELICORE = false; 
+    final static boolean BUILD_RELICORE = false;
 }

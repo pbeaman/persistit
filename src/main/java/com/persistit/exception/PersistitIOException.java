@@ -21,25 +21,21 @@ package com.persistit.exception;
 import java.io.IOException;
 
 /**
- * This is a wrapper for an {@link IOException}.  It is convenient for
- * the caller of a Persistit method to catch {@link PersistitException}s
- * without also needing to catch IOExceptions.  For compatibility with
- * earlier J2SE releases this is implemented without using JDK 1.4
- * Exception chaining.
+ * This is a wrapper for an {@link IOException}. It is convenient for the caller
+ * of a Persistit method to catch {@link PersistitException}s without also
+ * needing to catch IOExceptions. For compatibility with earlier J2SE releases
+ * this is implemented without using JDK 1.4 Exception chaining.
  * 
  * @version 1.0
  */
-public class PersistitIOException
-extends PersistitException
-{
+public class PersistitIOException extends PersistitException {
     private static final long serialVersionUID = 9108205596568958490L;
-    
-    public PersistitIOException(IOException ioe)
-    {
+
+    public PersistitIOException(IOException ioe) {
         super(ioe);
     }
-    
+
     public PersistitIOException(String msg) {
-    	super(msg);
+        super(msg);
     }
 }

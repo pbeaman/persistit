@@ -151,7 +151,8 @@ import java.nio.charset.Charset;
  * <table>
  * <tr valign="top">
  * <td>+16</td>
- * <td>Volume handle (int) - matches a volume identified in a preceding IV record</td>
+ * <td>Volume handle (int) - matches a volume identified in a preceding IV
+ * record</td>
  * </tr>
  * </table>
  * </dt>
@@ -200,166 +201,168 @@ import java.nio.charset.Charset;
  * </table>
  * 
  * @author peter
- *
+ * 
  */
 public class LogRecord {
-	
-	private static char typeAsChar(final String type) {
-		return (char) (type.charAt(0) & 0xFF + (type.charAt(1) & 0xFF) << 8);
-	}
-	
-	private final static Charset UTF8 = Charset.forName("UTF-8");
 
-	public final static char TYPE_IV = (char)('I' | ('V' << 8));
+    private static char typeAsChar(final String type) {
+        return (char) (type.charAt(0) & 0xFF + (type.charAt(1) & 0xFF) << 8);
+    }
 
-	public final static char TYPE_IT = (char)('I' | ('T' << 8));
+    private final static Charset UTF8 = Charset.forName("UTF-8");
 
-	public final static char TYPE_PA = (char)('P' | ('A' << 8));
+    public final static char TYPE_IV = (char) ('I' | ('V' << 8));
 
-	public final static char TYPE_WR = (char)('W' | ('R' << 8));
+    public final static char TYPE_IT = (char) ('I' | ('T' << 8));
 
-	public final static char TYPE_RR = (char)('R' | ('R' << 8));
+    public final static char TYPE_PA = (char) ('P' | ('A' << 8));
 
-	public final static char TYPE_TS = (char)('T' | ('S' << 8));
+    public final static char TYPE_WR = (char) ('W' | ('R' << 8));
 
-	public final static char TYPE_TC = (char)('T' | ('C' << 8));
+    public final static char TYPE_RR = (char) ('R' | ('R' << 8));
 
-	public final static char TYPE_TJ = (char)('T' | ('J' << 8));
-	
-	public final static int OVERHEAD = 16;
+    public final static char TYPE_TS = (char) ('T' | ('S' << 8));
 
+    public final static char TYPE_TC = (char) ('T' | ('C' << 8));
 
-	public static int getLength(final byte[] bytes) {
-		return Util.getInt(bytes, 0);
-	}
+    public final static char TYPE_TJ = (char) ('T' | ('J' << 8));
 
-	public static void putLength(final byte[] bytes, int length) {
-		Util.putInt(bytes, 0, length);
-	}
+    public final static int OVERHEAD = 16;
 
-	public static char getType(final byte[] bytes) {
-		return (char) Util.getChar(bytes, 4);
-	}
+    public static int getLength(final byte[] bytes) {
+        return Util.getInt(bytes, 0);
+    }
 
-	public static void putType(final byte[] bytes, char type) {
-		Util.putChar(bytes, 4, type);
-	}
+    public static void putLength(final byte[] bytes, int length) {
+        Util.putInt(bytes, 0, length);
+    }
 
-	public static long getTimestamp(final byte[] bytes) {
-		return Util.getLong(bytes, 8);
-	}
+    public static char getType(final byte[] bytes) {
+        return (char) Util.getChar(bytes, 4);
+    }
 
-	public static void putTimestamp(final byte[] bytes, long timestamp) {
-		Util.putLong(bytes, 8, timestamp);
-	}
-	
+    public static void putType(final byte[] bytes, char type) {
+        Util.putChar(bytes, 4, type);
+    }
 
-	public static class IV extends LogRecord {
+    public static long getTimestamp(final byte[] bytes) {
+        return Util.getLong(bytes, 8);
+    }
 
-		public static int MAX_LENGTH = 24 + 1024;
-		
-		public static void putType(final byte[] bytes) {
-			putType(bytes, TYPE_IV);
-		}
-		
-		public static int getHandle(final byte[] bytes) {
-			return Util.getInt(bytes, 16);
-		}
-		
-		public static void putHandle(final byte[] bytes, final int handle) {
-			Util.putInt(bytes, 16, handle);
-		}
-		
-		public static long getVolumeId(final byte[] bytes) {
-			return Util.getLong(bytes, 20);
-		}
-		
-		public static void putVolumeId(final byte[] bytes, final long volumeId) {
-			Util.putLong(bytes, 20, volumeId);
-		}
-		
-		public static String getVolumeName(final byte[] bytes) {
-			final int length = getLength(bytes) - 28;
-			return new String(bytes, 28, length, UTF8);
-		}
-		
-		public static void putVolumeName(final byte[] bytes, final String volumeName) {
-			final byte[] stringBytes = volumeName.getBytes(UTF8);
-			System.arraycopy(stringBytes, 0, bytes, 28, stringBytes.length);
-			putLength(bytes, 28 + stringBytes.length);
-		}
-	}
-	
-	public static class IT extends LogRecord {
+    public static void putTimestamp(final byte[] bytes, long timestamp) {
+        Util.putLong(bytes, 8, timestamp);
+    }
 
-		public static int MAX_LENGTH = 24 + 1024;
-		
-		public static void putType(final byte[] bytes) {
-			putType(bytes, TYPE_IV);
-		}
-		
-		public static int getHandle(final byte[] bytes) {
-			return Util.getInt(bytes, 16);
-		}
-		
-		public static void putHandle(final byte[] bytes, final int handle) {
-			Util.putInt(bytes, 16, handle);
-		}
-		
-		public static int getVolumeHandle(final byte[] bytes) {
-			return Util.getInt(bytes, 20);
-		}
-		
-		public static void putVolumeHandle(final byte[] bytes, final int volumeHandle) {
-			Util.putInt(bytes, 20, volumeHandle);
-		}
-		
-		public static String getTreeName(final byte[] bytes) {
-			final int length = getLength(bytes) - 24;
-			return new String(bytes, 24, length, UTF8);
-		}
-		
-		public static void putTreeName(final byte[] bytes, final String treeName) {
-			final byte[] stringBytes = treeName.getBytes(UTF8);
-			System.arraycopy(stringBytes, 0, bytes, 24, stringBytes.length);
-			putLength(bytes, 24 + stringBytes.length);
-		}
-		
-	}
-	
-	public static class PA extends LogRecord {
-		
-		public final static int OVERHEAD = 32;
-		
-		public final static char TYPE = TYPE_PA;
+    public static class IV extends LogRecord {
 
-		public static void putType(final byte[] bytes) {
-			putType(bytes, TYPE_PA);
-		}
-		
-		public static int getVolumeHandle(final byte[] bytes) {
-			return Util.getInt(bytes, 16);
-		}
-		
-		public static void putVolumeHandle(final byte[] bytes, final int volumeHandle) {
-			Util.putInt(bytes, 16, volumeHandle);
-		}
-		
-		public static long getPageAddress(final byte[] bytes) {
-			return Util.getLong(bytes, 20);
-		}
-		
-		public static void putPageAddress(final byte[] bytes, final long pageAddress) {
-			Util.putLong(bytes, 20, pageAddress);
-		}
-		
-		public static int getLeftSize(final byte[] bytes) {
-			return Util.getInt(bytes, 28);
-		}
-		
-		public static void putLeftSize(final byte[] bytes, final int leftSize) {
-			Util.putInt(bytes, 28, leftSize);
-		}
-		
-	}
+        public static int MAX_LENGTH = 24 + 1024;
+
+        public static void putType(final byte[] bytes) {
+            putType(bytes, TYPE_IV);
+        }
+
+        public static int getHandle(final byte[] bytes) {
+            return Util.getInt(bytes, 16);
+        }
+
+        public static void putHandle(final byte[] bytes, final int handle) {
+            Util.putInt(bytes, 16, handle);
+        }
+
+        public static long getVolumeId(final byte[] bytes) {
+            return Util.getLong(bytes, 20);
+        }
+
+        public static void putVolumeId(final byte[] bytes, final long volumeId) {
+            Util.putLong(bytes, 20, volumeId);
+        }
+
+        public static String getVolumeName(final byte[] bytes) {
+            final int length = getLength(bytes) - 28;
+            return new String(bytes, 28, length, UTF8);
+        }
+
+        public static void putVolumeName(final byte[] bytes,
+                final String volumeName) {
+            final byte[] stringBytes = volumeName.getBytes(UTF8);
+            System.arraycopy(stringBytes, 0, bytes, 28, stringBytes.length);
+            putLength(bytes, 28 + stringBytes.length);
+        }
+    }
+
+    public static class IT extends LogRecord {
+
+        public static int MAX_LENGTH = 24 + 1024;
+
+        public static void putType(final byte[] bytes) {
+            putType(bytes, TYPE_IV);
+        }
+
+        public static int getHandle(final byte[] bytes) {
+            return Util.getInt(bytes, 16);
+        }
+
+        public static void putHandle(final byte[] bytes, final int handle) {
+            Util.putInt(bytes, 16, handle);
+        }
+
+        public static int getVolumeHandle(final byte[] bytes) {
+            return Util.getInt(bytes, 20);
+        }
+
+        public static void putVolumeHandle(final byte[] bytes,
+                final int volumeHandle) {
+            Util.putInt(bytes, 20, volumeHandle);
+        }
+
+        public static String getTreeName(final byte[] bytes) {
+            final int length = getLength(bytes) - 24;
+            return new String(bytes, 24, length, UTF8);
+        }
+
+        public static void putTreeName(final byte[] bytes, final String treeName) {
+            final byte[] stringBytes = treeName.getBytes(UTF8);
+            System.arraycopy(stringBytes, 0, bytes, 24, stringBytes.length);
+            putLength(bytes, 24 + stringBytes.length);
+        }
+
+    }
+
+    public static class PA extends LogRecord {
+
+        public final static int OVERHEAD = 32;
+
+        public final static char TYPE = TYPE_PA;
+
+        public static void putType(final byte[] bytes) {
+            putType(bytes, TYPE_PA);
+        }
+
+        public static int getVolumeHandle(final byte[] bytes) {
+            return Util.getInt(bytes, 16);
+        }
+
+        public static void putVolumeHandle(final byte[] bytes,
+                final int volumeHandle) {
+            Util.putInt(bytes, 16, volumeHandle);
+        }
+
+        public static long getPageAddress(final byte[] bytes) {
+            return Util.getLong(bytes, 20);
+        }
+
+        public static void putPageAddress(final byte[] bytes,
+                final long pageAddress) {
+            Util.putLong(bytes, 20, pageAddress);
+        }
+
+        public static int getLeftSize(final byte[] bytes) {
+            return Util.getInt(bytes, 28);
+        }
+
+        public static void putLeftSize(final byte[] bytes, final int leftSize) {
+            Util.putInt(bytes, 28, leftSize);
+        }
+
+    }
 }

@@ -26,24 +26,26 @@ import com.persistit.Exchange;
 import com.persistit.exception.PersistitException;
 
 public class ValueCoderTest2 extends PersistitUnitTestCase {
-    
+
     Exchange _exchange;
-    
+
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
+        super.setUp();
 
         DefaultObjectCoder.registerObjectCoder(_persistit, Vehicle.class,
-            new String[] { "id" }, new String[] { "id", "description", "speed",
-                "wheels", "passengers", "canFly", "other1", "other2" });
+                new String[] { "id" }, new String[] { "id", "description",
+                        "speed", "wheels", "passengers", "canFly", "other1",
+                        "other2" });
 
-    	_exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
+        _exchange = _persistit.getExchange("persistit", getClass()
+                .getSimpleName(), true);
     }
-    
+
     @Override
     public void tearDown() throws Exception {
-    	_persistit.releaseExchange(_exchange);
-    	super.tearDown();
+        _persistit.releaseExchange(_exchange);
+        super.tearDown();
     }
 
     static class Vehicle {
@@ -60,7 +62,7 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
         }
 
         Vehicle(final String id, final String description, final int speed,
-            final int wheels, final int passengers, final boolean canFly) {
+                final int wheels, final int passengers, final boolean canFly) {
             this.id = id;
             this.description = description;
             this.speed = speed;
@@ -73,9 +75,9 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
         public boolean equals(final Object object) {
             final Vehicle v = (Vehicle) object;
             return id.equals(v.id) && description.equals(v.description)
-                && (speed == v.speed) && (wheels == v.wheels)
-                && (passengers == v.passengers) && (canFly == v.canFly)
-                && equals(other1, v.other1) && equals(other2, v.other2);
+                    && (speed == v.speed) && (wheels == v.wheels)
+                    && (passengers == v.passengers) && (canFly == v.canFly)
+                    && equals(other1, v.other1) && equals(other2, v.other2);
         }
 
         private boolean equals(final Object o1, final Object o2) {
@@ -91,10 +93,10 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
         @Override
         public String toString() {
             return "Vehicle(id=" + id + ",description=" + description
-                + ",speed=" + speed + ",wheels=" + wheels + ",passengers="
-                + passengers + ",canFly=" + canFly + ",other1="
-                + (other1 == null ? null : other1.id) + ",other2="
-                + (other1 == null ? null : other2.id) + ")";
+                    + ",speed=" + speed + ",wheels=" + wheels + ",passengers="
+                    + passengers + ",canFly=" + canFly + ",other1="
+                    + (other1 == null ? null : other1.id) + ",other2="
+                    + (other1 == null ? null : other2.id) + ")";
         }
     }
 
@@ -287,7 +289,7 @@ public class ValueCoderTest2 extends PersistitUnitTestCase {
                 return false;
             }
             if (a.getClass().getComponentType() != b.getClass()
-                .getComponentType()) {
+                    .getComponentType()) {
                 return false;
             }
             if (Array.getLength(a) != Array.getLength(b)) {

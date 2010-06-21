@@ -14,29 +14,24 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
+
 package com.persistit.exception;
 
 /**
  * Thrown when the Persistit configuration specifies the <tt>createOnly</tt>
- * flag for a volume that already exists, or when a the configuration
- * specifies a page size for a volume that does not the page size of an
- * existing volume.
- *
+ * flag for a volume that already exists, or when a the configuration specifies
+ * a page size for a volume that does not the page size of an existing volume.
+ * 
  * @version 1.0
  */
-public class VolumeAlreadyExistsException
-extends PersistitException
-{
+public class VolumeAlreadyExistsException extends PersistitException {
     private static final long serialVersionUID = -5943311415307074464L;
-    
-    public VolumeAlreadyExistsException()
-    {
+
+    public VolumeAlreadyExistsException() {
         super();
     }
 
-    public VolumeAlreadyExistsException(String msg)
-    {
+    public VolumeAlreadyExistsException(String msg) {
         super(msg);
     }
 }

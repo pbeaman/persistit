@@ -65,7 +65,7 @@ public abstract class StressBase extends PersistitScriptedTestCase {
     @Override
     public String getProgressString() {
         return _repeat + "/" + _repeatTotal + " " + _phase + ":" + _count + "/"
-            + _total;
+                + _total;
     }
 
     protected void setPhase(final String phase) {
@@ -94,7 +94,7 @@ public abstract class StressBase extends PersistitScriptedTestCase {
     }
 
     protected void setupTestValue(final Exchange ex, final int counter,
-        final int length) {
+            final int length) {
         _sb1.setLength(0);
         _sb1.append(_rootName);
         _sb1.append(" length=");
@@ -112,14 +112,14 @@ public abstract class StressBase extends PersistitScriptedTestCase {
     protected void compareValues(final Value value1, final Value value2) {
         boolean ok = true;
         if (!value2.isDefined() || value2.isNull()) {
-            _result =
-                new PersistitTestResult(false, "value not expected to be null");
+            _result = new PersistitTestResult(false,
+                    "value not expected to be null");
             ok = false;
         } else if (!value1.equals(value2)) {
-            final String difference =
-                displayDifference(value1.getString(), value2.getString());
-            _result =
-                new PersistitTestResult(false, "Values differ: " + difference);
+            final String difference = displayDifference(value1.getString(),
+                    value2.getString());
+            _result = new PersistitTestResult(false, "Values differ: "
+                    + difference);
             ok = false;
         }
         if (!ok) {
@@ -130,13 +130,13 @@ public abstract class StressBase extends PersistitScriptedTestCase {
     protected void compareStrings(final String value1, final String value2) {
         boolean ok = true;
         if (value2 == null) {
-            _result =
-                new PersistitTestResult(false, "value not expected to be null");
+            _result = new PersistitTestResult(false,
+                    "value not expected to be null");
             ok = false;
         } else if (!value2.equals(value1)) {
             final String difference = displayDifference(value1, value2);
-            _result =
-                new PersistitTestResult(false, "Values differ: " + difference);
+            _result = new PersistitTestResult(false, "Values differ: "
+                    + difference);
             ok = false;
         }
         if (!ok) {
@@ -147,15 +147,15 @@ public abstract class StressBase extends PersistitScriptedTestCase {
     protected String displayDifference(final String s1, final String s2) {
         if (s1 == null) {
             return "\r\n  value1=null" + "\r\n  value2=\""
-                + (s2.length() < 100 ? s2 : summaryOfLongString(s2)) + "\"";
+                    + (s2.length() < 100 ? s2 : summaryOfLongString(s2)) + "\"";
         }
 
         if ((s1.length() < 100) && (s2.length() < 100)) {
             return "\r\n  value1=\"" + s1 + "\"" + "\r\n  value2=\"" + s2
-                + "\"";
+                    + "\"";
         } else if (s1.length() != s2.length()) {
             return "\r\n  value1=\"" + summaryOfLongString(s1) + "\""
-                + "\r\n  value2=\"" + summaryOfLongString(s2) + "\"";
+                    + "\r\n  value2=\"" + summaryOfLongString(s2) + "\"";
 
         }
         int p, q;
@@ -171,8 +171,8 @@ public abstract class StressBase extends PersistitScriptedTestCase {
         }
 
         return "\r\n  value1=\"" + summaryOfLongString(s1) + "\""
-            + "\r\n  value2=\"" + summaryOfLongString(s2) + "\""
-            + " first,last differences at (" + p + "," + q + ")";
+                + "\r\n  value2=\"" + summaryOfLongString(s2) + "\""
+                + " first,last differences at (" + p + "," + q + ")";
 
     }
 
@@ -204,7 +204,7 @@ public abstract class StressBase extends PersistitScriptedTestCase {
     }
 
     protected void fillLong(long value, final int offset, final int length,
-        boolean leadZeroes) {
+            boolean leadZeroes) {
         if (_sb1.length() < offset + length) {
             _sb1.setLength(offset + length);
         }

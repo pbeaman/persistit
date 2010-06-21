@@ -17,16 +17,17 @@
  * Created on May 18, 2005
  */
 package com.persistit.ui;
+
 import java.awt.event.ActionEvent;
+
 /**
  * @author Peter Beaman
  * @version 1.0
  */
-public interface JavaHelpAdapter
-{
+public interface JavaHelpAdapter {
     public void create(Object arg, ActionEvent ae);
-    
+
     public void showHelp(ActionEvent ae);
-    
+
     public void dispose();
 }

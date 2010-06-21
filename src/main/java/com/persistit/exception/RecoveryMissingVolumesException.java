@@ -19,23 +19,19 @@
 package com.persistit.exception;
 
 /**
- * Thrown during recovery processing when the prewrite journal contains
- * recovery data for one or more Volumes that no longer exist.
- *
+ * Thrown during recovery processing when the prewrite journal contains recovery
+ * data for one or more Volumes that no longer exist.
+ * 
  * @version 1.0
  */
-public class RecoveryMissingVolumesException
-extends PersistitException
-{
+public class RecoveryMissingVolumesException extends PersistitException {
     private static final long serialVersionUID = -9042109367136062128L;
-    
-    public RecoveryMissingVolumesException()
-    {
+
+    public RecoveryMissingVolumesException() {
         super();
     }
-    
-    public RecoveryMissingVolumesException(String msg)
-    {
+
+    public RecoveryMissingVolumesException(String msg) {
         super(msg);
     }
 

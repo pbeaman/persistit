@@ -20,11 +20,9 @@ package com.persistit.stress;
 import com.persistit.exception.PersistitException;
 
 public class Stress4a extends Stress4Base {
-    private final static String SHORT_DESCRIPTION =
-        "Various sequential and random key/value pair manipulation";
+    private final static String SHORT_DESCRIPTION = "Various sequential and random key/value pair manipulation";
 
-    private final static String LONG_DESCRIPTION =
-        "   Tests fidelity of read/read/traverse over short and long \r\n"
+    private final static String LONG_DESCRIPTION = "   Tests fidelity of read/read/traverse over short and long \r\n"
             + "   records, length up to 80K bytes";
 
     @Override
@@ -44,7 +42,7 @@ public class Stress4a extends Stress4Base {
         println();
 
         describeTest("sequential read " + _total
-            + " short records 30 bytes long");
+                + " short records 30 bytes long");
         readRecords(_total, false, 30, 30);
         println();
 
@@ -72,13 +70,13 @@ public class Stress4a extends Stress4Base {
 
         seed(_seed * 7);
         describeTest("random write " + (_total / 50)
-            + " records 20-8000 bytes long");
+                + " records 20-8000 bytes long");
         writeRecords(_total / 50, true, 20, 8000);
         println();
 
         seed(_seed * 7);
         describeTest("random read " + (_total / 50)
-            + " records 20-8000 bytes long");
+                + " records 20-8000 bytes long");
         readRecords(_total / 50, true, 20, 8000);
         println();
 
@@ -88,13 +86,13 @@ public class Stress4a extends Stress4Base {
 
         seed(_seed * 7);
         describeTest("random write " + (_total / 200)
-            + " records 20-80000 bytes long");
+                + " records 20-80000 bytes long");
         writeRecords(_total / 200, true, 20, 80000);
         println();
 
         seed(_seed * 7);
         describeTest("random read " + (_total / 200)
-            + " records 20-80000 bytes long");
+                + " records 20-80000 bytes long");
         readRecords(_total / 200, true, 20, 80000);
         println();
 

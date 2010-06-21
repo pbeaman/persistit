@@ -32,65 +32,48 @@ import com.persistit.Util;
  * @author Peter Beaman
  * @version 1.0
  */
-class InspectorHexPanel
-extends AbstractInspector
-{
+class InspectorHexPanel extends AbstractInspector {
     private JTextArea _textArea;
-    
-    protected void setup(AdminUI ui, InspectorPanel host)
-    {
+
+    protected void setup(AdminUI ui, InspectorPanel host) {
         super.setup(ui, host);
         setLayout(new BorderLayout());
         _textArea = new JTextArea();
         _textArea.setEditable(false);
         _textArea.setFont(_adminUI.getFixedFont());
-        JScrollPane scrollPane = 
-            new JScrollPane(
-                _textArea,
+        JScrollPane scrollPane = new JScrollPane(_textArea,
                 JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
                 JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setPreferredSize(new Dimension(500, 100));
         scrollPane.setBorder(null);
         add(scrollPane, BorderLayout.CENTER);
     }
-    
-    protected void refreshed()
-    {
+
+    protected void refreshed() {
         Management.LogicalRecord lr = _host.getLogicalRecord();
-        if (lr == null)
-        {
+        if (lr == null) {
             nullData();
-        }
-        else if (_host.isShowValue())
-        {
-            _textArea.setText(
-                Util.dump(lr.getValueState()));
-        }
-        else
-        {
-            _textArea.setText(
-                Util.dump(_host.getLogicalRecord().getKeyState()));
+        } else if (_host.isShowValue()) {
+            _textArea.setText(Util.dump(lr.getValueState()));
+        } else {
+            _textArea
+                    .setText(Util.dump(_host.getLogicalRecord().getKeyState()));
         }
     }
-       
-    protected void nullData()
-    {
+
+    protected void nullData() {
         _textArea.setText(_adminUI.getNullMessage());
     }
-    
-    protected void waiting()
-    {
+
+    protected void waiting() {
         _textArea.setText(_adminUI.getWaitingMessage());
     }
-    
-    
-    protected void setDefaultButton()
-    {
+
+    protected void setDefaultButton() {
         // No default button
     }
-    
-    public void actionPerformed(AdminUI.AdminAction action, ActionEvent ae)
-    {
+
+    public void actionPerformed(AdminUI.AdminAction action, ActionEvent ae) {
         // no actions.
     }
 

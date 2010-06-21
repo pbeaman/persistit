@@ -28,88 +28,68 @@ import com.persistit.Management;
 import com.persistit.Management.TreeInfo;
 import com.persistit.Management.VolumeInfo;
 
-class VTComboBoxModel
-extends AbstractListModel
-implements ComboBoxModel
-{
+class VTComboBoxModel extends AbstractListModel implements ComboBoxModel {
 
     private VTComboBoxModel _parent;
-    
+
     private List _cachedList = new ArrayList();
     private Object _selectedItem;
     private long _validTime;
     private Management _management;
-    
-    public VTComboBoxModel(VTComboBoxModel vtcmb, Management management)
-    {
+
+    public VTComboBoxModel(VTComboBoxModel vtcmb, Management management) {
         _parent = vtcmb;
         _management = management;
     }
-    
-    public Object getElementAt(int index)
-    {
+
+    public Object getElementAt(int index) {
         populateList();
-        if (index >= 0 && index < _cachedList.size())
-        {
+        if (index >= 0 && index < _cachedList.size()) {
             return _cachedList.get(index);
         }
         return null;
     }
-    
-    public int getSize()
-    {
+
+    public int getSize() {
         populateList();
         return _cachedList.size();
     }
-    
-    public void setSelectedItem(Object item)
-    {
+
+    public void setSelectedItem(Object item) {
         _selectedItem = item;
     }
-    
-    public Object getSelectedItem()
-    {
+
+    public Object getSelectedItem() {
         return _selectedItem;
     }
-    
-    private void populateList()
-    {
+
+    private void populateList() {
         long now = System.currentTimeMillis();
-        if (now - _validTime < 1000) return;
+        if (now - _validTime < 1000)
+            return;
         _validTime = now;
         _cachedList.clear();
-        try
-        {
-            if (_parent == null)
-            {
-                VolumeInfo[] volumes = 
-                    _management.getVolumeInfoArray();
-                for (int index = 0; index < volumes.length; index++)
-                {
-                    _cachedList.add(
-                        volumes[index].getPath());
+        try {
+            if (_parent == null) {
+                VolumeInfo[] volumes = _management.getVolumeInfoArray();
+                for (int index = 0; index < volumes.length; index++) {
+                    _cachedList.add(volumes[index].getPath());
                 }
-            }
-            else
-            {
-                String volumeName = (String)_parent.getSelectedItem();
-                if (volumeName == null) return;
-                TreeInfo[] trees = 
-                    _management.getTreeInfoArray(volumeName);
-                for (int index = 0; index < trees.length; index++)
-                {
+            } else {
+                String volumeName = (String) _parent.getSelectedItem();
+                if (volumeName == null)
+                    return;
+                TreeInfo[] trees = _management.getTreeInfoArray(volumeName);
+                for (int index = 0; index < trees.length; index++) {
                     _cachedList.add(trees[index].getName());
                 }
             }
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
             handleException(e);
         }
     }
-    
-    private void handleException(Exception e)
-    {
+
+    private void handleException(Exception e) {
         e.printStackTrace();
     }
 }

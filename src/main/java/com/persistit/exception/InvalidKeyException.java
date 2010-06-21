@@ -17,23 +17,19 @@
 package com.persistit.exception;
 
 /**
- * Thrown by {@link com.persistit.Exchange} on an attempt to store an
- * invalid {@link com.persistit.Key}.
- *
+ * Thrown by {@link com.persistit.Exchange} on an attempt to store an invalid
+ * {@link com.persistit.Key}.
+ * 
  * @version 1.0
  */
-public class InvalidKeyException
-extends PersistitException
-{
+public class InvalidKeyException extends PersistitException {
     private static final long serialVersionUID = -2379023919957561093L;
-    
-    public InvalidKeyException()
-    {
+
+    public InvalidKeyException() {
         super();
     }
 
-    public InvalidKeyException(String msg)
-    {
+    public InvalidKeyException(String msg) {
         super(msg);
     }
 

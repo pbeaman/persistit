@@ -29,11 +29,12 @@ import com.persistit.Transaction;
 import com.persistit.exception.PersistitException;
 
 public class TransactionTest3 extends PersistitUnitTestCase {
-    
+
     public void test1() throws PersistitException {
         System.out.print("test1 ");
 
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest3", true);
         ex.clear().append("test1").remove(Key.GTEQ);
 
         final Transaction txn = ex.getTransaction();
@@ -46,8 +47,8 @@ public class TransactionTest3 extends PersistitUnitTestCase {
                 ex.clear().append("test1").append(i).store();
             }
             for (int i = 3; i < 10; i += 3) {
-                final boolean removed =
-                    ex.clear().append("test1").append(i).remove(Key.GTEQ);
+                final boolean removed = ex.clear().append("test1").append(i)
+                        .remove(Key.GTEQ);
                 assertTrue(removed);
             }
 
@@ -58,7 +59,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
                 } else {
                     assertTrue(ex.getValue().isDefined());
                     assertEquals(ex.getValue().get(), "String value #" + i
-                        + " for test1");
+                            + " for test1");
                 }
             }
 
@@ -80,7 +81,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
             } else {
                 assertTrue(ex.getValue().isDefined());
                 assertEquals(ex.getValue().get(), "String value #" + i
-                    + " for test1");
+                        + " for test1");
             }
         }
 
@@ -96,17 +97,18 @@ public class TransactionTest3 extends PersistitUnitTestCase {
 
     public void test2() throws PersistitException {
         System.out.print("test2 ");
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest3", true);
         ex.clear().append("test2").remove(Key.GTEQ);
-        final String[] expectedKeys =
-            { "{\"test2\",\"a\",0}", "{\"test2\",\"a\",1}",
-                "{\"test2\",\"a\",2}", "{\"test2\",\"a\",3}",
-                "{\"test2\",\"a\",4}", "{\"test2\",\"a\",5}",
-                "{\"test2\",\"a\",7}", "{\"test2\",\"a\",8}",
-                "{\"test2\",\"b\",0}", "{\"test2\",\"b\",1}",
-                "{\"test2\",\"b\",2}", "{\"test2\",\"b\",4}",
-                "{\"test2\",\"b\",5}", "{\"test2\",\"b\",6}",
-                "{\"test2\",\"b\",7}", "{\"test2\",\"b\",8}", };
+        final String[] expectedKeys = { "{\"test2\",\"a\",0}",
+                "{\"test2\",\"a\",1}", "{\"test2\",\"a\",2}",
+                "{\"test2\",\"a\",3}", "{\"test2\",\"a\",4}",
+                "{\"test2\",\"a\",5}", "{\"test2\",\"a\",7}",
+                "{\"test2\",\"a\",8}", "{\"test2\",\"b\",0}",
+                "{\"test2\",\"b\",1}", "{\"test2\",\"b\",2}",
+                "{\"test2\",\"b\",4}", "{\"test2\",\"b\",5}",
+                "{\"test2\",\"b\",6}", "{\"test2\",\"b\",7}",
+                "{\"test2\",\"b\",8}", };
 
         for (int i = 0; i < 10; i++) {
             ex.getValue().put("String value #" + i + " for test2");
@@ -119,9 +121,9 @@ public class TransactionTest3 extends PersistitUnitTestCase {
         try {
             for (int i = 3; i < 10; i += 3) {
                 ex.clear().append("test2").append("a").append(i).remove(
-                    Key.GTEQ);
+                        Key.GTEQ);
                 ex.clear().append("test2").append("b").append(i).remove(
-                    Key.GTEQ);
+                        Key.GTEQ);
             }
 
             ex.getValue().put("String value #" + 3 + " for test2 - pending");
@@ -131,21 +133,21 @@ public class TransactionTest3 extends PersistitUnitTestCase {
 
             ex.clear().append("test2");
             for (int index = 0; ex.traverse(Key.GT, true)
-                && (index < expectedKeys.length); index++) {
+                    && (index < expectedKeys.length); index++) {
                 assertEquals(expectedKeys[index], ex.getKey().toString());
             }
 
-            final boolean removed1 =
-                ex.clear().append("test2").append("a").remove(Key.GTEQ);
+            final boolean removed1 = ex.clear().append("test2").append("a")
+                    .remove(Key.GTEQ);
             assertTrue(removed1);
 
-            boolean removed2 =
-                ex.clear().append("test2").append("c").remove(Key.GTEQ);
+            boolean removed2 = ex.clear().append("test2").append("c").remove(
+                    Key.GTEQ);
             assertTrue(!removed2);
 
             ex.clear().append("test2");
             for (int index = 8; ex.traverse(Key.GT, true)
-                && (index < expectedKeys.length); index++) {
+                    && (index < expectedKeys.length); index++) {
                 assertEquals(expectedKeys[index], ex.getKey().toString());
             }
 
@@ -159,7 +161,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
 
         ex.clear().append("test2");
         for (int index = 8; ex.traverse(Key.GT, true)
-            && (index < expectedKeys.length); index++) {
+                && (index < expectedKeys.length); index++) {
             assertEquals(expectedKeys[index], ex.getKey().toString());
         }
 
@@ -168,7 +170,8 @@ public class TransactionTest3 extends PersistitUnitTestCase {
 
     public void test3() throws PersistitException {
         System.out.print("test3 ");
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest3", true);
         ex.append("test3").remove(Key.GT);
         final StringBuffer sb = new StringBuffer(20000);
         for (int i = 0; i < 20000; i++) {
@@ -302,23 +305,24 @@ public class TransactionTest3 extends PersistitUnitTestCase {
 
     public void test4() throws PersistitException {
         System.out.print("test4 ");
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest3", true);
         ex.clear().append("test4").remove(Key.GTEQ);
 
-        final String[] expectedKeys =
-            { "{\"test4\",\"a\",0}", "{\"test4\",\"a\",1}",
-                "{\"test4\",\"a\",2}", "{\"test4\",\"a\",3}",
-                "{\"test4\",\"a\",4}", "{\"test4\",\"a\",5}",
-                "{\"test4\",\"a\",6}", "{\"test4\",\"a\",7}",
-                "{\"test4\",\"a\",8}", "{\"test4\",\"a\",9}",
-                "{\"test4\",\"b\",0}", "{\"test4\",\"b\",1}",
-                "{\"test4\",\"b\",2}", "{\"test4\",\"b\",3}",
-                "{\"test4\",\"b\",4}", "{\"test4\",\"c\",5}",
-                "{\"test4\",\"c\",6}", "{\"test4\",\"c\",7}",
-                "{\"test4\",\"c\",8}", "{\"test4\",\"c\",9}",
-                "{\"test4\",\"d\",0}", "{\"test4\",\"d\",1}",
-                "{\"test4\",\"d\",7}", "{\"test4\",\"d\",8}",
-                "{\"test4\",\"d\",9}", "{\"test4\",\"e\"}", };
+        final String[] expectedKeys = { "{\"test4\",\"a\",0}",
+                "{\"test4\",\"a\",1}", "{\"test4\",\"a\",2}",
+                "{\"test4\",\"a\",3}", "{\"test4\",\"a\",4}",
+                "{\"test4\",\"a\",5}", "{\"test4\",\"a\",6}",
+                "{\"test4\",\"a\",7}", "{\"test4\",\"a\",8}",
+                "{\"test4\",\"a\",9}", "{\"test4\",\"b\",0}",
+                "{\"test4\",\"b\",1}", "{\"test4\",\"b\",2}",
+                "{\"test4\",\"b\",3}", "{\"test4\",\"b\",4}",
+                "{\"test4\",\"c\",5}", "{\"test4\",\"c\",6}",
+                "{\"test4\",\"c\",7}", "{\"test4\",\"c\",8}",
+                "{\"test4\",\"c\",9}", "{\"test4\",\"d\",0}",
+                "{\"test4\",\"d\",1}", "{\"test4\",\"d\",7}",
+                "{\"test4\",\"d\",8}", "{\"test4\",\"d\",9}",
+                "{\"test4\",\"e\"}", };
 
         for (int i = 0; i < 10; i++) {
             ex.getValue().put("String value #" + i + " for test4");
@@ -379,13 +383,13 @@ public class TransactionTest3 extends PersistitUnitTestCase {
 
             ex.clear().append("test4").append(Key.BEFORE);
             for (int index = 0; ex.traverse(Key.GT, true)
-                && ex.getKey().reset().decode().equals("test4"); index++) {
+                    && ex.getKey().reset().decode().equals("test4"); index++) {
                 assertEquals(expectedKeys[index], ex.getKey().toString());
             }
 
             ex.clear().append("test4").append(Key.AFTER);
             for (int index = expectedKeys.length - 1; ex.traverse(Key.LT, true)
-                && ex.getKey().reset().decode().equals("test4"); index--) {
+                    && ex.getKey().reset().decode().equals("test4"); index--) {
                 assertEquals(expectedKeys[index], ex.getKey().toString());
             }
 
@@ -400,13 +404,13 @@ public class TransactionTest3 extends PersistitUnitTestCase {
 
         ex.clear().append("test4").append(Key.BEFORE);
         for (int index = 0; ex.traverse(Key.GT, true)
-            && ex.getKey().reset().decode().equals("test4"); index++) {
+                && ex.getKey().reset().decode().equals("test4"); index++) {
             assertEquals(expectedKeys[index], ex.getKey().toString());
         }
 
         ex.clear().append("test4").append(Key.AFTER);
         for (int index = expectedKeys.length - 1; ex.traverse(Key.LT, true)
-            && ex.getKey().reset().decode().equals("test4"); index--) {
+                && ex.getKey().reset().decode().equals("test4"); index--) {
             assertEquals(expectedKeys[index], ex.getKey().toString());
         }
 
@@ -415,7 +419,8 @@ public class TransactionTest3 extends PersistitUnitTestCase {
 
     public void test5() throws PersistitException {
         System.out.print("test5 ");
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest3", true);
         final String[] values = new String[100];
         ex.clear().append("test5").remove(Key.GTEQ);
         for (int i = 0; i < 100; i += 2) {
@@ -459,7 +464,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
 
             ex.clear().append("test5").append(Key.BEFORE);
             for (int index = 0; ex.traverse(Key.GT, true)
-                && ex.getKey().reset().decode().equals("test5"); index++) {
+                    && ex.getKey().reset().decode().equals("test5"); index++) {
                 for (; (index < values.length) && (values[index] == null); index++) {
                 }
                 final int k = ex.getKey().indexTo(-1).decodeInt();
@@ -475,7 +480,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
 
         ex.clear().append("test5").append(Key.BEFORE);
         for (int index = 0; ex.traverse(Key.GT, true)
-            && ex.getKey().reset().decode().equals("test5"); index++) {
+                && ex.getKey().reset().decode().equals("test5"); index++) {
             for (; (index < values.length) && (values[index] == null); index++) {
             }
             final int k = ex.getKey().indexTo(-1).decodeInt();
@@ -489,14 +494,14 @@ public class TransactionTest3 extends PersistitUnitTestCase {
     public Properties getProperties() {
         return UnitTestProperties.getBiggerProperties();
     }
-    
-  
+
     public static void main(final String[] args) throws Exception {
         new TransactionTest3().initAndRunTest();
     }
 
     public void runAllTests() throws Exception {
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest3", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest3", true);
         ex.removeAll();
         test1();
         test2();

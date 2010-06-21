@@ -16,20 +16,16 @@
  */
 package com.persistit.exception;
 
-
 /**
- * Thrown when Persistit detects an invalid page pointer.  This is a 
- * catastrophic failure that signifies corruption of a volume file. 
- *
+ * Thrown when Persistit detects an invalid page pointer. This is a catastrophic
+ * failure that signifies corruption of a volume file.
+ * 
  * @version 1.0
  */
-public class InvalidPageAddressException
-extends PersistitException
-{
+public class InvalidPageAddressException extends PersistitException {
     private static final long serialVersionUID = -2586054997298158793L;
-    
-    public InvalidPageAddressException(String msg)
-    {
+
+    public InvalidPageAddressException(String msg) {
         super(msg);
     }
 

@@ -15,21 +15,19 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 
 public class LockManager {
-	
+
     private final ThreadLocal<ResourceTracker> _resourceThreadLocal = new ThreadLocal<ResourceTracker>();
 
     private final Map<Thread, ResourceTracker> _resourceTrackerMap = new ConcurrentHashMap<Thread, ResourceTracker>();
-    
+
     static class ResourceTracker {
-        private final List<SharedResource> _resources =
-            new ArrayList<SharedResource>();
+        private final List<SharedResource> _resources = new ArrayList<SharedResource>();
         private int _offset;
         private boolean _disabled;
 
         @Override
-		public String toString() {
-            return "[" + _offset + "]"
-                + _resources;
+        public String toString() {
+            return "[" + _offset + "]" + _resources;
         }
 
         private void register(final SharedResource resource) {
@@ -40,21 +38,25 @@ public class LockManager {
 
         private void unregister(final SharedResource resource) {
             if (!_disabled) {
-            final int size = _resources.size();
-            final int position = size - _offset - 1;
-            final SharedResource matchingResource = _resources.get(position);
-            if (matchingResource != resource) {
-            	System.err.println("Mismatched resource being unregistered actual/expected=" + resource + "/" + matchingResource);
-            	for (int i = 0; i < size; i++) {
-            		System.err.println("  " + _resources.get(i) + (i == _offset ? "*" : ""));
-            	}
-            }
-            Debug.debug1(matchingResource != resource);
-            _resources.remove(position);
-            _offset = 0;
+                final int size = _resources.size();
+                final int position = size - _offset - 1;
+                final SharedResource matchingResource = _resources
+                        .get(position);
+                if (matchingResource != resource) {
+                    System.err
+                            .println("Mismatched resource being unregistered actual/expected="
+                                    + resource + "/" + matchingResource);
+                    for (int i = 0; i < size; i++) {
+                        System.err.println("  " + _resources.get(i)
+                                + (i == _offset ? "*" : ""));
+                    }
+                }
+                Debug.debug1(matchingResource != resource);
+                _resources.remove(position);
+                _offset = 0;
             }
         }
-        
+
         private boolean isMine(final SharedResource resource) {
             for (int index = _resources.size(); --index >= 0;) {
                 if (_resources.get(index) == resource) {
@@ -79,19 +81,19 @@ public class LockManager {
         private void setOffset(final int offset) {
             _offset = offset;
         }
-        
+
         private void setDisabled(final boolean disabled) {
             _disabled = disabled;
         }
-        
+
         private boolean isDisabled() {
             return _disabled;
         }
     }
 
     private ResourceTracker getMyResourceTracker() {
-    	ResourceTracker tracker = _resourceThreadLocal.get();
-    	if (tracker == null) {
+        ResourceTracker tracker = _resourceThreadLocal.get();
+        if (tracker == null) {
             tracker = new ResourceTracker();
             _resourceTrackerMap.put(Thread.currentThread(), tracker);
             _resourceThreadLocal.set(tracker);
@@ -106,7 +108,7 @@ public class LockManager {
     void unregister(final SharedResource resource) {
         getMyResourceTracker().unregister(resource);
     }
-    
+
     public boolean isMine(final SharedResource resource) {
         return getMyResourceTracker().isMine(resource);
     }
@@ -122,23 +124,23 @@ public class LockManager {
     public void setOffset() {
         getMyResourceTracker().setOffset(1);
     }
-    
+
     public void setOffset(final int offset) {
-        getMyResourceTracker().setOffset(offset);        
+        getMyResourceTracker().setOffset(offset);
     }
-    
+
     public void setDisabled(final boolean disabled) {
         getMyResourceTracker().setDisabled(disabled);
     }
-    
+
     public boolean isDisabled() {
         return getMyResourceTracker().isDisabled();
     }
 
     @Override
     public synchronized String toString() {
-        final SortedMap<Thread, ResourceTracker> sorted =
-            new TreeMap<Thread, ResourceTracker>(_resourceTrackerMap);
+        final SortedMap<Thread, ResourceTracker> sorted = new TreeMap<Thread, ResourceTracker>(
+                _resourceTrackerMap);
         final StringBuilder sb = new StringBuilder(500);
         for (final Map.Entry<Thread, ResourceTracker> entry : sorted.entrySet()) {
             sb.append(entry.getKey());

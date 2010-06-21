@@ -19,21 +19,17 @@ package com.persistit.exception;
 /**
  * Thrown by {@link com.persistit.Exchange} when a <tt>Thread</tt> other than
  * the thread that created the Exchange attempts to perform an operation.
- *
+ * 
  * @version 1.0
  */
-public class WrongThreadException
-extends RuntimeException
-{
+public class WrongThreadException extends RuntimeException {
     private static final long serialVersionUID = 7960498084495697551L;
-    
-    public WrongThreadException()
-    {
+
+    public WrongThreadException() {
         super();
     }
-    
-    public WrongThreadException(String msg)
-    {
+
+    public WrongThreadException(String msg) {
         super(msg);
     }
 

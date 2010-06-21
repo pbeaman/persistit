@@ -129,7 +129,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         }
 
         public Object get(final Value value, final Class clazz,
-            final CoderContext context) {
+                final CoderContext context) {
             _getCounter++;
             final TTT ttt = new TTT("x", "y");
             value.registerEncodedObject(ttt);
@@ -145,12 +145,12 @@ public class ValueTest4 extends PersistitUnitTestCase {
         private final static long serialVersionUID = 1L;
 
         public void readObject(final ObjectInputStream ois) throws IOException,
-            ClassNotFoundException {
+                ClassNotFoundException {
             ois.defaultReadObject();
         }
 
         public void writeObject(final ObjectOutputStream oos)
-            throws IOException {
+                throws IOException {
             oos.defaultWriteObject();
         }
 
@@ -207,8 +207,8 @@ public class ValueTest4 extends PersistitUnitTestCase {
             _h = "Field h";
         }
 
-        private static final ObjectStreamField[] serialPersistentFields =
-            { new ObjectStreamField("_g", String.class), };
+        private static final ObjectStreamField[] serialPersistentFields = { new ObjectStreamField(
+                "_g", String.class), };
 
         public String toString() {
             return "S" + super.toString() + _g + _h + _ff;
@@ -324,18 +324,18 @@ public class ValueTest4 extends PersistitUnitTestCase {
             return "E" + super.toString() + (_thread != null ? "" : "");
         }
     }
-    
-    
+
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
-    	_exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
+        super.setUp();
+        _exchange = _persistit.getExchange("persistit", getClass()
+                .getSimpleName(), true);
     }
-    
+
     @Override
     public void tearDown() throws Exception {
-    	_persistit.releaseExchange(_exchange);
-    	super.tearDown();
+        _persistit.releaseExchange(_exchange);
+        super.tearDown();
     }
 
     public void test1() throws PersistitException {
@@ -482,7 +482,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
         final CoderManager cm = _persistit.getCoderManager();
         final ValueCoder defaultCoder = cm.getValueCoder(SSSS.class);
         _persistit.getCoderManager().registerValueCoder(SSSS.class,
-            new SerialValueCoder(SSSS.class));
+                new SerialValueCoder(SSSS.class));
         final SSSS ssss = new SSSS();
         ssss._a = "Field a";
         ssss._b = "Field b";
@@ -506,7 +506,7 @@ public class ValueTest4 extends PersistitUnitTestCase {
     public void runAllTests() throws Exception {
         final CoderManager cm = _persistit.getCoderManager();
         _persistit.setCoderManager(new DefaultCoderManager(_persistit,
-            "com.persistit.unit.ValueTest4$*"));
+                "com.persistit.unit.ValueTest4$*"));
         _exchange = _persistit.getExchange("persistit", "ValueTest4", true);
 
         test1();

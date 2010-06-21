@@ -18,42 +18,35 @@ package com.persistit.exception;
 
 /**
  * The superclass for all checked Persistit&trade; Exceptions.
- *
+ * 
  * @version 1.0
  */
-public abstract class PersistitException
-extends Exception
-{
+public abstract class PersistitException extends Exception {
     private Exception _exception;
-    
-    protected PersistitException()
-    {
+
+    protected PersistitException() {
         super();
     }
-    
-    protected PersistitException(String msg)
-    {
+
+    protected PersistitException(String msg) {
         super(msg);
     }
-    
-    protected PersistitException(Exception exception)
-    {
+
+    protected PersistitException(Exception exception) {
         super();
         _exception = exception;
     }
-    
-    protected PersistitException(String msg, Exception exception)
-    {
+
+    protected PersistitException(String msg, Exception exception) {
         super(msg);
         _exception = exception;
     }
-    
+
     /**
-     * Provides an implementation for JDK1.3 and below.  This simply
-     * overrides the JDK1.4 implementation of this method.
+     * Provides an implementation for JDK1.3 and below. This simply overrides
+     * the JDK1.4 implementation of this method.
      */
-    public Throwable getCause()
-    {
+    public Throwable getCause() {
         return _exception;
     }
 }

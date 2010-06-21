@@ -25,15 +25,16 @@ import com.persistit.Key;
 import com.persistit.exception.PersistitException;
 
 public class TreeTest1 extends PersistitUnitTestCase {
-    
+
     public void test1() throws PersistitException {
         System.out.print("test1 ");
-        Exchange exchange = _persistit.getExchange("persistit", "NewTree", true);
+        Exchange exchange = _persistit
+                .getExchange("persistit", "NewTree", true);
         exchange.removeTree();
         // pause("Removed NewTree");
         exchange = _persistit.getExchange("persistit", "NewTree", true);
         exchange.getValue().put(
-            "This String is just here to fill up some space");
+                "This String is just here to fill up some space");
         for (int i = 1; i < 100000; i++) {
             exchange.clear().append(i);
             exchange.store();
@@ -54,8 +55,8 @@ public class TreeTest1 extends PersistitUnitTestCase {
         System.out.print("test2 ");
         final Exchange[] exchanges = new Exchange[1000];
         for (int counter = 0; counter < 1000; counter++) {
-            exchanges[counter] =
-                _persistit.getExchange("persistit", "TreeTest1_" + counter, true);
+            exchanges[counter] = _persistit.getExchange("persistit",
+                    "TreeTest1_" + counter, true);
         }
         // pause("TreeTest1_0 through TreeTest1_999 created");
 

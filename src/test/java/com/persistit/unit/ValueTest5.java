@@ -24,62 +24,48 @@ import com.persistit.Exchange;
 import com.persistit.encoding.CoderManager;
 import com.persistit.exception.PersistitException;
 
-
-public class ValueTest5
-extends PersistitUnitTestCase
-{
+public class ValueTest5 extends PersistitUnitTestCase {
     /**
      * Tests JSA 1.1 default serialization. Requires the
      * enableCompatibleConstructors to be true.
      */
-	
+
     Exchange _exchange;
-    
-    
-    public enum Job
-    {
-        COOK,
-        BOTTLEWASHER,
-        PROGRAMMER,
-        JANITOR,
-        SALEMAN,
+
+    public enum Job {
+        COOK, BOTTLEWASHER, PROGRAMMER, JANITOR, SALEMAN,
     };
-    
-    public static class S
-    implements Serializable
-    {
+
+    public static class S implements Serializable {
         private final static long serialVersionUID = 1;
         Job _myJob;
         Job _yourJob;
-        
-        S(Job m, Job y)
-        {
+
+        S(Job m, Job y) {
             _myJob = m;
             _yourJob = y;
         }
-        
-        public String toString()
-        {
+
+        public String toString() {
             return _myJob + ":" + _yourJob;
         }
 
     }
-    
+
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
-    	_exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
-    }
-    
-    @Override
-    public void tearDown() throws Exception {
-    	_persistit.releaseExchange(_exchange);
-    	super.tearDown();
+        super.setUp();
+        _exchange = _persistit.getExchange("persistit", getClass()
+                .getSimpleName(), true);
     }
 
-    public void test1()
-    throws PersistitException
-    {
+    @Override
+    public void tearDown() throws Exception {
+        _persistit.releaseExchange(_exchange);
+        super.tearDown();
+    }
+
+    public void test1() throws PersistitException {
         System.out.print("test1 ");
         S s = new S(Job.COOK, Job.BOTTLEWASHER);
         _exchange.getValue().put(s);
@@ -89,23 +75,17 @@ extends PersistitUnitTestCase
 
         System.out.println("- done");
     }
-    
-    
-    
-    public static void main(String[] args)
-    throws Exception
-    {
+
+    public static void main(String[] args) throws Exception {
         new ValueTest5().initAndRunTest();
     }
-    
-    public void runAllTests()
-    throws Exception
-    {
+
+    public void runAllTests() throws Exception {
         _exchange = _persistit.getExchange("persistit", "ValueTest5", true);
         CoderManager cm = _persistit.getCoderManager();
-        
+
         test1();
-        
+
         _persistit.setCoderManager(cm);
     }
 

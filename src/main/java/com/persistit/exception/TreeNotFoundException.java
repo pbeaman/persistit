@@ -14,26 +14,23 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
+
 package com.persistit.exception;
+
 /**
  * Thrown when {@link com.persistit.Exchange} attempts to open a
  * {@link com.persistit.Tree} that does not exist.
- *  
+ * 
  * @version 1.0
  */
-public class TreeNotFoundException
-extends PersistitException
-{
+public class TreeNotFoundException extends PersistitException {
     private static final long serialVersionUID = 1583471010993206269L;
-    
-    public TreeNotFoundException()
-    {
+
+    public TreeNotFoundException() {
         super();
     }
 
-    public TreeNotFoundException(String msg)
-    {
+    public TreeNotFoundException(String msg) {
         super(msg);
     }
 }

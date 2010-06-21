@@ -14,52 +14,44 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
-package com.persistit.exception;
 
+package com.persistit.exception;
 
 /**
  * Thrown by encoding and decoding methods of the {@link com.persistit.Value}
- * class when conversion to or from an value's serialized form cannot
- * be completed.
+ * class when conversion to or from an value's serialized form cannot be
+ * completed.
  * 
  * @version 1.0
  */
-public class ConversionException
-extends RuntimeException
-{
+public class ConversionException extends RuntimeException {
     private static final long serialVersionUID = -5255687227174752145L;
-    
+
     private Exception _exception;
 
-    public ConversionException()
-    {
+    public ConversionException() {
         super();
     }
-    
-    public ConversionException(String msg)
-    {
+
+    public ConversionException(String msg) {
         super(msg);
     }
 
-    public ConversionException(Exception exception)
-    {
+    public ConversionException(Exception exception) {
         super();
         _exception = exception;
     }
-    
-    public ConversionException(String msg, Exception exception)
-    {
+
+    public ConversionException(String msg, Exception exception) {
         super(msg);
         _exception = exception;
     }
-    
+
     /**
-     * Provides an implementation for JDK1.3 and below.  This simply
-     * overrides the JDK1.4 implementation of this method.
+     * Provides an implementation for JDK1.3 and below. This simply overrides
+     * the JDK1.4 implementation of this method.
      */
-    public Throwable getCause()
-    {
+    public Throwable getCause() {
         return _exception;
     }
 }

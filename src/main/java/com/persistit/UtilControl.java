@@ -18,9 +18,10 @@
  */
 package com.persistit;
 
-public interface UtilControl
-{
+public interface UtilControl {
     public boolean isAlive();
+
     public void close();
+
     public void setManagement(Management management);
 }

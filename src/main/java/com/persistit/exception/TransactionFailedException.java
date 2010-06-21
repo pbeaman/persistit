@@ -17,39 +17,33 @@
 package com.persistit.exception;
 
 /**
- * Thrown by {@link com.persistit.Transaction} when a
- * transaction fails due to excessive rollbacks.
+ * Thrown by {@link com.persistit.Transaction} when a transaction fails due to
+ * excessive rollbacks.
  * 
  * @version 1.0
  */
-public class TransactionFailedException
-extends PersistitException
-{
+public class TransactionFailedException extends PersistitException {
     private static final long serialVersionUID = 4333338222080863109L;
-    
+
     Throwable _cause;
-    
-    public TransactionFailedException()
-    {
+
+    public TransactionFailedException() {
         super();
     }
-    
-    public TransactionFailedException(String msg)
-    {
+
+    public TransactionFailedException(String msg) {
         super(msg);
     }
-    
-    public TransactionFailedException(Throwable t)
-    {
+
+    public TransactionFailedException(Throwable t) {
         _cause = t;
     }
-    
+
     /**
-     * Provides an implementation for JDK1.3 and below.  This simply
-     * overrides the JDK1.4 implementation of this method.
+     * Provides an implementation for JDK1.3 and below. This simply overrides
+     * the JDK1.4 implementation of this method.
      */
-    public Throwable getCause()
-    {
+    public Throwable getCause() {
         return _cause;
     }
 

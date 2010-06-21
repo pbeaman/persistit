@@ -29,11 +29,12 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
 
 public class TransactionTest1 extends PersistitUnitTestCase {
-    
+
     public void test1() throws PersistitException {
         System.out.print("test1 ");
 
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest1", true);
         ex.removeAll();
 
         final Transaction txn = ex.getTransaction();
@@ -59,7 +60,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
             } else {
                 assertTrue(ex.getValue().isDefined());
                 assertEquals(ex.getValue().get(), "String value #" + i
-                    + " for test1");
+                        + " for test1");
             }
         }
         System.out.println("- done");
@@ -67,7 +68,8 @@ public class TransactionTest1 extends PersistitUnitTestCase {
 
     public void test2() throws PersistitException {
         System.out.print("test2 ");
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest1", true);
         ex.removeAll();
 
         for (int i = 0; i < 10; i++) {
@@ -92,7 +94,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                 assertTrue(!ex.getValue().isDefined());
             } else {
                 assertEquals(ex.getValue().get(), "String value #" + i
-                    + " for test1");
+                        + " for test1");
             }
         }
         System.out.println("- done");
@@ -100,7 +102,8 @@ public class TransactionTest1 extends PersistitUnitTestCase {
 
     public void test3() throws PersistitException {
         System.out.print("test3 ");
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest1", true);
         ex.removeAll();
 
         for (int i = 0; i < 10; i++) {
@@ -129,7 +132,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                 assertTrue(!ex.getValue().isDefined());
             } else {
                 assertEquals(ex.getValue().get(), "String value #" + i
-                    + " for test1");
+                        + " for test1");
             }
         }
         System.out.println("- done");
@@ -137,7 +140,8 @@ public class TransactionTest1 extends PersistitUnitTestCase {
 
     public void test4() throws PersistitException {
         System.out.print("test4 ");
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest1", true);
         ex.removeAll();
 
         final StringBuffer sb = new StringBuffer();
@@ -176,7 +180,8 @@ public class TransactionTest1 extends PersistitUnitTestCase {
 
     public void test5() throws PersistitException {
         System.out.print("test5 ");
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest1", true);
         ex.removeAll();
         final StringBuffer sb = new StringBuffer();
         for (int i = 10000; i < 15000; i++) {
@@ -217,7 +222,8 @@ public class TransactionTest1 extends PersistitUnitTestCase {
 
     public void test6() throws PersistitException {
         System.out.print("test6 ");
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest1", true);
         ex.removeAll();
         ex.getValue().put("record b");
         ex.clear().append("b").store();
@@ -311,8 +317,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
     public Properties getProperties() {
         return UnitTestProperties.getBiggerProperties();
     }
-    
-  
+
     public static void main(final String[] args) throws Exception {
         new TransactionTest1().initAndRunTest();
     }

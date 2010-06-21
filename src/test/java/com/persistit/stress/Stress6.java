@@ -33,11 +33,9 @@ import com.persistit.test.PersistitTestResult;
  * 
  */
 public class Stress6 extends StressBase {
-    private final static String SHORT_DESCRIPTION =
-        "Exercise page splits and rejoin";
+    private final static String SHORT_DESCRIPTION = "Exercise page splits and rejoin";
 
-    private final static String LONG_DESCRIPTION =
-        "   Inserts and deletes key/value pairs in a pattern that tests\r\n"
+    private final static String LONG_DESCRIPTION = "   Inserts and deletes key/value pairs in a pattern that tests\r\n"
             + "   split and rejoin logic extensively.";
 
     @Override
@@ -50,8 +48,8 @@ public class Stress6 extends StressBase {
         return LONG_DESCRIPTION;
     }
 
-    private final static String[] ARGS_TEMPLATE =
-        { "repeat|int:1:0:1000000000|Repetitions",
+    private final static String[] ARGS_TEMPLATE = {
+            "repeat|int:1:0:1000000000|Repetitions",
             "count|int:1000:0:1000000000|Number of nodes to populate",
             "size|int:500:1:1000|Max splitting value size", };
 
@@ -59,7 +57,7 @@ public class Stress6 extends StressBase {
 
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
+        super.setUp();
         _ap = new ArgParser("com.persistit.Stress6", _args, ARGS_TEMPLATE);
         _total = _ap.getIntValue("count");
         _repeatTotal = _ap.getIntValue("repeat");
@@ -97,7 +95,7 @@ public class Stress6 extends StressBase {
                 describeTest("Deleting all records");
                 setPhase("@");
                 _exs.clear().append("stress6").append(_threadIndex).remove(
-                    Key.GTEQ);
+                        Key.GTEQ);
                 println();
 
                 describeTest("Creating baseline records");
@@ -105,7 +103,7 @@ public class Stress6 extends StressBase {
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
                     _exs.clear().append("stress6").append(_threadIndex).append(
-                        _count).append(_sb1);
+                            _count).append(_sb1);
                     _exs.store();
                 }
                 println();
@@ -115,7 +113,7 @@ public class Stress6 extends StressBase {
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
                     _exs.clear().append("stress6").append(_threadIndex).append(
-                        _count).append(_sb1);
+                            _count).append(_sb1);
                     _sb2.setLength(0);
                     for (int size = 0; (size < _size) && !isStopped(); size++) {
                         _sb2.append('y');
@@ -135,7 +133,7 @@ public class Stress6 extends StressBase {
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
                     _exs.clear().append("stress6").append(_threadIndex).append(
-                        _count).append(_sb1);
+                            _count).append(_sb1);
                     _exs.fetch();
                     final Value value = _exs.getValue();
                     boolean okay = false;
@@ -146,9 +144,9 @@ public class Stress6 extends StressBase {
                         }
                     }
                     if (!okay) {
-                        _result =
-                            new PersistitTestResult(false, "Value for key " + _exs.getKey()
-                                + " is not zero-length");
+                        _result = new PersistitTestResult(false,
+                                "Value for key " + _exs.getKey()
+                                        + " is not zero-length");
                         forceStop();
                         break;
                     }
@@ -163,7 +161,7 @@ public class Stress6 extends StressBase {
     }
 
     private void setupKey(final Exchange ex, final int length, final int depth,
-        final int a, final int b, final char fill) {
+            final int a, final int b, final char fill) {
         _sb1.setLength(0);
         for (int i = 0; i < length; i++) {
             _sb1.append(fill);

@@ -31,13 +31,13 @@ import com.persistit.exception.PersistitException;
  * 1. Delete all to clean 2. Sequential Fixed-length set/get/traverse/reverse
  * traverse/remove 3. Child key insert / traverse / reverse /remove 4.
  * Sequential Replacement / Elongation / Shortening 5. Random insertion /
- * replacement / elongation / shortening 6. Long records insert / grow / shrink /
- * remove 7. Spotty removes 8. Key range remove
+ * replacement / elongation / shortening 6. Long records insert / grow / shrink
+ * / remove 7. Spotty removes 8. Key range remove
  * 
  */
 public abstract class Stress4Base extends StressBase {
-    protected final static String[] ARGS_TEMPLATE =
-        { "repeat|int:1:0:1000000000|Repetitions",
+    protected final static String[] ARGS_TEMPLATE = {
+            "repeat|int:1:0:1000000000|Repetitions",
             "count|int:10000:0:1000000000|Number of nodes to populate",
             "seed|int:1:1:20000|Random seed", "splay|int:1:1:1000|Splay", };
 
@@ -50,7 +50,7 @@ public abstract class Stress4Base extends StressBase {
 
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
+        super.setUp();
         _ap = new ArgParser("com.persistit.Stress4", _args, ARGS_TEMPLATE);
         _total = _ap.getIntValue("count");
         _repeatTotal = _ap.getIntValue("repeat");
@@ -61,7 +61,8 @@ public abstract class Stress4Base extends StressBase {
 
         try {
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit",
+                    _rootName + _threadIndex, true);
             _exs = getPersistit().getExchange("persistit", "shared", true);
         } catch (final Exception ex) {
             handleThrowable(ex);
@@ -86,7 +87,7 @@ public abstract class Stress4Base extends StressBase {
             for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
                 println();
                 println("Starting cycle " + (_repeat + 1) + " of "
-                    + _repeatTotal);
+                        + _repeatTotal);
 
                 repeatedTasks();
                 println();
@@ -170,7 +171,7 @@ public abstract class Stress4Base extends StressBase {
     }
 
     public void writeRecords(final int to, final boolean random,
-        final int minsize, final int maxsize) throws PersistitException {
+            final int minsize, final int maxsize) throws PersistitException {
         for (_count = 0; (_count < to) && !isStopped(); _count++) {
             dot();
             int keyInteger;
@@ -191,7 +192,7 @@ public abstract class Stress4Base extends StressBase {
     }
 
     public void readRecords(final int to, final boolean random,
-        final int minsize, final int maxsize) throws PersistitException {
+            final int minsize, final int maxsize) throws PersistitException {
         final Value value1 = _ex.getValue();
         final Value value2 = new Value(getPersistit());
 
@@ -217,7 +218,7 @@ public abstract class Stress4Base extends StressBase {
     }
 
     public void removeRecords(final int to, final boolean random)
-        throws PersistitException {
+            throws PersistitException {
         for (_count = 0; (_count < _total) && (_count < to) && !isStopped(); _count++) {
             dot();
             int keyInteger;
@@ -234,16 +235,16 @@ public abstract class Stress4Base extends StressBase {
     }
 
     public void writeLongKey(final int keyInteger, final int length,
-        final int valueSize) throws PersistitException {
+            final int valueSize) throws PersistitException {
 
     }
 
     public void readLongKey(final int keyInteger, final int length,
-        final int valueSize) throws PersistitException {
+            final int valueSize) throws PersistitException {
     }
 
     public void removeLongKey(final int keyInteger, final int length)
-        throws PersistitException {
+            throws PersistitException {
     }
 
     public void sleep() {

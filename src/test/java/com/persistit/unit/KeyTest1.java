@@ -21,15 +21,15 @@ package com.persistit.unit;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import org.junit.Test;
-
 import junit.framework.Assert;
+
+import org.junit.Test;
 
 import com.persistit.Key;
 import com.persistit.Util;
 
 public class KeyTest1 extends PersistitUnitTestCase {
-    
+
     private final Key _key1 = new Key(_persistit);
     private final Key _key2 = new Key(_persistit);
     private long lv1;
@@ -39,33 +39,30 @@ public class KeyTest1 extends PersistitUnitTestCase {
     private double dv1;
     private double dv2;
 
-    long[] TEST_LONGS =
-        { 0, 1, 2, 3, 123, 126, 127, 128, 129, 130, 131, 132, 250, 251, 252,
-            253, 254, 255, 256, 257, 258, 259, 260, 4094, 4095, 4096, 4097,
-            4098, 16383, 16384, 16385, Integer.MAX_VALUE - 2,
+    long[] TEST_LONGS = { 0, 1, 2, 3, 123, 126, 127, 128, 129, 130, 131, 132,
+            250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 4094, 4095,
+            4096, 4097, 4098, 16383, 16384, 16385, Integer.MAX_VALUE - 2,
             Integer.MAX_VALUE - 1, Integer.MAX_VALUE + 0,
             Integer.MAX_VALUE + 1, Integer.MAX_VALUE + 2,
             Integer.MAX_VALUE + 3, Long.MIN_VALUE, Long.MIN_VALUE + 1,
             Long.MIN_VALUE + 2, Long.MAX_VALUE, Long.MAX_VALUE - 1,
             Long.MAX_VALUE - 2, };
 
-    float[] TEST_FLOATS =
-        { 0.0F, 1.0F, 2.0F, 12345.0F, 0.0003F, 1.2345E-10F, 1.12345E-20F, 0.0F,
-            -1.0F, -2.0F, -12345.0F, -0.0003F, -1.2345E-10F, -1.12345E-20F,
-            Float.MAX_VALUE, Float.MIN_VALUE, Float.MAX_VALUE / 2.0F,
-            Float.MAX_VALUE / 3.0F, Float.MAX_VALUE / 4.0F,
-            Float.MIN_VALUE / 2.0F, Float.MIN_VALUE / 3.0F,
-            Float.MIN_VALUE / 4.0F, Float.NaN, Float.NEGATIVE_INFINITY,
-            Float.POSITIVE_INFINITY };
+    float[] TEST_FLOATS = { 0.0F, 1.0F, 2.0F, 12345.0F, 0.0003F, 1.2345E-10F,
+            1.12345E-20F, 0.0F, -1.0F, -2.0F, -12345.0F, -0.0003F,
+            -1.2345E-10F, -1.12345E-20F, Float.MAX_VALUE, Float.MIN_VALUE,
+            Float.MAX_VALUE / 2.0F, Float.MAX_VALUE / 3.0F,
+            Float.MAX_VALUE / 4.0F, Float.MIN_VALUE / 2.0F,
+            Float.MIN_VALUE / 3.0F, Float.MIN_VALUE / 4.0F, Float.NaN,
+            Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY };
 
-    double[] TEST_DOUBLES =
-        { 0.0, 1.0, 2.0, 12345.0, 0.0003, 1.2345E-10, 1.12345E-20, 0.0, -1.0,
-            -2.0, -12345.0, -0.0003, -1.2345E-10, -1.12345E-20,
-            Double.MAX_VALUE, Double.MIN_VALUE, Double.MAX_VALUE / 2.0,
-            Double.MAX_VALUE / 3.0, Double.MAX_VALUE / 4.0,
-            Double.MIN_VALUE / 2.0, Double.MIN_VALUE / 3.0,
-            Double.MIN_VALUE / 4.0, Double.NaN, Double.NEGATIVE_INFINITY,
-            Double.POSITIVE_INFINITY };
+    double[] TEST_DOUBLES = { 0.0, 1.0, 2.0, 12345.0, 0.0003, 1.2345E-10,
+            1.12345E-20, 0.0, -1.0, -2.0, -12345.0, -0.0003, -1.2345E-10,
+            -1.12345E-20, Double.MAX_VALUE, Double.MIN_VALUE,
+            Double.MAX_VALUE / 2.0, Double.MAX_VALUE / 3.0,
+            Double.MAX_VALUE / 4.0, Double.MIN_VALUE / 2.0,
+            Double.MIN_VALUE / 3.0, Double.MIN_VALUE / 4.0, Double.NaN,
+            Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY };
 
     @Test
     public void test1() {
@@ -160,8 +157,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     _key2.append(lv2);
                     final int compare = _key1.compareTo(_key2);
 
-                    final boolean result =
-                        ((compare == 0) && (lv1 == lv2))
+                    final boolean result = ((compare == 0) && (lv1 == lv2))
                             || ((compare > 0) && (lv1 > lv2))
                             || ((compare < 0) && (lv1 < lv2));
 
@@ -220,8 +216,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     final Float f1 = new Float(fv1);
                     final Float f2 = new Float(fv2);
 
-                    final boolean result =
-                        ((compare == 0) && (f1.compareTo(f2) == 0))
+                    final boolean result = ((compare == 0) && (f1.compareTo(f2) == 0))
                             || ((compare > 0) && (f1.compareTo(f2) > 0))
                             || ((compare < 0) && (f1.compareTo(f2) < 0));
 
@@ -266,8 +261,8 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-   @Test
-   public void test6() {
+    @Test
+    public void test6() {
         System.out.print("test6 ");
         for (int i1 = 0; i1 < TEST_DOUBLES.length; i1++) {
             for (int i2 = 0; i2 < TEST_DOUBLES.length; i2++) {
@@ -290,8 +285,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     final Double d1 = new Double(dv1);
                     final Double d2 = new Double(dv2);
 
-                    final boolean result =
-                        ((compare == 0) && (d1.compareTo(d2) == 0))
+                    final boolean result = ((compare == 0) && (d1.compareTo(d2) == 0))
                             || ((compare > 0) && (d1.compareTo(d2) > 0))
                             || ((compare < 0) && (d1.compareTo(d2) < 0));
 
@@ -306,7 +300,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
      * Verify key type ordering
      * 
      */
-   @Test
+    @Test
     public void test7() {
         System.out.print("test7 ");
 
@@ -392,14 +386,14 @@ public class KeyTest1 extends PersistitUnitTestCase {
     // Note: this test has been run with INCREMENT = 1 (i.e., every int value),
     // that's too slow (5 minutes) for unit tests in normal builds.
     //
-    private static final int INCREMENT = 123; 
+    private static final int INCREMENT = 123;
 
     @Test
     public void test8() {
         System.out.print("test8 ");
         final int start = Integer.MIN_VALUE;
         final int end = Integer.MAX_VALUE;
-        for (int u = start; u < end; u+=INCREMENT) {
+        for (int u = start; u < end; u += INCREMENT) {
             if ((u % 100000000) == 0) {
                 System.out.print(" " + u);
             }
@@ -497,8 +491,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     _key2.append(biv2);
                     final int compare = _key1.compareTo(_key2);
 
-                    final boolean result =
-                        ((compare == 0) && (lv1 == lv2))
+                    final boolean result = ((compare == 0) && (lv1 == lv2))
                             || ((compare > 0) && (lv1 > lv2))
                             || ((compare < 0) && (lv1 < lv2));
 
@@ -622,9 +615,9 @@ public class KeyTest1 extends PersistitUnitTestCase {
         return f1 == f2;
     }
 
-//    public static void main(final String[] args) throws Exception {
-//        new KeyTest1().runTest();
-//    }
+    // public static void main(final String[] args) throws Exception {
+    // new KeyTest1().runTest();
+    // }
 
     public void runAllTests() throws Exception {
         test1();
@@ -647,11 +640,11 @@ public class KeyTest1 extends PersistitUnitTestCase {
             System.out.println();
             System.out.println(" lv1=" + lv1 + " lv2=" + lv2);
             System.out.println(" key1="
-                + Util.hexDump(_key1.getEncodedBytes(), 0, _key1
-                    .getEncodedSize()));
+                    + Util.hexDump(_key1.getEncodedBytes(), 0, _key1
+                            .getEncodedSize()));
             System.out.println(" key2="
-                + Util.hexDump(_key2.getEncodedBytes(), 0, _key2
-                    .getEncodedSize()));
+                    + Util.hexDump(_key2.getEncodedBytes(), 0, _key2
+                            .getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);
@@ -661,13 +654,13 @@ public class KeyTest1 extends PersistitUnitTestCase {
         if (!condition) {
             System.out.println();
             System.out.println(" fv1=" + fv1 + " (" + floatBits(fv1) + ")"
-                + " fv2=" + fv2 + " (" + floatBits(fv2) + ")");
+                    + " fv2=" + fv2 + " (" + floatBits(fv2) + ")");
             System.out.println(" key1="
-                + Util.hexDump(_key1.getEncodedBytes(), 0, _key1
-                    .getEncodedSize()));
+                    + Util.hexDump(_key1.getEncodedBytes(), 0, _key1
+                            .getEncodedSize()));
             System.out.println(" key2="
-                + Util.hexDump(_key2.getEncodedBytes(), 0, _key2
-                    .getEncodedSize()));
+                    + Util.hexDump(_key2.getEncodedBytes(), 0, _key2
+                            .getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);
@@ -677,13 +670,13 @@ public class KeyTest1 extends PersistitUnitTestCase {
         if (!condition) {
             System.out.println();
             System.out.println(" dv1=" + dv1 + " (" + doubleBits(dv1) + ")"
-                + " dv2=" + dv2 + " (" + doubleBits(dv2) + ")");
+                    + " dv2=" + dv2 + " (" + doubleBits(dv2) + ")");
             System.out.println(" key1="
-                + Util.hexDump(_key1.getEncodedBytes(), 0, _key1
-                    .getEncodedSize()));
+                    + Util.hexDump(_key1.getEncodedBytes(), 0, _key1
+                            .getEncodedSize()));
             System.out.println(" key2="
-                + Util.hexDump(_key2.getEncodedBytes(), 0, _key2
-                    .getEncodedSize()));
+                    + Util.hexDump(_key2.getEncodedBytes(), 0, _key2
+                            .getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);

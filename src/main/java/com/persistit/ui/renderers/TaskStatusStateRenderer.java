@@ -17,30 +17,27 @@
  * Created on Apr 5, 2005
  */
 package com.persistit.ui.renderers;
+
 import com.persistit.ui.AdminUI;
 import com.persistit.ui.ManagementTableModel.AbstractCustomTableCellRenderer;
+
 /**
  * @author Peter Beaman
  * @version 1.0
  */
-public class TaskStatusStateRenderer
-extends AbstractCustomTableCellRenderer
-{
+public class TaskStatusStateRenderer extends AbstractCustomTableCellRenderer {
     private AdminUI _adminUI;
-    
-    public void setup(AdminUI ui, Class baseClass, String columnSpec)
-    {
+
+    public void setup(AdminUI ui, Class baseClass, String columnSpec) {
         _adminUI = ui;
     }
 
-    public void setValue(Object value)
-    {
+    public void setValue(Object value) {
         String text = "?";
-        if (value instanceof Integer)
-        {
-            text = _adminUI.getTaskStateString(((Integer)value).intValue());
+        if (value instanceof Integer) {
+            text = _adminUI.getTaskStateString(((Integer) value).intValue());
         }
         setText(text);
     }
-    
+
 }

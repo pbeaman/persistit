@@ -14,28 +14,23 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
-package com.persistit.exception;
 
+package com.persistit.exception;
 
 /**
  * Thrown if there is no {@link com.persistit.BufferPool} with buffers matching
  * the page size of a {@link com.persistit.Volume} being opened.
- *
+ * 
  * @version 1.0
  */
-public class BufferUnavailableException
-extends PersistitException
-{
+public class BufferUnavailableException extends PersistitException {
     private static final long serialVersionUID = 7231838587511494996L;
-    
-    public BufferUnavailableException()
-    {
+
+    public BufferUnavailableException() {
         super();
     }
-    
-    public BufferUnavailableException(String msg)
-    {
+
+    public BufferUnavailableException(String msg) {
         super(msg);
     }
 

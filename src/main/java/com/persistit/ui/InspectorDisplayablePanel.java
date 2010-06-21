@@ -30,53 +30,40 @@ import com.persistit.Management;
  * @author Peter Beaman
  * @version 1.0
  */
-class InspectorDisplayablePanel
-extends AbstractInspector
-{
+class InspectorDisplayablePanel extends AbstractInspector {
     private JTextArea _textArea;
-    
-    protected void setup(AdminUI ui, InspectorPanel host)
-    {
+
+    protected void setup(AdminUI ui, InspectorPanel host) {
         super.setup(ui, host);
         setLayout(new BorderLayout());
         _textArea = new JTextArea();
         _textArea.setEditable(false);
         ui.registerTextComponent(_textArea);
-        JScrollPane scrollPane = 
-            new JScrollPane(
-                _textArea,
+        JScrollPane scrollPane = new JScrollPane(_textArea,
                 JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
                 JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setPreferredSize(new Dimension(500, 100));
         scrollPane.setBorder(null);
         add(scrollPane, BorderLayout.CENTER);
     }
-    
-    protected void refreshed()
-    {
+
+    protected void refreshed() {
         Management.LogicalRecord lr = _host.getLogicalRecord();
-        if (lr == null)
-        {
+        if (lr == null) {
             nullData();
-        }
-        else if (_host.isShowValue())
-        {
+        } else if (_host.isShowValue()) {
             _textArea.setText(lr.getValueString());
-        }
-        else
-        {
+        } else {
             _textArea.setText(lr.getKeyString());
         }
     }
-       
-    void nullMessage()
-    {
+
+    void nullMessage() {
         _textArea.setText(_adminUI.getNullMessage());
     }
-    
-    protected void waiting()
-    {
+
+    protected void waiting() {
         _textArea.setText(_adminUI.getWaitingMessage());
     }
-    
+
 }

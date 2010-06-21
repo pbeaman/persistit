@@ -24,19 +24,17 @@ import com.persistit.test.PersistitTestResult;
 
 public class Stress1 extends StressBase {
 
-    private final static String SHORT_DESCRIPTION =
-        "Simple write/read/delete/traverse loops";
+    private final static String SHORT_DESCRIPTION = "Simple write/read/delete/traverse loops";
 
-    private final static String LONG_DESCRIPTION =
-        "   Simple stress test that perform <repeat> iterations of the following: \r\n"
+    private final static String LONG_DESCRIPTION = "   Simple stress test that perform <repeat> iterations of the following: \r\n"
             + "    - insert <count> sequentially ascending keys \r\n"
             + "    - read and verify <count> sequentially ascending key/value pairs\r\n"
             + "    - traverse and count all keys using next() \r\n"
             + "    - delete <count> sequentially ascending keys \r\n"
             + "   Optional <splay> value allows variations in key sequence: \r\n";
 
-    private final static String[] ARGS_TEMPLATE =
-        { "op|String:wrtd|Operations to perform",
+    private final static String[] ARGS_TEMPLATE = {
+            "op|String:wrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions",
             "count|int:10000:0:1000000000|Number of nodes to populate",
             "size|int:30:1:20000|Size of each data value",
@@ -58,7 +56,7 @@ public class Stress1 extends StressBase {
 
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
+        super.setUp();
         _ap = new ArgParser("com.persistit.Stress1", _args, ARGS_TEMPLATE);
         _splay = _ap.getIntValue("splay");
         _opflags = _ap.getStringValue("op");
@@ -69,7 +67,8 @@ public class Stress1 extends StressBase {
 
         try {
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit",
+                    _rootName + _threadIndex, true);
         } catch (final Exception ex) {
             handleThrowable(ex);
         }
@@ -139,10 +138,9 @@ public class Stress1 extends StressBase {
                     }
                 }
                 if (_count != _total) {
-                    _result =
-                        new PersistitTestResult(false, "Traverse count=" + _count
-                            + " out of " + _total + " repetition=" + _repeat
-                            + " in thread=" + _threadIndex);
+                    _result = new PersistitTestResult(false, "Traverse count="
+                            + _count + " out of " + _total + " repetition="
+                            + _repeat + " in thread=" + _threadIndex);
                     println(_result);
                     forceStop();
                     break;

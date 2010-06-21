@@ -14,28 +14,23 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
+
 package com.persistit.exception;
 
-
 /**
- * Thrown when an application attempts to modify data in a 
+ * Thrown when an application attempts to modify data in a
  * {@link com.persistit.Volume} that is open in read-only mode.
- *
+ * 
  * @version 1.0
  */
-public class ReadOnlyVolumeException
-extends PersistitException
-{
+public class ReadOnlyVolumeException extends PersistitException {
     private static final long serialVersionUID = 4169989056763364382L;
-    
-    public ReadOnlyVolumeException()
-    {
+
+    public ReadOnlyVolumeException() {
         super();
     }
-    
-    public ReadOnlyVolumeException(String msg)
-    {
+
+    public ReadOnlyVolumeException(String msg) {
         super(msg);
     }
 }

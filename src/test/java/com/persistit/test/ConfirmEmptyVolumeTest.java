@@ -49,11 +49,10 @@ public class ConfirmEmptyVolumeTest extends PersistitScriptedTestCase {
 
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
+        super.setUp();
         if (_args.length == 0) {
             _args = new String[] { "persistit" };
         }
-
 
         _volumes = new Volume[_args.length];
 
@@ -74,8 +73,7 @@ public class ConfirmEmptyVolumeTest extends PersistitScriptedTestCase {
     }
 
     public void test1() {
-        final PersistitTestResult[] results =
-            new PersistitTestResult[_volumes.length];
+        final PersistitTestResult[] results = new PersistitTestResult[_volumes.length];
         int resultCount = 0;
         boolean passed = true;
         try {
@@ -92,14 +90,13 @@ public class ConfirmEmptyVolumeTest extends PersistitScriptedTestCase {
                             sb.append(treeNames[i]);
                             sb.append(" ");
                         }
-                        results[resultCount] =
-                            new PersistitTestResult(false, sb.toString());
+                        results[resultCount] = new PersistitTestResult(false,
+                                sb.toString());
                         passed = false;
                     }
                     resultCount++;
                 } else {
-                    _result =
-                        new PersistitTestResult(false, "Volume name "
+                    _result = new PersistitTestResult(false, "Volume name "
                             + _args[index] + " not found");
                     results[index] = _result;
                     resultCount++;
@@ -116,10 +113,10 @@ public class ConfirmEmptyVolumeTest extends PersistitScriptedTestCase {
         println();
         print("done");
     }
-    
+
     @Override
     public void executeTest() throws Exception {
-    	test1();
+        test1();
     }
 
     public static void main(final String[] args) throws Exception {

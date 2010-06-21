@@ -32,11 +32,9 @@ import com.persistit.test.PersistitTestResult;
  * 
  */
 public class Stress7 extends StressBase {
-    private final static String SHORT_DESCRIPTION =
-        "Exercise page splits and rejoin";
+    private final static String SHORT_DESCRIPTION = "Exercise page splits and rejoin";
 
-    private final static String LONG_DESCRIPTION =
-        "   Inserts and deletes key/value pairs in a pattern that tests\r\n"
+    private final static String LONG_DESCRIPTION = "   Inserts and deletes key/value pairs in a pattern that tests\r\n"
             + "   split and rejoin logic extensively.";
 
     @Override
@@ -49,20 +47,20 @@ public class Stress7 extends StressBase {
         return LONG_DESCRIPTION;
     }
 
-    private final static String[] ARGS_TEMPLATE =
-        { "repeat|int:1:0:1000000000|Repetitions",
+    private final static String[] ARGS_TEMPLATE = {
+            "repeat|int:1:0:1000000000|Repetitions",
             "count|int:1000:0:100000|Number of nodes to populate",
             "size|int:500:1:10000|Max splitting value size",
             "seed|int:1:1:20000|Random seed",
 
-        };
+    };
 
     int _size;
     int _seed;
 
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
+        super.setUp();
         _ap = new ArgParser("com.persistit.Stress7", _args, ARGS_TEMPLATE);
         _total = _ap.getIntValue("count");
         _repeatTotal = _ap.getIntValue("repeat");
@@ -103,7 +101,7 @@ public class Stress7 extends StressBase {
                 describeTest("Deleting all records");
                 setPhase("@");
                 _exs.clear().append("stress7").append(_threadIndex).remove(
-                    Key.GTEQ);
+                        Key.GTEQ);
                 println();
 
                 describeTest("Creating baseline records");
@@ -111,7 +109,7 @@ public class Stress7 extends StressBase {
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
                     _exs.clear().append("stress7").append(_threadIndex).append(
-                        _count).append(_sb1);
+                            _count).append(_sb1);
                     _exs.store();
                 }
                 println();
@@ -121,11 +119,10 @@ public class Stress7 extends StressBase {
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
                     _exs.clear().append("stress7").append(_threadIndex).append(
-                        _count).append(_sb1);
+                            _count).append(_sb1);
                     _sb2.setLength(0);
                     final int toSize = random(1, _size);
-                    for (int size = 0; (size < toSize) && !isStopped(); size +=
-                        4) {
+                    for (int size = 0; (size < toSize) && !isStopped(); size += 4) {
                         _sb2.append('y');
                         _exs.getValue().putString(_sb2);
                         _exs.store();
@@ -139,12 +136,12 @@ public class Stress7 extends StressBase {
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
                     _exs.clear().append("stress7").append(_threadIndex).append(
-                        _count).append(_sb1);
+                            _count).append(_sb1);
                     _exs.fetch();
                     if (_exs.getValue().isDefined()) {
-                        _result =
-                            new PersistitTestResult(false, "Value for key " + _exs.getKey()
-                                + " is defined but should not be");
+                        _result = new PersistitTestResult(false,
+                                "Value for key " + _exs.getKey()
+                                        + " is defined but should not be");
                         forceStop();
                         break;
                     }
@@ -159,7 +156,7 @@ public class Stress7 extends StressBase {
     }
 
     private void setupKey(final Exchange ex, final int length, final int depth,
-        final int a, final int b, final char fill) {
+            final int a, final int b, final char fill) {
         _sb1.setLength(0);
         for (int i = 0; i < length; i++) {
             _sb1.append(fill);

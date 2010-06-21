@@ -27,117 +27,118 @@ import com.persistit.exception.PersistitException;
 
 public class RecoveryTest extends PersistitUnitTestCase {
 
-	private static String[] _args = new String[0];
+    private static String[] _args = new String[0];
 
-	private String _volumeName = "persistit";
+    private String _volumeName = "persistit";
 
-	public void test1() throws Exception {
-		store1();
-		_persistit.close();
-		final Properties saveProperties = _persistit.getProperties();
-		_persistit = new Persistit();
+    public void test1() throws Exception {
+        store1();
+        _persistit.close();
+        final Properties saveProperties = _persistit.getProperties();
+        _persistit = new Persistit();
         _persistit.initialize(saveProperties);
         fetch1a();
         fetch1b();
-	}
+    }
 
-	private void checkEmpty() throws PersistitException {
-		System.out.print("test1_0 ");
-		final Exchange exchange = _persistit.getExchange(_volumeName,
-				"SimpleTest1", true);
-		exchange.append(Key.BEFORE);
-		final boolean empty = !exchange.traverse(Key.GT, true);
-		assertTrue(empty);
-		System.out.println("- done");
-	}
+    private void checkEmpty() throws PersistitException {
+        System.out.print("test1_0 ");
+        final Exchange exchange = _persistit.getExchange(_volumeName,
+                "SimpleTest1", true);
+        exchange.append(Key.BEFORE);
+        final boolean empty = !exchange.traverse(Key.GT, true);
+        assertTrue(empty);
+        System.out.println("- done");
+    }
 
-	private void store1() throws PersistitException {
-		System.out.print("test1_1 ");
-		final Exchange exchange = _persistit.getExchange(_volumeName,
-				"SimpleTest1", true);
-		exchange.removeAll();
-		final StringBuffer sb = new StringBuffer();
+    private void store1() throws PersistitException {
+        System.out.print("test1_1 ");
+        final Exchange exchange = _persistit.getExchange(_volumeName,
+                "SimpleTest1", true);
+        exchange.removeAll();
+        final StringBuffer sb = new StringBuffer();
 
-		for (int i = 1; i < 50000; i++) {
-			sb.setLength(0);
-			sb.append((char) (i / 20 + 64));
-			sb.append((char) (i % 20 + 64));
-			exchange.clear().append(sb);
-			exchange.getValue().put("Record #" + i);
-			exchange.store();
-		}
-	}
+        for (int i = 1; i < 50000; i++) {
+            sb.setLength(0);
+            sb.append((char) (i / 20 + 64));
+            sb.append((char) (i % 20 + 64));
+            exchange.clear().append(sb);
+            exchange.getValue().put("Record #" + i);
+            exchange.store();
+        }
+    }
 
-	private void fetch1a() throws PersistitException {
-		final Exchange exchange = _persistit.getExchange(_volumeName,
-				"SimpleTest1", false);
-		final StringBuffer sb = new StringBuffer();
+    private void fetch1a() throws PersistitException {
+        final Exchange exchange = _persistit.getExchange(_volumeName,
+                "SimpleTest1", false);
+        final StringBuffer sb = new StringBuffer();
 
-		for (int i = 1; i < 50000; i++) {
-			sb.setLength(0);
-			sb.append((char) (i / 20 + 64));
-			sb.append((char) (i % 20 + 64));
-			exchange.clear().append(sb);
-			exchange.fetch();
-			assertTrue(exchange.getValue().isDefined());
-			assertEquals("Record #" + i, exchange.getValue().getString());
-		}
+        for (int i = 1; i < 50000; i++) {
+            sb.setLength(0);
+            sb.append((char) (i / 20 + 64));
+            sb.append((char) (i % 20 + 64));
+            exchange.clear().append(sb);
+            exchange.fetch();
+            assertTrue(exchange.getValue().isDefined());
+            assertEquals("Record #" + i, exchange.getValue().getString());
+        }
 
-	}
+    }
 
-	private void fetch1b() throws PersistitException {
-		final Exchange exchange = _persistit.getExchange(_volumeName,
-				"SimpleTest1", false);
-		final StringBuffer sb = new StringBuffer();
-		for (int i = 1; i < 400; i++) {
-			sb.setLength(0);
-			sb.append((char) (i % 20 + 64));
-			sb.append((char) (i / 20 + 64));
-			exchange.clear().append(sb);
-			exchange.fetch();
-			final int k = (i / 20) + (i % 20) * 20;
-			assertEquals(exchange.getValue().getString(), "Record #" + k);
-		}
+    private void fetch1b() throws PersistitException {
+        final Exchange exchange = _persistit.getExchange(_volumeName,
+                "SimpleTest1", false);
+        final StringBuffer sb = new StringBuffer();
+        for (int i = 1; i < 400; i++) {
+            sb.setLength(0);
+            sb.append((char) (i % 20 + 64));
+            sb.append((char) (i / 20 + 64));
+            exchange.clear().append(sb);
+            exchange.fetch();
+            final int k = (i / 20) + (i % 20) * 20;
+            assertEquals(exchange.getValue().getString(), "Record #" + k);
+        }
 
-		System.out.println("- done");
-	}
-	public void runAllTests() throws Exception {
-		String protocol = "none";
-		if (_args.length > 1) {
-			for (int index = 1; index < _args.length; index++) {
-				protocol = _args[index];
-				if (protocol.startsWith("p")) {
-					_volumeName = "persistit";
-				}
-				if (protocol.startsWith("t")) {
-					_volumeName = "tempvol";
-				}
+        System.out.println("- done");
+    }
 
-				System.out.println("SimpleTest1 protocol: " + protocol);
-				if (protocol.equals("p")) {
-					store1();
-					fetch1a();
-					fetch1b();
-				} else if (protocol.equals("p1")) {
-					store1();
-				} else if (protocol.equals("p2")) {
-					fetch1a();
-					fetch1b();
-				} else if (protocol.equals("t")) {
-					store1();
-					fetch1a();
-					fetch1b();
-				} else if (protocol.equals("t1")) {
-					store1();
-				} else if (protocol.equals("t2")) {
-					checkEmpty();
-				} else {
-					System.out.println("? " + protocol);
-				}
-			}
-		} else {
-			test1();
-		}
-	}
+    public void runAllTests() throws Exception {
+        String protocol = "none";
+        if (_args.length > 1) {
+            for (int index = 1; index < _args.length; index++) {
+                protocol = _args[index];
+                if (protocol.startsWith("p")) {
+                    _volumeName = "persistit";
+                }
+                if (protocol.startsWith("t")) {
+                    _volumeName = "tempvol";
+                }
+
+                System.out.println("SimpleTest1 protocol: " + protocol);
+                if (protocol.equals("p")) {
+                    store1();
+                    fetch1a();
+                    fetch1b();
+                } else if (protocol.equals("p1")) {
+                    store1();
+                } else if (protocol.equals("p2")) {
+                    fetch1a();
+                    fetch1b();
+                } else if (protocol.equals("t")) {
+                    store1();
+                    fetch1a();
+                    fetch1b();
+                } else if (protocol.equals("t1")) {
+                    store1();
+                } else if (protocol.equals("t2")) {
+                    checkEmpty();
+                } else {
+                    System.out.println("? " + protocol);
+                }
+            }
+        } else {
+            test1();
+        }
+    }
 
 }

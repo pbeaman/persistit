@@ -14,22 +14,20 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
+
 package com.persistit.exception;
+
 /**
  * Thrown when a method must back off and retry.
- *
+ * 
  * @version 2.1
  */
-public class RetryException
-extends PersistitException
-{
-	private static final long serialVersionUID = 2499610291488873031L;
-	
-	public final static RetryException SINGLE = new RetryException();
-    
-    public RetryException()
-    {
+public class RetryException extends PersistitException {
+    private static final long serialVersionUID = 2499610291488873031L;
+
+    public final static RetryException SINGLE = new RetryException();
+
+    public RetryException() {
 
     }
 }

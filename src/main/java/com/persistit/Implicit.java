@@ -15,14 +15,14 @@
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  * 
  */
- 
 
 package com.persistit;
+
 /**
  * Marker for implicitly defined ValueCoder implementations
+ * 
  * @version 1.1
  */
-public interface Implicit
-{
+public interface Implicit {
 
 }

@@ -16,21 +16,17 @@
  */
 package com.persistit.exception;
 
-
 /**
- * Thrown when a Persistit database operation fails to establish a claim on
- * a resource within a reasonable length of time.  The timeout is a property
- * of the {@link com.persistit.Exchange} that initiated the failed operation.
- *
+ * Thrown when a Persistit database operation fails to establish a claim on a
+ * resource within a reasonable length of time. The timeout is a property of the
+ * {@link com.persistit.Exchange} that initiated the failed operation.
+ * 
  * @version 1.0
  */
-public class InUseException
-extends PersistitException
-{
+public class InUseException extends PersistitException {
     private static final long serialVersionUID = -4898002482348605103L;
-    
-    public InUseException(String msg)
-    {
+
+    public InUseException(String msg) {
         super(msg);
     }
 }

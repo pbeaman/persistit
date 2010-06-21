@@ -16,25 +16,20 @@
  */
 package com.persistit.exception;
 
-
 /**
- * Thrown when an utililty operation performing within the context of a 
+ * Thrown when an utililty operation performing within the context of a
  * TaskController is stopped.
  * 
  * @version 1.0
  */
-public class TaskEndedException
-extends RuntimeException
-{
+public class TaskEndedException extends RuntimeException {
     private static final long serialVersionUID = 6439247775639387615L;
-    
-    public TaskEndedException()
-    {
+
+    public TaskEndedException() {
         super();
     }
-    
-    public TaskEndedException(String msg)
-    {
+
+    public TaskEndedException(String msg) {
         super(msg);
     }
 }

@@ -17,34 +17,33 @@
  * Created on Jul 1, 2004
  */
 package com.persistit.encoding;
+
 import java.io.Serializable;
 
 import com.persistit.Key;
 import com.persistit.Value;
+
 /**
- * A marker interface for an application-specific object that may be passed
- * to a {@link KeyCoder} or {@link ValueCoder}. This object may be used to
- * pass application context information from the application to the coder
- * instance. The following methods accept a <tt>CoderContext</tt>:
+ * A marker interface for an application-specific object that may be passed to a
+ * {@link KeyCoder} or {@link ValueCoder}. This object may be used to pass
+ * application context information from the application to the coder instance.
+ * The following methods accept a <tt>CoderContext</tt>:
  * <ul>
- * <li>{@link Key#append(Object, CoderContext)}</li> 
- * <li>{@link Key#decode(Object, CoderContext)}</li> 
- * <li>{@link Key#decodeString(CoderContext)}</li> 
- * <li>{@link Key#decodeString(StringBuffer, CoderContext)}</li> 
- * <li>{@link Key#decodeDisplayable(boolean, StringBuffer, CoderContext)}</li> 
+ * <li>{@link Key#append(Object, CoderContext)}</li>
+ * <li>{@link Key#decode(Object, CoderContext)}</li>
+ * <li>{@link Key#decodeString(CoderContext)}</li>
+ * <li>{@link Key#decodeString(StringBuffer, CoderContext)}</li>
+ * <li>{@link Key#decodeDisplayable(boolean, StringBuffer, CoderContext)}</li>
  * <li>{@link Value#put(Object, CoderContext)}</li>
  * <li>{@link Value#get(Object, CoderContext)}</li>
  * </ul>
- * This interface has no behavior; it simply marks classes
- * that are intended for this purpose to enhance type safety. Note that
- * <tt>CoderContext</tt> extends <tt>java.io.Serializable</tt>, meaning that
- * any object you provide as a CoderContext must behave correctly when
- * serialized and deserialized.
- *
+ * This interface has no behavior; it simply marks classes that are intended for
+ * this purpose to enhance type safety. Note that <tt>CoderContext</tt> extends
+ * <tt>java.io.Serializable</tt>, meaning that any object you provide as a
+ * CoderContext must behave correctly when serialized and deserialized.
+ * 
  * @version 1.0
  */
-public interface CoderContext
-extends Serializable
-{
+public interface CoderContext extends Serializable {
 
 }

@@ -26,7 +26,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.logging.Log4JAdapter;
 
 public class Log4JLoggerTest extends PersistitUnitTestCase {
-    
+
     public void test1() throws PersistitException {
         System.out.print("test1 ");
         System.out.println("- done");
@@ -37,18 +37,18 @@ public class Log4JLoggerTest extends PersistitUnitTestCase {
     }
 
     public void runAllTests() throws Exception {
-        final Logger logger =
-            Logger.getLogger("com.persistit.unit.JDK14LoggerTest");
+        final Logger logger = Logger
+                .getLogger("com.persistit.unit.JDK14LoggerTest");
         // Set up a simple configuration that logs on the console.
         BasicConfigurator.configure();
-        Persistit persistit = new Persistit(); 
+        Persistit persistit = new Persistit();
         persistit.setPersistitLogger(new Log4JAdapter(logger));
         persistit.initialize(UnitTestProperties.getAlternateProperties());
         try {
             test1();
         } finally {
             persistit.close();
-        }        
+        }
     }
 
 }

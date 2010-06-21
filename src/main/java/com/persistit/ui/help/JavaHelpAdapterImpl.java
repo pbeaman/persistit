@@ -17,6 +17,7 @@
  * Created on May 18, 2005
  */
 package com.persistit.ui.help;
+
 import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -32,59 +33,48 @@ import com.persistit.ui.JavaHelpAdapter;
  * @author Peter Beaman
  * @version 1.0
  */
-public class JavaHelpAdapterImpl
-implements JavaHelpAdapter
-{
+public class JavaHelpAdapterImpl implements JavaHelpAdapter {
     String _helpSetName;
     HelpSet _helpSet;
     ActionListener _actionListener;
-    
-    public void showHelp(ActionEvent ae)
-    {
-        if (_actionListener != null)
-        {
+
+    public void showHelp(ActionEvent ae) {
+        if (_actionListener != null) {
             _actionListener.actionPerformed(ae);
         }
     }
-    
-    public void create(Object arg, final ActionEvent ae)
-    {
-        _helpSetName = (String)arg;
-        Thread thread = new Thread(new Runnable()
-        {
-            public void run()
-            {
-                //  Find the HelpSet file and create the HelpSet object:
+
+    public void create(Object arg, final ActionEvent ae) {
+        _helpSetName = (String) arg;
+        Thread thread = new Thread(new Runnable() {
+            public void run() {
+                // Find the HelpSet file and create the HelpSet object:
                 ClassLoader cl = getClass().getClassLoader();
-                try
-                {
-                   URL hsURL = HelpSet.findHelpSet(cl, _helpSetName);
-                   _helpSet = new HelpSet(null, hsURL);
-                   //  Create a HelpBroker object:
-                   HelpBroker hb = _helpSet.createHelpBroker();
-                   //  Create a "Help" menu item to trigger the help viewer:
-                   _actionListener = new CSH.DisplayHelpFromSource(hb);
-                   _actionListener.actionPerformed(ae);
-                }
-                catch (Exception ee) {
-                   // Say what the exception really is
-                   System.out.println( "HelpSet " + ee.getMessage());
-                   System.out.println("HelpSet "+ _helpSetName +" not found");
+                try {
+                    URL hsURL = HelpSet.findHelpSet(cl, _helpSetName);
+                    _helpSet = new HelpSet(null, hsURL);
+                    // Create a HelpBroker object:
+                    HelpBroker hb = _helpSet.createHelpBroker();
+                    // Create a "Help" menu item to trigger the help viewer:
+                    _actionListener = new CSH.DisplayHelpFromSource(hb);
+                    _actionListener.actionPerformed(ae);
+                } catch (Exception ee) {
+                    // Say what the exception really is
+                    System.out.println("HelpSet " + ee.getMessage());
+                    System.out
+                            .println("HelpSet " + _helpSetName + " not found");
                 }
             }
         });
         thread.setDaemon(true);
         thread.start();
     }
-    
-    public void dispose()
-    {
+
+    public void dispose() {
         Frame[] frames = java.awt.Frame.getFrames();
-        for (int index = 0; index < frames.length; index++)
-        {
+        for (int index = 0; index < frames.length; index++) {
             Frame frame = frames[index];
-            if (frame.getTitle().indexOf("Persistit AdminUI Help") >= 0)
-            {
+            if (frame.getTitle().indexOf("Persistit AdminUI Help") >= 0) {
                 frame.dispose();
             }
         }

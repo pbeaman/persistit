@@ -19,13 +19,10 @@
 
 package com.persistit.jmx;
 
-public class PersistitJmxRuntimeException
-extends RuntimeException
-{
+public class PersistitJmxRuntimeException extends RuntimeException {
     private static final long serialVersionUID = -1179578677637314369L;
 
-    PersistitJmxRuntimeException(Exception e)
-    {
+    PersistitJmxRuntimeException(Exception e) {
         super(e);
     }
 }

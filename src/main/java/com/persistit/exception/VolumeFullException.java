@@ -14,28 +14,23 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
-package com.persistit.exception;
 
+package com.persistit.exception;
 
 /**
  * Thrown when an attempt to modify a {@link com.persistit.Volume} would exceed
  * the maximum volume size.
- *
+ * 
  * @version 1.0
  */
-public class VolumeFullException
-extends PersistitException
-{
+public class VolumeFullException extends PersistitException {
     private static final long serialVersionUID = 8242889546768166848L;
-    
-    public VolumeFullException()
-    {
+
+    public VolumeFullException() {
         super();
     }
 
-    public VolumeFullException(String msg)
-    {
+    public VolumeFullException(String msg) {
         super(msg);
     }
 }

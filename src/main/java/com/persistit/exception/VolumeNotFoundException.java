@@ -14,29 +14,23 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
+
 package com.persistit.exception;
 
-
 /**
- * Thrown when the Persistit configuration species a volume file that
- * does not exist, and does not specify the <tt>create</tt> or 
- * <tt>createOnly</tt> flag.
- *
+ * Thrown when the Persistit configuration species a volume file that does not
+ * exist, and does not specify the <tt>create</tt> or <tt>createOnly</tt> flag.
+ * 
  * @version 1.0
  */
-public class VolumeNotFoundException
-extends PersistitException
-{
+public class VolumeNotFoundException extends PersistitException {
     private static final long serialVersionUID = 153323091297427862L;
-    
-    public VolumeNotFoundException()
-    {
+
+    public VolumeNotFoundException() {
         super();
     }
 
-    public VolumeNotFoundException(String msg)
-    {
+    public VolumeNotFoundException(String msg) {
         super(msg);
     }
 }

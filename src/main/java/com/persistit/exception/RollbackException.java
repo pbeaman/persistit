@@ -17,40 +17,34 @@
 package com.persistit.exception;
 
 /**
- * Thrown by {@link com.persistit.Transaction} when 
+ * Thrown by {@link com.persistit.Transaction} when
  * {@link com.persistit.Transaction#commit commit} fails, or when
  * {@link com.persistit.Transaction#rollback rollback} is invoked.
- *
+ * 
  * @version 1.0
  */
-public class RollbackException
-extends RuntimeException
-{
+public class RollbackException extends RuntimeException {
     private static final long serialVersionUID = 4146025543886888181L;
-    
+
     Throwable _cause;
-    
-    public RollbackException()
-    {
+
+    public RollbackException() {
         super();
     }
-    
-    public RollbackException(String msg)
-    {
+
+    public RollbackException(String msg) {
         super(msg);
     }
-    
-    public RollbackException(Throwable t)
-    {
+
+    public RollbackException(Throwable t) {
         _cause = t;
     }
-    
+
     /**
-     * Provides an implementation for JDK1.3 and below.  This simply
-     * overrides the JDK1.4 implementation of this method.
+     * Provides an implementation for JDK1.3 and below. This simply overrides
+     * the JDK1.4 implementation of this method.
      */
-    public Throwable getCause()
-    {
+    public Throwable getCause() {
         return _cause;
     }
 

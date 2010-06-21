@@ -14,27 +14,25 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
+
 package com.persistit.exception;
+
 import java.io.IOException;
+
 /**
  * Thrown when attempting to create new {@link com.persistit.Tree} if another
  * <tt>Tree</tt> having the same name already exists.
- *
+ * 
  * @version 1.0
  */
-public class TreeAlreadyExistsException
-extends IOException
-{
+public class TreeAlreadyExistsException extends IOException {
     private static final long serialVersionUID = 4038415783689624531L;
-    
-    public TreeAlreadyExistsException()
-    {
+
+    public TreeAlreadyExistsException() {
         super();
     }
 
-    public TreeAlreadyExistsException(String msg)
-    {
+    public TreeAlreadyExistsException(String msg) {
         super(msg);
     }
 }

@@ -33,100 +33,101 @@ import com.persistit.exception.PersistitException;
 /**
  * <p>
  * Implements a persistent <tt>java.util.SortedMap</tt> over a Persistit
- * database. Keys and values inserted into this map are serialized 
- * and stored within Persistit using the encoding methods of {@link Key} and 
- * {@link Value}.
+ * database. Keys and values inserted into this map are serialized and stored
+ * within Persistit using the encoding methods of {@link Key} and {@link Value}.
  * </p>
  * <p>
- * To construct a <tt>PersistitMap</tt> you supply a {@link Exchange}.  The keys
+ * To construct a <tt>PersistitMap</tt> you supply a {@link Exchange}. The keys
  * inserted into this map are appended to the key within the {@link Tree}
  * originally supplied by the <tt>Exchange</tt>. For example, the code
- * <blockquote><pre>
+ * <blockquote>
+ * 
+ * <pre>
  *      Exchange ex = new Exchange("demo", "composers", true);
  *      ex.append("My Favorite Johns");
  *      Map map = new PersistitMap(ex);
  *      map.put("Brahms", "Johannes");
  *      map.put("Bach", "Johann");
- * </blockquote></pre>
- * is equivalent to
- * <blockquote><pre>
+ * </blockquote>
+ * </pre>
+ * 
+ * is equivalent to <blockquote>
+ * 
+ * <pre>
  *      Exchange ex = new Exchange("demo", "composers", true);
  *      ex.getValue().put("Johannes");
  *      ex.clear().append("My Favorite Johns","Brahms").store();
  *      ex.getValue().put("Johann");
  *      ex.clear().append("My Favorite Johns","Bach").store();
- * </blockquote></pre>
+ * </blockquote>
+ * </pre>
+ * 
  * </p>
  * <p>
- * By default any <tt>Iterator</tt>s created by <tt>PersistitMap</tt>'s collection 
- * views implement <i>fail-fast</i> behavior, meaning that methods of the the
- * <tt>Iterator</tt> will throw a <tt>ConcurrentModificationException</tt>
- * if the backing store has changed after the <tt>Iterator</tt> was created.
- * However, in a large persistent database designed for concurrent access, it
- * is often preferrable to allow the <tt>Iterator</tt> to function
- * continuously even when the underlying database is changing.  The
- * {@link #setAllowConcurrentModification} method provides control over this
- * behavior.
+ * By default any <tt>Iterator</tt>s created by <tt>PersistitMap</tt>'s
+ * collection views implement <i>fail-fast</i> behavior, meaning that methods of
+ * the the <tt>Iterator</tt> will throw a
+ * <tt>ConcurrentModificationException</tt> if the backing store has changed
+ * after the <tt>Iterator</tt> was created. However, in a large persistent
+ * database designed for concurrent access, it is often preferrable to allow the
+ * <tt>Iterator</tt> to function continuously even when the underlying database
+ * is changing. The {@link #setAllowConcurrentModification} method provides
+ * control over this behavior.
  * </p>
  * <p>
  * PersistitMap departs from the general contract for <tt>SortedMap</tt> with
- * respect to the {@link Comparable} interface.  The ordering of items 
- * within the map is determined  by the encoding of key values into their
- * underlying serialized byte array representation (see {@link Key
- * Key Ordering}).  Generally this ordering corresponds to the default
- * <tt>Comparable</tt> implementation for each supported type. However,
- * <tt>PersistitMap</tt> permits storage of key values that may not permit
- * comparison under their <tt>compareTo</tt> implementations, does not
- * require key values to implement <tt>Comparable</tt>, and ignores
- * the ordering implemented by <tt>Comparable</tt>. Similarly,
- * <tt>PersistitMap</tt> does not allow installation of a custom
- * {@link java.util.Comparator Comparator}. To customize the ordering of
- * key values in a <tt>PersistitMap</tt>, implement and register a custom
- * {@link com.persistit.encoding.KeyCoder KeyCoder} or
+ * respect to the {@link Comparable} interface. The ordering of items within the
+ * map is determined by the encoding of key values into their underlying
+ * serialized byte array representation (see {@link Key Key Ordering}).
+ * Generally this ordering corresponds to the default <tt>Comparable</tt>
+ * implementation for each supported type. However, <tt>PersistitMap</tt>
+ * permits storage of key values that may not permit comparison under their
+ * <tt>compareTo</tt> implementations, does not require key values to implement
+ * <tt>Comparable</tt>, and ignores the ordering implemented by
+ * <tt>Comparable</tt>. Similarly, <tt>PersistitMap</tt> does not allow
+ * installation of a custom {@link java.util.Comparator Comparator}. To
+ * customize the ordering of key values in a <tt>PersistitMap</tt>, implement
+ * and register a custom {@link com.persistit.encoding.KeyCoder KeyCoder} or
  * {@link com.persistit.encoding.KeyStringCoder KeyStringCoder}.
  * </p>
  * <p>
- * Unlike other <tt>Map</tt> implementations, the methods of this class 
- * <i>are</i> thread-safe. Each of the <tt>Map</tt> methods is 
- * synchronized on this <tt>PersistitMap</tt> instance, and each of the 
- * methods of any collection view <tt>Iterator</tt> created by this Map 
- * is synchronized on that iterator.  Thus this class enforces serialized
- * access to its internal memory structures. However, for maximum 
- * concurrency an application that shares data among multiple threads 
- * should create a separate instance of PersistitMap for each thread 
- * backed by the same tree rather than sharing a single PersistitMap 
- * object. These <tt>PersistitMap</tt> instances can concurrently 
- * modify and query the same collection of data.
+ * Unlike other <tt>Map</tt> implementations, the methods of this class
+ * <i>are</i> thread-safe. Each of the <tt>Map</tt> methods is synchronized on
+ * this <tt>PersistitMap</tt> instance, and each of the methods of any
+ * collection view <tt>Iterator</tt> created by this Map is synchronized on that
+ * iterator. Thus this class enforces serialized access to its internal memory
+ * structures. However, for maximum concurrency an application that shares data
+ * among multiple threads should create a separate instance of PersistitMap for
+ * each thread backed by the same tree rather than sharing a single PersistitMap
+ * object. These <tt>PersistitMap</tt> instances can concurrently modify and
+ * query the same collection of data.
  * </p>
  * <p>
  * Unlike an in-memory implementation of <tt>SortedMap</tt>, this implementation
- * serializes and deserializes object values into and from byte arrays stored
- * as Persistit key/value pairs. Thus the {@link #put} and {@link #remove}
- * methods not only read the former value from the database, but
- * also incur the overhead of deserializing it.  In many cases applications do
- * not use the former value, and therefore this computation is often
- * unnecessary.  For maximum performance an application can invoke the
- * {@link #putFast} and {@link #removeFast} methods. These methods are analogous
- * to {@link #put} and {@link #remove} but do not deserialize or return the
- * former object value.
+ * serializes and deserializes object values into and from byte arrays stored as
+ * Persistit key/value pairs. Thus the {@link #put} and {@link #remove} methods
+ * not only read the former value from the database, but also incur the overhead
+ * of deserializing it. In many cases applications do not use the former value,
+ * and therefore this computation is often unnecessary. For maximum performance
+ * an application can invoke the {@link #putFast} and {@link #removeFast}
+ * methods. These methods are analogous to {@link #put} and {@link #remove} but
+ * do not deserialize or return the former object value.
  * </p>
  * <p>
  * The <tt>Iterator</tt> implementation returned by the {@link #keySet},
- * {@link #values()} and {@link #entrySet()} provides methods to set
- * and access a {@link KeyFilter} for the iterator's traversal of keys in
- * the map. With a filter in place, the iterator only returns keys, values or
- * entries for records whose keys are selected by the filter.
+ * {@link #values()} and {@link #entrySet()} provides methods to set and access
+ * a {@link KeyFilter} for the iterator's traversal of keys in the map. With a
+ * filter in place, the iterator only returns keys, values or entries for
+ * records whose keys are selected by the filter.
  * </p>
- *
+ * 
  * @version 1.0
  */
-public class PersistitMap
-implements SortedMap
-{
+public class PersistitMap implements SortedMap {
     private final static int KEY = 1;
     private final static int VALUE = 2;
     private final static int ENTRY = 3;
-    
+
     PersistitMap _parentPersistitMap;
     private Exchange _ex;
     private long _sizeGeneration;
@@ -139,210 +140,175 @@ implements SortedMap
     private Key _toKey;
     /**
      * Each of these fields are initialized to contain an instance of the
-     * appropriate view the first time this view is requested.  The views are
+     * appropriate view the first time this view is requested. The views are
      * stateless, so there's no reason to create more than one of each.
      */
     private transient volatile Set _keySet = null;
     private transient volatile Collection _values = null;
     private transient volatile Set _entrySet;
-        
+
     /**
      * Constructs a PersistitMap over a particular Exchange.
-     * @param ex    A <tt>Exchange</tt> that serves as the parent of the Map's 
-     *              keys.  This constructor makes a copy of the <tt>Exchange</tt>.
-     *              The original Exchange is unchanged, and may be reused by the 
-     *              caller. 
+     * 
+     * @param ex
+     *            A <tt>Exchange</tt> that serves as the parent of the Map's
+     *            keys. This constructor makes a copy of the <tt>Exchange</tt>.
+     *            The original Exchange is unchanged, and may be reused by the
+     *            caller.
      */
-    public PersistitMap(Exchange ex)
-    {
+    public PersistitMap(Exchange ex) {
         _ex = new Exchange(ex);
-        
+
         _ex.append(Key.BEFORE);
-        _sizeGeneration = -1;  //Unknown
+        _sizeGeneration = -1; // Unknown
     }
-    
+
     /**
      * Constructs a PersistitMap over the range of keys from fromKey (inclusive)
      * to toKey (exclusive)
+     * 
      * @param pm
      * @param useFrom
      * @param fromKey
      * @param useTo
      * @param toKey
      * 
-     * @throws IllegalArgumentException if fromKey is after toKey or if
-     *          either fromKey or toKey is outside the range of the supplied
-     *          base PersistitMap
+     * @throws IllegalArgumentException
+     *             if fromKey is after toKey or if either fromKey or toKey is
+     *             outside the range of the supplied base PersistitMap
      */
-    private PersistitMap(PersistitMap pm,
-                      boolean useFrom, 
-                      Object fromKey, 
-                      boolean useTo, 
-                      Object toKey)
-    {
+    private PersistitMap(PersistitMap pm, boolean useFrom, Object fromKey,
+            boolean useTo, Object toKey) {
         _ex = new Exchange(pm._ex);
         _ex.clearOwnerThread();
-        
-        _sizeGeneration = -1;  //Unknown
-        if (useFrom)
-        {
+
+        _sizeGeneration = -1; // Unknown
+        if (useFrom) {
             Key key = new Key(_ex.getKey());
-            try
-            {
+            try {
                 key.to(fromKey);
+            } catch (UnsupportedOperationException use) {
+                throw new ClassCastException(fromKey != null ? fromKey
+                        .getClass().getName() : null);
             }
-            catch (UnsupportedOperationException use)
-            {
-                throw new ClassCastException(
-                    fromKey != null ? fromKey.getClass().getName() : null);
-            }
-            if (pm._fromKey != null &&
-                pm._fromKey.compareTo(key) > 0 ||
-                pm._toKey != null &&
-                pm._toKey.compareTo(key) < 0)
-            {
-                throw new IllegalArgumentException(
-                    "Key " + fromKey + " is outside submap range");
+            if (pm._fromKey != null && pm._fromKey.compareTo(key) > 0
+                    || pm._toKey != null && pm._toKey.compareTo(key) < 0) {
+                throw new IllegalArgumentException("Key " + fromKey
+                        + " is outside submap range");
             }
             _fromKey = key;
-        }
-        else
-        {
+        } else {
             _fromKey = pm._fromKey;
         }
-        if (useTo)
-        {
+        if (useTo) {
             Key key = new Key(_ex.getKey());
-            try
-            {
+            try {
                 key.to(toKey);
+            } catch (UnsupportedOperationException use) {
+                throw new ClassCastException(toKey != null ? toKey.getClass()
+                        .getName() : null);
             }
-            catch (UnsupportedOperationException use)
-            {
-                throw new ClassCastException(
-                    toKey != null ? toKey.getClass().getName() : null);
-            }
-            if (pm._fromKey != null &&
-            pm._fromKey.compareTo(key) > 0 ||
-            pm._toKey != null &&
-            pm._toKey.compareTo(key) < 0)
-            {
-                throw new IllegalArgumentException(
-                    "Key " + toKey + " is outside submap range");
+            if (pm._fromKey != null && pm._fromKey.compareTo(key) > 0
+                    || pm._toKey != null && pm._toKey.compareTo(key) < 0) {
+                throw new IllegalArgumentException("Key " + toKey
+                        + " is outside submap range");
             }
             _toKey = key;
-        }
-        else
-        {
+        } else {
             _toKey = pm._toKey;
         }
     }
 
     /**
-     * Indicates whether a new <tt>Iterator</tt>s should throw
-     * a <tt>ConcurrentModificationException</tt> in the event the
-     * Persistit Tree backing this Map changes.
+     * Indicates whether a new <tt>Iterator</tt>s should throw a
+     * <tt>ConcurrentModificationException</tt> in the event the Persistit Tree
+     * backing this Map changes.
      * 
      * @return <tt>true</tt> if concurrent modifications are currently allowed,
-     *      otherwise <tt>false</tt>.
+     *         otherwise <tt>false</tt>.
      */
-    public boolean isAllowConcurrentModification()
-    {
+    public boolean isAllowConcurrentModification() {
         return _allowConcurrentModification;
     }
-    
+
     /**
-     * Controls whether iterators of the collection views of this Map
-     * will throw <tt>ConcurrentModificationException</tt> in the event
-     * the underlying physical database changes.  This property is used
-     * in constructing an new <tt>Iterator</tt> on a collection view.
-     * Changing this property after an <tt>Iterator</tt> has been
-     * constructed does not change that <tt>Iterator</tt>'s behavior. 
-     * @param allow Specify <i>true</i> to allow changes in the backing Tree.
-     *              Specify <i>false</i> to cause newly constructed
-     *              <tt>Iterator</tt>s to throw a
-     *              <tt>ConcurrentModificationException</tt> if the
-     *              Persistit Tree backing this Map changes. 
+     * Controls whether iterators of the collection views of this Map will throw
+     * <tt>ConcurrentModificationException</tt> in the event the underlying
+     * physical database changes. This property is used in constructing an new
+     * <tt>Iterator</tt> on a collection view. Changing this property after an
+     * <tt>Iterator</tt> has been constructed does not change that
+     * <tt>Iterator</tt>'s behavior.
+     * 
+     * @param allow
+     *            Specify <i>true</i> to allow changes in the backing Tree.
+     *            Specify <i>false</i> to cause newly constructed
+     *            <tt>Iterator</tt>s to throw a
+     *            <tt>ConcurrentModificationException</tt> if the Persistit Tree
+     *            backing this Map changes.
      */
-    public void setAllowConcurrentModification(boolean allow)
-    {
+    public void setAllowConcurrentModification(boolean allow) {
         _allowConcurrentModification = allow;
     }
-    
-    private void toLeftEdge()
-    {
-        if (_fromKey == null)
-        {
+
+    private void toLeftEdge() {
+        if (_fromKey == null) {
             _ex.to(Key.BEFORE);
-        }
-        else
-        {
+        } else {
             _fromKey.copyTo(_ex.getKey());
         }
     }
-    
-    private void toRightEdge()
-    {
-        if (_toKey == null)
-        {
+
+    private void toRightEdge() {
+        if (_toKey == null) {
             _ex.to(Key.AFTER);
-        }
-        else
-        {
+        } else {
             _toKey.copyTo(_ex.getKey());
         }
     }
-    
-    private boolean toKey(Object key)
-    {
-        try
-        {
+
+    private boolean toKey(Object key) {
+        try {
             _ex.to(key);
-            if (_fromKey != null && _fromKey.compareTo(_ex.getKey()) > 0) return false;
-            if (_toKey != null && _toKey.compareTo(_ex.getKey()) < 0) return false;
+            if (_fromKey != null && _fromKey.compareTo(_ex.getKey()) > 0)
+                return false;
+            if (_toKey != null && _toKey.compareTo(_ex.getKey()) < 0)
+                return false;
             return true;
-        }
-        catch (UnsupportedOperationException uoe)
-        {
-            throw new ClassCastException(
-                key != null ? key.getClass().getName() : null);
+        } catch (UnsupportedOperationException uoe) {
+            throw new ClassCastException(key != null ? key.getClass().getName()
+                    : null);
         }
     }
 
     // Query Operations
 
     /**
-     * Returns the number of key-value mappings in this map.  If the map
-     * contains more than <tt>Integer.MAX_VALUE</tt> elements, returns
+     * Returns the number of key-value mappings in this map. If the map contains
+     * more than <tt>Integer.MAX_VALUE</tt> elements, returns
      * <tt>Integer.MAX_VALUE</tt>.
      * <p>
-     * This implementation enumerates all the members of the Map, which for
-     * a large database could be time-consuming.
-     *
+     * This implementation enumerates all the members of the Map, which for a
+     * large database could be time-consuming.
+     * 
      * @return the number of key-value mappings in this map.
      */
-    public synchronized int size()
-    {
+    public synchronized int size() {
         _ex.clearOwnerThread();
-        if (_ex.getChangeCount() == _sizeGeneration)
-        {
+        if (_ex.getChangeCount() == _sizeGeneration) {
             return _size;
         }
         int size = 0;
-        try
-        {
+        try {
             toLeftEdge();
-            while (_ex.traverse(size == 0 ? Key.GTEQ : Key.GT, false, 0))
-            {
-                if (_toKey != null && _ex.getKey().compareTo(_toKey) >= 0) break;
+            while (_ex.traverse(size == 0 ? Key.GTEQ : Key.GT, false, 0)) {
+                if (_toKey != null && _ex.getKey().compareTo(_toKey) >= 0)
+                    break;
                 size++;
             }
             _size = size;
             _sizeGeneration = _ex.getChangeCount();
             return _size;
-        }
-        catch (PersistitException de)
-        {
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -350,82 +316,64 @@ implements SortedMap
     /**
      * Returns <tt>true</tt> if this map contains no key-value mappings.
      * <p>
-     * This implementation is relatively efficient because it enumerates
-     * at most one child node of the Exchange to determine whether there are
-     * any children.
-     *
+     * This implementation is relatively efficient because it enumerates at most
+     * one child node of the Exchange to determine whether there are any
+     * children.
+     * 
      * @return <tt>true</tt> if this map contains no key-value mappings.
      */
-    public synchronized boolean isEmpty()
-    {
+    public synchronized boolean isEmpty() {
         _ex.clearOwnerThread();
-        if (_ex.getChangeCount() == _sizeGeneration)
-        {
+        if (_ex.getChangeCount() == _sizeGeneration) {
             return _size == 0;
         }
-        try
-        {
+        try {
             toLeftEdge();
-            if (_ex.traverse(Key.GTEQ, false))
-            {
-                if (_toKey != null && _ex.getKey().compareTo(_toKey) >= 0)
-                {
+            if (_ex.traverse(Key.GTEQ, false)) {
+                if (_toKey != null && _ex.getKey().compareTo(_toKey) >= 0) {
                     return true;
-                }
-                else
-                {
+                } else {
                     return false;
                 }
-            }
-            else
-            {
+            } else {
                 return true;
             }
-        }
-        catch (PersistitException de)
-        {
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
 
     /**
      * Returns <tt>true</tt> if this map maps one or more keys to this value.
-     * More formally, returns <tt>true</tt> if and only if this map contains
-     * at least one mapping to a value <tt>v</tt> such that <tt>(value==null ?
-     * v==null : value.equals(v))</tt>.  This operation will probably require
+     * More formally, returns <tt>true</tt> if and only if this map contains at
+     * least one mapping to a value <tt>v</tt> such that <tt>(value==null ?
+     * v==null : value.equals(v))</tt>. This operation will probably require
      * time linear in the map size for most implementations of map.
      * <p>
-     * This implementation implements a linear search across the child nodes
-     * of the Exchange, and can therefore be extremely time-consuming and
+     * This implementation implements a linear search across the child nodes of
+     * the Exchange, and can therefore be extremely time-consuming and
      * resource-intensive for large databases.
      * 
-     * @param value value whose presence in this map is to be tested.
+     * @param value
+     *            value whose presence in this map is to be tested.
      * 
      * @return <tt>true</tt> if this map maps one or more keys to this value.
      */
-    public synchronized boolean containsValue(Object value)
-    {
+    public synchronized boolean containsValue(Object value) {
         _ex.clearOwnerThread();
         Value lookupValue = new Value(_ex.getPersistitInstance());
-        try
-        {
+        try {
             lookupValue.put(value);
             toLeftEdge();
-            while(_ex.next())
-            {
-                if (_toKey != null && _ex.getKey().compareTo(_toKey) >= 0)
-                {
+            while (_ex.next()) {
+                if (_toKey != null && _ex.getKey().compareTo(_toKey) >= 0) {
                     return false;
-                }
-                else if (lookupValue.equals(_ex.getValue()))
-                {
+                } else if (lookupValue.equals(_ex.getValue())) {
                     return true;
                 }
             }
             return false;
-        }
-        catch (Exception exception)
-        {
+        } catch (Exception exception) {
             throw new PersistitMapException(exception);
         }
     }
@@ -434,173 +382,166 @@ implements SortedMap
      * Returns <tt>true</tt> if this map contains a mapping for the specified
      * key.
      * <p>
-     * This implementation performs a direct B-Tree lookup and is designed to
-     * be fast.
-     *
-     * @param key key whose presence in this map is to be tested.
-     * @return <tt>true</tt> if this map contains a mapping for the specified
-     *            key.
+     * This implementation performs a direct B-Tree lookup and is designed to be
+     * fast.
      * 
-     * @throws NullPointerException key is <tt>null</tt> and this map does not
-     *            not permit <tt>null</tt> keys.
+     * @param key
+     *            key whose presence in this map is to be tested.
+     * @return <tt>true</tt> if this map contains a mapping for the specified
+     *         key.
+     * 
+     * @throws NullPointerException
+     *             key is <tt>null</tt> and this map does not not permit
+     *             <tt>null</tt> keys.
      */
-    public synchronized boolean containsKey(Object key)
-    {
+    public synchronized boolean containsKey(Object key) {
         _ex.clearOwnerThread();
-        try
-        {
-            if (!toKey(key)) return false;
+        try {
+            if (!toKey(key))
+                return false;
             _ex.fetch();
             return _ex.getValue().isDefined();
-        }
-        catch (PersistitException de)
-        {
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
 
     /**
-     * Returns the value to which this map maps the specified key.  Returns
-     * <tt>null</tt> if the map contains no mapping for this key.  A return
-     * value of <tt>null</tt> does not <i>necessarily</i> indicate that the
-     * map contains no mapping for the key; it's also possible that the map
-     * explicitly maps the key to <tt>null</tt>.  The containsKey operation
-     * may be used to distinguish these two cases. <p>
-     *
+     * Returns the value to which this map maps the specified key. Returns
+     * <tt>null</tt> if the map contains no mapping for this key. A return value
+     * of <tt>null</tt> does not <i>necessarily</i> indicate that the map
+     * contains no mapping for the key; it's also possible that the map
+     * explicitly maps the key to <tt>null</tt>. The containsKey operation may
+     * be used to distinguish these two cases.
+     * <p>
+     * 
      * This implementation iterates over <tt>entrySet()</tt> searching for an
-     * entry with the specified key.  If such an entry is found, the entry's
-     * value is returned.  If the iteration terminates without finding such an
-     * entry, <tt>null</tt> is returned.  Note that this implementation
-     * requires linear time in the size of the map; many implementations will
-     * override this method.
-     *
-     * @param key key whose associated value is to be returned.
+     * entry with the specified key. If such an entry is found, the entry's
+     * value is returned. If the iteration terminates without finding such an
+     * entry, <tt>null</tt> is returned. Note that this implementation requires
+     * linear time in the size of the map; many implementations will override
+     * this method.
+     * 
+     * @param key
+     *            key whose associated value is to be returned.
      * @return the value to which this map maps the specified key.
      * 
-     * @throws NullPointerException if the key is <tt>null</tt> and this map
-     *        does not not permit <tt>null</tt> keys.
+     * @throws NullPointerException
+     *             if the key is <tt>null</tt> and this map does not not permit
+     *             <tt>null</tt> keys.
      * 
      * @see #containsKey(Object)
      */
-    public synchronized Object get(Object key)
-    {
+    public synchronized Object get(Object key) {
         _ex.clearOwnerThread();
-        try
-        {
-            if (!toKey(key)) return null;
+        try {
+            if (!toKey(key))
+                return null;
             _ex.fetch();
-            if (!_ex.getValue().isDefined()) return null;
+            if (!_ex.getValue().isDefined())
+                return null;
             return _ex.getValue().get();
-        }
-        catch (PersistitException de)
-        {
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
-
 
     // Modification Operations
 
     /**
      * <p>
-     * Stores the specified value with the specified key in this map.
-     * If the map previously contained a mapping for this key, the
-     * old value is replaced. This method returns the old value, if present,
-     * or <tt>null</tt> if there was no former value. An application that
-     * does not require the former value can use {@link #putFast} to
-     * avoid incurring the cost of deserializing that value. 
+     * Stores the specified value with the specified key in this map. If the map
+     * previously contained a mapping for this key, the old value is replaced.
+     * This method returns the old value, if present, or <tt>null</tt> if there
+     * was no former value. An application that does not require the former
+     * value can use {@link #putFast} to avoid incurring the cost of
+     * deserializing that value.
      * </p>
-     *
-     * @param key key with which the specified value is to be associated.
-     * @param value value to be associated with the specified key.
      * 
-     * @return previous value associated with specified key, or <tt>null</tt>
-     *         if there was no mapping for key.  (A <tt>null</tt> return can
-     *         also indicate that the map previously associated <tt>null</tt>
-     *         with the specified key, if the implementation supports
-     *         <tt>null</tt> values.)
+     * @param key
+     *            key with which the specified value is to be associated.
+     * @param value
+     *            value to be associated with the specified key.
      * 
-     * @throws ClassCastException if the class of the specified key or value
-     *            prevents it from being stored in this map.
+     * @return previous value associated with specified key, or <tt>null</tt> if
+     *         there was no mapping for key. (A <tt>null</tt> return can also
+     *         indicate that the map previously associated <tt>null</tt> with
+     *         the specified key, if the implementation supports <tt>null</tt>
+     *         values.)
      * 
-     * @throws IllegalArgumentException if some aspect of this key or value *
-     *            prevents it from being stored in this map.
+     * @throws ClassCastException
+     *             if the class of the specified key or value prevents it from
+     *             being stored in this map.
+     * 
+     * @throws IllegalArgumentException
+     *             if some aspect of this key or value * prevents it from being
+     *             stored in this map.
      * 
      */
-    public synchronized Object put(Object key, Object value)
-    {
+    public synchronized Object put(Object key, Object value) {
         _ex.clearOwnerThread();
-        try
-        {
-            if (!toKey(key))
-            {
-                throw new IllegalArgumentException(
-                    "Key " + key + " is out of submap range");
+        try {
+            if (!toKey(key)) {
+                throw new IllegalArgumentException("Key " + key
+                        + " is out of submap range");
             }
-            
+
             long changeCount = _sizeGeneration;
             Object result = null;
             _ex.getValue().put(value);
             _ex.fetchAndStore();
-            if (_ex.getValue().isDefined())
-            {
+            if (_ex.getValue().isDefined()) {
                 result = _ex.getValue().get();
-            }
-            else
-            {
+            } else {
                 adjustSize(changeCount, 1);
             }
-            
+
             return result;
-        }
-        catch (PersistitException de)
-        {
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
 
     /**
      * <p>
-     * Associates the specified value with the specified key in this map.
-     * If the map previously contained a mapping for this key, the old value
-     * is replaced.
+     * Associates the specified value with the specified key in this map. If the
+     * map previously contained a mapping for this key, the old value is
+     * replaced.
      * </p>
      * <p>
      * This method differs from {@link #put} by not returning the previous
      * value. In order to return the previous value, <tt>put</tt> must
-     * deserialize it, which can be costly.  Applications that don't need
-     * that value can benefit from calling <tt>putFast</tt> instead of
-     * <tt>put</tt>. 
-     * </pp> 
-     *
-     * @param key key with which the specified value is to be associated.
+     * deserialize it, which can be costly. Applications that don't need that
+     * value can benefit from calling <tt>putFast</tt> instead of <tt>put</tt>.
+     * </pp>
      * 
-     * @param value value to be associated with the specified key.
+     * @param key
+     *            key with which the specified value is to be associated.
      * 
-     * @throws ClassCastException if the class of the specified key or value
-     *            prevents it from being stored in this map.
+     * @param value
+     *            value to be associated with the specified key.
      * 
-     * @throws IllegalArgumentException if some aspect of this key or value *
-     *            prevents it from being stored in this map.
+     * @throws ClassCastException
+     *             if the class of the specified key or value prevents it from
+     *             being stored in this map.
+     * 
+     * @throws IllegalArgumentException
+     *             if some aspect of this key or value * prevents it from being
+     *             stored in this map.
      * 
      */
-    public synchronized void putFast(Object key, Object value)
-    {
+    public synchronized void putFast(Object key, Object value) {
         _ex.clearOwnerThread();
-        try
-        {
-            if (!toKey(key))
-            {
-                throw new IllegalArgumentException(
-                    "Key " + key + " is out of submap range");
+        try {
+            if (!toKey(key)) {
+                throw new IllegalArgumentException("Key " + key
+                        + " is out of submap range");
             }
-            
+
             _ex.getValue().put(value);
             _ex.store();
             _sizeGeneration = -1;
-        }
-        catch (PersistitException de)
-        {
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -608,43 +549,37 @@ implements SortedMap
     /**
      * <p>
      * Removes the mapping for this key from this map if present, and returns
-     * the former value.  Applications that do not require the
-     * former value can use {@link #removeFast} to improve performance.
-     * </p> 
-     *
-     * @param key key whose mapping is to be removed from the map.
+     * the former value. Applications that do not require the former value can
+     * use {@link #removeFast} to improve performance.
+     * </p>
      * 
-     * @return previous value associated with specified key, or <tt>null</tt>
-     *         if there was no entry for key. (A <tt>null</tt> return can
-     *         also indicate that the map previously associated <tt>null</tt>
-     *         with the specified key.)
+     * @param key
+     *            key whose mapping is to be removed from the map.
+     * 
+     * @return previous value associated with specified key, or <tt>null</tt> if
+     *         there was no entry for key. (A <tt>null</tt> return can also
+     *         indicate that the map previously associated <tt>null</tt> with
+     *         the specified key.)
      * 
      */
-    public synchronized Object remove(Object key)
-    {
+    public synchronized Object remove(Object key) {
         _ex.clearOwnerThread();
-        try
-        {
-            if (!toKey(key))
-            {
-                throw new IllegalArgumentException(
-                    "Key " + key + " is out of submap range");
+        try {
+            if (!toKey(key)) {
+                throw new IllegalArgumentException("Key " + key
+                        + " is out of submap range");
             }
             long changeCount = _sizeGeneration;
             boolean removed = _ex.fetchAndRemove();
             Object result = null;
-            if (removed)
-            {
+            if (removed) {
                 adjustSize(changeCount, -1);
-                if (_ex.getValue().isDefined())
-                {
+                if (_ex.getValue().isDefined()) {
                     result = _ex.getValue().get();
                 }
             }
             return result;
-        }
-        catch (PersistitException de)
-        {
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
@@ -652,272 +587,242 @@ implements SortedMap
     /**
      * <p>
      * Removes the mapping for this key from this map if present. Unlike
-     * {@link #remove}, this method does not return the former
-     * value, and therefore does not incur the cost of deserializing it.
+     * {@link #remove}, this method does not return the former value, and
+     * therefore does not incur the cost of deserializing it.
      * </p>
-     *
-     * @param key key whose mapping is to be removed from the map.
+     * 
+     * @param key
+     *            key whose mapping is to be removed from the map.
      * 
      */
-    public synchronized void removeFast(Object key)
-    {
+    public synchronized void removeFast(Object key) {
         _ex.clearOwnerThread();
-        try
-        {
-            if (!toKey(key))
-            {
-                throw new IllegalArgumentException(
-                    "Key " + key + " is out of submap range");
+        try {
+            if (!toKey(key)) {
+                throw new IllegalArgumentException("Key " + key
+                        + " is out of submap range");
             }
             long changeCount = _sizeGeneration;
             boolean removed = _ex.remove();
-            if (removed)
-            {
+            if (removed) {
                 adjustSize(changeCount, -1);
             }
-        }
-        catch (PersistitException de)
-        {
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
 
     /**
-     * Called by operations that add or remove keys.  This method attempts to
+     * Called by operations that add or remove keys. This method attempts to
      * track and update the current Map size, but if there are untracked
      * modifications, then resets _sizeGeneration to -1, meaning that on the
      * next call to size(), the entire collection will need to be counted.
      * 
-     * @param changeCount    The changeCount of the backing tree prior to the
-     *                      operation that added or removed a key
-     * @param delta         1 if a key was added, -1 if removed.
+     * @param changeCount
+     *            The changeCount of the backing tree prior to the operation
+     *            that added or removed a key
+     * @param delta
+     *            1 if a key was added, -1 if removed.
      */
-    private void adjustSize(long changeCount, int delta)
-    {
-        if (_sizeGeneration >= 0)
-        {
-            if (_ex.getChangeCount() == changeCount + 1)
-            {
+    private void adjustSize(long changeCount, int delta) {
+        if (_sizeGeneration >= 0) {
+            if (_ex.getChangeCount() == changeCount + 1) {
                 _size += delta;
                 _sizeGeneration = _ex.getChangeCount();
-            }
-            else
-            {
+            } else {
                 _sizeGeneration = -1;
             }
         }
-        if (_parentPersistitMap != null)
-        {
+        if (_parentPersistitMap != null) {
             _parentPersistitMap.adjustSize(changeCount, delta);
         }
     }
-    
+
     // Bulk Operations
 
     /**
-     * Copies all of the mappings from the specified map to this map. 
-     * These mappings will replace any mappings that
-     * this map had for any of the keys currently in the specified map.<p>
-     *
-     * This implementation iterates over the specified map's
-     * <tt>entrySet()</tt> collection, and calls this map's <tt>put</tt>
-     * operation once for each entry returned by the iteration.<p>
-     *
-     * @param t mappings to be stored in this map.
+     * Copies all of the mappings from the specified map to this map. These
+     * mappings will replace any mappings that this map had for any of the keys
+     * currently in the specified map.
+     * <p>
      * 
-     * @throws ClassCastException if the class of a key or value in the
-     *            specified map prevents it from being stored in this map.
+     * This implementation iterates over the specified map's <tt>entrySet()</tt>
+     * collection, and calls this map's <tt>put</tt> operation once for each
+     * entry returned by the iteration.
+     * <p>
      * 
-     * @throws IllegalArgumentException if some aspect of a key or value in
-     *            the specified map prevents it from being stored in this map.
+     * @param t
+     *            mappings to be stored in this map.
      * 
-     * @throws NullPointerException the specified map is <tt>null</tt>.
+     * @throws ClassCastException
+     *             if the class of a key or value in the specified map prevents
+     *             it from being stored in this map.
+     * 
+     * @throws IllegalArgumentException
+     *             if some aspect of a key or value in the specified map
+     *             prevents it from being stored in this map.
+     * 
+     * @throws NullPointerException
+     *             the specified map is <tt>null</tt>.
      */
-    public synchronized void putAll(Map t)
-    {
+    public synchronized void putAll(Map t) {
         _ex.clearOwnerThread();
-        for (Iterator iterator = t.entrySet().iterator();
-             iterator.hasNext(); )
-        {
-            Map.Entry entry = (Map.Entry)iterator.next();
+        for (Iterator iterator = t.entrySet().iterator(); iterator.hasNext();) {
+            Map.Entry entry = (Map.Entry) iterator.next();
             putFast(entry.getKey(), entry.getValue());
         }
     }
 
     /**
-     * Removes all mappings from this map. <p>
-     *
+     * Removes all mappings from this map.
+     * <p>
+     * 
      * This implementation calls <tt>entrySet().clear()</tt>.
      */
-    public synchronized void clear()
-    {
+    public synchronized void clear() {
         _ex.clearOwnerThread();
-        try
-        {
+        try {
             toLeftEdge();
             Key key = new Key(_ex.getKey());
-            if (_toKey == null)
-            {
+            if (_toKey == null) {
                 key.to(Key.AFTER);
-            }
-            else
-            {
+            } else {
                 _toKey.copyTo(key);
             }
             boolean removed = _ex.removeKeyRange(_ex.getKey(), key);
-            if (_parentPersistitMap != null && removed)
-            {
+            if (_parentPersistitMap != null && removed) {
                 _parentPersistitMap._sizeGeneration = -1;
             }
             _size = 0;
             _sizeGeneration = _ex.getChangeCount();
-        }
-        catch (PersistitException de)
-        {
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
-    
-    public class PersistitMapException
-    extends RuntimeException
-    {
+
+    public class PersistitMapException extends RuntimeException {
         private static final long serialVersionUID = 7257161738800744724L;
-        
+
         Exception _exception;
-        
-        PersistitMapException(Exception ee)
-        {
+
+        PersistitMapException(Exception ee) {
             _exception = ee;
         }
-        
+
         @Override
-		public Throwable getCause()
-        {
+        public Throwable getCause() {
             return _exception;
-        }
-    }
-    
-    /**
-     * Implementats <tt>java.util.Map.Entry</tt> using a backing Persistit tree.
-     */
-    public class ExchangeEntry
-    implements Map.Entry
-    {
-        private Object _key;
-        private Object _value;
-        private ExchangeIterator _iterator;
-        
-        private ExchangeEntry(Object key, Object value, ExchangeIterator iterator)
-        {
-            _key = key;
-            _value = value;
-            _iterator = iterator;
-        }
-        
-        /**
-         * Returns the key field of this <tt>ExchangeEntry</tt>.
-         * @return  The key
-         */
-        public Object getKey()
-        {
-            return _key;
-        }
-        
-        /**
-         * Returns the value field of this <tt>ExchangeEntry</tt>. This is the
-         * value that was present in the database at the time an 
-         * <tt>ExchangeIterator</tt> created this entry; because other 
-         * threads may concurrently modify the database, the stored
-         * value may have changed.
-         * 
-         * @return  The value associated with this <tt>ExchangeEntry</tt>
-         */
-        public Object getValue()
-        {
-            return _value;
-        }
-        
-        /**
-         * Modifies the value field of this Entry and of the underlying
-         * Persistit database record associated with the key for this Entry.
-         * Returns the former value associated with this entry.  This is the
-         * value that was present in the database at the time an 
-         * <tt>ExchangeIterator</tt> created this entry; because other 
-         * threads may concurrently modify the database, the stored value
-         * may have changed.
-         * 
-         * @param value     The new value.
-         * 
-         * @return          The value formerly associated with this
-         *                  <tt>ExchangeEntry</tt>.
-         */
-        public synchronized Object setValue(Object value)
-        {
-            _ex.clearOwnerThread();
-            Object result = null;
-            try
-            {
-                _ex.to(_key);
-                _ex.getValue().put(value);
-                long changeCount = _ex.getChangeCount();
-                _ex.fetchAndStore();
-                if (!_ex.getValue().isDefined()) changeCount++;
-                _iterator._changeCount = changeCount;
-                result = _value;
-            }
-            catch (PersistitException pe)
-            {
-                throw new PersistitMapException(pe);
-            }
-            return result;
-        }
-        
-        /**
-         * Implements the contract for <tt>equals</tt>.  Two 
-         * <tt>ExchangeEntr</tt> instances are equal if their
-         * key and value fields are equal.
-         */
-        @Override
-		public boolean equals(Object o)
-        {
-            if (o instanceof Map.Entry)
-            {
-                Map.Entry entry = (Map.Entry)o;
-                return (entry.getKey() == null
-                            ? _key == null 
-                            : entry.getKey().equals(_key))
-                       &&
-                        (entry.getValue() == null
-                            ? _value == null 
-                            : entry.getValue().equals(_value));
-            }
-            else return false;
-        }
-        
-        /**
-         * Implements the contract for <tt>hashCode</tt>. The hash code
-         * is the XOR of the hashCodes of the key and value fields.
-         */
-        @Override
-		public int hashCode()
-        {
-            return (_key == null  ? 0 : _key.hashCode()) ^
-                   (_value == null ? 0 : _value.hashCode());
         }
     }
 
     /**
-     * Implements <tt>java.util.Iterator</tt> using an underlying Persistit
-     * tree as the source of keys and values to be traversed. In addition to 
-     * the inherited methods of <tt>java.util.Iterator</tt>, this class also
-     * implements a facility to apply a {@link KeyFilter} to restrict the
-     * set of keys over it will iterate.
-     * See {@link PersistitMap.ExchangeIterator#setFilterTerm(KeyFilter.Term)}
-     * and {@link PersistitMap.ExchangeIterator#getKeyFilter()} for details.
+     * Implementats <tt>java.util.Map.Entry</tt> using a backing Persistit tree.
      */
-    public class ExchangeIterator
-    implements Iterator
-    {
+    public class ExchangeEntry implements Map.Entry {
+        private Object _key;
+        private Object _value;
+        private ExchangeIterator _iterator;
+
+        private ExchangeEntry(Object key, Object value,
+                ExchangeIterator iterator) {
+            _key = key;
+            _value = value;
+            _iterator = iterator;
+        }
+
+        /**
+         * Returns the key field of this <tt>ExchangeEntry</tt>.
+         * 
+         * @return The key
+         */
+        public Object getKey() {
+            return _key;
+        }
+
+        /**
+         * Returns the value field of this <tt>ExchangeEntry</tt>. This is the
+         * value that was present in the database at the time an
+         * <tt>ExchangeIterator</tt> created this entry; because other threads
+         * may concurrently modify the database, the stored value may have
+         * changed.
+         * 
+         * @return The value associated with this <tt>ExchangeEntry</tt>
+         */
+        public Object getValue() {
+            return _value;
+        }
+
+        /**
+         * Modifies the value field of this Entry and of the underlying
+         * Persistit database record associated with the key for this Entry.
+         * Returns the former value associated with this entry. This is the
+         * value that was present in the database at the time an
+         * <tt>ExchangeIterator</tt> created this entry; because other threads
+         * may concurrently modify the database, the stored value may have
+         * changed.
+         * 
+         * @param value
+         *            The new value.
+         * 
+         * @return The value formerly associated with this
+         *         <tt>ExchangeEntry</tt>.
+         */
+        public synchronized Object setValue(Object value) {
+            _ex.clearOwnerThread();
+            Object result = null;
+            try {
+                _ex.to(_key);
+                _ex.getValue().put(value);
+                long changeCount = _ex.getChangeCount();
+                _ex.fetchAndStore();
+                if (!_ex.getValue().isDefined())
+                    changeCount++;
+                _iterator._changeCount = changeCount;
+                result = _value;
+            } catch (PersistitException pe) {
+                throw new PersistitMapException(pe);
+            }
+            return result;
+        }
+
+        /**
+         * Implements the contract for <tt>equals</tt>. Two
+         * <tt>ExchangeEntr</tt> instances are equal if their key and value
+         * fields are equal.
+         */
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof Map.Entry) {
+                Map.Entry entry = (Map.Entry) o;
+                return (entry.getKey() == null ? _key == null : entry.getKey()
+                        .equals(_key))
+                        && (entry.getValue() == null ? _value == null : entry
+                                .getValue().equals(_value));
+            } else
+                return false;
+        }
+
+        /**
+         * Implements the contract for <tt>hashCode</tt>. The hash code is the
+         * XOR of the hashCodes of the key and value fields.
+         */
+        @Override
+        public int hashCode() {
+            return (_key == null ? 0 : _key.hashCode())
+                    ^ (_value == null ? 0 : _value.hashCode());
+        }
+    }
+
+    /**
+     * Implements <tt>java.util.Iterator</tt> using an underlying Persistit tree
+     * as the source of keys and values to be traversed. In addition to the
+     * inherited methods of <tt>java.util.Iterator</tt>, this class also
+     * implements a facility to apply a {@link KeyFilter} to restrict the set of
+     * keys over it will iterate. See
+     * {@link PersistitMap.ExchangeIterator#setFilterTerm(KeyFilter.Term)} and
+     * {@link PersistitMap.ExchangeIterator#getKeyFilter()} for details.
+     */
+    public class ExchangeIterator implements Iterator {
         PersistitMap _pm;
         Exchange _iteratorExchange;
         boolean _allowCM;
@@ -925,173 +830,141 @@ implements SortedMap
         int _type;
         boolean _okToRemove;
         KeyFilter _keyFilter;
-        
-        ExchangeIterator(PersistitMap pm, int type, boolean allowConcurrentModification)
-        {
+
+        ExchangeIterator(PersistitMap pm, int type,
+                boolean allowConcurrentModification) {
             _type = type;
             _pm = pm;
             _iteratorExchange = new Exchange(_ex);
             _iteratorExchange.to(Key.BEFORE);
-            if (_fromKey != null)
-            {
+            if (_fromKey != null) {
                 _fromKey.copyTo(_iteratorExchange.getKey());
             }
             _changeCount = _iteratorExchange.getChangeCount();
             _allowCM = allowConcurrentModification;
         }
-        
+
         /**
-         * Returns the <tt>KeyFilter</tt> for this iterator,
-         * or <tt>null</tt> if there is none.
-         *  
-         * @return      A copy of the current <tt>KeyFilter</tt>, 
-         *              or <tt>null</tt> if there is none.
+         * Returns the <tt>KeyFilter</tt> for this iterator, or <tt>null</tt> if
+         * there is none.
+         * 
+         * @return A copy of the current <tt>KeyFilter</tt>, or <tt>null</tt> if
+         *         there is none.
          */
-        public KeyFilter getKeyFilter()
-        {
+        public KeyFilter getKeyFilter() {
             return _keyFilter;
         }
-        
+
         /**
          * <p>
-         * Sets up a <tt>KeyFilter</tt> for this <tt>Iterator</tt>.  
-         * When set, the {@link #hasNext} and {@link #next} operations 
-         * return only those keys, values or entries for records having keys
-         * selected by the supplied {@link KeyFilter.Term}.  
-         * Note that setting the filter affects subsequent 
-         * <tt>hasNext</tt> or <tt>next</tt> operations, but does
-         * not modify the current key, nor does it affect the 
-         * behavior of {@link #remove} or
-         * {@link com.persistit.PersistitMap.ExchangeEntry#setValue} for 
-         * the current entry.
+         * Sets up a <tt>KeyFilter</tt> for this <tt>Iterator</tt>. When set,
+         * the {@link #hasNext} and {@link #next} operations return only those
+         * keys, values or entries for records having keys selected by the
+         * supplied {@link KeyFilter.Term}. Note that setting the filter affects
+         * subsequent <tt>hasNext</tt> or <tt>next</tt> operations, but does not
+         * modify the current key, nor does it affect the behavior of
+         * {@link #remove} or
+         * {@link com.persistit.PersistitMap.ExchangeEntry#setValue} for the
+         * current entry.
          * </p>
          * 
-         * @param term  If <tt>null</tt>, clears the <tt>KeyFilter</tt>
-         *              for this iterator. Otherwise, sets up a filter
-         *              based on the supplied <tt>Term</tt>.
+         * @param term
+         *            If <tt>null</tt>, clears the <tt>KeyFilter</tt> for this
+         *            iterator. Otherwise, sets up a filter based on the
+         *            supplied <tt>Term</tt>.
          */
-        public void setFilterTerm(KeyFilter.Term term)
-        {
-            if (term == null)
-            {
+        public void setFilterTerm(KeyFilter.Term term) {
+            if (term == null) {
                 _keyFilter = null;
-            }
-            else
-            {
+            } else {
                 Key key = _iteratorExchange.getKey();
                 Key spareKey = _iteratorExchange.getAuxiliaryKey1();
                 key.copyTo(spareKey);
                 int depth = spareKey.getDepth();
                 spareKey.cut();
-                _keyFilter = 
-                    new KeyFilter(spareKey).append(term).limit(depth, depth); 
+                _keyFilter = new KeyFilter(spareKey).append(term).limit(depth,
+                        depth);
             }
         }
-        
-        public synchronized boolean hasNext()
-        {
-            _iteratorExchange.clearOwnerThread();;
-            try
-            {
+
+        public synchronized boolean hasNext() {
+            _iteratorExchange.clearOwnerThread();
+            ;
+            try {
                 boolean result = _iteratorExchange.hasNext(_keyFilter);
-                if (!result || _toKey == null)
-                {
+                if (!result || _toKey == null) {
                     return result;
+                } else {
+                    return _toKey.compareTo(_iteratorExchange.getKey()) <= 0;
                 }
-                else
-                {
-                    return _toKey.compareTo(
-                        _iteratorExchange.getKey()) <= 0;
-                }
-            }
-            catch (PersistitException de)
-            {
+            } catch (PersistitException de) {
                 throw new PersistitMapException(de);
             }
         }
-            
-        public synchronized Object next()
-        {
-            _iteratorExchange.clearOwnerThread();;
-            try
-            {
-                if (!_iteratorExchange.next(_keyFilter) ||
-                    _toKey != null &&
-                        _toKey.compareTo(_iteratorExchange.getKey()) <= 0)
-                {
+
+        public synchronized Object next() {
+            _iteratorExchange.clearOwnerThread();
+            ;
+            try {
+                if (!_iteratorExchange.next(_keyFilter) || _toKey != null
+                        && _toKey.compareTo(_iteratorExchange.getKey()) <= 0) {
                     throw new NoSuchElementException();
                 }
-                if (!_allowCM &&
-                     _iteratorExchange.getChangeCount() != _changeCount)
-                {
+                if (!_allowCM
+                        && _iteratorExchange.getChangeCount() != _changeCount) {
                     _changeCount = _iteratorExchange.getChangeCount();
                     throw new ConcurrentModificationException();
                 }
                 Object result = null;
-                switch (_type)
-                {
-                    case VALUE:
-                        result = _iteratorExchange.getValue().get();
-                        break;
-                        
-                    case KEY:
-                        _iteratorExchange.getKey().indexTo(-1);
-                        result = _iteratorExchange.getKey().decode();
-                        break;
+                switch (_type) {
+                case VALUE:
+                    result = _iteratorExchange.getValue().get();
+                    break;
 
-                    default:
-                        _iteratorExchange.getKey().indexTo(-1);
-                        result = new ExchangeEntry(
-                            _iteratorExchange.getKey().decode(),
-                            _iteratorExchange.getValue().get(),
-                            this);
-                        break;
+                case KEY:
+                    _iteratorExchange.getKey().indexTo(-1);
+                    result = _iteratorExchange.getKey().decode();
+                    break;
+
+                default:
+                    _iteratorExchange.getKey().indexTo(-1);
+                    result = new ExchangeEntry(_iteratorExchange.getKey()
+                            .decode(), _iteratorExchange.getValue().get(), this);
+                    break;
                 }
                 _okToRemove = true;
                 return result;
-            }
-            catch (PersistitException e)
-            {
+            } catch (PersistitException e) {
                 throw new PersistitMapException(e);
             }
         }
-        
-        public synchronized void remove()
-        {
-            _iteratorExchange.clearOwnerThread();;
-            if (!_okToRemove)
-            {
+
+        public synchronized void remove() {
+            _iteratorExchange.clearOwnerThread();
+            ;
+            if (!_okToRemove) {
                 throw new IllegalStateException();
             }
 
-            if (!_allowCM &&
-                 _iteratorExchange.getChangeCount() != _changeCount)
-            {
+            if (!_allowCM && _iteratorExchange.getChangeCount() != _changeCount) {
                 _changeCount = _iteratorExchange.getChangeCount();
                 throw new ConcurrentModificationException();
             }
-            
+
             boolean removed = false;
             long changeCount = _iteratorExchange.getChangeCount();
-            try
-            {
+            try {
                 removed = _iteratorExchange.remove();
-            }
-            catch (PersistitException e)
-            {
+            } catch (PersistitException e) {
                 throw new PersistitMapException(e);
             }
-            if (!removed)
-            {
+            if (!removed) {
                 throw new NoSuchElementException();
-            }
-            else
-            {
+            } else {
                 _pm.adjustSize(changeCount, -1);
-                
-                if (!_allowCM &&
-                     _iteratorExchange.getChangeCount() != changeCount + 1)
-                {
+
+                if (!_allowCM
+                        && _iteratorExchange.getChangeCount() != changeCount + 1) {
                     _changeCount = _iteratorExchange.getChangeCount();
                     throw new ConcurrentModificationException();
                 }
@@ -1100,56 +973,48 @@ implements SortedMap
             _okToRemove = false;
         }
     }
-    
+
     // Views
 
     /**
-     * Returns a Set view of the keys contained in this map.  The Set is
-     * backed by the map, so changes to the map are reflected in the Set,
-     * and vice-versa.  (If the map is modified while an iteration over
-     * the Set is in progress, the results of the iteration are undefined.)
-     * The Set supports element removal, which removes the corresponding entry
-     * from the map, via the Iterator.remove, Set.remove,  removeAll
-     * retainAll, and clear operations.  It does not support the add or
-     * addAll operations.<p>
-     *
-     * This implementation returns a Set that subclasses
-     * AbstractSet.  The subclass's iterator method returns a "wrapper
-     * object" over this map's entrySet() iterator.  The size method delegates
-     * to this map's size method and the contains method delegates to this
-     * map's containsKey method.<p>
-     *
-     * The Set is created the first time this method is called,
-     * and returned in response to all subsequent calls.  No synchronization
-     * is performed, so there is a slight chance that multiple calls to this
-     * method will not all return the same Set.
-     *
+     * Returns a Set view of the keys contained in this map. The Set is backed
+     * by the map, so changes to the map are reflected in the Set, and
+     * vice-versa. (If the map is modified while an iteration over the Set is in
+     * progress, the results of the iteration are undefined.) The Set supports
+     * element removal, which removes the corresponding entry from the map, via
+     * the Iterator.remove, Set.remove, removeAll retainAll, and clear
+     * operations. It does not support the add or addAll operations.
+     * <p>
+     * 
+     * This implementation returns a Set that subclasses AbstractSet. The
+     * subclass's iterator method returns a "wrapper object" over this map's
+     * entrySet() iterator. The size method delegates to this map's size method
+     * and the contains method delegates to this map's containsKey method.
+     * <p>
+     * 
+     * The Set is created the first time this method is called, and returned in
+     * response to all subsequent calls. No synchronization is performed, so
+     * there is a slight chance that multiple calls to this method will not all
+     * return the same Set.
+     * 
      * @return a Set view of the keys contained in this map.
      */
-    public Set keySet()
-    {
-        if (_keySet == null)
-        {
-            _keySet = new AbstractSet()
-            {
+    public Set keySet() {
+        if (_keySet == null) {
+            _keySet = new AbstractSet() {
                 @Override
-				public Iterator iterator()
-                {
-                    return new ExchangeIterator(
-                        PersistitMap.this, 
-                        KEY, 
-                        _allowConcurrentModification);
+                public Iterator iterator() {
+                    return new ExchangeIterator(PersistitMap.this, KEY,
+                            _allowConcurrentModification);
                 }
-        
+
                 @Override
-				public int size()
-                {
+                public int size() {
                     return PersistitMap.this.size();
                 }
-        
+
                 @Override
-				public boolean contains(Object k)
-                {
+                public boolean contains(Object k) {
                     return PersistitMap.this.containsKey(k);
                 }
             };
@@ -1158,53 +1023,47 @@ implements SortedMap
     }
 
     /**
-     * Returns a collection view of the values contained in this map.  The
+     * Returns a collection view of the values contained in this map. The
      * collection is backed by the map, so changes to the map are reflected in
-     * the collection, and vice-versa.  (If the map is modified while an
+     * the collection, and vice-versa. (If the map is modified while an
      * iteration over the collection is in progress, the results of the
-     * iteration are undefined.)  The collection supports element removal,
-     * which removes the corresponding entry from the map, via the
-     * <tt>Iterator.remove</tt>, <tt>Collection.remove</tt>,
-     * <tt>removeAll</tt>, <tt>retainAll</tt> and <tt>clear</tt> operations.
-     * It does not support the <tt>add</tt> or <tt>addAll</tt> operations.<p>
-     *
+     * iteration are undefined.) The collection supports element removal, which
+     * removes the corresponding entry from the map, via the
+     * <tt>Iterator.remove</tt>, <tt>Collection.remove</tt>, <tt>removeAll</tt>,
+     * <tt>retainAll</tt> and <tt>clear</tt> operations. It does not support the
+     * <tt>add</tt> or <tt>addAll</tt> operations.
+     * <p>
+     * 
      * This implementation returns a collection that subclasses abstract
-     * collection.  The subclass's iterator method returns a "wrapper object"
-     * over this map's <tt>entrySet()</tt> iterator.  The size method
-     * delegates to this map's size method and the contains method delegates
-     * to this map's containsValue method.<p>
-     *
+     * collection. The subclass's iterator method returns a "wrapper object"
+     * over this map's <tt>entrySet()</tt> iterator. The size method delegates
+     * to this map's size method and the contains method delegates to this map's
+     * containsValue method.
+     * <p>
+     * 
      * The collection is created the first time this method is called, and
-     * returned in response to all subsequent calls.  No synchronization is
-     * performed, so there is a slight chance that multiple calls to this
-     * method will not all return the same Collection.
-     *
+     * returned in response to all subsequent calls. No synchronization is
+     * performed, so there is a slight chance that multiple calls to this method
+     * will not all return the same Collection.
+     * 
      * @return a collection view of the values contained in this map.
      */
-    public Collection values()
-    {
-        if (_values == null)
-        {
-            _values = new AbstractSet()
-            {
+    public Collection values() {
+        if (_values == null) {
+            _values = new AbstractSet() {
                 @Override
-				public Iterator iterator()
-                {
-                    return new ExchangeIterator(
-                        PersistitMap.this, 
-                        VALUE, 
-                        _allowConcurrentModification);
+                public Iterator iterator() {
+                    return new ExchangeIterator(PersistitMap.this, VALUE,
+                            _allowConcurrentModification);
                 }
-        
+
                 @Override
-				public int size()
-                {
+                public int size() {
                     return PersistitMap.this.size();
                 }
-        
+
                 @Override
-				public boolean contains(Object v)
-                {
+                public boolean contains(Object v) {
                     return PersistitMap.this.containsValue(v);
                 }
             };
@@ -1213,42 +1072,34 @@ implements SortedMap
     }
 
     /**
-     * Returns a set view of the mappings contained in this map.  Each element
-     * in this set is a Map.Entry.  The set is backed by the map, so changes
-     * to the map are reflected in the set, and vice-versa.  (If the map is
-     * modified while an iteration over the set is in progress, the results of
-     * the iteration are undefined.)  The set supports element removal, which
-     * removes the corresponding entry from the map, via the
-     * <tt>Iterator.remove</tt>, <tt>Set.remove</tt>, <tt>removeAll</tt>,
-     * <tt>retainAll</tt> and <tt>clear</tt> operations.  It does not support
-     * the <tt>add</tt> or <tt>addAll</tt> operations.
-     *
+     * Returns a set view of the mappings contained in this map. Each element in
+     * this set is a Map.Entry. The set is backed by the map, so changes to the
+     * map are reflected in the set, and vice-versa. (If the map is modified
+     * while an iteration over the set is in progress, the results of the
+     * iteration are undefined.) The set supports element removal, which removes
+     * the corresponding entry from the map, via the <tt>Iterator.remove</tt>,
+     * <tt>Set.remove</tt>, <tt>removeAll</tt>, <tt>retainAll</tt> and
+     * <tt>clear</tt> operations. It does not support the <tt>add</tt> or
+     * <tt>addAll</tt> operations.
+     * 
      * @return a set view of the mappings contained in this map.
      */
-    public Set entrySet()
-    {
-        if (_entrySet == null)
-        {
-            _entrySet = new  AbstractSet()
-            {
+    public Set entrySet() {
+        if (_entrySet == null) {
+            _entrySet = new AbstractSet() {
                 @Override
-				public Iterator iterator()
-                {
-                    return new ExchangeIterator(
-                        PersistitMap.this, 
-                        ENTRY, 
-                        _allowConcurrentModification);
+                public Iterator iterator() {
+                    return new ExchangeIterator(PersistitMap.this, ENTRY,
+                            _allowConcurrentModification);
                 }
-        
+
                 @Override
-				public int size()
-                {
+                public int size() {
                     return PersistitMap.this.size();
                 }
-        
+
                 @Override
-				public boolean contains(Object v)
-                {
+                public boolean contains(Object v) {
                     return PersistitMap.this.containsValue(v);
                 }
             };
@@ -1262,59 +1113,56 @@ implements SortedMap
      * 
      * @return <i>null</i>
      */
-    public Comparator comparator()
-    {
+    public Comparator comparator() {
         return null;
     }
 
     /**
-     * Returns a view of the portion of this <tt>PersistitMap</tt> whose 
-     * keys range from <tt>fromKey</tt>, inclusive, to <tt>toKey</tt>, 
-     * exclusive. The view is another <tt>PersistitMap</tt> instance 
-     * backed by this one; any change to the collection made by either by
-     * either instance is reflected in the other.
-     *  
-     * @param fromKey low endpoint (inclusive) of the subMap.
+     * Returns a view of the portion of this <tt>PersistitMap</tt> whose keys
+     * range from <tt>fromKey</tt>, inclusive, to <tt>toKey</tt>, exclusive. The
+     * view is another <tt>PersistitMap</tt> instance backed by this one; any
+     * change to the collection made by either by either instance is reflected
+     * in the other.
      * 
-     * @param toKey high endpoint (exclusive) of the subMap.
+     * @param fromKey
+     *            low endpoint (inclusive) of the subMap.
+     * 
+     * @param toKey
+     *            high endpoint (exclusive) of the subMap.
      * 
      * @return a view of the specified range within this sorted map.
      */
-    public SortedMap subMap(Object fromKey, Object toKey)
-    {
+    public SortedMap subMap(Object fromKey, Object toKey) {
         return new PersistitMap(this, true, fromKey, true, toKey);
     }
 
-    
     /**
-     * Returns a view of the portion of this <tt>PersistitMap</tt> whose 
-     * keys are strictly less than <tt>toKey</tt>. 
-     * The view is another <tt>PersistitMap</tt> instance 
-     * backed by this one; any change to the collection made by either by
-     * either instance is reflected in the other.
-     *  
-     * @param toKey high endpoint (exclusive) of the subMap.
+     * Returns a view of the portion of this <tt>PersistitMap</tt> whose keys
+     * are strictly less than <tt>toKey</tt>. The view is another
+     * <tt>PersistitMap</tt> instance backed by this one; any change to the
+     * collection made by either by either instance is reflected in the other.
+     * 
+     * @param toKey
+     *            high endpoint (exclusive) of the subMap.
      * 
      * @return a view of the specified range within this sorted map.
      */
-    public SortedMap headMap(Object toKey)
-    {
+    public SortedMap headMap(Object toKey) {
         return new PersistitMap(this, false, null, true, toKey);
     }
-    
+
     /**
-     * Returns a view of the portion of this <tt>PersistitMap</tt> whose 
-     * keys are greater than or equal to than <tt>fromKey</tt>. 
-     * The view is another <tt>PersistitMap</tt> instance 
-     * backed by this one; any change to the collection made by either by
-     * either instance is reflected in the other.
-     *  
-     * @param fromKey low endpoint (inclusive) of the subMap.
+     * Returns a view of the portion of this <tt>PersistitMap</tt> whose keys
+     * are greater than or equal to than <tt>fromKey</tt>. The view is another
+     * <tt>PersistitMap</tt> instance backed by this one; any change to the
+     * collection made by either by either instance is reflected in the other.
+     * 
+     * @param fromKey
+     *            low endpoint (inclusive) of the subMap.
      * 
      * @return a view of the specified range within this sorted map.
      */
-    public SortedMap tailMap(Object fromKey)
-    {
+    public SortedMap tailMap(Object fromKey) {
         return new PersistitMap(this, true, fromKey, false, null);
     }
 
@@ -1322,131 +1170,116 @@ implements SortedMap
      * Returns the first (lowest) key currently in this <tt>PersistitMap</tt>
      * determined by the <a href="Key.html#_keyOrdering">key ordering
      * specification</a>.
-     *
-     * @return      the first (lowest) key currently in the backing store
-     *              for this <tt>PersistitMap</tt>.
      * 
-     * @throws      NoSuchElementException if this map is empty.
+     * @return the first (lowest) key currently in the backing store for this
+     *         <tt>PersistitMap</tt>.
+     * 
+     * @throws NoSuchElementException
+     *             if this map is empty.
      */
-    public Object firstKey()
-    {
+    public Object firstKey() {
         toLeftEdge();
-        try
-        {
-            if (_ex.traverse(_fromKey == null ? Key.GT : Key.GTEQ, false, -1) &&
-                (_toKey == null ||
-                 _toKey.compareTo(_ex.getKey()) > 0))
-            {
+        try {
+            if (_ex.traverse(_fromKey == null ? Key.GT : Key.GTEQ, false, -1)
+                    && (_toKey == null || _toKey.compareTo(_ex.getKey()) > 0)) {
                 return _ex.getKey().decode();
-            }
-            else throw new NoSuchElementException();
-        }
-        catch (PersistitException de)
-        {
+            } else
+                throw new NoSuchElementException();
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
-    
+
     /**
-     * Returns the last (highest) key currently in this <tt>PersistitMap</tt>
-     * as determined by the <a href="Key.html#_keyOrdering">key ordering
+     * Returns the last (highest) key currently in this <tt>PersistitMap</tt> as
+     * determined by the <a href="Key.html#_keyOrdering">key ordering
      * specification</a>.
-     *
-     * @return      the last (highest) key currently in the backing store
-     *              for this <tt>PersistitMap</tt>.
      * 
-     * @throws      NoSuchElementException if this map is empty.
+     * @return the last (highest) key currently in the backing store for this
+     *         <tt>PersistitMap</tt>.
+     * 
+     * @throws NoSuchElementException
+     *             if this map is empty.
      */
-    public Object lastKey()
-    {
+    public Object lastKey() {
         toRightEdge();
-        try
-        {
-            if (_ex.traverse(Key.LT, false, -1) &&
-                (_fromKey == null ||
-                 _fromKey.compareTo(_ex.getKey()) <= 0))
-            {
+        try {
+            if (_ex.traverse(Key.LT, false, -1)
+                    && (_fromKey == null || _fromKey.compareTo(_ex.getKey()) <= 0)) {
                 return _ex.getKey().decode();
-            }
-            else throw new NoSuchElementException();
-        }
-        catch (PersistitException de)
-        {
+            } else
+                throw new NoSuchElementException();
+        } catch (PersistitException de) {
             throw new PersistitMapException(de);
         }
     }
-    
+
     // Comparison and hashing
 
     /**
-     * Compares the specified object with this map for equality.  Returns
+     * Compares the specified object with this map for equality. Returns
      * <tt>true</tt> if the given object is also a map and the two maps
-     * represent the same mappings.  More formally, two maps <tt>t1</tt> and
+     * represent the same mappings. More formally, two maps <tt>t1</tt> and
      * <tt>t2</tt> represent the same mappings if
-     * <tt>t1.keySet().equals(t2.keySet())</tt> and for every key <tt>k</tt>
-     * in <tt>t1.keySet()</tt>, <tt> (t1.get(k)==null ? t2.get(k)==null :
-     * t1.get(k).equals(t2.get(k))) </tt>.  This ensures that the
-     * <tt>equals</tt> method works properly across different implementations
-     * of the map interface.<p>
-     *
-     * @param o object to be compared for equality with this map.
+     * <tt>t1.keySet().equals(t2.keySet())</tt> and for every key <tt>k</tt> in
+     * <tt>t1.keySet()</tt>, <tt> (t1.get(k)==null ? t2.get(k)==null :
+     * t1.get(k).equals(t2.get(k))) </tt>. This ensures that the <tt>equals</tt>
+     * method works properly across different implementations of the map
+     * interface.
+     * <p>
+     * 
+     * @param o
+     *            object to be compared for equality with this map.
      * @return <tt>true</tt> if the specified object is equal to this map.
      */
     @Override
-	public boolean equals(Object o)
-    {
-        if (o == this) return true;
-        if (!(o instanceof Map)) return false;
-        
+    public boolean equals(Object o) {
+        if (o == this)
+            return true;
+        if (!(o instanceof Map))
+            return false;
+
         Map t = (Map) o;
-        
-        if (t.size() != size()) return false;
-    
-        try
-        {
+
+        if (t.size() != size())
+            return false;
+
+        try {
             Iterator i = entrySet().iterator();
-            while (i.hasNext())
-            {
+            while (i.hasNext()) {
                 Entry e = (Entry) i.next();
                 Object key = e.getKey();
                 Object value = e.getValue();
-                if (value == null)
-                {
-                    if (!(t.get(key)==null && t.containsKey(key)))
-                    {
+                if (value == null) {
+                    if (!(t.get(key) == null && t.containsKey(key))) {
                         return false;
                     }
-                }
-                else
-                {
+                } else {
                     if (!value.equals(t.get(key)))
                         return false;
                 }
             }
-        }
-        catch(ClassCastException unused)
-        {
+        } catch (ClassCastException unused) {
             return false;
-        }
-        catch(NullPointerException unused)
-        {
+        } catch (NullPointerException unused) {
             return false;
         }
         return true;
     }
-    
+
     /**
-     * Returns the hash code value for this map.  The hash code of a map is
+     * Returns the hash code value for this map. The hash code of a map is
      * defined to be the sum of the hash codes of each entry in the map's
-     * <tt>entrySet()</tt> view.  This ensures that <tt>t1.equals(t2)</tt>
+     * <tt>entrySet()</tt> view. This ensures that <tt>t1.equals(t2)</tt>
      * implies that <tt>t1.hashCode()==t2.hashCode()</tt> for any two maps
      * <tt>t1</tt> and <tt>t2</tt>, as required by the general contract of
-     * Object.hashCode.<p>
-     *
+     * Object.hashCode.
+     * <p>
+     * 
      * This implementation iterates over <tt>entrySet()</tt>, calling
      * <tt>hashCode</tt> on each element (entry) in the Collection, and adding
      * up the results.
-     *
+     * 
      * @return the hash code value for this map.
      * @see java.util.Map.Entry#hashCode()
      * @see Object#hashCode()
@@ -1454,46 +1287,42 @@ implements SortedMap
      * @see Set#equals(Object)
      */
     @Override
-	public int hashCode()
-    {
+    public int hashCode() {
         int h = 0;
         Iterator i = entrySet().iterator();
-        while (i.hasNext())
-        {
+        while (i.hasNext()) {
             h += i.next().hashCode();
         }
         return h;
     }
 
     /**
-     * Returns a string representation of this map.  The string representation
+     * Returns a string representation of this map. The string representation
      * consists of a list of key-value mappings in the order returned by the
-     * map's <tt>entrySet</tt> view's iterator, enclosed in braces
-     * (<tt>"{}"</tt>).  Adjacent mappings are separated by the characters
-     * <tt>", "</tt> (comma and space).  Each key-value mapping is rendered as
+     * map's <tt>entrySet</tt> view's iterator, enclosed in braces (
+     * <tt>"{}"</tt>). Adjacent mappings are separated by the characters
+     * <tt>", "</tt> (comma and space). Each key-value mapping is rendered as
      * the key followed by an equals sign (<tt>"="</tt>) followed by the
-     * associated value.  Keys and values are converted to strings as by
-     * <tt>String.valueOf(Object)</tt>.<p>
-     *
+     * associated value. Keys and values are converted to strings as by
+     * <tt>String.valueOf(Object)</tt>.
+     * <p>
+     * 
      * @return a String representation of this map.
      */
     @Override
-	public String toString()
-    {
+    public String toString() {
         return "PersistitMap(" + _ex + ")";
     }
-    
+
     /**
      * Returns a shallow copy of this <tt>AbstractMap</tt> instance: the keys
      * and values themselves are not cloned.
-     *
+     * 
      * @return a shallow copy of this map.
      */
     @Override
-	protected Object clone()
-    throws CloneNotSupportedException
-    {
+    protected Object clone() throws CloneNotSupportedException {
         throw new CloneNotSupportedException();
     }
-    
+
 }

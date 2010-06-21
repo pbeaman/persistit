@@ -20,26 +20,22 @@ import com.persistit.Debug;
 
 /**
  * Thrown by {@link com.persistit.Volume} if the volume file being opened is
- * corrupt.  Generally it will be necessary to restore a backup copy of the
+ * corrupt. Generally it will be necessary to restore a backup copy of the
  * volume file to resolve this.
- *
+ * 
  * @version 1.0
  */
-public class CorruptVolumeException
-extends PersistitException
-{
+public class CorruptVolumeException extends PersistitException {
     private static final long serialVersionUID = 9119544306031815864L;
-    
-    public CorruptVolumeException()
-    {
+
+    public CorruptVolumeException() {
         super();
     }
 
-    public CorruptVolumeException(String msg)
-    {
+    public CorruptVolumeException(String msg) {
         super(msg);
-		if (Debug.ENABLED)
-			Debug.debug1(true);
+        if (Debug.ENABLED)
+            Debug.debug1(true);
     }
 
 }

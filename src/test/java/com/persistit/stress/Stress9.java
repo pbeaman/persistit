@@ -27,19 +27,17 @@ import com.persistit.test.PersistitTestResult;
 
 public class Stress9 extends StressBase {
 
-    private final static String SHORT_DESCRIPTION =
-        "Random key and value size write/read/delete/traverse loops"
+    private final static String SHORT_DESCRIPTION = "Random key and value size write/read/delete/traverse loops"
             + " with serialized objects";
 
-    private final static String LONG_DESCRIPTION =
-        "   Simple stress test that repeats the following steps <repeat> times: \r\n"
+    private final static String LONG_DESCRIPTION = "   Simple stress test that repeats the following steps <repeat> times: \r\n"
             + "    - insert <count> random keys with random value length \r\n"
             + "    - read and verify <count> key/value pairs \r\n"
             + "    - traverse and count all keys using next() \r\n"
             + "    - delete <count> random keys\r\n";
 
-    private final static String[] ARGS_TEMPLATE =
-        { "op|String:wrtd|Operations to perform",
+    private final static String[] ARGS_TEMPLATE = {
+            "op|String:wrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions",
             "count|int:1000:0:1000000000|Number of nodes to populate",
             "size|int:4000:1:2000000|Approximate size of each data value",
@@ -64,7 +62,7 @@ public class Stress9 extends StressBase {
 
     @Override
     public void setUp() throws Exception {
-    	super.setUp();
+        super.setUp();
         _ap = new ArgParser("com.persistit.Stress9", _args, ARGS_TEMPLATE);
         _splay = _ap.getIntValue("splay");
         _opflags = _ap.getStringValue("op");
@@ -76,7 +74,8 @@ public class Stress9 extends StressBase {
 
         try {
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit",
+                    _rootName + _threadIndex, true);
             _exs = getPersistit().getExchange("persistit", "shared", true);
         } catch (final Exception ex) {
             handleThrowable(ex);
@@ -114,7 +113,7 @@ public class Stress9 extends StressBase {
                     final int keyInteger = keyInteger(_count);
 
                     _exs.clear().append("Stress9").append(keyInteger).append(
-                        _threadIndex);
+                            _threadIndex);
                     setupTestValue(_exs, keyInteger, random(2000, _size));
 
                     _ex.clear().append(keyInteger);
@@ -127,7 +126,7 @@ public class Stress9 extends StressBase {
                             final Object obj = _exs.getValue().get();
                             if ((obj != null) && !(obj instanceof ArrayList)) {
                                 throw new RuntimeException(
-                                    "Object should be ArrayList");
+                                        "Object should be ArrayList");
                             }
                         }
                     } catch (final Exception e) {
@@ -145,23 +144,22 @@ public class Stress9 extends StressBase {
                     dot();
                     final int keyInteger = keyInteger(_count);
                     _exs.clear().append("Stress9").append(keyInteger).append(
-                        _threadIndex);
+                            _threadIndex);
                     setupTestValue(_exs, keyInteger, random(20, _size));
                     _ex.clear().append(keyInteger);
                     try {
                         _ex.fetch();
                         int size1 = 0;
                         if (_ex.getValue().isDefined()
-                            && !_ex.getValue().isNull()) {
+                                && !_ex.getValue().isNull()) {
                             size1 = _ex.getValue().getInt();
                         }
                         _exs.fetch(value2);
                         final int size2 = value2.getEncodedSize();
                         if (size2 != size1) {
-                            _result =
-                                new PersistitTestResult(false, "Value is size "
-                                    + size2 + ", should be " + size1 + " key="
-                                    + _ex.getKey());
+                            _result = new PersistitTestResult(false,
+                                    "Value is size " + size2 + ", should be "
+                                            + size1 + " key=" + _ex.getKey());
                             println(_result);
                             forceStop();
                         }
@@ -184,7 +182,7 @@ public class Stress9 extends StressBase {
                             break;
                         }
                         if (_exs.append(_threadIndex).fetch().getValue()
-                            .isDefined()) {
+                                .isDefined()) {
                             count1++;
                         }
                         _exs.cut();
@@ -207,11 +205,10 @@ public class Stress9 extends StressBase {
                     }
                 }
                 if (count1 != count2) {
-                    _result =
-                        new PersistitTestResult(false, "Traverse count is "
-                            + count1 + " but should be " + count2
-                            + " on repetition=" + _repeat + " in thread="
-                            + _threadIndex);
+                    _result = new PersistitTestResult(false,
+                            "Traverse count is " + count1 + " but should be "
+                                    + count2 + " on repetition=" + _repeat
+                                    + " in thread=" + _threadIndex);
 
                     break;
                 }
@@ -225,7 +222,7 @@ public class Stress9 extends StressBase {
                     dot();
                     final int keyInteger = keyInteger(_count);
                     _exs.clear().append("Stress9").append(keyInteger).append(
-                        _threadIndex);
+                            _threadIndex);
                     _ex.clear().append(keyInteger);
                     try {
                         _exs.fetchAndRemove();
@@ -234,7 +231,7 @@ public class Stress9 extends StressBase {
                             final Object obj = _exs.getValue().get();
                             if ((obj != null) && !(obj instanceof ArrayList)) {
                                 throw new RuntimeException(
-                                    "expected an ArrayList");
+                                        "expected an ArrayList");
                             }
                         }
                     } catch (final Exception e) {
@@ -263,7 +260,7 @@ public class Stress9 extends StressBase {
 
     @Override
     protected void setupTestValue(final Exchange ex, final int counter,
-        final int length) {
+            final int length) {
         final int elements = length / 8; // ? size of a Integer?
         _testValue.clear();
         final Integer anInteger = new Integer(counter);

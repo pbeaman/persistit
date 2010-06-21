@@ -16,23 +16,18 @@
  */
 package com.persistit.exception;
 
-
 /**
- * Thrown if the prewrite journal file is corrupt.  Generally it will be 
- * necessary to delete the prewrite journal file to resolve this.  
- * In so doing, critical information needed to recover the state of 
- * one or more {@link com.persistit.Volume}s may be lost.
- *
+ * Thrown if the prewrite journal file is corrupt. Generally it will be
+ * necessary to delete the prewrite journal file to resolve this. In so doing,
+ * critical information needed to recover the state of one or more
+ * {@link com.persistit.Volume}s may be lost.
+ * 
  * @version 1.0
  */
-public class CorruptLogException
-extends PersistitIOException
-{
+public class CorruptLogException extends PersistitIOException {
     private static final long serialVersionUID = -5397911019132612370L;
 
-    
-    public CorruptLogException(String msg)
-    {
+    public CorruptLogException(String msg) {
         super(msg);
     }
 }

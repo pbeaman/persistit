@@ -14,28 +14,23 @@
  * NOT BE LIABLE FOR ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING,
  * MODIFYING OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
  */
- 
-package com.persistit.exception;
 
+package com.persistit.exception;
 
 /**
  * Thrown when an application attempts to perform operations on a
  * {@link com.persistit.Volume} that has been closed.
- *
+ * 
  * @version 1.0
  */
-public class VolumeClosedException
-extends PersistitException
-{
+public class VolumeClosedException extends PersistitException {
     private static final long serialVersionUID = -1577835912746168786L;
-    
-    public VolumeClosedException()
-    {
+
+    public VolumeClosedException() {
         super();
     }
 
-    public VolumeClosedException(String msg)
-    {
+    public VolumeClosedException(String msg) {
         super(msg);
     }
 }

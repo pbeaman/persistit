@@ -19,23 +19,19 @@
 package com.persistit.exception;
 
 /**
- * Thrown by decoding methods of the {@link com.persistit.Key}
- * class when there is no remaining key segment to decode.
- *  
+ * Thrown by decoding methods of the {@link com.persistit.Key} class when there
+ * is no remaining key segment to decode.
+ * 
  * @version 1.0
  */
-public class MissingKeySegmentException
-extends RuntimeException
-{
+public class MissingKeySegmentException extends RuntimeException {
     private static final long serialVersionUID = 7423673980055887541L;
-    
-    public MissingKeySegmentException()
-    {
+
+    public MissingKeySegmentException() {
         super();
     }
-    
-    public MissingKeySegmentException(String msg)
-    {
+
+    public MissingKeySegmentException(String msg) {
         super(msg);
     }
 }

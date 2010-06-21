@@ -22,8 +22,9 @@ import java.io.File;
 import java.util.Properties;
 
 public class UnitTestProperties {
-	
-	public final static String DATA_PATH = "/tmp/persistit_test_data";
+
+    public final static String DATA_PATH = "/tmp/persistit_test_data";
+
     /**
      * Returns a Properties object with settings appropriate for unit tests -
      * i.e., very small allocations.
@@ -31,65 +32,65 @@ public class UnitTestProperties {
      * @return Initialization properties for unit tests.
      */
     public static Properties getProperties() {
-    	cleanUpDirectory(new File(DATA_PATH));
+        cleanUpDirectory(new File(DATA_PATH));
         final Properties p = new Properties();
         p.setProperty("datapath", DATA_PATH);
         p.setProperty("buffer.count.8192", "20");
         p.setProperty("volume.1", "${datapath}/persistit.v01,create,"
-            + "pageSize:8192,initialPages:10,extensionPages:10,"
-            + "maximumPages:10000");
+                + "pageSize:8192,initialPages:10,extensionPages:10,"
+                + "maximumPages:10000");
         p.setProperty("logpath", "${datapath}/persistit_log");
         return p;
     }
 
     public static Properties getBiggerProperties() {
-    	cleanUpDirectory(new File(DATA_PATH));
+        cleanUpDirectory(new File(DATA_PATH));
         final Properties p = new Properties();
         p.setProperty("datapath", DATA_PATH);
         p.setProperty("buffer.count.8192", "4000");
         p.setProperty("volume.1", "${datapath}/persistit.v01,create,"
-            + "pageSize:8192,initialPages:100,extensionPages:100,"
-            + "maximumPages:100000,alias:persistit");
+                + "pageSize:8192,initialPages:100,extensionPages:100,"
+                + "maximumPages:100000,alias:persistit");
         p.setProperty("volume.2", "${datapath}/persistit_system.v01,create,"
-            + "pageSize:8192,initialPages:100,extensionPages:100,"
-            + "maximumPages:100000,alias:_system");
+                + "pageSize:8192,initialPages:100,extensionPages:100,"
+                + "maximumPages:100000,alias:_system");
         p.setProperty("volume.3", "${datapath}/persistit_txn.v01,create,"
-            + "pageSize:8192,initialPages:100,extensionPages:100,"
-            + "maximumPages:100000,alias:_txn");
+                + "pageSize:8192,initialPages:100,extensionPages:100,"
+                + "maximumPages:100000,alias:_txn");
         p.setProperty("logpath", "${datapath}/persistit_log");
         return p;
     }
 
     public static Properties getAlternateProperties() {
-    	cleanUpDirectory(new File(DATA_PATH));
+        cleanUpDirectory(new File(DATA_PATH));
         final Properties p = new Properties();
         p.setProperty("datapath", DATA_PATH);
         p.setProperty("buffer.count.8192", "40");
         p.setProperty("volume.1", "${datapath}/temp.v01,create,"
-            + "pageSize:8192,initialPages:4,extensionPages:1,"
-            + "maximumPages:100000,alias:persistit,temporary");
+                + "pageSize:8192,initialPages:4,extensionPages:1,"
+                + "maximumPages:100000,alias:persistit,temporary");
         p.setProperty("logpath", "${datapath}/persistit_alt_log");
         return p;
     }
-    
-	private final static void cleanUpDirectory(final File file) {
-		if (!file.exists()) {
-			file.mkdirs();
-			return;
-		} else if (file.isFile()) {
-			throw new IllegalStateException(file + " must be a directory");
-		} else {
-			final File[] files = file.listFiles();
-			cleanUpFiles(files);
-		}
-	}
 
-	private final static void cleanUpFiles(final File[] files) {
-		for (final File file : files) {
-			if (file.isDirectory()) {
-				cleanUpDirectory(file);
-			}
-			file.delete();
-		}
-	}
+    private final static void cleanUpDirectory(final File file) {
+        if (!file.exists()) {
+            file.mkdirs();
+            return;
+        } else if (file.isFile()) {
+            throw new IllegalStateException(file + " must be a directory");
+        } else {
+            final File[] files = file.listFiles();
+            cleanUpFiles(files);
+        }
+    }
+
+    private final static void cleanUpFiles(final File[] files) {
+        for (final File file : files) {
+            if (file.isDirectory()) {
+                cleanUpDirectory(file);
+            }
+            file.delete();
+        }
+    }
 }

@@ -20,7 +20,6 @@ package com.persistit.ui;
 
 import java.awt.event.ActionEvent;
 
-public interface AdminCommand
-{
+public interface AdminCommand {
     public void actionPerformed(AdminUI.AdminAction action, ActionEvent ae);
 }

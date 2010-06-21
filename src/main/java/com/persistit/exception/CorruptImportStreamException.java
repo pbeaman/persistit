@@ -17,23 +17,19 @@
 package com.persistit.exception;
 
 /**
- * Thrown by {@link com.persistit.StreamLoader} if the format of data 
- * in the input stream is invalid.
- *
+ * Thrown by {@link com.persistit.StreamLoader} if the format of data in the
+ * input stream is invalid.
+ * 
  * @version 1.0
  */
-public class CorruptImportStreamException
-extends PersistitException
-{
+public class CorruptImportStreamException extends PersistitException {
     private static final long serialVersionUID = 276660867236088546L;
-    
-    public CorruptImportStreamException()
-    {
+
+    public CorruptImportStreamException() {
         super();
     }
 
-    public CorruptImportStreamException(String msg)
-    {
+    public CorruptImportStreamException(String msg) {
         super(msg);
     }
 

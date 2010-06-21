@@ -21,65 +21,58 @@ package com.persistit;
 import java.io.ObjectStreamClass;
 
 /**
- * A simple structure that holds a tuple consiting of a class, its
- * serial version UID and its Persistit handle.
- *
+ * A simple structure that holds a tuple consiting of a class, its serial
+ * version UID and its Persistit handle.
+ * 
  */
 
-public class ClassInfo
-{
+public class ClassInfo {
     private Class _class;
     private long _suid;
     private int _handle;
     private ObjectStreamClass _osc;
-    
-    ClassInfo(Class cl, long suid, int handle, ObjectStreamClass osc)
-    {
+
+    ClassInfo(Class cl, long suid, int handle, ObjectStreamClass osc) {
         _class = cl;
         _suid = suid;
         _handle = handle;
         _osc = osc;
     }
-    
+
     /**
-     * @return  The <tt>Class</tt> 
+     * @return The <tt>Class</tt>
      */
-    public Class getDescribedClass()
-    {
+    public Class getDescribedClass() {
         return _class;
     }
-    
+
     /**
-     * @return  The <tt>Class</tt>'s name
+     * @return The <tt>Class</tt>'s name
      */
-    public String getName()
-    {
+    public String getName() {
         return _class.getName();
     }
-    
+
     /**
-     * @return  The serial version UID of the <tt>Class</tt>
+     * @return The serial version UID of the <tt>Class</tt>
      */
-    public long getSUID()
-    {
+    public long getSUID() {
         return _suid;
     }
-    
+
     /**
-     * @return  The handle used to identify the <tt>Class</tt> in
-     *          values stored by Persistit.
+     * @return The handle used to identify the <tt>Class</tt> in values stored
+     *         by Persistit.
      */
-    public int getHandle()
-    {
+    public int getHandle() {
         return _handle;
     }
-    
+
     /**
-     * @return  The ObjectStreamClass for the described class, or
-     *          <tt>null</tt> if there is none.
+     * @return The ObjectStreamClass for the described class, or <tt>null</tt>
+     *         if there is none.
      */
-    public ObjectStreamClass getClassDescriptor()
-    {
+    public ObjectStreamClass getClassDescriptor() {
         return _osc;
     }
 }
