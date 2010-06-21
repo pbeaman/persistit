@@ -102,7 +102,7 @@ public class LogBase {
     final static int LOG_INIT_CREATE_GUI = addLogTemplate(FINE, LIFECYCLE,
             "INIT_CREATE_GUI");
     public final static int LOG_MBEAN_REGISTRATION = addLogTemplate(INFO,
-            LIFECYCLE, "MBEAN_REGISTATION");
+            LIFECYCLE, "MBEAN_REGISTRATION");
     public final static int LOG_MBEAN_EXCEPTION = addLogTemplate(WARNING,
             LIFECYCLE, "MBEAN_EXCEPTION");
     final static int LOG_DEFERRED_DEALLOC_FAILED = addLogTemplate(WARNING,
