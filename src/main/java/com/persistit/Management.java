@@ -1144,8 +1144,8 @@ extends Remote
         public final static long serialVersionUID = -1231320633942497896L;
         
         int _bufferSize;
-        String _pathName;
-        String _alias;
+        String _path;
+        String _name;
         long _id;
         long _createTime;
         long _openTime;
@@ -1169,7 +1169,7 @@ extends Remote
         VolumeInfo(Volume vol)
         {
             super();
-            _pathName = vol.getPath();
+            _path = vol.getPath();
             _id = vol.getId();
             _createTime = vol.getCreateTime();
             _generation = vol.getTimestamp();
@@ -1190,7 +1190,7 @@ extends Remote
             _maximumPageCount = vol.getMaximumPages();
             _extensionPageCount = vol.getExtensionPages();
             _garbageRootPage = vol.getGarbageRoot();
-            _alias = vol.getName();
+            _name = vol.getName();
         }
         
         /**
@@ -1206,9 +1206,18 @@ extends Remote
          * Returns the full path name.
          * @return  the path name.
          */
-        public String getPathName()
+        public String getPath()
         {
-            return _pathName;
+            return _path;
+        }
+        
+        /**
+         * Returns the alias if one was assigned in the system configuration.
+         * @return  the alias for this volume, or <tt>null<tt> if there is none
+         */
+        public String getName()
+        {
+            return _name;
         }
         
         /**
@@ -1406,22 +1415,13 @@ extends Remote
         }
         
         /**
-         * Returns the alias if one was assigned in the system configuration.
-         * @return  the alias for this volume, or <tt>null<tt> if there is none
-         */
-        public String getAlias()
-        {
-            return _alias;
-        }
-        
-        /**
          * Returns the path name of this Volume
          * @return     The path name 
          */
         @Override
 		public String toString()
         {
-            return _pathName;
+            return _path;
         }
         
         /**
@@ -1435,7 +1435,7 @@ extends Remote
             return
                 object instanceof VolumeInfo &&
                 ((VolumeInfo)object).getId() == _id &&
-                ((VolumeInfo)object).getPathName().equals(_pathName);
+                ((VolumeInfo)object).getPath().equals(_path);
         }
     }
     

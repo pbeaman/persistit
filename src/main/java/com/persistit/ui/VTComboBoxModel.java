@@ -87,7 +87,7 @@ implements ComboBoxModel
                 for (int index = 0; index < volumes.length; index++)
                 {
                     _cachedList.add(
-                        volumes[index].getPathName());
+                        volumes[index].getPath());
                 }
             }
             else

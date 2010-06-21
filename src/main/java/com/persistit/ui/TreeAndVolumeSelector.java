@@ -239,7 +239,7 @@ implements AdminCommand
 
     private void selectVolume(VolumeInfo volumeInfo)
     {
-        String newName = volumeInfo == null ? null : volumeInfo.getPathName();
+        String newName = volumeInfo == null ? null : volumeInfo.getPath();
         if (!equals(newName, _selectedVolumeName))
         {
             _selectedVolumeName = newName;
@@ -506,7 +506,7 @@ implements AdminCommand
                 {
                     VolumeInfo volumeInfo =
                         (VolumeInfo)_volumeList.getModel().getElementAt(volumeIndex);
-                    String volumeName = volumeInfo.getPathName();
+                    String volumeName = volumeInfo.getPath();
                     try
                     {
                         TreeInfo[] treeInfoArray =

@@ -61,6 +61,9 @@ public class BufferPool {
 	 */
 	public final static int PAGES_PER_BUCKET = 4096;
 
+	/**
+	 * The Persistit instance that references this BufferBool.
+	 */
 	private Persistit _persistit;
 
 	/**
@@ -95,6 +98,8 @@ public class BufferPool {
 	/**
 	 * Doubly-linked list of permanent Buffers. Note that
 	 * a Buffer on this list cannot also be on the LRU list.
+	 * A permanent Buffer cannot be replaced.  The "head"
+	 * Buffer (page 0) of each Volume is so-marked.
 	 */
 	private Buffer _perm;
 
@@ -127,6 +132,8 @@ public class BufferPool {
 	 * Polling interval for TemporaryVolumeBufferWriter
 	 */
 	private long _writerPollInterval = DEFAULT_WRITER_POLL_INTERVAL;
+	
+	
 
 	private PageWriter[] _writers;
 

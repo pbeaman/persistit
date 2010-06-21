@@ -325,7 +325,7 @@ implements AdminCommand
     
     private void selectVolume(Management.VolumeInfo volumeInfo)
     {
-        String newName = volumeInfo == null ? null : volumeInfo.getPathName();
+        String newName = volumeInfo == null ? null : volumeInfo.getPath();
         if (!equals(newName, _selectedVolumeName))
         {
             _logicalRecordArrayModel.setInfoArray(null);

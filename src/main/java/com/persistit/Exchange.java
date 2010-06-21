@@ -3789,8 +3789,9 @@ public final class Exchange implements BuildConstants {
 	 */
 	private void checkOwnerThread() {
 
-		if (_ownerThread == Thread.currentThread() && !_relinquished)
+		if (_ownerThread == Thread.currentThread() && !_relinquished) {
 			return;
+		}
 
 		synchronized (_lock) {
 			if (_relinquished) {
@@ -3809,8 +3810,9 @@ public final class Exchange implements BuildConstants {
 
 	void setRelinquished(boolean b) {
 		_relinquished = b;
-		if (b)
+		if (b) {
 			_value.clear();
+		}
 	}
 
 	void setSecure(boolean b) {

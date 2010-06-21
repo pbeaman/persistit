@@ -45,19 +45,23 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         System.out.print("test1");
         final Exchange ex = _persistit.getExchange("persistit", "LongRecordTest1", true);
         ex.removeAll();
+        ex.getValue().setMaximumSize(8 * 1024 * 1024);
 
-        final StringBuffer sb = new StringBuffer(500000);
-        for (int counter = 0; counter < 500000; counter += 10) {
+        final StringBuffer sb = new StringBuffer(8000000);
+        for (int counter = 0; counter < 8000000; counter += 10) {
             Util.fill(sb, counter, 10);
         }
 
         final Key key = ex.getKey();
-        key.clear().append(500000);
+        key.clear().append(8000000);
         ex.getValue().putString(sb);
         final int size1 = ex.getValue().getEncodedSize();
         final String bigString1 = ex.getValue().getString();
 
+        long time = System.nanoTime();
         ex.store();
+        time = System.nanoTime() - time;
+        System.out.println(String.format("ex.store() took %,dns", time));
         final int size2 = ex.getValue().getEncodedSize();
         ex.getValue().clear();
 

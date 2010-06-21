@@ -506,11 +506,11 @@ public class Volume extends SharedResource {
 						"Attempt to open with invalid id " + id + " (!= " + _id
 								+ ")");
 			}
-			long expectedLength = _pageCount * _bufferSize;
-			if (size < expectedLength) {
-				throw new CorruptVolumeException("Volume file too short: "
-						+ size + " expected: " + expectedLength + " bytes");
-			}
+//			long expectedLength = _pageCount * _bufferSize;
+//			if (size < expectedLength) {
+//				throw new CorruptVolumeException("Volume file too short: "
+//						+ size + " expected: " + expectedLength + " bytes");
+//			}
 
 			// TODO -- synchronize opening of Volumes.
 			_persistit.addVolume(this);

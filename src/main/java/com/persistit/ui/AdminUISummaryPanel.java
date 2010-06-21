@@ -62,11 +62,6 @@ implements AdminCommand
     JTextField _totalGets;
     JTextField _totalHits;
     JTextField _hitRatio;
-    JTextField _pwjCurGen;
-    JTextField _pwjComGen;
-    JTextField _pwjSize;
-    JTextField _pwjCount;
-    JTextField _pwjPath;
     JTextField _frozenUpdates;
     JTextField _frozenShutdown;
 
@@ -107,11 +102,6 @@ implements AdminCommand
         _totalGets =  (JTextField)ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.gets", false);
         _hitRatio =  (JTextField)ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.ratio", true);
         
-        _pwjCount = (JTextField)ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.pwjCount", false);
-        _pwjSize = (JTextField)ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.pwjSize", false);
-        _pwjCurGen = (JTextField)ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.pwjCurrentGen", false);
-        _pwjComGen = (JTextField)ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.pwjCommittedGen", true);
-        _pwjPath = (JTextField)ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.pwjPath", false);
         _frozenUpdates = (JTextField)ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.update_suspended", false);
         _frozenShutdown = (JTextField)ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.shutdown_suspended", true);
         _frozenTrueCaption = _adminUI.getProperty("SummaryPanel.suspendedTrueCaption");
@@ -153,7 +143,7 @@ implements AdminCommand
                             .getInfoArray();
                     if (array != null && index < array.length)
                     {
-                        _selectedVolumeName = array[index].getPathName();
+                        _selectedVolumeName = array[index].getPath();
                     }
                     else
                     {
@@ -166,14 +156,11 @@ implements AdminCommand
     
         JScrollPane volumeScrollPane = new JScrollPane(volumeTable);
         
-        JPanel pwjPanel = new JPanel(new BorderLayout());
-        
         JPanel volumePanel = new JPanel(new BorderLayout());
         volumePanel.setBorder(_adminUI.createTitledBorder("SummaryPanel.volumes"));
         volumePanel.add(volumeScrollPane, BorderLayout.CENTER);
 
         JSplitPane splitter1 = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
-        splitter1.add(pwjPanel);
         splitter1.add(volumePanel);
         
         _volumeTablePanel.add(splitter1, BorderLayout.CENTER);
@@ -216,11 +203,6 @@ implements AdminCommand
                 _totalGets.setText("");
                 _hitRatio.setText("");
                 _volumeInfoArrayModel.setInfoArray(null);
-                _pwjComGen.setText("");
-                _pwjCurGen.setText("");
-                _pwjPath.setText("");
-                _pwjCount.setText("");
-                _pwjSize.setText("");
             }
             else
             {
@@ -273,7 +255,7 @@ implements AdminCommand
                 if (_selectedVolumeName == null &&
                     via.length > 0)
                 {
-                    _selectedVolumeName = via[0].getPathName();
+                    _selectedVolumeName = via[0].getPath();
                 }
                 
                 for (int index = 0; index < via.length; index++)

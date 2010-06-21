@@ -38,6 +38,7 @@ import java.util.Stack;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
+import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.LogInitializationException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -689,7 +690,7 @@ public class Persistit implements BuildConstants {
 
 			String rmiHost = getProperty(RMI_REGISTRY_HOST_PROPERTY);
 			String rmiPort = getProperty(RMI_REGISTRY_PORT);
-			String jmxParams = getProperty(JMX_PARAMS);
+			boolean enableJmx = getBooleanProperty(JMX_PARAMS, true);
 
 			_readRetryEnabled = getBooleanProperty(READ_RETRY_PROPERTY, true);
 
@@ -700,8 +701,8 @@ public class Persistit implements BuildConstants {
 				ManagementImpl management = (ManagementImpl) getManagement();
 				management.register(rmiHost, rmiPort);
 			}
-			if (jmxParams != null && jmxParams.length() != 0) {
-				setupOpenMBean(jmxParams);
+			if (enableJmx) {
+				setupOpenMBean();
 			}
 
 			// Set up the parent CoderManager for this instance.
@@ -801,13 +802,18 @@ public class Persistit implements BuildConstants {
 	 * so this also required Java 5.0+.
 	 * 
 	 * @param params
+	 *            "true" to enable the PersistitOpenMBean, else "false".
 	 */
-	private void setupOpenMBean(String params) {
+	private void setupOpenMBean() {
 		try {
 			Class clazz = Class.forName(PERSISTIT_JMX_CLASS_NAME);
-			Method setupMethod = clazz.getMethod("setup", new Class[0]);
-			setupMethod.invoke(null, new Object[0]);
+			Method setupMethod = clazz.getMethod("setup",
+					new Class[] { Persistit.class });
+			setupMethod.invoke(null, new Object[] { this });
 		} catch (Exception e) {
+			if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
+				_logBase.log(LogBase.LOG_MBEAN_EXCEPTION, e);
+			}
 		}
 	}
 
@@ -1240,7 +1246,7 @@ public class Persistit implements BuildConstants {
 			throw new NullPointerException("Null volume name");
 		}
 		Volume result = null;
-		
+
 		for (int i = 0; i < _volumes.size(); i++) {
 			Volume vol = _volumes.get(i);
 			if (name.equals(vol.getName())) {
@@ -1251,7 +1257,10 @@ public class Persistit implements BuildConstants {
 				}
 			}
 		}
-		
+		if (result != null) {
+			return result;
+		}
+
 		final File file = new File(name);
 		for (int i = 0; i < _volumes.size(); i++) {
 			Volume vol = _volumes.get(i);
