@@ -345,7 +345,7 @@ public final class Exchange implements BuildConstants {
     }
 
     private void checkLevelCache() {
-        if (_treeGeneration != _tree.getTimestamp()) {
+        if (_treeGeneration != _tree.getGeneration()) {
             _tree.loadRootLevelInfo(this);
             _cacheDepth = _treeDepth;
             // for (int index = 0; index < _cacheDepth; index++)
@@ -421,7 +421,7 @@ public final class Exchange implements BuildConstants {
 
             _page = buffer.getPageAddress();
             _buffer = buffer;
-            _bufferGeneration = buffer.getTimestamp();
+            _bufferGeneration = buffer.getGeneration();
 
             if (key == _key && foundAt > 0 && !buffer.isAfterRightEdge(foundAt)) {
                 _keyGeneration = key.getGeneration();
@@ -845,7 +845,12 @@ public final class Exchange implements BuildConstants {
             return searchTree(key, 0);
         }
 
-        checkPageType(buffer, Buffer.PAGE_TYPE_DATA);
+        try {
+            checkPageType(buffer, Buffer.PAGE_TYPE_DATA);
+        } catch (CorruptVolumeException e) {
+            buffer.release(); // Don't make Most-Recently-Used
+            throw e;
+        }
 
         int foundAt = findKey(buffer, key, lc);
 
@@ -861,7 +866,7 @@ public final class Exchange implements BuildConstants {
 
         // DEBUG - remove after reclaim fix
         if (Debug.ENABLED) {
-            if (buffer.getTimestamp() != lc._bufferGeneration) {
+            if (buffer.getGeneration() != lc._bufferGeneration) {
                 int foundAt2 = searchTree(key, 0);
                 Buffer buffer2 = lc._buffer;
                 Debug.$assert(buffer2 == buffer);
@@ -878,7 +883,7 @@ public final class Exchange implements BuildConstants {
         boolean done = false;
         // Possibly we can accelerate.
         //
-        if (foundAt != -1 && buffer.getTimestamp() == lc._bufferGeneration
+        if (foundAt != -1 && buffer.getGeneration() == lc._bufferGeneration
                 && key == _key) {
             if (key.getGeneration() == lc._keyGeneration) {
                 // return foundAt;
@@ -1072,7 +1077,7 @@ public final class Exchange implements BuildConstants {
 
                 if (pageAddress == lc._page && key == _key
                         && key.getGeneration() == lc._keyGeneration
-                        && buffer.getTimestamp() == lc._bufferGeneration) {
+                        && buffer.getGeneration() == lc._bufferGeneration) {
                     foundAt = lc._foundAt;
                 }
 
@@ -1306,7 +1311,7 @@ public final class Exchange implements BuildConstants {
 
                     // DEBUG - remove after reclaim fix
                     if (Debug.ENABLED) {
-                        if (buffer.getTimestamp() != lc._bufferGeneration) {
+                        if (buffer.getGeneration() != lc._bufferGeneration) {
                             int foundAt2 = searchTree(key, 0);
                             Debug.$assert(lc._buffer == buffer);
                             buffer.release();
@@ -1646,8 +1651,8 @@ public final class Exchange implements BuildConstants {
             // Have to retest all this now that we've gotten a claim
             if (buffer.getPageAddress() == lc._page
                     && buffer.getVolume() == _volume
-                    && _treeGeneration == _tree.getTimestamp()
-                    && buffer.getTimestamp() == lc._bufferGeneration
+                    && _treeGeneration == _tree.getGeneration()
+                    && buffer.getGeneration() == lc._bufferGeneration
                     && buffer.isValid()) {
                 return buffer;
             } else {
@@ -3108,7 +3113,7 @@ public final class Exchange implements BuildConstants {
                                     lc._deferredReindexPage = buffer2
                                             .getPageAddress();
                                     lc._deferredReindexChangeCount = buffer2
-                                            .getTimestamp();
+                                            .getGeneration();
                                     deferredReindexRequired = true;
                                     needsReindex = false;
                                 }
@@ -3200,7 +3205,7 @@ public final class Exchange implements BuildConstants {
                             long deferredPage = lc._deferredReindexPage;
                             buffer = _pool.get(_volume, deferredPage, false,
                                     true);
-                            if (buffer.getTimestamp() == lc._deferredReindexChangeCount) {
+                            if (buffer.getGeneration() == lc._deferredReindexChangeCount) {
                                 checkPageType(buffer, level
                                         + Buffer.PAGE_TYPE_DATA);
                                 buffer

@@ -503,12 +503,12 @@ public class Debug {
 
         DebugPageEvent dpe = stateChanged(buffer.getVolume(), buffer
                 .getPageAddress(), buffer.getPageType(), eventName, buffer
-                .getTimestamp(), generation);
+                .getGeneration(), generation);
         if (dpe != null) {
             dpe._poolIndex = buffer.getIndex();
             dpe._status = buffer.getStatus();
             dpe._writerThread = buffer.getWriterThread();
-            dpe._bufferGeneration = buffer.getTimestamp();
+            dpe._bufferGeneration = buffer.getGeneration();
         }
         return dpe;
     }

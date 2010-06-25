@@ -1149,7 +1149,7 @@ public interface Management extends Remote {
             _path = vol.getPath();
             _id = vol.getId();
             _createTime = vol.getCreateTime();
-            _generation = vol.getTimestamp();
+            _generation = vol.getGeneration();
             _getCounter = vol.getGetCounter();
             _readCounter = vol.getReadCounter();
             _writeCounter = vol.getWriteCounter();

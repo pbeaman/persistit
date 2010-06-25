@@ -342,16 +342,14 @@ public class Transaction {
     }
 
     private static class TouchedPage extends InternalHashSet.Entry {
-        Volume _volume;
-        long _pageAddr;
-        long _changeCount;
-        int _bufferIndex;
+        final Volume _volume;
+        final long _pageAddr;
+        final long _timestamp;
 
         TouchedPage(Buffer buffer) {
             _volume = buffer.getVolume();
             _pageAddr = buffer.getPageAddress();
-            _changeCount = buffer.getTimestamp();
-            _bufferIndex = buffer.getIndex();
+            _timestamp = buffer.getTimestamp();
         }
 
         @Override
@@ -362,7 +360,7 @@ public class Transaction {
         @Override
         public String toString() {
             return "Touched(" + _volume.getPath() + ", page " + _pageAddr
-                    + ", changeCount=" + _changeCount + ")";
+                    + ", timestamp=" + _timestamp + ")";
         }
     }
 
@@ -1161,7 +1159,7 @@ public class Transaction {
         while (entry != null) {
             if (entry._volume == buffer.getVolume()
                     && entry._pageAddr == buffer.getPageAddress()) {
-                if (entry._changeCount != buffer.getTimestamp()) {
+                if (entry._timestamp != buffer.getTimestamp()) {
                     // can't actually roll back here because the context is
                     // wrong.
                     _rollbackPending = true;
@@ -1225,7 +1223,7 @@ public class Transaction {
                         BufferPool pool = tp._volume.getPool();
                         Buffer buffer = pool.get(tp._volume, tp._pageAddr,
                                 false, true);
-                        boolean changed = buffer.getTimestamp() != tp._changeCount;
+                        boolean changed = buffer.getTimestamp() != tp._timestamp;
                         buffer.release(); // Do not make Least-Recently-Used
 
                         if (changed) {

@@ -145,7 +145,7 @@ public class Tree extends SharedResource {
     void loadRootLevelInfo(Exchange exchange) {
         synchronized (_lock) {
             mustBeInitialized();
-            exchange.setRootLevelInfo(_rootPageAddr, _depth, _timestamp);
+            exchange.setRootLevelInfo(_rootPageAddr, _depth, _generation);
         }
     }
 
@@ -219,7 +219,7 @@ public class Tree extends SharedResource {
     void invalidate() {
         synchronized (_lock) {
             _initialized = false;
-            _timestamp = -1;
+            _generation = -1;
             super.setValid(false);
         }
     }

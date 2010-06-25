@@ -100,12 +100,22 @@ public class BufferPool {
      * cannot also be on the LRU list. A permanent Buffer cannot be replaced.
      * The "head" Buffer (page 0) of each Volume is so-marked.
      */
-    private Buffer _perm;
+    private Buffer[] _perm;
 
     /**
      * Head of doubly-linked list of valid page in least-recently-used order
      */
-    private Buffer[] _lru = null;
+    private Buffer[] _lru;
+
+    /**
+     * Head of doubly-linked list of dirty pages in write priority order
+     */
+    private Buffer[] _dirty;
+
+    /**
+     * Head of doubly-linked list of dirty pages urgently needing to be written
+     */
+    private Buffer[] _urgent;
 
     /**
      * An Object used to lock the buffer management memory structures
@@ -125,14 +135,16 @@ public class BufferPool {
     /**
      * Indicates that Persistit has closed this buffer pool.
      */
-    private boolean _closed;
+    private volatile boolean _closed;
 
     /**
      * Polling interval for TemporaryVolumeBufferWriter
      */
     private long _writerPollInterval = DEFAULT_WRITER_POLL_INTERVAL;
 
-    private PageWriter[] _writers;
+    private PageWriter _writer;
+
+    private DirtyPageCollector _collector;
 
     /**
      * Construct a BufferPool with the specified count of <tt>Buffer</tt>s of
@@ -176,6 +188,9 @@ public class BufferPool {
 
         _invalidBufferQueue = new Buffer[_bucketCount];
         _lru = new Buffer[_bucketCount];
+        _perm = new Buffer[_bucketCount];
+        _dirty = new Buffer[_bucketCount];
+        _urgent = new Buffer[_bucketCount];
         _lock = new Object[_bucketCount];
         for (int bucket = 0; bucket < _bucketCount; bucket++) {
             _lock[bucket] = new Object();
@@ -186,17 +201,15 @@ public class BufferPool {
             for (int index = 0; index < count; index++) {
                 Buffer buffer = new Buffer(size, index, this, _persistit);
                 int bucket = index % _bucketCount;
-                buffer._next = _invalidBufferQueue[bucket];
+                buffer.setNext(_invalidBufferQueue[bucket]);
                 _invalidBufferQueue[bucket] = buffer;
                 _buffers[index] = buffer;
-                buffer.createFindex();
                 created++;
             }
+            _collector = new DirtyPageCollector();
 
-            _writers = new PageWriter[_bucketCount];
-            for (int index = 0; index < _bucketCount; index++) {
-                _writers[index] = new PageWriter(index);
-            }
+            // TODO - PageWriter per Log if/when we add striped logs
+            _writer = new PageWriter(0);
         } catch (OutOfMemoryError e) {
             System.out.println("Out of memory after creating " + created
                     + " buffers");
@@ -206,22 +219,22 @@ public class BufferPool {
     }
 
     void close() {
-        synchronized (this) {
-            _closed = true;
-        }
-        if (_writers != null) {
-            for (int index = 0; index < _writers.length; index++) {
-                _writers[index].kick();
-            }
-            boolean stopped = false;
-            while (!stopped) {
+
+        _closed = true;
+        if (_collector != null) {
+            _collector.kick();
+            while (!_collector.isStopped()) {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException ie) {
                 }
-                stopped = true;
-                for (int index = 0; index < _writers.length; index++) {
-                    stopped &= _writers[index]._stopped;
+            }
+        }
+        if (_writer != null) {
+            while (!_writer.isStopped()) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException ie) {
                 }
             }
         }
@@ -231,14 +244,14 @@ public class BufferPool {
         // Important - all pages that hash to the same hash table entry
         // must also belong to the same bucket.
         //
-        return (int) (page % _hashTable.length);
+        return (int) ((page ^ vol.getId()) % _hashTable.length);
     }
 
     int countDirty(Volume vol) {
         int count = 0;
         for (int i = 0; i < _bufferCount; i++) {
             Buffer buffer = _buffers[i];
-            if ((vol == null || buffer._vol == vol)
+            if ((vol == null || buffer.getVolume() == vol)
                     && (buffer._status & SharedResource.DIRTY_MASK) != 0) {
                 count++;
             }
@@ -250,7 +263,7 @@ public class BufferPool {
         int count = 0;
         for (int i = 0; i < _bufferCount; i++) {
             Buffer buffer = _buffers[i];
-            if ((vol == null || buffer._vol == vol)
+            if ((vol == null || buffer.getVolume() == vol)
                     && ((buffer._status & SharedResource.CLAIMED_MASK) != 0 && (!writer || (buffer._status & SharedResource.WRITER_MASK) != 0))) {
                 count++;
             }
@@ -304,12 +317,13 @@ public class BufferPool {
             for (int bucket = 0; bucket < _bucketCount; bucket++) {
                 synchronized (_lock[bucket]) {
                     Buffer lru = _lru[bucket];
-                    for (Buffer buffer = lru; buffer != null; buffer = buffer._nextLru) {
+                    for (Buffer buffer = lru; buffer != null; buffer = buffer
+                            .getNextLru()) {
                         if (selected(buffer, includeMask, excludeMask)) {
                             populateInfo1(array, index, buffer);
                             index++;
                         }
-                        if (buffer._nextLru == lru)
+                        if (buffer.getNextLru() == lru)
                             break;
                     }
                 }
@@ -319,7 +333,8 @@ public class BufferPool {
         case 2:
             for (int bucket = 0; bucket < _bucketCount; bucket++) {
                 synchronized (_lock[bucket]) {
-                    for (Buffer buffer = _invalidBufferQueue[bucket]; buffer != null; buffer = buffer._next) {
+                    for (Buffer buffer = _invalidBufferQueue[bucket]; buffer != null; buffer = buffer
+                            .getNext()) {
                         if (selected(buffer, includeMask, excludeMask)) {
                             populateInfo1(array, index, buffer);
                             index++;
@@ -369,13 +384,13 @@ public class BufferPool {
     // Buffer lru = _lru[bucket];
     // for (Buffer buffer = lru;
     // buffer != null;
-    // buffer = buffer._nextLru)
+    // buffer = buffer.getNextLru())
     // {
     // if (selected(buffer, includeMask, excludeMask))
     // {
     // list.add(buffer);
     // }
-    // if (buffer._nextLru == lru) break;
+    // if (buffer.getNextLru() == lru) break;
     // }
     // }
     // }
@@ -387,7 +402,7 @@ public class BufferPool {
     // {
     // for (Buffer buffer = _invalidBufferQueue[bucket];
     // buffer != null;
-    // buffer = buffer._next)
+    // buffer = buffer.getNext())
     // {
     // if (selected(buffer, includeMask, excludeMask))
     // {
@@ -501,7 +516,7 @@ public class BufferPool {
     }
 
     private int bucket(Buffer b) {
-        return (int) (b._page % _bucketCount);
+        return (int) (b.getPageAddress() % _bucketCount);
     }
 
     /**
@@ -536,9 +551,8 @@ public class BufferPool {
                 Debug.$assert(buffer.isValid());
             detach(buffer);
             buffer._status &= (~SharedResource.VALID_MASK & ~SharedResource.DIRTY_MASK);
-            buffer._vol = null;
-            buffer._page = 0;
-            buffer._next = _invalidBufferQueue[bucket];
+            buffer.setPageAddressAndVolume(0, null);
+            buffer.setNext(_invalidBufferQueue[bucket]);
             _invalidBufferQueue[bucket] = buffer;
         }
     }
@@ -547,8 +561,7 @@ public class BufferPool {
         int bucket = bucket(buffer);
         synchronized (_lock[bucket]) {
             buffer._status |= SharedResource.DELETE_MASK;
-            buffer._vol = null;
-            buffer._page = 0;
+            buffer.setPageAddressAndVolume(0, null);
         }
 
     }
@@ -563,17 +576,19 @@ public class BufferPool {
                 return;
             }
 
-            int hash = hashIndex(buffer._vol, buffer._page);
+            final int hash = hashIndex(buffer.getVolume(), buffer
+                    .getPageAddress());
             //
             // Detach this buffer from the hash table.
             //
             if (_hashTable[hash] == buffer) {
-                _hashTable[hash] = buffer._next;
+                _hashTable[hash] = buffer.getNext();
             } else {
                 Buffer prev = _hashTable[hash];
-                for (Buffer next = prev._next; next != null; next = prev._next) {
+                for (Buffer next = prev.getNext(); next != null; next = prev
+                        .getNext()) {
                     if (next == buffer) {
-                        prev._next = next._next;
+                        prev.setNext(next.getNext());
                         break;
                     }
                     prev = next;
@@ -583,17 +598,11 @@ public class BufferPool {
             // Detach buffer from the LRU queue.
             //
             if (_lru[bucket] == buffer)
-                _lru[bucket] = buffer._nextLru;
+                _lru[bucket] = buffer.getNextLru();
             if (_lru[bucket] == buffer)
                 _lru[bucket] = null;
 
-            buffer._prevLru._nextLru = buffer._nextLru;
-            buffer._nextLru._prevLru = buffer._prevLru;
-            //
-            // Make the queue for this buffer reflexive.
-            //
-            buffer._nextLru = buffer;
-            buffer._prevLru = buffer;
+            buffer.removeFromLru();
         }
     }
 
@@ -618,15 +627,7 @@ public class BufferPool {
                 // Detach buffer from the list. (Is a no-op for a buffer
                 // that wasn't already on the LRU queue.)
                 //
-                buffer._prevLru._nextLru = buffer._nextLru;
-                buffer._nextLru._prevLru = buffer._prevLru;
-                //
-                // Now splice it in
-                //
-                buffer._nextLru = _lru[bucket];
-                buffer._prevLru = _lru[bucket]._prevLru;
-                _lru[bucket]._prevLru._nextLru = buffer;
-                _lru[bucket]._prevLru = buffer;
+                buffer.moveInLru(_lru[bucket]);
             }
         }
     }
@@ -665,9 +666,10 @@ public class BufferPool {
                 //
                 while (buffer != null) {
                     if (Debug.ENABLED)
-                        Debug.$assert(buffer._next != buffer);
+                        Debug.$assert(buffer.getNext() != buffer);
 
-                    if (buffer._page == page && buffer._vol == vol) {
+                    if (buffer.getPageAddress() == page
+                            && buffer.getVolume() == vol) {
                         //
                         // Found it - now claim it.
                         //
@@ -680,7 +682,7 @@ public class BufferPool {
                             break;
                         }
                     }
-                    buffer = buffer._next;
+                    buffer = buffer.getNext();
                 }
 
                 if (buffer == null) {
@@ -698,13 +700,11 @@ public class BufferPool {
 
                         if (Debug.ENABLED) {
                             Debug.$assert(buffer != _hashTable[hash]);
-                            Debug.$assert(buffer._next != buffer);
+                            Debug.$assert(buffer.getNext() != buffer);
                         }
 
-                        buffer._page = page;
-                        buffer._vol = vol;
-                        buffer._hash = hash;
-                        buffer._next = _hashTable[hash];
+                        buffer.setPageAddressAndVolume(page, vol);
+                        buffer.setNext(_hashTable[hash]);
                         _hashTable[hash] = buffer;
                         //
                         // It's not really valid yet, but it does have a writer
@@ -715,13 +715,13 @@ public class BufferPool {
                         buffer._status |= SharedResource.VALID_MASK;
 
                         if (Debug.ENABLED)
-                            Debug.$assert(buffer._next != buffer);
+                            Debug.$assert(buffer.getNext() != buffer);
                         mustRead = true;
                     }
                 }
             }
             if (buffer == null) {
-                _writers[bucket].kick();
+                _collector.kick();
                 synchronized (_lock[bucket]) {
                     try {
                         _lock[bucket].wait(RETRY_SLEEP_TIME);
@@ -745,7 +745,8 @@ public class BufferPool {
                     // Test whether the buffer we picked out is still valid
                     //
                     if ((buffer._status & SharedResource.VALID_MASK) != 0
-                            && buffer._page == page && buffer._vol == vol) {
+                            && buffer.getPageAddress() == page
+                            && buffer.getVolume() == vol) {
                         //
                         // If so, then we're done.
                         //
@@ -782,7 +783,8 @@ public class BufferPool {
                             if (Debug.ENABLED)
                                 Debug.$assert(buffer.getPageAddress() == page
                                         && buffer.getVolume() == vol
-                                        && buffer.getHash() == hash);
+                                        && hashIndex(buffer.getVolume(), buffer
+                                                .getPageAddress()) == hash);
 
                             buffer.load(vol, page);
                             loaded = true;
@@ -836,9 +838,10 @@ public class BufferPool {
             //
             while (buffer != null) {
                 if (Debug.ENABLED)
-                    Debug.$assert(buffer._next != buffer);
+                    Debug.$assert(buffer.getNext() != buffer);
 
-                if (buffer._page == page && buffer._vol == vol) {
+                if (buffer.getPageAddress() == page
+                        && buffer.getVolume() == vol) {
                     if (Debug.ENABLED)
                         Debug
                                 .$assert((buffer._status & SharedResource.VALID_MASK) != 0);
@@ -847,7 +850,7 @@ public class BufferPool {
                     //
                     return new Buffer(buffer);
                 }
-                buffer = buffer._next;
+                buffer = buffer.getNext();
             }
         }
         //
@@ -868,28 +871,23 @@ public class BufferPool {
 
     void setPermanent(final Buffer buffer, boolean permanent) {
         if (permanent != buffer.isPermanent()) {
+            final int bucket = bucket(buffer);
             buffer.setPermanent(permanent);
             synchronized (this) {
                 if (permanent) {
                     // Insert
-                    if (_perm == null) {
-                        _perm = buffer;
-                        buffer._nextLru = buffer;
-                        buffer._prevLru = buffer;
+                    if (_perm[bucket] == null) {
+                        buffer.removeFromLru();
+                        _perm[bucket] = buffer;
                     } else {
-                        buffer._nextLru = _perm;
-                        buffer._prevLru = _perm._prevLru;
-                        _perm._prevLru._nextLru = buffer;
-                        _perm._prevLru = buffer;
+                        buffer.moveInLru(_perm[bucket]);
                     }
                 } else {
-                    if (_perm == buffer) {
-                        _perm = buffer._next == buffer ? null : buffer._next;
+                    if (_perm[bucket] == buffer) {
+                        _perm[bucket] = buffer.getNext() == buffer ? null
+                                : buffer.getNext();
                     }
-                    buffer._nextLru._prevLru = buffer._prevLru;
-                    buffer._prevLru._nextLru = buffer._nextLru;
-                    buffer._nextLru = buffer;
-                    buffer._prevLru = buffer;
+                    buffer.removeFromLru();
                 }
             }
         }
@@ -920,19 +918,19 @@ public class BufferPool {
         Buffer buffer = _invalidBufferQueue[bucket];
         while (buffer != null) {
             if (Debug.ENABLED)
-                Debug.$assert(buffer._next != buffer);
+                Debug.$assert(buffer.getNext() != buffer);
 
             if (buffer.isAvailable() && buffer.isClean()
                     && buffer.claim(true, 0)) {
                 if (lastBuffer != null)
-                    lastBuffer._next = buffer._next;
+                    lastBuffer.setNext(buffer.getNext());
                 else
-                    _invalidBufferQueue[bucket] = buffer._next;
+                    _invalidBufferQueue[bucket] = buffer.getNext();
                 found = true;
                 break;
             }
             lastBuffer = buffer;
-            buffer = buffer._next;
+            buffer = buffer.getNext();
         }
 
         /**
@@ -947,7 +945,7 @@ public class BufferPool {
                     found = true;
                     break;
                 }
-                buffer = buffer._nextLru;
+                buffer = buffer.getNextLru();
                 if (buffer == _lru[bucket])
                     break;
             }
@@ -959,81 +957,63 @@ public class BufferPool {
         }
     }
 
-    private int gatherDirtyBuffers(int bucket, Buffer[] needWriting) {
-        int count = 0;
-        int maxCount = needWriting.length;
-        int invalidDepth = 64;
-        int unavailable = 0;
-        synchronized (this) {
-            Buffer buffer = _perm;
-            while (buffer != null && count < maxCount) {
-                if (buffer.isDirty()) {
-                    if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                        needWriting[count++] = buffer;
-                    } else {
-                        unavailable++;
-                    }
-                }
-                buffer = buffer._nextLru;
-                if (buffer == _perm) {
-                    break;
-                }
-            }
-        }
+    enum Result {
+        WRITTEN, UNAVAILABLE, ERROR
+    };
 
+    private boolean enqueueDirtyPage(final Buffer buffer, final int bucket) {
+        final boolean dirty;
         synchronized (_lock[bucket]) {
-            Buffer buffer = _invalidBufferQueue[bucket];
-            int lruCount = _closed ? maxCount : _bufferCount / _bucketCount / 2;
-            int lazyCount = _closed ? maxCount : _bufferCount / _bucketCount
-                    / 8;
-            while (buffer != null && invalidDepth-- > 0 && count < maxCount) {
-                if (Debug.ENABLED)
-                    Debug.$assert(buffer._next != buffer);
-                if (buffer.isDirty()) {
-                    if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0) {
-                        needWriting[count++] = buffer;
-                    } else {
-                        unavailable++;
-                    }
+            if (buffer.isDirty() && !buffer.isEnqueued()) {
+                dirty = true;
+                if (_dirty[bucket] == null) {
+                    buffer.removeFromDirty();
+                    _dirty[bucket] = buffer;
+                } else {
+                    buffer.moveInDirty(_dirty[bucket]);
                 }
-                buffer = buffer._next;
-            }
-
-            buffer = _lru[bucket];
-            while (buffer != null && count < maxCount) {
-                if (buffer.isDirty()) {
-                    if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                        needWriting[count++] = buffer;
-                    } else {
-                        unavailable++;
-                    }
-                }
-                buffer = buffer._nextLru;
-                if (buffer == _lru[bucket]) {
-                    break;
-                }
-                if (--lruCount < 0 && count > lazyCount) {
-                    break;
-                }
+                buffer.setEnqueued();
+            } else {
+                dirty = false;
             }
         }
-        if (count == 0) {
-            return -unavailable;
-        } else {
-            return count;
+        if (dirty) {
+            _writer.kick();
         }
+        return dirty;
     }
 
-    private class PageWriter implements Runnable {
-        int _bucket;
-        boolean _kicked;
-        boolean _stopped = false;
-        Buffer[] _needWriting = new Buffer[(_bufferCount / _bucketCount) / 4];
+    private boolean enqueueUrgentPage(final Buffer buffer, final int bucket) {
+        final boolean dirty;
+        synchronized (_lock[bucket]) {
+            if (buffer.isDirty() && !buffer.isUrgent()) {
+                dirty = true;
+                buffer.setUrgent();
+                if (_urgent[bucket] == null) {
+                    buffer.removeFromDirty();
+                    _urgent[bucket] = buffer;
+                } else {
+                    buffer.moveInDirty(_urgent[bucket]);
+                }
+            } else {
+                dirty = false;
+            }
+        }
+        if (dirty) {
+            _writer.kick();
+        }
+        return dirty;
 
-        PageWriter(int bucket) {
-            _bucket = bucket;
-            final Thread thread = new Thread(this, "PAGE_WRITER" + _bufferSize
-                    + ":" + bucket);
+    }
+
+    private class DirtyPageCollector implements Runnable {
+
+        private boolean _kicked;
+        private boolean _stopped;
+
+        DirtyPageCollector() {
+            final Thread thread = new Thread(this, "PAGE_COLLECTOR:"
+                    + _bufferSize);
             thread.start();
         }
 
@@ -1045,51 +1025,238 @@ public class BufferPool {
                 }
             }
         }
+        
+        public boolean isStopped() {
+            synchronized(this) {
+                return _stopped;
+            }
+        }
+
+        public void run() {
+            while (true) {
+                boolean clean = true;
+                boolean wasClosed = _closed;
+                for (int bucket = 0; bucket < _bucketCount; bucket++) {
+                    clean &= enqueueDirtyBuffers(bucket) == 0;
+                }
+                synchronized (this) {
+                    if (clean && wasClosed) {
+                        _stopped = true;
+                        break;
+                    }
+                    _kicked = false;
+                    try {
+                        wait(wasClosed ? RETRY_SLEEP_TIME : _writerPollInterval);
+                    } catch (InterruptedException ie) {
+                        // do nothing
+                    }
+                }
+            }
+        }
+
+        private int enqueueDirtyBuffers(int bucket) {
+            int count = 0;
+            int maxCount = 64;
+            int invalidDepth = 64;
+            int unavailable = 0;
+
+            synchronized (_lock[bucket]) {
+                Buffer buffer = _perm[bucket];
+                while (buffer != null && count < maxCount) {
+                    if (buffer.isDirty() && !buffer.isEnqueued()) {
+                        if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
+                            if (enqueueDirtyPage(buffer, bucket)) {
+                                count++;
+                            }
+                        } else {
+                            unavailable++;
+                        }
+                    }
+                    buffer = buffer.getNextLru();
+                    if (buffer == _perm[bucket]) {
+                        break;
+                    }
+                }
+
+                buffer = _invalidBufferQueue[bucket];
+                int lruCount = _closed ? maxCount : _bufferCount / _bucketCount
+                        / 2;
+                int lazyCount = _closed ? maxCount : _bufferCount
+                        / _bucketCount / 8;
+                while (buffer != null && invalidDepth-- > 0 && count < maxCount) {
+                    if (Debug.ENABLED)
+                        Debug.$assert(buffer.getNext() != buffer);
+                    if (buffer.isDirty()) {
+                        if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0) {
+                            if (enqueueDirtyPage(buffer, bucket)) {
+                                count++;
+                            }
+                        } else {
+                            unavailable++;
+                        }
+                    }
+                    buffer = buffer.getNext();
+                }
+
+                buffer = _lru[bucket];
+                while (buffer != null && count < maxCount) {
+                    if (buffer.isDirty()) {
+                        if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
+                            if (enqueueDirtyPage(buffer, bucket)) {
+                                count++;
+                            }
+                        } else {
+                            unavailable++;
+                        }
+                    }
+                    buffer = buffer.getNextLru();
+                    if (buffer == _lru[bucket]) {
+                        break;
+                    }
+                    if (--lruCount < 0 && count > lazyCount) {
+                        break;
+                    }
+                }
+            }
+            if (count == 0) {
+                return -unavailable;
+            } else {
+                return count;
+            }
+        }
+    }
+
+    private class PageWriter implements Runnable {
+        final int _logIndex;
+        boolean _kicked;
+        boolean _stopped;
+
+        PageWriter(final int logIndex) {
+            _logIndex = logIndex;
+            final Thread thread = new Thread(this, "PAGE_WRITER:" + _bufferSize
+                    + ":" + _logIndex);
+            thread.start();
+        }
+
+        public void kick() {
+            synchronized (this) {
+                if (!_kicked) {
+                    notify();
+                    _kicked = true;
+                }
+            }
+        }
+        
+        public boolean isStopped() {
+            synchronized(this) {
+                return _stopped;
+            }
+        }
 
         public void run() {
             try {
                 while (true) {
-                    int count = gatherDirtyBuffers(_bucket, _needWriting);
-                    for (int index = 0; index < count; index++) {
-                        final Buffer buffer = _needWriting[index];
-                        final Volume volume = buffer.getVolume();
-                        long page = buffer.getPageAddress();
-                        _needWriting[index] = null;
-                        boolean claimed = buffer.claim(true, 0);
-                        try {
-                            if (claimed) {
-                                if (volume != null) {
-                                    buffer.clearSlack();
-                                    buffer.save();
-                                    // buffer.releaseWriterClaim();
-                                    _persistit.getLogManager().writePageToLog(
-                                            buffer);
-                                    synchronized (_lock[_bucket]) {
-                                        _lock[_bucket].notify();
+                    int written = 0;
+                    int remaining = 0;
+                    int unavailable = 0;
+                    int errors = 0;
+
+                    for (int bucket = 0; bucket < _bucketCount; bucket++) {
+                        for (int ubucket = 0; ubucket < _bucketCount; ubucket++) {
+                            Buffer buffer;
+                            synchronized (_lock[ubucket]) {
+                                buffer = _urgent[ubucket];
+                            }
+                            while (buffer != null) {
+                                final Result result = writePage(buffer, ubucket);
+                                switch (result) {
+                                case WRITTEN:
+                                    written++;
+                                    synchronized (_lock[ubucket]) {
+                                        if (_urgent[ubucket] == buffer) {
+                                            _urgent[ubucket] = buffer.getNextDirty();
+                                        }
+                                        buffer.removeFromDirty();
+                                        if (buffer.getNextDirty() == buffer) {
+                                            _urgent[ubucket] = null;
+                                        } else {
+                                            remaining++;
+                                        }
+                                        buffer.setUnenqueued();
+                                    }
+                                    break;
+                                case UNAVAILABLE:
+                                    unavailable++;
+                                    break;
+                                case ERROR:
+                                    errors++;
+                                    break;
+                                }
+                                if (result == Result.WRITTEN) {
+                                    break;
+                                }
+                                synchronized (_lock[ubucket]) {
+                                    buffer = buffer.getNextDirty();
+                                    if (buffer == _urgent[ubucket]) {
+                                        break;
                                     }
                                 }
-                                buffer.setClean();
                             }
-                        } catch (Exception e) {
-                            _persistit.getLogBase().log(
-                                    LogBase.LOG_EXCEPTION,
-                                    e + " while writing page " + page
-                                            + " in volume " + volume);
-                        } finally {
-                            if (claimed) {
-                                buffer.release();
+                        }
+                        
+                        Buffer buffer;
+                        synchronized (_lock[bucket]) {
+                            buffer = _dirty[bucket];
+                        }
+                        while (buffer != null) {
+                            final Result result = writePage(buffer, bucket);
+                            switch (result) {
+                            case WRITTEN:
+                                written++;
+                                synchronized (_lock[bucket]) {
+                                    if (_dirty[bucket] == buffer) {
+                                        _dirty[bucket] = buffer.getNextDirty();
+                                    }
+                                    buffer.removeFromDirty();
+                                    if (_dirty[bucket] == buffer) {
+                                        _dirty[bucket] = null;
+                                    } else {
+                                        remaining++;
+                                    }
+                                    buffer.setUnenqueued();
+                                }
+                            case UNAVAILABLE:
+                                unavailable++;
+                                break;
+                            case ERROR:
+                                errors++;
+                                break;
+                            }
+                            if (result == Result.WRITTEN) {
+                                break;
+                            }
+                            synchronized (_lock[bucket]) {
+                                buffer = buffer.getNextDirty();
+                                if (buffer == _dirty[bucket]) {
+                                    break;
+                                }
                             }
                         }
                     }
 
                     try {
+                        final boolean collectorStopped = _collector.isStopped();
                         synchronized (this) {
                             _kicked = false;
-                            if (_closed && count == 0) {
-                                break;
-                            }
-                            if (!_closed || count < 0) {
-                                wait(_writerPollInterval);
+                            if (remaining + unavailable + errors == 0) {
+                                if (_closed && collectorStopped) {
+                                    // done - shut down
+                                    break;
+                                } else {
+                                    wait(_writerPollInterval);
+                                }
+                            } else if (remaining == 0) {
+                                wait(RETRY_SLEEP_TIME);
                             }
                         }
                     } catch (InterruptedException ie) {
@@ -1100,6 +1267,39 @@ public class BufferPool {
                 t.printStackTrace();
             } finally {
                 _stopped = true;
+            }
+        }
+
+        private Result writePage(final Buffer buffer, final int bucket) {
+            final Volume volume = buffer.getVolume();
+            final long page = buffer.getPageAddress();
+            final boolean claimed = buffer.claim(true, 0);
+            try {
+                if (claimed) {
+                    if (volume != null) {
+                        buffer.clearSlack();
+                        buffer.save();
+                        // buffer.releaseWriterClaim();
+                        _persistit.getLogManager().writePageToLog(buffer);
+                        synchronized (_lock[bucket]) {
+                            _lock[bucket].notify();
+                        }
+                    }
+                    buffer.setClean();
+                    return Result.WRITTEN;
+                } else {
+                    return Result.UNAVAILABLE;
+                }
+            } catch (Exception e) {
+                _persistit.getLogBase().log(
+                        LogBase.LOG_EXCEPTION,
+                        e + " while writing page " + page + " in volume "
+                                + volume);
+                return Result.ERROR;
+            } finally {
+                if (claimed) {
+                    buffer.release();
+                }
             }
         }
     }

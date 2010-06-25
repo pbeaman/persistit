@@ -257,39 +257,34 @@ public final class Buffer extends SharedResource implements BuildConstants {
     private final static int FINDEX_RUNCOUNT_SHIFT = 20;
 
     /**
+     * The BufferPool in which this buffer is allocated.
+     */
+    final private BufferPool _pool;
+    
+    /**
+     * Index within the buffer pool
+     */
+    final private int _poolIndex;
+
+    /**
      * The page address of the page currently loaded in this buffer.
      */
-    long _page;
+    private long _page;
 
     /**
      * The Volume from which the page was loaded.
      */
-    Volume _vol;
+    private Volume _vol;
+
+    /**
+     * Timestamp of last Transaction to modify this resource
+     */
+    private long _timestamp;
 
     /**
      * A ByteBuffer facade for this Buffer used in NIO operations
      */
-    ByteBuffer _byteBuffer;
-
-    /**
-     * Current hash code in BufferPool
-     */
-    int _hash;
-    /**
-     * Singly-linked list of Buffers current having the same hash code.
-     * (Maintained by BufferPool.)
-     */
-    Buffer _next = null;
-
-    /**
-     * Doubly-linked list of Buffers in least-recently-used order.
-     */
-    Buffer _nextLru = this;
-
-    /**
-     * Back pointer for least-recently-used list.
-     */
-    Buffer _prevLru = this;
+    private ByteBuffer _byteBuffer;
 
     /**
      * The right sibling page address
@@ -314,13 +309,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
      * The Findex array. One element per keyblock holds the crossCount,
      * runCount, ebc and db from the keyblock.
      */
-    int[] _findexElements;
+    private int[] _findexElements;
 
-    /**
-     * Exclusive lock for the Findex array - needed because Page searching
-     * updates the Findex even though the page has only a reader claim.
-     */
-    private final Object _findexLock = new Object();
     /**
      * Type code for this page.
      */
@@ -333,12 +323,12 @@ public final class Buffer extends SharedResource implements BuildConstants {
     /**
      * Offset within the buffer to the first keyblock.
      */
-    int _keyBlockStart;
+    private int _keyBlockStart;
 
     /**
      * Offset within the buffer to the first byte past the last keyblock
      */
-    int _keyBlockEnd;
+    private int _keyBlockEnd;
 
     /**
      * Offset within the buffer to the lowest tailblock. To allocate a new
@@ -351,14 +341,34 @@ public final class Buffer extends SharedResource implements BuildConstants {
      */
     private int _slack;
 
+
+    // Following are package-private so BufferPool can access them.
+    // TODO - replace with accessor methods.
     /**
-     * The BufferPool in which this buffer is allocated.
+     * Singly-linked list of Buffers current having the same hash code.
+     * (Maintained by BufferPool.)
      */
-    private BufferPool _pool;
+    private Buffer _next = null;
+
     /**
-     * Index within the buffer pool
+     * Doubly-linked list of Buffers in least-recently-used order.
      */
-    private int _poolIndex;
+    private Buffer _nextLru = this;
+
+    /**
+     * Back pointer for least-recently-used list.
+     */
+    private Buffer _prevLru = this;
+
+    /**
+     * Doubly-linked list of Buffers needing to be written.
+     */
+    private Buffer _nextDirty = this;
+
+    /**
+     * Back pointer for dirty list
+     */
+    private Buffer _prevDirty = this;
 
     static int s0;
     static int s1;
@@ -396,6 +406,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
         _byteBuffer = ByteBuffer.allocate(size);
         _bytes = _byteBuffer.array();
         _bufferSize = size;
+        _findexElements = new int[_bufferSize
+                                  / (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_DATA)];
     }
 
     Buffer(Buffer original) {
@@ -413,6 +425,9 @@ public final class Buffer extends SharedResource implements BuildConstants {
         _keyBlockEnd = original._keyBlockEnd;
         _tailHeaderSize = original._tailHeaderSize;
         System.arraycopy(original._bytes, 0, _bytes, 0, _bytes.length);
+        
+        // Note - do not populate _findexElements since this buffer
+        // is for ManagementImpl only
     }
 
     /**
@@ -427,7 +442,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         _rightSibling = 0;
         _alloc = _bufferSize;
         _slack = 0;
-        _timestamp = 0;
+        // _generation = 0;
         bumpGeneration();
         if (Debug.HISTORY_ENABLED)
             Debug.stateChanged(this, reason, -1);
@@ -463,9 +478,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 throw new InvalidPageStructureException("Invalid type " + type);
             }
             _type = type;
-            if (_page == 0)
-                return;
-
             _keyBlockStart = INITIAL_KEY_BLOCK_START_VALUE;
             _keyBlockEnd = getChar(KEY_BLOCK_END_OFFSET);
 
@@ -512,8 +524,9 @@ public final class Buffer extends SharedResource implements BuildConstants {
     }
 
     void setDirty() {
+        bumpGeneration();
         super.setDirty();
-        _timestamp = _persistit.getTransaction().getTimestamp();
+        // _timestamp = _persistit.getTransaction().getTimestamp();
         if (Debug.HISTORY_ENABLED)
             Debug.stateChanged(this, "dirty", -1);
     }
@@ -602,8 +615,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
         return _bufferSize;
     }
 
-    int getHash() {
-        return _hash;
+    public long getTimestamp() {
+        return _timestamp;
     }
 
     /**
@@ -671,6 +684,12 @@ public final class Buffer extends SharedResource implements BuildConstants {
         return _rightSibling;
     }
 
+    public void setPageAddressAndVolume(final long pageAddress,
+            final Volume volume) {
+        _page = pageAddress;
+        _vol = volume;
+    }
+
     /**
      * Set the right sibling's page address
      * 
@@ -718,7 +737,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
      *         it follows the last key in the page.
      */
     int findKey(Key key) {
-        synchronized (_findexLock) {
+        synchronized (_findexElements) {
             recomputeFindex();
         }
 
@@ -993,7 +1012,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         _isFindexValid = false;
     }
 
-    void createFindex() {
+    private void createFindex() {
         _findexElements = new int[_bufferSize
                 / (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_DATA)];
     }
@@ -1975,7 +1994,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
                         + _tailHeaderSize + klength, length);
             }
 
-            synchronized (_findexLock) {
+            synchronized (_findexElements) {
                 insertFindexKeyBlock(p, ebcNew, fixupSuccessor);
             }
 
@@ -3952,7 +3971,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 + getStatusDisplayString() + " start=" + _keyBlockStart
                 + " end=" + _keyBlockEnd + " size=" + _bufferSize + " alloc="
                 + _alloc + " slack=" + _slack + " index=" + _poolIndex
-                + " timestamp=" + _timestamp + " generation=" + _timestamp;
+                + " timestamp=" + _timestamp + " generation=" + _generation;
     }
 
     // ----------------------------------------
@@ -4059,8 +4078,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 rec._key = new KeyState(key);
 
                 if (isIndexPage()) {
-                    rec._pointerValue = getInt(tail + 4); // TODO - allow larger
-                    // pointer size
+                    // TODO - allow larger pointer size
+                    rec._pointerValue = getInt(tail + 4);
                 } else {
                     int vsize = size - _tailHeaderSize - klength;
                     if (vsize < 0)
@@ -4215,4 +4234,65 @@ public final class Buffer extends SharedResource implements BuildConstants {
         info.updateAcquisitonTime();
 
     }
+    
+    void removeFromLru() {
+        _prevLru._nextLru = _nextLru;
+        _nextLru._prevLru = _prevLru;
+        _nextLru = this;
+        _prevLru = this;
+    }
+    
+    void moveInLru(final Buffer to) {
+        //
+        // detach
+        //
+        _prevLru._nextLru = _nextLru;
+        _nextLru._prevLru = _prevLru;
+        //
+        // Now splice it in
+        //
+        _nextLru = to;
+        _prevLru = to._prevLru;
+        to._prevLru._nextLru = this;
+        to._prevLru = this;
+    }
+    
+    void removeFromDirty() {
+        _prevDirty._nextDirty = _nextDirty;
+        _nextDirty._prevDirty = _prevDirty;
+        _nextDirty = this;
+        _prevDirty = this;
+    }
+    
+    void moveInDirty(final Buffer to) {
+        //
+        // detach
+        //
+        _prevDirty._nextDirty = _nextDirty;
+        _nextDirty._prevDirty = _prevDirty;
+        //
+        // Now splice it in
+        //
+        _nextDirty = to;
+        _prevDirty = to._prevDirty;
+        to._prevDirty._nextDirty = this;
+        to._prevDirty = this;
+    }
+    
+    void setNext(final Buffer buffer) {
+        _next = buffer;
+    }
+    
+    Buffer getNext() {
+        return _next;
+    }
+    
+    Buffer getNextLru() {
+        return _nextLru;
+    }
+    
+    Buffer getNextDirty() {
+        return _nextDirty;
+    }
+    
 }

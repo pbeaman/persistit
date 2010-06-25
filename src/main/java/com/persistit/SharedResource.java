@@ -54,7 +54,18 @@ class SharedResource extends WaitingThreadManager {
      * to a Volume that is being deleted.
      */
     public final static int DELETE_MASK = 0x00040000;
+    
+    /**
+     * Status field mask for resource that is enqueued to be written
+     */
+    public final static int ENQUEUED_MASK = 0x00080000;
+    
+    /**
+     * Status field mask for resource that is enqueued to be written
+     * urgently.
+     */
 
+    public final static int URGENT_MASK = 0x00100000;
     /**
      * Mask for bit field indicating that updates are suspended
      */
@@ -86,7 +97,7 @@ class SharedResource extends WaitingThreadManager {
     /**
      * A counter that increments every time the buffer is changed.
      */
-    protected long _timestamp;
+    protected long _generation;
 
     /**
      * The Thread that holds a writer claim on this resource.
@@ -140,6 +151,18 @@ class SharedResource extends WaitingThreadManager {
     boolean isDirty() {
         synchronized (_lock) {
             return (_status & DIRTY_MASK) != 0;
+        }
+    }
+    
+    boolean isEnqueued() {
+        synchronized(_lock) {
+            return (_status & ENQUEUED_MASK) != 0;
+        }
+    }
+
+    boolean isUrgent() {
+        synchronized(_lock) {
+            return (_status & URGENT_MASK) != 0;
         }
     }
 
@@ -395,10 +418,28 @@ class SharedResource extends WaitingThreadManager {
             _status |= DIRTY_MASK;
         }
     }
+    
+    void setEnqueued() {
+        synchronized(_lock) {
+            _status |= ENQUEUED_MASK ;
+        }
+    }
+    
+    void setUrgent() {
+        synchronized(_lock) {
+            _status |= (ENQUEUED_MASK | URGENT_MASK);
+        }
+    }
+    
+    void setUnenqueued() {
+        synchronized(_lock) {
+            _status &= ~(ENQUEUED_MASK | URGENT_MASK);
+        }
+    }
 
-    public long getTimestamp() {
+    public long getGeneration() {
         synchronized (_lock) {
-            return _timestamp;
+            return _generation;
         }
     }
 
@@ -418,9 +459,9 @@ class SharedResource extends WaitingThreadManager {
         }
     }
 
-    long bumpGeneration() {
+    void bumpGeneration() {
         synchronized (_lock) {
-            return ++_timestamp;
+            ++_generation;
         }
     }
 
@@ -470,16 +511,27 @@ class SharedResource extends WaitingThreadManager {
         default:
         }
         StringBuffer sb = new StringBuffer(8);
-        if ((status & SUSPENDED_MASK) != 0)
+        if ((status & SUSPENDED_MASK) != 0) {
             sb.append("s");
-        if ((status & CLOSING_MASK) != 0)
+        }
+        if ((status & CLOSING_MASK) != 0) {
             sb.append("c");
-        if ((status & VALID_MASK) != 0)
+        }
+        if ((status & URGENT_MASK) != 0) {
+            sb.append("u");
+        }
+        if ((status & ENQUEUED_MASK) != 0) {
+            sb.append ("e");
+        }
+        if ((status & VALID_MASK) != 0) {
             sb.append("v");
-        if ((status & DIRTY_MASK) != 0)
+        }
+        if ((status & DIRTY_MASK) != 0) {
             sb.append("d");
-        if ((status & WRITER_MASK) != 0)
+        }
+        if ((status & WRITER_MASK) != 0) {
             sb.append("w");
+        }
         if ((status & CLAIMED_MASK) != 0) {
             sb.append("r");
             sb.append(status & CLAIMED_MASK);

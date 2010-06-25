@@ -1946,7 +1946,7 @@ public class Volume extends SharedResource {
         Util.putBytes(bytes, 0, SIGNATURE);
         Util.putInt(bytes, 16, VERSION);
         Util.putInt(bytes, 20, _bufferSize);
-        // 24: long changeCount
+//        Util.putLong(bytes, 24, _generation);
         Util.putLong(bytes, 32, _id);
         Util.putLong(bytes, 40, _readCounter.get());
         Util.putLong(bytes, 48, _writeCounter.get());
@@ -1972,7 +1972,7 @@ public class Volume extends SharedResource {
 
     private void getHeaderInfo(byte[] bytes) {
         _bufferSize = Util.getInt(bytes, 20);
-        // 24: long changeCount
+//        _generation = Util.getLong(bytes, 24);
         _id = Util.getLong(bytes, 32);
         _readCounter.set(Util.getLong(bytes, 40));
         _writeCounter.set(Util.getLong(bytes, 48));
