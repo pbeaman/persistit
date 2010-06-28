@@ -40,17 +40,17 @@ public class KeyHistogramTest extends PersistitUnitTestCase {
             exchange.to(i).store();
         }
         final KeyHistogram histogram = exchange.computeHistogram(null, null,
-                samples, 1, 1);
-        assertEquals(samples, histogram.getSampleSize());
+                samples, 1, null, 1);
         for (final KeyCount sample : histogram.getSamples()) {
             System.out.println(sample);
         }
+        assertEquals(samples, histogram.getSampleSize());
     }
 
     @Test
     public void testUnequalDistribution() throws Exception {
         final Exchange exchange = _persistit.getExchange(_volumeName,
-                "HistogramTestTestGather", true);
+                "HistogramTestTestUnequalDistribution", true);
         final int total = 100000;
         final int samples = 10;
         exchange.removeAll();
@@ -60,12 +60,38 @@ public class KeyHistogramTest extends PersistitUnitTestCase {
             exchange.clear().append(which).append(i).store();
         }
         final KeyHistogram histogram = exchange.computeHistogram(null, null,
-                samples, 1, 0);
+                samples, 1, null, 0);
         for (final KeyCount sample : histogram.getSamples()) {
             System.out.println(sample);
         }
         assertEquals(3, histogram.getSampleSize());
     }
+    
+
+    @Test
+    public void testFiltered() throws Exception {
+        final Exchange exchange = _persistit.getExchange(_volumeName,
+                "HistogramTestTestFiltered", true);
+        final int total = 100000;
+        final int samples = 10;
+        exchange.removeAll();
+        for (int i = 0; i < total; i++) {
+            exchange.getValue().put(String.format("Record %08d", i));
+            exchange.clear().append(i);
+            if ((i % 100) == 0) {
+                exchange.store();
+            }
+            exchange.append(i).store();
+        }
+        final KeyFilter keyFilter = new KeyFilter(new KeyFilter.Term[] { KeyFilter.ALL}, 0, 1);
+        final KeyHistogram histogram = exchange.computeHistogram(null, null,
+                samples, 1, keyFilter, 0);
+        for (final KeyCount sample : histogram.getSamples()) {
+            System.out.println(sample);
+        }
+        assertEquals(samples, histogram.getSampleSize());
+    }
+
 
     @Override
     public void runAllTests() throws Exception {

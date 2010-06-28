@@ -3887,7 +3887,7 @@ public final class Exchange implements BuildConstants {
     }
 
     public KeyHistogram computeHistogram(final Key start, final Key end,
-            final int sampleSize, final int keyDepth,
+            final int sampleSize, final int keyDepth, final KeyFilter keyFilter,
             final int requestedTreeDepth) throws PersistitException {
         checkOwnerThread();
         throttle();
@@ -3967,7 +3967,9 @@ public final class Exchange implements BuildConstants {
                                 - buffer.getAvailableSize());
                         previousBuffer = buffer;
                     }
-                    histogram.addKeyCopy(_key);
+                    if (keyFilter == null || keyFilter.selected(_key)) {
+                        histogram.addKeyCopy(_key);
+                    }
                 }
             }
         } finally {
