@@ -325,12 +325,11 @@ public class LogRecord {
             System.arraycopy(stringBytes, 0, bytes, 24, stringBytes.length);
             putLength(bytes, 24 + stringBytes.length);
         }
-
     }
 
     public static class PA extends LogRecord {
 
-        public final static int OVERHEAD = 32;
+        public final static int OVERHEAD = 36;
 
         public final static char TYPE = TYPE_PA;
 
@@ -362,6 +361,14 @@ public class LogRecord {
 
         public static void putLeftSize(final byte[] bytes, final int leftSize) {
             Util.putInt(bytes, 28, leftSize);
+        }
+        
+        public static int getBufferSize(final byte[] bytes) {
+            return Util.getInt(bytes, 32);
+        }
+        
+        public static void putBufferSize(final byte[] bytes, final int bufferSize) {
+            Util.putInt(bytes, 32, (char)bufferSize);
         }
 
     }

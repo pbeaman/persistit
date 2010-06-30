@@ -122,7 +122,7 @@ public class Util {
             bytes[index + 3] = (byte) (value >>> 24);
         }
     }
-
+    
     public static void putLong(byte[] bytes, int index, long value) {
         if (Persistit.BIG_ENDIAN) {
             bytes[index + 7] = (byte) (value);
@@ -149,6 +149,62 @@ public class Util {
         System.arraycopy(value, 0, bytes, index, value.length);
         return value.length;
     }
+    
+    public static boolean changeBytes(byte[] bytes, int index, byte[] value) {
+        boolean same = equalsByteSubarray(bytes, index, value);
+        if (same) {
+            return false;
+        } else {
+            putBytes(bytes, index, value);
+            return true;
+        }
+    }
+
+    public static boolean changeByte(byte[] bytes, int index, byte value) {
+        if (getByte(bytes, index) == value) {
+            return false;
+        } else {
+            putByte(bytes, index, value);
+            return true;
+        }
+    }
+
+    public static boolean changeChar(byte[] bytes, int index, char value) {
+        if (getChar(bytes, index) == value) {
+            return false;
+        } else {
+            putChar(bytes, index, value);
+            return true;
+        }
+    }
+
+    public static boolean changeShort(byte[] bytes, int index, short value) {
+        if (getShort(bytes, index) == value) {
+            return false;
+        } else {
+            putShort(bytes, index, value);
+            return true;
+        }
+    }
+
+    public static boolean changeInt(byte[] bytes, int index, int value) {
+        if (getInt(bytes, index) == value) {
+            return false;
+        } else {
+            putInt(bytes, index, value);
+            return true;
+        }
+    }
+
+    public static boolean changeLong(byte[] bytes, int index, long value) {
+        if (getLong(bytes, index) == value) {
+            return false;
+        } else {
+            putLong(bytes, index, value);
+            return true;
+        }
+    }
+
 
     public static String format(String s, int width, boolean right) {
         int pad = width - s.length();

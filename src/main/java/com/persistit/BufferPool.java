@@ -18,6 +18,7 @@
 package com.persistit;
 
 import java.io.IOException;
+import java.util.BitSet;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.exception.InUseException;
@@ -39,6 +40,8 @@ public class BufferPool {
      * Default PageWriter polling interval
      */
     private final static long DEFAULT_WRITER_POLL_INTERVAL = 2000;
+
+    private final static int MAX_FLUSH_RETRY_COUNT = 10;
 
     /**
      * Sleep time when buffers are exhausted
@@ -219,7 +222,6 @@ public class BufferPool {
     }
 
     void close() {
-
         _closed = true;
         if (_collector != null) {
             _collector.kick();
@@ -238,6 +240,56 @@ public class BufferPool {
                 }
             }
         }
+    }
+
+    int flush() {
+        final BitSet bits = new BitSet(_bufferCount);
+        int unavailable = 0;
+        for (int retry = 0; retry < MAX_FLUSH_RETRY_COUNT; retry++) {
+            unavailable = 0;
+            for (int poolIndex = 0; poolIndex < _bufferCount; poolIndex++) {
+                if (!bits.get(poolIndex)) {
+                    final Buffer buffer = _buffers[poolIndex];
+                    final int bucket = bucket(buffer);
+                    if (buffer.isDirty() && !buffer.isUrgent()) {
+                        if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
+                            enqueueUrgentPage(buffer, bucket);
+                        } else {
+                            unavailable++;
+                        }
+                    } else {
+                        bits.set(poolIndex);
+                    }
+                }
+            }
+            if (unavailable == 0) {
+                break;
+            }
+            try {
+                Thread.sleep(RETRY_SLEEP_TIME);
+            } catch (InterruptedException ie) {
+                break;
+            }
+        }
+
+        while (true) {
+            boolean hasEnqueuedPages = false;
+            for (int bucket = 0; !hasEnqueuedPages && bucket < _bucketCount; bucket++) {
+                synchronized (_lock[bucket]) {
+                    hasEnqueuedPages |= (_urgent[bucket] != null || _dirty[bucket] != null);
+                }
+            }
+            if (!hasEnqueuedPages) {
+                break;
+            } else {
+                try {
+                    Thread.sleep(RETRY_SLEEP_TIME);
+                } catch (InterruptedException ie) {
+                    break;
+                }
+            }
+        }
+        return unavailable;
     }
 
     private int hashIndex(Volume vol, long page) {
@@ -873,7 +925,7 @@ public class BufferPool {
         if (permanent != buffer.isPermanent()) {
             final int bucket = bucket(buffer);
             buffer.setPermanent(permanent);
-            synchronized (this) {
+            synchronized (_lock[bucket]) {
                 if (permanent) {
                     // Insert
                     if (_perm[bucket] == null) {
@@ -1025,9 +1077,9 @@ public class BufferPool {
                 }
             }
         }
-        
+
         public boolean isStopped() {
-            synchronized(this) {
+            synchronized (this) {
                 return _stopped;
             }
         }
@@ -1146,9 +1198,9 @@ public class BufferPool {
                 }
             }
         }
-        
+
         public boolean isStopped() {
-            synchronized(this) {
+            synchronized (this) {
                 return _stopped;
             }
         }
@@ -1174,10 +1226,11 @@ public class BufferPool {
                                     written++;
                                     synchronized (_lock[ubucket]) {
                                         if (_urgent[ubucket] == buffer) {
-                                            _urgent[ubucket] = buffer.getNextDirty();
+                                            _urgent[ubucket] = buffer
+                                                    .getNextDirty();
                                         }
                                         buffer.removeFromDirty();
-                                        if (buffer.getNextDirty() == buffer) {
+                                        if (_urgent[ubucket] == buffer) {
                                             _urgent[ubucket] = null;
                                         } else {
                                             remaining++;
@@ -1203,7 +1256,7 @@ public class BufferPool {
                                 }
                             }
                         }
-                        
+
                         Buffer buffer;
                         synchronized (_lock[bucket]) {
                             buffer = _dirty[bucket];

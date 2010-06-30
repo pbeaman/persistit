@@ -16,7 +16,7 @@
  * 
  * Created on Aug 24, 2004
  */
-package com.persistit.unit;
+package com.persistit;
 
 import java.util.Properties;
 
@@ -24,9 +24,13 @@ import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
+import com.persistit.unit.PersistitUnitTestCase;
 
 public class RecoveryTest extends PersistitUnitTestCase {
-
+    //
+    // This class needs to be in com.persistit because Persistit#getLogManager() is
+    // package-private.
+    //
     private static String[] _args = new String[0];
 
     private String _volumeName = "persistit";
@@ -37,6 +41,27 @@ public class RecoveryTest extends PersistitUnitTestCase {
         final Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
+        fetch1a();
+        fetch1b();
+    }
+    
+    public void test2() throws Exception {
+        store1();
+        LogManager logMan = _persistit.getLogManager();
+        long currentGeneration = logMan.getCurrentGeneration();
+        assertTrue(logMan.getPageMapSize() > 0);
+        _persistit.flush();
+        logMan.copyBack(Long.MAX_VALUE);
+        _persistit.close();
+        assertEquals(0, logMan.getPageMapSize());
+        assertEquals(currentGeneration + 1, logMan.getCurrentGeneration());
+        final Properties saveProperties = _persistit.getProperties();
+        _persistit = new Persistit();
+        _persistit.initialize(saveProperties);
+        logMan = _persistit.getLogManager();
+        // Note: there may be a page in the log caused by the Persistit#close()
+        // call issued after the copyBack call.
+        assertTrue(logMan.getPageMapSize() <= 1);
         fetch1a();
         fetch1b();
     }

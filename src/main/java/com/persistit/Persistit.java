@@ -839,8 +839,9 @@ public class Persistit implements BuildConstants {
         _volumesById.remove(idKey);
         _volumes.remove(volume);
         // volume.getPool().invalidate(volume);
-        if (delete)
+        if (delete) {
             volume.getPool().delete(volume);
+        }
     }
 
     /**
@@ -1368,6 +1369,10 @@ public class Persistit implements BuildConstants {
     public boolean isReadRetryEnabled() {
         return _readRetryEnabled;
     }
+    
+    public void copyBackPages() throws Exception {
+        _logManager.copyBack(Long.MAX_VALUE);
+    }
 
     /**
      * Looks up a volume by name.
@@ -1475,19 +1480,22 @@ public class Persistit implements BuildConstants {
             shutdownGUI();
         }
 
-        flush();
-
         final List<Volume> volumes = new ArrayList<Volume>(_volumes);
         for (final Volume volume : volumes) {
             volume.close();
         }
+        while (!_volumes.isEmpty()) {
+            removeVolume(_volumes.get(0), false);
+        }
 
         _journal.close();
-        _closed = true;
 
+        flush();
+        _closed = true;
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
         }
+        _logManager.close();
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             int count = pool.countDirty(null);
@@ -1509,11 +1517,6 @@ public class Persistit implements BuildConstants {
             _management = null;
         }
 
-        _logManager.close();
-
-        while (!_volumes.isEmpty()) {
-            removeVolume(_volumes.get(0), false);
-        }
         _closed = true;
     }
 
@@ -1534,6 +1537,15 @@ public class Persistit implements BuildConstants {
         if (_closed || !_initialized) {
             return false;
         }
+        for (final Volume volume : _volumes) {
+            volume.flush();
+        }
+        for (final BufferPool pool : _bufferPoolTable.values()) {
+            if (pool != null) {
+                pool.flush();
+            }
+        }
+        _logManager.force();
         _journal.flush();
         return true;
     }

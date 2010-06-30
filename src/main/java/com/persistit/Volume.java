@@ -405,7 +405,7 @@ public class Volume extends SharedResource {
 
             Tree tree = new Tree(_persistit, this);
             _directoryTree = tree;
-            putHeaderInfo(_headBuffer.getBytes());
+            updateHeaderInfo(_headBuffer.getBytes());
 
             _channel = new RandomAccessFile(_path, "rw").getChannel();
             _headBuffer.getByteBuffer().position(0).limit(
@@ -499,19 +499,13 @@ public class Volume extends SharedResource {
             // recently updated copy from the log.
             //
             _headBuffer = _pool.get(this, 0, true, true);
-            getHeaderInfo(bytes);
+            getHeaderInfo(_headBuffer.getBytes());
 
             if (id != 0 && id != _id) {
                 throw new CorruptVolumeException(
                         "Attempt to open with invalid id " + id + " (!= " + _id
                                 + ")");
             }
-            // long expectedLength = _pageCount * _bufferSize;
-            // if (size < expectedLength) {
-            // throw new CorruptVolumeException("Volume file too short: "
-            // + size + " expected: " + expectedLength + " bytes");
-            // }
-
             // TODO -- synchronize opening of Volumes.
             _persistit.addVolume(this);
 
@@ -645,8 +639,9 @@ public class Volume extends SharedResource {
         if (_readOnly) {
             throw new ReadOnlyVolumeException(toString());
         }
-        putHeaderInfo(_headBuffer.getBytes());
-        _headBuffer.setDirty();
+        if (updateHeaderInfo(_headBuffer.getBytes())) {
+            _headBuffer.setDirty();
+        }
     }
 
     /**
@@ -733,7 +728,6 @@ public class Volume extends SharedResource {
             _directoryTree = tree;
             _directoryRootPage = tree.getRootPageAddr();
             checkpointMetaData();
-            _headBuffer.setDirty();
         } finally {
             releaseHeadBuffer();
         }
@@ -1090,6 +1084,7 @@ public class Volume extends SharedResource {
      * @throws PersistitException
      */
     void commitAllTreeUpdates() throws PersistitException {
+        _directoryTree.commit();
         for (final Tree tree : _treeNameHashMap.values()) {
             tree.commit();
         }
@@ -1262,7 +1257,6 @@ public class Volume extends SharedResource {
             try {
                 _directoryRootPage = tree.getRootPageAddr();
                 checkpointMetaData();
-                _headBuffer.setDirty();
             } finally {
                 releaseHeadBuffer();
             }
@@ -1595,22 +1589,25 @@ public class Volume extends SharedResource {
     void writePage(final Buffer buffer) throws IOException,
             InvalidPageAddressException, ReadOnlyVolumeException,
             VolumeClosedException {
+        final ByteBuffer bb = buffer.getByteBuffer();
+        bb.position(0).limit(buffer.getBufferSize());
+        writePage(bb, buffer.getPageAddress());
+    }
 
-        final long page = buffer.getPageAddress();
+    void writePage(final ByteBuffer bb, final long page) throws IOException,
+            InvalidPageAddressException, ReadOnlyVolumeException,
+            VolumeClosedException {
         if (page < 0 || page >= _pageCount) {
-            throw new InvalidPageAddressException(buffer.toString());
+            throw new InvalidPageAddressException("Page " + page
+                    + " out of bounds [0-" + _pageCount + ")");
         }
 
         if (_readOnly) {
             throw new ReadOnlyVolumeException(this.getPath());
         }
 
-        final ByteBuffer bb = buffer.getByteBuffer();
-        bb.position(0).limit(buffer.getBufferSize());
-
         try {
-            _channel.write(bb, buffer.getPageAddress() * _bufferSize);
-
+            _channel.write(bb, page * _bufferSize);
             _lastWriteTime = System.currentTimeMillis();
             _writeCounter.incrementAndGet();
         } catch (IOException ioe) {
@@ -1621,6 +1618,7 @@ public class Volume extends SharedResource {
             _lastIOException = ioe;
             throw ioe;
         }
+
     }
 
     /**
@@ -1897,35 +1895,23 @@ public class Volume extends SharedResource {
     }
 
     void close() throws PersistitException {
-        claimHeadBuffer(true);
-
-        IOException ioe = null;
-
-        commitAllTreeUpdates();
-        commitAllDeferredDeallocations();
-        setClean();
-        checkpointMetaData();
-
-        if (!isReadOnly()) {
-            try {
-                writePage(_headBuffer);
-            } catch (IOException e) {
-                throw new PersistitIOException(e);
-            }
-        }
+        flush();
         _pool.setPermanent(_headBuffer, false);
-        _headBuffer.setClean();
-        releaseHeadBuffer();
 
         // _pool.invalidate(this);
 
         synchronized (_lock) {
             _closed = true;
         }
+    }
 
-        if (ioe != null) {
-            throw new PersistitIOException(ioe);
-        }
+    void flush() throws PersistitException {
+        claimHeadBuffer(true);
+        commitAllTreeUpdates();
+        commitAllDeferredDeallocations();
+        setClean();
+        checkpointMetaData();
+        releaseHeadBuffer();
     }
 
     void sync() throws PersistitIOException, ReadOnlyVolumeException {
@@ -1942,37 +1928,39 @@ public class Volume extends SharedResource {
         }
     }
 
-    private void putHeaderInfo(byte[] bytes) {
-        Util.putBytes(bytes, 0, SIGNATURE);
-        Util.putInt(bytes, 16, VERSION);
-        Util.putInt(bytes, 20, _bufferSize);
-//        Util.putLong(bytes, 24, _generation);
-        Util.putLong(bytes, 32, _id);
-        Util.putLong(bytes, 40, _readCounter.get());
-        Util.putLong(bytes, 48, _writeCounter.get());
-        Util.putLong(bytes, 56, _getCounter.get());
-        Util.putLong(bytes, 64, _openTime);
-        Util.putLong(bytes, 72, _createTime);
-        Util.putLong(bytes, 80, _lastReadTime);
-        Util.putLong(bytes, 88, _lastWriteTime);
-        Util.putLong(bytes, 96, _lastExtensionTime);
-        Util.putLong(bytes, 104, _highestPageUsed);
-        Util.putLong(bytes, 112, _pageCount);
-        Util.putLong(bytes, 120, _extensionPages);
-        Util.putLong(bytes, 128, _maximumPages);
-        Util.putLong(bytes, 136, _firstAvailablePage);
-        Util.putLong(bytes, 144, _directoryRootPage);
-        Util.putLong(bytes, 152, _garbageRoot);
-        Util.putLong(bytes, 160, _fetchCounter.get());
-        Util.putLong(bytes, 168, _traverseCounter.get());
-        Util.putLong(bytes, 176, _storeCounter.get());
-        Util.putLong(bytes, 184, _removeCounter.get());
-        Util.putLong(bytes, 192, _initialPages);
+    private boolean updateHeaderInfo(byte[] bytes) {
+        boolean changed = false;
+        changed |= Util.changeBytes(bytes, 0, SIGNATURE);
+        changed |= Util.changeInt(bytes, 16, VERSION);
+        changed |= Util.changeInt(bytes, 20, _bufferSize);
+        // Util.compareAndPutLong(bytes, 24, _generation);
+        changed |= Util.changeLong(bytes, 32, _id);
+        changed |= Util.changeLong(bytes, 40, _readCounter.get());
+        changed |= Util.changeLong(bytes, 48, _writeCounter.get());
+        changed |= Util.changeLong(bytes, 56, _getCounter.get());
+        changed |= Util.changeLong(bytes, 64, _openTime);
+        changed |= Util.changeLong(bytes, 72, _createTime);
+        changed |= Util.changeLong(bytes, 80, _lastReadTime);
+        changed |= Util.changeLong(bytes, 88, _lastWriteTime);
+        changed |= Util.changeLong(bytes, 96, _lastExtensionTime);
+        changed |= Util.changeLong(bytes, 104, _highestPageUsed);
+        changed |= Util.changeLong(bytes, 112, _pageCount);
+        changed |= Util.changeLong(bytes, 120, _extensionPages);
+        changed |= Util.changeLong(bytes, 128, _maximumPages);
+        changed |= Util.changeLong(bytes, 136, _firstAvailablePage);
+        changed |= Util.changeLong(bytes, 144, _directoryRootPage);
+        changed |= Util.changeLong(bytes, 152, _garbageRoot);
+        changed |= Util.changeLong(bytes, 160, _fetchCounter.get());
+        changed |= Util.changeLong(bytes, 168, _traverseCounter.get());
+        changed |= Util.changeLong(bytes, 176, _storeCounter.get());
+        changed |= Util.changeLong(bytes, 184, _removeCounter.get());
+        changed |= Util.changeLong(bytes, 192, _initialPages);
+        return changed;
     }
 
     private void getHeaderInfo(byte[] bytes) {
         _bufferSize = Util.getInt(bytes, 20);
-//        _generation = Util.getLong(bytes, 24);
+        // _generation = Util.getLong(bytes, 24);
         _id = Util.getLong(bytes, 32);
         _readCounter.set(Util.getLong(bytes, 40));
         _writeCounter.set(Util.getLong(bytes, 48));
