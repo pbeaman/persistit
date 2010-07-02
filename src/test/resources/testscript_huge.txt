@@ -4,28 +4,7 @@ prop logpath=$logpath$
 logpath $logpath$/result_$timestamp$.log
 
 // ----------------------------- Unit Tests ----------------------
-delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01
-delete $datapath$/persistit_log.000001
-delete $datapath$/persistit_log.000002
-delete $datapath$/persistit_log.000003
-delete $datapath$/persistit_log.000004
-delete $datapath$/persistit_log.000005
-delete $datapath$/persistit_log.000006
-delete $datapath$/persistit_log.000007
-delete $datapath$/persistit_log.000008
-delete $datapath$/persistit_log.000009
-delete $datapath$/persistit_log.000010
-delete $datapath$/persistit_log.000011
-delete $datapath$/persistit_log.000012
-delete $datapath$/persistit_log.000013
-delete $datapath$/persistit_log.000014
-delete $datapath$/persistit_log.000015
-delete $datapath$/persistit_log.000016
-delete $datapath$/persistit_log.000017
-delete $datapath$/persistit_log.000018
-delete $datapath$/persistit_log.000019
-delete $datapath$/persistit_log.000020
-
+delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit_log.*
 #Stress-huge test mixture, multithread
 
 clearprops

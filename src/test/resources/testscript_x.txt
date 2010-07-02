@@ -2,14 +2,12 @@ logpath $logpath$/result_$timestamp$.log
 
 
 #Stress-1 test mixture, multithread, small pool, temporary volume
-delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/persistit_log.*
 
 clearprops
 prop buffer.count.8192=1000
 prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
-prop pwjpath=$datapath$/persistit.pwj
-prop pwjsize=512K
-prop pwjcount=2
+prop logpath=$datapath$/persistit_log
 prop rmiport=1099
 
 init
@@ -36,9 +34,7 @@ close
 clearprops
 prop buffer.count.8192=1000
 prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
-prop pwjpath=$datapath$/persistit.pwj
-prop pwjsize=512K
-prop pwjcount=2
+prop logpath=$datapath$/persistit_log
 prop rmiport=1099
 
 init

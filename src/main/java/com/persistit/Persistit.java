@@ -1480,17 +1480,10 @@ public class Persistit implements BuildConstants {
             shutdownGUI();
         }
 
-        final List<Volume> volumes = new ArrayList<Volume>(_volumes);
-        for (final Volume volume : volumes) {
-            volume.close();
-        }
-        while (!_volumes.isEmpty()) {
-            removeVolume(_volumes.get(0), false);
-        }
-
         _journal.close();
 
         flush();
+        
         _closed = true;
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
@@ -1503,6 +1496,14 @@ public class Persistit implements BuildConstants {
                 System.out.println("Buffer pool " + pool + " has " + count
                         + " stranded dirty buffers");
             }
+        }
+
+        final List<Volume> volumes = new ArrayList<Volume>(_volumes);
+        for (final Volume volume : volumes) {
+            volume.close();
+        }
+        while (!_volumes.isEmpty()) {
+            removeVolume(_volumes.get(0), false);
         }
 
         _logBase.logend();

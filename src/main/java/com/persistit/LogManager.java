@@ -48,9 +48,10 @@ public class LogManager {
 
     public final static int MAXIMUM_MAPPED_HANDLES = 4096;
 
-    private final static String PATH_FORMAT = "%s.%06d";
+    private final static String PATH_FORMAT = "%s.%016d";
 
-    private final static String PATH_PATTERN = ".+\\.(\\d{6})";
+    private final static Pattern PATH_PATTERN = Pattern
+            .compile(".+\\.(\\d{16})");
 
     private final Map<VolumePage, FileAddress> _pageMap = new HashMap<VolumePage, FileAddress>();
 
@@ -78,38 +79,37 @@ public class LogManager {
 
     private long _writeBufferAddress = 0;
 
-    private int _readBufferSize = DEFAULT_READ_BUFFER_SIZE;
-
-    private ByteBuffer _readBuffer;
-
     private long _flushInterval = DEFAULT_FLUSH_INTERVAL;
 
     private Timer _flushTimer;
+
+    private Thread _copierThread;
+
+    private volatile boolean _closed;
 
     private File _directory;
 
     private final byte[] _bytes = new byte[4096];
 
-    // private PrintWriter textLog;
     /**
      * Log file generation - serves as suffix on file name
      */
-    private int _generation;
+    private long _currentGeneration;
+
+    private long _earliestGeneration;
 
     private int _handleCounter = 0;
 
     private boolean _recovered;
 
-    private class LogFlusher extends TimerTask {
-        @Override
-        public void run() {
-            force();
-            // textLog.flush();
-        }
-    }
+    private FileAddress _dirtyRecoveryFileAddress = null;
 
     private static class LogNotClosedException extends Exception {
+        final FileAddress _fileAddress;
 
+        public LogNotClosedException(final FileAddress fa) {
+            _fileAddress = fa;
+        }
     }
 
     public LogManager(final Persistit persistit) {
@@ -119,19 +119,22 @@ public class LogManager {
     public void init(final String path, final long maximumSize) {
         _directory = new File(path).getAbsoluteFile();
         _maximumFileSize = maximumSize;
-        _readBuffer = ByteBuffer.allocateDirect(_readBufferSize);
+        _closed = false;
         _flushTimer = new Timer("LOG_FLUSHER", true);
         _flushTimer.schedule(new LogFlusher(), _flushInterval, _flushInterval);
+        _copierThread = new Thread(new LogCopier(), "LOG_COPIER");
+        _copierThread.start();
+
     }
-    
+
     public synchronized int getPageMapSize() {
         return _pageMap.size();
     }
-    
+
     public synchronized long getCurrentGeneration() {
-        return _generation;
+        return _currentGeneration;
     }
-    
+
     public synchronized File getCurrentFile() {
         return _writeChannelFile;
     }
@@ -170,20 +173,23 @@ public class LogManager {
             throws PersistitIOException, CorruptLogException {
         final FileChannel fc = getFileChannel(fa.getFile());
         try {
-            _readBuffer.position(0).limit(LogRecord.PA.OVERHEAD + 8192);
-            fc.read(_readBuffer, fa.getAddress());
-            _readBuffer.flip();
-            _readBuffer.get(_bytes, 0, LogRecord.PA.OVERHEAD);
-            final char type = LogRecord.PA.getType(_bytes);
-            final int payloadSize = LogRecord.PA.getLength(_bytes)
-                    - LogRecord.PA.OVERHEAD;
-            final int leftSize = LogRecord.PA.getLeftSize(_bytes);
-            final int bufferSize = LogRecord.PA.getBufferSize(_bytes);
-            final long pageAddress = LogRecord.PA.getPageAddress(_bytes);
             final byte[] bytes = bb.array();
+            bb.limit(LogRecord.PA.OVERHEAD).position(0);
+            readFully(bb, fc, fa.getAddress(), fa);
+            if (bb.position() < LogRecord.PA.OVERHEAD) {
+                throw new CorruptLogException("Record at " + fa
+                        + " is incomplete");
+            }
+            final char type = LogRecord.PA.getType(bytes);
+            final int payloadSize = LogRecord.PA.getLength(bytes)
+                    - LogRecord.PA.OVERHEAD;
+            final int leftSize = LogRecord.PA.getLeftSize(bytes);
+            final int bufferSize = LogRecord.PA.getBufferSize(bytes);
+            final long pageAddress = LogRecord.PA.getPageAddress(bytes);
 
             if (type != LogRecord.PA.TYPE) {
-                throw new CorruptLogException("Record at " + fa + " is invalid");
+                throw new CorruptLogException("Record at " + fa
+                        + " is not a PAGE record");
             }
 
             if (leftSize < 0 || payloadSize < leftSize
@@ -193,21 +199,33 @@ public class LogManager {
                         + " leftSize=" + leftSize + " bufferSize=" + bufferSize);
             }
 
+            bb.limit(payloadSize).position(0);
+            readFully(bb, fc, fa.getAddress() + LogRecord.PA.OVERHEAD, fa);
+
             if (leftSize > 0) {
                 final int rightSize = payloadSize - leftSize;
-                _readBuffer.get(bytes, 0, leftSize);
-
-                Arrays.fill(bytes, leftSize, bufferSize - rightSize,
-                        (byte) 0);
-
-                _readBuffer.get(bytes, bufferSize - rightSize, rightSize);
-            } else {
-                _readBuffer.get(bytes, 0, bufferSize);
+                System.arraycopy(bytes, leftSize, bytes,
+                        bufferSize - rightSize, rightSize);
+                Arrays.fill(bytes, leftSize, bufferSize - rightSize, (byte) 0);
             }
-            bb.position(0).limit(bufferSize);
+            bb.limit(bufferSize).position(0);
             return pageAddress;
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
+        }
+    }
+
+    private void readFully(final ByteBuffer bb, final FileChannel fc,
+            final long address, final FileAddress fa) throws IOException,
+            CorruptLogException {
+        long a = address;
+        while (bb.remaining() > 0) {
+            int count = fc.read(bb, a);
+            if (count < 0) {
+                throw new CorruptLogException("End of file at " + fa + ":"
+                        + address);
+            }
+            a += count;
         }
     }
 
@@ -244,17 +262,17 @@ public class LogManager {
         } else {
             _writeBuffer.put(buffer.getBytes());
         }
-        // textLog.println(String.format("write %s:%,14d page %,8d, type %2d, "
-        // + "right %,8d, index %,5d, %s", _currentFile.getName(),
-        // address, buffer.getLong(Buffer.PAGE_ADDRESS_OFFSET),
-        // (int) buffer.getByte(0), buffer
-        // .getLong(Buffer.RIGHT_SIBLING_OFFSET), buffer
-        // .getIndex(), Thread.currentThread().getName()));
+
         final VolumePage vp = new VolumePage(new VolumeDescriptor(volume),
                 buffer.getPageAddress(), buffer.getTimestamp());
         final FileAddress fa = new FileAddress(_writeChannelFile, address,
                 buffer.getTimestamp());
         _pageMap.put(vp, fa);
+
+        Debug.$assert(LogRecord.getLength(_bytes) == recordSize);
+        if (buffer.getPageAddress() != 0) {
+            Debug.$assert(buffer.getPageAddress() == LogRecord.PA.getPageAddress(_bytes));
+        }
     }
 
     public synchronized int handleForVolume(final Volume volume)
@@ -305,11 +323,11 @@ public class LogManager {
     }
 
     public synchronized void rollover() throws PersistitIOException {
-        _generation++;
+        _currentGeneration++;
         try {
             closeWriteChannel();
             final File file = new File(String.format(PATH_FORMAT, _directory,
-                    _generation));
+                    _currentGeneration));
             final RandomAccessFile raf = new RandomAccessFile(file, "rw");
             _writeChannel = raf.getChannel();
             _writeChannelFile = file;
@@ -326,17 +344,27 @@ public class LogManager {
     }
 
     public synchronized void recover() throws PersistitException {
+        if (_recovered) {
+            throw new IllegalStateException("Recovery already completed");
+        }
         _pageMap.clear();
         _handleToTreeMap.clear();
         _treeToHandleMap.clear();
         _handleToVolumeMap.clear();
         _volumeToHandleMap.clear();
 
+        _earliestGeneration = Long.MAX_VALUE;
+        _currentGeneration = -1;
+
         final File[] files = files();
-        int nextGeneration = 0;
-        final Pattern pattern = Pattern.compile(PATH_PATTERN);
+        _dirtyRecoveryFileAddress = null;
         try {
             for (final File file : files) {
+                if (_dirtyRecoveryFileAddress != null) {
+                    // a log file other than the final log file is corrupt.
+                    throw new CorruptLogException("Invalid log record at "
+                            + _dirtyRecoveryFileAddress.toString());
+                }
                 final FileChannel channel = new FileInputStream(file)
                         .getChannel();
                 long bufferAddress = 0;
@@ -345,24 +373,43 @@ public class LogManager {
                             _writeBufferSize);
                     final MappedByteBuffer readBuffer = channel.map(
                             MapMode.READ_ONLY, bufferAddress, size);
-                    while (recoverOneRecord(file, bufferAddress, readBuffer)) {
-
+                    try {
+                        while (recoverOneRecord(file, bufferAddress, readBuffer)) {
+                            // nothing to do - work is performed in
+                            // recoverOneRecord.
+                        }
+                    } catch (LogNotClosedException e) {
+                        _dirtyRecoveryFileAddress = e._fileAddress;
                     }
                     bufferAddress += readBuffer.position();
                 }
-                final Matcher matcher = pattern.matcher(file.getName());
-                if (matcher.matches()) {
-                    nextGeneration = Math.max(nextGeneration, Integer
-                            .parseInt(matcher.group(1)));
+                final long generation = fileGeneration(file);
+                if (generation >= 0) {
+                    _currentGeneration = Math.max(generation,
+                            _currentGeneration);
+                    _earliestGeneration = Math.min(generation,
+                            _earliestGeneration);
                 }
             }
-            _generation = nextGeneration;
         } catch (IOException ioe) {
-            ioe.printStackTrace(); // TODO
-        } catch (LogNotClosedException e) {
-            // ok - this is normal when recovering after a dirty shutdown
+            ioe.printStackTrace(); // TODO!!
+        }
+        if (_earliestGeneration == Long.MAX_VALUE) {
+            _earliestGeneration = 0;
+        }
+        if (_currentGeneration == -1) {
+            _currentGeneration = 0;
         }
         _recovered = true;
+    }
+
+    private long fileGeneration(final File file) {
+        final Matcher matcher = PATH_PATTERN.matcher(file.getName());
+        if (matcher.matches()) {
+            return Long.parseLong(matcher.group(1));
+        } else {
+            return -1;
+        }
     }
 
     private boolean recoverOneRecord(final File file, final long bufferAddress,
@@ -477,37 +524,58 @@ public class LogManager {
         default:
             _persistit.getLogBase().log(LogBase.LOG_INIT_RECOVER_TERMINATE,
                     new FileAddress(file, bufferAddress + from, timestamp));
-            throw new LogNotClosedException();
+            throw new LogNotClosedException(new FileAddress(file,
+                    bufferAddress, -1));
         }
         return true;
     }
 
-    public synchronized void close() throws PersistitIOException {
-        try {
-            closeWriteChannel();
-            for (final FileChannel channel : _readChannelMap.values()) {
-                channel.close();
+    public void close() throws PersistitIOException {
+
+        synchronized (this) {
+            _closed = true;
+            notifyAll();
+        }
+
+        while (_copierThread.isAlive()) {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ie) {
+
             }
-        } catch (IOException ioe) {
-            throw new PersistitIOException(ioe);
+        }
+
+        synchronized (this) {
+            try {
+                closeWriteChannel();
+                for (final FileChannel channel : _readChannelMap.values()) {
+                    channel.close();
+                }
+            } catch (IOException ioe) {
+                throw new PersistitIOException(ioe);
+            }
+            _readChannelMap.clear();
+            _handleToTreeMap.clear();
+            _handleToVolumeMap.clear();
+            _volumeToHandleMap.clear();
+            _treeToHandleMap.clear();
+            _pageMap.clear();
+            _writeChannelFile = null;
+            _writeChannel = null;
+            _writeBuffer = null;
+            _recovered = false;
+            _copierThread = null;
+            Arrays.fill(_bytes, (byte) 0);
         }
         if (_flushTimer != null) {
             _flushTimer.cancel();
             _flushTimer = null;
         }
-        _readChannelMap.clear();
-        _handleToTreeMap.clear();
-        _handleToVolumeMap.clear();
-        _volumeToHandleMap.clear();
-        _treeToHandleMap.clear();
-        _pageMap.clear();
-        _writeChannelFile = null;
-        _writeChannel = null;
-        _writeBuffer = null;
-        _readBuffer = null;
-        Arrays.fill(_bytes, (byte) 0);
     }
 
+    /**
+     * Force all data written to the log file to disk.
+     */
     public void force() {
         final MappedByteBuffer mbb;
         synchronized (this) {
@@ -575,7 +643,7 @@ public class LogManager {
             @Override
             public boolean accept(File pathname) {
                 return pathname.getParent().startsWith(dir.getPath())
-                        && Pattern.matches(PATH_PATTERN, pathname.getPath());
+                        && PATH_PATTERN.matcher(pathname.getPath()).matches();
             }
 
         });
@@ -602,79 +670,15 @@ public class LogManager {
     }
 
     public void copyBack(final long toTimestamp) throws PersistitException {
-        FileAddress firstMissed = null;
-        final SortedMap<VolumePage, FileAddress> sortedMap = new TreeMap<VolumePage, FileAddress>();
-
         synchronized (this) {
-            for (final Map.Entry<VolumePage, FileAddress> entry : _pageMap
-                    .entrySet()) {
-                FileAddress fa = entry.getValue();
-                if (fa.getTimestamp() <= toTimestamp) {
-                    sortedMap.put(entry.getKey(), entry.getValue());
-                } else {
-                    if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
-                        firstMissed = fa;
-                    }
+            _urgentDemand = true;
+            notifyAll();
+            while (_urgentDemand) {
+                try {
+                    wait(1000);
+                } catch (InterruptedException ie) {
+                    // ignore;
                 }
-            }
-        }
-
-        Volume volume = null;
-        VolumeDescriptor descriptor = null;
-
-        final ByteBuffer bb = ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE);
-        for (final Map.Entry<VolumePage, FileAddress> entry : sortedMap
-                .entrySet()) {
-            final VolumePage vp = entry.getKey();
-            final FileAddress fa = entry.getValue();
-            final long pageAddress = readPageBufferFromLog(vp, fa, bb);
-            if (descriptor != vp.getVolumeDescriptor()) {
-                volume = _persistit.getVolume(vp.getVolumeDescriptor()
-                        .getPath());
-            }
-            if (volume.getId() != vp.getVolumeDescriptor().getId()) {
-                throw new CorruptLogException(vp.getVolumeDescriptor()
-                        + " does not identify a valid Volume at " + fa);
-            }
-            if (bb.limit() != volume.getBufferSize()) {
-                throw new CorruptLogException(vp + " bufferSize " + bb.limit()
-                        + " does not match " + volume + " bufferSize "
-                        + volume.getBufferSize() + " at " + fa);
-            }
-            if (pageAddress != vp.getPage()) {
-                throw new CorruptLogException(vp
-                        + " does not match page address " + pageAddress
-                        + " found at " + fa);
-            }
-            try {
-            volume.writePage(bb, pageAddress);
-            } catch (IOException ioe) {
-                throw new PersistitIOException(ioe);
-            }
-        }
-        
-        synchronized (this) {
-            for (final Map.Entry<VolumePage, FileAddress> entry : sortedMap
-                    .entrySet()) {
-                final VolumePage vp = entry.getKey();
-                final FileAddress fa = entry.getValue();
-                final FileAddress fa2 = _pageMap.get(vp);
-                if (fa.equals(fa2)) {
-                    _pageMap.remove(vp);
-                }
-            }
-        }
-        
-        final File[] files = files();
-        for (final File file : files) {
-            if (firstMissed == null || file.compareTo(firstMissed.getFile()) < 0) {
-                if (file.equals(_writeChannelFile)) {
-                    rollover();
-                }
-                if (file.equals(_writeChannelFile)) {
-                    throw new IllegalStateException("Attempting to delete current log file " + file);
-                }
-                file.delete();
             }
         }
     }
@@ -827,4 +831,219 @@ public class LogManager {
         }
     }
 
+    private class LogFlusher extends TimerTask {
+        @Override
+        public void run() {
+            force();
+        }
+    }
+
+    private class LogCopier implements Runnable {
+
+        @Override
+        public void run() {
+            while (!_closed) {
+                try {
+                    doLogCopierCycle();
+                } catch (Throwable pe) {
+                    pe.printStackTrace(); // TODO
+                }
+            }
+        }
+    }
+
+    /**
+     * Tunable parameters that determine how vigorously the copyBack thread
+     * performs I/O. Hopefully we can set good defaults and not expose these as
+     * knobs.
+     */
+    private final static int DEFAULT_URGENCY_MAP_SIZE_BASE = 1000;
+    private final static int DEFAULT_URGENCY_MAP_SIZE_MULTIPLIER = 3;
+    private final static int DEFAULT_URGENCY_LOG_FILE_COUNT_BASE = 1;
+    private final static int DEFAULT_URGENCY_FULL_THROTTLE = 10;
+    private final static int DEFAULT_URGENCY_SLEEP_TIME_BASE = 10000;
+    private final static int DEFAULT_URGENCY_MAX_IO_SLEEP = 100;
+
+    private volatile boolean _urgentDemand = false;
+
+    private volatile int _urgencyMapSizeBase = DEFAULT_URGENCY_MAP_SIZE_BASE;
+
+    private volatile int _urgencyMapSizeMultiplier = DEFAULT_URGENCY_MAP_SIZE_MULTIPLIER;
+
+    private volatile int _urgencyLogFileCountBase = DEFAULT_URGENCY_LOG_FILE_COUNT_BASE;
+
+    private volatile int _urgencyFullThrottle = DEFAULT_URGENCY_FULL_THROTTLE;
+
+    private volatile int _urgencySleepTimeBase = DEFAULT_URGENCY_SLEEP_TIME_BASE;
+
+    private volatile int _urgencyMaxIOSleep = DEFAULT_URGENCY_MAX_IO_SLEEP;
+
+    private volatile long _copyLogTimestampLimit = Long.MAX_VALUE;
+
+    /**
+     * Computes an "urgency" factor that determines how vigorously the copyBack
+     * thread should perform I/O. This number is computed on a scale of 0 to N;
+     * larger values are intended make the thread work harder. A value of 10 or
+     * above suggests the copier should run flat-out.
+     * 
+     * @return
+     */
+    private synchronized int logCopierUrgency() {
+        if (_urgentDemand) {
+            return _urgencyFullThrottle;
+        }
+        int urgency = 0;
+        int mapSizeBoundary = _urgencyMapSizeBase;
+        while (mapSizeBoundary < _pageMap.size()) {
+            urgency++;
+            mapSizeBoundary *= _urgencyMapSizeMultiplier;
+        }
+        int logFileCount = (int) (_currentGeneration - _earliestGeneration);
+        if (logFileCount > _urgencyLogFileCountBase) {
+            urgency += Math.min(logFileCount - _urgencyLogFileCountBase,
+                    _urgencyFullThrottle);
+        }
+        return urgency;
+    }
+
+    private long copierSleepInterval(final int urgency) {
+        if (urgency >= _urgencyFullThrottle) {
+            return 0;
+        }
+        return _urgencySleepTimeBase / (1 << urgency);
+    }
+
+    private synchronized void copierIOSleep() {
+        long time = Math.min(copierSleepInterval(logCopierUrgency()),
+                _urgencyMaxIOSleep);
+        if (time > 0) {
+            try {
+                this.wait(time);
+            } catch (InterruptedException ie) {
+                // ignore
+            }
+        }
+    }
+
+    private synchronized void copierCycleSleep() {
+        long time = copierSleepInterval(logCopierUrgency());
+        if (time > 0) {
+            try {
+                this.wait(time);
+            } catch (InterruptedException ie) {
+                // ignore
+            }
+        }
+    }
+
+    private void doLogCopierCycle() throws PersistitException {
+        copierCycleSleep();
+        copierCycle();
+    }
+
+    private void copierCycle() throws PersistitException {
+        FileAddress firstMissed = null;
+        final SortedMap<VolumePage, FileAddress> sortedMap = new TreeMap<VolumePage, FileAddress>();
+        final boolean wasUrgent;
+        final long currentGeneration;
+        synchronized (this) {
+            if (!_recovered) {
+                return;
+            }
+            wasUrgent = _urgentDemand;
+            currentGeneration = _currentGeneration;
+            for (final Map.Entry<VolumePage, FileAddress> entry : _pageMap
+                    .entrySet()) {
+                FileAddress fa = entry.getValue();
+                if (fa.getTimestamp() <= _copyLogTimestampLimit) {
+                    sortedMap.put(entry.getKey(), entry.getValue());
+                } else {
+                    if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
+                        firstMissed = fa;
+                    }
+                }
+            }
+        }
+
+        Volume volume = null;
+        VolumeDescriptor descriptor = null;
+
+        final ByteBuffer bb = ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE);
+        for (final Map.Entry<VolumePage, FileAddress> entry : sortedMap
+                .entrySet()) {
+            if (_closed) {
+                return;
+            }
+            final VolumePage vp = entry.getKey();
+            final FileAddress fa = entry.getValue();
+            final long pageAddress = readPageBufferFromLog(vp, fa, bb);
+            if (descriptor != vp.getVolumeDescriptor()) {
+                volume = _persistit.getVolume(vp.getVolumeDescriptor()
+                        .getPath());
+            }
+            if (volume.getId() != vp.getVolumeDescriptor().getId()) {
+                throw new CorruptLogException(vp.getVolumeDescriptor()
+                        + " does not identify a valid Volume at " + fa);
+            }
+            if (bb.limit() != volume.getBufferSize()) {
+                throw new CorruptLogException(vp + " bufferSize " + bb.limit()
+                        + " does not match " + volume + " bufferSize "
+                        + volume.getBufferSize() + " at " + fa);
+            }
+            if (pageAddress != vp.getPage()) {
+                throw new CorruptLogException(vp
+                        + " does not match page address " + pageAddress
+                        + " found at " + fa);
+            }
+            try {
+                volume.writePage(bb, pageAddress);
+                copierIOSleep();
+
+            } catch (IOException ioe) {
+                throw new PersistitIOException(ioe);
+            }
+        }
+
+        synchronized (this) {
+            for (final Map.Entry<VolumePage, FileAddress> entry : sortedMap
+                    .entrySet()) {
+                final VolumePage vp = entry.getKey();
+                final FileAddress fa = entry.getValue();
+                final FileAddress fa2 = _pageMap.get(vp);
+                if (fa.equals(fa2)) {
+                    _pageMap.remove(vp);
+                }
+            }
+        }
+
+        final File[] files = files();
+        for (final File file : files) {
+            if (firstMissed == null
+                    || file.compareTo(firstMissed.getFile()) < 0) {
+                if (!file.equals(_writeChannelFile)) {
+                    file.delete();
+                }
+            }
+        }
+        File currentFile = null;
+        synchronized (this) {
+            if (firstMissed == null && _pageMap.size() == 0
+                    && _writeBuffer != null
+                    && _writeBufferAddress + _writeBuffer.position() != 0) {
+                currentFile = _writeChannelFile;
+                rollover();
+            }
+            if (firstMissed == null) {
+                _earliestGeneration = currentGeneration;
+            } else {
+                _earliestGeneration = fileGeneration(firstMissed.getFile());
+            }
+        }
+        if (currentFile != null) {
+            currentFile.delete();
+        }
+        if (wasUrgent) {
+            _urgentDemand = false;
+        }
+    }
 }

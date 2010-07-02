@@ -6,9 +6,7 @@ logpath $logpath$/result_$timestamp$.log
 clearprops
 prop buffer.count.8192=512
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
-prop pwjpath=$datapath$/persistit.pwj
-prop pwjsize=1M
-prop pwjcount=1
+prop logpath=$datapath$/persistit_log
 prop rmiport=1099
 prop pages=true
 prop syncio=true
@@ -20,14 +18,12 @@ close
 
 #Stress-99 test mixture, multithread, small pool, small extension size
 
-delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/persistit_log.*
 
 clearprops
 prop buffer.count.8192=1024
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
-prop pwjpath=$datapath$/persistit.pwj
-prop pwjsize=4M
-prop pwjcount=4
+prop logpath=$datapath$/persistit_log
 prop rmiport=1099
 prop pages=true
 prop syncio=true

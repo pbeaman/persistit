@@ -6,7 +6,7 @@ logpath $logpath$/result_$timestamp$.log
 
 #Stress-99 test mixture, multithread, huge pool, temporary volumes
 
-delete $datapath$/persistit.v01 $datapath$/persistit.pwj $datapath$/persistit_log.000001
+delete $datapath$/persistit.v01 $datapath$/persistit_log.*
 
 clearprops
 prop buffer.count.8192=20000

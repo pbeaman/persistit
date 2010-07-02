@@ -3,9 +3,7 @@ logpath $logpath$/result_$timestamp$.log
 clearprops
 prop buffer.count.8192=100
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
-prop pwjpath=$datapath$/persistit.pwj
-prop pwjsize=256K
-prop pwjcount=2
+prop logpath=$datapath$/persistit_log
 prop log=PWJ:FINER,GAR:FINE
 
 init

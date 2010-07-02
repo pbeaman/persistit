@@ -546,11 +546,7 @@ public class ScriptedTestRunner {
                 case CODE_DELETE: {
                     for (int index = 0; index < args.length; index++) {
                         final String fileName = args[index];
-                        final File file = new File(fileName);
-                        if (file.exists()) {
-                            file.delete();
-                            logMessage("deleted " + file.toString());
-                        }
+                        deleteFiles(fileName);
                     }
                     return null;
                 }
@@ -765,6 +761,25 @@ public class ScriptedTestRunner {
 
     public ScriptedTestRunnerGui getGui() {
         return _gui;
+    }
+    
+    private void deleteFiles(final String pattern) {
+        if (pattern.endsWith("*")) {
+            File file = new File(pattern).getParentFile();
+            if (file.isDirectory()) {
+                final File[] files = file.listFiles();
+                for (final File child : files) {
+                    if (child.getPath().startsWith(pattern.substring(0, pattern.length() - 1))) {
+                        child.delete();
+                        logMessage("deleted " + child.toString());
+                    }
+                }
+            }
+        } else {
+            final File file = new File(pattern);
+            file.delete();
+            logMessage("deleted " + file.toString());
+        }
     }
 
 }

@@ -4,16 +4,14 @@ prop logpath=$logpath$
 logpath $logpath$/result_$timestamp$.log
 
 // ----------------------------- Unit Tests ----------------------
-delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit_log.*
 
 clearprops
 prop buffer.count.8192=2000
 prop volume.1=$datapath$/persistit_1.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M,alias:persistit
 prop volume.2=$datapath$/test_system.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
 prop volume.3=$datapath$/test_txn.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
-prop pwjpath=$datapath$/persistit.pwj
-prop pwjsize=2M
-prop pwjcount=2
+prop logpath=$datapath$/persistit_log
 prop rmiport=1099
 
 init
@@ -30,7 +28,7 @@ close
 // ----------------------- Stress Tests ----------------------
 #Stress-1 simple test
 
-delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/persistit_log.*
 clearprops
 
 prop datapath=$datapath$
@@ -41,9 +39,7 @@ logpath $logpath$/result_$timestamp$.log
 
 prop buffer.count.8192=500
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M,alias:persistit
-prop pwjpath=$datapath$/persistit.pwj
-prop pwjsize=512K
-prop pwjcount=2
+prop logpath=$datapath$/persistit_log
 prop rmiport=1099
 
 init
@@ -54,7 +50,7 @@ close
 
 #Stress-2 simple multithreaded test
 
-delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/persistit_log.*
 
 init
 multithread

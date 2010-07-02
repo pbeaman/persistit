@@ -526,7 +526,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
     void setDirty() {
         bumpGeneration();
         super.setDirty();
-        // _timestamp = _persistit.getTransaction().getTimestamp();
+        _timestamp = _persistit.getTransaction().getTimestamp();
         if (Debug.HISTORY_ENABLED)
             Debug.stateChanged(this, "dirty", -1);
     }
