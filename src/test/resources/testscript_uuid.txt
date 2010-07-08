@@ -1,0 +1,24 @@
+prop datapath=$datapath$
+prop logpath=$logpath$
+
+logpath $logpath$/result_$timestamp$.log
+// ----------------------- Stress Tests ----------------------
+
+
+#Stress-UUID single thread UUID insert - large pool
+
+clearprops
+prop buffer.count.8192=10000
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:1G,extensionSize:1G,maximumSize:500G
+prop logpath=$datapath$/persistit_log
+prop rmiport=1099
+
+init
+multithread
+
+test com.persistit.stress.StressUUID repeat=10 count=100000
+icheck persistit
+waitIfFailed Please examine the failure!
+close
+
+

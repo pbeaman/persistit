@@ -1113,22 +1113,7 @@ public class BufferPool {
             int unavailable = 0;
 
             synchronized (_lock[bucket]) {
-                Buffer buffer = _perm[bucket];
-                while (buffer != null && count < maxCount) {
-                    if (buffer.isDirty() && !buffer.isEnqueued()) {
-                        if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket)) {
-                                count++;
-                            }
-                        } else {
-                            unavailable++;
-                        }
-                    }
-                    buffer = buffer.getNextLru();
-                    if (buffer == _perm[bucket]) {
-                        break;
-                    }
-                }
+                Buffer buffer;
 
                 buffer = _invalidBufferQueue[bucket];
                 int lruCount = _closed ? maxCount : _bufferCount / _bucketCount
@@ -1166,6 +1151,23 @@ public class BufferPool {
                         break;
                     }
                     if (--lruCount < 0 && count > lazyCount) {
+                        break;
+                    }
+                }
+
+                buffer = _perm[bucket];
+                while (buffer != null && count < maxCount) {
+                    if (buffer.isDirty() && !buffer.isEnqueued()) {
+                        if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
+                            if (enqueueDirtyPage(buffer, bucket)) {
+                                count++;
+                            }
+                        } else {
+                            unavailable++;
+                        }
+                    }
+                    buffer = buffer.getNextLru();
+                    if (buffer == _perm[bucket]) {
                         break;
                     }
                 }
@@ -1334,6 +1336,7 @@ public class BufferPool {
                         buffer.save();
                         // buffer.releaseWriterClaim();
                         _persistit.getLogManager().writePageToLog(buffer);
+                        buffer.getVolume().bumpWriteCounter();
                         synchronized (_lock[bucket]) {
                             _lock[bucket].notify();
                         }

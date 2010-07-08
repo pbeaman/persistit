@@ -11,11 +11,14 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -46,12 +49,30 @@ public class LogManager {
 
     public final static long DEFAULT_FLUSH_INTERVAL = 100;
 
+    public final static long DEFAULT_COPIER_INTERVAL = 1000;
+
     public final static int MAXIMUM_MAPPED_HANDLES = 4096;
 
     private final static String PATH_FORMAT = "%s.%016d";
 
     private final static Pattern PATH_PATTERN = Pattern
             .compile(".+\\.(\\d{16})");
+
+    private final static int DEFAULT_PAGE_MAP_SIZE_BASE = 1000;
+
+    private final static int DEFAULT_MINIMUM_URGENCY = 2;
+
+    private final static long IO_NANOSEC_PER_INTERVAL = 100000000L;
+
+    private final static float IO_DECAY = 0.66f;
+
+    private final static float IO_NORMALIZE = 100f / 27f;
+
+    private final static int DEFAULT_IO_RATE_MAX = 100;
+
+    private final static int DEFAULT_IO_RATE_MIN = 2;
+
+    private final static float DEFAULT_IO_RATE_SLEEP_MULTIPLIER = 0.5f;
 
     private final Map<VolumePage, FileAddress> _pageMap = new HashMap<VolumePage, FileAddress>();
 
@@ -79,13 +100,15 @@ public class LogManager {
 
     private long _writeBufferAddress = 0;
 
-    private long _flushInterval = DEFAULT_FLUSH_INTERVAL;
-
     private Timer _flushTimer;
 
-    private Thread _copierThread;
+    private Timer _copierTimer;
 
-    private volatile boolean _closed;
+    private AtomicBoolean _closed = new AtomicBoolean();
+
+    private AtomicBoolean _copying = new AtomicBoolean();
+
+    private AtomicBoolean _suspendCopying = new AtomicBoolean();
 
     private File _directory;
 
@@ -96,7 +119,7 @@ public class LogManager {
      */
     private long _currentGeneration;
 
-    private long _earliestGeneration;
+    private long _firstGeneration;
 
     private int _handleCounter = 0;
 
@@ -104,7 +127,41 @@ public class LogManager {
 
     private FileAddress _dirtyRecoveryFileAddress = null;
 
+    private int _ioRate;
+
+    private long _ioTime;
+
+    private volatile long _loggedPageCount = 0;
+
+    private volatile long _copyBackCount = 0;
+
+    /**
+     * Tunable parameters that determine how vigorously the copyBack thread
+     * performs I/O. Hopefully we can set good defaults and not expose these as
+     * knobs.
+     */
+    private volatile long _flushInterval = DEFAULT_FLUSH_INTERVAL;
+
+    private volatile long _copierInterval = DEFAULT_COPIER_INTERVAL;
+
+    private volatile boolean _copyFast = false;
+
+    private volatile int _pageMapSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
+
+    private volatile int _minimumUrgency = DEFAULT_MINIMUM_URGENCY;
+
+    private volatile long _copyLogTimestampLimit = Long.MAX_VALUE;
+
+    private volatile int _ioRateMin = DEFAULT_IO_RATE_MIN;
+
+    private volatile int _ioRateMax = DEFAULT_IO_RATE_MAX;
+
+    private volatile float _ioRateSleepMultiplier = DEFAULT_IO_RATE_SLEEP_MULTIPLIER;
+
     private static class LogNotClosedException extends Exception {
+
+        private static final long serialVersionUID = 1L;
+
         final FileAddress _fileAddress;
 
         public LogNotClosedException(final FileAddress fa) {
@@ -119,16 +176,41 @@ public class LogManager {
     public void init(final String path, final long maximumSize) {
         _directory = new File(path).getAbsoluteFile();
         _maximumFileSize = maximumSize;
-        _closed = false;
-        _flushTimer = new Timer("LOG_FLUSHER", true);
-        _flushTimer.schedule(new LogFlusher(), _flushInterval, _flushInterval);
-        _copierThread = new Thread(new LogCopier(), "LOG_COPIER");
-        _copierThread.start();
+        _closed.set(false);
+        scheduleFlusher();
+        scheduleCopier();
+    }
 
+    private synchronized void scheduleFlusher() {
+        if (_flushTimer != null) {
+            _flushTimer.cancel();
+            _flushTimer = null;
+        }
+        if (_flushInterval > 0) {
+            _flushTimer = new Timer("LOG_FLUSHER", false);
+            _flushTimer.schedule(new LogFlusher(), _flushInterval,
+                    _flushInterval);
+        }
+    }
+
+    private synchronized void scheduleCopier() {
+        if (_copierTimer != null) {
+            _copierTimer.cancel();
+            _copierTimer = null;
+        }
+        if (_copierInterval > 0) {
+            _copierTimer = new Timer("LOG_COPIER", false);
+            _copierTimer.schedule(new LogCopier(), _copierInterval,
+                    _copierInterval);
+        }
     }
 
     public synchronized int getPageMapSize() {
         return _pageMap.size();
+    }
+
+    public synchronized long getFirstGeneration() {
+        return _firstGeneration;
     }
 
     public synchronized long getCurrentGeneration() {
@@ -139,7 +221,97 @@ public class LogManager {
         return _writeChannelFile;
     }
 
-    public synchronized boolean readPageFromLog(final Buffer buffer)
+    public synchronized FileAddress getDirtyRecoveryFileAddress() {
+        return _dirtyRecoveryFileAddress;
+    }
+
+    public long getMaximumFileSize() {
+        return _maximumFileSize;
+    }
+
+    public void set_maximumFileSize(long maximumFileSize) {
+        _maximumFileSize = maximumFileSize;
+    }
+
+    public boolean isCopyingSuspended() {
+        return _suspendCopying.get();
+    }
+
+    public void setCopyingSuspended(boolean suspendCopying) {
+        _suspendCopying.set(suspendCopying);
+    }
+
+    public long getFlushInterval() {
+        return _flushInterval;
+    }
+
+    public void setFlushInterval(long flushInterval) {
+        _flushInterval = flushInterval;
+        scheduleFlusher();
+    }
+
+    public long getCopierInterval() {
+        return _copierInterval;
+    }
+
+    public void setCopierInterval(long copierInterval) {
+        _copierInterval = copierInterval;
+        scheduleCopier();
+    }
+
+    public int getMinimumUrgency() {
+        return _minimumUrgency;
+    }
+
+    public void setMinimumUrgency(int minimumUrgency) {
+        _minimumUrgency = minimumUrgency;
+    }
+
+    public int getRateIOMin() {
+        return _ioRateMin;
+    }
+
+    public void setRateIOMin(int ioMin) {
+        _ioRateMin = ioMin;
+    }
+
+    public int getRateIOMax() {
+        return _ioRateMax;
+    }
+
+    public void setRateIOMax(int ioMax) {
+        _ioRateMax = ioMax;
+    }
+
+    public boolean isClosed() {
+        return _closed.get();
+    }
+
+    public boolean isCopying() {
+        return _copying.get();
+    }
+
+    public File getDirectory() {
+        return _directory;
+    }
+
+    public boolean isRecovered() {
+        return _recovered;
+    }
+
+    public int getIORate() {
+        return _ioRate;
+    }
+
+    public long getLoggedPageCount() {
+        return _loggedPageCount;
+    }
+
+    public long getCopyBackCount() {
+        return _copyBackCount;
+    }
+
+    public boolean readPageFromLog(final Buffer buffer)
             throws PersistitIOException {
         final int bufferSize = buffer.getBufferSize();
         final long pageAddress = buffer.getPageAddress();
@@ -148,7 +320,11 @@ public class LogManager {
         final Volume volume = buffer.getVolume();
         final VolumePage vp = new VolumePage(new VolumeDescriptor(volume),
                 pageAddress, 0);
-        final FileAddress fa = _pageMap.get(vp);
+        final FileAddress fa;
+
+        synchronized (this) {
+            fa = _pageMap.get(vp);
+        }
 
         if (fa == null) {
             return false;
@@ -209,6 +385,7 @@ public class LogManager {
                 Arrays.fill(bytes, leftSize, bufferSize - rightSize, (byte) 0);
             }
             bb.limit(bufferSize).position(0);
+            ioRate(1);
             return pageAddress;
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
@@ -268,10 +445,14 @@ public class LogManager {
         final FileAddress fa = new FileAddress(_writeChannelFile, address,
                 buffer.getTimestamp());
         _pageMap.put(vp, fa);
+        _loggedPageCount++;
+
+        ioRate(1);
 
         Debug.$assert(LogRecord.getLength(_bytes) == recordSize);
         if (buffer.getPageAddress() != 0) {
-            Debug.$assert(buffer.getPageAddress() == LogRecord.PA.getPageAddress(_bytes));
+            Debug.$assert(buffer.getPageAddress() == LogRecord.PA
+                    .getPageAddress(_bytes));
         }
     }
 
@@ -336,7 +517,7 @@ public class LogManager {
         }
 
         _writeBufferAddress = 0;
-        // New copies in every log file
+        // Ensure new handle-map copies in every log file
         _handleToTreeMap.clear();
         _handleToVolumeMap.clear();
         _volumeToHandleMap.clear();
@@ -353,7 +534,7 @@ public class LogManager {
         _handleToVolumeMap.clear();
         _volumeToHandleMap.clear();
 
-        _earliestGeneration = Long.MAX_VALUE;
+        _firstGeneration = Long.MAX_VALUE;
         _currentGeneration = -1;
 
         final File[] files = files();
@@ -380,6 +561,7 @@ public class LogManager {
                         }
                     } catch (LogNotClosedException e) {
                         _dirtyRecoveryFileAddress = e._fileAddress;
+                        break;
                     }
                     bufferAddress += readBuffer.position();
                 }
@@ -387,15 +569,14 @@ public class LogManager {
                 if (generation >= 0) {
                     _currentGeneration = Math.max(generation,
                             _currentGeneration);
-                    _earliestGeneration = Math.min(generation,
-                            _earliestGeneration);
+                    _firstGeneration = Math.min(generation, _firstGeneration);
                 }
             }
         } catch (IOException ioe) {
             ioe.printStackTrace(); // TODO!!
         }
-        if (_earliestGeneration == Long.MAX_VALUE) {
-            _earliestGeneration = 0;
+        if (_firstGeneration == Long.MAX_VALUE) {
+            _firstGeneration = 0;
         }
         if (_currentGeneration == -1) {
             _currentGeneration = 0;
@@ -533,15 +714,20 @@ public class LogManager {
     public void close() throws PersistitIOException {
 
         synchronized (this) {
-            _closed = true;
+            _closed.set(true);
             notifyAll();
         }
 
-        while (_copierThread.isAlive()) {
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException ie) {
+        if (_copierTimer != null) {
+            _copierTimer.cancel();
+            _copierTimer = null;
+        }
 
+        while (_copying.get()) {
+            try {
+                Thread.sleep(DEFAULT_COPIER_INTERVAL);
+            } catch (InterruptedException ie) {
+                break;
             }
         }
 
@@ -564,13 +750,13 @@ public class LogManager {
             _writeChannel = null;
             _writeBuffer = null;
             _recovered = false;
-            _copierThread = null;
             Arrays.fill(_bytes, (byte) 0);
         }
         if (_flushTimer != null) {
             _flushTimer.cancel();
             _flushTimer = null;
         }
+
     }
 
     /**
@@ -624,8 +810,10 @@ public class LogManager {
             _writeChannel.truncate(_writeBufferAddress);
             _writeChannel.force(true);
             _writeChannel.close();
+            if (_writeBufferAddress == 0) {
+                _writeChannelFile.delete();
+            }
         }
-        _writeBufferAddress = 0;
     }
 
     private File[] files() {
@@ -671,9 +859,9 @@ public class LogManager {
 
     public void copyBack(final long toTimestamp) throws PersistitException {
         synchronized (this) {
-            _urgentDemand = true;
+            _copyFast = true;
             notifyAll();
-            while (_urgentDemand) {
+            while (_copyFast) {
                 try {
                     wait(1000);
                 } catch (InterruptedException ie) {
@@ -773,7 +961,7 @@ public class LogManager {
         }
     }
 
-    private static class FileAddress implements Comparable<FileAddress> {
+    public static class FileAddress implements Comparable<FileAddress> {
 
         private final File file;
 
@@ -838,107 +1026,48 @@ public class LogManager {
         }
     }
 
-    private class LogCopier implements Runnable {
+    private class LogCopier extends TimerTask {
 
         @Override
         public void run() {
-            while (!_closed) {
-                try {
-                    doLogCopierCycle();
-                } catch (Throwable pe) {
-                    pe.printStackTrace(); // TODO
+            try {
+                if (urgency() > _minimumUrgency && !_suspendCopying.get()) {
+                    _copying.set(true);
+                    copierCycle();
+                    _copying.set(false);
                 }
+            } catch (Throwable pe) {
+                pe.printStackTrace(); // TODO
             }
         }
     }
 
-    /**
-     * Tunable parameters that determine how vigorously the copyBack thread
-     * performs I/O. Hopefully we can set good defaults and not expose these as
-     * knobs.
-     */
-    private final static int DEFAULT_URGENCY_MAP_SIZE_BASE = 1000;
-    private final static int DEFAULT_URGENCY_MAP_SIZE_MULTIPLIER = 3;
-    private final static int DEFAULT_URGENCY_LOG_FILE_COUNT_BASE = 1;
-    private final static int DEFAULT_URGENCY_FULL_THROTTLE = 10;
-    private final static int DEFAULT_URGENCY_SLEEP_TIME_BASE = 10000;
-    private final static int DEFAULT_URGENCY_MAX_IO_SLEEP = 100;
+    public boolean isUrgentDemand() {
+        return _copyFast;
+    }
 
-    private volatile boolean _urgentDemand = false;
-
-    private volatile int _urgencyMapSizeBase = DEFAULT_URGENCY_MAP_SIZE_BASE;
-
-    private volatile int _urgencyMapSizeMultiplier = DEFAULT_URGENCY_MAP_SIZE_MULTIPLIER;
-
-    private volatile int _urgencyLogFileCountBase = DEFAULT_URGENCY_LOG_FILE_COUNT_BASE;
-
-    private volatile int _urgencyFullThrottle = DEFAULT_URGENCY_FULL_THROTTLE;
-
-    private volatile int _urgencySleepTimeBase = DEFAULT_URGENCY_SLEEP_TIME_BASE;
-
-    private volatile int _urgencyMaxIOSleep = DEFAULT_URGENCY_MAX_IO_SLEEP;
-
-    private volatile long _copyLogTimestampLimit = Long.MAX_VALUE;
+    public void setUrgentDemand(boolean urgentDemand) {
+        _copyFast = urgentDemand;
+    }
 
     /**
      * Computes an "urgency" factor that determines how vigorously the copyBack
-     * thread should perform I/O. This number is computed on a scale of 0 to N;
-     * larger values are intended make the thread work harder. A value of 10 or
-     * above suggests the copier should run flat-out.
+     * thread should perform I/O. This number is computed on a scale of 0 to 10;
+     * larger values are intended make the thread work harder. A value of 10
+     * suggests the copier should run flat-out.
      * 
      * @return
      */
-    private synchronized int logCopierUrgency() {
-        if (_urgentDemand) {
-            return _urgencyFullThrottle;
+    public synchronized int urgency() {
+        if (_copyFast) {
+            return 10;
         }
-        int urgency = 0;
-        int mapSizeBoundary = _urgencyMapSizeBase;
-        while (mapSizeBoundary < _pageMap.size()) {
-            urgency++;
-            mapSizeBoundary *= _urgencyMapSizeMultiplier;
+        int urgency = _pageMap.size() / _pageMapSizeBase;
+        int logFileCount = (int) (_currentGeneration - _firstGeneration);
+        if (logFileCount > 1) {
+            urgency += logFileCount - 1;
         }
-        int logFileCount = (int) (_currentGeneration - _earliestGeneration);
-        if (logFileCount > _urgencyLogFileCountBase) {
-            urgency += Math.min(logFileCount - _urgencyLogFileCountBase,
-                    _urgencyFullThrottle);
-        }
-        return urgency;
-    }
-
-    private long copierSleepInterval(final int urgency) {
-        if (urgency >= _urgencyFullThrottle) {
-            return 0;
-        }
-        return _urgencySleepTimeBase / (1 << urgency);
-    }
-
-    private synchronized void copierIOSleep() {
-        long time = Math.min(copierSleepInterval(logCopierUrgency()),
-                _urgencyMaxIOSleep);
-        if (time > 0) {
-            try {
-                this.wait(time);
-            } catch (InterruptedException ie) {
-                // ignore
-            }
-        }
-    }
-
-    private synchronized void copierCycleSleep() {
-        long time = copierSleepInterval(logCopierUrgency());
-        if (time > 0) {
-            try {
-                this.wait(time);
-            } catch (InterruptedException ie) {
-                // ignore
-            }
-        }
-    }
-
-    private void doLogCopierCycle() throws PersistitException {
-        copierCycleSleep();
-        copierCycle();
+        return Math.max(urgency, 10);
     }
 
     private void copierCycle() throws PersistitException {
@@ -950,12 +1079,15 @@ public class LogManager {
             if (!_recovered) {
                 return;
             }
-            wasUrgent = _urgentDemand;
+            wasUrgent = _copyFast;
             currentGeneration = _currentGeneration;
+            final File copyLogFileLimit = new File(String.format(PATH_FORMAT,
+                    _directory, _firstGeneration + 1));
             for (final Map.Entry<VolumePage, FileAddress> entry : _pageMap
                     .entrySet()) {
                 FileAddress fa = entry.getValue();
-                if (fa.getTimestamp() <= _copyLogTimestampLimit) {
+                if (fa.getTimestamp() <= _copyLogTimestampLimit
+                        && (fa.getFile().compareTo(copyLogFileLimit) < 0 || _copyFast)) {
                     sortedMap.put(entry.getKey(), entry.getValue());
                 } else {
                     if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
@@ -968,10 +1100,13 @@ public class LogManager {
         Volume volume = null;
         VolumeDescriptor descriptor = null;
 
+        final HashSet<Volume> volumes = new HashSet<Volume>();
+
         final ByteBuffer bb = ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE);
-        for (final Map.Entry<VolumePage, FileAddress> entry : sortedMap
-                .entrySet()) {
-            if (_closed) {
+        for (final Iterator<Map.Entry<VolumePage, FileAddress>> iterator = sortedMap
+                .entrySet().iterator(); iterator.hasNext();) {
+            final Map.Entry<VolumePage, FileAddress> entry = iterator.next();
+            if (_closed.get() && !wasUrgent || _suspendCopying.get()) {
                 return;
             }
             final VolumePage vp = entry.getKey();
@@ -980,6 +1115,12 @@ public class LogManager {
             if (descriptor != vp.getVolumeDescriptor()) {
                 volume = _persistit.getVolume(vp.getVolumeDescriptor()
                         .getPath());
+            }
+            if (volume == null) {
+                // remove from the sortedMap so that below we won't remove from
+                // the pageMap
+                iterator.remove();
+                continue;
             }
             if (volume.getId() != vp.getVolumeDescriptor().getId()) {
                 throw new CorruptLogException(vp.getVolumeDescriptor()
@@ -997,11 +1138,24 @@ public class LogManager {
             }
             try {
                 volume.writePage(bb, pageAddress);
-                copierIOSleep();
-
+                volumes.add(volume);
+                _copyBackCount++;
+                final int ioRate = Math
+                        .min(Math.max(ioRate(0), _ioRateMin), _ioRateMax);
+                final long delay = (long) (_ioRateSleepMultiplier * (_copyFast ? _ioRateMin
+                        : ioRate));
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException ie) {
+                    // ignore
+                }
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);
             }
+        }
+
+        for (final Volume vol : volumes) {
+            vol.sync();
         }
 
         synchronized (this) {
@@ -1034,16 +1188,34 @@ public class LogManager {
                 rollover();
             }
             if (firstMissed == null) {
-                _earliestGeneration = currentGeneration;
+                _firstGeneration = currentGeneration;
             } else {
-                _earliestGeneration = fileGeneration(firstMissed.getFile());
+                _firstGeneration = fileGeneration(firstMissed.getFile());
             }
         }
         if (currentFile != null) {
             currentFile.delete();
         }
         if (wasUrgent) {
-            _urgentDemand = false;
+            _copyFast = false;
         }
+    }
+
+    /**
+     * Called at a steady rate of N operations per sec, the ioRate converges to
+     * approximately N.
+     */
+    private synchronized int ioRate(final int delta) {
+        final long now = System.nanoTime();
+        final long elapsed = (now - _ioTime) / IO_NANOSEC_PER_INTERVAL;
+        if (elapsed > 24) {
+            _ioRate = 0;
+        } else
+            for (int i = (int) elapsed; --i >= 0;) {
+                _ioRate *= IO_DECAY;
+            }
+        _ioRate += delta;
+        _ioTime = now;
+        return (int) (_ioRate * IO_NORMALIZE);
     }
 }

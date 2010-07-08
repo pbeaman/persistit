@@ -916,6 +916,11 @@ public class Volume extends SharedResource {
         return _extensionPages;
     }
 
+    void bumpWriteCounter() {
+        _writeCounter.incrementAndGet();
+        _lastWriteTime = System.currentTimeMillis();
+    }
+    
     void bumpGetCounter() {
         _getCounter.incrementAndGet();
     }
@@ -1608,8 +1613,6 @@ public class Volume extends SharedResource {
 
         try {
             _channel.write(bb, page * _bufferSize);
-            _lastWriteTime = System.currentTimeMillis();
-            _writeCounter.incrementAndGet();
         } catch (IOException ioe) {
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_WRITE_IOE)) {
                 _persistit.getLogBase().log(LogBase.LOG_WRITE_IOE, page, 0, 0,
@@ -1933,15 +1936,19 @@ public class Volume extends SharedResource {
         changed |= Util.changeBytes(bytes, 0, SIGNATURE);
         changed |= Util.changeInt(bytes, 16, VERSION);
         changed |= Util.changeInt(bytes, 20, _bufferSize);
-        // Util.compareAndPutLong(bytes, 24, _generation);
+        // Util.putLong(bytes, 24, _generation);
         changed |= Util.changeLong(bytes, 32, _id);
         changed |= Util.changeLong(bytes, 40, _readCounter.get());
-        changed |= Util.changeLong(bytes, 48, _writeCounter.get());
+        // Ugly, but the act of closing the system increments this
+        // counter, leading to an extra write.  So basically we
+        // ignore the final write by not setting the changed flag.
+        Util.putLong(bytes, 48, _writeCounter.get());
         changed |= Util.changeLong(bytes, 56, _getCounter.get());
         changed |= Util.changeLong(bytes, 64, _openTime);
         changed |= Util.changeLong(bytes, 72, _createTime);
         changed |= Util.changeLong(bytes, 80, _lastReadTime);
-        changed |= Util.changeLong(bytes, 88, _lastWriteTime);
+        // See comment above for _writeCounter
+        Util.putLong(bytes, 88, _lastWriteTime);
         changed |= Util.changeLong(bytes, 96, _lastExtensionTime);
         changed |= Util.changeLong(bytes, 104, _highestPageUsed);
         changed |= Util.changeLong(bytes, 112, _pageCount);

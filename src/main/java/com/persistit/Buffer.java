@@ -3727,6 +3727,14 @@ public final class Buffer extends SharedResource implements BuildConstants {
     public boolean isGarbagePage() {
         return _type == PAGE_TYPE_GARBAGE;
     }
+    
+    /**
+     * @return <i>true</i> if the current page is the head page of
+     * a {@link Volume}
+     */
+    public boolean isHeadPage() {
+        return _type == PAGE_TYPE_HEAD;
+    }
 
     /**
      * @return <i>true</i> if the current page is a long record page

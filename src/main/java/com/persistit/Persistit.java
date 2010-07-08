@@ -1677,7 +1677,7 @@ public class Persistit implements BuildConstants {
         return _journal;
     }
 
-    LogManager getLogManager() {
+    public LogManager getLogManager() {
         return _logManager;
     }
 

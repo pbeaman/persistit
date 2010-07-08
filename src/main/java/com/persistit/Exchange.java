@@ -1392,7 +1392,7 @@ public final class Exchange implements BuildConstants {
                         break;
                     } else {
                         // Otherwise we need to index the new right
-                        // sibling at the lext higher index level.
+                        // sibling at the next higher index level.
                         if (Debug.ENABLED)
                             Debug.$assert(value.getPointerValue() > 0);
                         key = _spareKey1;

@@ -61,7 +61,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         logMan = _persistit.getLogManager();
         // Note: there may be a page in the log caused by the Persistit#close()
         // call issued after the copyBack call.
-        assertTrue(logMan.getPageMapSize() <= 1);
+        assertEquals(0, logMan.getPageMapSize());
         fetch1a();
         fetch1b();
     }

@@ -386,7 +386,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
     // Note: this test has been run with INCREMENT = 1 (i.e., every int value),
     // that's too slow (5 minutes) for unit tests in normal builds.
     //
-    private static final int INCREMENT = 123;
+    private static final int INCREMENT = 1237;
 
     @Test
     public void test8() {
@@ -412,7 +412,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.print("test9 ");
 
         final int start = 0;
-        final int end = 100000000;
+        final int end = 10000000;
         for (int u = start; u < end; u++) {
             if ((u % 10000000) == 0) {
                 System.out.print(" " + u);
