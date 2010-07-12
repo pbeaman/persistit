@@ -1895,7 +1895,7 @@ public class Transaction {
      */
     void assignTimestamp() {
         if (this != NEVER_ACTIVE_TRANSACTION) {
-            _timestamp = _persistit.getTimestampAllocator().timestamp();
+            _timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         }
     }
 

@@ -99,6 +99,18 @@ import java.nio.charset.Charset;
  * </td>
  * </tr>
  * <tr valign="top">
+ * <td>CP</td>
+ * <td>Checkpoint.  Specifies a timestamp and a system time in millis at which all
+ * pages modified prior to that timestamp are present in the log.
+ * <table>
+ * <tr valign="top">
+ * <td>+16</td>
+ * <td>System time in milliseconds (long)</td>
+ * </tr>
+ * </table>
+ * </td>
+ * </tr>
+ * <tr valign="top">
  * <td>TS</td>
  * <td>Transaction Start: binds subsequent records having same timestamp to a
  * commit</td>
@@ -226,6 +238,8 @@ public class LogRecord {
     public final static char TYPE_TC = (char) ('T' | ('C' << 8));
 
     public final static char TYPE_TJ = (char) ('T' | ('J' << 8));
+    
+    public final static char TYPE_CP = (char) ('C' | ('P' << 8));
 
     public final static int OVERHEAD = 16;
 
@@ -370,6 +384,28 @@ public class LogRecord {
         public static void putBufferSize(final byte[] bytes, final int bufferSize) {
             Util.putInt(bytes, 32, (char)bufferSize);
         }
+
+    }
+    
+    public static class CP extends LogRecord {
+        
+        public final static int OVERHEAD = 24;
+
+        public final static char TYPE = TYPE_CP;
+
+        public static void putType(final byte[] bytes) {
+            putType(bytes, TYPE_PA);
+        }
+
+        public static long getSystemTimeMillis(final byte[] bytes) {
+            return Util.getLong(bytes, 16);
+        }
+
+        public static void putSystemTimeMillis(final byte[] bytes,
+                final long systemTimeMillis) {
+            Util.putLong(bytes, 16, systemTimeMillis);
+        }
+
 
     }
 }

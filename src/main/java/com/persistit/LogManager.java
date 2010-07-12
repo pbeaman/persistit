@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.CorruptLogException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -124,6 +125,8 @@ public class LogManager {
     private int _handleCounter = 0;
 
     private boolean _recovered;
+
+    private Checkpoint _lastValidCheckpoint = new Checkpoint(0, 0);
 
     private FileAddress _dirtyRecoveryFileAddress = null;
 
@@ -329,7 +332,7 @@ public class LogManager {
         if (fa == null) {
             return false;
         }
-        long recordPageAddress = readPageBufferFromLog(vp, fa, bb);
+        long recordPageAddress = readPageBufferFromLog(vp, fa, bb, true);
 
         if (pageAddress != recordPageAddress) {
             throw new CorruptLogException("Record at " + fa
@@ -345,7 +348,7 @@ public class LogManager {
     }
 
     private long readPageBufferFromLog(final VolumePage vp,
-            final FileAddress fa, final ByteBuffer bb)
+            final FileAddress fa, final ByteBuffer bb, final boolean chargeIO)
             throws PersistitIOException, CorruptLogException {
         final FileChannel fc = getFileChannel(fa.getFile());
         try {
@@ -385,7 +388,9 @@ public class LogManager {
                 Arrays.fill(bytes, leftSize, bufferSize - rightSize, (byte) 0);
             }
             bb.limit(bufferSize).position(0);
-            ioRate(1);
+            if (chargeIO) {
+                ioRate(1);
+            }
             return pageAddress;
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
@@ -404,6 +409,23 @@ public class LogManager {
             }
             a += count;
         }
+    }
+
+    public synchronized void writeCheckpointToLog(final Checkpoint checkpoint)
+            throws PersistitIOException {
+        // Make sure all prior log entries are committed to disk before
+        // writing this record.
+        force();
+        writeBuffer(LogRecord.CP.OVERHEAD);
+        LogRecord.CP.putLength(_bytes, LogRecord.CP.OVERHEAD);
+        LogRecord.CP.putType(_bytes, LogRecord.CP.TYPE);
+        LogRecord.CP.putTimestamp(_bytes, checkpoint.getTimestamp());
+        LogRecord.CP.putSystemTimeMillis(_bytes, checkpoint
+                .getSystemTimeMillis());
+        _writeBuffer.put(_bytes, 0, LogRecord.CP.OVERHEAD);
+        force();
+        _lastValidCheckpoint = checkpoint;
+        ioRate(1);
     }
 
     public synchronized void writePageToLog(final Buffer buffer)
@@ -702,6 +724,32 @@ public class LogManager {
             throw new UnsupportedOperationException(
                     "Can't handle record of type " + (int) type);
 
+        case LogRecord.TYPE_CP:
+            final int recordSize = LogRecord.getLength(_bytes);
+            if (recordSize != LogRecord.CP.OVERHEAD) {
+                throw new CorruptLogException(
+                        "CP LogRecord has incorrect length: "
+                                + recordSize
+                                + " bytes at position "
+                                + new FileAddress(file, bufferAddress
+                                        + readBuffer.position()
+                                        - LogRecord.OVERHEAD, timestamp));
+            }
+            if (recordSize + from > readBuffer.limit()) {
+                readBuffer.reset();
+                return false;
+            }
+            readBuffer.get(_bytes, LogRecord.OVERHEAD, recordSize
+                    - LogRecord.OVERHEAD);
+            final long systemTimeMillis = LogRecord.CP
+                    .getSystemTimeMillis(_bytes);
+            final Checkpoint checkpoint = new Checkpoint(timestamp,
+                    systemTimeMillis);
+            _lastValidCheckpoint = checkpoint;
+            System.out.println("Found " + checkpoint + " at "
+                    + new FileAddress(file, bufferAddress, timestamp));
+            break;
+
         default:
             _persistit.getLogBase().log(LogBase.LOG_INIT_RECOVER_TERMINATE,
                     new FileAddress(file, bufferAddress + from, timestamp));
@@ -863,7 +911,7 @@ public class LogManager {
             notifyAll();
             while (_copyFast) {
                 try {
-                    wait(1000);
+                    wait(100);
                 } catch (InterruptedException ie) {
                     // ignore;
                 }
@@ -1075,7 +1123,10 @@ public class LogManager {
         final SortedMap<VolumePage, FileAddress> sortedMap = new TreeMap<VolumePage, FileAddress>();
         final boolean wasUrgent;
         final long currentGeneration;
+
         synchronized (this) {
+            final long timeStampUpperBound = Math.max(_lastValidCheckpoint
+                    .getTimestamp(), _copyLogTimestampLimit);
             if (!_recovered) {
                 return;
             }
@@ -1086,7 +1137,7 @@ public class LogManager {
             for (final Map.Entry<VolumePage, FileAddress> entry : _pageMap
                     .entrySet()) {
                 FileAddress fa = entry.getValue();
-                if (fa.getTimestamp() <= _copyLogTimestampLimit
+                if (fa.getTimestamp() <= timeStampUpperBound
                         && (fa.getFile().compareTo(copyLogFileLimit) < 0 || _copyFast)) {
                     sortedMap.put(entry.getKey(), entry.getValue());
                 } else {
@@ -1111,21 +1162,28 @@ public class LogManager {
             }
             final VolumePage vp = entry.getKey();
             final FileAddress fa = entry.getValue();
-            final long pageAddress = readPageBufferFromLog(vp, fa, bb);
             if (descriptor != vp.getVolumeDescriptor()) {
                 volume = _persistit.getVolume(vp.getVolumeDescriptor()
                         .getPath());
             }
             if (volume == null) {
                 // remove from the sortedMap so that below we won't remove from
-                // the pageMap
+                // the pageMap.
                 iterator.remove();
+                // Also, don't delete the log file yet because we may reopen the
+                // Volume and attempt to continue.
+                if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
+                    firstMissed = fa;
+                }
                 continue;
             }
             if (volume.getId() != vp.getVolumeDescriptor().getId()) {
                 throw new CorruptLogException(vp.getVolumeDescriptor()
                         + " does not identify a valid Volume at " + fa);
             }
+
+            final long pageAddress = readPageBufferFromLog(vp, fa, bb, false);
+
             if (bb.limit() != volume.getBufferSize()) {
                 throw new CorruptLogException(vp + " bufferSize " + bb.limit()
                         + " does not match " + volume + " bufferSize "
@@ -1140,8 +1198,8 @@ public class LogManager {
                 volume.writePage(bb, pageAddress);
                 volumes.add(volume);
                 _copyBackCount++;
-                final int ioRate = Math
-                        .min(Math.max(ioRate(0), _ioRateMin), _ioRateMax);
+                final int ioRate = Math.min(Math.max(ioRate(0), _ioRateMin),
+                        _ioRateMax);
                 final long delay = (long) (_ioRateSleepMultiplier * (_copyFast ? _ioRateMin
                         : ioRate));
                 try {
@@ -1166,6 +1224,8 @@ public class LogManager {
                 final FileAddress fa2 = _pageMap.get(vp);
                 if (fa.equals(fa2)) {
                     _pageMap.remove(vp);
+                } else if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
+                    firstMissed = fa;
                 }
             }
         }

@@ -1,5 +1,4 @@
 /*
- * Copyright (c) 2004 Persistit Corporation. All Rights Reserved.
  *
  * The Java source code is the confidential and proprietary information
  * of Persistit Corporation ("Confidential Information"). You shall
@@ -118,7 +117,7 @@ public final class Exchange implements BuildConstants {
     private final static int LEFT_CLAIMED = 1;
     private final static int RIGHT_CLAIMED = 2;
 
-    private final static long RETRY_SLEEP_TIME = 50;
+    private final static long RETRY_SLEEP_TIME = 10;
 
     private Persistit _persistit;
 
@@ -1425,7 +1424,9 @@ public final class Exchange implements BuildConstants {
                     if (throwRetry) {
                         throw re;
                     }
-                    retrySleep();
+                    _tree.claim(true);
+                    treeClaimAcquired = true;
+                    lockedResourceCount++;
                 } finally {
                     if (buffer != null) {
                         _pool.release(buffer);
@@ -2935,12 +2936,6 @@ public final class Exchange implements BuildConstants {
                                 // an insertion from propagating upward through
                                 // the deletion range.
                                 //
-                                if (!treeWriterClaimRequired) {
-                                    treeWriterClaimRequired = true;
-                                    if (!_tree.upgradeClaim()) {
-                                        throw RetryException.SINGLE;
-                                    }
-                                }
                                 pageAddr2 = buffer.getRightSibling();
                                 samePage = false;
                             }
@@ -3147,7 +3142,7 @@ public final class Exchange implements BuildConstants {
                     }
                     break;
                 } catch (RetryException re) {
-                    retrySleep();
+                    // handled below
                 } finally {
                     //
                     // Release all buffers.
@@ -3161,6 +3156,11 @@ public final class Exchange implements BuildConstants {
                         treeClaimAcquired = false;
                         lockedResourceCount--;
                     }
+                }
+                if (treeWriterClaimRequired) {
+                    _tree.claim(true);
+                    treeClaimAcquired = true;
+                    lockedResourceCount++;
                 }
             }
             while (deallocationRequired) {
@@ -3236,7 +3236,7 @@ public final class Exchange implements BuildConstants {
                         _pool.release(buffer);
                         buffer = null;
                     }
-                    retrySleep();
+                    waitForTreeExclusive();
                 } finally {
                     if (buffer != null) {
                         _pool.release(buffer);
@@ -3878,12 +3878,13 @@ public final class Exchange implements BuildConstants {
         // }
     }
 
-    private void retrySleep() {
-        try {
-            Thread.sleep(RETRY_SLEEP_TIME);
-        } catch (InterruptedException e) {
-            // ignore
-        }
+    /**
+     * Called after RetryException due to an operation discovering too
+     * late it needs exclusive access to a tree
+     */
+    private void waitForTreeExclusive() {
+        _tree.claim(true);
+        _tree.release();
     }
 
     public KeyHistogram computeHistogram(final Key start, final Key end,

@@ -18,9 +18,12 @@
 package com.persistit;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.InvalidPageStructureException;
@@ -148,6 +151,9 @@ public class BufferPool {
     private PageWriter _writer;
 
     private DirtyPageCollector _collector;
+
+    // TODO - reconsider whether to keep this statistic
+    private AtomicLong _stalledForCheckpoint = new AtomicLong();
 
     /**
      * Construct a BufferPool with the specified count of <tt>Buffer</tt>s of
@@ -726,6 +732,20 @@ public class BufferPool {
                         // Found it - now claim it.
                         //
                         if (buffer.claim(writer, 0)) {
+                            // But if buffer needs to be check-pointed, release
+                            // the
+                            // claim and retry below.
+                            final Checkpoint checkpoint = _persistit
+                                    .getTimestampAllocator()
+                                    .getCurrentCheckpoint();
+                            if (writer
+                                    && buffer.isDirty()
+                                    && buffer.getTimestamp() < checkpoint
+                                            .getTimestamp()) {
+                                buffer.release();
+                                mustClaim = true;
+                                break;
+                            }
                             vol.bumpGetCounter();
                             bumpHitCounter();
                             return buffer;
@@ -793,6 +813,28 @@ public class BufferPool {
                                 + (writer ? "writer" : "reader") + " claim on "
                                 + buffer);
                     }
+                    final Checkpoint checkpoint = _persistit
+                            .getTimestampAllocator().getCurrentCheckpoint();
+                    if (writer
+                            && buffer.isDirty()
+                            && buffer.getTimestamp() < checkpoint
+                                    .getTimestamp()) {
+                        buffer.release();
+                        enqueueUrgentPage(buffer, bucket);
+                        synchronized (_lock[bucket]) {
+                            try {
+                                _lock[bucket].wait(RETRY_SLEEP_TIME);
+                            } catch (InterruptedException e) {
+                                // ignore
+                            }
+                        }
+                        final long stalled = _stalledForCheckpoint
+                                .incrementAndGet();
+                        if (stalled % 10000 == 0) {
+                            System.out.println("stalls: " + stalled);
+                        }
+                        continue;
+                    }
                     //
                     // Test whether the buffer we picked out is still valid
                     //
@@ -805,13 +847,12 @@ public class BufferPool {
                         vol.bumpGetCounter();
                         bumpHitCounter();
                         return buffer;
-                    } else {
-                        //
-                        // If not, release the claim and retry.
-                        //
-                        buffer.release();
-                        continue;
                     }
+                    //
+                    // If not, release the claim and retry.
+                    //
+                    buffer.release();
+                    continue;
                 }
                 if (mustRead) {
                     // We're here because the required page was not found
@@ -1058,6 +1099,38 @@ public class BufferPool {
 
     }
 
+    /**
+     * Given a Checkpoint, determines whether there are any dirty pages in the
+     * BufferPool having timestamps smaller than the checkpoint. If not, then
+     * the logs are complete and the checkpoint record can be written.
+     * 
+     * @param checkpoint
+     * @return <tt>true</tt> if there are no dangerous pages in the BufferPool
+     */
+    private Checkpoint findValidCheckpoint(
+            final List<Checkpoint> outstandingCheckpoints) {
+        long earliestDirtyTimestamp = Long.MAX_VALUE;
+        for (int index = 0; index < _buffers.length; index++) {
+            final Buffer buffer = _buffers[index];
+            if (buffer.isDirty()) {
+                long timestamp = buffer.getTimestamp();
+                if (timestamp < earliestDirtyTimestamp) {
+                    earliestDirtyTimestamp = timestamp;
+                }
+            }
+        }
+        for (int index = outstandingCheckpoints.size(); --index >= 0;) {
+            final Checkpoint checkpoint = outstandingCheckpoints.get(index);
+            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
+                for (int k = index; k >= 0; --k) {
+                    outstandingCheckpoints.remove(k);
+                }
+                return checkpoint;
+            }
+        }
+        return null;
+    }
+
     private class DirtyPageCollector implements Runnable {
 
         private boolean _kicked;
@@ -1085,6 +1158,7 @@ public class BufferPool {
         }
 
         public void run() {
+
             while (true) {
                 boolean clean = true;
                 boolean wasClosed = _closed;
@@ -1209,6 +1283,10 @@ public class BufferPool {
 
         public void run() {
             try {
+
+                Checkpoint currentCheckpoint = null;
+                List<Checkpoint> outstandingCheckpoints = new ArrayList<Checkpoint>();
+
                 while (true) {
                     int written = 0;
                     int remaining = 0;
@@ -1299,6 +1377,26 @@ public class BufferPool {
                         }
                     }
 
+                    final Checkpoint newCheckpointTimestamp = _persistit
+                            .getTimestampAllocator().updateCheckpoint();
+
+                    if (newCheckpointTimestamp != currentCheckpoint) {
+                        currentCheckpoint = newCheckpointTimestamp;
+                        outstandingCheckpoints.add(currentCheckpoint);
+                        final Checkpoint validCheckpoint = findValidCheckpoint(outstandingCheckpoints);
+                        if (validCheckpoint != null) {
+                            try {
+                                _persistit.getLogManager()
+                                        .writeCheckpointToLog(validCheckpoint);
+                            } catch (PersistitIOException e) {
+                                _persistit.getLogBase().log(
+                                        LogBase.LOG_EXCEPTION,
+                                        e + " while writing " + validCheckpoint
+                                                + ":" + e);
+
+                            }
+                        }
+                    }
                     try {
                         final boolean collectorStopped = _collector.isStopped();
                         synchronized (this) {
@@ -1317,6 +1415,7 @@ public class BufferPool {
                     } catch (InterruptedException ie) {
                         // ignore
                     }
+
                 }
             } catch (Throwable t) {
                 t.printStackTrace();

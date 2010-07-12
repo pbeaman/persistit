@@ -478,7 +478,7 @@ public class Persistit implements BuildConstants {
      * {@link #initialize(Properties)} method, or was loaded from the file named
      * in the {@link #initialize(String)} method.</li>
      * <li>The pseudo-property name <tt>timestamp</tt>. The value is the current
-     * time formated by <tt>SimpleDateFormate</tt> using the pattern
+     * time formated by <tt>SimpleDateFormat</tt> using the pattern
      * yyyyMMddHHmm. (This pseudo-property makes it easy to specify a unique log
      * file name each time Persistit is initialized.</li>
      * </ol>
@@ -511,7 +511,7 @@ public class Persistit implements BuildConstants {
      * {@link #initialize(Properties)} method, or was loaded from the file named
      * in the {@link #initialize(String)} method.</li>
      * <li>The pseudo-property name <tt>timestamp</tt>. The value is the current
-     * time formated by <tt>SimpleDateFormate</tt> using the pattern
+     * time formated by <tt>SimpleDateFormat</tt> using the pattern
      * yyyyMMddHHmm. (This pseudo-property makes it easy to specify a unique log
      * file name each time Persistit is initialized.</li>
      * </ol>
