@@ -47,7 +47,6 @@ public class InternalHashSetUnitTest extends TestCase {
 
         for (int j = 0; j < 50; j++) {
             final int count = random.nextInt(100000);
-            System.out.println("Count=" + count);
             for (int i = 1; i < count; i++) {
                 final int r = random.nextInt(10000);
                 final Integer o = new Integer(r);

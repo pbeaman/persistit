@@ -142,6 +142,8 @@ public class LogBase {
             "RMI_SERVER");
     final static int LOG_SHUTDOWN_HOOK = addLogTemplate(INFO, LIFECYCLE,
             "SHUTDOWN_HOOK");
+    final static int LOG_WAIT_FOR_CLOSE = addLogTemplate(INFO, LIFECYCLE, "WAIT_FOR_CLOSE");
+    final static int LOG_STRANDED = addLogTemplate(SEVERE, LIFECYCLE, "STRANDED");
 
     private static ResourceBundle _logBundle;
     private static boolean _logBundleLoadFailed = false;

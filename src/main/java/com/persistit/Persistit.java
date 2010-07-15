@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Stack;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
@@ -287,6 +288,9 @@ public class Persistit implements BuildConstants {
     private final static long GIGA = MEGA * KILO;
     private final static long TERA = GIGA * KILO;
 
+    private final static long SHORT_DELAY = 500;
+
+    private final static long CLOSE_LOG_INTERVAL = 30000;
     /**
      * If a thread waits longer than this, apply throttle to slow down other
      * threads.
@@ -304,8 +308,11 @@ public class Persistit implements BuildConstants {
     private final HashMap<Long, Volume> _volumesById = new HashMap<Long, Volume>();
     private Properties _properties = new Properties();
 
-    private boolean _initialized;
-    private boolean _closed;
+    private AtomicBoolean _initialized = new AtomicBoolean();
+    private AtomicBoolean _closed = new AtomicBoolean();
+
+    private long _beginCloseTime;
+    private long _nextCloseTime;
 
     private final LogBase _logBase = new LogBase(this);
 
@@ -661,7 +668,6 @@ public class Persistit implements BuildConstants {
                     LogManager.MAXIMUM_LOG_SIZE);
 
             _logManager.init(logPath, logSize);
-            _logManager.recover();
 
             for (Enumeration enumeration = properties.propertyNames(); enumeration
                     .hasMoreElements();) {
@@ -729,13 +735,14 @@ public class Persistit implements BuildConstants {
 
             setupJournal();
 
-            _initialized = true;
-            _closed = false;
+            _initialized.set(true);
+            _closed.set(false);
+
             if (_shutdownHook == null) {
                 _shutdownHook = new Thread(new Runnable() {
                     public void run() {
                         try {
-                            close0(true);
+                            close0(true, false);
                             getLogBase().log(LogBase.LOG_SHUTDOWN_HOOK);
                         } catch (PersistitException e) {
 
@@ -1342,7 +1349,7 @@ public class Persistit implements BuildConstants {
      * @return <tt>true</tt> if this Persistit has been initialized.
      */
     public boolean isInitialized() {
-        return _initialized;
+        return _initialized.get();
     }
 
     /**
@@ -1351,7 +1358,7 @@ public class Persistit implements BuildConstants {
      * @return <tt>true</tt> if Persistit has been closed.
      */
     public boolean isClosed() {
-        return _closed;
+        return _closed.get();
     }
 
     /**
@@ -1369,7 +1376,7 @@ public class Persistit implements BuildConstants {
     public boolean isReadRetryEnabled() {
         return _readRetryEnabled;
     }
-    
+
     public void copyBackPages() throws Exception {
         _logManager.copyBack(Long.MAX_VALUE);
     }
@@ -1417,11 +1424,42 @@ public class Persistit implements BuildConstants {
 
     /**
      * <p>
-     * Closes all {@link Volume}s and the PrewriteJournal. This method does
-     * nothing and returns <tt>false</tt> if Persistit is currently not in the
+     * Close the Persistit Log and all {@link Volume}s. This method is
+     * equivalent to {@link #close(boolean) close(true)}.
+     * 
+     * @throws PersistitException
+     * @throws IOException
+     * @throws PersistitException
+     * @throws IOException
+     * @return <tt>true</tt> if Persistit was initialized and this invocation
+     *         closed it, otherwise false.
+     */
+    public void close() throws PersistitException {
+        close0(true, false);
+    }
+
+    /**
+     * <p>
+     * Close the Persistit Log and all {@link Volume}s. This method does nothing
+     * and returns <tt>false</tt> if Persistit is currently not in the
      * initialized state. This method is threadsafe; if multiple threads
      * concurrently attempt to close Persistit, only one close operation will
      * actually take effect.
+     * </p>
+     * <p>
+     * The <tt>flush</tt> determines whether this method will pause to flush all
+     * pending updates to disk before shutting down the system. If
+     * <tt>flush</tt> is <tt>true</tt> and many updated pages need to be
+     * written, the shutdown process may take a significant amount of time.
+     * However, upon restarting the system, all updates initiated before the
+     * call to this method will be reflected in the B-Tree database. This is the
+     * normal mode of operation.
+     * </p>
+     * <p>
+     * When <tt>flush</tt> is false this method returns quickly, but without
+     * writing remaining dirty pages to disk. The result after restarting
+     * Persistit will be valid, internally consistent B-Trees; however, recently
+     * applied updates may be missing.
      * </p>
      * <p>
      * Note that Persistit starts non-daemon threads that will keep a JVM from
@@ -1444,6 +1482,11 @@ public class Persistit implements BuildConstants {
      * </p>
      * VolumeClosedException.
      * 
+     * @param flush
+     *            <tt>true</tt> to ensure all dirty pages are written to disk
+     *            before shutdown completes; <tt>false</tt> to enable fast
+     *            (but incomplete) shutdown.
+     * 
      * @throws PersistitException
      * @throws IOException
      * @throws PersistitException
@@ -1451,13 +1494,13 @@ public class Persistit implements BuildConstants {
      * @return <tt>true</tt> if Persistit was initialized and this invocation
      *         closed it, otherwise false.
      */
-    public void close() throws PersistitException {
-        close0(false);
+    public void close(final boolean flush) throws PersistitException {
+        close0(flush, false);
     }
 
-    private synchronized void close0(final boolean byHook)
+    private synchronized void close0(final boolean flush, final boolean byHook)
             throws PersistitException {
-        if (_closed || !_initialized) {
+        if (_closed.get() || !_initialized.get()) {
             return;
         }
         if (!byHook && _shutdownHook != null) {
@@ -1480,21 +1523,20 @@ public class Persistit implements BuildConstants {
             shutdownGUI();
         }
 
+        flush();
+
+        _closed.set(true);
         _journal.close();
 
-        flush();
-        
-        _closed = true;
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.close();
+            pool.close(flush);
         }
         _logManager.close();
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             int count = pool.countDirty(null);
             if (count > 0) {
-                System.out.println("Buffer pool " + pool + " has " + count
-                        + " stranded dirty buffers");
+                _logBase.log(LogBase.LOG_STRANDED, pool, count);
             }
         }
 
@@ -1518,7 +1560,6 @@ public class Persistit implements BuildConstants {
             _management = null;
         }
 
-        _closed = true;
     }
 
     /**
@@ -1535,7 +1576,7 @@ public class Persistit implements BuildConstants {
      * @throws IOException
      */
     public boolean flush() throws PersistitException {
-        if (_closed || !_initialized) {
+        if (_closed.get() || !_initialized.get()) {
             return false;
         }
         for (final Volume volume : _volumes) {
@@ -1551,6 +1592,28 @@ public class Persistit implements BuildConstants {
         return true;
     }
 
+    void waitForIOTaskStop(final IOTaskRunnable task) {
+        if (_beginCloseTime == 0) {
+            _beginCloseTime = _nextCloseTime = System.currentTimeMillis();
+        }
+        task.kick();
+        while (!task.isStopped()) {
+            synchronized (this) {
+                try {
+                    wait(SHORT_DELAY);
+                } catch (InterruptedException ie) {
+                    break;
+                }
+            }
+            final long now = System.currentTimeMillis();
+            if (now > _nextCloseTime) {
+                _nextCloseTime += CLOSE_LOG_INTERVAL;
+                _logBase.log(LogBase.LOG_WAIT_FOR_CLOSE,
+                        (_nextCloseTime - _beginCloseTime) / 1000);
+            }
+        }
+    }
+
     /**
      * Request OS-level file synchronization for all open files managed by
      * Persistit. An application may call this method after {@link #flush} to
@@ -1560,10 +1623,10 @@ public class Persistit implements BuildConstants {
      * @throws IOException
      */
     public void sync() throws PersistitIOException {
-        if (_closed || !_initialized) {
+        if (_closed.get() || !_initialized.get()) {
             return;
         }
-        ArrayList volumes = _volumes;
+        final ArrayList<Volume> volumes = _volumes;
 
         for (int index = 0; index < volumes.size(); index++) {
             Volume volume = (Volume) volumes.get(index);
@@ -1575,6 +1638,7 @@ public class Persistit implements BuildConstants {
                 }
             }
         }
+        _logManager.force();
     }
 
     /**
@@ -1583,13 +1647,11 @@ public class Persistit implements BuildConstants {
      * currently suspended.
      */
     public void suspend() {
-        for (;;) {
-            if (!_suspendUpdates)
-                return;
+        while (isUpdateSuspended()) {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(SHORT_DELAY);
             } catch (InterruptedException ie) {
-                return;
+                break;
             }
         }
     }
@@ -1939,7 +2001,7 @@ public class Persistit implements BuildConstants {
      * @return <tt>true</tt> if all updates are suspended; otherwise
      *         <tt>false</tt>.
      */
-    public boolean isUpdateSuspended() {
+    public synchronized boolean isUpdateSuspended() {
         return _suspendUpdates;
     }
 
@@ -1953,7 +2015,7 @@ public class Persistit implements BuildConstants {
      *            <tt>true</tt> to suspend all updates; <tt>false</tt> to enable
      *            updates.
      */
-    public void setUpdateSuspended(boolean suspended) {
+    public synchronized void setUpdateSuspended(boolean suspended) {
         _suspendUpdates = suspended;
         if (Debug.ENABLED && !suspended)
             Debug.setSuspended(false);
@@ -2067,5 +2129,4 @@ public class Persistit implements BuildConstants {
         }
         System.out.println();
     }
-
 }

@@ -52,6 +52,8 @@ public class LogManager {
 
     public final static long DEFAULT_COPIER_INTERVAL = 1000;
 
+    public final static long DEFAULT_CLOSING_INTERVAL = 30000;
+
     public final static int MAXIMUM_MAPPED_HANDLES = 4096;
 
     private final static String PATH_FORMAT = "%s.%016d";
@@ -101,13 +103,15 @@ public class LogManager {
 
     private long _writeBufferAddress = 0;
 
-    private Timer _flushTimer;
+    private final LogFlusher _flusherTask;
 
-    private Timer _copierTimer;
+    private final LogCopier _copierTask;
 
     private AtomicBoolean _closed = new AtomicBoolean();
 
     private AtomicBoolean _copying = new AtomicBoolean();
+
+    private AtomicBoolean _flushing = new AtomicBoolean();
 
     private AtomicBoolean _suspendCopying = new AtomicBoolean();
 
@@ -147,6 +151,8 @@ public class LogManager {
 
     private volatile long _copierInterval = DEFAULT_COPIER_INTERVAL;
 
+    private volatile long _closeInterval = DEFAULT_CLOSING_INTERVAL;
+
     private volatile boolean _copyFast = false;
 
     private volatile int _pageMapSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
@@ -174,39 +180,20 @@ public class LogManager {
 
     public LogManager(final Persistit persistit) {
         _persistit = persistit;
+        _flusherTask = new LogFlusher();
+        _copierTask = new LogCopier();
     }
 
-    public void init(final String path, final long maximumSize) {
+    public void init(final String path, final long maximumSize) throws PersistitException {
         _directory = new File(path).getAbsoluteFile();
         _maximumFileSize = maximumSize;
         _closed.set(false);
-        scheduleFlusher();
-        scheduleCopier();
+        recover();
+        _copierTask.start();
+        _flusherTask.start();
     }
-
-    private synchronized void scheduleFlusher() {
-        if (_flushTimer != null) {
-            _flushTimer.cancel();
-            _flushTimer = null;
-        }
-        if (_flushInterval > 0) {
-            _flushTimer = new Timer("LOG_FLUSHER", false);
-            _flushTimer.schedule(new LogFlusher(), _flushInterval,
-                    _flushInterval);
-        }
-    }
-
-    private synchronized void scheduleCopier() {
-        if (_copierTimer != null) {
-            _copierTimer.cancel();
-            _copierTimer = null;
-        }
-        if (_copierInterval > 0) {
-            _copierTimer = new Timer("LOG_COPIER", false);
-            _copierTimer.schedule(new LogCopier(), _copierInterval,
-                    _copierInterval);
-        }
-    }
+    
+    
 
     public synchronized int getPageMapSize() {
         return _pageMap.size();
@@ -245,21 +232,19 @@ public class LogManager {
     }
 
     public long getFlushInterval() {
-        return _flushInterval;
+        return _flusherTask.getPollInterval();
     }
 
     public void setFlushInterval(long flushInterval) {
-        _flushInterval = flushInterval;
-        scheduleFlusher();
+        _flusherTask.setPollInterval(flushInterval);
     }
 
     public long getCopierInterval() {
-        return _copierInterval;
+        return _copierTask.getPollInterval();
     }
 
     public void setCopierInterval(long copierInterval) {
-        _copierInterval = copierInterval;
-        scheduleCopier();
+        _copierTask.setPollInterval(copierInterval);
     }
 
     public int getMinimumUrgency() {
@@ -746,8 +731,6 @@ public class LogManager {
             final Checkpoint checkpoint = new Checkpoint(timestamp,
                     systemTimeMillis);
             _lastValidCheckpoint = checkpoint;
-            System.out.println("Found " + checkpoint + " at "
-                    + new FileAddress(file, bufferAddress, timestamp));
             break;
 
         default:
@@ -763,21 +746,10 @@ public class LogManager {
 
         synchronized (this) {
             _closed.set(true);
-            notifyAll();
         }
 
-        if (_copierTimer != null) {
-            _copierTimer.cancel();
-            _copierTimer = null;
-        }
-
-        while (_copying.get()) {
-            try {
-                Thread.sleep(DEFAULT_COPIER_INTERVAL);
-            } catch (InterruptedException ie) {
-                break;
-            }
-        }
+        _persistit.waitForIOTaskStop(_copierTask);
+        _persistit.waitForIOTaskStop(_flusherTask);
 
         synchronized (this) {
             try {
@@ -800,11 +772,6 @@ public class LogManager {
             _recovered = false;
             Arrays.fill(_bytes, (byte) 0);
         }
-        if (_flushTimer != null) {
-            _flushTimer.cancel();
-            _flushTimer = null;
-        }
-
     }
 
     /**
@@ -1067,26 +1034,57 @@ public class LogManager {
         }
     }
 
-    private class LogFlusher extends TimerTask {
+    private class LogCopier extends IOTaskRunnable {
+
+        LogCopier() {
+            super(_persistit);
+        }
+
+        void start() {
+           start("LOG_COPIER", _copierInterval);
+        }
+        
         @Override
-        public void run() {
-            force();
+        public void runTask() throws Exception {
+
+            if (urgency() > _minimumUrgency && !_suspendCopying.get()) {
+                _copying.set(true);
+                try {
+                    copierCycle();
+                } finally {
+                    _copying.set(false);
+                }
+            }
+        }
+
+        @Override
+        protected boolean shouldStop() {
+            return _closed.get();
         }
     }
 
-    private class LogCopier extends TimerTask {
+    private class LogFlusher extends IOTaskRunnable {
+
+        LogFlusher() {
+            super(_persistit);
+        }
+
+        void start() {
+            start("LOG_FLUSHER", _flushInterval);
+        }
+        @Override
+        protected void runTask() {
+            _flushing.set(true);
+            try {
+                force();
+            } finally {
+                _flushing.set(false);
+            }
+        }
 
         @Override
-        public void run() {
-            try {
-                if (urgency() > _minimumUrgency && !_suspendCopying.get()) {
-                    _copying.set(true);
-                    copierCycle();
-                    _copying.set(false);
-                }
-            } catch (Throwable pe) {
-                pe.printStackTrace(); // TODO
-            }
+        protected boolean shouldStop() {
+            return _closed.get();
         }
     }
 

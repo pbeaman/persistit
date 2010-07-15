@@ -116,12 +116,12 @@ public class SimpleTest1 extends PersistitUnitTestCase {
             sb.append(com.persistit.Util.format(length));
             sb.append("  ");
             sb.setLength(length);
-            System.out.print("Record length " + length);
+            //System.out.print("Record length " + length);
             exchange.getValue().put(sb.toString());
-            System.out.print(" encoded: "
-                    + exchange.getValue().getEncodedSize());
+            //System.out.print(" encoded: "
+            //        + exchange.getValue().getEncodedSize());
             exchange.clear().append(length).store();
-            System.out.println(" - stored");
+            //System.out.println(" - stored");
             length *= 2;
         }
         System.out.println("- done");
@@ -140,11 +140,11 @@ public class SimpleTest1 extends PersistitUnitTestCase {
             sb.append(com.persistit.Util.format(length));
             sb.append("  ");
             sb.setLength(length);
-            System.out.print("Record length " + length);
+            //System.out.print("Record length " + length);
             exchange.clear().append(length).fetch();
             exchange.getValue().getString(sb2);
             assertEquals(sb.toString(), sb2.toString());
-            System.out.println(" - read");
+            //System.out.println(" - read");
             length *= 2;
         }
         System.out.println("- done");
@@ -339,7 +339,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
 
         key.clear().append("A").append(1);
         final int length = 8160 * 1024 * 2 + 1;
-        System.out.print(" " + length);
+        //System.out.print(" " + length);
         setupString(sb, length);
         value.putString(sb);
         exchange.store();

@@ -35,13 +35,13 @@ public class KeyParserTest2 extends PersistitUnitTestCase {
                 KeyFilter.simpleTerm("{{{,,,}}}") });
 
         final String string1 = filter.toString();
-        System.out.println();
-        System.out.println("filter1.toString()=" + string1);
+//        System.out.println();
+//        System.out.println("filter1.toString()=" + string1);
         final KeyParser parser = new KeyParser(string1);
         final KeyFilter filter2 = parser.parseKeyFilter();
         assertTrue(filter2 != null);
         final String string2 = filter2.toString();
-        System.out.println("filter2.toString()=" + string2);
+//        System.out.println("filter2.toString()=" + string2);
         assertEquals(string1, string2);
         System.out.println("- done");
     }
@@ -59,13 +59,13 @@ public class KeyParserTest2 extends PersistitUnitTestCase {
                         KeyFilter.simpleTerm("2nd"), }) }, 3, 7);
 
         final String string1 = filter.toString();
-        System.out.println();
-        System.out.println("filter1.toString()=" + string1);
+//        System.out.println();
+//        System.out.println("filter1.toString()=" + string1);
         final KeyParser parser = new KeyParser(string1);
         final KeyFilter filter2 = parser.parseKeyFilter();
         assertTrue(filter2 != null);
         final String string2 = filter2.toString();
-        System.out.println("filter2.toString()=" + string2);
+//        System.out.println("filter2.toString()=" + string2);
         assertEquals(string1, string2);
         System.out.println("- done");
     }
@@ -83,13 +83,13 @@ public class KeyParserTest2 extends PersistitUnitTestCase {
                         KeyFilter.simpleTerm("2nd"), }) }, 3, 7);
 
         final String string1 = filter.toString();
-        System.out.println();
-        System.out.println("filter1.toString()=" + string1);
+//        System.out.println();
+//        System.out.println("filter1.toString()=" + string1);
         final KeyParser parser = new KeyParser(string1);
         final KeyFilter filter2 = parser.parseKeyFilter();
         assertTrue(filter2 != null);
         final String string2 = filter2.toString();
-        System.out.println("filter2.toString()=" + string2);
+//        System.out.println("filter2.toString()=" + string2);
         assertEquals(string1, string2);
         System.out.println("- done");
     }

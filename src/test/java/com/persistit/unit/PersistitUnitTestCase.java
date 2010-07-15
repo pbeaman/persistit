@@ -21,7 +21,7 @@ public abstract class PersistitUnitTestCase extends TestCase {
 
     @Override
     public void tearDown() throws Exception {
-        _persistit.close();
+        _persistit.close(false);
         _persistit = null;
     }
 

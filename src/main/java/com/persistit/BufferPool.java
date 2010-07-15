@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.TimestampAllocator.Checkpoint;
@@ -139,9 +140,15 @@ public class BufferPool {
     private AtomicLong _hitCounter = new AtomicLong();
 
     /**
+     * Indicates that Persistit wants to shut down fast, withou flushing all the
+     * dirty buffers in the buffer pool.
+     */
+    private AtomicBoolean fastClose = new AtomicBoolean(false);
+
+    /**
      * Indicates that Persistit has closed this buffer pool.
      */
-    private volatile boolean _closed;
+    private AtomicBoolean _closed = new AtomicBoolean(false);
 
     /**
      * Polling interval for TemporaryVolumeBufferWriter
@@ -216,9 +223,11 @@ public class BufferPool {
                 created++;
             }
             _collector = new DirtyPageCollector();
+            _collector.start();
 
             // TODO - PageWriter per Log if/when we add striped logs
             _writer = new PageWriter(0);
+            _writer.start();
         } catch (OutOfMemoryError e) {
             System.out.println("Out of memory after creating " + created
                     + " buffers");
@@ -227,25 +236,11 @@ public class BufferPool {
 
     }
 
-    void close() {
-        _closed = true;
-        if (_collector != null) {
-            _collector.kick();
-            while (!_collector.isStopped()) {
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException ie) {
-                }
-            }
-        }
-        if (_writer != null) {
-            while (!_writer.isStopped()) {
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException ie) {
-                }
-            }
-        }
+    void close(final boolean flush) {
+        fastClose.set(!flush);
+        _closed.set(true);
+        _persistit.waitForIOTaskStop(_collector);
+        _persistit.waitForIOTaskStop(_writer);
     }
 
     int flush() {
@@ -1131,53 +1126,32 @@ public class BufferPool {
         return null;
     }
 
-    private class DirtyPageCollector implements Runnable {
-
-        private boolean _kicked;
-        private boolean _stopped;
+    private class DirtyPageCollector extends IOTaskRunnable {
+        private boolean _clean;
+        private boolean _wasClosed;
 
         DirtyPageCollector() {
-            final Thread thread = new Thread(this, "PAGE_COLLECTOR:"
-                    + _bufferSize);
-            thread.start();
+            super(_persistit);
         }
 
-        public void kick() {
-            synchronized (this) {
-                if (!_kicked) {
-                    notify();
-                    _kicked = true;
-                }
+        void start() {
+            start("PAGE_COLLECTOR:" + _bufferSize, _writerPollInterval);
+        }
+
+        public void runTask() {
+            _clean = true;
+            _wasClosed = _closed.get();
+            for (int bucket = 0; bucket < _bucketCount; bucket++) {
+                _clean &= enqueueDirtyBuffers(bucket) == 0;
             }
         }
 
-        public boolean isStopped() {
-            synchronized (this) {
-                return _stopped;
-            }
+        protected boolean shouldStop() {
+            return fastClose.get() || _clean && _wasClosed;
         }
 
-        public void run() {
-
-            while (true) {
-                boolean clean = true;
-                boolean wasClosed = _closed;
-                for (int bucket = 0; bucket < _bucketCount; bucket++) {
-                    clean &= enqueueDirtyBuffers(bucket) == 0;
-                }
-                synchronized (this) {
-                    if (clean && wasClosed) {
-                        _stopped = true;
-                        break;
-                    }
-                    _kicked = false;
-                    try {
-                        wait(wasClosed ? RETRY_SLEEP_TIME : _writerPollInterval);
-                    } catch (InterruptedException ie) {
-                        // do nothing
-                    }
-                }
-            }
+        protected long pollInterval() {
+            return _wasClosed ? RETRY_SLEEP_TIME : _writerPollInterval;
         }
 
         private int enqueueDirtyBuffers(int bucket) {
@@ -1190,9 +1164,9 @@ public class BufferPool {
                 Buffer buffer;
 
                 buffer = _invalidBufferQueue[bucket];
-                int lruCount = _closed ? maxCount : _bufferCount / _bucketCount
-                        / 2;
-                int lazyCount = _closed ? maxCount : _bufferCount
+                int lruCount = _closed.get() ? maxCount : _bufferCount
+                        / _bucketCount / 2;
+                int lazyCount = _closed.get() ? maxCount : _bufferCount
                         / _bucketCount / 8;
                 while (buffer != null && invalidDepth-- > 0 && count < maxCount) {
                     if (Debug.ENABLED)
@@ -1254,174 +1228,147 @@ public class BufferPool {
         }
     }
 
-    private class PageWriter implements Runnable {
+    private class PageWriter extends IOTaskRunnable {
+        final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
         final int _logIndex;
-        boolean _kicked;
-        boolean _stopped;
+        boolean _wasClosed;
+        int _written;
+        int _remaining;
+        int _unavailable;
+        int _errors;
+        Checkpoint _currentCheckpoint = null;
 
         PageWriter(final int logIndex) {
+            super(_persistit);
             _logIndex = logIndex;
-            final Thread thread = new Thread(this, "PAGE_WRITER:" + _bufferSize
-                    + ":" + _logIndex);
-            thread.start();
         }
 
-        public void kick() {
-            synchronized (this) {
-                if (!_kicked) {
-                    notify();
-                    _kicked = true;
-                }
-            }
+        void start() {
+            start("PAGE_WRITER:" + _bufferSize + ":" + _logIndex,
+                    _writerPollInterval);
         }
 
-        public boolean isStopped() {
-            synchronized (this) {
-                return _stopped;
-            }
-        }
+        protected void runTask() {
 
-        public void run() {
-            try {
+            _written = 0;
+            _remaining = 0;
+            _unavailable = 0;
+            _errors = 0;
+            _wasClosed = _closed.get();
 
-                Checkpoint currentCheckpoint = null;
-                List<Checkpoint> outstandingCheckpoints = new ArrayList<Checkpoint>();
-
-                while (true) {
-                    int written = 0;
-                    int remaining = 0;
-                    int unavailable = 0;
-                    int errors = 0;
-
-                    for (int bucket = 0; bucket < _bucketCount; bucket++) {
-                        for (int ubucket = 0; ubucket < _bucketCount; ubucket++) {
-                            Buffer buffer;
+            for (int bucket = 0; bucket < _bucketCount && !fastClose.get(); bucket++) {
+                for (int ubucket = 0; ubucket < _bucketCount; ubucket++) {
+                    Buffer buffer;
+                    synchronized (_lock[ubucket]) {
+                        buffer = _urgent[ubucket];
+                    }
+                    while (buffer != null && !fastClose.get()) {
+                        final Result result = writePage(buffer, ubucket);
+                        switch (result) {
+                        case WRITTEN:
+                            _written++;
                             synchronized (_lock[ubucket]) {
-                                buffer = _urgent[ubucket];
-                            }
-                            while (buffer != null) {
-                                final Result result = writePage(buffer, ubucket);
-                                switch (result) {
-                                case WRITTEN:
-                                    written++;
-                                    synchronized (_lock[ubucket]) {
-                                        if (_urgent[ubucket] == buffer) {
-                                            _urgent[ubucket] = buffer
-                                                    .getNextDirty();
-                                        }
-                                        buffer.removeFromDirty();
-                                        if (_urgent[ubucket] == buffer) {
-                                            _urgent[ubucket] = null;
-                                        } else {
-                                            remaining++;
-                                        }
-                                        buffer.setUnenqueued();
-                                    }
-                                    break;
-                                case UNAVAILABLE:
-                                    unavailable++;
-                                    break;
-                                case ERROR:
-                                    errors++;
-                                    break;
+                                if (_urgent[ubucket] == buffer) {
+                                    _urgent[ubucket] = buffer.getNextDirty();
                                 }
-                                if (result == Result.WRITTEN) {
-                                    break;
-                                }
-                                synchronized (_lock[ubucket]) {
-                                    buffer = buffer.getNextDirty();
-                                    if (buffer == _urgent[ubucket]) {
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        Buffer buffer;
-                        synchronized (_lock[bucket]) {
-                            buffer = _dirty[bucket];
-                        }
-                        while (buffer != null) {
-                            final Result result = writePage(buffer, bucket);
-                            switch (result) {
-                            case WRITTEN:
-                                written++;
-                                synchronized (_lock[bucket]) {
-                                    if (_dirty[bucket] == buffer) {
-                                        _dirty[bucket] = buffer.getNextDirty();
-                                    }
-                                    buffer.removeFromDirty();
-                                    if (_dirty[bucket] == buffer) {
-                                        _dirty[bucket] = null;
-                                    } else {
-                                        remaining++;
-                                    }
-                                    buffer.setUnenqueued();
-                                }
-                            case UNAVAILABLE:
-                                unavailable++;
-                                break;
-                            case ERROR:
-                                errors++;
-                                break;
-                            }
-                            if (result == Result.WRITTEN) {
-                                break;
-                            }
-                            synchronized (_lock[bucket]) {
-                                buffer = buffer.getNextDirty();
-                                if (buffer == _dirty[bucket]) {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    final Checkpoint newCheckpointTimestamp = _persistit
-                            .getTimestampAllocator().updateCheckpoint();
-
-                    if (newCheckpointTimestamp != currentCheckpoint) {
-                        currentCheckpoint = newCheckpointTimestamp;
-                        outstandingCheckpoints.add(currentCheckpoint);
-                        final Checkpoint validCheckpoint = findValidCheckpoint(outstandingCheckpoints);
-                        if (validCheckpoint != null) {
-                            try {
-                                _persistit.getLogManager()
-                                        .writeCheckpointToLog(validCheckpoint);
-                            } catch (PersistitIOException e) {
-                                _persistit.getLogBase().log(
-                                        LogBase.LOG_EXCEPTION,
-                                        e + " while writing " + validCheckpoint
-                                                + ":" + e);
-
-                            }
-                        }
-                    }
-                    try {
-                        final boolean collectorStopped = _collector.isStopped();
-                        synchronized (this) {
-                            _kicked = false;
-                            if (remaining + unavailable + errors == 0) {
-                                if (_closed && collectorStopped) {
-                                    // done - shut down
-                                    break;
+                                buffer.removeFromDirty();
+                                if (_urgent[ubucket] == buffer) {
+                                    _urgent[ubucket] = null;
                                 } else {
-                                    wait(_writerPollInterval);
+                                    _remaining++;
                                 }
-                            } else if (remaining == 0) {
-                                wait(RETRY_SLEEP_TIME);
+                                buffer.setUnenqueued();
+                            }
+                            break;
+                        case UNAVAILABLE:
+                            _unavailable++;
+                            break;
+                        case ERROR:
+                            _errors++;
+                            break;
+                        }
+                        if (result == Result.WRITTEN) {
+                            break;
+                        }
+                        synchronized (_lock[ubucket]) {
+                            buffer = buffer.getNextDirty();
+                            if (buffer == _urgent[ubucket]) {
+                                break;
                             }
                         }
-                    } catch (InterruptedException ie) {
-                        // ignore
                     }
-
                 }
-            } catch (Throwable t) {
-                t.printStackTrace();
-            } finally {
-                _stopped = true;
+
+                Buffer buffer;
+                synchronized (_lock[bucket]) {
+                    buffer = _dirty[bucket];
+                }
+                while (buffer != null && !fastClose.get()) {
+                    final Result result = writePage(buffer, bucket);
+                    switch (result) {
+                    case WRITTEN:
+                        _written++;
+                        synchronized (_lock[bucket]) {
+                            if (_dirty[bucket] == buffer) {
+                                _dirty[bucket] = buffer.getNextDirty();
+                            }
+                            buffer.removeFromDirty();
+                            if (_dirty[bucket] == buffer) {
+                                _dirty[bucket] = null;
+                            } else {
+                                _remaining++;
+                            }
+                            buffer.setUnenqueued();
+                        }
+                    case UNAVAILABLE:
+                        _unavailable++;
+                        break;
+                    case ERROR:
+                        _errors++;
+                        break;
+                    }
+                    if (result == Result.WRITTEN) {
+                        break;
+                    }
+                    synchronized (_lock[bucket]) {
+                        buffer = buffer.getNextDirty();
+                        if (buffer == _dirty[bucket]) {
+                            break;
+                        }
+                    }
+                }
             }
+
+            final Checkpoint newCheckpointTimestamp = _persistit
+                    .getTimestampAllocator().updateCheckpoint();
+
+            if (newCheckpointTimestamp != _currentCheckpoint) {
+                _currentCheckpoint = newCheckpointTimestamp;
+                _outstandingCheckpoints.add(_currentCheckpoint);
+                final Checkpoint validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
+                if (validCheckpoint != null) {
+                    try {
+                        _persistit.getLogManager().writeCheckpointToLog(
+                                validCheckpoint);
+                    } catch (PersistitIOException e) {
+                        _persistit.getLogBase().log(
+                                LogBase.LOG_EXCEPTION,
+                                e + " while writing " + validCheckpoint + ":"
+                                        + e);
+                    }
+                }
+            }
+        }
+
+        protected boolean shouldStop() {
+            return fastClose.get()
+                    || (_wasClosed && _remaining + _unavailable + _errors == 0)
+                    && _collector.isStopped();
+        }
+
+        protected long pollInterval() {
+            return !_wasClosed && _remaining + _unavailable + _errors == 0 ? _writerPollInterval
+                    : _remaining == 0 ? RETRY_SLEEP_TIME : 0;
         }
 
         private Result writePage(final Buffer buffer, final int bucket) {
@@ -1456,6 +1403,10 @@ public class BufferPool {
                     buffer.release();
                 }
             }
+        }
+
+        public int getLogIndex() {
+            return _logIndex;
         }
     }
 }

@@ -20,9 +20,6 @@ package com.persistit;
 
 import java.util.Properties;
 
-import com.persistit.Exchange;
-import com.persistit.Key;
-import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -66,18 +63,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         fetch1b();
     }
 
-    private void checkEmpty() throws PersistitException {
-        System.out.print("test1_0 ");
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "SimpleTest1", true);
-        exchange.append(Key.BEFORE);
-        final boolean empty = !exchange.traverse(Key.GT, true);
-        assertTrue(empty);
-        System.out.println("- done");
-    }
-
     private void store1() throws PersistitException {
-        System.out.print("test1_1 ");
         final Exchange exchange = _persistit.getExchange(_volumeName,
                 "SimpleTest1", true);
         exchange.removeAll();
@@ -127,43 +113,15 @@ public class RecoveryTest extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    public void runAllTests() throws Exception {
-        String protocol = "none";
-        if (_args.length > 1) {
-            for (int index = 1; index < _args.length; index++) {
-                protocol = _args[index];
-                if (protocol.startsWith("p")) {
-                    _volumeName = "persistit";
-                }
-                if (protocol.startsWith("t")) {
-                    _volumeName = "tempvol";
-                }
 
-                System.out.println("SimpleTest1 protocol: " + protocol);
-                if (protocol.equals("p")) {
-                    store1();
-                    fetch1a();
-                    fetch1b();
-                } else if (protocol.equals("p1")) {
-                    store1();
-                } else if (protocol.equals("p2")) {
-                    fetch1a();
-                    fetch1b();
-                } else if (protocol.equals("t")) {
-                    store1();
-                    fetch1a();
-                    fetch1b();
-                } else if (protocol.equals("t1")) {
-                    store1();
-                } else if (protocol.equals("t2")) {
-                    checkEmpty();
-                } else {
-                    System.out.println("? " + protocol);
-                }
-            }
-        } else {
-            test1();
-        }
+    
+    public static void main(final String[] args) throws Exception {
+        _args = args;
+        new RecoveryTest().initAndRunTest();
     }
-
+    
+    public void runAllTests() throws Exception {
+        test1();
+        test2();
+    }
 }
