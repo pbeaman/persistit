@@ -1594,7 +1594,8 @@ public class Persistit implements BuildConstants {
 
     void waitForIOTaskStop(final IOTaskRunnable task) {
         if (_beginCloseTime == 0) {
-            _beginCloseTime = _nextCloseTime = System.currentTimeMillis();
+            _beginCloseTime = System.currentTimeMillis();
+            _nextCloseTime = _beginCloseTime + CLOSE_LOG_INTERVAL;
         }
         task.kick();
         while (!task.isStopped()) {
@@ -1607,9 +1608,9 @@ public class Persistit implements BuildConstants {
             }
             final long now = System.currentTimeMillis();
             if (now > _nextCloseTime) {
-                _nextCloseTime += CLOSE_LOG_INTERVAL;
                 _logBase.log(LogBase.LOG_WAIT_FOR_CLOSE,
                         (_nextCloseTime - _beginCloseTime) / 1000);
+                _nextCloseTime += CLOSE_LOG_INTERVAL;
             }
         }
     }
