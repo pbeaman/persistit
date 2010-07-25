@@ -1514,7 +1514,7 @@ public class Persistit implements BuildConstants {
         // Wait for UI to go down.
         while (!byHook && _suspendShutdown) {
             try {
-                Thread.sleep(500);
+                wait(500);
             } catch (InterruptedException ie) {
             }
         }
