@@ -36,6 +36,7 @@ import java.util.ResourceBundle;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
@@ -691,6 +692,10 @@ public class Persistit implements BuildConstants {
                         Volume.loadVolume(this, volumeSpecification);
                     }
                 }
+            }
+
+            for (final BufferPool pool : _bufferPoolTable.values()) {
+                pool.start();
             }
 
             String rmiHost = getProperty(RMI_REGISTRY_HOST_PROPERTY);
@@ -1377,6 +1382,35 @@ public class Persistit implements BuildConstants {
         return _readRetryEnabled;
     }
 
+    /**
+     * Force a checkpoint. Sets a checkpoint later than all operations
+     * previously completed and then flushes all dirty data. If Persistit is
+     * closed or not yet initialized, does nothing and returns <tt>null</tt>.
+     * 
+     * @return the Checkpoint allocated by this process.
+     */
+    public Checkpoint checkpoint() throws PersistitException {
+        if (_closed.get() || !_initialized.get()) {
+            return null;
+        }
+        for (final Volume volume : _volumes) {
+            volume.flush();
+        }
+        final Checkpoint checkpoint = _timestampAllocator.forceCheckpoint();
+        flush();
+        Checkpoint earliest = checkpoint;
+        for (final BufferPool bufferPool : _bufferPoolTable.values()) {
+            final Checkpoint cp = bufferPool.checkpoint(checkpoint);
+            if (cp == null) {
+                earliest = null;
+            } else if (earliest != null
+                    && cp.getTimestamp() < earliest.getTimestamp()) {
+                earliest = cp;
+            }
+        }
+        return earliest;
+    }
+
     public void copyBackPages() throws Exception {
         _logManager.copyBack(Long.MAX_VALUE);
     }
@@ -1484,8 +1518,8 @@ public class Persistit implements BuildConstants {
      * 
      * @param flush
      *            <tt>true</tt> to ensure all dirty pages are written to disk
-     *            before shutdown completes; <tt>false</tt> to enable fast
-     *            (but incomplete) shutdown.
+     *            before shutdown completes; <tt>false</tt> to enable fast (but
+     *            incomplete) shutdown.
      * 
      * @throws PersistitException
      * @throws IOException
@@ -1528,24 +1562,28 @@ public class Persistit implements BuildConstants {
         _closed.set(true);
         _journal.close();
 
+        final List<Volume> volumes = new ArrayList<Volume>(_volumes);
+        for (final Volume volume : volumes) {
+            volume.close();
+        }
+
+        _timestampAllocator.forceCheckpoint();
+
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close(flush);
         }
+
         _logManager.close();
+
+        while (!_volumes.isEmpty()) {
+            removeVolume(_volumes.get(0), false);
+        }
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             int count = pool.countDirty(null);
             if (count > 0) {
                 _logBase.log(LogBase.LOG_STRANDED, pool, count);
             }
-        }
-
-        final List<Volume> volumes = new ArrayList<Volume>(_volumes);
-        for (final Volume volume : volumes) {
-            volume.close();
-        }
-        while (!_volumes.isEmpty()) {
-            removeVolume(_volumes.get(0), false);
         }
 
         _logBase.logend();
@@ -1576,19 +1614,24 @@ public class Persistit implements BuildConstants {
      * @throws IOException
      */
     public boolean flush() throws PersistitException {
+        boolean okay = true;
         if (_closed.get() || !_initialized.get()) {
             return false;
         }
+
+        _journal.flush();
+
         for (final Volume volume : _volumes) {
             volume.flush();
         }
+
         for (final BufferPool pool : _bufferPoolTable.values()) {
             if (pool != null) {
-                pool.flush();
+                okay &= pool.flush() == 0;
             }
         }
+
         _logManager.force();
-        _journal.flush();
         return true;
     }
 

@@ -6,8 +6,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class TimestampAllocator {
 
-    private final static long DEFAULT_CHECKPOINT_INTERVAL = 100000000000L; // 100
-                                                                           // sec
+    /**
+     * Default interval in nanoseconds between checkpoints - five minutes.
+     */
+    private final static long DEFAULT_CHECKPOINT_INTERVAL = 60000000000L;
 
     private final AtomicLong _timestamp = new AtomicLong();
 
@@ -19,6 +21,20 @@ public class TimestampAllocator {
 
     public long updateTimestamp() {
         return _timestamp.incrementAndGet();
+    }
+
+    public long updateTimestamp(final long timestamp) {
+        _timestamp.incrementAndGet();
+        while (true) {
+            final long expected = _timestamp.get();
+            if (expected < timestamp) {
+                if (_timestamp.compareAndSet(expected, timestamp)) {
+                    return timestamp;
+                }
+            } else {
+                return expected;
+            }
+        }
     }
 
     public long getCurrentTimestamp() {
@@ -35,11 +51,19 @@ public class TimestampAllocator {
         }
         return _checkpoint;
     }
+    
+    public synchronized Checkpoint forceCheckpoint() {
+        final long checkpointTimestamp = updateTimestamp();
+        _checkpoint = new Checkpoint(checkpointTimestamp, System
+                .currentTimeMillis());
+        return _checkpoint;
+    }
 
     public static class Checkpoint {
 
         private final static SimpleDateFormat SDF = new SimpleDateFormat(
                 "yyyy-MM-dd HH:mm:ss");
+
         private final long _timestamp;
 
         private final long _systemTime;

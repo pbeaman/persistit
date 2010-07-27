@@ -54,15 +54,14 @@ class SharedResource extends WaitingThreadManager {
      * to a Volume that is being deleted.
      */
     public final static int DELETE_MASK = 0x00040000;
-    
+
     /**
      * Status field mask for resource that is enqueued to be written
      */
     public final static int ENQUEUED_MASK = 0x00080000;
-    
+
     /**
-     * Status field mask for resource that is enqueued to be written
-     * urgently.
+     * Status field mask for resource that is enqueued to be written urgently.
      */
 
     public final static int URGENT_MASK = 0x00100000;
@@ -153,15 +152,15 @@ class SharedResource extends WaitingThreadManager {
             return (_status & DIRTY_MASK) != 0;
         }
     }
-    
+
     boolean isEnqueued() {
-        synchronized(_lock) {
+        synchronized (_lock) {
             return (_status & ENQUEUED_MASK) != 0;
         }
     }
 
     boolean isUrgent() {
-        synchronized(_lock) {
+        synchronized (_lock) {
             return (_status & URGENT_MASK) != 0;
         }
     }
@@ -418,21 +417,21 @@ class SharedResource extends WaitingThreadManager {
             _status |= DIRTY_MASK;
         }
     }
-    
+
     void setEnqueued() {
-        synchronized(_lock) {
-            _status |= ENQUEUED_MASK ;
+        synchronized (_lock) {
+            _status |= ENQUEUED_MASK;
         }
     }
-    
+
     void setUrgent() {
-        synchronized(_lock) {
+        synchronized (_lock) {
             _status |= (ENQUEUED_MASK | URGENT_MASK);
         }
     }
-    
+
     void setUnenqueued() {
-        synchronized(_lock) {
+        synchronized (_lock) {
             _status &= ~(ENQUEUED_MASK | URGENT_MASK);
         }
     }
@@ -509,34 +508,34 @@ class SharedResource extends WaitingThreadManager {
         case VALID_MASK | WRITER_MASK | DIRTY_MASK | 1:
             return "vdwr1";
         default:
+            StringBuffer sb = new StringBuffer(8);
+            if ((status & SUSPENDED_MASK) != 0) {
+                sb.append("s");
+            }
+            if ((status & CLOSING_MASK) != 0) {
+                sb.append("c");
+            }
+            if ((status & VALID_MASK) != 0) {
+                sb.append("v");
+            }
+            if ((status & DIRTY_MASK) != 0) {
+                sb.append("d");
+            }
+            if ((status & ENQUEUED_MASK) != 0) {
+                sb.append("e");
+            }
+            if ((status & URGENT_MASK) != 0) {
+                sb.append("u");
+            }
+            if ((status & WRITER_MASK) != 0) {
+                sb.append("w");
+            }
+            if ((status & CLAIMED_MASK) != 0) {
+                sb.append("r");
+                sb.append(status & CLAIMED_MASK);
+            }
+            return sb.toString();
         }
-        StringBuffer sb = new StringBuffer(8);
-        if ((status & SUSPENDED_MASK) != 0) {
-            sb.append("s");
-        }
-        if ((status & CLOSING_MASK) != 0) {
-            sb.append("c");
-        }
-        if ((status & URGENT_MASK) != 0) {
-            sb.append("u");
-        }
-        if ((status & ENQUEUED_MASK) != 0) {
-            sb.append ("e");
-        }
-        if ((status & VALID_MASK) != 0) {
-            sb.append("v");
-        }
-        if ((status & DIRTY_MASK) != 0) {
-            sb.append("d");
-        }
-        if ((status & WRITER_MASK) != 0) {
-            sb.append("w");
-        }
-        if ((status & CLAIMED_MASK) != 0) {
-            sb.append("r");
-            sb.append(status & CLAIMED_MASK);
-        }
-        return sb.toString();
     }
 
     public Thread getWriterThread() {

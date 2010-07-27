@@ -45,19 +45,15 @@ public class RecoveryTest extends PersistitUnitTestCase {
     public void test2() throws Exception {
         store1();
         LogManager logMan = _persistit.getLogManager();
-        long currentGeneration = logMan.getCurrentGeneration();
         assertTrue(logMan.getPageMapSize() > 0);
-        _persistit.flush();
+        _persistit.checkpoint();
         logMan.copyBack(Long.MAX_VALUE);
         _persistit.close();
         assertEquals(0, logMan.getPageMapSize());
-        assertEquals(currentGeneration + 1, logMan.getCurrentGeneration());
         final Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
         logMan = _persistit.getLogManager();
-        // Note: there may be a page in the log caused by the Persistit#close()
-        // call issued after the copyBack call.
         assertEquals(0, logMan.getPageMapSize());
         fetch1a();
         fetch1b();

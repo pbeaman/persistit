@@ -1062,7 +1062,7 @@ public final class Exchange implements BuildConstants {
                 checkPageType(buffer, currentLevel + Buffer.PAGE_TYPE_DATA);
 
                 //
-                // Release previous buffer before claiming this one. This
+                // Release previous buffer after claiming this one. This
                 // prevents another Thread from inserting pages to the left
                 // of our new buffer.
                 //
@@ -3754,7 +3754,7 @@ public final class Exchange implements BuildConstants {
      * Called by Transaction to set up a context for committing updates.
      * 
      * @param volume
-     * @param treeName
+     * @param _treeName
      */
     void setTree(Tree tree) throws PersistitException {
         checkOwnerThread();

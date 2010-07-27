@@ -260,7 +260,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
      * The BufferPool in which this buffer is allocated.
      */
     final private BufferPool _pool;
-    
+
     /**
      * Index within the buffer pool
      */
@@ -341,7 +341,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
      */
     private int _slack;
 
-
     // Following are package-private so BufferPool can access them.
     // TODO - replace with accessor methods.
     /**
@@ -407,7 +406,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         _bytes = _byteBuffer.array();
         _bufferSize = size;
         _findexElements = new int[_bufferSize
-                                  / (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_DATA)];
+                / (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_DATA)];
     }
 
     Buffer(Buffer original) {
@@ -425,7 +424,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         _keyBlockEnd = original._keyBlockEnd;
         _tailHeaderSize = original._tailHeaderSize;
         System.arraycopy(original._bytes, 0, _bytes, 0, _bytes.length);
-        
+
         // Note - do not populate _findexElements since this buffer
         // is for ManagementImpl only
     }
@@ -524,9 +523,11 @@ public final class Buffer extends SharedResource implements BuildConstants {
     }
 
     void setDirty() {
-        bumpGeneration();
-        super.setDirty();
-        _timestamp = _persistit.getTransaction().getTimestamp();
+        synchronized (_lock) {
+            bumpGeneration();
+            super.setDirty();
+            _timestamp = _persistit.getTransaction().getTimestamp();
+        }
         if (Debug.HISTORY_ENABLED)
             Debug.stateChanged(this, "dirty", -1);
     }
@@ -615,8 +616,14 @@ public final class Buffer extends SharedResource implements BuildConstants {
         return _bufferSize;
     }
 
+    /**
+     * Synchronized because background threads read the state.
+     * @return
+     */
     public long getTimestamp() {
-        return _timestamp;
+        synchronized(_lock) {
+            return _timestamp;
+        }
     }
 
     /**
@@ -3727,10 +3734,10 @@ public final class Buffer extends SharedResource implements BuildConstants {
     public boolean isGarbagePage() {
         return _type == PAGE_TYPE_GARBAGE;
     }
-    
+
     /**
-     * @return <i>true</i> if the current page is the head page of
-     * a {@link Volume}
+     * @return <i>true</i> if the current page is the head page of a
+     *         {@link Volume}
      */
     public boolean isHeadPage() {
         return _type == PAGE_TYPE_HEAD;
@@ -4242,14 +4249,14 @@ public final class Buffer extends SharedResource implements BuildConstants {
         info.updateAcquisitonTime();
 
     }
-    
+
     void removeFromLru() {
         _prevLru._nextLru = _nextLru;
         _nextLru._prevLru = _prevLru;
         _nextLru = this;
         _prevLru = this;
     }
-    
+
     void moveInLru(final Buffer to) {
         //
         // detach
@@ -4264,14 +4271,14 @@ public final class Buffer extends SharedResource implements BuildConstants {
         to._prevLru._nextLru = this;
         to._prevLru = this;
     }
-    
+
     void removeFromDirty() {
         _prevDirty._nextDirty = _nextDirty;
         _nextDirty._prevDirty = _prevDirty;
         _nextDirty = this;
         _prevDirty = this;
     }
-    
+
     void moveInDirty(final Buffer to) {
         //
         // detach
@@ -4286,21 +4293,39 @@ public final class Buffer extends SharedResource implements BuildConstants {
         to._prevDirty._nextDirty = this;
         to._prevDirty = this;
     }
-    
+
     void setNext(final Buffer buffer) {
         _next = buffer;
     }
-    
+
     Buffer getNext() {
         return _next;
     }
-    
+
     Buffer getNextLru() {
         return _nextLru;
     }
-    
+
     Buffer getNextDirty() {
         return _nextDirty;
     }
-    
+
+    // TODO - debug only
+    boolean checkDirtySelfRef(final Buffer buffer) {
+        if (buffer._nextDirty == buffer) {
+            if (buffer._prevDirty == buffer) {
+                return true;
+            } else {
+                Debug.debug1(true);
+            }
+        }
+        if (buffer._prevDirty == buffer) {
+            if (buffer._nextDirty == buffer) {
+                return true;
+            } else {
+                Debug.debug1(true);
+            }
+        }
+        return false;
+    }
 }

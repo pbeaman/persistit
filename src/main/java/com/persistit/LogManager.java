@@ -15,8 +15,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedMap;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
@@ -85,9 +83,9 @@ public class LogManager {
 
     private final Map<Integer, VolumeDescriptor> _handleToVolumeMap = new HashMap<Integer, VolumeDescriptor>();
 
-    private final Map<Tree, Integer> _treeToHandleMap = new HashMap<Tree, Integer>();
+    private final Map<TreeDescriptor, Integer> _treeToHandleMap = new HashMap<TreeDescriptor, Integer>();
 
-    private final Map<Integer, Tree> _handleToTreeMap = new HashMap<Integer, Tree>();
+    private final Map<Integer, TreeDescriptor> _handleToTreeMap = new HashMap<Integer, TreeDescriptor>();
 
     private final Persistit _persistit;
 
@@ -151,8 +149,6 @@ public class LogManager {
 
     private volatile long _copierInterval = DEFAULT_COPIER_INTERVAL;
 
-    private volatile long _closeInterval = DEFAULT_CLOSING_INTERVAL;
-
     private volatile boolean _copyFast = false;
 
     private volatile int _pageMapSizeBase = DEFAULT_PAGE_MAP_SIZE_BASE;
@@ -184,7 +180,8 @@ public class LogManager {
         _copierTask = new LogCopier();
     }
 
-    public void init(final String path, final long maximumSize) throws PersistitException {
+    public void init(final String path, final long maximumSize)
+            throws PersistitException {
         _directory = new File(path).getAbsoluteFile();
         _maximumFileSize = maximumSize;
         _closed.set(false);
@@ -192,8 +189,6 @@ public class LogManager {
         _copierTask.start();
         _flusherTask.start();
     }
-    
-    
 
     public synchronized int getPageMapSize() {
         return _pageMap.size();
@@ -398,9 +393,14 @@ public class LogManager {
 
     public synchronized void writeCheckpointToLog(final Checkpoint checkpoint)
             throws PersistitIOException {
+        if (!_recovered) {
+            return;
+        }
         // Make sure all prior log entries are committed to disk before
         // writing this record.
         force();
+        writeBuffer(LogRecord.CP.OVERHEAD);
+        final long address = _writeBufferAddress + _writeBuffer.position();
         writeBuffer(LogRecord.CP.OVERHEAD);
         LogRecord.CP.putLength(_bytes, LogRecord.CP.OVERHEAD);
         LogRecord.CP.putType(_bytes, LogRecord.CP.TYPE);
@@ -411,6 +411,10 @@ public class LogManager {
         force();
         _lastValidCheckpoint = checkpoint;
         ioRate(1);
+
+        // TODO - remove
+        System.out.println("Checkpoint " + checkpoint + " written at "
+                + new FileAddress(_writeChannelFile, address, 0));
     }
 
     public synchronized void writePageToLog(final Buffer buffer)
@@ -487,7 +491,7 @@ public class LogManager {
         return handle.intValue();
     }
 
-    public synchronized int handleForTree(final Tree tree)
+    public synchronized int handleForTree(final TreeDescriptor tree)
             throws PersistitIOException {
         Integer handle = _treeToHandleMap.get(tree);
         if (handle == null) {
@@ -496,7 +500,7 @@ public class LogManager {
             LogRecord.IT.putHandle(_bytes, handle.intValue());
             LogRecord.IT.putTimestamp(_bytes, 0);
             LogRecord.IV.putTimestamp(_bytes, 0); // TODO
-            LogRecord.IV.putVolumeName(_bytes, tree.getName());
+            LogRecord.IV.putVolumeName(_bytes, tree.getTreeName());
             final int recordSize = LogRecord.IV.getLength(_bytes);
             writeBuffer(recordSize);
             _writeBuffer.put(_bytes, 0, recordSize);
@@ -536,10 +540,8 @@ public class LogManager {
             throw new IllegalStateException("Recovery already completed");
         }
         _pageMap.clear();
-        _handleToTreeMap.clear();
-        _treeToHandleMap.clear();
-        _handleToVolumeMap.clear();
-        _volumeToHandleMap.clear();
+
+        final Map<VolumePage, FileAddress> pageMap = new HashMap<VolumePage, FileAddress>();
 
         _firstGeneration = Long.MAX_VALUE;
         _currentGeneration = -1;
@@ -553,6 +555,12 @@ public class LogManager {
                     throw new CorruptLogException("Invalid log record at "
                             + _dirtyRecoveryFileAddress.toString());
                 }
+                // Each log file must rewrite all volume and tree handles
+                _handleToVolumeMap.clear();
+                _volumeToHandleMap.clear();
+                _handleToTreeMap.clear();
+                _treeToHandleMap.clear();
+
                 final FileChannel channel = new FileInputStream(file)
                         .getChannel();
                 long bufferAddress = 0;
@@ -562,7 +570,8 @@ public class LogManager {
                     final MappedByteBuffer readBuffer = channel.map(
                             MapMode.READ_ONLY, bufferAddress, size);
                     try {
-                        while (recoverOneRecord(file, bufferAddress, readBuffer)) {
+                        while (recoverOneRecord(file, bufferAddress,
+                                readBuffer, pageMap)) {
                             // nothing to do - work is performed in
                             // recoverOneRecord.
                         }
@@ -591,18 +600,11 @@ public class LogManager {
         _recovered = true;
     }
 
-    private long fileGeneration(final File file) {
-        final Matcher matcher = PATH_PATTERN.matcher(file.getName());
-        if (matcher.matches()) {
-            return Long.parseLong(matcher.group(1));
-        } else {
-            return -1;
-        }
-    }
-
     private boolean recoverOneRecord(final File file, final long bufferAddress,
-            final MappedByteBuffer readBuffer) throws PersistitException,
-            LogNotClosedException {
+            final MappedByteBuffer readBuffer,
+            final Map<VolumePage, FileAddress> pageMap)
+            throws PersistitException, LogNotClosedException {
+
         final int from = readBuffer.position();
         if (readBuffer.remaining() < LogRecord.OVERHEAD) {
             return false;
@@ -616,12 +618,12 @@ public class LogManager {
         case LogRecord.TYPE_IV: {
             final int recordSize = LogRecord.getLength(_bytes);
             if (recordSize > LogRecord.IV.MAX_LENGTH) {
-                throw new CorruptLogException("IV LogRecord too long: "
-                        + recordSize
-                        + " bytes at position "
-                        + new FileAddress(file, bufferAddress
-                                + readBuffer.position() - LogRecord.OVERHEAD,
-                                timestamp));
+                throw new CorruptLogException(
+                        "IV LogRecord too long: "
+                                + recordSize
+                                + " bytes at position "
+                                + new FileAddress(file, bufferAddress + from,
+                                        timestamp));
             }
             if (recordSize + from > readBuffer.limit()) {
                 readBuffer.reset();
@@ -642,12 +644,12 @@ public class LogManager {
         case LogRecord.TYPE_IT: {
             final int recordSize = LogRecord.getLength(_bytes);
             if (recordSize > LogRecord.IT.MAX_LENGTH) {
-                throw new CorruptLogException("IT LogRecord too long: "
-                        + recordSize
-                        + " bytes at position "
-                        + new FileAddress(file, bufferAddress
-                                + readBuffer.position() - LogRecord.OVERHEAD,
-                                timestamp));
+                throw new CorruptLogException(
+                        "IT LogRecord too long: "
+                                + recordSize
+                                + " bytes at position "
+                                + new FileAddress(file, bufferAddress + from,
+                                        timestamp));
             }
             if (recordSize + from > readBuffer.limit()) {
                 readBuffer.reset();
@@ -657,24 +659,24 @@ public class LogManager {
                     - LogRecord.OVERHEAD);
             final Integer handle = Integer.valueOf(LogRecord.IT
                     .getHandle(_bytes));
-            final String path = LogRecord.IT.getTreeName(_bytes);
+            final String treeName = LogRecord.IT.getTreeName(_bytes);
             final Integer volumeHandle = Integer.valueOf(LogRecord.IT
                     .getVolumeHandle(_bytes));
-            final Integer treeHandle = Integer.valueOf(LogRecord.IT
-                    .getHandle(_bytes));
-            // TODO
+            final TreeDescriptor td = new TreeDescriptor(volumeHandle, treeName);
+            _handleToTreeMap.put(handle, td);
+            _treeToHandleMap.put(td, handle);
             break;
         }
 
         case LogRecord.TYPE_PA: {
             final int recordSize = LogRecord.getLength(_bytes);
             if (recordSize > Buffer.MAX_BUFFER_SIZE + LogRecord.PA.OVERHEAD) {
-                throw new CorruptLogException("PA LogRecord too long: "
-                        + recordSize
-                        + " bytes at position "
-                        + new FileAddress(file, bufferAddress
-                                + readBuffer.position() - LogRecord.OVERHEAD,
-                                timestamp));
+                throw new CorruptLogException(
+                        "PA LogRecord too long: "
+                                + recordSize
+                                + " bytes at position "
+                                + new FileAddress(file, bufferAddress + from,
+                                        timestamp));
             }
             if (recordSize + from > readBuffer.limit()) {
                 readBuffer.reset();
@@ -687,7 +689,7 @@ public class LogManager {
             final long pageAddress = LogRecord.PA.getPageAddress(_bytes);
             final Integer volumeHandle = Integer.valueOf(LogRecord.PA
                     .getVolumeHandle(_bytes));
-            final VolumeDescriptor vd = _handleToVolumeMap.get(volumeHandle);
+            VolumeDescriptor vd = _handleToVolumeMap.get(volumeHandle);
             if (vd == null) {
                 throw new CorruptLogException(
                         "PA reference to volume "
@@ -697,7 +699,7 @@ public class LogManager {
             }
             final VolumePage vp = new VolumePage(vd, pageAddress, timestamp);
             final FileAddress fa = new FileAddress(file, address, timestamp);
-            _pageMap.put(vp, fa);
+            pageMap.put(vp, fa);
             break;
         }
 
@@ -730,7 +732,18 @@ public class LogManager {
                     .getSystemTimeMillis(_bytes);
             final Checkpoint checkpoint = new Checkpoint(timestamp,
                     systemTimeMillis);
+            _persistit.getTimestampAllocator().updateTimestamp(timestamp);
             _lastValidCheckpoint = checkpoint;
+
+            _pageMap.putAll(pageMap);
+            pageMap.clear();
+
+            // TODO - remove
+            System.out.println("Checkpoint "
+                    + checkpoint
+                    + " recovered at "
+                    + new FileAddress(file, bufferAddress + from, checkpoint
+                            .getTimestamp()));
             break;
 
         default:
@@ -742,6 +755,15 @@ public class LogManager {
         return true;
     }
 
+    private long fileGeneration(final File file) {
+        final Matcher matcher = PATH_PATTERN.matcher(file.getName());
+        if (matcher.matches()) {
+            return Long.parseLong(matcher.group(1));
+        } else {
+            return -1;
+        }
+    }
+
     public void close() throws PersistitIOException {
 
         synchronized (this) {
@@ -751,6 +773,7 @@ public class LogManager {
         _persistit.waitForIOTaskStop(_copierTask);
         _persistit.waitForIOTaskStop(_flusherTask);
 
+        final boolean clear;
         synchronized (this) {
             try {
                 closeWriteChannel();
@@ -760,6 +783,7 @@ public class LogManager {
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);
             }
+            clear = _pageMap.isEmpty();
             _readChannelMap.clear();
             _handleToTreeMap.clear();
             _handleToVolumeMap.clear();
@@ -771,6 +795,13 @@ public class LogManager {
             _writeBuffer = null;
             _recovered = false;
             Arrays.fill(_bytes, (byte) 0);
+
+            if (clear) {
+                final File[] files = files();
+                for (final File file : files) {
+                    file.delete();
+                }
+            }
         }
     }
 
@@ -888,149 +919,171 @@ public class LogManager {
 
     private static class VolumeDescriptor {
 
-        private final long id;
+        private final long _id;
 
-        private final String path;
+        private final String _path;
 
         VolumeDescriptor(final String path, final long id) {
-            this.path = path;
-            this.id = id;
+            this._path = path;
+            this._id = id;
         }
 
         VolumeDescriptor(final Volume volume) {
-            this.path = volume.getPath();
-            this.id = volume.getId();
+            _path = volume.getPath();
+            _id = volume.getId();
         }
 
         String getPath() {
-            return path;
+            return _path;
         }
 
         long getId() {
-            return id;
+            return _id;
         }
 
         @Override
         public boolean equals(final Object object) {
             final VolumeDescriptor vd = (VolumeDescriptor) object;
-            return vd.path.equals(path) && vd.id == id;
+            return vd._path.equals(_path) && vd._id == _id;
         }
 
         @Override
         public int hashCode() {
-            return path.hashCode() ^ (int) id;
+            return _path.hashCode() ^ (int) _id;
         }
 
         @Override
         public String toString() {
-            return path;
+            return _path;
+        }
+
+    }
+
+    private static class TreeDescriptor {
+
+        final int _volumeHandle;
+
+        final String _treeName;
+
+        TreeDescriptor(final int volumeHandle, final String treeName) {
+            _volumeHandle = volumeHandle;
+            _treeName = treeName;
+        }
+
+        int getVolumeHandle() {
+            return _volumeHandle;
+        }
+
+        String getTreeName() {
+            return _treeName;
         }
 
     }
 
     private static class VolumePage implements Comparable<VolumePage> {
 
-        private final VolumeDescriptor volumeDescriptor;
+        private final VolumeDescriptor _volumeDescriptor;
 
-        private final long page;
+        private final long _page;
 
         VolumePage(final VolumeDescriptor vd, final long page,
                 final long timestamp) {
-            this.volumeDescriptor = vd;
-            this.page = page;
+            _volumeDescriptor = vd;
+            _page = page;
         }
 
         VolumeDescriptor getVolumeDescriptor() {
-            return volumeDescriptor;
+            return _volumeDescriptor;
         }
 
         long getPage() {
-            return page;
+            return _page;
         }
 
         @Override
         public int hashCode() {
-            return volumeDescriptor.hashCode() ^ (int) page
-                    ^ (int) (page >>> 32);
+            return _volumeDescriptor.hashCode() ^ (int) _page
+                    ^ (int) (_page >>> 32);
         }
 
         @Override
         public boolean equals(Object obj) {
             final VolumePage vp = (VolumePage) obj;
-            return page == vp.page && volumeDescriptor.equals(volumeDescriptor);
+            return _page == vp._page
+                    && _volumeDescriptor.equals(_volumeDescriptor);
         }
 
         @Override
         public int compareTo(VolumePage vp) {
-            int result = volumeDescriptor.getPath().compareTo(
+            int result = _volumeDescriptor.getPath().compareTo(
                     vp.getVolumeDescriptor().getPath());
             if (result != 0) {
                 return result;
             }
-            return page > vp.getPage() ? 1 : page < vp.getPage() ? -1 : 0;
+            return _page > vp.getPage() ? 1 : _page < vp.getPage() ? -1 : 0;
         }
 
         @Override
         public String toString() {
-            return volumeDescriptor + ":" + page;
+            return _volumeDescriptor + ":" + _page;
         }
     }
 
     public static class FileAddress implements Comparable<FileAddress> {
 
-        private final File file;
+        private final File _file;
 
-        private final long address;
+        private final long _address;
 
-        private final long timestamp;
+        private final long _timestamp;
 
         FileAddress(final File file, final long address, final long timestamp) {
-            this.file = file;
-            this.address = address;
-            this.timestamp = timestamp;
+            _file = file;
+            _address = address;
+            _timestamp = timestamp;
         }
 
         File getFile() {
-            return file;
+            return _file;
         }
 
         long getAddress() {
-            return address;
+            return _address;
         }
 
         long getTimestamp() {
-            return timestamp;
+            return _timestamp;
         }
 
         @Override
         public int hashCode() {
-            return file.hashCode() ^ (int) address ^ (int) (address >>> 32);
+            return _file.hashCode() ^ (int) _address ^ (int) (_address >>> 32);
         }
 
         @Override
         public boolean equals(final Object object) {
             final FileAddress fa = (FileAddress) object;
-            return file.equals(fa.file) && address == fa.address;
+            return _file.equals(fa._file) && _address == fa._address;
         }
 
         @Override
         public int compareTo(final FileAddress fa) {
-            int result = file.compareTo(fa.getFile());
+            int result = _file.compareTo(fa.getFile());
             if (result != 0) {
                 return result;
             }
-            if (address != fa.getAddress()) {
-                return address > fa.getAddress() ? 1 : -1;
+            if (_address != fa.getAddress()) {
+                return _address > fa.getAddress() ? 1 : -1;
             }
-            if (timestamp != fa.getTimestamp()) {
-                return timestamp > fa.getTimestamp() ? 1 : -1;
+            if (_timestamp != fa.getTimestamp()) {
+                return _timestamp > fa.getTimestamp() ? 1 : -1;
             }
             return 0;
         }
 
         @Override
         public String toString() {
-            return file + ":" + address;
+            return _file + ":" + _address;
         }
     }
 
@@ -1041,9 +1094,9 @@ public class LogManager {
         }
 
         void start() {
-           start("LOG_COPIER", _copierInterval);
+            start("LOG_COPIER", _copierInterval);
         }
-        
+
         @Override
         public void runTask() throws Exception {
 
@@ -1072,6 +1125,7 @@ public class LogManager {
         void start() {
             start("LOG_FLUSHER", _flushInterval);
         }
+
         @Override
         protected void runTask() {
             _flushing.set(true);
@@ -1123,7 +1177,7 @@ public class LogManager {
         final long currentGeneration;
 
         synchronized (this) {
-            final long timeStampUpperBound = Math.max(_lastValidCheckpoint
+            final long timeStampUpperBound = Math.min(_lastValidCheckpoint
                     .getTimestamp(), _copyLogTimestampLimit);
             if (!_recovered) {
                 return;
@@ -1135,7 +1189,7 @@ public class LogManager {
             for (final Map.Entry<VolumePage, FileAddress> entry : _pageMap
                     .entrySet()) {
                 FileAddress fa = entry.getValue();
-                if (fa.getTimestamp() <= timeStampUpperBound
+                if (fa.getTimestamp() < timeStampUpperBound
                         && (fa.getFile().compareTo(copyLogFileLimit) < 0 || _copyFast)) {
                     sortedMap.put(entry.getKey(), entry.getValue());
                 } else {
@@ -1164,7 +1218,7 @@ public class LogManager {
                 volume = _persistit.getVolume(vp.getVolumeDescriptor()
                         .getPath());
             }
-            if (volume == null) {
+            if (volume == null || volume.isClosed()) {
                 // remove from the sortedMap so that below we won't remove from
                 // the pageMap.
                 iterator.remove();

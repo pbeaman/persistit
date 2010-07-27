@@ -403,8 +403,6 @@ public class Volume extends SharedResource {
             _directoryRootPage = 0;
             _pool.invalidate(this);
 
-            Tree tree = new Tree(_persistit, this);
-            _directoryTree = tree;
             updateHeaderInfo(_headBuffer.getBytes());
 
             _channel = new RandomAccessFile(_path, "rw").getChannel();
@@ -417,7 +415,8 @@ public class Volume extends SharedResource {
                 extend(initialPages);
             }
 
-            createTree(DIRECTORY_TREE_NAME, tree);
+            _directoryTree = new Tree(_persistit, this);
+            createTree(DIRECTORY_TREE_NAME, _directoryTree);
             checkpointMetaData();
 
             open = true;
@@ -509,8 +508,14 @@ public class Volume extends SharedResource {
             // TODO -- synchronize opening of Volumes.
             _persistit.addVolume(this);
 
-            _directoryTree = new Tree(_persistit, this, DIRECTORY_TREE_NAME, 0,
-                    _directoryRootPage);
+            if (_directoryRootPage != 0) {
+                _directoryTree = new Tree(_persistit, this,
+                        DIRECTORY_TREE_NAME, 0, _directoryRootPage);
+            } else {
+                _directoryTree = new Tree(_persistit, this);
+                createTree(DIRECTORY_TREE_NAME, _directoryTree);
+                checkpointMetaData();
+            }
 
             _pool.setPermanent(_headBuffer, true);
             releaseHeadBuffer();
@@ -920,7 +925,7 @@ public class Volume extends SharedResource {
         _writeCounter.incrementAndGet();
         _lastWriteTime = System.currentTimeMillis();
     }
-    
+
     void bumpGetCounter() {
         _getCounter.incrementAndGet();
     }
@@ -1557,8 +1562,10 @@ public class Volume extends SharedResource {
     void readPage(Buffer buffer, long page) throws PersistitIOException,
             InvalidPageAddressException, VolumeClosedException {
         if (page < 0 || page >= _pageCount) {
-            throw new InvalidPageAddressException("Page " + page);
+            throw new InvalidPageAddressException("Page " + page
+                    + " out of bounds [0-" + _pageCount + ")");
         }
+        
         try {
             final ByteBuffer bb = buffer.getByteBuffer();
             bb.position(0).limit(buffer.getBufferSize());
@@ -1940,7 +1947,7 @@ public class Volume extends SharedResource {
         changed |= Util.changeLong(bytes, 32, _id);
         changed |= Util.changeLong(bytes, 40, _readCounter.get());
         // Ugly, but the act of closing the system increments this
-        // counter, leading to an extra write.  So basically we
+        // counter, leading to an extra write. So basically we
         // ignore the final write by not setting the changed flag.
         Util.putLong(bytes, 48, _writeCounter.get());
         changed |= Util.changeLong(bytes, 56, _getCounter.get());
