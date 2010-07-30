@@ -45,14 +45,15 @@ public class TimestampAllocator {
         final long now = System.nanoTime();
         if (_lastCheckpointNanos + _checkpointInterval < now) {
             _lastCheckpointNanos = now;
-            return forceCheckpoint();
-        } else {
-            return _checkpoint;
+            final long checkpointTimestamp = updateTimestamp();
+            _checkpoint = new Checkpoint(checkpointTimestamp, System
+                    .currentTimeMillis());
         }
+        return _checkpoint;
     }
-
+    
     public synchronized Checkpoint forceCheckpoint() {
-        final long checkpointTimestamp = _timestamp.addAndGet(10000000);
+        final long checkpointTimestamp = updateTimestamp();
         _checkpoint = new Checkpoint(checkpointTimestamp, System
                 .currentTimeMillis());
         return _checkpoint;

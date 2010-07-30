@@ -85,16 +85,16 @@ public class Persistit implements BuildConstants {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit JSA 2.1-20100801"
+    public final static String VERSION = "Persistit JSA 2.1-20100512"
             + (Debug.ENABLED ? "-DEBUG" : "");
     /**
      * The internal version number
      */
-    public final static int BUILD_ID = 21002;
+    public final static int BUILD_ID = 21001;
     /**
      * The copyright notice
      */
-    public final static String COPYRIGHT = "Copyright (c) 2004-2010 Persistit Corporation. All Rights Reserved.";
+    public final static String COPYRIGHT = "Copyright (c) 2004-2009 Persistit Corporation. All Rights Reserved.";
 
     /**
      * Determines whether multi-byte integers will be written in little- or
@@ -374,12 +374,14 @@ public class Persistit implements BuildConstants {
      * pending updates are written before the JVM exit.
      * </p>
      * 
+     * @return The singleton Persistit instance that has been created.
      * @throws PersistitException
      * @throws IOException
      * @throws Exception
      */
-    public void initialize() throws PersistitException {
-        initialize(getProperty(CONFIG_FILE_PROPERTY_NAME, DEFAULT_CONFIG_FILE));
+    public boolean initialize() throws PersistitException {
+        return initialize(getProperty(CONFIG_FILE_PROPERTY_NAME,
+                DEFAULT_CONFIG_FILE));
     }
 
     /**
@@ -396,77 +398,22 @@ public class Persistit implements BuildConstants {
      * pending updates are written before the JVM exit.
      * </p>
      * 
-     * @param propertiesFileName
-     *            The path to the Properties file.
+     * @param propertyFileName
+     *            The path to the properties file.
+     * @return The singleton Persistit instance that has been created.
      * @throws PersistitException
      * @throws IOException
      */
-    public void initialize(String propertiesFileName) throws PersistitException {
-        initialize(parseProperties(propertiesFileName));
-    }
-
-    /**
-     * <p>
-     * Initialize Persistit using the supplied <code>java.util.Properties</code>
-     * instance. Applications can use this method to supply computed Properties
-     * rather than reading them from a file. If Persistit has already been
-     * initialized, this method does nothing. This method is threadsafe; if
-     * multiple threads concurrently attempt to invoke this method, one of the
-     * threads will actually perform the initialization and the other threads
-     * will do nothing.
-     * </p>
-     * <p>
-     * Note that Persistit starts non-daemon threads that will keep a JVM from
-     * exiting until {@link #close} is invoked. This is to ensure that all
-     * pending updates are written before the JVM exit.
-     * </p>
-     * 
-     * @param properties
-     *            The Properties object from which to initialize Persistit
-     * @throws PersistitException
-     * @throws IOException
-     */
-    public void initialize(Properties properties) throws PersistitException {
-        initializeProperties(properties);
-        initializeLogging();
-        initializeRecovery();
-
-        _logManager.recover();
-
-        initializeBufferPools();
-        initializeVolumes();
-        initializeManagement();
-        initializeOther();
-
-        _logManager.startThreads();
-        for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.startThreads();
-        }
-        //
-        // Now that all volumes are loaded and we have the LogManager
-        // cooking, recover or roll back any transactions that were
-        // pending at shutdown.
-        //
-        Transaction.recover(this);
-
-        flush();
-
-        setupJournal();
-        _initialized.set(true);
-        _closed.set(false);
-
-        initializeShutdownHook();
-    }
-    
-    Properties parseProperties(final String propertiesFileName) throws PersistitException {
+    public boolean initialize(String propertyFileName)
+            throws PersistitException {
         Properties properties = new Properties();
         try {
-            if (propertiesFileName.contains(DEFAULT_PROPERTIES_FILE_SUFFIX)
-                    || propertiesFileName.contains(File.separator)) {
-                properties.load(new FileInputStream(propertiesFileName));
+            if (propertyFileName.contains(DEFAULT_PROPERTIES_FILE_SUFFIX)
+                    || propertyFileName.contains(File.separator)) {
+                properties.load(new FileInputStream(propertyFileName));
             } else {
                 ResourceBundle bundle = ResourceBundle
-                        .getBundle(propertiesFileName);
+                        .getBundle(propertyFileName);
                 for (Enumeration e = bundle.getKeys(); e.hasMoreElements();) {
                     final String key = (String) e.nextElement();
                     properties.put(key, bundle.getString(key));
@@ -478,206 +425,7 @@ public class Persistit implements BuildConstants {
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
         }
-        return properties;
-    }
-
-    void initializeProperties(final Properties properties) {
-        properties.putAll(_properties);
-        _properties = properties;
-
-        _readRetryEnabled = getBooleanProperty(READ_RETRY_PROPERTY, true);
-        _defaultTimeout = getLongProperty(TIMEOUT_PROPERTY,
-                DEFAULT_TIMEOUT_VALUE, 0, MAXIMUM_TIMEOUT_VALUE);
-
-    }
-
-    void initializeLogging() throws PersistitException {
-        try {
-            _logBase.logstart();
-        } catch (Exception e) {
-            System.err.println("Persistit(tm) Logging is disabled due to " + e);
-            if (e.getMessage() != null && e.getMessage().length() > 0) {
-                System.err.println(e.getMessage());
-            }
-            e.printStackTrace();
-        }
-
-        String logSpecification = getProperty(LOGGING_PROPERTIES);
-        if (logSpecification != null) {
-            try {
-                _logBase.setLogEnabled(logSpecification,
-                        AbstractPersistitLogger.INFO);
-            } catch (Exception e) {
-                throw new LogInitializationException(e);
-            }
-        }
-    }
-
-    void initializeRecovery() throws PersistitException {
-        String logPath = getProperty(LOG_PATH_PROPERTY_NAME, DEFAULT_LOG_PATH);
-
-        int logSize = (int) getLongProperty(LOG_SIZE_PROPERTY_NAME,
-                LogManager.DEFAULT_LOG_SIZE, LogManager.MINIMUM_LOG_SIZE,
-                LogManager.MAXIMUM_LOG_SIZE);
-
-        _logManager.init(logPath, logSize);
-    }
-
-    void initializeBufferPools() {
-        StringBuffer sb = new StringBuffer();
-        int bufferSize = Buffer.MIN_BUFFER_SIZE;
-        while (bufferSize <= Buffer.MAX_BUFFER_SIZE) {
-            sb.setLength(0);
-            sb.append(BUFFERS_PROPERTY_NAME);
-            sb.append(bufferSize);
-            String propertyName = sb.toString();
-
-            int count = (int) getLongProperty(propertyName, -1,
-                    BufferPool.MINIMUM_POOL_COUNT,
-                    BufferPool.MAXIMUM_POOL_COUNT);
-
-            if (count != -1) {
-                if (_logBase.isLoggable(LogBase.LOG_INIT_ALLOCATE_BUFFERS)) {
-                    _logBase.log(LogBase.LOG_INIT_ALLOCATE_BUFFERS, count,
-                            bufferSize);
-                }
-                BufferPool pool = new BufferPool(count, bufferSize, this);
-                _bufferPoolTable.put(new Integer(bufferSize), pool);
-            }
-            bufferSize <<= 1;
-        }
-    }
-
-    void initializeVolumes() throws PersistitException {
-        for (Enumeration enumeration = _properties.propertyNames(); enumeration
-                .hasMoreElements();) {
-            String key = (String) enumeration.nextElement();
-            if (key.startsWith(VOLUME_PROPERTY_PREFIX)) {
-                boolean isOne = true;
-                try {
-                    Integer.parseInt(key.substring(VOLUME_PROPERTY_PREFIX
-                            .length()));
-                } catch (NumberFormatException nfe) {
-                    isOne = false;
-                }
-                if (isOne) {
-                    VolumeSpecification volumeSpecification = new VolumeSpecification(
-                            getProperty(key));
-
-                    if (_logBase.isLoggable(LogBase.LOG_INIT_OPEN_VOLUME)) {
-                        _logBase.log(LogBase.LOG_INIT_OPEN_VOLUME,
-                                volumeSpecification.describe());
-                    }
-                    Volume.loadVolume(this, volumeSpecification);
-                }
-            }
-        }
-    }
-
-    void initializeManagement() {
-        String rmiHost = getProperty(RMI_REGISTRY_HOST_PROPERTY);
-        String rmiPort = getProperty(RMI_REGISTRY_PORT);
-        boolean enableJmx = getBooleanProperty(JMX_PARAMS, true);
-
-        if (rmiHost != null || rmiPort != null) {
-            ManagementImpl management = (ManagementImpl) getManagement();
-            management.register(rmiHost, rmiPort);
-        }
-        if (enableJmx) {
-            setupOpenMBean();
-        }
-
-    }
-
-    void initializeOther() {
-        // Set up the parent CoderManager for this instance.
-        String serialOverridePatterns = getProperty(Persistit.SERIAL_OVERRIDE_PROPERTY);
-        DefaultCoderManager cm = new DefaultCoderManager(this,
-                serialOverridePatterns);
-        _coderManager = cm;
-
-        if (getBooleanProperty(SHOW_GUI_PROPERTY, false)) {
-            try {
-                setupGUI(true);
-            } catch (Exception e) {
-                // If we can't open the utility gui, well, tough.
-            }
-        }
-    }
-
-    void initializeShutdownHook() {
-        if (_shutdownHook == null) {
-            _shutdownHook = new Thread(new Runnable() {
-                public void run() {
-                    try {
-                        close0(true, false);
-                        getLogBase().log(LogBase.LOG_SHUTDOWN_HOOK);
-                    } catch (PersistitException e) {
-
-                    }
-                }
-            }, "ShutdownHook");
-
-            Runtime.getRuntime().addShutdownHook(_shutdownHook);
-        }
-    }
-
-    private void setupJournal() throws PersistitException {
-        String journalPath = getProperty(JOURNAL_PATH);
-        boolean journalFetches = getBooleanProperty(JOURNAL_FETCHES, false);
-        if (journalPath != null) {
-            _journal.setup(journalPath, journalFetches);
-        }
-    }
-
-    /**
-     * Reflectively attempts to load and execute the PersistitOpenMBean setup
-     * method. This will work only if the persistit_jsaXXX_jmx.jar is on the
-     * classpath. By default, PersistitOpenMBean uses the platform JMX server,
-     * so this also required Java 5.0+.
-     * 
-     * @param params
-     *            "true" to enable the PersistitOpenMBean, else "false".
-     */
-    private void setupOpenMBean() {
-        try {
-            Class clazz = Class.forName(PERSISTIT_JMX_CLASS_NAME);
-            Method setupMethod = clazz.getMethod("setup",
-                    new Class[] { Persistit.class });
-            setupMethod.invoke(null, new Object[] { this });
-        } catch (Exception e) {
-            if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
-                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, e);
-            }
-        }
-    }
-
-    synchronized void addVolume(Volume volume)
-            throws VolumeAlreadyExistsException {
-        Long idKey = new Long(volume.getId());
-        Volume otherVolume = _volumesById.get(idKey);
-        if (otherVolume != null) {
-            throw new VolumeAlreadyExistsException("Volume " + otherVolume
-                    + " has same ID");
-        }
-        otherVolume = getVolume(volume.getPath());
-        if (otherVolume != null
-                && volume.getPath().equals(otherVolume.getPath())) {
-            throw new VolumeAlreadyExistsException("Volume " + otherVolume
-                    + " has same path");
-        }
-        _volumes.add(volume);
-        _volumesById.put(idKey, volume);
-    }
-
-    synchronized void removeVolume(Volume volume, boolean delete) {
-        Long idKey = new Long(volume.getId());
-        _volumesById.remove(idKey);
-        _volumes.remove(volume);
-        // volume.getPool().invalidate(volume);
-        if (delete) {
-            volume.getPool().delete(volume);
-        }
+        return initialize(properties);
     }
 
     /**
@@ -835,6 +583,277 @@ public class Persistit implements BuildConstants {
                 return System.getProperty(propertyName);
             }
         });
+    }
+
+    /**
+     * <p>
+     * Initialize Persistit using the supplied <code>java.util.Properties</code>
+     * instance. Applications can use this method to supply computed Properties
+     * rather than reading them from a file. If Persistit has already been
+     * initialized, this method does nothing. This method is threadsafe; if
+     * multiple threads concurrently attempt to invoke this method, one of the
+     * threads will actually perform the initialization and the other threads
+     * will do nothing.
+     * </p>
+     * <p>
+     * Note that Persistit starts non-daemon threads that will keep a JVM from
+     * exiting until {@link #close} is invoked. This is to ensure that all
+     * pending updates are written before the JVM exit.
+     * </p>
+     * 
+     * @param properties
+     *            The Properties object from which to initilialize Persistit
+     * @return <tt>true</tt> if Persistit was actually initialized during this
+     *         invocation of this method, or <tt>false</tt> if Persisit was
+     *         already initialized.
+     * 
+     * @throws PersistitException
+     * @throws IOException
+     */
+    public boolean initialize(Properties properties) throws PersistitException {
+        boolean fullyInitialized = false;
+        try {
+            properties.putAll(_properties);
+            _properties = properties;
+            getPersistitLogger();
+
+            try {
+                _logBase.logstart();
+            } catch (Exception e) {
+                System.err.println("Persistit(tm) Logging is disabled due to "
+                        + e);
+                if (e.getMessage() != null && e.getMessage().length() > 0) {
+                    System.err.println(e.getMessage());
+                }
+                e.printStackTrace();
+            }
+
+            String logSpecification = getProperty(LOGGING_PROPERTIES);
+            if (logSpecification != null) {
+                try {
+                    _logBase.setLogEnabled(logSpecification,
+                            AbstractPersistitLogger.INFO);
+                } catch (Exception e) {
+                    throw new LogInitializationException(e);
+                }
+            }
+            StringBuffer sb = new StringBuffer();
+
+            int bufferSize = Buffer.MIN_BUFFER_SIZE;
+            while (bufferSize <= Buffer.MAX_BUFFER_SIZE) {
+                sb.setLength(0);
+                sb.append(BUFFERS_PROPERTY_NAME);
+                sb.append(bufferSize);
+                String propertyName = sb.toString();
+
+                int count = (int) getLongProperty(propertyName, -1,
+                        BufferPool.MINIMUM_POOL_COUNT,
+                        BufferPool.MAXIMUM_POOL_COUNT);
+
+                if (count != -1) {
+                    if (_logBase.isLoggable(LogBase.LOG_INIT_ALLOCATE_BUFFERS)) {
+                        _logBase.log(LogBase.LOG_INIT_ALLOCATE_BUFFERS, count,
+                                bufferSize);
+                    }
+                    BufferPool pool = new BufferPool(count, bufferSize, this);
+                    _bufferPoolTable.put(new Integer(bufferSize), pool);
+                }
+                bufferSize <<= 1;
+            }
+
+            String logPath = getProperty(LOG_PATH_PROPERTY_NAME,
+                    DEFAULT_LOG_PATH);
+
+            int logSize = (int) getLongProperty(LOG_SIZE_PROPERTY_NAME,
+                    LogManager.DEFAULT_LOG_SIZE, LogManager.MINIMUM_LOG_SIZE,
+                    LogManager.MAXIMUM_LOG_SIZE);
+
+            _logManager.init(logPath, logSize);
+
+            for (Enumeration enumeration = properties.propertyNames(); enumeration
+                    .hasMoreElements();) {
+                String key = (String) enumeration.nextElement();
+                if (key.startsWith(VOLUME_PROPERTY_PREFIX)) {
+                    boolean isOne = true;
+                    try {
+                        Integer.parseInt(key.substring(VOLUME_PROPERTY_PREFIX
+                                .length()));
+                    } catch (NumberFormatException nfe) {
+                        isOne = false;
+                    }
+                    if (isOne) {
+                        VolumeSpecification volumeSpecification = new VolumeSpecification(
+                                getProperty(key));
+
+                        if (_logBase.isLoggable(LogBase.LOG_INIT_OPEN_VOLUME)) {
+                            _logBase.log(LogBase.LOG_INIT_OPEN_VOLUME,
+                                    volumeSpecification.describe());
+                        }
+                        Volume.loadVolume(this, volumeSpecification);
+                    }
+                }
+            }
+
+            for (final BufferPool pool : _bufferPoolTable.values()) {
+                pool.start();
+            }
+
+            String rmiHost = getProperty(RMI_REGISTRY_HOST_PROPERTY);
+            String rmiPort = getProperty(RMI_REGISTRY_PORT);
+            boolean enableJmx = getBooleanProperty(JMX_PARAMS, true);
+
+            _readRetryEnabled = getBooleanProperty(READ_RETRY_PROPERTY, true);
+
+            _defaultTimeout = getLongProperty(TIMEOUT_PROPERTY,
+                    DEFAULT_TIMEOUT_VALUE, 0, MAXIMUM_TIMEOUT_VALUE);
+
+            if (rmiHost != null || rmiPort != null) {
+                ManagementImpl management = (ManagementImpl) getManagement();
+                management.register(rmiHost, rmiPort);
+            }
+            if (enableJmx) {
+                setupOpenMBean();
+            }
+
+            // Set up the parent CoderManager for this instance.
+            String serialOverridePatterns = getProperty(Persistit.SERIAL_OVERRIDE_PROPERTY);
+            DefaultCoderManager cm = new DefaultCoderManager(this,
+                    serialOverridePatterns);
+            _coderManager = cm;
+
+            if (getBooleanProperty(SHOW_GUI_PROPERTY, false)) {
+                try {
+                    setupGUI(true);
+                } catch (Exception e) {
+                    // If we can't open the utility gui, well, tough.
+                }
+            }
+
+            //
+            // Now that all volumes are loaded and we have the PrewriteJournal
+            // cooking, recover or roll back any transactions that were
+            // pending at shutdown.
+            //
+            Transaction.recover(this);
+
+            flush();
+
+            setupJournal();
+
+            _initialized.set(true);
+            _closed.set(false);
+
+            if (_shutdownHook == null) {
+                _shutdownHook = new Thread(new Runnable() {
+                    public void run() {
+                        try {
+                            close0(true, false);
+                            getLogBase().log(LogBase.LOG_SHUTDOWN_HOOK);
+                        } catch (PersistitException e) {
+
+                        }
+                    }
+                }, "ShutdownHook");
+
+                Runtime.getRuntime().addShutdownHook(_shutdownHook);
+            }
+            fullyInitialized = true;
+        } finally {
+            // clean up?? TODO
+        }
+        return fullyInitialized;
+    }
+
+    /**
+     * Perform any necessary recovery processing. This method is called each
+     * time Persistit starts up, but it only causes database modifications if
+     * there are uncommitted in the prewrite journal buffer.
+     * 
+     * @param pwjPath
+     * @throws IOException
+     * @throws PersistitException
+     */
+
+    void performRecoveryProcessing(String pwjPath) throws PersistitException {
+        // RecoveryPlan plan = new RecoveryPlan(this);
+        // try {
+        // plan.open(pwjPath);
+        // if (plan.isHealthy() && plan.hasUncommittedPages()) {
+        // if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_BEGIN)) {
+        // _logBase.log(_logBase.LOG_INIT_RECOVER_BEGIN);
+        // }
+        //
+        // if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_PLAN)) {
+        // _logBase.log(_logBase.LOG_INIT_RECOVER_PLAN, plan.dump());
+        // }
+        //
+        // plan.commit(false);
+        //
+        // if (_logBase.isLoggable(_logBase.LOG_INIT_RECOVER_END)) {
+        // _logBase.log(_logBase.LOG_INIT_RECOVER_END);
+        // }
+        // }
+        // } finally {
+        // plan.close();
+        // }
+    }
+
+    private void setupJournal() throws PersistitException {
+        String journalPath = getProperty(JOURNAL_PATH);
+        boolean journalFetches = getBooleanProperty(JOURNAL_FETCHES, false);
+        if (journalPath != null) {
+            _journal.setup(journalPath, journalFetches);
+        }
+    }
+
+    /**
+     * Reflectively attempts to load and execute the PersistitOpenMBean setup
+     * method. This will work only if the persistit_jsaXXX_jmx.jar is on the
+     * classpath. By default, PersistitOpenMBean uses the platform JMX server,
+     * so this also required Java 5.0+.
+     * 
+     * @param params
+     *            "true" to enable the PersistitOpenMBean, else "false".
+     */
+    private void setupOpenMBean() {
+        try {
+            Class clazz = Class.forName(PERSISTIT_JMX_CLASS_NAME);
+            Method setupMethod = clazz.getMethod("setup",
+                    new Class[] { Persistit.class });
+            setupMethod.invoke(null, new Object[] { this });
+        } catch (Exception e) {
+            if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
+                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, e);
+            }
+        }
+    }
+
+    synchronized void addVolume(Volume volume)
+            throws VolumeAlreadyExistsException {
+        Long idKey = new Long(volume.getId());
+        Volume otherVolume = _volumesById.get(idKey);
+        if (otherVolume != null) {
+            throw new VolumeAlreadyExistsException("Volume " + otherVolume
+                    + " has same ID");
+        }
+        otherVolume = getVolume(volume.getPath());
+        if (otherVolume != null
+                && volume.getPath().equals(otherVolume.getPath())) {
+            throw new VolumeAlreadyExistsException("Volume " + otherVolume
+                    + " has same path");
+        }
+        _volumes.add(volume);
+        _volumesById.put(idKey, volume);
+    }
+
+    synchronized void removeVolume(Volume volume, boolean delete) {
+        Long idKey = new Long(volume.getId());
+        _volumesById.remove(idKey);
+        _volumes.remove(volume);
+        // volume.getPool().invalidate(volume);
+        if (delete) {
+            volume.getPool().delete(volume);
+        }
     }
 
     /**

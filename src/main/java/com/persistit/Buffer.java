@@ -21,7 +21,6 @@ import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
 
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.InvalidPageTypeException;
@@ -511,28 +510,26 @@ public final class Buffer extends SharedResource implements BuildConstants {
 
     static int _previousType = 0;
 
-    boolean claim(final boolean writer, final long timeout) throws PersistitException {
-        final boolean result = super.claim(writer, timeout);
-        if (result && writer && isDirty()) {
-            final Checkpoint checkpoint = _persistit.getTimestampAllocator()
-                    .getCurrentCheckpoint();
-            if (getTimestamp() < checkpoint.getTimestamp()) {
-                writePage();
-            }
+    boolean claim(boolean writer) {
+        return claim(writer, DEFAULT_MAX_WAIT_TIME);
+    }
+
+    boolean claim(boolean writer, long timeout) {
+        if (!super.claim(writer, timeout)) {
+            return false;
         }
-        return result;
+        // TODO: Flush page if necessary
+        return true;
     }
 
     void setDirty() {
         synchronized (_lock) {
             bumpGeneration();
             super.setDirty();
-            final long timestamp = _persistit.getTransaction().getTimestamp();
-            _timestamp = Math.max(_timestamp, timestamp);
+            _timestamp = _persistit.getTransaction().getTimestamp();
         }
-        if (Debug.HISTORY_ENABLED) {
+        if (Debug.HISTORY_ENABLED)
             Debug.stateChanged(this, "dirty", -1);
-        }
     }
 
     /**
@@ -621,11 +618,10 @@ public final class Buffer extends SharedResource implements BuildConstants {
 
     /**
      * Synchronized because background threads read the state.
-     * 
      * @return
      */
     public long getTimestamp() {
-        synchronized (_lock) {
+        synchronized(_lock) {
             return _timestamp;
         }
     }
@@ -718,19 +714,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
 
     int getKeyBlockEnd() {
         return _keyBlockEnd;
-    }
-
-    void writePage() throws PersistitIOException, InvalidPageStructureException {
-        final Volume volume = getVolume();
-        if (volume != null) {
-            clearSlack();
-            save();
-            _persistit.getLogManager().writePageToLog(this);
-            if (!volume.isClosed()) {
-                volume.bumpWriteCounter();
-            }
-        }
-        setClean();
     }
 
     /**
@@ -4325,5 +4308,24 @@ public final class Buffer extends SharedResource implements BuildConstants {
 
     Buffer getNextDirty() {
         return _nextDirty;
+    }
+
+    // TODO - debug only
+    boolean checkDirtySelfRef(final Buffer buffer) {
+        if (buffer._nextDirty == buffer) {
+            if (buffer._prevDirty == buffer) {
+                return true;
+            } else {
+                Debug.debug1(true);
+            }
+        }
+        if (buffer._prevDirty == buffer) {
+            if (buffer._nextDirty == buffer) {
+                return true;
+            } else {
+                Debug.debug1(true);
+            }
+        }
+        return false;
     }
 }
