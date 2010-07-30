@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.BufferUnavailableException;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
@@ -416,6 +417,7 @@ public class Volume extends SharedResource {
             }
 
             _directoryTree = new Tree(_persistit, this);
+            _persistit.getTransaction().assignTimestamp();
             createTree(DIRECTORY_TREE_NAME, _directoryTree);
             checkpointMetaData();
 
@@ -636,7 +638,7 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Updates head page information. The head buffer must be reserved on entry.
+     * Updates head page information.
      * 
      * @throws PMapException
      */
@@ -644,7 +646,25 @@ public class Volume extends SharedResource {
         if (_readOnly) {
             throw new ReadOnlyVolumeException(toString());
         }
+        if (_headBuffer.isDirty()
+                && _headBuffer.getTimestamp() < _persistit
+                        .getTimestampAllocator().getCurrentCheckpoint()
+                        .getTimestamp()) {
+            try {
+                writePage(_headBuffer);
+            } catch (InvalidPageAddressException e) {
+                // ignore - can't happen on head page
+            } catch (VolumeClosedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+
         if (updateHeaderInfo(_headBuffer.getBytes())) {
+            _persistit.getTransaction().assignTimestamp();
             _headBuffer.setDirty();
         }
     }
@@ -726,9 +746,8 @@ public class Volume extends SharedResource {
      * @throws RetryException
      * @throws InUseException
      */
-    void setDirectoryTree(Tree tree) throws InUseException,
-            ReadOnlyVolumeException {
-        claimHeadBuffer(true);
+    void setDirectoryTree(Tree tree) throws PersistitException {
+        claimHeadBuffer();
         try {
             _directoryTree = tree;
             _directoryRootPage = tree.getRootPageAddr();
@@ -959,7 +978,7 @@ public class Volume extends SharedResource {
         if (Debug.ENABLED)
             Debug.$assert(left > 0);
 
-        claimHeadBuffer(true);
+        claimHeadBuffer();
 
         Buffer garbageBuffer = null;
 
@@ -1263,7 +1282,7 @@ public class Volume extends SharedResource {
 
     void updateTree(Tree tree) throws PersistitException {
         if (tree == _directoryTree) {
-            claimHeadBuffer(true);
+            claimHeadBuffer();
             try {
                 _directoryRootPage = tree.getRootPageAddr();
                 checkpointMetaData();
@@ -1499,6 +1518,8 @@ public class Volume extends SharedResource {
     private Tree createTree(String treeName, Tree tree)
             throws PersistitException {
         _persistit.suspend();
+        _persistit.getTransaction().assignTimestamp();
+
         Buffer rootPageBuffer = null;
 
         int treeIndex = 0;
@@ -1548,7 +1569,7 @@ public class Volume extends SharedResource {
         return _pool;
     }
 
-    private void claimHeadBuffer(boolean writer) throws InUseException {
+    private void claimHeadBuffer() throws PersistitException {
         if (!_headBuffer.claim(true)) {
             throw new InUseException(this + " head buffer " + _headBuffer
                     + " is unavailable");
@@ -1565,7 +1586,7 @@ public class Volume extends SharedResource {
             throw new InvalidPageAddressException("Page " + page
                     + " out of bounds [0-" + _pageCount + ")");
         }
-        
+
         try {
             final ByteBuffer bb = buffer.getByteBuffer();
             bb.position(0).limit(buffer.getBufferSize());
@@ -1700,7 +1721,7 @@ public class Volume extends SharedResource {
         }
 
         // Okay, next we look at the stored garbage chain for this Volume.
-        claimHeadBuffer(true);
+        claimHeadBuffer();
         try {
             long garbageRoot = getGarbageRoot();
             if (garbageRoot != 0) {
@@ -1823,8 +1844,10 @@ public class Volume extends SharedResource {
                 buffer.init(Buffer.PAGE_TYPE_UNALLOCATED, "initFromExtension"); // DEBUG
                 // -
                 // debug
-                if (page > _highestPageUsed)
+                if (page > _highestPageUsed) {
                     _highestPageUsed = page;
+                }
+
                 checkpointMetaData();
 
                 if (Debug.ENABLED)
@@ -1844,24 +1867,25 @@ public class Volume extends SharedResource {
     }
 
     void extend(long pageCount) throws PersistitException {
-        // No extension required.
-        if (pageCount <= _pageCount)
-            return;
+        // Do no extend past maximum pages
+        if (pageCount > _maximumPages) {
+            pageCount = _maximumPages;
+        }
 
         // Check for maximum size
         if (_maximumPages <= _pageCount) {
             throw new VolumeFullException(this.getPath());
         }
 
-        // Do no extend past maximum pages
-        if (pageCount > _maximumPages) {
-            pageCount = _maximumPages;
+        // No extension required.
+        if (pageCount <= _pageCount) {
+            return;
         }
 
         long newSize = pageCount * _bufferSize;
         long currentSize = -1;
 
-        claimHeadBuffer(true);
+        claimHeadBuffer();
         try {
             currentSize = _channel.size();
             if (currentSize > newSize) {
@@ -1891,6 +1915,9 @@ public class Volume extends SharedResource {
                 _lastExtensionTime = System.currentTimeMillis();
             }
             checkpointMetaData();
+            System.out.println(this + " extended to " + _pageCount
+                    + " pages at ts=" + _headBuffer.getTimestamp());
+
         } catch (IOException ioe) {
             _lastIOException = ioe;
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_EXTEND_IOE)) {
@@ -1916,7 +1943,7 @@ public class Volume extends SharedResource {
     }
 
     void flush() throws PersistitException {
-        claimHeadBuffer(true);
+        claimHeadBuffer();
         commitAllTreeUpdates();
         commitAllDeferredDeallocations();
         setClean();

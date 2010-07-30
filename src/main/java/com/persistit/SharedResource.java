@@ -18,6 +18,7 @@
 package com.persistit;
 
 import com.persistit.exception.InUseException;
+import com.persistit.exception.PersistitException;
 
 /**
  * @author pbeaman
@@ -207,11 +208,11 @@ class SharedResource extends WaitingThreadManager {
         }
     }
 
-    boolean claim(boolean writer) {
+    boolean claim(boolean writer) throws PersistitException {
         return claim(writer, DEFAULT_MAX_WAIT_TIME);
     }
 
-    boolean claim(boolean writer, long timeout) {
+    boolean claim(boolean writer, long timeout) throws PersistitException {
         WaitingThread wt = null;
         synchronized (_lock) {
             if (isAvailableSync(writer, 0)) {

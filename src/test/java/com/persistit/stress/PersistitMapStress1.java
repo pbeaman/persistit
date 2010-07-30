@@ -69,7 +69,7 @@ public class PersistitMapStress1 extends StressBase {
 
     @Override
     public void setUp() {
-        _ap = new ArgParser("com.persistit.stress.PersistitMapStress2", _args,
+        _ap = new ArgParser("com.persistit.stress.PersistitMapStress1", _args,
                 ARGS_TEMPLATE);
         _splay = _ap.getIntValue("splay");
         _opflags = _ap.getStringValue("op");

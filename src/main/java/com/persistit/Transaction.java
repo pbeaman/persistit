@@ -30,7 +30,8 @@ import com.persistit.exception.VolumeNotFoundException;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit}, 
+ * {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <tt>commit</tt> is performed. At that point,
  * all the updates are written atomically - that is, completely or not at all.
@@ -652,9 +653,14 @@ public class Transaction {
                     }
                 }
             }
+            try {
             _persistit.getTransactionResourceA().claim(
                     _rollbacksSinceLastCommit >= _pessimisticRetryThreshold,
                     COMMIT_CLAIM_TIMEOUT);
+            } catch (PersistitException pe) {
+                // "Can't happen"
+                Debug.$assert(false);
+            }
             assignTimestamp();
         }
         _nestedDepth++;
@@ -1894,7 +1900,7 @@ public class Transaction {
      * marked with this (or possibly a larger) timestamp.
      */
     void assignTimestamp() {
-        if (this != NEVER_ACTIVE_TRANSACTION) {
+        if (this != NEVER_ACTIVE_TRANSACTION && _nestedDepth == 0) {
             _timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         }
     }
@@ -1907,5 +1913,4 @@ public class Transaction {
     long getTimestamp() {
         return _timestamp;
     }
-
 }

@@ -85,10 +85,14 @@ public class LogBase {
             "INIT_RECOVER_END");
     final static int LOG_INIT_RECOVER_TERMINATE = addLogTemplate(WARNING,
             LIFECYCLE, "INIT_RECOVER_TERMINATE");
-    final static int LOG_RECOVERY_FAILURE1 = addLogTemplate(SEVERE, LIFECYCLE,
-            "RECOVERY_FAILURE1");
-    final static int LOG_RECOVERY_FAILURE2 = addLogTemplate(WARNING, LIFECYCLE,
-            "RECOVERY_FAILURE2");
+    final static int LOG_RECOVERY_FAILURE = addLogTemplate(SEVERE, LIFECYCLE,
+            "RECOVERY_FAILURE");
+    final static int LOG_RECOVERY_RECORD = addLogTemplate(FINER, LIFECYCLE,
+            "RECOVERY_RECORD");
+    final static int LOG_CHECKPOINT_WRITTEN = addLogTemplate(INFO, LIFECYCLE,
+            "CHECKPOINT_WRITTEN");
+    final static int LOG_CHECKPOINT_RECOVERED = addLogTemplate(INFO, LIFECYCLE,
+            "CHECKPOINT_RECOVERED");
     final static int LOG_TXN_EXCEPTION = addLogTemplate(SEVERE, PERSISTIT,
             "TXN_EXCEPTION");
     final static int LOG_TXN_NOT_COMMITTED = addLogTemplate(FINE, PERSISTIT,
@@ -142,8 +146,10 @@ public class LogBase {
             "RMI_SERVER");
     final static int LOG_SHUTDOWN_HOOK = addLogTemplate(INFO, LIFECYCLE,
             "SHUTDOWN_HOOK");
-    final static int LOG_WAIT_FOR_CLOSE = addLogTemplate(INFO, LIFECYCLE, "WAIT_FOR_CLOSE");
-    final static int LOG_STRANDED = addLogTemplate(SEVERE, LIFECYCLE, "STRANDED");
+    final static int LOG_WAIT_FOR_CLOSE = addLogTemplate(INFO, LIFECYCLE,
+            "WAIT_FOR_CLOSE");
+    final static int LOG_STRANDED = addLogTemplate(SEVERE, LIFECYCLE,
+            "STRANDED");
 
     private static ResourceBundle _logBundle;
     private static boolean _logBundleLoadFailed = false;

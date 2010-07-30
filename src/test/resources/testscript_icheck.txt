@@ -1,27 +1,17 @@
 logpath $logpath$/result_$timestamp$.log
 
 clearprops
-prop buffer.count.8192=100
+prop buffer.count.8192=10000
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop logpath=$datapath$/persistit_log
-prop log=PWJ:FINER,GAR:FINE
+prop logging=PWJ:FINER,GAR:FINE,LIFECYCLE:FINER
 
 init
 
 icheck persistit
-waitIfFailed Please examine the failure!
-test com.persistit.unit.UnitTestRunner com.persistit.unit.TreeTest1
 
-icheck persistit
 waitIfFailed Please examine the failure!
-test com.persistit.unit.UnitTestRunner com.persistit.unit.TreeTest1
 
-icheck persistit
-waitIfFailed Please examine the failure!
-test com.persistit.unit.UnitTestRunner com.persistit.unit.TreeTest1
-
-icheck persistit
-waitIfFailed Please examine the failure!
-test com.persistit.unit.UnitTestRunner com.persistit.unit.TreeTest1
+wait Press Enter to close
 
 close

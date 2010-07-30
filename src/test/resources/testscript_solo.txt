@@ -9,17 +9,17 @@ prop rmiport=1099
 
 #1 PersistitMapStress
 init
-test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000
-test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000 -t
+test com.persistit.stress.PersistitMapStress1 repeat=100 count=1000000 op=wd
+test com.persistit.stress.PersistitMapStress1 repeat=100 count=1000000 op=wd -t
 
-test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000
-test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000 -t
+test com.persistit.stress.PersistitMapStress1 repeat=100 count=1000000
+test com.persistit.stress.PersistitMapStress1 repeat=100 count=1000000 -t
 
-test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000 splay=17
-test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000 -t splay=17
+test com.persistit.stress.PersistitMapStress1 repeat=100 count=1000000 splay=17
+test com.persistit.stress.PersistitMapStress1 repeat=100 count=1000000 -t splay=17
 
-test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000 splay=179
-test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000 -t splay=179
+test com.persistit.stress.PersistitMapStress1 repeat=100 count=1000000 splay=179
+test com.persistit.stress.PersistitMapStress1 repeat=100 count=1000000 -t splay=179
 
 wait
 close
