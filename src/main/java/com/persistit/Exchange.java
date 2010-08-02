@@ -1132,7 +1132,6 @@ public final class Exchange implements BuildConstants {
         }
         _key.testValidForStore(_volume.getBufferSize());
         checkOwnerThread();
-        throttleUpdate();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         storeInternal(key, value, 0, false, false);
@@ -1158,9 +1157,7 @@ public final class Exchange implements BuildConstants {
 
         long journalId = -1;
         final boolean inTxn = _transaction.isActive();
-        if (!inTxn) {
-            _transaction.assignTimestamp();
-        }
+        _transaction.assignTimestamp();
 
         if (!inTxn && level == 0) {
             journalId = journal().beginStore(_tree, key, value, fetchFirst);
@@ -1642,7 +1639,7 @@ public final class Exchange implements BuildConstants {
         }
     }
 
-    private Buffer reclaimQuickBuffer(LevelCache lc) {
+    private Buffer reclaimQuickBuffer(LevelCache lc) throws PersistitException {
         Buffer buffer = lc._buffer;
         if (buffer == null)
             return null;
@@ -1758,7 +1755,6 @@ public final class Exchange implements BuildConstants {
     public boolean traverse(Key.Direction direction, boolean deep, int minBytes)
             throws PersistitException {
         checkOwnerThread();
-        throttle();
 
         boolean doFetch = minBytes > 0;
         boolean doModify = minBytes >= 0;
@@ -1769,9 +1765,7 @@ public final class Exchange implements BuildConstants {
         _persistit.getLockManager().verifyNoStrayResourceClaims(
                 lockedResourceCount);
         boolean inTxn = _transaction.isActive();
-        if (!inTxn) {
-            _transaction.assignTimestamp();
-        }
+        _transaction.assignTimestamp();
         Buffer buffer = null;
         if (doFetch) {
             _value.clear();
@@ -2353,7 +2347,6 @@ public final class Exchange implements BuildConstants {
         }
         _key.testValidForStore(_volume.getBufferSize());
         checkOwnerThread();
-        throttleUpdate();
         int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         storeInternal(_key, _value, 0, true, false);
@@ -2443,7 +2436,6 @@ public final class Exchange implements BuildConstants {
     public Exchange fetch(Value value, int minimumBytes)
             throws PersistitException {
         checkOwnerThread();
-        throttle();
         _key.testValidForStore(_volume.getBufferSize());
         if (minimumBytes < 0)
             minimumBytes = 0;
@@ -2453,9 +2445,7 @@ public final class Exchange implements BuildConstants {
         _persistit.getLockManager().verifyNoStrayResourceClaims(
                 lockedResourceCount);
         boolean inTxn = _transaction.isActive();
-        if (!inTxn) {
-            _transaction.assignTimestamp();
-        }
+        _transaction.assignTimestamp();
         if (Debug.ENABLED)
             Debug.suspend();
         if (inTxn && _transaction.fetch(this, value, minimumBytes) != null) {
@@ -2616,9 +2606,7 @@ public final class Exchange implements BuildConstants {
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         boolean inTxn = _transaction.isActive();
-        if (!inTxn) {
-            _transaction.assignTimestamp();
-        }
+        _transaction.assignTimestamp();
         clear();
         _value.clear();
         if (inTxn) {
@@ -2779,15 +2767,12 @@ public final class Exchange implements BuildConstants {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
         checkOwnerThread();
-        throttleUpdate();
 
         if (Debug.ENABLED)
             Debug.suspend();
 
         boolean inTxn = _transaction.isActive();
-        if (!inTxn) {
-            _transaction.assignTimestamp();
-        }
+        _transaction.assignTimestamp();
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
         boolean result = false;
@@ -3342,9 +3327,7 @@ public final class Exchange implements BuildConstants {
             Debug.suspend();
         Buffer buffer = null;
         boolean inTxn = _transaction.isActive();
-        if (!inTxn) {
-            _transaction.assignTimestamp();
-        }
+        _transaction.assignTimestamp();
 
         try {
             byte[] rawBytes = value.getEncodedBytes();
@@ -3861,37 +3844,20 @@ public final class Exchange implements BuildConstants {
         }
     }
 
-    private void throttleUpdate() {
-        //
-        // Don't update on a pessimistic transaction
-        //
-        // boolean ok = _transaction.testExclusiveResource();
-        // if (Debug.ENABLED) Debug.$assert(ok);
-        // throttle();
-    }
-
-    private void throttle() {
-        // if (!_isDirectoryExchange &&
-        // !_transaction.isExclusive())
-        // {
-        // _persistit.throttle();
-        // }
-    }
-
     /**
-     * Called after RetryException due to an operation discovering too
-     * late it needs exclusive access to a tree
+     * Called after RetryException due to an operation discovering too late it
+     * needs exclusive access to a tree
      */
-    private void waitForTreeExclusive() {
+    private void waitForTreeExclusive() throws PersistitException {
         _tree.claim(true);
         _tree.release();
     }
 
     public KeyHistogram computeHistogram(final Key start, final Key end,
-            final int sampleSize, final int keyDepth, final KeyFilter keyFilter,
-            final int requestedTreeDepth) throws PersistitException {
+            final int sampleSize, final int keyDepth,
+            final KeyFilter keyFilter, final int requestedTreeDepth)
+            throws PersistitException {
         checkOwnerThread();
-        throttle();
 
         final int treeDepth = requestedTreeDepth > _treeDepth ? _treeDepth
                 : requestedTreeDepth;
@@ -3904,9 +3870,7 @@ public final class Exchange implements BuildConstants {
         final KeyHistogram histogram = new KeyHistogram(getTree(), start, end,
                 sampleSize, keyDepth, treeDepth);
 
-        if (!_transaction.isActive()) {
-            _transaction.assignTimestamp();
-        }
+        _transaction.assignTimestamp();
 
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();

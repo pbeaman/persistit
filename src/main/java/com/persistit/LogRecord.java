@@ -100,8 +100,8 @@ import java.nio.charset.Charset;
  * </tr>
  * <tr valign="top">
  * <td>CP</td>
- * <td>Checkpoint.  Specifies a timestamp and a system time in millis at which all
- * pages modified prior to that timestamp are present in the log.
+ * <td>Checkpoint. Specifies a timestamp and a system time in millis at which
+ * all pages modified prior to that timestamp are present in the log.
  * <table>
  * <tr valign="top">
  * <td>+16</td>
@@ -217,29 +217,25 @@ import java.nio.charset.Charset;
  */
 public class LogRecord {
 
-    private static char typeAsChar(final String type) {
-        return (char) (type.charAt(0) & 0xFF + (type.charAt(1) & 0xFF) << 8);
-    }
-
     private final static Charset UTF8 = Charset.forName("UTF-8");
 
-    public final static char TYPE_IV = (char) ('I' | ('V' << 8));
+    public final static int TYPE_IV = ('I' << 8) | 'V';
 
-    public final static char TYPE_IT = (char) ('I' | ('T' << 8));
+    public final static int TYPE_IT = ('I' << 8) | 'T';
 
-    public final static char TYPE_PA = (char) ('P' | ('A' << 8));
+    public final static int TYPE_PA = ('P' << 8) | 'A';
 
-    public final static char TYPE_WR = (char) ('W' | ('R' << 8));
+    public final static int TYPE_WR = ('W' << 8) | 'R';
 
-    public final static char TYPE_RR = (char) ('R' | ('R' << 8));
+    public final static int TYPE_RR = ('R' << 8) | 'R';
 
-    public final static char TYPE_TS = (char) ('T' | ('S' << 8));
+    public final static int TYPE_TS = ('T' << 8) | 'S';
 
-    public final static char TYPE_TC = (char) ('T' | ('C' << 8));
+    public final static int TYPE_TC = ('T' << 8) | 'C';
 
-    public final static char TYPE_TJ = (char) ('T' | ('J' << 8));
-    
-    public final static char TYPE_CP = (char) ('C' | ('P' << 8));
+    public final static int TYPE_TJ = ('T' << 8) | 'J';
+
+    public final static int TYPE_CP = ('C' << 8) | 'P';
 
     public final static int OVERHEAD = 16;
 
@@ -251,11 +247,11 @@ public class LogRecord {
         Util.putInt(bytes, 0, length);
     }
 
-    public static char getType(final byte[] bytes) {
-        return (char) Util.getChar(bytes, 4);
+    public static int getType(final byte[] bytes) {
+        return Util.getChar(bytes, 4);
     }
 
-    public static void putType(final byte[] bytes, char type) {
+    public static void putType(final byte[] bytes, int type) {
         Util.putChar(bytes, 4, type);
     }
 
@@ -345,7 +341,7 @@ public class LogRecord {
 
         public final static int OVERHEAD = 36;
 
-        public final static char TYPE = TYPE_PA;
+        public final static int TYPE = TYPE_PA;
 
         public static void putType(final byte[] bytes) {
             putType(bytes, TYPE_PA);
@@ -376,22 +372,23 @@ public class LogRecord {
         public static void putLeftSize(final byte[] bytes, final int leftSize) {
             Util.putInt(bytes, 28, leftSize);
         }
-        
+
         public static int getBufferSize(final byte[] bytes) {
             return Util.getInt(bytes, 32);
         }
-        
-        public static void putBufferSize(final byte[] bytes, final int bufferSize) {
-            Util.putInt(bytes, 32, (char)bufferSize);
+
+        public static void putBufferSize(final byte[] bytes,
+                final int bufferSize) {
+            Util.putInt(bytes, 32, (char) bufferSize);
         }
 
     }
-    
+
     public static class CP extends LogRecord {
-        
+
         public final static int OVERHEAD = 24;
 
-        public final static char TYPE = TYPE_CP;
+        public final static int TYPE = TYPE_CP;
 
         public static void putType(final byte[] bytes) {
             putType(bytes, TYPE_PA);
@@ -405,7 +402,6 @@ public class LogRecord {
                 final long systemTimeMillis) {
             Util.putLong(bytes, 16, systemTimeMillis);
         }
-
 
     }
 }

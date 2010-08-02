@@ -435,6 +435,7 @@ public class ScriptedTestRunner {
                 case CODE_TEST: {
                     final PersistitScriptedTestCase test = _test;
                     test.initialize(0);
+                    test._args = args;
                     test.setUp();
                     if (_gui != null) {
                         _gui.addTest(test);

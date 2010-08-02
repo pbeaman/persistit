@@ -85,8 +85,8 @@ public class Stress1txn extends StressBase {
         final Transaction txn = getPersistit().getTransaction();
 
         setPhase("@");
-        txn.begin();
         try {
+            txn.begin();
             _ex.clear().remove(Key.GTEQ);
             txn.commit();
         } catch (final Exception e) {
@@ -101,8 +101,8 @@ public class Stress1txn extends StressBase {
 
             if (_opflags.indexOf('w') >= 0) {
                 setPhase("w");
-                txn.begin();
                 try {
+                    txn.begin();
                     for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                         dot();
                         final int keyInteger = keyInteger(_count);
@@ -146,8 +146,8 @@ public class Stress1txn extends StressBase {
 
             if (_opflags.indexOf('t') >= 0) {
                 setPhase("t");
-                txn.begin();
                 try {
+                    txn.begin();
                     _ex.clear().append(Integer.MIN_VALUE);
                     for (_count = 0; (_count < (_total * 10)) && !isStopped(); _count++) {
                         dot();
@@ -174,8 +174,8 @@ public class Stress1txn extends StressBase {
 
             if (_opflags.indexOf('d') >= 0) {
                 setPhase("d");
-                txn.begin();
                 try {
+                    txn.begin();
                     for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                         dot();
                         final int keyInteger = keyInteger(_count);

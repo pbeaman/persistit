@@ -90,8 +90,8 @@ public class Stress2txn extends StressBase {
         setPhase("@");
 
         for (int remainingAttempts = 20; --remainingAttempts >= 0;) {
-            txn.begin();
             try {
+                txn.begin();
                 _ex.clear().remove(Key.GTEQ);
                 _exs.clear().append("stress2").append(Key.BEFORE);
 
