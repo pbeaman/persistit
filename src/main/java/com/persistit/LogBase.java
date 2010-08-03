@@ -89,6 +89,8 @@ public class LogBase {
             "RECOVERY_FAILURE");
     final static int LOG_RECOVERY_RECORD = addLogTemplate(DEBUG, LIFECYCLE,
             "RECOVERY_RECORD");
+    final static int LOG_CHECKPOINT_PROPOSED = addLogTemplate(INFO, LIFECYCLE,
+            "CHECKPOINT_PROPOSED");
     final static int LOG_CHECKPOINT_WRITTEN = addLogTemplate(INFO, LIFECYCLE,
             "CHECKPOINT_WRITTEN");
     final static int LOG_CHECKPOINT_RECOVERED = addLogTemplate(INFO, LIFECYCLE,

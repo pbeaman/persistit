@@ -587,6 +587,11 @@ public class BufferPool {
                     .getTimestamp()) {
                 _outstandingCheckpoints.add(newCheckpoint);
                 _currentCheckpoint = newCheckpoint;
+                if (_persistit.getLogBase().isLoggable(
+                        LogBase.LOG_CHECKPOINT_PROPOSED)) {
+                    _persistit.getLogBase().log(
+                            LogBase.LOG_CHECKPOINT_PROPOSED, newCheckpoint);
+                }
             }
         }
         validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
@@ -1059,7 +1064,7 @@ public class BufferPool {
      */
     private boolean enqueueDirtyPage(final Buffer buffer, final int bucket) {
         final boolean dirty;
-//        checkEnqueued();
+        // checkEnqueued();
         if (buffer.isDirty() && !buffer.isEnqueued()) {
             dirty = true;
             if (_dirty[bucket] == null) {
@@ -1075,7 +1080,7 @@ public class BufferPool {
         if (dirty) {
             _writer.kick();
         }
-//        checkEnqueued();
+        // checkEnqueued();
         return dirty;
     }
 
@@ -1089,7 +1094,7 @@ public class BufferPool {
      */
     private boolean enqueueUrgentPage(final Buffer buffer, final int bucket) {
         final boolean dirty;
-//        checkEnqueued();
+        // checkEnqueued();
         if (buffer.isDirty() && !buffer.isUrgent()) {
             dirty = true;
             buffer.setUrgent();
@@ -1100,7 +1105,7 @@ public class BufferPool {
             if (_dirty[bucket] == buffer) {
                 _dirty[bucket] = null;
             }
-            
+
             if (_urgent[bucket] == null) {
                 _urgent[bucket] = buffer;
             } else {
@@ -1112,14 +1117,14 @@ public class BufferPool {
         if (dirty) {
             _writer.kick();
         }
-//        checkEnqueued();
+        // checkEnqueued();
         return dirty;
     }
 
     private boolean unenqueuePage(final Buffer buffer, final int bucket) {
         final boolean result;
         synchronized (_lock[bucket]) {
-//            checkEnqueued(bucket);
+            // checkEnqueued(bucket);
             if (buffer.isUrgent()) {
                 if (_urgent[bucket] == buffer) {
                     _urgent[bucket] = buffer.getNextDirty();
@@ -1146,7 +1151,7 @@ public class BufferPool {
                 result = false;
             }
             buffer.setUnenqueued();
-//            checkEnqueued(bucket);
+            // checkEnqueued(bucket);
         }
         return result;
     }
@@ -1212,20 +1217,23 @@ public class BufferPool {
         }
 
         private int enqueueDirtyBuffers(int bucket) {
-            int count = 0;
-            int maxCount = 64;
-            int invalidDepth = 64;
+            int countPerm = 0;
+            int countInvalid = 0;
+            int countLru = 0;
+            int maxCount = _closed.get() ? Integer.MAX_VALUE : Math.min(_bufferCount
+                    / _bucketCount / 8, 32);
+
             int unavailable = 0;
-//            checkEnqueued();
+            // checkEnqueued();
 
             synchronized (_lock[bucket]) {
                 Buffer buffer;
 
                 buffer = _perm[bucket];
-                while (buffer != null && count < maxCount) {
+                while (buffer != null && countPerm < maxCount) {
                     if (buffer.isDirty() && !buffer.isEnqueued()) {
                         if (enqueueDirtyPage(buffer, bucket)) {
-                            count++;
+                            countPerm++;
                         }
                     }
                     buffer = buffer.getNextLru();
@@ -1235,17 +1243,15 @@ public class BufferPool {
                 }
 
                 buffer = _invalidBufferQueue[bucket];
-                int lruCount = _closed.get() ? maxCount : _bufferCount
-                        / _bucketCount / 2;
-                int lazyCount = _closed.get() ? maxCount : _bufferCount
-                        / _bucketCount / 8;
-                while (buffer != null && invalidDepth-- > 0 && count < maxCount) {
+                while (buffer != null && countInvalid < maxCount) {
                     if (Debug.ENABLED)
                         Debug.$assert(buffer.getNext() != buffer);
                     if (buffer.isDirty()) {
                         if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket)) {
-                                count++;
+                            if (enqueueDirtyPage(buffer, bucket)
+                                    && buffer.getTimestamp() > _currentCheckpoint
+                                            .getTimestamp()) {
+                                countInvalid++;
                             }
                         } else {
                             unavailable++;
@@ -1255,11 +1261,13 @@ public class BufferPool {
                 }
 
                 buffer = _lru[bucket];
-                while (buffer != null && count < maxCount) {
+                while (buffer != null && countLru < maxCount) {
                     if (buffer.isDirty()) {
                         if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket)) {
-                                count++;
+                            if (enqueueDirtyPage(buffer, bucket)
+                                    && buffer.getTimestamp() > _currentCheckpoint
+                                            .getTimestamp()) {
+                                countLru++;
                             }
                         } else {
                             unavailable++;
@@ -1269,12 +1277,11 @@ public class BufferPool {
                     if (buffer == _lru[bucket]) {
                         break;
                     }
-                    if (--lruCount < 0 && count > lazyCount) {
-                        break;
-                    }
+                    
                 }
             }
-//            checkEnqueued();
+            // checkEnqueued();
+            final int count = countPerm + countInvalid + countLru;
             if (count == 0) {
                 return -unavailable;
             } else {
@@ -1382,7 +1389,6 @@ public class BufferPool {
 
             if (newCheckpoint != _currentCheckpoint) {
                 checkpoint(newCheckpoint);
-                _currentCheckpoint = newCheckpoint;
             }
         }
 
@@ -1437,11 +1443,11 @@ public class BufferPool {
             checkEnqueued(bucket);
         }
     }
-    
+
     void checkEnqueued(final int bucket) {
         synchronized (_lock[bucket]) {
             Buffer buffer = _urgent[bucket];
-            
+
             while (buffer != null) {
                 Debug.debug1(!buffer.isUrgent());
                 buffer = buffer.getNextDirty();
@@ -1458,7 +1464,7 @@ public class BufferPool {
                     break;
                 }
             }
-            
+
         }
     }
 }

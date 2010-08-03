@@ -43,6 +43,8 @@ public class LogManager {
     public final static long MINIMUM_LOG_SIZE = GIG / 64;
 
     public final static long MAXIMUM_LOG_SIZE = GIG * 64;
+    
+    public final static long ROLLOVER_THRESHOLD = 1024 * 1024;
 
     public final static int DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024;
 
@@ -423,7 +425,6 @@ public class LogManager {
                     new FileAddress(_writeChannelFile, address, checkpoint
                             .getTimestamp()));
         }
-
     }
 
     public synchronized void writePageToLog(final Buffer buffer)
@@ -1383,7 +1384,7 @@ public class LogManager {
         synchronized (this) {
             if (firstMissed == null && _pageMap.size() == 0
                     && _writeBuffer != null
-                    && _writeBufferAddress + _writeBuffer.position() != 0) {
+                    && _writeBufferAddress + _writeBuffer.position() > rolloverThreshold()) {
                 currentFile = _writeChannelFile;
                 rollover();
             }
@@ -1399,6 +1400,10 @@ public class LogManager {
         if (wasUrgent) {
             _copyFast = false;
         }
+    }
+    
+    private long rolloverThreshold() {
+        return _closed.get() ? 0 : ROLLOVER_THRESHOLD;
     }
 
     /**

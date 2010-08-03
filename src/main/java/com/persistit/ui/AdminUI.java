@@ -163,18 +163,21 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             _refreshTimer = null;
         }
 
-        if (isAlive()) {
-            if (_javaHelpAdapter != null) {
-                _javaHelpAdapter.dispose();
-                _javaHelpAdapter = null;
-            }
-            SwingUtilities.invokeLater(new Runnable() {
-                public void run() {
-                    _frame.dispose();
-                }
-            });
-        }
+        final JFrame frame = _frame;
+        final JavaHelpAdapter adapter = _javaHelpAdapter;
         _frame = null;
+        _javaHelpAdapter = null;
+        
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                if (adapter != null) {
+                    adapter.dispose();
+                }
+                if (frame != null) {
+                    frame.dispose();
+                }
+            }
+        });
     }
 
     /**
