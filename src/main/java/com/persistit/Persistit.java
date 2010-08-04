@@ -155,20 +155,27 @@ public class Persistit implements BuildConstants {
      */
     public final static String VOLUME_PROPERTY_PREFIX = "volume.";
     /**
-     * Property name for specifying the file specification for the log.
+     * Property name for specifying the file specification for the journal.
      */
-    public final static String LOG_PATH_PROPERTY_NAME = "logpath";
+    public final static String JOURNAL_PATH_PROPERTY_NAME = "journalpath";
 
-    /**
-     * Default path name for the log. Note, sequence suffix in the form .nnnnnn
-     * will be appended.
-     */
-    public final static String DEFAULT_LOG_PATH = "persistit_log";
     /**
      * Property name for specifying the size of each prewrite journal, e.g.,
      * "pwjsize=512K".
      */
-    public final static String LOG_SIZE_PROPERTY_NAME = "logsize";
+    public final static String JOURNAL_SIZE_PROPERTY_NAME = "journalsize";
+
+    /**
+     * Property name for specifying whether Persistit should write fetch and
+     * traverse operations to the journal file.
+     */
+    public final static String JOURNAL_FETCHES = "journalfetches";
+
+    /**
+     * Default path name for the journal. Note, sequence suffix in the form
+     * .nnnnnnnnnnnnnnnn (16 digits, zero-filled) will be appended.
+     */
+    public final static String DEFAULT_JOURNAL_PATH = "persistit_journal";
 
     /**
      * Default System Volume Name
@@ -243,15 +250,6 @@ public class Persistit implements BuildConstants {
      * Property name for the optional RMI registry port
      */
     public final static String RMI_REGISTRY_PORT = "rmiport";
-    /**
-     * Property name for specifying the file specification for the journal file.
-     */
-    public final static String JOURNAL_PATH = "jnlpath";
-    /**
-     * Property name for specifying whether Persistit should write fetch and
-     * traverse operations to the journal file.
-     */
-    public final static String JOURNAL_FETCHES = "journalfetches";
     /**
      * Property name for enabling Persistit Open MBean for JMX
      */
@@ -330,9 +328,7 @@ public class Persistit implements BuildConstants {
 
     private ManagementImpl _management;
 
-    private final Journal _journal = new Journal(this);
-
-    private final LogManager _logManager = new LogManager(this);
+    private final JournalManager _journalManager = new JournalManager(this);
 
     private final TimestampAllocator _timestampAllocator = new TimestampAllocator();
 
@@ -430,21 +426,21 @@ public class Persistit implements BuildConstants {
         getTransaction().assignTimestamp();
         initializeProperties(properties);
         initializeLogging();
-        initializeRecovery();
+        initializeJournal();
 
-        _logManager.recover();
+        _journalManager.recover();
 
         initializeBufferPools();
         initializeVolumes();
         initializeManagement();
         initializeOther();
 
-        _logManager.startThreads();
+        _journalManager.startThreads();
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.startThreads();
         }
         //
-        // Now that all volumes are loaded and we have the LogManager
+        // Now that all volumes are loaded and we have the JournalManager
         // cooking, recover or roll back any transactions that were
         // pending at shutdown.
         //
@@ -452,7 +448,6 @@ public class Persistit implements BuildConstants {
 
         flush();
 
-        setupJournal();
         _initialized.set(true);
         _closed.set(false);
 
@@ -516,14 +511,15 @@ public class Persistit implements BuildConstants {
         }
     }
 
-    void initializeRecovery() throws PersistitException {
-        String logPath = getProperty(LOG_PATH_PROPERTY_NAME, DEFAULT_LOG_PATH);
+    void initializeJournal() throws PersistitException {
+        String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME,
+                DEFAULT_JOURNAL_PATH);
+        int journalSize = (int) getLongProperty(JOURNAL_SIZE_PROPERTY_NAME,
+                JournalManager.DEFAULT_JOURNAL_SIZE,
+                JournalManager.MINIMUM_JOURNAL_SIZE,
+                JournalManager.MAXIMUM_JOURNAL_SIZE);
 
-        int logSize = (int) getLongProperty(LOG_SIZE_PROPERTY_NAME,
-                LogManager.DEFAULT_LOG_SIZE, LogManager.MINIMUM_LOG_SIZE,
-                LogManager.MAXIMUM_LOG_SIZE);
-
-        _logManager.init(logPath, logSize);
+        _journalManager.init(journalPath, journalSize);
     }
 
     void initializeBufferPools() {
@@ -622,14 +618,6 @@ public class Persistit implements BuildConstants {
             }, "ShutdownHook");
 
             Runtime.getRuntime().addShutdownHook(_shutdownHook);
-        }
-    }
-
-    private void setupJournal() throws PersistitException {
-        String journalPath = getProperty(JOURNAL_PATH);
-        boolean journalFetches = getBooleanProperty(JOURNAL_FETCHES, false);
-        if (journalPath != null) {
-            _journal.setup(journalPath, journalFetches);
         }
     }
 
@@ -1396,7 +1384,7 @@ public class Persistit implements BuildConstants {
     }
 
     public void copyBackPages() throws Exception {
-        _logManager.copyBack(Long.MAX_VALUE);
+        _journalManager.copyBack(Long.MAX_VALUE);
     }
 
     /**
@@ -1544,7 +1532,6 @@ public class Persistit implements BuildConstants {
         flush();
 
         _closed.set(true);
-        _journal.close();
 
         final List<Volume> volumes = new ArrayList<Volume>(_volumes);
         for (final Volume volume : volumes) {
@@ -1557,7 +1544,7 @@ public class Persistit implements BuildConstants {
             pool.close(flush);
         }
 
-        _logManager.close();
+        _journalManager.close();
 
         while (!_volumes.isEmpty()) {
             removeVolume(_volumes.get(0), false);
@@ -1603,8 +1590,6 @@ public class Persistit implements BuildConstants {
             return false;
         }
 
-        _journal.flush();
-
         for (final Volume volume : _volumes) {
             volume.flush();
         }
@@ -1615,7 +1600,7 @@ public class Persistit implements BuildConstants {
             }
         }
 
-        _logManager.force();
+        _journalManager.force();
         return true;
     }
 
@@ -1666,7 +1651,7 @@ public class Persistit implements BuildConstants {
                 }
             }
         }
-        _logManager.force();
+        _journalManager.force();
     }
 
     /**
@@ -1763,12 +1748,8 @@ public class Persistit implements BuildConstants {
         return _coderManager.lookupValueCoder(cl);
     }
 
-    Journal getJournal() {
-        return _journal;
-    }
-
-    public LogManager getLogManager() {
-        return _logManager;
+    public JournalManager getJournalManager() {
+        return _journalManager;
     }
 
     TimestampAllocator getTimestampAllocator() {

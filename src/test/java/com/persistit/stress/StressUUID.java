@@ -106,13 +106,13 @@ public class StressUUID extends StressBase {
         println();
         print("done");
         println();
-        _persistit.getLogManager().setUrgentDemand(true);
+        _persistit.getJournalManager().setUrgentDemand(true);
         println("Allowing 30sec for copyBack");
         try {
             Thread.sleep(60000);
         } catch (InterruptedException e) {
         }
-        _persistit.getLogManager().setUrgentDemand(false);
+        _persistit.getJournalManager().setUrgentDemand(false);
     }
 
     public static void main(final String[] args) throws Exception {

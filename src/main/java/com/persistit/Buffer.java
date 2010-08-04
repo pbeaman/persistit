@@ -456,7 +456,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
             VolumeClosedException {
         _vol = vol;
         _page = page;
-        final boolean readFromLog = _persistit.getLogManager().readPageFromLog(
+        final boolean readFromLog = _persistit.getJournalManager().readPageFromJournal(
                 this);
         if (!readFromLog) {
             vol.readPage(this, page);
@@ -549,7 +549,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         if (volume != null) {
             clearSlack();
             save();
-            _persistit.getLogManager().writePageToLog(this);
+            _persistit.getJournalManager().writePageToJournal(this);
             if (!volume.isClosed()) {
                 volume.bumpWriteCounter();
             }

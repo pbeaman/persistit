@@ -44,7 +44,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     
     public void test2() throws Exception {
         store1();
-        LogManager logMan = _persistit.getLogManager();
+        JournalManager logMan = _persistit.getJournalManager();
         assertTrue(logMan.getPageMapSize() > 0);
         _persistit.checkpoint();
         logMan.copyBack(Long.MAX_VALUE);
@@ -53,7 +53,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         final Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
-        logMan = _persistit.getLogManager();
+        logMan = _persistit.getJournalManager();
         assertEquals(0, logMan.getPageMapSize());
         fetch1a();
         fetch1b();

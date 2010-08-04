@@ -597,8 +597,8 @@ public class BufferPool {
         validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
         if (validCheckpoint != null) {
             try {
-                _persistit.getLogManager()
-                        .writeCheckpointToLog(validCheckpoint);
+                _persistit.getJournalManager()
+                        .writeCheckpointToJournal(validCheckpoint);
             } catch (PersistitIOException e) {
                 _persistit.getLogBase().log(LogBase.LOG_EXCEPTION,
                         e + " while writing " + validCheckpoint + ":" + e);

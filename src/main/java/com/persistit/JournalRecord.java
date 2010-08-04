@@ -215,7 +215,7 @@ import java.nio.charset.Charset;
  * @author peter
  * 
  */
-public class LogRecord {
+public class JournalRecord {
 
     private final static Charset UTF8 = Charset.forName("UTF-8");
 
@@ -263,7 +263,7 @@ public class LogRecord {
         Util.putLong(bytes, 8, timestamp);
     }
 
-    public static class IV extends LogRecord {
+    public static class IV extends JournalRecord {
 
         public static int MAX_LENGTH = 24 + 1024;
 
@@ -300,7 +300,7 @@ public class LogRecord {
         }
     }
 
-    public static class IT extends LogRecord {
+    public static class IT extends JournalRecord {
 
         public static int MAX_LENGTH = 24 + 1024;
 
@@ -337,7 +337,7 @@ public class LogRecord {
         }
     }
 
-    public static class PA extends LogRecord {
+    public static class PA extends JournalRecord {
 
         public final static int OVERHEAD = 36;
 
@@ -384,7 +384,7 @@ public class LogRecord {
 
     }
 
-    public static class CP extends LogRecord {
+    public static class CP extends JournalRecord {
 
         public final static int OVERHEAD = 24;
 

@@ -24,10 +24,10 @@ package com.persistit.exception;
  * 
  * @version 1.0
  */
-public class CorruptLogException extends PersistitIOException {
+public class CorruptJournalException extends PersistitIOException {
     private static final long serialVersionUID = -5397911019132612370L;
 
-    public CorruptLogException(String msg) {
+    public CorruptJournalException(String msg) {
         super(msg);
     }
 }

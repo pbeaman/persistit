@@ -39,7 +39,8 @@ public class UnitTestProperties {
         p.setProperty("volume.1", "${datapath}/persistit.v01,create,"
                 + "pageSize:8192,initialPages:10,extensionPages:10,"
                 + "maximumPages:10000");
-        p.setProperty("logpath", "${datapath}/persistit_log");
+        p.setProperty("journalpath", "${datapath}/persistit_journal");
+        p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
         return p;
     }
 
@@ -57,7 +58,8 @@ public class UnitTestProperties {
         p.setProperty("volume.3", "${datapath}/persistit_txn.v01,create,"
                 + "pageSize:8192,initialPages:100,extensionPages:100,"
                 + "maximumPages:100000,alias:_txn");
-        p.setProperty("logpath", "${datapath}/persistit_log");
+        p.setProperty("journalpath", "${datapath}/persistit_journal");
+        p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
         return p;
     }
 
@@ -69,7 +71,8 @@ public class UnitTestProperties {
         p.setProperty("volume.1", "${datapath}/temp.v01,create,"
                 + "pageSize:8192,initialPages:4,extensionPages:1,"
                 + "maximumPages:100000,alias:persistit,temporary");
-        p.setProperty("logpath", "${datapath}/persistit_alt_log");
+        p.setProperty("journalpath", "${datapath}/persistit_alt_journal");
+        p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
         return p;
     }
 

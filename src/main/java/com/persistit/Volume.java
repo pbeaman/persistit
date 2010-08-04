@@ -1317,7 +1317,7 @@ public class Volume extends SharedResource {
             if (!tree.isInitialized())
                 return false;
 
-            long journalId = _persistit.getJournal().beginRemoveTree(tree);
+//            long journalId = _persistit.getJournal().beginRemoveTree(tree);
 
             long rootPage = tree.getRootPageAddr();
             page = rootPage;
@@ -1338,7 +1338,7 @@ public class Volume extends SharedResource {
                 tree.invalidate();
             }
 
-            _persistit.getJournal().completed(journalId);
+//            _persistit.getJournal().completed(journalId);
         } finally {
             tree.release();
         }
@@ -1510,8 +1510,8 @@ public class Volume extends SharedResource {
             }
         }
 
-        long journalId = _persistit.getJournal().beginCreateTree(this,
-                treeName, treeIndex);
+//        long journalId = _persistit.getJournal().beginCreateTree(this,
+//                treeName, treeIndex);
 
         rootPageBuffer = allocPage(treeIndex);
         long rootPage = rootPageBuffer.getPageAddress();
@@ -1533,9 +1533,9 @@ public class Volume extends SharedResource {
         tree.setValid(true);
         tree.commit();
 
-        if (journalId != -1) {
-            _persistit.getJournal().completed(journalId);
-        }
+//        if (journalId != -1) {
+//            _persistit.getJournal().completed(journalId);
+//        }
 
         return tree;
     }

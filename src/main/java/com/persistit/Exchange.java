@@ -1159,9 +1159,9 @@ public final class Exchange implements BuildConstants {
         final boolean inTxn = _transaction.isActive();
         _transaction.assignTimestamp();
 
-        if (!inTxn && level == 0) {
-            journalId = journal().beginStore(_tree, key, value, fetchFirst);
-        }
+//        if (!inTxn && level == 0) {
+//            journalId = journal().beginStore(_tree, key, value, fetchFirst);
+//        }
 
         int maxSimpleSize = _volume.getBufferSize() - Buffer.OVERHEAD
                 - Key.maxStorableKeySize(_volume.getBufferSize()) * 2;
@@ -1466,8 +1466,8 @@ public final class Exchange implements BuildConstants {
         if (_hasDeferredDeallocations || _hasDeferredTreeUpdate) {
             commitAllDeferredUpdates();
         }
-        if (journalId != -1)
-            journal().completed(journalId);
+//        if (journalId != -1)
+//            journal().completed(journalId);
         _volume.bumpStoreCounter();
         if (fetchFirst)
             _volume.bumpFetchCounter();
@@ -2784,10 +2784,10 @@ public final class Exchange implements BuildConstants {
         int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
 
-        long journalId = -1;
-        if (!inTxn) {
-            journalId = journal().beginRemove(_tree, key1, key2, fetchFirst);
-        }
+//        long journalId = -1;
+//        if (!inTxn) {
+//            journalId = journal().beginRemove(_tree, key1, key2, fetchFirst);
+//        }
 
         try {
             //
@@ -3240,8 +3240,8 @@ public final class Exchange implements BuildConstants {
             _persistit.getLockManager().verifyNoStrayResourceClaims(
                     lockedResourceCount);
         }
-        if (journalId != -1)
-            journal().completed(journalId);
+//        if (journalId != -1)
+//            journal().completed(journalId);
         _volume.bumpRemoveCounter();
         if (fetchFirst)
             _volume.bumpFetchCounter();
@@ -3670,10 +3670,6 @@ public final class Exchange implements BuildConstants {
             if (!completed)
                 value.changeLongRecordMode(false);
         }
-    }
-
-    private Journal journal() {
-        return _persistit.getJournal();
     }
 
     private void checkPageType(Buffer buffer, int expectedType)

@@ -23,26 +23,26 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.exception.CorruptLogException;
+import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 
 /**
- * Manages the disk-based I/O log. The log contains both committed transactions
+ * Manages the disk-based I/O journal. The journal contains both committed transactions
  * and images of updated pages.
  * 
  * @author peter
  * 
  */
-public class LogManager {
+public class JournalManager {
 
     private final static long GIG = 1024 * 1024 * 1024;
 
-    public final static long DEFAULT_LOG_SIZE = GIG;
+    public final static long DEFAULT_JOURNAL_SIZE = GIG;
 
-    public final static long MINIMUM_LOG_SIZE = GIG / 64;
+    public final static long MINIMUM_JOURNAL_SIZE = GIG / 64;
 
-    public final static long MAXIMUM_LOG_SIZE = GIG * 64;
+    public final static long MAXIMUM_JOURNAL_SIZE = GIG * 64;
     
     public final static long ROLLOVER_THRESHOLD = 1024 * 1024;
 
@@ -105,9 +105,9 @@ public class LogManager {
 
     private long _writeBufferAddress = 0;
 
-    private final LogFlusher _flusherTask;
+    private final JournalFlusher _flusherTask;
 
-    private final LogCopier _copierTask;
+    private final JournalCopier _copierTask;
 
     private AtomicBoolean _closed = new AtomicBoolean();
 
@@ -122,7 +122,7 @@ public class LogManager {
     private final byte[] _bytes = new byte[4096];
 
     /**
-     * Log file generation - serves as suffix on file name
+     * Journal file generation - serves as suffix on file name
      */
     private long _currentGeneration;
 
@@ -140,7 +140,7 @@ public class LogManager {
 
     private long _ioTime;
 
-    private volatile long _loggedPageCount = 0;
+    private volatile long _journaledPageCount = 0;
 
     private volatile long _copyBackCount = 0;
 
@@ -159,7 +159,7 @@ public class LogManager {
 
     private volatile int _minimumUrgency = DEFAULT_MINIMUM_URGENCY;
 
-    private volatile long _copyLogTimestampLimit = Long.MAX_VALUE;
+    private volatile long _copierTimestampLimit = Long.MAX_VALUE;
 
     private volatile int _ioRateMin = DEFAULT_IO_RATE_MIN;
 
@@ -167,21 +167,21 @@ public class LogManager {
 
     private volatile float _ioRateSleepMultiplier = DEFAULT_IO_RATE_SLEEP_MULTIPLIER;
 
-    private static class LogNotClosedException extends Exception {
+    private static class JournalNotClosedException extends Exception {
 
         private static final long serialVersionUID = 1L;
 
         final FileAddress _fileAddress;
 
-        public LogNotClosedException(final FileAddress fa) {
+        public JournalNotClosedException(final FileAddress fa) {
             _fileAddress = fa;
         }
     }
 
-    public LogManager(final Persistit persistit) {
+    public JournalManager(final Persistit persistit) {
         _persistit = persistit;
-        _flusherTask = new LogFlusher();
-        _copierTask = new LogCopier();
+        _flusherTask = new JournalFlusher();
+        _copierTask = new JournalCopier();
     }
 
     public void init(final String path, final long maximumSize)
@@ -292,15 +292,15 @@ public class LogManager {
         return _ioRate;
     }
 
-    public long getLoggedPageCount() {
-        return _loggedPageCount;
+    public long getJournaledPageCount() {
+        return _journaledPageCount;
     }
 
     public long getCopyBackCount() {
         return _copyBackCount;
     }
 
-    public boolean readPageFromLog(final Buffer buffer)
+    public boolean readPageFromJournal(final Buffer buffer)
             throws PersistitIOException {
         final int bufferSize = buffer.getBufferSize();
         final long pageAddress = buffer.getPageAddress();
@@ -318,54 +318,54 @@ public class LogManager {
         if (fa == null) {
             return false;
         }
-        long recordPageAddress = readPageBufferFromLog(vp, fa, bb, true);
+        long recordPageAddress = readPageBufferFromJournal(vp, fa, bb, true);
 
         if (pageAddress != recordPageAddress) {
-            throw new CorruptLogException("Record at " + fa
+            throw new CorruptJournalException("Record at " + fa
                     + " is not volume/page " + vp);
         }
 
         if (bb.limit() != bufferSize) {
-            throw new CorruptLogException("Record at " + fa
+            throw new CorruptJournalException("Record at " + fa
                     + " is wrong size: expected/actual=" + bufferSize + "/"
                     + bb.limit());
         }
         return true;
     }
 
-    private long readPageBufferFromLog(final VolumePage vp,
+    private long readPageBufferFromJournal(final VolumePage vp,
             final FileAddress fa, final ByteBuffer bb, final boolean chargeIO)
-            throws PersistitIOException, CorruptLogException {
+            throws PersistitIOException, CorruptJournalException {
         final FileChannel fc = getFileChannel(fa.getFile());
         try {
             final byte[] bytes = bb.array();
-            bb.limit(LogRecord.PA.OVERHEAD).position(0);
+            bb.limit(JournalRecord.PA.OVERHEAD).position(0);
             readFully(bb, fc, fa.getAddress(), fa);
-            if (bb.position() < LogRecord.PA.OVERHEAD) {
-                throw new CorruptLogException("Record at " + fa
+            if (bb.position() < JournalRecord.PA.OVERHEAD) {
+                throw new CorruptJournalException("Record at " + fa
                         + " is incomplete");
             }
-            final int type = LogRecord.PA.getType(bytes);
-            final int payloadSize = LogRecord.PA.getLength(bytes)
-                    - LogRecord.PA.OVERHEAD;
-            final int leftSize = LogRecord.PA.getLeftSize(bytes);
-            final int bufferSize = LogRecord.PA.getBufferSize(bytes);
-            final long pageAddress = LogRecord.PA.getPageAddress(bytes);
+            final int type = JournalRecord.PA.getType(bytes);
+            final int payloadSize = JournalRecord.PA.getLength(bytes)
+                    - JournalRecord.PA.OVERHEAD;
+            final int leftSize = JournalRecord.PA.getLeftSize(bytes);
+            final int bufferSize = JournalRecord.PA.getBufferSize(bytes);
+            final long pageAddress = JournalRecord.PA.getPageAddress(bytes);
 
-            if (type != LogRecord.PA.TYPE) {
-                throw new CorruptLogException("Record at " + fa
+            if (type != JournalRecord.PA.TYPE) {
+                throw new CorruptJournalException("Record at " + fa
                         + " is not a PAGE record");
             }
 
             if (leftSize < 0 || payloadSize < leftSize
                     || payloadSize > bufferSize) {
-                throw new CorruptLogException("Record at " + fa
+                throw new CorruptJournalException("Record at " + fa
                         + " invalid sizes: recordSize= " + payloadSize
                         + " leftSize=" + leftSize + " bufferSize=" + bufferSize);
             }
 
             bb.limit(payloadSize).position(0);
-            readFully(bb, fc, fa.getAddress() + LogRecord.PA.OVERHEAD, fa);
+            readFully(bb, fc, fa.getAddress() + JournalRecord.PA.OVERHEAD, fa);
 
             if (leftSize > 0) {
                 final int rightSize = payloadSize - leftSize;
@@ -385,35 +385,35 @@ public class LogManager {
 
     private void readFully(final ByteBuffer bb, final FileChannel fc,
             final long address, final FileAddress fa) throws IOException,
-            CorruptLogException {
+            CorruptJournalException {
         long a = address;
         while (bb.remaining() > 0) {
             int count = fc.read(bb, a);
             if (count < 0) {
-                throw new CorruptLogException("End of file at " + fa + ":"
+                throw new CorruptJournalException("End of file at " + fa + ":"
                         + address);
             }
             a += count;
         }
     }
 
-    public synchronized void writeCheckpointToLog(final Checkpoint checkpoint)
+    public synchronized void writeCheckpointToJournal(final Checkpoint checkpoint)
             throws PersistitIOException {
         if (!_recovered) {
             return;
         }
-        // Make sure all prior log entries are committed to disk before
+        // Make sure all prior journal entries are committed to disk before
         // writing this record.
         force();
-        writeBuffer(LogRecord.CP.OVERHEAD);
+        writeBuffer(JournalRecord.CP.OVERHEAD);
         final long address = _writeBufferAddress + _writeBuffer.position();
-        writeBuffer(LogRecord.CP.OVERHEAD);
-        LogRecord.CP.putLength(_bytes, LogRecord.CP.OVERHEAD);
-        LogRecord.CP.putType(_bytes, LogRecord.CP.TYPE);
-        LogRecord.CP.putTimestamp(_bytes, checkpoint.getTimestamp());
-        LogRecord.CP.putSystemTimeMillis(_bytes, checkpoint
+        writeBuffer(JournalRecord.CP.OVERHEAD);
+        JournalRecord.CP.putLength(_bytes, JournalRecord.CP.OVERHEAD);
+        JournalRecord.CP.putType(_bytes, JournalRecord.CP.TYPE);
+        JournalRecord.CP.putTimestamp(_bytes, checkpoint.getTimestamp());
+        JournalRecord.CP.putSystemTimeMillis(_bytes, checkpoint
                 .getSystemTimeMillis());
-        _writeBuffer.put(_bytes, 0, LogRecord.CP.OVERHEAD);
+        _writeBuffer.put(_bytes, 0, JournalRecord.CP.OVERHEAD);
         force();
         _lastValidCheckpoint = checkpoint;
         ioRate(1);
@@ -427,12 +427,12 @@ public class LogManager {
         }
     }
 
-    public synchronized void writePageToLog(final Buffer buffer)
+    public synchronized void writePageToJournal(final Buffer buffer)
             throws PersistitIOException {
 
         final Volume volume = buffer.getVolume();
         final int available = buffer.getAvailableSize();
-        final int recordSize = LogRecord.PA.OVERHEAD + buffer.getBufferSize()
+        final int recordSize = JournalRecord.PA.OVERHEAD + buffer.getBufferSize()
                 - available;
         long address = -1;
         int handle = handleForVolume(volume);
@@ -442,15 +442,15 @@ public class LogManager {
         }
         address = _writeBufferAddress + _writeBuffer.position();
         final int leftSize = available == 0 ? 0 : buffer.getAlloc() - available;
-        LogRecord.PA.putLength(_bytes, recordSize);
-        LogRecord.PA.putVolumeHandle(_bytes, handle);
-        LogRecord.PA.putType(_bytes);
-        LogRecord.PA.putTimestamp(_bytes, buffer.getTimestamp());
-        LogRecord.PA.putLeftSize(_bytes, leftSize);
-        LogRecord.PA.putBufferSize(_bytes, buffer.getBufferSize());
-        LogRecord.PA.putPageAddress(_bytes, buffer.getPageAddress());
-        _writeBuffer.put(_bytes, 0, LogRecord.PA.OVERHEAD);
-        final int payloadSize = recordSize - LogRecord.PA.OVERHEAD;
+        JournalRecord.PA.putLength(_bytes, recordSize);
+        JournalRecord.PA.putVolumeHandle(_bytes, handle);
+        JournalRecord.PA.putType(_bytes);
+        JournalRecord.PA.putTimestamp(_bytes, buffer.getTimestamp());
+        JournalRecord.PA.putLeftSize(_bytes, leftSize);
+        JournalRecord.PA.putBufferSize(_bytes, buffer.getBufferSize());
+        JournalRecord.PA.putPageAddress(_bytes, buffer.getPageAddress());
+        _writeBuffer.put(_bytes, 0, JournalRecord.PA.OVERHEAD);
+        final int payloadSize = recordSize - JournalRecord.PA.OVERHEAD;
 
         if (leftSize > 0) {
             final int rightSize = payloadSize - leftSize;
@@ -466,13 +466,13 @@ public class LogManager {
         final FileAddress fa = new FileAddress(_writeChannelFile, address,
                 buffer.getTimestamp());
         _pageMap.put(vp, fa);
-        _loggedPageCount++;
+        _journaledPageCount++;
 
         ioRate(1);
 
-        Debug.$assert(LogRecord.getLength(_bytes) == recordSize);
+        Debug.$assert(JournalRecord.getLength(_bytes) == recordSize);
         if (buffer.getPageAddress() != 0) {
-            Debug.$assert(buffer.getPageAddress() == LogRecord.PA
+            Debug.$assert(buffer.getPageAddress() == JournalRecord.PA
                     .getPageAddress(_bytes));
         }
     }
@@ -483,12 +483,12 @@ public class LogManager {
         Integer handle = _volumeToHandleMap.get(vd);
         if (handle == null) {
             handle = Integer.valueOf(++_handleCounter);
-            LogRecord.IV.putType(_bytes);
-            LogRecord.IV.putHandle(_bytes, handle.intValue());
-            LogRecord.IV.putVolumeId(_bytes, volume.getId());
-            LogRecord.IV.putTimestamp(_bytes, 0); // TODO
-            LogRecord.IV.putVolumeName(_bytes, volume.getPath());
-            final int recordSize = LogRecord.IV.getLength(_bytes);
+            JournalRecord.IV.putType(_bytes);
+            JournalRecord.IV.putHandle(_bytes, handle.intValue());
+            JournalRecord.IV.putVolumeId(_bytes, volume.getId());
+            JournalRecord.IV.putTimestamp(_bytes, 0); // TODO
+            JournalRecord.IV.putVolumeName(_bytes, volume.getPath());
+            final int recordSize = JournalRecord.IV.getLength(_bytes);
             writeBuffer(recordSize);
             _writeBuffer.put(_bytes, 0, recordSize);
             if (_volumeToHandleMap.size() >= MAXIMUM_MAPPED_HANDLES) {
@@ -506,12 +506,12 @@ public class LogManager {
         Integer handle = _treeToHandleMap.get(tree);
         if (handle == null) {
             handle = Integer.valueOf(++_handleCounter);
-            LogRecord.IT.putType(_bytes);
-            LogRecord.IT.putHandle(_bytes, handle.intValue());
-            LogRecord.IT.putTimestamp(_bytes, 0);
-            LogRecord.IV.putTimestamp(_bytes, 0); // TODO
-            LogRecord.IV.putVolumeName(_bytes, tree.getTreeName());
-            final int recordSize = LogRecord.IV.getLength(_bytes);
+            JournalRecord.IT.putType(_bytes);
+            JournalRecord.IT.putHandle(_bytes, handle.intValue());
+            JournalRecord.IT.putTimestamp(_bytes, 0);
+            JournalRecord.IV.putTimestamp(_bytes, 0); // TODO
+            JournalRecord.IV.putVolumeName(_bytes, tree.getTreeName());
+            final int recordSize = JournalRecord.IV.getLength(_bytes);
             writeBuffer(recordSize);
             _writeBuffer.put(_bytes, 0, recordSize);
             if (_treeToHandleMap.size() >= MAXIMUM_MAPPED_HANDLES) {
@@ -538,7 +538,7 @@ public class LogManager {
         }
 
         _writeBufferAddress = 0;
-        // Ensure new handle-map copies in every log file
+        // Ensure new handle-map copies in every journal file
         _handleToTreeMap.clear();
         _handleToVolumeMap.clear();
         _volumeToHandleMap.clear();
@@ -566,7 +566,7 @@ public class LogManager {
                     // Don't process any files after a dirty record
                     continue;
                 }
-                // Each log file must rewrite all volume and tree handles
+                // Each journal file must rewrite all volume and tree handles
                 _handleToVolumeMap.clear();
                 _volumeToHandleMap.clear();
                 _handleToTreeMap.clear();
@@ -586,7 +586,7 @@ public class LogManager {
                             // nothing to do - work is performed in
                             // recoverOneRecord.
                         }
-                    } catch (LogNotClosedException e) {
+                    } catch (JournalNotClosedException e) {
                         _dirtyRecoveryFileAddress = e._fileAddress;
                         break;
                     }
@@ -616,23 +616,23 @@ public class LogManager {
     private boolean recoverOneRecord(final File file, final long bufferAddress,
             final MappedByteBuffer readBuffer,
             final Map<VolumePage, List<FileAddress>> pageMap)
-            throws PersistitException, LogNotClosedException {
+            throws PersistitException, JournalNotClosedException {
 
         final int from = readBuffer.position();
-        if (readBuffer.remaining() < LogRecord.OVERHEAD) {
+        if (readBuffer.remaining() < JournalRecord.OVERHEAD) {
             return false;
         }
         readBuffer.mark();
-        readBuffer.get(_bytes, 0, LogRecord.OVERHEAD);
-        final int type = LogRecord.getType(_bytes);
-        final long timestamp = LogRecord.getTimestamp(_bytes);
+        readBuffer.get(_bytes, 0, JournalRecord.OVERHEAD);
+        final int type = JournalRecord.getType(_bytes);
+        final long timestamp = JournalRecord.getTimestamp(_bytes);
         switch (type) {
 
-        case LogRecord.TYPE_IV: {
-            final int recordSize = LogRecord.getLength(_bytes);
-            if (recordSize > LogRecord.IV.MAX_LENGTH) {
-                throw new CorruptLogException(
-                        "IV LogRecord too long: "
+        case JournalRecord.TYPE_IV: {
+            final int recordSize = JournalRecord.getLength(_bytes);
+            if (recordSize > JournalRecord.IV.MAX_LENGTH) {
+                throw new CorruptJournalException(
+                        "IV JournalRecord too long: "
                                 + recordSize
                                 + " bytes at position "
                                 + new FileAddress(file, bufferAddress + from,
@@ -642,12 +642,12 @@ public class LogManager {
                 readBuffer.reset();
                 return false;
             }
-            readBuffer.get(_bytes, LogRecord.OVERHEAD, recordSize
-                    - LogRecord.OVERHEAD);
-            final Integer handle = Integer.valueOf(LogRecord.IV
+            readBuffer.get(_bytes, JournalRecord.OVERHEAD, recordSize
+                    - JournalRecord.OVERHEAD);
+            final Integer handle = Integer.valueOf(JournalRecord.IV
                     .getHandle(_bytes));
-            final String path = LogRecord.IV.getVolumeName(_bytes);
-            final long volumeId = LogRecord.IV.getVolumeId(_bytes);
+            final String path = JournalRecord.IV.getVolumeName(_bytes);
+            final long volumeId = JournalRecord.IV.getVolumeId(_bytes);
             VolumeDescriptor vd = new VolumeDescriptor(path, volumeId);
             _handleToVolumeMap.put(handle, vd);
             _volumeToHandleMap.put(vd, handle);
@@ -660,11 +660,11 @@ public class LogManager {
             break;
         }
 
-        case LogRecord.TYPE_IT: {
-            final int recordSize = LogRecord.getLength(_bytes);
-            if (recordSize > LogRecord.IT.MAX_LENGTH) {
-                throw new CorruptLogException(
-                        "IT LogRecord too long: "
+        case JournalRecord.TYPE_IT: {
+            final int recordSize = JournalRecord.getLength(_bytes);
+            if (recordSize > JournalRecord.IT.MAX_LENGTH) {
+                throw new CorruptJournalException(
+                        "IT JournalRecord too long: "
                                 + recordSize
                                 + " bytes at position "
                                 + new FileAddress(file, bufferAddress + from,
@@ -674,12 +674,12 @@ public class LogManager {
                 readBuffer.reset();
                 return false;
             }
-            readBuffer.get(_bytes, LogRecord.OVERHEAD, recordSize
-                    - LogRecord.OVERHEAD);
-            final Integer handle = Integer.valueOf(LogRecord.IT
+            readBuffer.get(_bytes, JournalRecord.OVERHEAD, recordSize
+                    - JournalRecord.OVERHEAD);
+            final Integer handle = Integer.valueOf(JournalRecord.IT
                     .getHandle(_bytes));
-            final String treeName = LogRecord.IT.getTreeName(_bytes);
-            final Integer volumeHandle = Integer.valueOf(LogRecord.IT
+            final String treeName = JournalRecord.IT.getTreeName(_bytes);
+            final Integer volumeHandle = Integer.valueOf(JournalRecord.IT
                     .getVolumeHandle(_bytes));
             final TreeDescriptor td = new TreeDescriptor(volumeHandle, treeName);
             _handleToTreeMap.put(handle, td);
@@ -696,11 +696,11 @@ public class LogManager {
             break;
         }
 
-        case LogRecord.TYPE_PA: {
-            final int recordSize = LogRecord.getLength(_bytes);
-            if (recordSize > Buffer.MAX_BUFFER_SIZE + LogRecord.PA.OVERHEAD) {
-                throw new CorruptLogException(
-                        "PA LogRecord too long: "
+        case JournalRecord.TYPE_PA: {
+            final int recordSize = JournalRecord.getLength(_bytes);
+            if (recordSize > Buffer.MAX_BUFFER_SIZE + JournalRecord.PA.OVERHEAD) {
+                throw new CorruptJournalException(
+                        "PA JournalRecord too long: "
                                 + recordSize
                                 + " bytes at position "
                                 + new FileAddress(file, bufferAddress + from,
@@ -710,16 +710,16 @@ public class LogManager {
                 readBuffer.reset();
                 return false;
             }
-            readBuffer.get(_bytes, LogRecord.OVERHEAD, LogRecord.PA.OVERHEAD
-                    - LogRecord.OVERHEAD);
+            readBuffer.get(_bytes, JournalRecord.OVERHEAD, JournalRecord.PA.OVERHEAD
+                    - JournalRecord.OVERHEAD);
             readBuffer.position(from + recordSize);
             final long address = bufferAddress + from;
-            final long pageAddress = LogRecord.PA.getPageAddress(_bytes);
-            final Integer volumeHandle = Integer.valueOf(LogRecord.PA
+            final long pageAddress = JournalRecord.PA.getPageAddress(_bytes);
+            final Integer volumeHandle = Integer.valueOf(JournalRecord.PA
                     .getVolumeHandle(_bytes));
             VolumeDescriptor vd = _handleToVolumeMap.get(volumeHandle);
             if (vd == null) {
-                throw new CorruptLogException(
+                throw new CorruptJournalException(
                         "PA reference to volume "
                                 + volumeHandle
                                 + " is not preceded by an IV record for that handle at "
@@ -742,32 +742,32 @@ public class LogManager {
             break;
         }
 
-        case LogRecord.TYPE_RR:
-        case LogRecord.TYPE_WR:
-        case LogRecord.TYPE_TS:
-        case LogRecord.TYPE_TC:
-        case LogRecord.TYPE_TJ:
+        case JournalRecord.TYPE_RR:
+        case JournalRecord.TYPE_WR:
+        case JournalRecord.TYPE_TS:
+        case JournalRecord.TYPE_TC:
+        case JournalRecord.TYPE_TJ:
             throw new UnsupportedOperationException(
                     "Can't handle record of type " + (int) type);
 
-        case LogRecord.TYPE_CP:
-            final int recordSize = LogRecord.getLength(_bytes);
-            if (recordSize != LogRecord.CP.OVERHEAD) {
-                throw new CorruptLogException(
-                        "CP LogRecord has incorrect length: "
+        case JournalRecord.TYPE_CP:
+            final int recordSize = JournalRecord.getLength(_bytes);
+            if (recordSize != JournalRecord.CP.OVERHEAD) {
+                throw new CorruptJournalException(
+                        "CP JournalRecord has incorrect length: "
                                 + recordSize
                                 + " bytes at position "
                                 + new FileAddress(file, bufferAddress
                                         + readBuffer.position()
-                                        - LogRecord.OVERHEAD, timestamp));
+                                        - JournalRecord.OVERHEAD, timestamp));
             }
             if (recordSize + from > readBuffer.limit()) {
                 readBuffer.reset();
                 return false;
             }
-            readBuffer.get(_bytes, LogRecord.OVERHEAD, recordSize
-                    - LogRecord.OVERHEAD);
-            final long systemTimeMillis = LogRecord.CP
+            readBuffer.get(_bytes, JournalRecord.OVERHEAD, recordSize
+                    - JournalRecord.OVERHEAD);
+            final long systemTimeMillis = JournalRecord.CP
                     .getSystemTimeMillis(_bytes);
             final Checkpoint checkpoint = new Checkpoint(timestamp,
                     systemTimeMillis);
@@ -795,7 +795,7 @@ public class LogManager {
         default:
             _persistit.getLogBase().log(LogBase.LOG_INIT_RECOVER_TERMINATE,
                     new FileAddress(file, bufferAddress + from, timestamp));
-            throw new LogNotClosedException(new FileAddress(file,
+            throw new JournalNotClosedException(new FileAddress(file,
                     bufferAddress, -1));
         }
         return true;
@@ -895,7 +895,7 @@ public class LogManager {
     }
 
     /**
-     * Force all data written to the log file to disk.
+     * Force all data written to the journal file to disk.
      */
     public void force() {
         final MappedByteBuffer mbb;
@@ -1176,14 +1176,14 @@ public class LogManager {
         }
     }
 
-    private class LogCopier extends IOTaskRunnable {
+    private class JournalCopier extends IOTaskRunnable {
 
-        LogCopier() {
+        JournalCopier() {
             super(_persistit);
         }
 
         void start() {
-            start("LOG_COPIER", _copierInterval);
+            start("JOURNAL_COPIER", _copierInterval);
         }
 
         @Override
@@ -1205,14 +1205,14 @@ public class LogManager {
         }
     }
 
-    private class LogFlusher extends IOTaskRunnable {
+    private class JournalFlusher extends IOTaskRunnable {
 
-        LogFlusher() {
+        JournalFlusher() {
             super(_persistit);
         }
 
         void start() {
-            start("LOG_FLUSHER", _flushInterval);
+            start("JOURNAL_FLUSHER", _flushInterval);
         }
 
         @Override
@@ -1252,9 +1252,9 @@ public class LogManager {
             return 10;
         }
         int urgency = _pageMap.size() / _pageMapSizeBase;
-        int logFileCount = (int) (_currentGeneration - _firstGeneration);
-        if (logFileCount > 1) {
-            urgency += logFileCount - 1;
+        int journalFileCount = (int) (_currentGeneration - _firstGeneration);
+        if (journalFileCount > 1) {
+            urgency += journalFileCount - 1;
         }
         return Math.max(urgency, 10);
     }
@@ -1267,19 +1267,19 @@ public class LogManager {
 
         synchronized (this) {
             final long timeStampUpperBound = Math.min(_lastValidCheckpoint
-                    .getTimestamp(), _copyLogTimestampLimit);
+                    .getTimestamp(), _copierTimestampLimit);
             if (!_recovered) {
                 return;
             }
             wasUrgent = _copyFast;
             currentGeneration = _currentGeneration;
-            final File copyLogFileLimit = new File(String.format(PATH_FORMAT,
+            final File copyJournalFileLimit = new File(String.format(PATH_FORMAT,
                     _directory, _firstGeneration + 1));
             for (final Map.Entry<VolumePage, FileAddress> entry : _pageMap
                     .entrySet()) {
                 FileAddress fa = entry.getValue();
                 if (fa.getTimestamp() < timeStampUpperBound
-                        && (fa.getFile().compareTo(copyLogFileLimit) < 0 || _copyFast)) {
+                        && (fa.getFile().compareTo(copyJournalFileLimit) < 0 || _copyFast)) {
                     sortedMap.put(entry.getKey(), entry.getValue());
                 } else {
                     if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
@@ -1311,7 +1311,7 @@ public class LogManager {
                 // remove from the sortedMap so that below we won't remove from
                 // the pageMap.
                 iterator.remove();
-                // Also, don't delete the log file yet because we may reopen the
+                // Also, don't delete the journal file yet because we may reopen the
                 // Volume and attempt to continue.
                 if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
                     firstMissed = fa;
@@ -1319,19 +1319,19 @@ public class LogManager {
                 continue;
             }
             if (volume.getId() != vp.getVolumeDescriptor().getId()) {
-                throw new CorruptLogException(vp.getVolumeDescriptor()
+                throw new CorruptJournalException(vp.getVolumeDescriptor()
                         + " does not identify a valid Volume at " + fa);
             }
 
-            final long pageAddress = readPageBufferFromLog(vp, fa, bb, false);
+            final long pageAddress = readPageBufferFromJournal(vp, fa, bb, false);
 
             if (bb.limit() != volume.getBufferSize()) {
-                throw new CorruptLogException(vp + " bufferSize " + bb.limit()
+                throw new CorruptJournalException(vp + " bufferSize " + bb.limit()
                         + " does not match " + volume + " bufferSize "
                         + volume.getBufferSize() + " at " + fa);
             }
             if (pageAddress != vp.getPage()) {
-                throw new CorruptLogException(vp
+                throw new CorruptJournalException(vp
                         + " does not match page address " + pageAddress
                         + " found at " + fa);
             }
@@ -1426,21 +1426,21 @@ public class LogManager {
 
     public static void main(final String[] args) throws Exception {
         final Persistit persistit = new Persistit();
-        final LogManager logManager = persistit.getLogManager();
+        final JournalManager journalManager = persistit.getJournalManager();
         final String propertiesFileName = args.length > 0 ? args[0]
                 : Persistit.DEFAULT_CONFIG_FILE;
         persistit.initializeProperties(persistit.parseProperties(propertiesFileName));
         persistit.initializeLogging();
-        persistit.initializeRecovery();
-        logManager.recover();
+        persistit.initializeJournal();
+        journalManager.recover();
         
         System.out.println();
-        System.out.println("Last valid checkpoint=" + logManager._lastValidCheckpoint);
+        System.out.println("Last valid checkpoint=" + journalManager._lastValidCheckpoint);
         System.out.println();
         System.out.println("Page Map:");
         System.out.println();
         
-        final SortedMap<VolumePage, FileAddress> sorted = new TreeMap<VolumePage, FileAddress>(logManager._pageMap);
+        final SortedMap<VolumePage, FileAddress> sorted = new TreeMap<VolumePage, FileAddress>(journalManager._pageMap);
         long previous = -1;
         for (final Map.Entry<VolumePage, FileAddress> entry : sorted.entrySet()) {
             long delta = entry.getKey().getPage() - previous;

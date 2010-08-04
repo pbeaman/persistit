@@ -886,7 +886,7 @@ public class Transaction {
                 }
 
                 if (toDisk) {
-                    _persistit.getLogManager().force();
+                    _persistit.getJournalManager().force();
                 }
             }
             _commitCompleted = true;

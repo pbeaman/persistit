@@ -7,10 +7,12 @@ logpath $logpath$/result_$timestamp$.log
 delete $datapath$/persistit.v01 $datapath$/test_system.v01 $datapath$/test_txn.v01 $datapath$/persistit_log.*
 #Stress-huge test mixture, multithread
 
-clearprops
+
 prop buffer.count.8192=50000
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:100M,extensionSize:100M,maximumSize:10G
 prop logpath=$datapath$/persistit_log
+prop journalpath=$datapath$/persistit_journal
+
 prop rmiport=1099
 
 init

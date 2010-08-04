@@ -1838,6 +1838,160 @@ public interface Management extends Remote {
         }
     }
 
+    public static class JournalInfo extends AcquisitionTimeBase {
+        String currentJournalFile;
+        long currentJournalAddress;
+        long maxJournalFileSize;
+        int pageMapSize;
+        long currentGeneration;
+        long startGeneration;
+        long lastValidCheckpointTimestamp;
+        long lastValidCheckpointSystemTime;
+        String dirtyRecoveryJournalFile;
+        long dirtyRecoveryJournalAddress;
+        long journaledPageCount;
+        long copiedPageCount;
+        boolean closed;
+        boolean copying;
+        boolean flushing;
+        boolean suspendCopying;
+
+        /**
+         * @return the current Journal file name
+         */
+        public String getCurrentJournalFile() {
+            return currentJournalFile;
+        }
+
+        /**
+         * @return the current Journal file address
+         */
+        public long getCurrentJournalAddress() {
+            return currentJournalAddress;
+        }
+
+        /**
+         * @return the max Journal file size
+         */
+        public long getMaxJournalFileSize() {
+            return maxJournalFileSize;
+        }
+
+        /**
+         * @return the pageMap size
+         */
+        public int getPageMapSize() {
+            return pageMapSize;
+        }
+
+        /**
+         * @return the current generation
+         */
+        public long getCurrentGeneration() {
+            return currentGeneration;
+        }
+
+        /**
+         * Start generation is the generation of the earliest journal file
+         * containing pages or records not yet copied to Volumes.
+         * 
+         * @return the start generation
+         */
+        public long getStartGeneration() {
+            return startGeneration;
+        }
+
+        /**
+         * @return the time stamp of latest valid Checkpoint
+         */
+        public long getLastValidCheckpointTimestamp() {
+            return lastValidCheckpointTimestamp;
+        }
+
+        /**
+         * @return the system time (in millis) of the latest valid Checkpoint
+         */
+        public long getLastValidCheckpointSystemTime() {
+            return lastValidCheckpointSystemTime;
+        }
+
+        /**
+         * A "dirty" recovery may occur after Persistit has been abruptly
+         * terminated. In this case there may be garbage at the end of the last
+         * journal file.
+         * 
+         * @return the last Journal file containing records included in a
+         *         "dirty" recovery (recovery performed on an incomplete
+         *         journal), or <tt>null</tt> if recovery was able to read
+         *         through the entire journal without error.
+         */
+        public String getDirtyRecoveryJournalFile() {
+            return dirtyRecoveryJournalFile;
+        }
+
+        /**
+         * A "dirty" recovery may occur after Persistit has been abruptly
+         * terminated. In this case there may be garbage at the end of the last
+         * journal file.
+         * 
+         * @return the address within the last recovered Journal file at which
+         *         corrupt or missing data was found, or -1 if recovery was able
+         *         to read through the entire journal without error.
+         */
+        public long getDirtyRecoveryJournalAddress() {
+            return dirtyRecoveryJournalAddress;
+        }
+
+        /**
+         * @return the total number of pages written to the journal
+         */
+        public long getJournaledPageCount() {
+            return journaledPageCount;
+        }
+
+        /**
+         * @return the total number of pages copied from the journal back to
+         *         their Volumes.
+         */
+        public long getCopiedPageCount() {
+            return copiedPageCount;
+        }
+
+        /**
+         * @return <tt>true</tt> iff the journal has been closed
+         */
+        public boolean isClosed() {
+            return closed;
+        }
+
+        /**
+         * @return <tt>true</tt> iff the JOURNAL_COPIER task is currently
+         *         copying pages to their Volume files.
+         */
+        public boolean isCopying() {
+            return copying;
+        }
+
+        /**
+         * @return <tt>true</tt> iff the JOURNAL_FLUSHER task is currently
+         *         forcing file modifications to disk.
+         */
+        public boolean isFlushing() {
+            return flushing;
+        }
+
+        /**
+         * The suspendCopying flag suspends copying of pages to their Volume
+         * files.
+         * 
+         * @return <tt>true</tt> if the suspendCopying flag is set.
+         */
+        public boolean isSuspendCopying() {
+            return suspendCopying;
+        }
+
+    }
+
     /**
      * A subclass of <tt>RemoteException</tt> that wraps a <tt>Throwable</tt> so
      * that it can be returned to the remote client.
