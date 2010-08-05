@@ -67,7 +67,7 @@ public class BufferPool {
     /**
      * Pages per allocation bucket
      */
-    public final static int PAGES_PER_BUCKET = 4096;
+    public final static int PAGES_PER_BUCKET = 1024;
 
     /**
      * The Persistit instance that references this BufferBool.
@@ -597,8 +597,8 @@ public class BufferPool {
         validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
         if (validCheckpoint != null) {
             try {
-                _persistit.getJournalManager()
-                        .writeCheckpointToJournal(validCheckpoint);
+                _persistit.getJournalManager().writeCheckpointToJournal(
+                        validCheckpoint);
             } catch (PersistitIOException e) {
                 _persistit.getLogBase().log(LogBase.LOG_EXCEPTION,
                         e + " while writing " + validCheckpoint + ":" + e);
@@ -1062,11 +1062,15 @@ public class BufferPool {
      * @param bucket
      * @return
      */
-    private boolean enqueueDirtyPage(final Buffer buffer, final int bucket) {
-        final boolean dirty;
+    private boolean enqueueDirtyPage(final Buffer buffer, final int bucket,
+            final boolean always) {
+        final boolean enqueued;
         // checkEnqueued();
-        if (buffer.isDirty() && !buffer.isEnqueued()) {
-            dirty = true;
+        if (buffer.isDirty()
+                && !buffer.isEnqueued()
+                && (always || buffer.getTimestamp() > _currentCheckpoint
+                        .getTimestamp())) {
+            enqueued = true;
             if (_dirty[bucket] == null) {
                 buffer.removeFromDirty();
                 _dirty[bucket] = buffer;
@@ -1075,13 +1079,13 @@ public class BufferPool {
             }
             buffer.setEnqueued();
         } else {
-            dirty = false;
+            enqueued = false;
         }
-        if (dirty) {
+        if (enqueued) {
             _writer.kick();
         }
         // checkEnqueued();
-        return dirty;
+        return enqueued;
     }
 
     /**
@@ -1220,8 +1224,8 @@ public class BufferPool {
             int countPerm = 0;
             int countInvalid = 0;
             int countLru = 0;
-            int maxCount = _closed.get() ? Integer.MAX_VALUE : Math.min(_bufferCount
-                    / _bucketCount / 8, 32);
+            int maxCount = _closed.get() ? Integer.MAX_VALUE : Math.max(
+                    _bufferCount / _bucketCount / 8, 32);
 
             int unavailable = 0;
             // checkEnqueued();
@@ -1230,9 +1234,10 @@ public class BufferPool {
                 Buffer buffer;
 
                 buffer = _perm[bucket];
-                while (buffer != null && countPerm < maxCount) {
+                while (buffer != null) {
                     if (buffer.isDirty() && !buffer.isEnqueued()) {
-                        if (enqueueDirtyPage(buffer, bucket)) {
+                        if (enqueueDirtyPage(buffer, bucket,
+                                countPerm < maxCount)) {
                             countPerm++;
                         }
                     }
@@ -1243,14 +1248,13 @@ public class BufferPool {
                 }
 
                 buffer = _invalidBufferQueue[bucket];
-                while (buffer != null && countInvalid < maxCount) {
+                while (buffer != null) {
                     if (Debug.ENABLED)
                         Debug.$assert(buffer.getNext() != buffer);
                     if (buffer.isDirty()) {
                         if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket)
-                                    && buffer.getTimestamp() > _currentCheckpoint
-                                            .getTimestamp()) {
+                            if (enqueueDirtyPage(buffer, bucket,
+                                    countInvalid < maxCount)) {
                                 countInvalid++;
                             }
                         } else {
@@ -1261,12 +1265,11 @@ public class BufferPool {
                 }
 
                 buffer = _lru[bucket];
-                while (buffer != null && countLru < maxCount) {
+                while (buffer != null) {
                     if (buffer.isDirty()) {
                         if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket)
-                                    && buffer.getTimestamp() > _currentCheckpoint
-                                            .getTimestamp()) {
+                            if (enqueueDirtyPage(buffer, bucket,
+                                    countLru < maxCount)) {
                                 countLru++;
                             }
                         } else {
@@ -1277,7 +1280,7 @@ public class BufferPool {
                     if (buffer == _lru[bucket]) {
                         break;
                     }
-                    
+
                 }
             }
             // checkEnqueued();
