@@ -23,14 +23,10 @@ package com.persistit.exception;
  * 
  * @version 1.0
  */
-public class BufferUnavailableException extends PersistitException {
+public class BufferSizeUnavailableException extends PersistitException {
     private static final long serialVersionUID = 7231838587511494996L;
 
-    public BufferUnavailableException() {
-        super();
-    }
-
-    public BufferUnavailableException(String msg) {
+    public BufferSizeUnavailableException(String msg) {
         super(msg);
     }
 

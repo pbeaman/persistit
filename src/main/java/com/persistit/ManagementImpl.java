@@ -251,6 +251,12 @@ class ManagementImpl implements Management, BuildConstants {
         }
         return result;
     }
+    
+    public JournalInfo getJournalInfo() {
+        final JournalInfo info = new JournalInfo();
+        final JournalManager jman = _persistit.getJournalManager();
+        return info;
+    }
 
     public LogicalRecord[] getLogicalRecordArray(String volumeName,
             String treeName, String keyFilterString, KeyState fromKey,
@@ -572,10 +578,10 @@ class ManagementImpl implements Management, BuildConstants {
         if (statusCode.indexOf('c') >= 0)
             status |= SharedResource.CLOSING_MASK;
         if (statusCode.indexOf('p') >= 0)
-            status |= SharedResource.PERMANENT_MASK;
+            status |= SharedResource.FIXED_MASK;
 
         if (statusCode.indexOf('a') >= 0)
-            status |= (SharedResource.PERMANENT_MASK
+            status |= (SharedResource.FIXED_MASK
                     | SharedResource.CLOSING_MASK
                     | SharedResource.SUSPENDED_MASK
                     | SharedResource.WRITER_MASK | SharedResource.CLAIMED_MASK

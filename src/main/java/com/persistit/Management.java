@@ -233,6 +233,14 @@ public interface Management extends Remote {
             String treeName, String keyFilterString, KeyState fromKey,
             Key.Direction direction, int maxRecordCount, int maxValueBytes,
             boolean decodeStrings) throws RemoteException;
+    
+    /**
+     * Returns a {@link JournalInfo} structure describing the current state
+     * if the Journal.
+     * @return the JournalInfo
+     * @throws RemoteException
+     */
+    public JournalInfo getJournalInfo() throws RemoteException;
 
     /**
      * <p>

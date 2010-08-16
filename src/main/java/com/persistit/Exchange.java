@@ -934,7 +934,14 @@ public final class Exchange implements BuildConstants {
         int foundAt = -1;
         boolean found = false;
 
-        _tree.claim(false);
+        if (!_tree.claim(false)) {
+            if (Debug.ENABLED)
+                Debug.debug1(true);
+
+            throw new InUseException("Thread "
+                    + Thread.currentThread().getName()
+                    + " failed to get reader claim on " + _tree);
+        }
         checkLevelCache();
 
         long pageAddress = _rootPage;
@@ -1147,7 +1154,7 @@ public final class Exchange implements BuildConstants {
      * @return this Exchange
      */
     void storeInternal(Key key, Value value, int level, boolean fetchFirst,
-            boolean throwRetry) throws PersistitException {
+            boolean dontWait) throws PersistitException {
         boolean treeClaimRequired = false;
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
@@ -1159,9 +1166,9 @@ public final class Exchange implements BuildConstants {
         final boolean inTxn = _transaction.isActive();
         _transaction.assignTimestamp();
 
-//        if (!inTxn && level == 0) {
-//            journalId = journal().beginStore(_tree, key, value, fetchFirst);
-//        }
+        // if (!inTxn && level == 0) {
+        // journalId = journal().beginStore(_tree, key, value, fetchFirst);
+        // }
 
         int maxSimpleSize = _volume.getBufferSize() - Buffer.OVERHEAD
                 - Key.maxStorableKeySize(_volume.getBufferSize()) * 2;
@@ -1418,12 +1425,19 @@ public final class Exchange implements BuildConstants {
                         treeClaimAcquired = false;
                         lockedResourceCount--;
                     }
-                    if (throwRetry) {
-                        throw re;
+                    treeClaimAcquired = _tree.claim(true, dontWait ? 0
+                            : Tree.DEFAULT_MAX_WAIT_TIME);
+                    if (treeClaimAcquired) {
+                        lockedResourceCount++;
+                    } else {
+                        if (dontWait) {
+                            throw re;
+                        } else {
+                                throw new InUseException("Thread "
+                                        + Thread.currentThread().getName()
+                                        + " failed to get reader claim on " + _tree);
+                        }
                     }
-                    _tree.claim(true);
-                    treeClaimAcquired = true;
-                    lockedResourceCount++;
                 } finally {
                     if (buffer != null) {
                         _pool.release(buffer);
@@ -1466,8 +1480,8 @@ public final class Exchange implements BuildConstants {
         if (_hasDeferredDeallocations || _hasDeferredTreeUpdate) {
             commitAllDeferredUpdates();
         }
-//        if (journalId != -1)
-//            journal().completed(journalId);
+        // if (journalId != -1)
+        // journal().completed(journalId);
         _volume.bumpStoreCounter();
         if (fetchFirst)
             _volume.bumpFetchCounter();
@@ -1525,7 +1539,7 @@ public final class Exchange implements BuildConstants {
             value.setPointerValue(-1);
             buffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
 
-            buffer.setDirty();
+            buffer.setDirtyStructure();
 
             if (_isDirectoryExchange) {
                 Tree tree = _volume.getDirectoryTree();
@@ -1626,8 +1640,8 @@ public final class Exchange implements BuildConstants {
                 value.setPointerValue(newRightSibling);
                 value.setPointerPageType(rightSibling.getPageType());
 
-                rightSibling.setDirty();
-                buffer.setDirty();
+                rightSibling.setDirtyStructure();
+                buffer.setDirtyStructure();
 
                 return true;
 
@@ -2784,10 +2798,10 @@ public final class Exchange implements BuildConstants {
         int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
 
-//        long journalId = -1;
-//        if (!inTxn) {
-//            journalId = journal().beginRemove(_tree, key1, key2, fetchFirst);
-//        }
+        // long journalId = -1;
+        // if (!inTxn) {
+        // journalId = journal().beginRemove(_tree, key1, key2, fetchFirst);
+        // }
 
         try {
             //
@@ -2836,9 +2850,10 @@ public final class Exchange implements BuildConstants {
                                         removeFetchFirst(buffer, foundAt1,
                                                 buffer, foundAt2);
                                     }
-                                    _volume.harvestLongRecords(_tree
-                                            .getTreeIndex(), buffer, foundAt1,
-                                            foundAt2);
+                                    final boolean anyLongRecords = _volume
+                                            .harvestLongRecords(_tree
+                                                    .getTreeIndex(), buffer,
+                                                    foundAt1, foundAt2);
 
                                     boolean removed = buffer.removeKeys(
                                             foundAt1, foundAt2, _spareKey1);
@@ -2847,6 +2862,9 @@ public final class Exchange implements BuildConstants {
                                     }
 
                                     buffer.setDirty();
+                                    if (anyLongRecords) {
+                                        buffer.setDirtyStructure();
+                                    }
                                     result = foundAt2 > foundAt1;
                                     break;
                                 }
@@ -3020,8 +3038,8 @@ public final class Exchange implements BuildConstants {
                             if (buffer1.isDataPage()) {
                                 _tree.bumpChangeCount();
                             }
-                            buffer1.setDirty();
-                            buffer2.setDirty();
+                            buffer1.setDirtyStructure();
+                            buffer2.setDirtyStructure();
 
                             long rightGarbagePage = buffer1.getRightSibling();
 
@@ -3036,29 +3054,22 @@ public final class Exchange implements BuildConstants {
                             if (rebalanced) {
                                 //
                                 // If the join operation was not able to
-                                // coalesce the
-                                // two pages into one, then we need to reindex
-                                // the
-                                // new first key of the second page.
+                                // coalesce the two pages into one, then we need
+                                // to re-index the new first key of the second
+                                // page.
                                 //
                                 // We have either a quick way to do this or a
-                                // more
-                                // complex way. If there is a single parent
-                                // page in the index for the two rebalanced
+                                // more complex way. If there is a single parent
+                                // page in the index for the two re-balanced
                                 // pages, and if the key to be reinserted fits
-                                // in
-                                // that parent page, then all we need to do is
-                                // insert it. Otherwise, we will need to split
-                                // the
-                                // page above us, and that will potentially
-                                // result in
-                                // additional buffer reservations. Because that
-                                // could
-                                // force a retry at a bad time, in that case we
-                                // defer the
-                                // reinsertion of the index key until after all
-                                // the
-                                // current claims are released.
+                                // in that parent page, then all we need to do
+                                // is insert it. Otherwise, we will need to
+                                // split the page above us, and that will
+                                // potentially result in additional buffer
+                                // reservations. Because that could force a
+                                // retry at a bad time, in that case we defer
+                                // the re-insertion of the index key until
+                                // after all the current claims are released.
                                 //
                                 needsReindex = true;
                                 if (level < _cacheDepth - 1) {
@@ -3085,7 +3096,7 @@ public final class Exchange implements BuildConstants {
                                         // If it worked then we're done.
                                         if (fit != -1) {
                                             needsReindex = false;
-                                            buffer.setDirty();
+                                            buffer.setDirtyStructure();
                                         }
                                     }
                                 }
@@ -3109,8 +3120,9 @@ public final class Exchange implements BuildConstants {
                             // recover any LONG_RECORD pointers that mey be
                             // associated with keys in this range.
                             //
-                            _volume.harvestLongRecords(_tree.getTreeIndex(),
-                                    buffer1, foundAt1, foundAt2);
+                            final boolean anyLongRecords = _volume
+                                    .harvestLongRecords(_tree.getTreeIndex(),
+                                            buffer1, foundAt1, foundAt2);
 
                             result |= buffer1.removeKeys(foundAt1, foundAt2,
                                     _spareKey1);
@@ -3119,6 +3131,9 @@ public final class Exchange implements BuildConstants {
                                 _tree.bumpChangeCount();
                             }
                             buffer1.setDirty();
+                            if (anyLongRecords) {
+                                buffer1.setDirtyStructure();
+                            }
                         }
 
                         if (level < _cacheDepth - 1) {
@@ -3143,7 +3158,14 @@ public final class Exchange implements BuildConstants {
                     }
                 }
                 if (treeWriterClaimRequired) {
-                    _tree.claim(true);
+                    if (!_tree.claim(true)) {
+                        if (Debug.ENABLED)
+                            Debug.debug1(true);
+
+                        throw new InUseException("Thread "
+                                + Thread.currentThread().getName()
+                                + " failed to get reader claim on " + _tree);
+                    }
                     treeClaimAcquired = true;
                     lockedResourceCount++;
                 }
@@ -3240,8 +3262,8 @@ public final class Exchange implements BuildConstants {
             _persistit.getLockManager().verifyNoStrayResourceClaims(
                     lockedResourceCount);
         }
-//        if (journalId != -1)
-//            journal().completed(journalId);
+        // if (journalId != -1)
+        // journal().completed(journalId);
         _volume.bumpRemoveCounter();
         if (fetchFirst)
             _volume.bumpFetchCounter();
@@ -3540,7 +3562,7 @@ public final class Exchange implements BuildConstants {
                 if (end < buffer.getBufferSize()) {
                     buffer.clearBytes(end, buffer.getBufferSize());
                 }
-                buffer.setDirty();
+                buffer.setDirtyStructure();
                 bufferArray[index] = null;
                 page = buffer.getPageAddress(); // current head of the chain
                 _pool.release(buffer);
@@ -3646,7 +3668,7 @@ public final class Exchange implements BuildConstants {
                     }
                     buffer.setRightSibling(looseChain);
                     looseChain = buffer.getPageAddress();
-                    buffer.setDirty();
+                    buffer.setDirtyStructure();
                     _pool.release(buffer);
                     offset -= maxSegmentSize;
                     buffer = null;

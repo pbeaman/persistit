@@ -29,63 +29,76 @@ class SharedResource extends WaitingThreadManager {
      * Default maximum time to wait for access to this resource. Methods throw
      * an InUseException when this time is exceeded.
      */
-    public final static long DEFAULT_MAX_WAIT_TIME = 60000L;
+    final static long DEFAULT_MAX_WAIT_TIME = 60000L;
 
     /**
      * Mask for count of Threads holding a reader or claim (0-32767)
      */
-    public final static int CLAIMED_MASK = 0x00007FFF;
+    final static int CLAIMED_MASK = 0x00007FFF;
     /**
      * Mask for count of Threads holding a writer claim (0 or 1)
      */
-    public final static int WRITER_MASK = 0x00008000;
+    final static int WRITER_MASK = 0x00008000;
     /**
      * Mask for field indicating the resource needs to be written
      */
-    public final static int DIRTY_MASK = 0x00010000;
+    final static int DIRTY_MASK = 0x00010000;
 
     /**
      * Status field mask for valid bit. The bit is set it if the contents of the
      * buffer accurately reflects the status of the page.
      */
-    public final static int VALID_MASK = 0x00020000;
+    final static int VALID_MASK = 0x00020000;
 
     /**
      * Status field mask for deleted status. This bit is set if the page belongs
      * to a Volume that is being deleted.
      */
-    public final static int DELETE_MASK = 0x00040000;
+    final static int DELETE_MASK = 0x00040000;
 
     /**
      * Status field mask for resource that is enqueued to be written
      */
-    public final static int ENQUEUED_MASK = 0x00080000;
+    final static int ENQUEUED_MASK = 0x00080000;
 
     /**
      * Status field mask for resource that is enqueued to be written urgently.
      */
+    final static int URGENT_MASK = 0x00100000;
 
-    public final static int URGENT_MASK = 0x00100000;
+    /**
+     * Status field mask for a resource that is dirty and must be recovered
+     * concurrently with its checkpoint -- e.g., a buffer containing
+     * a page that has been split.
+     */
+    final static int STRUCTURE_MASK = 0x00200000;
+    
+    /**
+     * Status field mask for a resource that is dirty but not required to
+     * be written with any checkpoint.
+     */
+    final static int TRANSIENT_MASK = 0x00400000;
+    
     /**
      * Mask for bit field indicating that updates are suspended
      */
-    public final static int SUSPENDED_MASK = 0x10000000;
+    final static int SUSPENDED_MASK = 0x10000000;
 
     /**
      * Mask for bit field indicating that the resource is closing
      */
-    public final static int CLOSING_MASK = 0x20000000;
+    final static int CLOSING_MASK = 0x20000000;
 
     /**
-     * Mask for bit field indicating that resource should be mounted permanently
-     * -- e.g., a Volume's head page.
+     * Mask for bit field indicating that resource should be mounted
+     * in a fixed location -- e.g., a Volume's head page.
      */
-    public final static int PERMANENT_MASK = 0x40000000;
+    final static int FIXED_MASK = 0x40000000;
 
     /**
      * Status field mask for bits that indicate this Buffer is unavailable.
      */
-    public final static int UNAVAILABLE_MASK = PERMANENT_MASK | CLAIMED_MASK
+    final static int UNAVAILABLE_MASK = FIXED_MASK | CLAIMED_MASK
             | WRITER_MASK;
 
     /**
@@ -103,6 +116,7 @@ class SharedResource extends WaitingThreadManager {
      * The Thread that holds a writer claim on this resource.
      */
     private Thread _writerThread = null;
+    
     /**
      * An Object used for synchronization
      */
@@ -149,38 +163,40 @@ class SharedResource extends WaitingThreadManager {
     }
 
     boolean isDirty() {
-        synchronized (_lock) {
-            return (_status & DIRTY_MASK) != 0;
-        }
+        return isSet(DIRTY_MASK);
     }
 
     boolean isEnqueued() {
-        synchronized (_lock) {
-            return (_status & ENQUEUED_MASK) != 0;
-        }
+        return isSet(ENQUEUED_MASK);
     }
 
     boolean isUrgent() {
-        synchronized (_lock) {
-            return (_status & URGENT_MASK) != 0;
-        }
+        return isSet(URGENT_MASK);
     }
 
     public boolean isValid() {
-        synchronized (_lock) {
-            return (_status & VALID_MASK) != 0;
-        }
+        return isSet(VALID_MASK);
     }
 
     public boolean isDeleted() {
-        synchronized (_lock) {
-            return (_status & DELETE_MASK) != 0;
-        }
+        return isSet(DELETE_MASK);
+    }
+    
+    public boolean isStructure() {
+        return isSet(STRUCTURE_MASK);
+    }
+    
+    public boolean isTransient() {
+        return isSet(TRANSIENT_MASK);
     }
 
-    boolean isPermanent() {
-        synchronized (_lock) {
-            return (_status & PERMANENT_MASK) != 0;
+    boolean isFixed() {
+        return isSet(FIXED_MASK);
+    }
+    
+    boolean isSet(final int mask) {
+        synchronized(_lock) {
+            return (_status & mask) == mask;
         }
     }
 
@@ -198,12 +214,12 @@ class SharedResource extends WaitingThreadManager {
         }
     }
 
-    void setPermanent(boolean b) {
+    void setFixed(boolean b) {
         synchronized (_lock) {
             if (b) {
-                _status |= PERMANENT_MASK;
+                _status |= FIXED_MASK;
             } else {
-                _status &= ~PERMANENT_MASK;
+                _status &= ~FIXED_MASK;
             }
         }
     }
@@ -409,13 +425,19 @@ class SharedResource extends WaitingThreadManager {
 
     void setClean() {
         synchronized (_lock) {
-            _status &= ~DIRTY_MASK;
+            _status &= ~(DIRTY_MASK | STRUCTURE_MASK);
         }
     }
 
     void setDirty() {
         synchronized (_lock) {
             _status |= DIRTY_MASK;
+        }
+    }
+    
+    void setDirtyStructure() {
+        synchronized (_lock) {
+            _status |= (DIRTY_MASK | STRUCTURE_MASK);
         }
     }
 
@@ -442,6 +464,16 @@ class SharedResource extends WaitingThreadManager {
             return _generation;
         }
     }
+    
+    void setTransient(final boolean transientBuffer) {
+        synchronized(_lock) {
+            if (transientBuffer) {
+                _status |= TRANSIENT_MASK;
+            } else {
+                _status &= ~TRANSIENT_MASK;
+            }
+        }
+    }
 
     void setValid(boolean valid) {
         synchronized (_lock) {
@@ -452,6 +484,7 @@ class SharedResource extends WaitingThreadManager {
             }
         }
     }
+    
 
     public boolean isAvailable() {
         synchronized (_lock) {
@@ -500,6 +533,8 @@ class SharedResource extends WaitingThreadManager {
             return "v";
         case VALID_MASK | DIRTY_MASK:
             return "vd";
+        case VALID_MASK | DIRTY_MASK | ENQUEUED_MASK:
+            return "vde";
         case VALID_MASK | 1:
             return "vr1";
         case VALID_MASK | WRITER_MASK | 1:
@@ -527,6 +562,12 @@ class SharedResource extends WaitingThreadManager {
             }
             if ((status & URGENT_MASK) != 0) {
                 sb.append("u");
+            }
+            if ((status & TRANSIENT_MASK) != 0) {
+                sb.append("t");
+            }
+            if ((status & STRUCTURE_MASK) != 0) {
+                sb.append("s");
             }
             if ((status & WRITER_MASK) != 0) {
                 sb.append("w");

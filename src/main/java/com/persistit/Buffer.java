@@ -569,6 +569,18 @@ public final class Buffer extends SharedResource implements BuildConstants {
         }
     }
 
+    void setDirtyStructure() {
+        synchronized (_lock) {
+            bumpGeneration();
+            super.setDirtyStructure();
+            final long timestamp = _persistit.getTransaction().getTimestamp();
+            _timestamp = Math.max(_timestamp, timestamp);
+        }
+        if (Debug.HISTORY_ENABLED) {
+            Debug.stateChanged(this, "dirty", -1);
+        }
+    }
+
     /**
      * Release a writer claim on a buffer. This method also relinquishes the
      * reservation this buffer may have had if it is clean.
@@ -4183,7 +4195,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
             putLong(_alloc + GARBAGE_BLOCK_RIGHT_PAGE, right);
             putLong(_alloc + GARBAGE_BLOCK_EXPECTED_COUNT, expectedCount);
             bumpGeneration();
-            setDirty();
+            setDirtyStructure();
             return true;
         }
     }
@@ -4235,7 +4247,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         clearBytes(_alloc, _alloc + GARBAGE_BLOCK_SIZE);
         _alloc += GARBAGE_BLOCK_SIZE;
         bumpGeneration();
-        setDirty();
+        setDirtyStructure();
         return true;
     }
 
@@ -4252,7 +4264,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         }
         putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
         bumpGeneration();
-        setDirty();
+        setDirtyStructure();
     }
 
     void populateInfo(ManagementImpl.BufferInfo info) {

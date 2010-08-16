@@ -14,6 +14,7 @@ public class VolumeSpecification {
     private final static String ATTR_CREATE = "create";
     private final static String ATTR_READONLY = "readOnly";
     private final static String ATTR_CREATEONLY = "createOnly";
+    private final static String ATTR_TRANSIENT = "transient";
     private final static String ATTR_PAGE_SIZE = "pageSize";
     private final static String ATTR_PAGE2_SIZE = "bufferSize";
     private final static String ATTR_ID = "id";
@@ -31,6 +32,7 @@ public class VolumeSpecification {
     private boolean readOnly = false;
     private boolean create = false;
     private boolean createOnly = false;
+    private boolean tranzient = false;
     private int bufferSize = 8192;
     private long id = 0;
     private long initialPages = -1;
@@ -50,13 +52,15 @@ public class VolumeSpecification {
                 String token = mainTokenizer.nextToken().trim();
                 StringTokenizer innerTokenizer = new StringTokenizer(token, ":");
                 String attr = innerTokenizer.nextToken().trim();
-                if (ATTR_READONLY.equals(attr))
+                if (ATTR_READONLY.equals(attr)) {
                     readOnly = true;
-                else if (ATTR_CREATE.equals(attr))
+                } else if (ATTR_CREATE.equals(attr)) {
                     create = true;
-                else if (ATTR_CREATEONLY.equals(attr))
+                } else if (ATTR_CREATEONLY.equals(attr)) {
                     createOnly = true;
-                else if (ATTR_ALIAS.equals(attr)) {
+                } else if (ATTR_TRANSIENT.equals(attr)) {
+                    tranzient = true;
+                } else if (ATTR_ALIAS.equals(attr)) {
                     String valueString = innerTokenizer.nextToken().trim();
                     if (valueString != null && valueString.length() > 0) {
                         name = valueString;
@@ -94,16 +98,24 @@ public class VolumeSpecification {
                 }
             }
             int n = 0;
-            if (readOnly)
+            if (readOnly) {
                 n++;
-            if (create)
+            }
+            if (create) {
                 n++;
-            if (createOnly)
+            }
+            if (createOnly) {
                 n++;
+            }
             if (n > 1) {
                 throw new InvalidVolumeSpecificationException(specification
                         + ": readOnly, create and createOnly "
                         + "attributes are mutually exclusive");
+            }
+            if (readOnly && tranzient) {
+                throw new InvalidVolumeSpecificationException(specification
+                        + ": readOnly and transient attributes "
+                        + "are mutually exclusive");
             }
             //
             // Allows size specification in bytes rather than pages.
@@ -149,6 +161,10 @@ public class VolumeSpecification {
 
     public boolean isCreateOnly() {
         return createOnly;
+    }
+    
+    public boolean isTransient() {
+        return tranzient;
     }
 
     public int getBufferSize() {

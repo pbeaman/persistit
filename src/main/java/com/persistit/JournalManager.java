@@ -28,8 +28,8 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 
 /**
- * Manages the disk-based I/O journal. The journal contains both committed transactions
- * and images of updated pages.
+ * Manages the disk-based I/O journal. The journal contains both committed
+ * transactions and images of updated pages.
  * 
  * @author peter
  * 
@@ -43,7 +43,7 @@ public class JournalManager {
     public final static long MINIMUM_JOURNAL_SIZE = GIG / 64;
 
     public final static long MAXIMUM_JOURNAL_SIZE = GIG * 64;
-    
+
     public final static long ROLLOVER_THRESHOLD = 1024 * 1024;
 
     public final static int DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024;
@@ -397,8 +397,8 @@ public class JournalManager {
         }
     }
 
-    public synchronized void writeCheckpointToJournal(final Checkpoint checkpoint)
-            throws PersistitIOException {
+    public synchronized void writeCheckpointToJournal(
+            final Checkpoint checkpoint) throws PersistitIOException {
         if (!_recovered) {
             return;
         }
@@ -432,8 +432,8 @@ public class JournalManager {
 
         final Volume volume = buffer.getVolume();
         final int available = buffer.getAvailableSize();
-        final int recordSize = JournalRecord.PA.OVERHEAD + buffer.getBufferSize()
-                - available;
+        final int recordSize = JournalRecord.PA.OVERHEAD
+                + buffer.getBufferSize() - available;
         long address = -1;
         int handle = handleForVolume(volume);
 
@@ -445,7 +445,8 @@ public class JournalManager {
         JournalRecord.PA.putLength(_bytes, recordSize);
         JournalRecord.PA.putVolumeHandle(_bytes, handle);
         JournalRecord.PA.putType(_bytes);
-        JournalRecord.PA.putTimestamp(_bytes, buffer.getTimestamp());
+        JournalRecord.PA.putTimestamp(_bytes, buffer.isTransient() ? -1
+                : buffer.getTimestamp());
         JournalRecord.PA.putLeftSize(_bytes, leftSize);
         JournalRecord.PA.putBufferSize(_bytes, buffer.getBufferSize());
         JournalRecord.PA.putPageAddress(_bytes, buffer.getPageAddress());
@@ -710,8 +711,8 @@ public class JournalManager {
                 readBuffer.reset();
                 return false;
             }
-            readBuffer.get(_bytes, JournalRecord.OVERHEAD, JournalRecord.PA.OVERHEAD
-                    - JournalRecord.OVERHEAD);
+            readBuffer.get(_bytes, JournalRecord.OVERHEAD,
+                    JournalRecord.PA.OVERHEAD - JournalRecord.OVERHEAD);
             readBuffer.position(from + recordSize);
             final long address = bufferAddress + from;
             final long pageAddress = JournalRecord.PA.getPageAddress(_bytes);
@@ -725,20 +726,25 @@ public class JournalManager {
                                 + " is not preceded by an IV record for that handle at "
                                 + new FileAddress(file, address, timestamp));
             }
-            final VolumePage vp = new VolumePage(vd, pageAddress, timestamp);
-            final FileAddress fa = new FileAddress(file, address, timestamp);
-            List<FileAddress> addresses = pageMap.get(vp);
-            if (addresses == null) {
-                addresses = new ArrayList<FileAddress>(2);
-                pageMap.put(vp, addresses);
+            if (timestamp >= 0) {
+                final VolumePage vp = new VolumePage(vd, pageAddress, timestamp);
+                final FileAddress fa = new FileAddress(file, address, timestamp);
+                List<FileAddress> addresses = pageMap.get(vp);
+                if (addresses == null) {
+                    addresses = new ArrayList<FileAddress>(2);
+                    pageMap.put(vp, addresses);
+                }
+                addresses.add(fa);
+                if (_persistit.getLogBase().isLoggable(
+                        LogBase.LOG_RECOVERY_RECORD)) {
+                    _persistit.getLogBase().log(
+                            LogBase.LOG_RECOVERY_RECORD,
+                            "PA",
+                            new FileAddress(file, bufferAddress + from,
+                                    timestamp), vp, timestamp, null, null,
+                            null, null, null, null);
+                }
             }
-            addresses.add(fa);
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_RECORD)) {
-                _persistit.getLogBase().log(LogBase.LOG_RECOVERY_RECORD, "PA",
-                        new FileAddress(file, bufferAddress + from, timestamp),
-                        vp, timestamp, null, null, null, null, null, null);
-            }
-
             break;
         }
 
@@ -1273,8 +1279,8 @@ public class JournalManager {
             }
             wasUrgent = _copyFast;
             currentGeneration = _currentGeneration;
-            final File copyJournalFileLimit = new File(String.format(PATH_FORMAT,
-                    _directory, _firstGeneration + 1));
+            final File copyJournalFileLimit = new File(String.format(
+                    PATH_FORMAT, _directory, _firstGeneration + 1));
             for (final Map.Entry<VolumePage, FileAddress> entry : _pageMap
                     .entrySet()) {
                 FileAddress fa = entry.getValue();
@@ -1311,7 +1317,8 @@ public class JournalManager {
                 // remove from the sortedMap so that below we won't remove from
                 // the pageMap.
                 iterator.remove();
-                // Also, don't delete the journal file yet because we may reopen the
+                // Also, don't delete the journal file yet because we may reopen
+                // the
                 // Volume and attempt to continue.
                 if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
                     firstMissed = fa;
@@ -1323,12 +1330,13 @@ public class JournalManager {
                         + " does not identify a valid Volume at " + fa);
             }
 
-            final long pageAddress = readPageBufferFromJournal(vp, fa, bb, false);
+            final long pageAddress = readPageBufferFromJournal(vp, fa, bb,
+                    false);
 
             if (bb.limit() != volume.getBufferSize()) {
-                throw new CorruptJournalException(vp + " bufferSize " + bb.limit()
-                        + " does not match " + volume + " bufferSize "
-                        + volume.getBufferSize() + " at " + fa);
+                throw new CorruptJournalException(vp + " bufferSize "
+                        + bb.limit() + " does not match " + volume
+                        + " bufferSize " + volume.getBufferSize() + " at " + fa);
             }
             if (pageAddress != vp.getPage()) {
                 throw new CorruptJournalException(vp
@@ -1382,7 +1390,8 @@ public class JournalManager {
         }
         File currentFile = null;
         synchronized (this) {
-            if (firstMissed == null && _pageMap.size() == 0
+            if (firstMissed == null
+                    && _pageMap.size() == 0
                     && _writeBuffer != null
                     && _writeBufferAddress + _writeBuffer.position() > rolloverThreshold()) {
                 currentFile = _writeChannelFile;
@@ -1401,7 +1410,7 @@ public class JournalManager {
             _copyFast = false;
         }
     }
-    
+
     private long rolloverThreshold() {
         return _closed.get() ? 0 : ROLLOVER_THRESHOLD;
     }
@@ -1429,18 +1438,21 @@ public class JournalManager {
         final JournalManager journalManager = persistit.getJournalManager();
         final String propertiesFileName = args.length > 0 ? args[0]
                 : Persistit.DEFAULT_CONFIG_FILE;
-        persistit.initializeProperties(persistit.parseProperties(propertiesFileName));
+        persistit.initializeProperties(persistit
+                .parseProperties(propertiesFileName));
         persistit.initializeLogging();
         persistit.initializeJournal();
         journalManager.recover();
-        
+
         System.out.println();
-        System.out.println("Last valid checkpoint=" + journalManager._lastValidCheckpoint);
+        System.out.println("Last valid checkpoint="
+                + journalManager._lastValidCheckpoint);
         System.out.println();
         System.out.println("Page Map:");
         System.out.println();
-        
-        final SortedMap<VolumePage, FileAddress> sorted = new TreeMap<VolumePage, FileAddress>(journalManager._pageMap);
+
+        final SortedMap<VolumePage, FileAddress> sorted = new TreeMap<VolumePage, FileAddress>(
+                journalManager._pageMap);
         long previous = -1;
         for (final Map.Entry<VolumePage, FileAddress> entry : sorted.entrySet()) {
             long delta = entry.getKey().getPage() - previous;
