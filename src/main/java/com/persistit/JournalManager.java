@@ -79,6 +79,8 @@ public class JournalManager {
 
     private final static float DEFAULT_IO_RATE_SLEEP_MULTIPLIER = 0.5f;
 
+    private final static int DOUBLE_COPY_SIZE = 512;
+
     private final Map<VolumePage, FileAddress> _pageMap = new HashMap<VolumePage, FileAddress>();
 
     private final Map<File, FileChannel> _readChannelMap = new HashMap<File, FileChannel>();
@@ -119,7 +121,7 @@ public class JournalManager {
 
     private File _directory;
 
-    private final byte[] _bytes = new byte[4096];
+    private byte[] _bytes = new byte[DEFAULT_BUFFER_SIZE];
 
     /**
      * Journal file generation - serves as suffix on file name
@@ -134,7 +136,15 @@ public class JournalManager {
 
     private Checkpoint _lastValidCheckpoint = new Checkpoint(0, 0);
 
+    private FileAddress _lastValidCheckpointFileAddress = null;
+
     private FileAddress _dirtyRecoveryFileAddress = null;
+
+    private File _recoveryFile;
+
+    private long _recoveryAddress;
+
+    private long _recoveryStatus = Long.MIN_VALUE;
 
     private int _ioRate;
 
@@ -142,7 +152,7 @@ public class JournalManager {
 
     private volatile long _journaledPageCount = 0;
 
-    private volatile long _copyBackCount = 0;
+    private volatile long _copiedPageCount = 0;
 
     /**
      * Tunable parameters that determine how vigorously the copyBack thread
@@ -196,6 +206,43 @@ public class JournalManager {
         _flusherTask.start();
     }
 
+    public synchronized void populateJournalInfo(
+            final Management.JournalInfo info) {
+        info.closed = _closed.get();
+        info.copiedPageCount = _copiedPageCount;
+        info.copying = _copying.get();
+        info.currentGeneration = _currentGeneration;
+        info.currentJournalAddress = _writeBuffer == null ? 0
+                : _writeBufferAddress + _writeBuffer.position();
+        info.currentJournalFile = _writeChannelFile == null ? null
+                : _writeChannelFile.getPath();
+        info.recoveryJournalAddress = _recoveryAddress;
+        info.recoveryJournalFile = _recoveryFile == null ? null : _recoveryFile
+                .getPath();
+        info.recoveryStatus = _recoveryStatus;
+
+        info.flushing = _flushing.get();
+        info.journaledPageCount = _journaledPageCount;
+        if (_lastValidCheckpointFileAddress != null) {
+            info.lastValidCheckpointSystemTime = _lastValidCheckpoint
+                    .getSystemTimeMillis();
+            info.lastValidCheckpointTimestamp = _lastValidCheckpoint
+                    .getTimestamp();
+            info.lastValidCheckpointJournalFile = _lastValidCheckpointFileAddress._file
+                    .getPath();
+            info.lastValidCheckpointJournalAddress = _lastValidCheckpointFileAddress._address;
+        } else {
+            info.lastValidCheckpointSystemTime = 0;
+            info.lastValidCheckpointTimestamp = 0;
+            info.lastValidCheckpointJournalFile = null;
+            info.lastValidCheckpointJournalAddress = 0;
+        }
+        info.maxJournalFileSize = _maximumFileSize;
+        info.pageMapSize = _pageMap.size();
+        info.startGeneration = _firstGeneration;
+        info.suspendCopying = _suspendCopying.get();
+    }
+
     public synchronized int getPageMapSize() {
         return _pageMap.size();
     }
@@ -220,7 +267,7 @@ public class JournalManager {
         return _maximumFileSize;
     }
 
-    public void set_maximumFileSize(long maximumFileSize) {
+    public void setMaximumFileSize(long maximumFileSize) {
         _maximumFileSize = maximumFileSize;
     }
 
@@ -296,8 +343,67 @@ public class JournalManager {
         return _journaledPageCount;
     }
 
-    public long getCopyBackCount() {
-        return _copyBackCount;
+    public long getCopiedPageCount() {
+        return _copiedPageCount;
+    }
+
+    public synchronized int handleForVolume(final Volume volume)
+            throws PersistitIOException {
+        if (volume.isTransient()) {
+            return -1;
+        }
+        final VolumeDescriptor vd = new VolumeDescriptor(volume);
+        Integer handle = _volumeToHandleMap.get(vd);
+        if (handle == null) {
+            handle = Integer.valueOf(++_handleCounter);
+            writeVolumeHandleToJournal(vd, handle.intValue());
+            _volumeToHandleMap.put(vd, handle);
+            _handleToVolumeMap.put(handle, vd);
+        }
+        return handle.intValue();
+    }
+
+    public synchronized int handleForTree(final TreeDescriptor td)
+            throws PersistitIOException {
+        if (td.getVolumeHandle() == -1) {
+            // Tree in transient volume -- don't journal updates to it
+            return -1;
+        }
+        Integer handle = _treeToHandleMap.get(td);
+        if (handle == null) {
+            handle = Integer.valueOf(++_handleCounter);
+            writeTreeHandleToJournal(td, handle.intValue());
+            _treeToHandleMap.put(td, handle);
+            _handleToTreeMap.put(handle, td);
+        }
+        return handle.intValue();
+    }
+
+    public synchronized int handleForTree(final Tree tree)
+            throws PersistitIOException {
+        final TreeDescriptor td = new TreeDescriptor(handleForVolume(tree
+                .getVolume()), tree.getName());
+        return handleForTree(td);
+    }
+
+    public synchronized Tree treeForHandle(final int handle)
+            throws PersistitException {
+        final TreeDescriptor td = _handleToTreeMap.get(Integer.valueOf(handle));
+        if (td == null) {
+            return null;
+        }
+        final Volume volume = volumeForHandle(td.getVolumeHandle());
+        return volume.getTree(td.getTreeName(), false);
+    }
+
+    public synchronized Volume volumeForHandle(final int handle)
+            throws PersistitException {
+        final VolumeDescriptor vd = _handleToVolumeMap.get(Integer
+                .valueOf(handle));
+        if (vd == null) {
+            return null;
+        }
+        return _persistit.getVolume(vd.getPath());
     }
 
     public boolean readPageFromJournal(final Buffer buffer)
@@ -308,7 +414,7 @@ public class JournalManager {
 
         final Volume volume = buffer.getVolume();
         final VolumePage vp = new VolumePage(new VolumeDescriptor(volume),
-                pageAddress, 0);
+                pageAddress);
         final FileAddress fa;
 
         synchronized (this) {
@@ -364,6 +470,12 @@ public class JournalManager {
                         + " leftSize=" + leftSize + " bufferSize=" + bufferSize);
             }
 
+            if (pageAddress != vp.getPage()) {
+                throw new CorruptJournalException("Record at " + fa
+                        + " mismatched page address: expected/actual="
+                        + vp.getPage() + "/" + pageAddress);
+            }
+
             bb.limit(payloadSize).position(0);
             readFully(bb, fc, fa.getAddress() + JournalRecord.PA.OVERHEAD, fa);
 
@@ -415,15 +527,15 @@ public class JournalManager {
                 .getSystemTimeMillis());
         _writeBuffer.put(_bytes, 0, JournalRecord.CP.OVERHEAD);
         force();
+        final FileAddress fa = new FileAddress(_writeChannelFile, address,
+                checkpoint.getTimestamp());
         _lastValidCheckpoint = checkpoint;
+        _lastValidCheckpointFileAddress = fa;
         ioRate(1);
 
         if (_persistit.getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_WRITTEN)) {
-            _persistit.getLogBase().log(
-                    LogBase.LOG_CHECKPOINT_WRITTEN,
-                    checkpoint,
-                    new FileAddress(_writeChannelFile, address, checkpoint
-                            .getTimestamp()));
+            _persistit.getLogBase().log(LogBase.LOG_CHECKPOINT_WRITTEN,
+                    checkpoint, fa);
         }
     }
 
@@ -435,9 +547,11 @@ public class JournalManager {
         final int recordSize = JournalRecord.PA.OVERHEAD
                 + buffer.getBufferSize() - available;
         long address = -1;
-        int handle = handleForVolume(volume);
 
+        int handle = handleForVolume(volume);
         if (writeBuffer(recordSize)) {
+            // this call is repeated because it may be necessary to
+            // roll over, in which case the handle may now be different.
             handle = handleForVolume(volume);
         }
         address = _writeBufferAddress + _writeBuffer.position();
@@ -463,7 +577,7 @@ public class JournalManager {
         }
 
         final VolumePage vp = new VolumePage(new VolumeDescriptor(volume),
-                buffer.getPageAddress(), buffer.getTimestamp());
+                buffer.getPageAddress());
         final FileAddress fa = new FileAddress(_writeChannelFile, address,
                 buffer.getTimestamp());
         _pageMap.put(vp, fa);
@@ -478,51 +592,107 @@ public class JournalManager {
         }
     }
 
-    public synchronized int handleForVolume(final Volume volume)
-            throws PersistitIOException {
-        final VolumeDescriptor vd = new VolumeDescriptor(volume);
-        Integer handle = _volumeToHandleMap.get(vd);
-        if (handle == null) {
-            handle = Integer.valueOf(++_handleCounter);
-            JournalRecord.IV.putType(_bytes);
-            JournalRecord.IV.putHandle(_bytes, handle.intValue());
-            JournalRecord.IV.putVolumeId(_bytes, volume.getId());
-            JournalRecord.IV.putTimestamp(_bytes, 0); // TODO
-            JournalRecord.IV.putVolumeName(_bytes, volume.getPath());
-            final int recordSize = JournalRecord.IV.getLength(_bytes);
-            writeBuffer(recordSize);
-            _writeBuffer.put(_bytes, 0, recordSize);
-            if (_volumeToHandleMap.size() >= MAXIMUM_MAPPED_HANDLES) {
-                _volumeToHandleMap.clear();
-                _handleToVolumeMap.clear();
-            }
-            _volumeToHandleMap.put(vd, handle);
-            _handleToVolumeMap.put(handle, vd);
-        }
-        return handle.intValue();
+    private void writeVolumeHandleToJournal(final VolumeDescriptor volume,
+            final int handle) throws PersistitIOException {
+        JournalRecord.IV.putType(_bytes);
+        JournalRecord.IV.putHandle(_bytes, handle);
+        JournalRecord.IV.putVolumeId(_bytes, volume.getId());
+        JournalRecord.IV.putTimestamp(_bytes, 0);
+        JournalRecord.IV.putVolumeName(_bytes, volume.getPath());
+        final int recordSize = JournalRecord.IV.getLength(_bytes);
+        writeBuffer(recordSize);
+        _writeBuffer.put(_bytes, 0, recordSize);
     }
 
-    public synchronized int handleForTree(final TreeDescriptor tree)
+    private void writeTreeHandleToJournal(final TreeDescriptor td,
+            final int handle) throws PersistitIOException {
+        JournalRecord.IT.putType(_bytes);
+        JournalRecord.IT.putHandle(_bytes, handle);
+        JournalRecord.IT.putVolumeHandle(_bytes, td.getVolumeHandle());
+        JournalRecord.IT.putTimestamp(_bytes, 0);
+        JournalRecord.IT.putTreeName(_bytes, td.getTreeName());
+        final int recordSize = JournalRecord.IV.getLength(_bytes);
+        writeBuffer(recordSize);
+        _writeBuffer.put(_bytes, 0, recordSize);
+    }
+
+    public synchronized void writeStoreRecordToJournal(final long timestamp,
+            final int treeHandle, final Key key, final Value value)
             throws PersistitIOException {
-        Integer handle = _treeToHandleMap.get(tree);
-        if (handle == null) {
-            handle = Integer.valueOf(++_handleCounter);
-            JournalRecord.IT.putType(_bytes);
-            JournalRecord.IT.putHandle(_bytes, handle.intValue());
-            JournalRecord.IT.putTimestamp(_bytes, 0);
-            JournalRecord.IV.putTimestamp(_bytes, 0); // TODO
-            JournalRecord.IV.putVolumeName(_bytes, tree.getTreeName());
-            final int recordSize = JournalRecord.IV.getLength(_bytes);
-            writeBuffer(recordSize);
-            _writeBuffer.put(_bytes, 0, recordSize);
-            if (_treeToHandleMap.size() >= MAXIMUM_MAPPED_HANDLES) {
-                _treeToHandleMap.clear();
-                _handleToTreeMap.clear();
-            }
-            _treeToHandleMap.put(tree, handle);
-            _handleToTreeMap.put(handle, tree);
+        JournalRecord.SR.putType(_bytes);
+        JournalRecord.SR.putTimestamp(_bytes, timestamp);
+        JournalRecord.SR.putTreeHandle(_bytes, treeHandle);
+        JournalRecord.SR.putKeySize(_bytes, (short) key.getEncodedSize());
+        int recordSize = JournalRecord.SR.OVERHEAD;
+        System.arraycopy(key.getEncodedBytes(), 0, _bytes, recordSize, key
+                .getEncodedSize());
+        recordSize += key.getEncodedSize();
+        int partialSize = recordSize;
+        if (recordSize + value.getEncodedSize() < DOUBLE_COPY_SIZE) {
+            System.arraycopy(value.getEncodedBytes(), 0, _bytes, recordSize,
+                    value.getEncodedSize());
+            recordSize += value.getEncodedSize();
+            partialSize = recordSize;
+        } else {
+            recordSize += value.getEncodedSize();
         }
-        return handle.intValue();
+        JournalRecord.SR.putLength(_bytes, recordSize);
+        writeBuffer(recordSize);
+        _writeBuffer.put(_bytes, 0, partialSize);
+        if (recordSize > partialSize) {
+            _writeBuffer.put(value.getEncodedBytes());
+        }
+    }
+
+    public synchronized void writeDeleteRecordToJournal(final long timestamp,
+            final int treeHandle, final Key key1, final Key key2)
+            throws PersistitIOException {
+        JournalRecord.DR.putType(_bytes);
+        JournalRecord.DR.putTimestamp(_bytes, timestamp);
+        JournalRecord.DR.putTreeHandle(_bytes, treeHandle);
+        JournalRecord.DR.putKey1Size(_bytes, (short) key1.getEncodedSize());
+        int recordSize = JournalRecord.DR.OVERHEAD;
+        System.arraycopy(key1.getEncodedBytes(), 0, _bytes, recordSize, key1
+                .getEncodedSize());
+        recordSize += key1.getEncodedSize();
+        System.arraycopy(key2.getEncodedBytes(), 0, _bytes, recordSize, key2
+                .getEncodedSize());
+        recordSize += key2.getEncodedSize();
+        JournalRecord.DR.putLength(_bytes, recordSize);
+        writeBuffer(recordSize);
+        _writeBuffer.put(_bytes, 0, recordSize);
+    }
+
+    public synchronized void writeDeleteTreeToJournal(final long timestamp,
+            final int treeHandle)
+            throws PersistitIOException {
+        JournalRecord.DT.putType(_bytes);
+        JournalRecord.DT.putTimestamp(_bytes, timestamp);
+        JournalRecord.DT.putTreeHandle(_bytes, treeHandle);
+        final int recordSize = JournalRecord.DT.OVERHEAD;
+        JournalRecord.DT.putLength(_bytes, recordSize);
+        writeBuffer(recordSize);
+        _writeBuffer.put(_bytes, 0, recordSize);
+    }
+    
+    public synchronized void writeTransactionStartToJournal(final long timestamp)
+            throws PersistitIOException {
+        JournalRecord.TS.putType(_bytes);
+        JournalRecord.TS.putTimestamp(_bytes, timestamp);
+        final int recordSize = JournalRecord.TS.OVERHEAD;
+        JournalRecord.TS.putLength(_bytes, recordSize);
+        writeBuffer(recordSize);
+        _writeBuffer.put(_bytes, 0, recordSize);
+    }
+    
+    public synchronized void writeTransactionCommitToJournal(final long timestamp)
+            throws PersistitIOException {
+        JournalRecord.TC.putType(_bytes);
+        JournalRecord.TC.putTimestamp(_bytes, timestamp);
+        final int recordSize = JournalRecord.TC.OVERHEAD;
+        JournalRecord.TC.putLength(_bytes, recordSize);
+        writeBuffer(recordSize);
+        _writeBuffer.put(_bytes, 0, recordSize);
     }
 
     public synchronized void rollover() throws PersistitIOException {
@@ -540,10 +710,16 @@ public class JournalManager {
 
         _writeBufferAddress = 0;
         // Ensure new handle-map copies in every journal file
-        _handleToTreeMap.clear();
-        _handleToVolumeMap.clear();
-        _volumeToHandleMap.clear();
-        _treeToHandleMap.clear();
+        for (final Map.Entry<Integer, VolumeDescriptor> entry : _handleToVolumeMap
+                .entrySet()) {
+            writeVolumeHandleToJournal(entry.getValue(), entry.getKey()
+                    .intValue());
+        }
+        for (final Map.Entry<Integer, TreeDescriptor> entry : _handleToTreeMap
+                .entrySet()) {
+            writeTreeHandleToJournal(entry.getValue(), entry.getKey()
+                    .intValue());
+        }
     }
 
     public synchronized void recover() throws PersistitException {
@@ -558,7 +734,13 @@ public class JournalManager {
         _currentGeneration = -1;
 
         final File[] files = files();
+        long totalSize = 0;
+        for (final File file : files) {
+            totalSize += file.length();
+        }
+        _recoveryStatus = totalSize;
         _dirtyRecoveryFileAddress = null;
+
         for (final File file : files) {
             try {
                 if (_dirtyRecoveryFileAddress != null) {
@@ -567,11 +749,10 @@ public class JournalManager {
                     // Don't process any files after a dirty record
                     continue;
                 }
-                // Each journal file must rewrite all volume and tree handles
-                _handleToVolumeMap.clear();
-                _volumeToHandleMap.clear();
-                _handleToTreeMap.clear();
-                _treeToHandleMap.clear();
+                synchronized (this) {
+                    _recoveryFile = file;
+                    _recoveryAddress = 0;
+                }
 
                 final FileChannel channel = new FileInputStream(file)
                         .getChannel();
@@ -592,6 +773,9 @@ public class JournalManager {
                         break;
                     }
                     bufferAddress += readBuffer.position();
+                    synchronized (this) {
+                        _recoveryAddress = bufferAddress;
+                    }
                 }
                 final long generation = fileGeneration(file);
                 if (generation >= 0) {
@@ -612,6 +796,7 @@ public class JournalManager {
             _currentGeneration = 0;
         }
         _recovered = true;
+        _recoveryStatus = _dirtyRecoveryFileAddress == null ? 0 : -1;
     }
 
     private boolean recoverOneRecord(final File file, final long bufferAddress,
@@ -627,10 +812,17 @@ public class JournalManager {
         readBuffer.get(_bytes, 0, JournalRecord.OVERHEAD);
         final int type = JournalRecord.getType(_bytes);
         final long timestamp = JournalRecord.getTimestamp(_bytes);
+        final int recordSize = JournalRecord.getLength(_bytes);
+
+        synchronized (this) {
+            if (_recoveryStatus >= recordSize) {
+                _recoveryStatus -= recordSize;
+            }
+        }
+
         switch (type) {
 
         case JournalRecord.TYPE_IV: {
-            final int recordSize = JournalRecord.getLength(_bytes);
             if (recordSize > JournalRecord.IV.MAX_LENGTH) {
                 throw new CorruptJournalException(
                         "IV JournalRecord too long: "
@@ -662,7 +854,6 @@ public class JournalManager {
         }
 
         case JournalRecord.TYPE_IT: {
-            final int recordSize = JournalRecord.getLength(_bytes);
             if (recordSize > JournalRecord.IT.MAX_LENGTH) {
                 throw new CorruptJournalException(
                         "IT JournalRecord too long: "
@@ -698,7 +889,6 @@ public class JournalManager {
         }
 
         case JournalRecord.TYPE_PA: {
-            final int recordSize = JournalRecord.getLength(_bytes);
             if (recordSize > Buffer.MAX_BUFFER_SIZE + JournalRecord.PA.OVERHEAD) {
                 throw new CorruptJournalException(
                         "PA JournalRecord too long: "
@@ -726,8 +916,9 @@ public class JournalManager {
                                 + " is not preceded by an IV record for that handle at "
                                 + new FileAddress(file, address, timestamp));
             }
+            // timestamp < 0 means that this page should be ignored on recovery
             if (timestamp >= 0) {
-                final VolumePage vp = new VolumePage(vd, pageAddress, timestamp);
+                final VolumePage vp = new VolumePage(vd, pageAddress);
                 final FileAddress fa = new FileAddress(file, address, timestamp);
                 List<FileAddress> addresses = pageMap.get(vp);
                 if (addresses == null) {
@@ -748,16 +939,20 @@ public class JournalManager {
             break;
         }
 
-        case JournalRecord.TYPE_RR:
-        case JournalRecord.TYPE_WR:
+        case JournalRecord.TYPE_SR:
+        case JournalRecord.TYPE_DR:
+        case JournalRecord.TYPE_DT:
         case JournalRecord.TYPE_TS:
         case JournalRecord.TYPE_TC:
         case JournalRecord.TYPE_TJ:
-            throw new UnsupportedOperationException(
-                    "Can't handle record of type " + (int) type);
-
+            if (recordSize + from > readBuffer.limit()) {
+                readBuffer.reset();
+                return false;
+            }
+            // TODO: implement this
+            break;
+            
         case JournalRecord.TYPE_CP:
-            final int recordSize = JournalRecord.getLength(_bytes);
             if (recordSize != JournalRecord.CP.OVERHEAD) {
                 throw new CorruptJournalException(
                         "CP JournalRecord has incorrect length: "
@@ -831,15 +1026,18 @@ public class JournalManager {
                     // Debug.debug1(found);
                     found = true;
                     _pageMap.put(entry.getKey(), fa);
+                    if (fa.getTimestamp() <= timestamp) {
+                        addresses.remove(index);
+                    }
                 }
             }
-            // TODO - fold this into previous loop after debugging
-            for (int index = addresses.size(); --index >= 0;) {
-                FileAddress fa = addresses.get(index);
-                if (fa.getTimestamp() <= timestamp) {
-                    addresses.remove(index);
-                }
-            }
+            // // TODO - fold this into previous loop after debugging
+            // for (int index = addresses.size(); --index >= 0;) {
+            // FileAddress fa = addresses.get(index);
+            // if (fa.getTimestamp() <= timestamp) {
+            // addresses.remove(index);
+            // }
+            // }
 
             Debug.$assert(found || latest == Long.MIN_VALUE);
             if (addresses.isEmpty()) {
@@ -878,6 +1076,7 @@ public class JournalManager {
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);
             }
+            Arrays.fill(_bytes, (byte) 0);
             clear = _pageMap.isEmpty();
             _readChannelMap.clear();
             _handleToTreeMap.clear();
@@ -889,7 +1088,7 @@ public class JournalManager {
             _writeChannel = null;
             _writeBuffer = null;
             _recovered = false;
-            Arrays.fill(_bytes, (byte) 0);
+            _bytes = null;
 
             if (clear) {
                 final File[] files = files();
@@ -1073,6 +1272,14 @@ public class JournalManager {
             return _treeName;
         }
 
+        public boolean equals(final Object obj) {
+            final TreeDescriptor td = (TreeDescriptor)obj;
+            return td._treeName.equals(_treeName) && td._volumeHandle == _volumeHandle;
+        }
+        
+        public int hashCode() {
+            return _treeName.hashCode() ^ _volumeHandle;
+        }
     }
 
     private static class VolumePage implements Comparable<VolumePage> {
@@ -1081,8 +1288,7 @@ public class JournalManager {
 
         private final long _page;
 
-        VolumePage(final VolumeDescriptor vd, final long page,
-                final long timestamp) {
+        VolumePage(final VolumeDescriptor vd, final long page) {
             _volumeDescriptor = vd;
             _page = page;
         }
@@ -1313,13 +1519,12 @@ public class JournalManager {
                 volume = _persistit.getVolume(vp.getVolumeDescriptor()
                         .getPath());
             }
-            if (volume == null || volume.isClosed()) {
-                // remove from the sortedMap so that below we won't remove from
+            if (volume == null || volume.isClosed() || volume.isTransient()) {
+                // Remove from the sortedMap so that below we won't remove from
                 // the pageMap.
                 iterator.remove();
                 // Also, don't delete the journal file yet because we may reopen
-                // the
-                // Volume and attempt to continue.
+                // the Volume and attempt to continue.
                 if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
                     firstMissed = fa;
                 }
@@ -1346,7 +1551,7 @@ public class JournalManager {
             try {
                 volume.writePage(bb, pageAddress);
                 volumes.add(volume);
-                _copyBackCount++;
+                _copiedPageCount++;
                 final int ioRate = Math.min(Math.max(ioRate(0), _ioRateMin),
                         _ioRateMax);
                 final long delay = (long) (_ioRateSleepMultiplier * (_copyFast ? _ioRateMin

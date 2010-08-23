@@ -138,8 +138,8 @@ import java.nio.charset.Charset;
  * linked time-stamps should be ignored</td>
  * </tr>
  * <tr valign="top">
- * <td>WR</td>
- * <td>Write Record - specifies a Tree into which a key/value pair should be
+ * <td>SR</td>
+ * <td>Store Record - specifies a Tree into which a key/value pair should be
  * inserted
  * <table>
  * <tr valign="top">
@@ -148,14 +148,14 @@ import java.nio.charset.Charset;
  * </tr>
  * <tr valign="top">
  * <td>+20</td>
- * <td>Key size - 2-byte little-endian</td>
+ * <td>Key size (short) </td>
  * </tr>
  * <tr valign="top">
  * <td>+22</td>
  * <td>Key bytes immediately followed by Value bytes (variable).</td>
  * </tr>
  * </table>
- * </dt>
+ * 
  * </tr>
  * <tr valign="top">
  * <td>DV</td>
@@ -167,7 +167,7 @@ import java.nio.charset.Charset;
  * record</td>
  * </tr>
  * </table>
- * </dt>
+ * 
  * </tr>
  * <tr valign="top">
  * <td>DT</td>
@@ -178,12 +178,16 @@ import java.nio.charset.Charset;
  * <td>Tree handle (int) - matches a tree identified in a preceding IT record</td>
  * </tr>
  * </table>
- * </dt>
+ * 
  * </tr>
  * <tr valign="top">
  * <td>DR</td>
  * <td>Delete Record - specifies a Tree and two Keys: all key/value pairs
  * between these two keys (inclusive) are deleted.
+ * The Key bytes field defines two keys, key1 and key2. These delimit the range to be
+ * deleted. The first Key1_size bytes of this field contain the encoded key1
+ * value. The remaining bytes define key2. The first Elision_count bytes of Key2 are
+ * the same as Key1; only the remaining unique bytes are stored in the record.
  * <table>
  * <tr valign="top">
  * <td>+16</td>
@@ -191,25 +195,17 @@ import java.nio.charset.Charset;
  * </tr>
  * <tr valign="top">
  * <td>+20</td>
- * <td>Key1_size - 2-byte little-endian</td>
+ * <td>Key1_size (short)</td>
  * </tr>
  * <tr valign="top">
- * </tr>
- * <tr valign="top">
- * <td>+20</td>
- * <td>Key2 Elision_count - 2-byte little-endian</td>
+ * <td>+22</td>
+ * <td>Key2 Elision_count (short)</td>
  * </tr>
  * <tr valign="top">
  * <td>+24</td>
- * <td>Key bytes define two keys, key1 and key2. These delimit the range to be
- * deleted. The first Key1_size bytes of this field contain the encoded key1
- * value. The remaining bytes define key2. However, the first Elision_count
- * bytes of key2 are the same as key1, therefore only.</td>
+ * <td>Key bytes</td>
  * </tr>
  * </table>
- * </dt>
- * </tr>
- * 
  * </table>
  * 
  * @author peter
@@ -225,13 +221,17 @@ public class JournalRecord {
 
     public final static int TYPE_PA = ('P' << 8) | 'A';
 
-    public final static int TYPE_WR = ('W' << 8) | 'R';
+    public final static int TYPE_SR = ('W' << 8) | 'R';
 
-    public final static int TYPE_RR = ('R' << 8) | 'R';
+    public final static int TYPE_DR = ('D' << 8) | 'R';
+
+    public final static int TYPE_DT = ('R' << 8) | 'T';
 
     public final static int TYPE_TS = ('T' << 8) | 'S';
 
     public final static int TYPE_TC = ('T' << 8) | 'C';
+
+    public final static int TYPE_TR = ('T' << 8) | 'R';
 
     public final static int TYPE_TJ = ('T' << 8) | 'J';
 
@@ -403,5 +403,112 @@ public class JournalRecord {
             Util.putLong(bytes, 16, systemTimeMillis);
         }
 
+    }
+    
+    public static class TS extends JournalRecord {
+        
+        public final static int TYPE = TYPE_TS;
+        
+        public static void putType(final byte[] bytes) {
+            putType(bytes, TYPE_TS);
+        }
+
+
+        
+    }
+
+    public static class TC extends JournalRecord {
+        
+        public final static int TYPE = TYPE_TC;
+        
+        public static void putType(final byte[] bytes) {
+            putType(bytes, TYPE_TC);
+        }
+
+
+    }
+    
+    public static class TR extends JournalRecord {
+        
+        public final static int TYPE = TYPE_TR;
+        
+        public static void putType(final byte[] bytes) {
+            putType(bytes, TYPE_TR);
+        }
+
+    }
+    
+    public static class SR extends JournalRecord {
+        
+        public final static int TYPE = TYPE_SR;
+        
+        public final static int OVERHEAD = 22;
+        
+        public static void putType(final byte[] bytes) {
+            putType(bytes, TYPE_SR);
+        }
+
+        public static void putTreeHandle(final byte[] bytes, final int handle) {
+            Util.putInt(bytes, 16, handle);
+        }
+        
+        public static int getTreeHandle(final byte[] bytes) {
+            return Util.getInt(bytes, 16);
+        }
+        
+        public static void putKeySize(final byte[] bytes, final short size) {
+            Util.putShort(bytes, 20, size);
+        }
+        
+        public static int getKeySize(final byte[] bytes) {
+            return Util.getShort(bytes, 20);
+        }
+    }
+    
+    public static class DR extends JournalRecord {
+        
+        public final static int TYPE = TYPE_DR;
+        
+        public final static int OVERHEAD = 22;
+        
+        public static void putType(final byte[] bytes) {
+            putType(bytes, TYPE_DR);
+        }
+
+        public static void putTreeHandle(final byte[] bytes, final int handle) {
+            Util.putInt(bytes, 16, handle);
+        }
+        
+        public static int getTreeHandle(final byte[] bytes) {
+            return Util.getInt(bytes, 16);
+        }
+        
+        public static void putKey1Size(final byte[] bytes, final short size) {
+            Util.putShort(bytes, 20, size);
+        }
+        
+        public static int getKey1Size(final byte[] bytes) {
+            return Util.getShort(bytes, 20);
+        }
+        
+    }
+    
+    public static class DT extends JournalRecord {
+        
+        public final static int TYPE = TYPE_DT;
+        
+        public final static int OVERHEAD = 20;
+        
+        public static void putType(final byte[] bytes) {
+            putType(bytes, TYPE_DT);
+        }
+
+        public static void putTreeHandle(final byte[] bytes, final int handle) {
+            Util.putInt(bytes, 16, handle);
+        }
+        
+        public static int getTreeHandle(final byte[] bytes) {
+            return Util.getInt(bytes, 16);
+        }
     }
 }

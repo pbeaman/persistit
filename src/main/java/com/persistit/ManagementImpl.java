@@ -67,7 +67,7 @@ class ManagementImpl implements Management, BuildConstants {
 
     private boolean _registered = false;
     private String _registeredHostName;
-    private HashMap _tasks = new HashMap();
+    private HashMap<Long, Task> _tasks = new HashMap<Long, Task>();
 
     public ManagementImpl(Persistit persistit) {
         _persistit = persistit;
@@ -235,7 +235,7 @@ class ManagementImpl implements Management, BuildConstants {
      * @return The array
      */
     public BufferPoolInfo[] getBufferPoolInfoArray() {
-        HashMap bufferPoolTable = _persistit.getBufferPoolHashMap();
+        HashMap<Integer, BufferPool> bufferPoolTable = _persistit.getBufferPoolHashMap();
         int size = bufferPoolTable.size();
         BufferPoolInfo[] result = new BufferPoolInfo[size];
         int index = 0;
@@ -254,7 +254,7 @@ class ManagementImpl implements Management, BuildConstants {
     
     public JournalInfo getJournalInfo() {
         final JournalInfo info = new JournalInfo();
-        final JournalManager jman = _persistit.getJournalManager();
+        _persistit.getJournalManager().populateJournalInfo(info);
         return info;
     }
 

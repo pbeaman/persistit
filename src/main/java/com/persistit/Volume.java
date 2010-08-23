@@ -116,6 +116,7 @@ public class Volume extends SharedResource {
     private long _directoryRootPage;
     private long _garbageRoot;
     private int _bufferSize;
+    private boolean _loose;
 
     private AtomicLong _readCounter = new AtomicLong();
     private AtomicLong _writeCounter = new AtomicLong();
@@ -280,7 +281,7 @@ public class Volume extends SharedResource {
                             .getBufferSize(), volumeSpec.getInitialPages(),
                     volumeSpec.getExtensionPages(), volumeSpec
                             .getMaximumPages(), volumeSpec.isCreateOnly(),
-                    volumeSpec.isTransient());
+                    volumeSpec.isTransient(), volumeSpec.isLoose());
         } else {
             return openVolume(persistit, volumeSpec.getPath(), volumeSpec
                     .getName(), volumeSpec.getId(), volumeSpec.isReadOnly());
@@ -323,7 +324,7 @@ public class Volume extends SharedResource {
     private Volume(final Persistit persistit, final String path,
             final String name, final long id, final int bufferSize,
             long initialPages, long extensionPages, long maximumPages,
-            boolean tranzient) throws PersistitException {
+            boolean tranzient, boolean loose) throws PersistitException {
         super(persistit);
         persistit.getTransaction().assignTimestamp();
         boolean sizeOkay = false;
@@ -366,6 +367,7 @@ public class Volume extends SharedResource {
 
         boolean open = false;
         this.setTransient(tranzient);
+        _loose = loose;
 
         try {
             initializePathAndName(path, name, true);
@@ -562,7 +564,7 @@ public class Volume extends SharedResource {
             final long extensionPages, final long maximumPages,
             final boolean mustCreate) throws PersistitException {
         return create(persistit, pathName, null, id, bufferSize, initialPages,
-                extensionPages, maximumPages, mustCreate, false);
+                extensionPages, maximumPages, mustCreate, false, false);
     }
 
     /**
@@ -611,7 +613,15 @@ public class Volume extends SharedResource {
      * 
      * @param tranzient
      *            <tt>true</tt> if any updates to this volume should not be made
-     *            persistent. When <tt>true</tt> the Volume has no backing store.
+     *            persistent. When <tt>true</tt> the Volume has no backing
+     *            store.
+     * 
+     * @param loose
+     *            <tt>true</tt> if updates may be written in "loose" (other than
+     *            execution order) to this Volume. Setting this flag may reduce
+     *            the overall I/O cost of updating the Volume, but at the cost
+     *            of possible application-level inconsistencies following
+     *            recovery from an abrupt termination.
      * 
      * @return the Volume
      * @throws PersistitException
@@ -620,7 +630,8 @@ public class Volume extends SharedResource {
             final String name, final long id, final int bufferSize,
             final long initialPages, final long extensionPages,
             final long maximumPages, final boolean mustCreate,
-            final boolean tranzient) throws PersistitException {
+            final boolean tranzient, final boolean loose)
+            throws PersistitException {
         File file = new File(path);
         if (file.exists() && file.length() >= HEADER_SIZE) {
             if (mustCreate || tranzient) {
@@ -643,7 +654,8 @@ public class Volume extends SharedResource {
             return vol;
         } else {
             return new Volume(persistit, path, name, id, bufferSize,
-                    initialPages, extensionPages, maximumPages, tranzient);
+                    initialPages, extensionPages, maximumPages, tranzient,
+                    loose);
         }
     }
 
@@ -1504,6 +1516,20 @@ public class Volume extends SharedResource {
     }
 
     /**
+     * Indicates whether all updates to this <tt>Volume</tt> will be written in
+     * execution order (such that update anomalies are not visible upon
+     * recovering after an abrupt termination) or whether updates may be written
+     * out-of-order. The latter method, called "loose" causes fewer pages to be
+     * written to the journal for each checkpoint, but may lead to application-
+     * level inconsistencies after recovery from an abrupt termination.
+     * 
+     * @return <i>true</i> if this Volume accepts "loose" update semantics.
+     */
+    public boolean isLoose() {
+        return _loose;
+    }
+
+    /**
      * Create a new tree in this volume. A tree is represented by an index root
      * page and all the index and data pages pointed to by that root page.
      * 
@@ -1858,7 +1884,7 @@ public class Volume extends SharedResource {
         }
 
         // Check for maximum size
-        if (_maximumPages <= _pageCount) {
+        if (_maximumPages < _pageCount) {
             throw new VolumeFullException(this.getPath());
         }
 
@@ -1872,27 +1898,29 @@ public class Volume extends SharedResource {
 
         claimHeadBuffer();
         try {
-            currentSize = _channel.size();
-            if (currentSize > newSize) {
-                if (_persistit.getLogBase().isLoggable(
-                        LogBase.LOG_EXTEND_BADLENGTH)) {
-                    _persistit.getLogBase().log(LogBase.LOG_EXTEND_BADLENGTH,
-                            currentSize, newSize, 0, 0, 0, this, null, null,
-                            null, null);
+            if (!isTransient()) {
+                currentSize = _channel.size();
+                if (currentSize > newSize) {
+                    if (_persistit.getLogBase().isLoggable(
+                            LogBase.LOG_EXTEND_BADLENGTH)) {
+                        _persistit.getLogBase().log(
+                                LogBase.LOG_EXTEND_BADLENGTH, currentSize,
+                                newSize, 0, 0, 0, this, null, null, null, null);
+                    }
                 }
-            }
-            if (currentSize < newSize && !isTransient()) {
-                final ByteBuffer bb = ByteBuffer.allocate(1);
-                bb.position(0).limit(1);
-                _channel.write(bb, newSize - 1);
-                _channel.force(true);
-                if (_persistit.getLogBase().isLoggable(
-                        LogBase.LOG_EXTEND_NORMAL)) {
-                    _persistit.getLogBase().log(LogBase.LOG_EXTEND_NORMAL,
-                            currentSize, newSize, 0, 0, 0, this, null, null,
-                            null, null);
-                }
+                if (currentSize < newSize) {
+                    final ByteBuffer bb = ByteBuffer.allocate(1);
+                    bb.position(0).limit(1);
+                    _channel.write(bb, newSize - 1);
+                    _channel.force(true);
+                    if (_persistit.getLogBase().isLoggable(
+                            LogBase.LOG_EXTEND_NORMAL)) {
+                        _persistit.getLogBase().log(LogBase.LOG_EXTEND_NORMAL,
+                                currentSize, newSize, 0, 0, 0, this, null,
+                                null, null, null);
+                    }
 
+                }
             }
 
             synchronized (_lock) {

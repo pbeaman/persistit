@@ -41,6 +41,7 @@ public class UnitTestProperties {
                 + "maximumPages:10000");
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
+        p.setProperty("rmiport", "9876");
         return p;
     }
 
@@ -58,8 +59,12 @@ public class UnitTestProperties {
         p.setProperty("volume.3", "${datapath}/persistit_txn.v01,create,"
                 + "pageSize:8192,initialPages:100,extensionPages:100,"
                 + "maximumPages:100000,alias:_txn");
+        p.setProperty("volume.4", "${datapath}/persistit_transient.v01,createOnly,"
+                + "pageSize:8192,initialPages:1000000,extensionPages:1000000,"
+                + "maximumPages:1000000,alias:transient,transient");
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
+        p.setProperty("rmiport", "9876");
         return p;
     }
 
@@ -70,9 +75,10 @@ public class UnitTestProperties {
         p.setProperty("buffer.count.8192", "40");
         p.setProperty("volume.1", "${datapath}/temp.v01,create,"
                 + "pageSize:8192,initialPages:4,extensionPages:1,"
-                + "maximumPages:100000,alias:persistit,temporary");
+                + "maximumPages:100000,alias:persistit,transient");
         p.setProperty("journalpath", "${datapath}/persistit_alt_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
+        p.setProperty("rmiport", "9876");
         return p;
     }
 

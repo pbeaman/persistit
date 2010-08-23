@@ -107,7 +107,7 @@ public class LogBase {
             "TXN_RECOVERY_END");
     final static int LOG_INIT_CREATE_GUI = addLogTemplate(FINE, LIFECYCLE,
             "INIT_CREATE_GUI");
-    public final static int LOG_MBEAN_REGISTRATION = addLogTemplate(INFO,
+    public final static int LOG_MBEAN_REGISTRATION = addLogTemplate(FINE,
             LIFECYCLE, "MBEAN_REGISTRATION");
     public final static int LOG_MBEAN_EXCEPTION = addLogTemplate(WARNING,
             LIFECYCLE, "MBEAN_EXCEPTION");
@@ -141,7 +141,7 @@ public class LogBase {
     final static int LOG_EXTEND_BADLENGTH = addLogTemplate(SEVERE, POOL,
             "EXTEND_BADLENGTH");
     final static int LOG_EXTEND_IOE = addLogTemplate(SEVERE, POOL, "EXTEND_IOE");
-    final static int LOG_RMI_SERVER = addLogTemplate(INFO, RMI, "RMI_SERVER");
+    final static int LOG_RMI_SERVER = addLogTemplate(FINE, RMI, "RMI_SERVER");
     final static int LOG_UNINDEXED_PAGE = addLogTemplate(INFO, PERSISTIT,
             "UNINDEXED_PAGE");
     final static int LOG_RMI_EXCEPTION = addLogTemplate(WARNING, RMI,

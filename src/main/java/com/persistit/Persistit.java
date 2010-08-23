@@ -425,6 +425,8 @@ public class Persistit implements BuildConstants {
     public void initialize(Properties properties) throws PersistitException {
         getTransaction().assignTimestamp();
         initializeProperties(properties);
+        initializeManagement();
+        initializeOther();
         initializeLogging();
         initializeJournal();
 
@@ -432,8 +434,6 @@ public class Persistit implements BuildConstants {
 
         initializeBufferPools();
         initializeVolumes();
-        initializeManagement();
-        initializeOther();
 
         _journalManager.startThreads();
         for (final BufferPool pool : _bufferPoolTable.values()) {
@@ -1383,6 +1383,11 @@ public class Persistit implements BuildConstants {
         return earliest;
     }
 
+    /**
+     * Copy back all pages from the journal to their host Volumes.
+     * 
+     * @throws Exception
+     */
     public void copyBackPages() throws Exception {
         _journalManager.copyBack(Long.MAX_VALUE);
     }

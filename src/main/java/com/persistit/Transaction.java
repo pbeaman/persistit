@@ -30,8 +30,7 @@ import com.persistit.exception.VolumeNotFoundException;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit}, 
- * {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <tt>commit</tt> is performed. At that point,
  * all the updates are written atomically - that is, completely or not at all.
@@ -305,8 +304,6 @@ public class Transaction {
     private final Key _rootKey;
 
     private final InternalHashSet _touchedPagesSet = new InternalHashSet();
-    private final HashMap<Tree, Integer> _treeHandlesByName = new HashMap<Tree, Integer>();
-    private final HashMap<Integer, Tree> _treesByHandle = new HashMap<Integer, Tree>();
 
     private long _expirationTime;
     private long _timeout;
@@ -443,127 +440,12 @@ public class Transaction {
     }
 
     private synchronized int handleForTree(Tree tree) throws PersistitException {
-        Integer v = _treeHandlesByName.get(tree);
-        if (v != null)
-            return v.intValue();
-
-        int handle;
-        if (_ex1 == null)
-            setupExchanges();
-        final Exchange ex = new Exchange(_ex1);
-        ex.ignoreTransactions();
-
-        ex.clear().append('@').append(tree.getName()).append(
-                tree.getVolume().getId());
-        ex.fetch();
-        if (ex.getValue().isDefined()) {
-            handle = ex.getValue().getInt();
-        } else {
-            Value value = ex.getValue();
-            Volume volume = tree.getVolume();
-            ex.clear().append('@');
-            handle = (int) ex.incrementValue();
-            ex.append(tree.getName()).append(tree.getVolume().getId());
-            value.put(handle);
-            ex.store();
-            value.clear();
-            value.setStreamMode(true);
-            try {
-                value.put(volume.getId());
-                value.put(volume.getPath());
-                value.put(volume.getName());
-                value.put(tree.getName());
-                ex.clear().append('@').append(handle).store();
-            } finally {
-                value.setStreamMode(false);
-            }
-        }
-        Integer handleObject = new Integer(handle);
-
-        _treeHandlesByName.put(tree, handleObject);
-        _treesByHandle.put(handleObject, tree);
-
-        return handle;
+        return _persistit.getJournalManager().handleForTree(tree);
     }
 
     private synchronized Tree treeForHandle(int handle)
             throws PersistitException {
-        Integer handleObject = new Integer(handle);
-        Tree tree = _treesByHandle.get(handleObject);
-
-        if (tree == null) {
-            if (_ex1 == null)
-                setupExchanges();
-            final Exchange ex = new Exchange(_ex1);
-
-            ex.clear().append('@').append(handle).fetch();
-            Value value = ex.getValue();
-
-            if (value.isDefined()) {
-                String volumePathName;
-                String volumeAlias;
-                String treeName;
-
-                value.setStreamMode(true);
-                try {
-                    /* long volumeId = */value.getLong();
-                    volumePathName = value.getString();
-                    volumeAlias = value.getString();
-                    treeName = value.getString();
-                } finally {
-                    value.setStreamMode(false);
-                }
-                Volume volume = _persistit.getVolume(volumePathName);
-                if (volume == null && volumeAlias != null) {
-                    volume = _persistit.getVolume(volumeAlias);
-                }
-                if (volume == null) {
-                    throw new VolumeNotFoundException(volumePathName);
-                }
-                tree = volume.getTree(treeName, false);
-                if (tree == null) {
-                    throw new TreeNotFoundException(treeName);
-                }
-                _treeHandlesByName.remove(tree);
-                _treesByHandle.remove(handleObject);
-
-                _treeHandlesByName.put(tree, handleObject);
-                _treesByHandle.put(handleObject, tree);
-
-            }
-        }
-        if (!tree.isValid() || !tree.isInitialized()) {
-            final Tree newTree = tree.getVolume()
-                    .getTree(tree.getName(), false);
-            _treeHandlesByName.remove(tree);
-            _treesByHandle.remove(handleObject);
-            tree = newTree;
-            _treeHandlesByName.put(tree, handleObject);
-            _treesByHandle.put(handleObject, tree);
-        }
-        return tree;
-    }
-
-    private synchronized void removeTreeHandle(final Tree tree)
-            throws PersistitException {
-        int handle;
-        if (_ex1 == null)
-            setupExchanges();
-
-        final Exchange ex = new Exchange(_ex1);
-        ex.ignoreTransactions();
-
-        ex.clear().append('@').append(tree.getName()).append(
-                tree.getVolume().getId()).fetch();
-        if (ex.getValue().isDefined()) {
-            handle = ex.getValue().getInt();
-            ex.remove();
-            ex.clear().append('@').append(handle).remove();
-            Integer handleObject = new Integer(handle);
-
-            _treeHandlesByName.remove(tree);
-            _treesByHandle.remove(handleObject);
-        }
+        return _persistit.getJournalManager().treeForHandle(handle);
     }
 
     /**
@@ -1214,10 +1096,8 @@ public class Transaction {
                     // Step 2
                     // Verify that no touched page has changed. If any have
                     // been changed then we need to roll back. Since all the
-                    // volumes
-                    // we care about are now claimed, no other thread can
-                    // further modify
-                    // one of these pages.
+                    // volumes we care about are now claimed, no other thread
+                    // can further modify one of these pages.
                     //
                     TouchedPage tp = null;
                     while ((tp = (TouchedPage) _touchedPagesSet.next(tp)) != null) {
@@ -1237,21 +1117,19 @@ public class Transaction {
                         }
                     }
 
-                    //
-                    // Step 3
-                    // Mark the transaction as COMMIT_STARTED. This means that
-                    // if
-                    // the JVM is interrupted after this point, but prior to
-                    // completion,
-                    // RecoveryPlan will apply these updates.
-                    //
                     if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
-                        _ex1.getValue().put(
-                                _pendingStoreCount + _pendingRemoveCount);
-                        _ex1.clear().append('C').store();
-                        applyUpdates();
+                        //
+                        // Step 3
+                        // Journal the transaction.
+                        //
+                        writeUpdatesToJournal();
                         //
                         // Step 4
+                        // Apply the updates
+                        //
+                        applyUpdates();
+                        //
+                        // Step 5
                         // Remove the pending updates. Don't need them any more!
                         //
                         clear();
@@ -1328,20 +1206,10 @@ public class Transaction {
         if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
             if (_ex1 == null)
                 setupExchanges();
-
-            Key key1 = _ex1.getAuxiliaryKey1();
-            Key key2 = _ex1.getAuxiliaryKey2();
-            //
-            // Note: don't clear tree handles
-            //
-            _ex1.clear().append('A');
-            _ex1.getKey().copyTo(key1);
-            _ex1.clear().append('Z');
-            _ex1.getKey().copyTo(key2);
-            _ex1.removeKeyRangeInternal(key1, key2, false);
+            _ex1.removeAll();
+            _pendingStoreCount = 0;
+            _pendingRemoveCount = 0;
         }
-        _pendingStoreCount = 0;
-        _pendingRemoveCount = 0;
     }
 
     private void checkState() throws PersistitException {
@@ -1687,14 +1555,60 @@ public class Transaction {
         return result1 || result2;
     }
 
+    private void writeUpdatesToJournal() throws PersistitException {
+        final JournalManager jman = _persistit.getJournalManager();
+        if (_ex1 == null)
+            setupExchanges();
+
+        _ex1.clear();
+        Value txnValue = _ex1.getValue();
+
+        final Set<Tree> removedTrees = new HashSet<Tree>();
+
+        jman.writeTransactionStartToJournal(getTimestamp());
+        while (_ex1.traverse(Key.GT, true)) {
+            Key key1 = _ex1.getKey();
+            key1.reset();
+            char type = key1.decodeChar();
+            if (type != 'R' && type != 'S' && type != 'D')
+                continue;
+
+            int treeHandle = key1.decodeInt();
+            int offset = key1.getIndex();
+            int size = key1.getEncodedSize() - offset;
+
+            Key key2 = _ex2.getKey();
+            System.arraycopy(key1.getEncodedBytes(), offset, key2
+                    .getEncodedBytes(), 0, size);
+            key2.setEncodedSize(size);
+
+            if (type == 'R') {
+                key2.copyTo(_ex2.getAuxiliaryKey1());
+                txnValue.decodeAntiValue(_ex2);
+
+                jman.writeDeleteRecordToJournal(getTimestamp(), treeHandle,
+                        _ex2.getAuxiliaryKey1(), _ex2.getAuxiliaryKey2());
+            } else if (type == 'S') {
+                if (txnValue.isDefined()
+                        && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
+                        && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
+                    txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
+                }
+                jman.writeStoreRecordToJournal(getTimestamp(), treeHandle,
+                        key2, txnValue);
+                removedTrees.remove(_ex2.getTree());
+            } else if (type == 'D') {
+                jman.writeDeleteTreeToJournal(getTimestamp(), treeHandle);
+            }
+        }
+        jman.writeTransactionCommitToJournal(getTimestamp());
+    }
+
     private void applyUpdates() throws PersistitException {
         if (_ex1 == null)
             setupExchanges();
-        _ex1.clear().append('C').fetch();
-        Value txnValue = _ex1.getValue();
-        if (!txnValue.isDefined())
-            return;
 
+        Value txnValue = _ex1.getValue();
         int currentTreeHandle = -1;
         Tree currentTree = null;
 
@@ -1742,7 +1656,6 @@ public class Transaction {
         }
 
         for (final Tree tree : removedTrees) {
-            removeTreeHandle(tree);
             tree.getVolume().removeTree(tree);
         }
     }

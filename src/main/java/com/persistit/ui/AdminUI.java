@@ -111,6 +111,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     private DecimalFormat _timeFormat;
     private DecimalFormat _longFormat;
     private DecimalFormat _integerFormat;
+    private String _fileLocationFormat;
 
     private ResourceBundle _bundle;
     private Properties _properties;
@@ -167,7 +168,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         final JavaHelpAdapter adapter = _javaHelpAdapter;
         _frame = null;
         _javaHelpAdapter = null;
-        
+
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 if (adapter != null) {
@@ -405,6 +406,11 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         return _percentageFormat.format(v);
     }
 
+    public String formatFileLocation(final String path, final long address) {
+        return path == null ? "" : String.format(_fileLocationFormat, path,
+                address);
+    }
+
     private void setFrameTitle(String hostName) {
         String title = getProperty("title");
         if (title == null)
@@ -475,6 +481,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         _timeFormat = new DecimalFormat(getProperty("TIME_FORMAT"));
         _longFormat = new DecimalFormat(getProperty("LONG_FORMAT"));
         _integerFormat = new DecimalFormat(getProperty("INTEGER_FORMAT"));
+        _fileLocationFormat = getProperty("FILE_LOCATION_FORMAT");
         _waitingMessage = getProperty("WaitingMessage");
         _nullMessage = getProperty("NullMessage");
         _taskStates = new String[7];

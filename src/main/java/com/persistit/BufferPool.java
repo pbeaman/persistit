@@ -121,11 +121,6 @@ public class BufferPool {
     private Buffer[] _dirty;
 
     /**
-     * Head of doubly-linked list of dirty pages urgently needing to be written
-     */
-    private Buffer[] _urgent;
-
-    /**
      * An Object used to lock the buffer management memory structures
      */
     private final Object[] _lock;
@@ -208,7 +203,6 @@ public class BufferPool {
         _lru = new Buffer[_bucketCount];
         _fixed = new Buffer[_bucketCount];
         _dirty = new Buffer[_bucketCount];
-        _urgent = new Buffer[_bucketCount];
         _lock = new Object[_bucketCount];
         for (int bucket = 0; bucket < _bucketCount; bucket++) {
             _lock[bucket] = new Object();
@@ -256,9 +250,9 @@ public class BufferPool {
                     final Buffer buffer = _buffers[poolIndex];
                     final int bucket = bucket(buffer);
                     synchronized (_lock[bucket]) {
-                        if (buffer.isDirty() && !buffer.isUrgent()) {
+                        if (buffer.isDirty() && !buffer.isEnqueued()) {
                             if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                                enqueueUrgentPage(buffer, bucket);
+                                enqueueDirtyPage(buffer, bucket, !buffer.isTransient(), 0, 0);
                             } else {
                                 unavailable++;
                             }
@@ -282,7 +276,7 @@ public class BufferPool {
             boolean hasEnqueuedPages = false;
             for (int bucket = 0; !hasEnqueuedPages && bucket < _bucketCount; bucket++) {
                 synchronized (_lock[bucket]) {
-                    hasEnqueuedPages |= (_urgent[bucket] != null || _dirty[bucket] != null);
+                    hasEnqueuedPages |= _dirty[bucket] != null;
                 }
             }
             if (!hasEnqueuedPages) {
@@ -815,7 +809,7 @@ public class BufferPool {
                 }
             }
             if (buffer == null) {
-                _collector.kick();
+                _collector.urgent();
                 synchronized (_lock[bucket]) {
                     try {
                         _lock[bucket].wait(RETRY_SLEEP_TIME);
@@ -1064,13 +1058,12 @@ public class BufferPool {
      * @return
      */
     private boolean enqueueDirtyPage(final Buffer buffer, final int bucket,
-            final boolean always) {
-        final boolean enqueued;
-        // checkEnqueued();
-        if (buffer.isDirty()
-                && !buffer.isEnqueued()
-                && (always || needToWrite(buffer))) {
-            enqueued = true;
+            final boolean urgent, final int count, final int max) {
+        if (!urgent && (buffer.isTransient() || count > max)) {
+            return false;
+        }
+        if (buffer.isDirty() && !buffer.isEnqueued()
+                && (urgent || needToWrite(buffer, count, max))) {
             if (_dirty[bucket] == null) {
                 buffer.removeFromDirty();
                 _dirty[bucket] = buffer;
@@ -1078,82 +1071,32 @@ public class BufferPool {
                 buffer.moveInDirty(_dirty[bucket]);
             }
             buffer.setEnqueued();
-        } else {
-            enqueued = false;
-        }
-        if (enqueued) {
             _writer.kick();
+            return true;
+        } else {
+            return false;
         }
-        // checkEnqueued();
-        return enqueued;
     }
 
-    private boolean needToWrite(final Buffer buffer) {
+    private boolean needToWrite(final Buffer buffer, final int count,
+            final int max) {
         if (buffer.isTransient()) {
             return false;
         }
         if (buffer.getTimestamp() > _currentCheckpoint.getTimestamp()) {
             return false;
         }
-        if (buffer.isDataPage() && !buffer.isStructure()) {
+        if (buffer.isDataPage() && !buffer.isStructure() && buffer.getVolume().isLoose()) {
             return false;
         }
-        return true;
-    }
-
-    /**
-     * Put a dirty buffer on the urgent queue. Note that caller has locked the
-     * bucket.
-     * 
-     * @param buffer
-     * @param bucket
-     * @return
-     */
-    private boolean enqueueUrgentPage(final Buffer buffer, final int bucket) {
-        final boolean dirty;
-        // checkEnqueued();
-        if (buffer.isDirty() && !buffer.isUrgent()) {
-            dirty = true;
-            buffer.setUrgent();
-            if (_dirty[bucket] == buffer) {
-                _dirty[bucket] = buffer.getNextDirty();
-            }
-            buffer.removeFromDirty();
-            if (_dirty[bucket] == buffer) {
-                _dirty[bucket] = null;
-            }
-
-            if (_urgent[bucket] == null) {
-                _urgent[bucket] = buffer;
-            } else {
-                buffer.moveInDirty(_urgent[bucket]);
-            }
-        } else {
-            dirty = false;
-        }
-        if (dirty) {
-            _writer.kick();
-        }
-        // checkEnqueued();
-        return dirty;
+        return count < max;
     }
 
     private boolean unenqueuePage(final Buffer buffer, final int bucket) {
         final boolean result;
         synchronized (_lock[bucket]) {
             // checkEnqueued(bucket);
-            if (buffer.isUrgent()) {
-                if (_urgent[bucket] == buffer) {
-                    _urgent[bucket] = buffer.getNextDirty();
-                }
-                buffer.removeFromDirty();
-                if (_urgent[bucket] == buffer) {
-                    _urgent[bucket] = null;
-                    result = false;
-                } else {
-                    result = true;
-                }
-            } else if (buffer.isEnqueued()) {
+            if (buffer.isEnqueued()) {
                 if (_dirty[bucket] == buffer) {
                     _dirty[bucket] = buffer.getNextDirty();
                 }
@@ -1208,6 +1151,7 @@ public class BufferPool {
     private class DirtyPageCollector extends IOTaskRunnable {
         private boolean _clean;
         private boolean _wasClosed;
+        private boolean _urgent;
 
         DirtyPageCollector() {
             super(_persistit);
@@ -1215,6 +1159,11 @@ public class BufferPool {
 
         void start() {
             start("PAGE_COLLECTOR:" + _bufferSize, _writerPollInterval);
+        }
+
+        synchronized void urgent() {
+            _urgent = true;
+            kick();
         }
 
         public void runTask() {
@@ -1249,8 +1198,8 @@ public class BufferPool {
                 buffer = _fixed[bucket];
                 while (buffer != null) {
                     if (buffer.isDirty() && !buffer.isEnqueued()) {
-                        if (enqueueDirtyPage(buffer, bucket,
-                                countFixed < maxCount)) {
+                        if (enqueueDirtyPage(buffer, bucket, _urgent,
+                                countFixed, maxCount)) {
                             countFixed++;
                         }
                     }
@@ -1266,8 +1215,8 @@ public class BufferPool {
                         Debug.$assert(buffer.getNext() != buffer);
                     if (buffer.isDirty()) {
                         if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket,
-                                    countInvalid < maxCount)) {
+                            if (enqueueDirtyPage(buffer, bucket, _urgent,
+                                    countInvalid, maxCount)) {
                                 countInvalid++;
                             }
                         } else {
@@ -1281,8 +1230,8 @@ public class BufferPool {
                 while (buffer != null) {
                     if (buffer.isDirty()) {
                         if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket,
-                                    countLru < maxCount)) {
+                            if (enqueueDirtyPage(buffer, bucket, _urgent,
+                                    countLru, maxCount)) {
                                 countLru++;
                             }
                         } else {
@@ -1333,40 +1282,6 @@ public class BufferPool {
             _wasClosed = _closed.get();
 
             for (int bucket = 0; bucket < _bucketCount && !fastClose.get(); bucket++) {
-                for (int ubucket = 0; ubucket < _bucketCount; ubucket++) {
-                    Buffer buffer;
-                    synchronized (_lock[ubucket]) {
-                        buffer = _urgent[ubucket];
-                    }
-                    while (buffer != null && !fastClose.get()) {
-                        final Result result = writeEnqueuedPage(buffer, ubucket);
-                        switch (result) {
-                        case WRITTEN:
-                            _written++;
-                            if (unenqueuePage(buffer, ubucket)) {
-                                _remaining++;
-                            }
-                            break;
-                        case UNAVAILABLE:
-                            _unavailable++;
-                            break;
-                        case ERROR:
-                            _errors++;
-                            break;
-                        }
-                        // checkDirtyQueue(buffer, ubucket);
-                        if (result == Result.WRITTEN) {
-                            break;
-                        }
-                        synchronized (_lock[ubucket]) {
-                            buffer = buffer.getNextDirty();
-                            if (buffer == _urgent[ubucket]) {
-                                break;
-                            }
-                        }
-                    }
-                }
-
                 Buffer buffer;
                 synchronized (_lock[bucket]) {
                     buffer = _dirty[bucket];
@@ -1462,19 +1377,9 @@ public class BufferPool {
 
     void checkEnqueued(final int bucket) {
         synchronized (_lock[bucket]) {
-            Buffer buffer = _urgent[bucket];
-
+            Buffer buffer = _dirty[bucket];
             while (buffer != null) {
-                Debug.debug1(!buffer.isUrgent());
-                buffer = buffer.getNextDirty();
-                if (buffer == _urgent[bucket]) {
-                    break;
-                }
-            }
-
-            buffer = _dirty[bucket];
-            while (buffer != null) {
-                Debug.debug1(!buffer.isEnqueued() || buffer.isUrgent());
+                Debug.debug1(!buffer.isEnqueued());
                 buffer = buffer.getNextDirty();
                 if (buffer == _dirty[bucket]) {
                     break;
@@ -1482,5 +1387,9 @@ public class BufferPool {
             }
 
         }
+    }
+    
+    public String toString() {
+        return "BufferPool[" + _bufferCount + "@" + _bufferSize + (_closed.get() ? ":closed" : "") + "]";
     }
 }

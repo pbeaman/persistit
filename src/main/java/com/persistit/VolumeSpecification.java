@@ -15,6 +15,7 @@ public class VolumeSpecification {
     private final static String ATTR_READONLY = "readOnly";
     private final static String ATTR_CREATEONLY = "createOnly";
     private final static String ATTR_TRANSIENT = "transient";
+    private final static String ATTR_LOOSE = "loose";
     private final static String ATTR_PAGE_SIZE = "pageSize";
     private final static String ATTR_PAGE2_SIZE = "bufferSize";
     private final static String ATTR_ID = "id";
@@ -33,6 +34,7 @@ public class VolumeSpecification {
     private boolean create = false;
     private boolean createOnly = false;
     private boolean tranzient = false;
+    private boolean loose = false;
     private int bufferSize = 8192;
     private long id = 0;
     private long initialPages = -1;
@@ -60,6 +62,8 @@ public class VolumeSpecification {
                     createOnly = true;
                 } else if (ATTR_TRANSIENT.equals(attr)) {
                     tranzient = true;
+                } else if (ATTR_LOOSE.equals(attr)) {
+                    loose = true;
                 } else if (ATTR_ALIAS.equals(attr)) {
                     String valueString = innerTokenizer.nextToken().trim();
                     if (valueString != null && valueString.length() > 0) {
@@ -165,6 +169,10 @@ public class VolumeSpecification {
     
     public boolean isTransient() {
         return tranzient;
+    }
+    
+    public boolean isLoose() {
+        return loose;
     }
 
     public int getBufferSize() {

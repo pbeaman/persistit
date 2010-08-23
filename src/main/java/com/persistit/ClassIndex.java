@@ -51,7 +51,7 @@ public class ClassIndex {
 
     private final static String BY_HANDLE = "byHandle";
     private final static String BY_NAME = "byName";
-    private final static String INDEX_TREE_NAME = "_classIndex";
+    private final static String CLASS_INDEX_TREE_NAME = "_classIndex";
     private Exchange _systemExchange;
 
     private Stack _exStack = new Stack();
@@ -295,7 +295,7 @@ public class ClassIndex {
                 try {
                     Volume volume = _persistit.getSystemVolume();
                     _systemExchange = _persistit.getExchange(volume,
-                            INDEX_TREE_NAME, true);
+                            CLASS_INDEX_TREE_NAME, true);
                 } catch (PersistitException pe) {
                     throw new ConversionException(pe);
                 }

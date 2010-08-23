@@ -233,10 +233,11 @@ public interface Management extends Remote {
             String treeName, String keyFilterString, KeyState fromKey,
             Key.Direction direction, int maxRecordCount, int maxValueBytes,
             boolean decodeStrings) throws RemoteException;
-    
+
     /**
-     * Returns a {@link JournalInfo} structure describing the current state
-     * if the Journal.
+     * Returns a {@link JournalInfo} structure describing the current state if
+     * the Journal.
+     * 
      * @return the JournalInfo
      * @throws RemoteException
      */
@@ -1847,6 +1848,8 @@ public interface Management extends Remote {
     }
 
     public static class JournalInfo extends AcquisitionTimeBase {
+        private static final long serialVersionUID = -6628208913672254686L;
+
         String currentJournalFile;
         long currentJournalAddress;
         long maxJournalFileSize;
@@ -1855,8 +1858,11 @@ public interface Management extends Remote {
         long startGeneration;
         long lastValidCheckpointTimestamp;
         long lastValidCheckpointSystemTime;
-        String dirtyRecoveryJournalFile;
-        long dirtyRecoveryJournalAddress;
+        String lastValidCheckpointJournalFile;
+        long lastValidCheckpointJournalAddress;
+        String recoveryJournalFile;
+        long recoveryJournalAddress;
+        long recoveryStatus;
         long journaledPageCount;
         long copiedPageCount;
         boolean closed;
@@ -1924,30 +1930,80 @@ public interface Management extends Remote {
         }
 
         /**
-         * A "dirty" recovery may occur after Persistit has been abruptly
-         * terminated. In this case there may be garbage at the end of the last
-         * journal file.
+         * Convenience method to return the elapsed time since the last valid
+         * checkpoint was written.
          * 
-         * @return the last Journal file containing records included in a
-         *         "dirty" recovery (recovery performed on an incomplete
-         *         journal), or <tt>null</tt> if recovery was able to read
-         *         through the entire journal without error.
+         * @return the elapsed time in seconds since the latest valid Checkpoint
          */
-        public String getDirtyRecoveryJournalFile() {
-            return dirtyRecoveryJournalFile;
+        public long getLastValidCheckpointAge() {
+            return (System.currentTimeMillis() - lastValidCheckpointSystemTime + 500) / 1000;
         }
 
         /**
-         * A "dirty" recovery may occur after Persistit has been abruptly
-         * terminated. In this case there may be garbage at the end of the last
-         * journal file.
-         * 
-         * @return the address within the last recovered Journal file at which
-         *         corrupt or missing data was found, or -1 if recovery was able
-         *         to read through the entire journal without error.
+         * @return the name of the journal file to which the last valid
+         *         checkpoint record was written
          */
-        public long getDirtyRecoveryJournalAddress() {
-            return dirtyRecoveryJournalAddress;
+        public String getLastValidCheckpointJournalFile() {
+            return lastValidCheckpointJournalFile;
+        }
+
+        /**
+         * @return the file address of the last valid checkpoint record
+         */
+        public long getLastValidCheckpointJournalAddress() {
+            return lastValidCheckpointJournalAddress;
+        }
+
+        /**
+         * The current journal file being recovered during startup. After
+         * recovery is compete, the name of the last journal file used during
+         * recovery.
+         * 
+         * @return the journal file from which a recovery operation was last
+         *         performed.
+         */
+        public String getRecoveryJournalFile() {
+            return recoveryJournalFile;
+        }
+
+        /**
+         * Address within journal file currently being recovered during startup.
+         * After recovery is complete, the address after the last recovered
+         * record.
+         * 
+         * @return the current recovery file address.
+         */
+        public long getRecoveryJournalAddress() {
+            return recoveryJournalAddress;
+        }
+
+        /**
+         * Return one of the following values:
+         * <p />
+         * <table>
+         * <tr>
+         * <td>Long.MIN_VALUE</td>
+         * <td>if recovery has not begun yet</td>
+         * </tr>
+         * <tr>
+         * <td>-1</td>
+         * <td>if recovery ended after a "dirty" (abruptly terminated) shutdown</td>
+         * </tr>
+         * <tr>
+         * <td>0</td>
+         * <td>if recovery completed after a "clean" (normal) shutdown</td>
+         * </tr>
+         * <tr>
+         * <td>N &gt; 0</td>
+         * <td>if recovery is in progress, in which case N represents the
+         * approximate number of remaining bytes of journal data to process.</td>
+         * </tr>
+         * </table>
+         * 
+         * @return the recovery status.
+         */
+        public long getRecoveryStatus() {
+            return recoveryStatus;
         }
 
         /**
