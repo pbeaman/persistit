@@ -640,7 +640,7 @@ public class JournalManager {
         writeBuffer(recordSize);
         _writeBuffer.put(_bytes, 0, partialSize);
         if (recordSize > partialSize) {
-            _writeBuffer.put(value.getEncodedBytes());
+            _writeBuffer.put(value.getEncodedBytes(), 0, value.getEncodedSize());
         }
     }
 
