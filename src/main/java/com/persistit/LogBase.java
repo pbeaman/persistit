@@ -103,6 +103,8 @@ public class LogBase {
             "TXN_RECOVERY_START");
     final static int LOG_TXN_RECOVERY_FAILURE = addLogTemplate(SEVERE,
             LIFECYCLE, "TXN_RECOVERY_FAILURE");
+    final static int LOG_TXN_RECOVERY_EXCEPTION = addLogTemplate(WARNING,
+            LIFECYCLE, "TXN_RECOVERY_EXCEPTION");
     final static int LOG_TXN_RECOVERY_END = addLogTemplate(FINE, LIFECYCLE,
             "TXN_RECOVERY_END");
     final static int LOG_INIT_CREATE_GUI = addLogTemplate(FINE, LIFECYCLE,
@@ -179,59 +181,8 @@ public class LogBase {
         log(LOG_GENERAL, message);
     }
 
-    void log(int messageId) {
-        if ((messageId & 0xFF) < _minimumLogLevel)
-            return;
-
-        _persistit.getPersistitLogger().log(logTemplate(messageId), null, null,
-                null, null, null, null, null, null, null, null);
-    }
-
-    void log(int messageId, Object p0) {
-        if ((messageId & 0xFF) < _minimumLogLevel)
-            return;
-        _persistit.getPersistitLogger().log(logTemplate(messageId), p0, null,
-                null, null, null, null, null, null, null, null);
-    }
-
-    void log(int messageId, Object p0, Object p1) {
-        if ((messageId & 0xFF) < _minimumLogLevel)
-            return;
-        _persistit.getPersistitLogger().log(logTemplate(messageId), p0, p1,
-                null, null, null, null, null, null, null, null);
-    }
-
-    void log(int messageId, long p0) {
-        if ((messageId & 0xFF) < _minimumLogLevel)
-            return;
-        _persistit.getPersistitLogger().log(logTemplate(messageId),
-                Long.toString(p0), null, null, null, null, null, null, null,
-                null, null);
-    }
-
-    void log(int messageId, long p0, long p1) {
-        if ((messageId & 0xFF) < _minimumLogLevel)
-            return;
-        _persistit.getPersistitLogger().log(logTemplate(messageId),
-                Long.toString(p0), Long.toString(p1), null, null, null, null,
-                null, null, null, null);
-    }
-
-    void log(int messageId, long p0, long p1, long p2, long p3, long p4,
-            Object p5, Object p6, Object p7, Object p8, Object p9) {
-        if ((messageId & 0xFF) < _minimumLogLevel)
-            return;
-        _persistit.getPersistitLogger().log(logTemplate(messageId),
-                Long.toString(p0), Long.toString(p1), Long.toString(p2),
-                Long.toString(p3), Long.toString(p4), p5, p6, p7, p8, p9);
-    }
-
-    void log(int messageId, Object p0, Object p1, Object p2, Object p3,
-            Object p4, Object p5, Object p6, Object p7, Object p8, Object p9) {
-        if ((messageId & 0xFF) < _minimumLogLevel)
-            return;
-        _persistit.getPersistitLogger().log(logTemplate(messageId), p0, p1, p2,
-                p3, p4, p5, p6, p7, p8, p9);
+    void log(int messageId, Object... args) {
+        _persistit.getPersistitLogger().log(logTemplate(messageId), args);
     }
 
     private int lookup(String[] array, String s) {

@@ -155,6 +155,7 @@ public final class Exchange implements BuildConstants {
     private Thread _ownerThread;
     private boolean _relinquished;
     private boolean _secure = false;
+    private boolean _ignoreTransactions;
 
     private Object _lock = new Object();
 
@@ -1163,7 +1164,7 @@ public final class Exchange implements BuildConstants {
                 .getLockedResourceCount();
 
         long journalId = -1;
-        final boolean inTxn = _transaction.isActive();
+        final boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
 
         // if (!inTxn && level == 0) {
@@ -1778,7 +1779,7 @@ public final class Exchange implements BuildConstants {
 
         _persistit.getLockManager().verifyNoStrayResourceClaims(
                 lockedResourceCount);
-        boolean inTxn = _transaction.isActive();
+        boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
         Buffer buffer = null;
         if (doFetch) {
@@ -1891,8 +1892,9 @@ public final class Exchange implements BuildConstants {
                     if (rightSiblingPage > 0) {
                         Buffer rightSibling = _pool.get(_volume,
                                 rightSiblingPage, _exclusive, true);
-                        if (inTxn)
+                        if (inTxn) {
                             _transaction.touchedPage(this, buffer);
+                        }
                         _persistit.getLockManager().setOffset();
                         _pool.release(buffer);
                         //
@@ -2458,7 +2460,7 @@ public final class Exchange implements BuildConstants {
 
         _persistit.getLockManager().verifyNoStrayResourceClaims(
                 lockedResourceCount);
-        boolean inTxn = _transaction.isActive();
+        boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
         if (Debug.ENABLED)
             Debug.suspend();
@@ -2477,8 +2479,9 @@ public final class Exchange implements BuildConstants {
             return this;
         } finally {
             if (buffer != null) {
-                if (inTxn)
+                if (inTxn) {
                     _transaction.touchedPage(this, buffer);
+                }
                 _pool.release(buffer);
             }
             _persistit.getLockManager().verifyNoStrayResourceClaims(
@@ -2619,7 +2622,7 @@ public final class Exchange implements BuildConstants {
         checkOwnerThread();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
-        boolean inTxn = _transaction.isActive();
+        boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
         clear();
         _value.clear();
@@ -2785,7 +2788,7 @@ public final class Exchange implements BuildConstants {
         if (Debug.ENABLED)
             Debug.suspend();
 
-        boolean inTxn = _transaction.isActive();
+        boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
@@ -3228,8 +3231,7 @@ public final class Exchange implements BuildConstants {
                                     _persistit.getLogBase().log(
                                             LogBase.LOG_UNINDEXED_PAGE,
                                             deferredPage, 0, 0, 0, 0,
-                                            _tree.getName(), _volume.getPath(),
-                                            null, null, null);
+                                            _tree.getName(), _volume.getPath());
                                 }
                             }
                             lc._deferredReindexPage = 0;
@@ -3348,7 +3350,7 @@ public final class Exchange implements BuildConstants {
         if (Debug.ENABLED)
             Debug.suspend();
         Buffer buffer = null;
-        boolean inTxn = _transaction.isActive();
+        boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
 
         try {
@@ -3423,8 +3425,9 @@ public final class Exchange implements BuildConstants {
                 remainingSize -= segmentSize;
                 // previousPage = page;
                 page = buffer.getRightSibling();
-                if (inTxn)
+                if (inTxn)        {
                     _transaction.touchedPage(this, buffer);
+                }
                 _pool.release(buffer);
                 buffer = null;
             }
@@ -3720,35 +3723,8 @@ public final class Exchange implements BuildConstants {
         return _transaction;
     }
 
-    // /**
-    // * Replaces the transaction context for this Exchange. This method
-    // * permits an application to manage and switch between multiple
-    // * transaction contexts per thread. Use this method with care
-    // * because transaction contexts must be handled correctly to in
-    // * order to maintain database integrity. Generally, an application
-    // * should simple use the default per-thread transaction context
-    // * automatically provided for every <tt>Exchange</tt>.
-    // * @param txn The <tt>Transaction</tt>. If <tt>null</tt>, subsequent
-    // * database operations are performed outside the scope of any
-    // * explicit <tt>Transaction</tt>.
-    // * @return The <tt>Transaction</tt> previously associated with this
-    // * Exchange
-    // */
-    // public Transaction setTransaction(Transaction txn)
-    // {
-    // Transaction oldTxn = _transaction;
-    // _transaction = txn != null ? txn : Transaction.NEVER_ACTIVE_TRANSACTION;
-    // return oldTxn;
-    // }
-    //    
-    /**
-     * Replaces the default transaction context for this <tt>Exchange</tt>. By
-     * default, every Exchange has the transaction context of the thread that
-     * created the <tt>Exchange</tt>.
-     */
     void ignoreTransactions() {
-        checkOwnerThread();
-        _transaction = Transaction.NEVER_ACTIVE_TRANSACTION;
+        _ignoreTransactions = true;
     }
 
     /**

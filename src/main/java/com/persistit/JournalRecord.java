@@ -265,7 +265,9 @@ public class JournalRecord {
 
     public static class IV extends JournalRecord {
 
-        public static int MAX_LENGTH = 24 + 1024;
+        public static int OVERHEAD = 28;
+
+        public static int MAX_LENGTH = OVERHEAD + 1024;
 
         public static void putType(final byte[] bytes) {
             putType(bytes, TYPE_IV);
@@ -288,24 +290,26 @@ public class JournalRecord {
         }
 
         public static String getVolumeName(final byte[] bytes) {
-            final int length = getLength(bytes) - 28;
-            return new String(bytes, 28, length, UTF8);
+            final int length = getLength(bytes) - OVERHEAD;
+            return new String(bytes, OVERHEAD, length, UTF8);
         }
 
         public static void putVolumeName(final byte[] bytes,
                 final String volumeName) {
             final byte[] stringBytes = volumeName.getBytes(UTF8);
-            System.arraycopy(stringBytes, 0, bytes, 28, stringBytes.length);
-            putLength(bytes, 28 + stringBytes.length);
+            System.arraycopy(stringBytes, 0, bytes, OVERHEAD, stringBytes.length);
+            putLength(bytes, OVERHEAD + stringBytes.length);
         }
     }
 
     public static class IT extends JournalRecord {
+        
+        public static int OVERHEAD = 24;
 
-        public static int MAX_LENGTH = 24 + 1024;
+        public static int MAX_LENGTH = OVERHEAD + 1024;
 
         public static void putType(final byte[] bytes) {
-            putType(bytes, TYPE_IV);
+            putType(bytes, TYPE_IT);
         }
 
         public static int getHandle(final byte[] bytes) {
@@ -326,14 +330,14 @@ public class JournalRecord {
         }
 
         public static String getTreeName(final byte[] bytes) {
-            final int length = getLength(bytes) - 24;
-            return new String(bytes, 24, length, UTF8);
+            final int length = getLength(bytes) - OVERHEAD;
+            return new String(bytes, OVERHEAD, length, UTF8);
         }
 
         public static void putTreeName(final byte[] bytes, final String treeName) {
             final byte[] stringBytes = treeName.getBytes(UTF8);
-            System.arraycopy(stringBytes, 0, bytes, 24, stringBytes.length);
-            putLength(bytes, 24 + stringBytes.length);
+            System.arraycopy(stringBytes, 0, bytes, OVERHEAD, stringBytes.length);
+            putLength(bytes, OVERHEAD + stringBytes.length);
         }
     }
 

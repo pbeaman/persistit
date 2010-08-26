@@ -240,6 +240,15 @@ public class BufferPool {
         _persistit.waitForIOTaskStop(_writer);
     }
 
+    /**
+     * Abruptly stop (using {@link Thread#stop()}) the writer and collector
+     * threads. This method should be used only by tests.
+     */
+    void crash() {
+        IOTaskRunnable.crash(_writer);
+        IOTaskRunnable.crash(_collector);
+    }
+
     int flush() {
         final BitSet bits = new BitSet(_bufferCount);
         int unavailable = 0;
@@ -252,7 +261,8 @@ public class BufferPool {
                     synchronized (_lock[bucket]) {
                         if (buffer.isDirty() && !buffer.isEnqueued()) {
                             if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                                enqueueDirtyPage(buffer, bucket, !buffer.isTransient(), 0, 0);
+                                enqueueDirtyPage(buffer, bucket, !buffer
+                                        .isTransient(), 0, 0);
                             } else {
                                 unavailable++;
                             }
@@ -303,8 +313,8 @@ public class BufferPool {
         int count = 0;
         for (int i = 0; i < _bufferCount; i++) {
             Buffer buffer = _buffers[i];
-            if ((vol == null || buffer.getVolume() == vol)
-                    && (buffer._status & SharedResource.DIRTY_MASK) != 0) {
+            if ((vol == null || buffer.getVolume() == vol) && buffer.isDirty()
+                    && !buffer.isTransient()) {
                 count++;
             }
         }
@@ -1086,7 +1096,8 @@ public class BufferPool {
         if (buffer.getTimestamp() > _currentCheckpoint.getTimestamp()) {
             return false;
         }
-        if (buffer.isDataPage() && !buffer.isStructure() && buffer.getVolume().isLoose()) {
+        if (buffer.isDataPage() && !buffer.isStructure()
+                && buffer.getVolume().isLoose()) {
             return false;
         }
         return count < max;
@@ -1388,8 +1399,9 @@ public class BufferPool {
 
         }
     }
-    
+
     public String toString() {
-        return "BufferPool[" + _bufferCount + "@" + _bufferSize + (_closed.get() ? ":closed" : "") + "]";
+        return "BufferPool[" + _bufferCount + "@" + _bufferSize
+                + (_closed.get() ? ":closed" : "") + "]";
     }
 }

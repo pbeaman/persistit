@@ -69,11 +69,11 @@ public class Debug {
         String s = LogBase.detailString(de).replace('\r', ' ');
         StringTokenizer st = new StringTokenizer(s, "\n");
         StringBuffer sb = new StringBuffer(msg);
-        sb.append("\r\n");
+        sb.append(Util.NEW_LINE);
         while (st.hasMoreTokens()) {
             sb.append("    ");
             sb.append(st.nextToken());
-            sb.append("\r\n");
+            sb.append(Util.NEW_LINE);
         }
         System.err.println("Debug " + sb.toString());
     }
@@ -425,7 +425,7 @@ public class Debug {
 
         @Override
         public String toString() {
-            StringBuffer sb = new StringBuffer("\r\n");
+            StringBuffer sb = new StringBuffer(Util.NEW_LINE);
             int start = _next - _events.length + 1;
             if (start < 0)
                 start = 0;
@@ -434,7 +434,7 @@ public class Debug {
                 Util.fill(sb, i, 5);
                 sb.append(" ");
                 sb.append(_events[index]);
-                sb.append("\r\n");
+                sb.append(Util.NEW_LINE);
             }
             return sb.toString();
         }
@@ -568,7 +568,7 @@ public class Debug {
                 int index = counter % _ioLogBuffer.length;
                 sb.append("  ");
                 sb.append(_ioLogBuffer[index]);
-                sb.append("\r\n");
+                sb.append(Util.NEW_LINE);
             }
             return sb.toString();
         }

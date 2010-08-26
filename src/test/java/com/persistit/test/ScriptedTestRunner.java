@@ -637,7 +637,8 @@ public class ScriptedTestRunner {
                             if (sb.length() == 0) {
                                 sb.append("Progress report - changed status:");
                             }
-                            sb.append("\r\n        ");
+                            sb.append(Util.NEW_LINE);
+                            sb.append("        ");
                             sb.append(test.getUnitName());
                             sb.append("  ");
                             sb.append(test.getTestName());

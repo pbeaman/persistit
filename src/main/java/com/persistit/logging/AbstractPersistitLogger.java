@@ -219,9 +219,7 @@ public abstract class AbstractPersistitLogger {
      *            Value to be substituted for any occurrence of {9} in the
      *            template
      */
-    public void log(LogTemplate logTemplate, Object p0, Object p1, Object p2,
-            Object p3, Object p4, Object p5, Object p6, Object p7, Object p8,
-            Object p9) {
+    public void log(LogTemplate logTemplate, Object... args) {
         StringBuffer sb;
         synchronized (_sbStack) {
             if (_sbStack.isEmpty())
@@ -253,38 +251,9 @@ public abstract class AbstractPersistitLogger {
                     sb.append(template.substring(q, p - 1));
                     p += 2;
                     q = p;
-                    switch (c) {
-                    case '0':
-                        sb.append(p0);
-                        break;
-                    case '1':
-                        sb.append(p1);
-                        break;
-                    case '2':
-                        sb.append(p2);
-                        break;
-                    case '3':
-                        sb.append(p3);
-                        break;
-                    case '4':
-                        sb.append(p4);
-                        break;
-                    case '5':
-                        sb.append(p5);
-                        break;
-                    case '6':
-                        sb.append(p6);
-                        break;
-                    case '7':
-                        sb.append(p7);
-                        break;
-                    case '8':
-                        sb.append(p8);
-                        break;
-                    case '9':
-                        sb.append(p9);
-                        break;
-                    default:
+                    if (c - '0' < args.length) {
+                        sb.append(args[c - '0']);
+                    } else {
                         sb.append("???");
                     }
                 }

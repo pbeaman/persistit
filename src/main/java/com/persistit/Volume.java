@@ -1002,8 +1002,7 @@ public class Volume extends SharedResource {
                             LogBase.LOG_DEALLOCGC2)) {
                         _persistit.getLogBase().log(LogBase.LOG_DEALLOCGC2,
                                 left, right, 0, 0, 0,
-                                garbageBufferInfo(garbageBuffer), null, null,
-                                null, null);
+                                garbageBufferInfo(garbageBuffer));
                     }
                     garbageBuffer.setDirtyStructure();
                     return;
@@ -1676,8 +1675,7 @@ public class Volume extends SharedResource {
             _channel.write(bb, page * _bufferSize);
         } catch (IOException ioe) {
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_WRITE_IOE)) {
-                _persistit.getLogBase().log(LogBase.LOG_WRITE_IOE, page, 0, 0,
-                        0, 0, ioe, null, null, null, null);
+                _persistit.getLogBase().log(LogBase.LOG_WRITE_IOE, page);
             }
             _lastIOException = ioe;
             throw ioe;
@@ -1763,8 +1761,7 @@ public class Volume extends SharedResource {
                             _persistit.getLogBase().log(
                                     LogBase.LOG_ALLOC_GARROOT, garbageRoot,
                                     newGarbageRoot, 0, 0, 0,
-                                    garbageBufferInfo(garbageBuffer), null,
-                                    null, null, null);
+                                    garbageBufferInfo(garbageBuffer));
                         }
                         setGarbageRoot(newGarbageRoot);
                         buffer = garbageBuffer;
@@ -1905,7 +1902,7 @@ public class Volume extends SharedResource {
                             LogBase.LOG_EXTEND_BADLENGTH)) {
                         _persistit.getLogBase().log(
                                 LogBase.LOG_EXTEND_BADLENGTH, currentSize,
-                                newSize, 0, 0, 0, this, null, null, null, null);
+                                newSize);
                     }
                 }
                 if (currentSize < newSize) {

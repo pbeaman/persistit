@@ -42,11 +42,11 @@ import javax.swing.event.ListSelectionListener;
 
 import com.persistit.Management;
 import com.persistit.Task;
+import com.persistit.Util;
 import com.persistit.Management.TaskStatus;
 import com.persistit.ui.AdminUI.AdminAction;
 
 public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
-    private final static String CRLF = "\r\n";
     private final static int FAST_REFRESH_INTERVAL = 1;
 
     AdminUI _adminUI;
@@ -293,7 +293,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
             }
             for (int index = 0; index < size; index++) {
                 sb.append(taskStatus.getMessages()[index]);
-                sb.append(CRLF);
+                sb.append(Util.NEW_LINE);
             }
             _messageLogArea.setText(sb.toString());
         }

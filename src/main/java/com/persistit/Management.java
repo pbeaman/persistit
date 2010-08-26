@@ -1865,6 +1865,8 @@ public interface Management extends Remote {
         long recoveryStatus;
         long journaledPageCount;
         long copiedPageCount;
+        int recoveredCommittedTransactions;
+        int recoveredAppliedTransactions;
         boolean closed;
         boolean copying;
         boolean flushing;
@@ -2020,6 +2022,21 @@ public interface Management extends Remote {
         public long getCopiedPageCount() {
             return copiedPageCount;
         }
+        
+        /**
+         * @return the count of recovered uncommitted transactions
+         */
+        public int getRecoveredCompletedTransactions() {
+            return recoveredCommittedTransactions;
+        }
+
+        /**
+         * @return the count of recovered committed Transactions
+         */
+        public int getRecoveredCommittedTransactions() {
+            return recoveredAppliedTransactions;
+        }
+
 
         /**
          * @return <tt>true</tt> iff the journal has been closed

@@ -66,6 +66,12 @@ abstract class IOTaskRunnable implements Runnable {
         _stopped = true;
     }
 
+    @SuppressWarnings("deprecation")
+    // Use only for tests.
+    protected void crash() {
+        _thread.stop();
+    }
+
     public void run() {
         
         while (true) {
@@ -101,6 +107,13 @@ abstract class IOTaskRunnable implements Runnable {
             }
         }
     }
+    
+    static void crash(final IOTaskRunnable task) {
+        if (task != null) {
+            task.crash();
+        }
+    }
+
 
     protected long pollInterval() {
         return getPollInterval();

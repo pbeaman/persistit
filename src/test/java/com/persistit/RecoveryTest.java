@@ -25,7 +25,8 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 public class RecoveryTest extends PersistitUnitTestCase {
     //
-    // This class needs to be in com.persistit because Persistit#getLogManager() is
+    // This class needs to be in com.persistit because Persistit#getLogManager()
+    // is
     // package-private.
     //
     private static String[] _args = new String[0];
@@ -41,7 +42,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         fetch1a();
         fetch1b();
     }
-    
+
     public void test2() throws Exception {
         store1();
         JournalManager logMan = _persistit.getJournalManager();
@@ -57,6 +58,22 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertEquals(0, logMan.getPageMapSize());
         fetch1a();
         fetch1b();
+    }
+
+    public void test3() throws Exception {
+        // create 10 transactions on the journal
+        _persistit.getJournalManager().setCopyingSuspended(true);
+        store2();
+        _persistit.crash();
+        final Properties saveProperties = _persistit.getProperties();
+        _persistit = new Persistit();
+        _persistit.getJournalManager().setCopyingSuspended(true);
+        _persistit.initialize(saveProperties);
+        final RecoveryPlan plan = _persistit.getJournalManager()
+                .getRecoveryPlan();
+        assertEquals(15, plan.getCommittedCount());
+        plan.applyAllCommittedTransactions();
+        System.out.println("done");
     }
 
     private void store1() throws PersistitException {
@@ -109,13 +126,47 @@ public class RecoveryTest extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    private void store2() throws PersistitException {
+        final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest",
+                true);
+        ex.removeAll();
+        for (int j = 0; j++ < 10;) {
 
-    
+            final Transaction txn = ex.getTransaction();
+
+            txn.begin();
+            try {
+                for (int i = 0; i < 10; i++) {
+                    ex.getValue().put("String value #" + i + " for test1");
+                    ex.clear().append("test1").append(j).append(i).store();
+                }
+                for (int i = 3; i < 10; i += 3) {
+                    ex.clear().append("test1").append(j).append(i).remove(
+                            Key.GTEQ);
+                }
+                txn.commit();
+            } finally {
+                txn.end();
+            }
+        }
+
+        for (int j = 1; j < 10; j += 2) {
+            final Transaction txn = ex.getTransaction();
+            txn.begin();
+            try {
+                ex.clear().append("test1").append(j).remove(Key.GTEQ);
+                txn.commit();
+            } finally {
+                txn.end();
+            }
+        }
+    }
+
     public static void main(final String[] args) throws Exception {
         _args = args;
         new RecoveryTest().initAndRunTest();
     }
-    
+
     public void runAllTests() throws Exception {
         test1();
         test2();

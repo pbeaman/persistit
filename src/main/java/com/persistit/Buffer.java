@@ -197,10 +197,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
     private final static int DEPTH_SHIFT = 16;
     private final static int FIXUP_MASK = 0x40000000;
 
-    // private final static String CRLF = "\r\n";
-    // private final static String SPACES =
-    // "                                    ";
-
     // Mask for the discriminator byte field within a keyblock
     private final static int DB_MASK = 0x000000FF;
 

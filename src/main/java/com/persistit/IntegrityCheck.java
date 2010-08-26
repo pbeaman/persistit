@@ -336,7 +336,8 @@ public class IntegrityCheck extends Task {
         if (details) {
 
             for (int index = 0; index < _faults.size(); index++) {
-                sb.append("\r\n        ");
+                sb.append(Util.NEW_LINE);
+                sb.append("        ");
                 sb.append(_faults.get(index));
             }
         }

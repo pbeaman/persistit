@@ -305,7 +305,6 @@ public class ClassIndex {
             ex = (Exchange) _exStack.pop();
         }
         ex.clearOwnerThread();
-        ex.ignoreTransactions();
         return ex;
     }
 

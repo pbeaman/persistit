@@ -31,6 +31,7 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Stack;
@@ -332,6 +333,8 @@ public class Persistit implements BuildConstants {
 
     private final TimestampAllocator _timestampAllocator = new TimestampAllocator();
 
+    private final IOMeter _ioMeter = new IOMeter();
+
     private Stack<Exchange> _exchangePool = new Stack<Exchange>();
 
     private boolean _readRetryEnabled;
@@ -350,8 +353,6 @@ public class Persistit implements BuildConstants {
 
     private long _nextThrottleBumpTime;
     private long _localThrottleCount;
-
-    private volatile Thread _shutdownHook;
 
     /**
      * <p>
@@ -429,29 +430,21 @@ public class Persistit implements BuildConstants {
         initializeOther();
         initializeLogging();
         initializeJournal();
-
         _journalManager.recover();
 
         initializeBufferPools();
         initializeVolumes();
 
         _journalManager.startThreads();
+
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.startThreads();
         }
-        //
-        // Now that all volumes are loaded and we have the JournalManager
-        // cooking, recover or roll back any transactions that were
-        // pending at shutdown.
-        //
-        Transaction.recover(this);
 
         flush();
 
         _initialized.set(true);
         _closed.set(false);
-
-        initializeShutdownHook();
     }
 
     Properties parseProperties(final String propertiesFileName)
@@ -601,23 +594,6 @@ public class Persistit implements BuildConstants {
             } catch (Exception e) {
                 // If we can't open the utility gui, well, tough.
             }
-        }
-    }
-
-    void initializeShutdownHook() {
-        if (_shutdownHook == null) {
-            _shutdownHook = new Thread(new Runnable() {
-                public void run() {
-                    try {
-                        close0(true, true);
-                        getLogBase().log(LogBase.LOG_SHUTDOWN_HOOK);
-                    } catch (PersistitException e) {
-
-                    }
-                }
-            }, "ShutdownHook");
-
-            Runtime.getRuntime().addShutdownHook(_shutdownHook);
         }
     }
 
@@ -1514,14 +1490,6 @@ public class Persistit implements BuildConstants {
         if (_closed.get() || !_initialized.get()) {
             return;
         }
-        if (!byHook && _shutdownHook != null) {
-            try {
-                Runtime.getRuntime().removeShutdownHook(_shutdownHook);
-            } catch (IllegalStateException ise) {
-                // Shouldn't happen
-            }
-            _shutdownHook = null;
-        }
         // Wait for UI to go down.
         while (!byHook && _suspendShutdown) {
             try {
@@ -1543,7 +1511,9 @@ public class Persistit implements BuildConstants {
             volume.close();
         }
 
-        _timestampAllocator.forceCheckpoint();
+        if (flush) {
+            _timestampAllocator.forceCheckpoint();
+        }
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close(flush);
@@ -1574,6 +1544,23 @@ public class Persistit implements BuildConstants {
             _management = null;
         }
 
+    }
+
+    /**
+     * Abruptly stop (using {@link Thread#stop()}) the writer and collector
+     * processes. This method should be used only by tests.
+     */
+    public void crash() {
+        final JournalManager journalManager = _journalManager;
+        if (journalManager != null) {
+            journalManager.crash();
+        }
+        final Map<Integer, BufferPool> buffers = _bufferPoolTable;
+        if (buffers != null) {
+            for (final BufferPool pool : buffers.values()) {
+                pool.crash();
+            }
+        }
     }
 
     /**
@@ -1759,6 +1746,10 @@ public class Persistit implements BuildConstants {
 
     TimestampAllocator getTimestampAllocator() {
         return _timestampAllocator;
+    }
+
+    IOMeter getIOMeter() {
+        return _ioMeter;
     }
 
     ThreadLocal getWaitingThreadThreadLocal() {

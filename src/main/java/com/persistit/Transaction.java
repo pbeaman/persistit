@@ -266,8 +266,6 @@ public class Transaction {
 
     private final static CommitListener DEFAULT_COMMIT_LISTENER = new CommitListener();
 
-    final static Transaction NEVER_ACTIVE_TRANSACTION = new Transaction();
-
     private final static String TRANSACTION_TREE_NAME = "_txn_";
 
     private final static long COMMIT_CLAIM_TIMEOUT = 30000;
@@ -510,11 +508,6 @@ public class Transaction {
      *             if the current transaction scope has already been committed.
      */
     public void begin() throws PersistitException {
-        if (this == NEVER_ACTIVE_TRANSACTION) {
-            throw new IllegalStateException(
-                    "Attempt to begin NEVER_ACTIVE_TRANSACTION");
-        }
-
         if (_commitCompleted) {
             throw new IllegalStateException(
                     "Attempt to begin a committed transaction");
@@ -644,11 +637,6 @@ public class Transaction {
      *             in all other cases
      */
     public void rollback() throws PersistitException {
-        if (this == NEVER_ACTIVE_TRANSACTION) {
-            throw new IllegalStateException(
-                    "Can't rollback NEVER_ACTIVE_TRANSACTION");
-        }
-
         if (_commitCompleted) {
             throw new IllegalStateException("Already committed");
         }
@@ -741,17 +729,11 @@ public class Transaction {
      */
     public void commit(boolean toDisk) throws PersistitException,
             RollbackException {
-        if (this == NEVER_ACTIVE_TRANSACTION) {
-            throw new IllegalStateException(
-                    "Can't commit NEVER_ACTIVE_TRANSACTION");
-        }
 
-        else if (_nestedDepth < 1) {
+        if (_nestedDepth < 1) {
             throw new IllegalStateException(
                     "No transaction scope: begin() not called");
-        }
-
-        else if (_commitCompleted) {
+        } else if (_commitCompleted) {
             throw new IllegalStateException("Already committed");
         }
 
@@ -1112,10 +1094,19 @@ public class Transaction {
                             if (_rollbackException == null) {
                                 _rollbackException = new RollbackException();
                             }
-                            // debugReportRollback(buffer, tp); //TODO
                             return false;
                         }
                     }
+                    //
+                    // The serialization timestamp, used to order
+                    // transactions during recovery. In addition, all pages
+                    // modified by applying this transaction will also get
+                    // this timestamp, meaning that transactions with a
+                    // timestamp value below a checkpoint do not need to
+                    // be recovered.
+                    //
+                    _timestamp = _persistit.getTimestampAllocator()
+                            .updateTimestamp();
 
                     if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
                         //
@@ -1764,7 +1755,6 @@ public class Transaction {
                 }
                 Exchange exchange = persistit.getExchange(txnVolume,
                         txnTreeName, false);
-                exchange.ignoreTransactions();
                 long id = Long.parseLong(txnTreeName
                         .substring(TRANSACTION_TREE_NAME.length()));
 
@@ -1808,7 +1798,7 @@ public class Transaction {
      * marked with this (or possibly a larger) timestamp.
      */
     void assignTimestamp() {
-        if (this != NEVER_ACTIVE_TRANSACTION && _nestedDepth == 0) {
+        if (_nestedDepth == 0) {
             _timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         }
     }

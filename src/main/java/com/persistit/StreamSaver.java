@@ -427,7 +427,7 @@ public class StreamSaver extends Task {
      */
     protected void writeComment(String comment) throws IOException {
         _dos.writeChar(RECORD_TYPE_COMMENT);
-        _dos.writeUTF("\r\n//" + comment + "//");
+        _dos.writeUTF(Util.NEW_LINE + "//" + comment + "//");
     }
 
     /**
