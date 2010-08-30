@@ -672,20 +672,9 @@ public class JournalManager {
         }
 
         _writeBufferAddress = 0;
-        // Ensure new handle-map copies in every journal file
-        for (final Map.Entry<Integer, VolumeDescriptor> entry : _handleToVolumeMap
-                .entrySet()) {
-            writeVolumeHandleToJournal(entry.getValue(), entry.getKey()
-                    .intValue());
-        }
-        for (final Map.Entry<Integer, TreeDescriptor> entry : _handleToTreeMap
-                .entrySet()) {
-            writeTreeHandleToJournal(entry.getValue(), entry.getKey()
-                    .intValue());
-        }
     }
 
-    public void recover() throws PersistitException {
+    public void recover() {
         if (_recovered) {
             throw new IllegalStateException("Recovery already completed");
         }
@@ -750,7 +739,7 @@ public class JournalManager {
                     _firstGeneration = Math.min(generation, _firstGeneration);
                 }
                 processed++;
-            } catch (IOException ioe) {
+            } catch (Exception ioe) {
                 _dirtyRecoveryFileAddress = new FileAddress(file, 0, 0);
                 _persistit.getLogBase().log(LogBase.LOG_RECOVERY_FAILURE, ioe,
                         _dirtyRecoveryFileAddress);
@@ -778,7 +767,7 @@ public class JournalManager {
 
         readBuffer.get(_bytes, 0, JournalRecord.OVERHEAD);
         final int recordSize = JournalRecord.getLength(_bytes);
-        
+
         final int type = JournalRecord.getType(_bytes);
         final long timestamp = JournalRecord.getTimestamp(_bytes);
 
@@ -787,7 +776,7 @@ public class JournalManager {
                     bufferAddress + from, timestamp));
 
         }
-        
+
         if (recordSize > MAX_JOURNAL_RECORD_SIZE) {
             throw new CorruptJournalException("JournalRecord too long: "
                     + recordSize + " bytes at position "
@@ -1122,6 +1111,19 @@ public class JournalManager {
         try {
             _writeBuffer = _writeChannel.map(MapMode.READ_WRITE,
                     _writeBufferAddress, _writeBufferSize);
+            if (rolled) {
+                // Ensure new handle-map copies in every journal file
+                for (final Map.Entry<Integer, VolumeDescriptor> entry : _handleToVolumeMap
+                        .entrySet()) {
+                    writeVolumeHandleToJournal(entry.getValue(), entry.getKey()
+                            .intValue());
+                }
+                for (final Map.Entry<Integer, TreeDescriptor> entry : _handleToTreeMap
+                        .entrySet()) {
+                    writeTreeHandleToJournal(entry.getValue(), entry.getKey()
+                            .intValue());
+                }
+            }
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
         }

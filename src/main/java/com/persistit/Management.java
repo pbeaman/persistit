@@ -101,6 +101,17 @@ public interface Management extends Remote {
     public void setShutdownSuspended(boolean suspended) throws RemoteException;
 
     /**
+     * Controls whether Persistit will suspend the thread that copies pages
+     * from the journal back to their respective Volumes. This flag is used
+     * by tools that provide on-line backup.
+     * 
+     * @param suspended
+     *            <tt>true</tt> to specify that Persistit will suspend
+     *            journal copying; otherwise <tt>false</tt>.
+     */
+    public void setJournalCopyingSuspended(boolean suspended) throws RemoteException;
+
+    /**
      * Indicates whether Persistit is suspending all update operations. When
      * enabled, Persistit will indefinitely delay each Thread that attempts to
      * perform an update operation.

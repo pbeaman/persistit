@@ -26,8 +26,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 public class RecoveryTest extends PersistitUnitTestCase {
     //
     // This class needs to be in com.persistit because Persistit#getLogManager()
-    // is
-    // package-private.
+    // is package-private.
     //
     private static String[] _args = new String[0];
 
@@ -68,10 +67,12 @@ public class RecoveryTest extends PersistitUnitTestCase {
         final Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.getJournalManager().setCopyingSuspended(true);
-        _persistit.initialize(saveProperties);
         final RecoveryPlan plan = _persistit.getJournalManager()
                 .getRecoveryPlan();
+        plan.setRecoveryDisabledForTestMode(true);
+        _persistit.initialize(saveProperties);
         assertEquals(15, plan.getCommittedCount());
+        plan.setRecoveryDisabledForTestMode(false);
         plan.applyAllCommittedTransactions();
         System.out.println("done");
     }

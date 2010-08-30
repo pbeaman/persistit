@@ -3,6 +3,7 @@ package com.persistit;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
@@ -42,7 +43,13 @@ import com.persistit.exception.PersistitIOException;
  */
 public class RecoveryPlan {
 
-    private static final int _readBufferSize = 4 * 1024 * 1024;
+    private int _readBufferSize = 64 * 1024 * 1024;
+    
+    private File _readChannelFile;
+
+    private ByteBuffer _readBuffer;
+    
+    private long _readBufferAddress;
 
     private final SortedMap<Long, TRecord> _transactionMap = new TreeMap<Long, TRecord>();
 
@@ -53,6 +60,8 @@ public class RecoveryPlan {
     private final byte[] _bytes = new byte[128];
 
     private volatile int _appliedCount;
+
+    private volatile boolean _recoveryDisabledForTestMode;
 
     private enum State {
         SCANNING, COMPLETE, STARTED, COMMITTED, ABORTED,
@@ -215,14 +224,37 @@ public class RecoveryPlan {
         return _transactionMap.size();
     }
 
+    /**
+     * @return <tt>true</tt> if the {@link #applyAllCommittedTransactions()}
+     *         method should do nothing. (Lets unit tests look at the plan
+     *         before executing it.)
+     */
+    boolean isRecoveryDisabledForTestMode() {
+        return _recoveryDisabledForTestMode;
+    }
+
+    /**
+     * @param recoverDisabledForTestMode
+     *            Set this to <tt>true</tt> to disable the
+     *            {@link #applyAllCommittedTransactions()} method. (Lets unit
+     *            tests look at the plan before executing it.)
+     */
+    void setRecoveryDisabledForTestMode(boolean recoveryDisabledForTestMode) {
+        _recoveryDisabledForTestMode = recoveryDisabledForTestMode;
+    }
+
     public void applyAllCommittedTransactions() {
+
+        if (_recoveryDisabledForTestMode) {
+            return;
+        }
         for (final TRecord trecord : _transactionMap.values()) {
             try {
                 if (trecord.isComplete()) {
                     applyTransaction(trecord);
                     _appliedCount++;
                 }
-            } catch (PersistitException pe) {
+            } catch (Exception pe) {
                 _persistit.getLogBase().log(LogBase.LOG_TXN_RECOVERY_EXCEPTION,
                         pe, trecord);
             }
@@ -239,19 +271,17 @@ public class RecoveryPlan {
 
         while (!done) {
             try {
-                final FileChannel channel = new FileInputStream(file)
-                        .getChannel();
-                while (!done && bufferAddress < channel.size()) {
-                    final long size = Math.min(channel.size() - bufferAddress,
-                            _readBufferSize);
-
-                    final MappedByteBuffer readBuffer = channel.map(
-                            MapMode.READ_ONLY, bufferAddress, size);
-                    while (!done && applyOneRecord(file, bufferAddress, readBuffer,
-                            trecord, removedTrees)) {
-                        done = trecord.isDone();
-                    }
-                    bufferAddress += readBuffer.position();
+                if (_readChannelFile == null || !_readChannelFile.equals(file)) {
+                    final FileChannel readChannel = new FileInputStream(file)
+                            .getChannel();
+                    _readBuffer = readChannel.map(MapMode.READ_ONLY,
+                            0, readChannel.size());
+                    _readChannelFile = file;
+                }
+                while (!done
+                        && applyOneRecord(file, bufferAddress, _readBuffer,
+                                trecord, removedTrees)) {
+                    done = trecord.isDone();
                 }
                 if (!done) {
                     final long generation = jman.fileToGeneration(file);
@@ -261,7 +291,7 @@ public class RecoveryPlan {
                 throw new PersistitIOException(ioe);
             }
         }
-        
+
         for (final Tree tree : removedTrees) {
             tree.getVolume().removeTree(tree);
         }
@@ -269,7 +299,7 @@ public class RecoveryPlan {
     }
 
     private boolean applyOneRecord(final File file, final long bufferAddress,
-            final MappedByteBuffer readBuffer, final TRecord trecord,
+            final ByteBuffer readBuffer, final TRecord trecord,
             final Set<Tree> removedTrees) throws PersistitException,
             JournalNotClosedException {
 
@@ -332,6 +362,7 @@ public class RecoveryPlan {
                 key.setEncodedSize(keySize);
                 final int valueSize = recordSize - JournalRecord.SR.OVERHEAD
                         - keySize;
+                value.ensureFit(valueSize);
                 readBuffer.get(value.getEncodedBytes(), 0, valueSize);
                 value.setEncodedSize(valueSize);
                 exchange.store();

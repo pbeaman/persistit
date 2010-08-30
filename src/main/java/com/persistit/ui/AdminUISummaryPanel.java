@@ -334,10 +334,11 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 _journalCopiedPageCount.setText(_adminUI.formatLong(jinfo
                         .getCopiedPageCount()));
 
-                _journalRecoveryStatus.setText(formatRecoveryStatus(jinfo.getRecoveryStatus()));
-                _journalRecoveryLocation.setText(_adminUI.formatFileLocation(jinfo
-                        .getRecoveryJournalFile(), jinfo
-                        .getRecoveryJournalAddress()));
+                _journalRecoveryStatus.setText(formatRecoveryStatus(jinfo
+                        .getRecoveryStatus()));
+                _journalRecoveryLocation.setText(_adminUI.formatFileLocation(
+                        jinfo.getRecoveryJournalFile(), jinfo
+                                .getRecoveryJournalAddress()));
 
                 if (jinfo.getLastValidCheckpointSystemTime() != 0) {
                     _journalValidCkptTime.setText(_adminUI.formatDate(jinfo
@@ -353,7 +354,9 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                                     .getLastValidCheckpointJournalAddress()));
                 }
 
-                _journalCopyingFrozen.setText("");
+                _journalCopyingFrozen
+                        .setText(jinfo.isSuspendCopying() ? _frozenTrueCaption
+                                : _frozenFalseCaption);
 
                 final Management.BufferPoolInfo[] bpia = management
                         .getBufferPoolInfoArray();
@@ -390,7 +393,7 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
             _adminUI.postException(re);
         }
     }
-    
+
     private String formatRecoveryStatus(final long status) {
         if (status == Long.MIN_VALUE) {
             return "";

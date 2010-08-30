@@ -435,11 +435,12 @@ public class Persistit implements BuildConstants {
         initializeBufferPools();
         initializeVolumes();
 
-        _journalManager.startThreads();
-
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.startThreads();
         }
+
+        _journalManager.getRecoveryPlan().applyAllCommittedTransactions();
+        _journalManager.startThreads();
 
         flush();
 

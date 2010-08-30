@@ -1105,19 +1105,36 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 } else {
                     ((AbstractButton) ae.getSource()).setSelected(false);
                 }
+            } else if ("JSUSP".equals(name)) {
+                boolean state = ((AbstractButton) ae.getSource()).isSelected();
+                if (management != null && management.isInitialized()) {
+                    if (state) {
+
+                        int confirm = JOptionPane.showConfirmDialog(_frame,
+                                getProperty("jsusp.confirm"));
+
+                        if (confirm != JOptionPane.YES_OPTION) {
+                            state = false;
+                        }
+                    }
+                    management.setJournalCopyingSuspended(state);
+                    scheduleRefresh(-1);
+                } else {
+                    ((AbstractButton) ae.getSource()).setSelected(false);
+                }
             } else if ("FLUSH".equals(name)) {
                 if (management != null && management.isInitialized()) {
                     management.flushAndSync();
                 }
-            } else if ("SHUTDOWN".equals(name)) {
-                if (management != null && management.isInitialized()) {
-                    int confirm = JOptionPane.showConfirmDialog(_frame,
-                            getProperty("shutdown.confirm"));
-
-                    if (confirm == JOptionPane.YES_OPTION) {
-                        management.close();
-                    }
-                }
+//            } else if ("SHUTDOWN".equals(name)) {
+//                if (management != null && management.isInitialized()) {
+//                    int confirm = JOptionPane.showConfirmDialog(_frame,
+//                            getProperty("shutdown.confirm"));
+//
+//                    if (confirm == JOptionPane.YES_OPTION) {
+//                        management.close();
+//                    }
+//                }
             } else if ("WRAP_MODE_NONE".equals(name)) {
                 _wrapMode = false;
                 textModeChanged = true;
