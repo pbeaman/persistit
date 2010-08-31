@@ -1597,7 +1597,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
             if (p >= _keyBlockEnd)
                 return false;
             int depth = (foundAt & DEPTH_MASK) >>> DEPTH_SHIFT;
-            return depth == key.getEncodedSize();
+            return depth == key.getEncodedSize() && depth > 0;
         }
     }
 

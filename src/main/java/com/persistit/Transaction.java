@@ -1439,6 +1439,7 @@ public class Transaction {
         exchange.clear();
         prepareTxnExchange(exchange.getTree(), exchange.getKey(), 'D');
         _ex1.storeInternal(_ex1.getKey(), exchange.getValue(), 0, false, false);
+        _pendingRemoveCount++;
         return removed;
     }
 

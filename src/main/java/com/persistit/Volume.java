@@ -1346,6 +1346,7 @@ public class Volume extends SharedResource {
             // long journalId = _persistit.getJournal().beginRemoveTree(tree);
 
             long rootPage = tree.getRootPageAddr();
+            tree.changeRootPageAddr(-1, 0);
             page = rootPage;
             treeIndex = tree.getTreeIndex();
             depth = tree.getDepth();
@@ -1361,6 +1362,7 @@ public class Volume extends SharedResource {
             synchronized (_lock) {
                 _treeNameHashMap.remove(tree.getName());
                 _treeIndexHashMap.remove(new Integer(treeIndex));
+                tree.bumpGeneration();
                 tree.invalidate();
             }
 

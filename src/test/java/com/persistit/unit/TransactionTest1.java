@@ -63,6 +63,34 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                         + " for test1");
             }
         }
+
+        txn.begin();
+        try {
+            ex.removeAll();
+            txn.commit();
+        } finally {
+            txn.end();
+        }
+        for (int i = -1; i < 12; i++) {
+            ex.clear().append("test1").append(i).fetch();
+            assertTrue(!ex.getValue().isDefined());
+        }
+        
+        txn.begin();
+        try {
+            ex.removeTree();
+            txn.commit();
+        } finally {
+            txn.end();
+        }
+        assertTrue(!ex.getTree().isValid());
+        try {
+            ex.clear().append("test1").hasChildren();
+            fail("Should have thrown an exception");
+        } catch (Exception e) {
+            // ok
+        }
+        
         System.out.println("- done");
     }
 
