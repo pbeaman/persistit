@@ -37,7 +37,7 @@ public class LogBase {
     final static int ALL = 0xFFFF;
     final static int LIFECYCLE = 0x0001;
     final static int POOL = 0x0002;
-    final static int PWJ = 0x0004;
+    final static int JOURNAL = 0x0004;
     final static int GAR = 0x0008;
     final static int FAIL = 0x0010;
     final static int IO = 0x0020;
@@ -46,7 +46,7 @@ public class LogBase {
     final static int DEBUG = 0x0100;
     final static int RMI = 0x0200;
 
-    final static String[] TYPE_NAMES = { "ALL", "LIFECYCLE", "POOL", "PWJ",
+    final static String[] TYPE_NAMES = { "ALL", "LIFECYCLE", "POOL", "J",
             "GAR", "FAIL", "IO", "PERSISTIT", "TEST", "DEBUG", "RMI", };
 
     private final static int FINEST = AbstractPersistitLogger.FINEST;
@@ -78,34 +78,34 @@ public class LogBase {
     final static int LOG_INIT_OPEN_VOLUME = addLogTemplate(INFO, LIFECYCLE,
             "INIT_OPEN_VOLUME");
     final static int LOG_INIT_RECOVER_BEGIN = addLogTemplate(WARNING,
-            LIFECYCLE, "INIT_RECOVER_BEGIN");
-    final static int LOG_INIT_RECOVER_PLAN = addLogTemplate(FINE, LIFECYCLE,
+            JOURNAL, "INIT_RECOVER_BEGIN");
+    final static int LOG_INIT_RECOVER_PLAN = addLogTemplate(FINE, JOURNAL,
             "INIT_RECOVER_PLAN");
-    final static int LOG_INIT_RECOVER_END = addLogTemplate(WARNING, LIFECYCLE,
+    final static int LOG_INIT_RECOVER_END = addLogTemplate(WARNING, JOURNAL,
             "INIT_RECOVER_END");
     final static int LOG_INIT_RECOVER_TERMINATE = addLogTemplate(WARNING,
-            LIFECYCLE, "INIT_RECOVER_TERMINATE");
+            JOURNAL, "INIT_RECOVER_TERMINATE");
     final static int LOG_RECOVERY_FAILURE = addLogTemplate(SEVERE, LIFECYCLE,
             "RECOVERY_FAILURE");
-    final static int LOG_RECOVERY_RECORD = addLogTemplate(DEBUG, LIFECYCLE,
+    final static int LOG_RECOVERY_RECORD = addLogTemplate(DEBUG, JOURNAL,
             "RECOVERY_RECORD");
-    final static int LOG_CHECKPOINT_PROPOSED = addLogTemplate(INFO, LIFECYCLE,
+    final static int LOG_CHECKPOINT_PROPOSED = addLogTemplate(INFO, JOURNAL,
             "CHECKPOINT_PROPOSED");
-    final static int LOG_CHECKPOINT_WRITTEN = addLogTemplate(INFO, LIFECYCLE,
+    final static int LOG_CHECKPOINT_WRITTEN = addLogTemplate(INFO, JOURNAL,
             "CHECKPOINT_WRITTEN");
-    final static int LOG_CHECKPOINT_RECOVERED = addLogTemplate(INFO, LIFECYCLE,
+    final static int LOG_CHECKPOINT_RECOVERED = addLogTemplate(INFO, JOURNAL,
             "CHECKPOINT_RECOVERED");
     final static int LOG_TXN_EXCEPTION = addLogTemplate(SEVERE, PERSISTIT,
             "TXN_EXCEPTION");
     final static int LOG_TXN_NOT_COMMITTED = addLogTemplate(FINE, PERSISTIT,
             "TXN_NOT_COMMITTED");
-    final static int LOG_TXN_RECOVERY_START = addLogTemplate(FINE, LIFECYCLE,
+    final static int LOG_TXN_RECOVERY_START = addLogTemplate(FINE, JOURNAL,
             "TXN_RECOVERY_START");
     final static int LOG_TXN_RECOVERY_FAILURE = addLogTemplate(SEVERE,
-            LIFECYCLE, "TXN_RECOVERY_FAILURE");
+            JOURNAL, "TXN_RECOVERY_FAILURE");
     final static int LOG_TXN_RECOVERY_EXCEPTION = addLogTemplate(WARNING,
-            LIFECYCLE, "TXN_RECOVERY_EXCEPTION");
-    final static int LOG_TXN_RECOVERY_END = addLogTemplate(FINE, LIFECYCLE,
+            JOURNAL, "TXN_RECOVERY_EXCEPTION");
+    final static int LOG_TXN_RECOVERY_END = addLogTemplate(FINE, JOURNAL,
             "TXN_RECOVERY_END");
     final static int LOG_INIT_CREATE_GUI = addLogTemplate(FINE, LIFECYCLE,
             "INIT_CREATE_GUI");

@@ -157,7 +157,7 @@ public class JournalManager {
     private volatile int _minimumUrgency = DEFAULT_MINIMUM_URGENCY;
 
     private volatile long _copierTimestampLimit = Long.MAX_VALUE;
-
+    
     public JournalManager(final Persistit persistit) {
         _persistit = persistit;
         _flusher = new JournalFlusher();
@@ -732,6 +732,7 @@ public class JournalManager {
                         _recoveryAddress = bufferAddress;
                     }
                 }
+                channel.close();
                 final long generation = fileToGeneration(file);
                 if (generation >= 0) {
                     _currentGeneration = Math.max(generation,
@@ -770,7 +771,7 @@ public class JournalManager {
 
         final int type = JournalRecord.getType(_bytes);
         final long timestamp = JournalRecord.getTimestamp(_bytes);
-
+        
         if (recordSize < JournalRecord.OVERHEAD) {
             throw new JournalNotClosedException(new FileAddress(file,
                     bufferAddress + from, timestamp));
@@ -1491,7 +1492,8 @@ public class JournalManager {
             }
             wasUrgent = _copyFast;
             currentGeneration = _currentGeneration;
-            final File copyJournalFileLimit = generationToFile(_firstGeneration + 1);
+            final long generations = Math.min(1, (_currentGeneration - _firstGeneration) / 4);
+            final File copyJournalFileLimit = generationToFile(_firstGeneration + generations);
             for (final Map.Entry<VolumePage, FileAddress> entry : _pageMap
                     .entrySet()) {
                 FileAddress fa = entry.getValue();
@@ -1502,6 +1504,9 @@ public class JournalManager {
                     if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
                         firstMissed = fa;
                     }
+                }
+                if (_suspendCopying.get()) {
+                    return;
                 }
             }
         }
@@ -1587,6 +1592,17 @@ public class JournalManager {
                     || file.compareTo(firstMissed.getFile()) < 0) {
                 if (!file.equals(_writeChannelFile)) {
                     file.delete();
+                    final FileChannel channel;
+                    synchronized (this) {
+                        channel = _readChannelMap.remove(file);
+                    }
+                    if (channel != null) {
+                        try {
+                            channel.close();
+                        } catch (IOException e) {
+                            // ignore for now.
+                        }
+                    }
                 }
             }
         }
