@@ -1434,9 +1434,9 @@ public final class Exchange implements BuildConstants {
                         if (dontWait) {
                             throw re;
                         } else {
-                                throw new InUseException("Thread "
-                                        + Thread.currentThread().getName()
-                                        + " failed to get reader claim on " + _tree);
+                            throw new InUseException("Thread "
+                                    + Thread.currentThread().getName()
+                                    + " failed to get reader claim on " + _tree);
                         }
                     }
                 } finally {
@@ -3425,7 +3425,7 @@ public final class Exchange implements BuildConstants {
                 remainingSize -= segmentSize;
                 // previousPage = page;
                 page = buffer.getRightSibling();
-                if (inTxn)        {
+                if (inTxn) {
                     _transaction.touchedPage(this, buffer);
                 }
                 _pool.release(buffer);
@@ -3840,7 +3840,7 @@ public final class Exchange implements BuildConstants {
 
     /**
      * Called after RetryException due to an operation discovering too late it
-     * needs exclusive access to a tree
+     * needs exclusive access to a Tree
      */
     private void waitForTreeExclusive() throws PersistitException {
         _tree.claim(true);
@@ -3851,30 +3851,21 @@ public final class Exchange implements BuildConstants {
             final int sampleSize, final int keyDepth,
             final KeyFilter keyFilter, final int requestedTreeDepth)
             throws PersistitException {
+        
         checkOwnerThread();
-
+        checkLevelCache();
         final int treeDepth = requestedTreeDepth > _treeDepth ? _treeDepth
                 : requestedTreeDepth;
-
         if (treeDepth < 0) {
             throw new IllegalArgumentException("treeDepth out of bounds: "
                     + treeDepth);
         }
-
         final KeyHistogram histogram = new KeyHistogram(getTree(), start, end,
                 sampleSize, keyDepth, treeDepth);
-
         _transaction.assignTimestamp();
-
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
-
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
-                lockedResourceCount);
-        checkLevelCache();
-
         Buffer previousBuffer = null;
-
         LevelCache lc = null;
         Buffer buffer = null;
         Key.Direction direction = Key.GTEQ;

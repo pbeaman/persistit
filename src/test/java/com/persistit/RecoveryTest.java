@@ -20,6 +20,8 @@ package com.persistit;
 
 import java.util.Properties;
 
+import org.junit.Ignore;
+
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -76,6 +78,26 @@ public class RecoveryTest extends PersistitUnitTestCase {
         plan.applyAllCommittedTransactions();
         System.out.println("done");
     }
+    
+    // TODO: Fix log record transactions
+    @Ignore
+//    public void test4() throws Exception {
+//        // create 10 transactions on the journal
+//        _persistit.getJournalManager().setCopyingSuspended(true);
+//        store3();
+//        _persistit.crash();
+//        final Properties saveProperties = _persistit.getProperties();
+//        _persistit = new Persistit();
+//        _persistit.getJournalManager().setCopyingSuspended(true);
+//        final RecoveryPlan plan = _persistit.getJournalManager()
+//                .getRecoveryPlan();
+//        plan.setRecoveryDisabledForTestMode(true);
+//        _persistit.initialize(saveProperties);
+//        assertEquals(15, plan.getCommittedCount());
+//        plan.setRecoveryDisabledForTestMode(false);
+//        plan.applyAllCommittedTransactions();
+//        System.out.println("done");
+//    }
 
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName,
@@ -162,6 +184,50 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
         }
     }
+    
+
+    private void store3() throws PersistitException {
+        final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest",
+                true);
+        ex.removeAll();
+        ex.getValue().setMaximumSize(8000000);
+        for (int j = 0; j++ < 5;) {
+            final StringBuilder sb = new StringBuilder(5000000);
+            for (int i = 0; i < 1000000; i++) {
+                sb.append("abcde");
+            }
+
+            final Transaction txn = ex.getTransaction();
+
+            txn.begin();
+            try {
+                for (int i = 0; i < 10; i++) {
+                    sb.replace(0, 3, " " + i + " ");
+                    ex.getValue().put(sb.toString());
+                    ex.clear().append("test1").append(j).append(i).store();
+                }
+                for (int i = 3; i < 10; i += 3) {
+                    ex.clear().append("test1").append(j).append(i).remove(
+                            Key.GTEQ);
+                }
+                txn.commit();
+            } finally {
+                txn.end();
+            }
+        }
+
+        for (int j = 1; j < 10; j += 2) {
+            final Transaction txn = ex.getTransaction();
+            txn.begin();
+            try {
+                ex.clear().append("test1").append(j).remove(Key.GTEQ);
+                txn.commit();
+            } finally {
+                txn.end();
+            }
+        }
+    }
+
 
     public static void main(final String[] args) throws Exception {
         _args = args;
@@ -171,5 +237,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     public void runAllTests() throws Exception {
         test1();
         test2();
+        test3();
+//        test4();
     }
 }

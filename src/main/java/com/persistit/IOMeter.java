@@ -1,12 +1,12 @@
 package com.persistit;
 
 /**
- * Attempt to meter I/O operations so that background I/O-intensive
- * processes (e.g., the JournalManager's JOURNAL_COPIER thread) can
- * voluntarily throttle I/O consumption.
+ * Attempt to meter I/O operations so that background I/O-intensive processes
+ * (e.g., the JournalManager's JOURNAL_COPIER thread) can voluntarily throttle
+ * I/O consumption.
  * 
  * @author peter
- *
+ * 
  */
 public class IOMeter {
 
@@ -16,9 +16,9 @@ public class IOMeter {
 
     private final static float IO_NORMALIZE = 100f / 27f;
 
-    private final static int DEFAULT_IO_RATE_MAX = 100;
+    private final static int DEFAULT_IO_RATE_MAX = 10;
 
-    private final static int DEFAULT_IO_RATE_MIN = 2;
+    private final static int DEFAULT_IO_RATE_MIN = 1;
 
     private final static float DEFAULT_IO_RATE_SLEEP_MULTIPLIER = 0.5f;
 
@@ -70,16 +70,16 @@ public class IOMeter {
         return (int) (_ioRate * IO_NORMALIZE);
     }
 
-    
     public void voluntaryWait(final boolean fast) {
-        final int ioRate = Math.min(Math.max(ioRate(0), _ioRateMin),
-                _ioRateMax);
-        final long delay = (long) (_ioRateSleepMultiplier * (fast ? _ioRateMin
-                : ioRate));
-        try {
-            Thread.sleep(delay);
-        } catch (InterruptedException ie) {
-            // ignore
+        if (!fast) {
+            final int ioRate = Math.min(Math.max(ioRate(0), _ioRateMin),
+                    _ioRateMax);
+            final long delay = (long) (_ioRateSleepMultiplier * ioRate);
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException ie) {
+                // ignore
+            }
         }
     }
 }

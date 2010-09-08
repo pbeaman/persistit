@@ -157,7 +157,7 @@ public class JournalManager {
     private volatile int _minimumUrgency = DEFAULT_MINIMUM_URGENCY;
 
     private volatile long _copierTimestampLimit = Long.MAX_VALUE;
-    
+
     public JournalManager(final Persistit persistit) {
         _persistit = persistit;
         _flusher = new JournalFlusher();
@@ -771,7 +771,7 @@ public class JournalManager {
 
         final int type = JournalRecord.getType(_bytes);
         final long timestamp = JournalRecord.getTimestamp(_bytes);
-        
+
         if (recordSize < JournalRecord.OVERHEAD) {
             throw new JournalNotClosedException(new FileAddress(file,
                     bufferAddress + from, timestamp));
@@ -1483,7 +1483,7 @@ public class JournalManager {
         final SortedMap<VolumePage, FileAddress> sortedMap = new TreeMap<VolumePage, FileAddress>();
         final boolean wasUrgent;
         final long currentGeneration;
-
+        
         synchronized (this) {
             final long timeStampUpperBound = Math.min(_lastValidCheckpoint
                     .getTimestamp(), _copierTimestampLimit);
@@ -1492,8 +1492,10 @@ public class JournalManager {
             }
             wasUrgent = _copyFast;
             currentGeneration = _currentGeneration;
-            final long generations = Math.min(1, (_currentGeneration - _firstGeneration) / 4);
-            final File copyJournalFileLimit = generationToFile(_firstGeneration + generations);
+            final long generations = Math.max(1,
+                    (_currentGeneration - _firstGeneration) / 4);
+            final File copyJournalFileLimit = generationToFile(_firstGeneration
+                    + generations);
             for (final Map.Entry<VolumePage, FileAddress> entry : _pageMap
                     .entrySet()) {
                 FileAddress fa = entry.getValue();
@@ -1576,12 +1578,8 @@ public class JournalManager {
             for (final Map.Entry<VolumePage, FileAddress> entry : sortedMap
                     .entrySet()) {
                 final VolumePage vp = entry.getKey();
-                final FileAddress fa = entry.getValue();
-                final FileAddress fa2 = _pageMap.get(vp);
-                if (fa.equals(fa2)) {
-                    _pageMap.remove(vp);
-                } else if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
-                    firstMissed = fa;
+                    if (entry.getValue().equals(_pageMap.get(vp))) {
+                        _pageMap.remove(vp);
                 }
             }
         }
