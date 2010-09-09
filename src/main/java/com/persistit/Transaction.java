@@ -17,7 +17,6 @@
 package com.persistit;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -42,7 +41,7 @@ import com.persistit.exception.VolumeNotFoundException;
  * All Persistit database operations are performed in the context of a
  * <tt>Transaction</tt>. If the <tt>begin</tt> operation has not explicitly been
  * called then Persistit behaves as if each database update operation is
- * implicitly preceeded by invocation of <tt>begin</tt> and concluded by
+ * implicitly preceded by invocation of <tt>begin</tt> and concluded by
  * invocation of <tt>commit</tt> and <tt>end</tt> to perform a memory commit.
  * </p>
  * <h2>Lexical Scoping</h2>
@@ -408,12 +407,6 @@ public class Transaction {
                 100000);
         _rootKey = new Key(_persistit);
         _timeout = _persistit.getDefaultTimeout();
-    }
-
-    private Transaction() {
-        _id = -1;
-        _persistit = null;
-        _rootKey = null;
     }
 
     private static synchronized long nextId() {
@@ -1557,7 +1550,7 @@ public class Transaction {
 
         final Set<Tree> removedTrees = new HashSet<Tree>();
 
-        jman.writeTransactionStartToJournal(getTimestamp());
+        jman.writeTransactionStartToJournal(getTimestamp(), getId());
         while (_ex1.traverse(Key.GT, true)) {
             Key key1 = _ex1.getKey();
             key1.reset();
@@ -1593,7 +1586,7 @@ public class Transaction {
                 jman.writeDeleteTreeToJournal(getTimestamp(), treeHandle);
             }
         }
-        jman.writeTransactionCommitToJournal(getTimestamp());
+        jman.writeTransactionCommitToJournal(getTimestamp(), getId());
     }
 
     private void applyUpdates() throws PersistitException {

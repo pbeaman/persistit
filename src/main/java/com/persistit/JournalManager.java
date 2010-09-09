@@ -82,6 +82,8 @@ public class JournalManager {
 
     private final Map<Integer, TreeDescriptor> _handleToTreeMap = new ConcurrentHashMap<Integer, TreeDescriptor>();
 
+    private final Map<Long, TransactionStatus> _liveTransactionMap = new HashMap<Long, TransactionStatus>();
+
     private final RecoveryPlan _recoveryPlan;
 
     private final Persistit _persistit;
@@ -140,6 +142,8 @@ public class JournalManager {
     private volatile long _journaledPageCount = 0;
 
     private volatile long _copiedPageCount = 0;
+    
+    private long _unitTestNeverCloseTransactionId = 0;
 
     /**
      * Tunable parameters that determine how vigorously the copyBack thread
@@ -639,24 +643,58 @@ public class JournalManager {
         _writeBuffer.put(_bytes, 0, recordSize);
     }
 
-    public synchronized void writeTransactionStartToJournal(final long timestamp)
-            throws PersistitIOException {
+    public synchronized void writeTransactionStartToJournal(
+            final long timestamp, final long id) throws PersistitIOException {
         JournalRecord.TS.putType(_bytes);
         JournalRecord.TS.putTimestamp(_bytes, timestamp);
+        JournalRecord.TS.putTransactionId(_bytes, id);
         final int recordSize = JournalRecord.TS.OVERHEAD;
         JournalRecord.TS.putLength(_bytes, recordSize);
         prepareWriteBuffer(recordSize);
         _writeBuffer.put(_bytes, 0, recordSize);
+        final TransactionStatus ts = transactionStatus(id);
+        ts.setOpen(true);
+        ts.setAddress(_writeBufferAddress + _writeBuffer.position());
+        ts.setFile(_writeChannelFile);
+        ts.setTimestamp(timestamp);
     }
 
     public synchronized void writeTransactionCommitToJournal(
-            final long timestamp) throws PersistitIOException {
+            final long timestamp, final long id) throws PersistitIOException {
         JournalRecord.TC.putType(_bytes);
         JournalRecord.TC.putTimestamp(_bytes, timestamp);
+        JournalRecord.TC.putTransactionId(_bytes, id);
         final int recordSize = JournalRecord.TC.OVERHEAD;
         JournalRecord.TC.putLength(_bytes, recordSize);
         prepareWriteBuffer(recordSize);
         _writeBuffer.put(_bytes, 0, recordSize);
+        final TransactionStatus ts = transactionStatus(id);
+        if (id != _unitTestNeverCloseTransactionId) {
+            ts.setOpen(false);
+        }
+    }
+
+    public synchronized void writeTransactionRollbackToJournal(
+            final long timestamp, final long id) throws PersistitIOException {
+        JournalRecord.TR.putType(_bytes);
+        JournalRecord.TR.putTimestamp(_bytes, timestamp);
+        JournalRecord.TR.putTransactionId(_bytes, id);
+        final int recordSize = JournalRecord.TR.OVERHEAD;
+        JournalRecord.TR.putLength(_bytes, recordSize);
+        prepareWriteBuffer(recordSize);
+        _writeBuffer.put(_bytes, 0, recordSize);
+        final TransactionStatus ts = transactionStatus(id);
+        ts.setOpen(false);
+    }
+
+    private TransactionStatus transactionStatus(final long id) {
+        final Long key = Long.valueOf(id);
+        TransactionStatus ts = _liveTransactionMap.get(key);
+        if (ts == null) {
+            ts = new TransactionStatus(id);
+            _liveTransactionMap.put(id, ts);
+        }
+        return ts;
     }
 
     public synchronized void rollover() throws PersistitIOException {
@@ -1380,6 +1418,60 @@ public class JournalManager {
         }
     }
 
+    private static class TransactionStatus {
+
+        private final long transactionId;
+
+        private File file;
+
+        private long address;
+
+        private long timestamp;
+
+        private boolean open;
+
+        private TransactionStatus(final long id) {
+            transactionId = id;
+        }
+
+        public File getFile() {
+            return file;
+        }
+
+        public void setFile(File file) {
+            this.file = file;
+        }
+
+        public long getAddress() {
+            return address;
+        }
+
+        public void setAddress(long address) {
+            this.address = address;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
+        }
+
+        public void setTimestamp(long timestamp) {
+            this.timestamp = timestamp;
+        }
+
+        public long getTransactionId() {
+            return transactionId;
+        }
+
+        public void setOpen(final boolean open) {
+            this.open = open;
+        }
+
+        public boolean isOpen() {
+            return open;
+        }
+
+    }
+
     static class JournalNotClosedException extends PersistitException {
 
         private static final long serialVersionUID = 1L;
@@ -1479,11 +1571,10 @@ public class JournalManager {
     }
 
     private void copierCycle() throws PersistitException {
-        FileAddress firstMissed = null;
         final SortedMap<VolumePage, FileAddress> sortedMap = new TreeMap<VolumePage, FileAddress>();
         final boolean wasUrgent;
         final long currentGeneration;
-        
+
         synchronized (this) {
             final long timeStampUpperBound = Math.min(_lastValidCheckpoint
                     .getTimestamp(), _copierTimestampLimit);
@@ -1502,10 +1593,6 @@ public class JournalManager {
                 if (fa.getTimestamp() < timeStampUpperBound
                         && (fa.getFile().compareTo(copyJournalFileLimit) < 0 || _copyFast)) {
                     sortedMap.put(entry.getKey(), entry.getValue());
-                } else {
-                    if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
-                        firstMissed = fa;
-                    }
                 }
                 if (_suspendCopying.get()) {
                     return;
@@ -1527,21 +1614,19 @@ public class JournalManager {
             }
             final VolumePage vp = entry.getKey();
             final FileAddress fa = entry.getValue();
+
             if (descriptor != vp.getVolumeDescriptor()) {
                 volume = _persistit.getVolume(vp.getVolumeDescriptor()
                         .getPath());
             }
+
             if (volume == null || volume.isClosed() || volume.isTransient()) {
                 // Remove from the sortedMap so that below we won't remove from
                 // the pageMap.
                 iterator.remove();
-                // Also, don't delete the journal file yet because we may reopen
-                // the Volume and attempt to continue.
-                if (firstMissed == null || fa.compareTo(firstMissed) < 0) {
-                    firstMissed = fa;
-                }
                 continue;
             }
+
             if (volume.getId() != vp.getVolumeDescriptor().getId()) {
                 throw new CorruptJournalException(vp.getVolumeDescriptor()
                         + " does not identify a valid Volume at " + fa);
@@ -1555,11 +1640,13 @@ public class JournalManager {
                         + bb.limit() + " does not match " + volume
                         + " bufferSize " + volume.getBufferSize() + " at " + fa);
             }
+
             if (pageAddress != vp.getPage()) {
                 throw new CorruptJournalException(vp
                         + " does not match page address " + pageAddress
                         + " found at " + fa);
             }
+
             try {
                 volume.writePage(bb, pageAddress);
                 volumes.add(volume);
@@ -1574,20 +1661,43 @@ public class JournalManager {
             vol.sync();
         }
 
+        FileAddress firstFile = null;
+
         synchronized (this) {
             for (final Map.Entry<VolumePage, FileAddress> entry : sortedMap
                     .entrySet()) {
                 final VolumePage vp = entry.getKey();
-                    if (entry.getValue().equals(_pageMap.get(vp))) {
-                        _pageMap.remove(vp);
+                if (entry.getValue().equals(_pageMap.get(vp))) {
+                    _pageMap.remove(vp);
+                }
+            }
+
+            // Detect first journal file still referenced by the Page Map
+            for (final FileAddress fa : _pageMap.values()) {
+                if (firstFile == null || firstFile.compareTo(fa) > 0) {
+                    firstFile = fa;
+                }
+            }
+
+            // Detect first journal file still holding an open Transaction
+            for (final Iterator<TransactionStatus> iterator = _liveTransactionMap
+                    .values().iterator(); iterator.hasNext();) {
+                final TransactionStatus ts = iterator.next();
+                if (ts.isOpen()) {
+                    final FileAddress fa = new FileAddress(ts.getFile(), ts
+                            .getAddress(), ts.getTimestamp());
+                    if (firstFile == null || firstFile.compareTo(fa) > 0) {
+                        firstFile = fa;
+                    }
+                } else {
+                    iterator.remove();
                 }
             }
         }
 
         final File[] files = files();
         for (final File file : files) {
-            if (firstMissed == null
-                    || file.compareTo(firstMissed.getFile()) < 0) {
+            if (firstFile == null || file.compareTo(firstFile.getFile()) < 0) {
                 if (!file.equals(_writeChannelFile)) {
                     file.delete();
                     final FileChannel channel;
@@ -1606,17 +1716,17 @@ public class JournalManager {
         }
         File currentFile = null;
         synchronized (this) {
-            if (firstMissed == null
+            if (firstFile == null
                     && _pageMap.size() == 0
                     && _writeBuffer != null
                     && _writeBufferAddress + _writeBuffer.position() > rolloverThreshold()) {
                 currentFile = _writeChannelFile;
                 rollover();
             }
-            if (firstMissed == null) {
+            if (firstFile == null) {
                 _firstGeneration = currentGeneration;
             } else {
-                _firstGeneration = fileToGeneration(firstMissed.getFile());
+                _firstGeneration = fileToGeneration(firstFile.getFile());
             }
         }
         if (currentFile != null) {
@@ -1629,6 +1739,15 @@ public class JournalManager {
 
     private long rolloverThreshold() {
         return _closed.get() ? 0 : ROLLOVER_THRESHOLD;
+    }
+    
+    /**
+     * For use only by unit tests that prove having an open transaction
+     * prevents deletion of journal files.
+     * @param id
+     */
+    void setUnitTestNeverCloseTransactionId(final long id) {
+        _unitTestNeverCloseTransactionId = id;
     }
 
     public static void main(final String[] args) throws Exception {

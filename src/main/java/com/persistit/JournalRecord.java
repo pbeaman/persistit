@@ -113,16 +113,11 @@ import java.nio.charset.Charset;
  * <tr valign="top">
  * <td>TS</td>
  * <td>Transaction Start: binds subsequent records having same timestamp to a
- * commit</td>
- * </tr>
- * <tr valign="top">
- * <td>TJ</td>
- * <td>Transaction timestamp Join
+ * commit
  * <table>
  * <tr valign="top">
  * <td>+16</td>
- * <td>previous timestamp: subsequent records having this record's timestamp are
- * members of the same transaction as previous timestamp.</td>
+ * <td>Transaction ID (long).</td>
  * </tr>
  * </table>
  * </td>
@@ -130,12 +125,26 @@ import java.nio.charset.Charset;
  * <tr valign="top">
  * <td>TC</td>
  * <td>Transaction Commit: all records having same or linked time-stamps should
- * be applied</td>
+ * be applied
+ * <table>
+ * <tr valign="top">
+ * <td>+16</td>
+ * <td>Transaction ID (long).</td>
+ * </tr>
+ * </table>
+ * </td>
  * </tr>
  * <tr valign="top">
  * <td>TR</td>
  * <td>Transaction Roll-back: ignore/roll-back: all records having same or
- * linked time-stamps should be ignored</td>
+ * linked time-stamps should be ignored
+ * <table>
+ * <tr valign="top">
+ * <td>+16</td>
+ * <td>Transaction ID (long).</td>
+ * </tr>
+ * </table>
+ * </td>
  * </tr>
  * <tr valign="top">
  * <td>SR</td>
@@ -411,17 +420,26 @@ public class JournalRecord {
     
     public static class TS extends JournalRecord {
         
+        public final static int OVERHEAD = 24;
+        
         public final static int TYPE = TYPE_TS;
         
         public static void putType(final byte[] bytes) {
             putType(bytes, TYPE_TS);
         }
 
-
+        public static void putTransactionId(final byte[] bytes, final long transactionId) {
+            Util.putLong(bytes, 16, transactionId);
+        }
         
+        public static long getTransactionId(final byte[] bytes) {
+            return Util.getLong(bytes, 16);
+        }
     }
 
     public static class TC extends JournalRecord {
+        
+        public final static int OVERHEAD = 24;
         
         public final static int TYPE = TYPE_TC;
         
@@ -429,10 +447,19 @@ public class JournalRecord {
             putType(bytes, TYPE_TC);
         }
 
+        public static void putTransactionId(final byte[] bytes, final long transactionId) {
+            Util.putLong(bytes, 16, transactionId);
+        }
+        
+        public static long getTransactionId(final byte[] bytes) {
+            return Util.getLong(bytes, 16);
+        }
 
     }
     
     public static class TR extends JournalRecord {
+        
+        public final static int OVERHEAD = 24;
         
         public final static int TYPE = TYPE_TR;
         
@@ -440,6 +467,13 @@ public class JournalRecord {
             putType(bytes, TYPE_TR);
         }
 
+        public static void putTransactionId(final byte[] bytes, final long transactionId) {
+            Util.putLong(bytes, 16, transactionId);
+        }
+        
+        public static long getTransactionId(final byte[] bytes) {
+            return Util.getLong(bytes, 16);
+        }
     }
     
     public static class SR extends JournalRecord {

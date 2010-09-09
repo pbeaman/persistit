@@ -34,17 +34,19 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     private String _volumeName = "persistit";
 
-    public void test1() throws Exception {
+    public void testRecoveryRebuildsPageMap() throws Exception {
         store1();
         _persistit.close();
         final Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
+        JournalManager logMan = _persistit.getJournalManager();
+        assertTrue(logMan.getPageMapSize() > 0);
         fetch1a();
         fetch1b();
     }
 
-    public void test2() throws Exception {
+    public void testCopierCleansUpJournals() throws Exception {
         store1();
         JournalManager logMan = _persistit.getJournalManager();
         assertTrue(logMan.getPageMapSize() > 0);
@@ -61,7 +63,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         fetch1b();
     }
 
-    public void test3() throws Exception {
+    public void testRecoverCommittedTransactions() throws Exception {
         // create 10 transactions on the journal
         _persistit.getJournalManager().setCopyingSuspended(true);
         store2();
@@ -79,9 +81,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
         System.out.println("done");
     }
     
-    // TODO: Fix log record transactions
-    @Ignore
-//    public void test4() throws Exception {
+    // TODO: Fix long-record transactions
+//    public void testLongRecordTransactionRecovery() throws Exception {
 //        // create 10 transactions on the journal
 //        _persistit.getJournalManager().setCopyingSuspended(true);
 //        store3();
@@ -98,6 +99,57 @@ public class RecoveryTest extends PersistitUnitTestCase {
 //        plan.applyAllCommittedTransactions();
 //        System.out.println("done");
 //    }
+    
+    public void testRolloverDoesntDeleteLiveTransactions() throws Exception {
+        store1();
+        JournalManager logMan = _persistit.getJournalManager();
+        assertTrue(logMan.getPageMapSize() > 0);
+        logMan.rollover();
+        _persistit.checkpoint();
+        logMan.copyBack(Long.MAX_VALUE);
+
+        assertEquals(2, logMan.getFirstGeneration());
+        assertEquals(0, logMan.getPageMapSize());
+        
+        final Transaction txn = _persistit.getTransaction();
+        
+        txn.begin();
+        store1();
+        logMan.setUnitTestNeverCloseTransactionId(txn.getId());
+        txn.commit();
+        txn.end();
+        logMan.setUnitTestNeverCloseTransactionId(Long.MIN_VALUE);
+        
+        logMan.rollover();
+        _persistit.checkpoint();
+        logMan.copyBack(Long.MAX_VALUE);
+        // because JournalManager thinks there's an open transaction
+        // (due to the call to setUnitTesNeverCloseTransactionId method)
+        // it should preserve the journal file containing the TS record
+        // for the transaction.
+        assertEquals(2, logMan.getFirstGeneration());
+        assertEquals(0, logMan.getPageMapSize());
+        
+        txn.begin();
+        store1();
+        txn.commit();
+        txn.end();
+
+        // Using the same transaction resets the transaction status; 
+        // after the commit() call above, JournalManager should not
+        // have any open transactions.  Therefore rollover should 
+        // delete the earlier files after copyBack.
+        //
+        logMan.rollover();
+        _persistit.checkpoint();
+        logMan.copyBack(Long.MAX_VALUE);
+        
+        assertEquals(4, logMan.getFirstGeneration());
+        assertEquals(0, logMan.getPageMapSize());
+        
+        fetch1a();
+        fetch1b(); 
+    }
 
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName,
@@ -235,9 +287,9 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     public void runAllTests() throws Exception {
-        test1();
-        test2();
-        test3();
+        testRecoveryRebuildsPageMap();
+        testCopierCleansUpJournals();
+        testRecoverCommittedTransactions();
 //        test4();
     }
 }
