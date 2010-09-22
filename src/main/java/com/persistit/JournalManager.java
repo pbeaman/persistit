@@ -64,9 +64,9 @@ public class JournalManager {
     private final static Pattern PATH_PATTERN = Pattern
             .compile(".+\\.(\\d{16})");
 
-    private final static int DEFAULT_PAGE_MAP_SIZE_BASE = 1000;
+    private final static int DEFAULT_PAGE_MAP_SIZE_BASE = 250000;
 
-    private final static int DEFAULT_MINIMUM_URGENCY = 2;
+    private final static int DEFAULT_MINIMUM_URGENCY = 0;
 
     private final static int DOUBLE_COPY_SIZE = 512;
 
@@ -77,6 +77,8 @@ public class JournalManager {
     private final Map<VolumeDescriptor, Integer> _volumeToHandleMap = new ConcurrentHashMap<VolumeDescriptor, Integer>();
 
     private final Map<Integer, VolumeDescriptor> _handleToVolumeMap = new ConcurrentHashMap<Integer, VolumeDescriptor>();
+
+    private final Map<VolumeDescriptor, VolumeDescriptor> _volumeDescriptorMap = new HashMap<VolumeDescriptor, VolumeDescriptor>();
 
     private final Map<TreeDescriptor, Integer> _treeToHandleMap = new ConcurrentHashMap<TreeDescriptor, Integer>();
 
@@ -114,7 +116,7 @@ public class JournalManager {
 
     private File _directory;
 
-    private byte[] _bytes = new byte[DEFAULT_BUFFER_SIZE];
+    private byte[] _bytes;
 
     /**
      * Journal file generation - serves as suffix on file name
@@ -142,7 +144,7 @@ public class JournalManager {
     private volatile long _journaledPageCount = 0;
 
     private volatile long _copiedPageCount = 0;
-    
+
     private long _unitTestNeverCloseTransactionId = 0;
 
     /**
@@ -174,6 +176,7 @@ public class JournalManager {
         _directory = new File(path).getAbsoluteFile();
         _maximumFileSize = maximumSize;
         _closed.set(false);
+        _bytes = new byte[DEFAULT_BUFFER_SIZE];
     }
 
     public void startThreads() {
@@ -351,9 +354,20 @@ public class JournalManager {
         return handle.intValue();
     }
 
+    public synchronized VolumeDescriptor volumeDescriptorForVolume(
+            final Volume volume) {
+        final VolumeDescriptor vd = new VolumeDescriptor(volume);
+        final VolumeDescriptor interned = _volumeDescriptorMap.get(vd);
+        if (interned != null) {
+            return interned;
+        } else {
+            return vd;
+        }
+    }
+
     public int handleForTree(final Tree tree) throws PersistitIOException {
-        final TreeDescriptor td = new TreeDescriptor(handleForVolume(tree
-                .getVolume()), tree.getName());
+        final TreeDescriptor td = new TreeDescriptor(
+                handleForVolume(tree.getVolume()), tree.getName());
         return handleForTree(td);
     }
 
@@ -382,7 +396,7 @@ public class JournalManager {
         final ByteBuffer bb = buffer.getByteBuffer();
 
         final Volume volume = buffer.getVolume();
-        final VolumePage vp = new VolumePage(new VolumeDescriptor(volume),
+        final VolumePage vp = new VolumePage(volumeDescriptorForVolume(volume),
                 pageAddress);
         final FileAddress fa;
 
@@ -492,8 +506,8 @@ public class JournalManager {
         JournalRecord.CP.putLength(_bytes, JournalRecord.CP.OVERHEAD);
         JournalRecord.CP.putType(_bytes, JournalRecord.CP.TYPE);
         JournalRecord.CP.putTimestamp(_bytes, checkpoint.getTimestamp());
-        JournalRecord.CP.putSystemTimeMillis(_bytes, checkpoint
-                .getSystemTimeMillis());
+        JournalRecord.CP.putSystemTimeMillis(_bytes,
+                checkpoint.getSystemTimeMillis());
         _writeBuffer.put(_bytes, 0, JournalRecord.CP.OVERHEAD);
         force();
         final FileAddress fa = new FileAddress(_writeChannelFile, address,
@@ -508,55 +522,68 @@ public class JournalManager {
         }
     }
 
-    public synchronized void writePageToJournal(final Buffer buffer)
+    public void writePageToJournal(final Buffer buffer)
             throws PersistitIOException {
 
-        final Volume volume = buffer.getVolume();
-        final int available = buffer.getAvailableSize();
-        final int recordSize = JournalRecord.PA.OVERHEAD
-                + buffer.getBufferSize() - available;
-        long address = -1;
+        // TODO -
+        // Crude hack to try to keep journal files from running away
+        if (urgency() == 10) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException ie) {
 
-        int handle = handleForVolume(volume);
-        if (prepareWriteBuffer(recordSize)) {
-            // this call is repeated because it may be necessary to
-            // roll over, in which case the handle may now be different.
-            handle = handleForVolume(volume);
-        }
-        address = _writeBufferAddress + _writeBuffer.position();
-        final int leftSize = available == 0 ? 0 : buffer.getAlloc() - available;
-        JournalRecord.PA.putLength(_bytes, recordSize);
-        JournalRecord.PA.putVolumeHandle(_bytes, handle);
-        JournalRecord.PA.putType(_bytes);
-        JournalRecord.PA.putTimestamp(_bytes, buffer.isTransient() ? -1
-                : buffer.getTimestamp());
-        JournalRecord.PA.putLeftSize(_bytes, leftSize);
-        JournalRecord.PA.putBufferSize(_bytes, buffer.getBufferSize());
-        JournalRecord.PA.putPageAddress(_bytes, buffer.getPageAddress());
-        _writeBuffer.put(_bytes, 0, JournalRecord.PA.OVERHEAD);
-        final int payloadSize = recordSize - JournalRecord.PA.OVERHEAD;
-
-        if (leftSize > 0) {
-            final int rightSize = payloadSize - leftSize;
-            _writeBuffer.put(buffer.getBytes(), 0, leftSize);
-            _writeBuffer.put(buffer.getBytes(), buffer.getBufferSize()
-                    - rightSize, rightSize);
-        } else {
-            _writeBuffer.put(buffer.getBytes());
+            }
         }
 
-        final VolumePage vp = new VolumePage(new VolumeDescriptor(volume),
-                buffer.getPageAddress());
-        final FileAddress fa = new FileAddress(_writeChannelFile, address,
-                buffer.getTimestamp());
-        _pageMap.put(vp, fa);
-        _journaledPageCount++;
-        _persistit.getIOMeter().ioRate(1);
+        synchronized (this) {
+            final Volume volume = buffer.getVolume();
+            final int available = buffer.getAvailableSize();
+            final int recordSize = JournalRecord.PA.OVERHEAD
+                    + buffer.getBufferSize() - available;
+            long address = -1;
 
-        Debug.$assert(JournalRecord.getLength(_bytes) == recordSize);
-        if (buffer.getPageAddress() != 0) {
-            Debug.$assert(buffer.getPageAddress() == JournalRecord.PA
-                    .getPageAddress(_bytes));
+            int handle = handleForVolume(volume);
+            if (prepareWriteBuffer(recordSize)) {
+                // this call is repeated because it may be necessary to
+                // roll over, in which case the handle may now be different.
+                handle = handleForVolume(volume);
+            }
+            address = _writeBufferAddress + _writeBuffer.position();
+            final int leftSize = available == 0 ? 0 : buffer.getAlloc()
+                    - available;
+            JournalRecord.PA.putLength(_bytes, recordSize);
+            JournalRecord.PA.putVolumeHandle(_bytes, handle);
+            JournalRecord.PA.putType(_bytes);
+            JournalRecord.PA.putTimestamp(_bytes, buffer.isTransient() ? -1
+                    : buffer.getTimestamp());
+            JournalRecord.PA.putLeftSize(_bytes, leftSize);
+            JournalRecord.PA.putBufferSize(_bytes, buffer.getBufferSize());
+            JournalRecord.PA.putPageAddress(_bytes, buffer.getPageAddress());
+            _writeBuffer.put(_bytes, 0, JournalRecord.PA.OVERHEAD);
+            final int payloadSize = recordSize - JournalRecord.PA.OVERHEAD;
+
+            if (leftSize > 0) {
+                final int rightSize = payloadSize - leftSize;
+                _writeBuffer.put(buffer.getBytes(), 0, leftSize);
+                _writeBuffer.put(buffer.getBytes(), buffer.getBufferSize()
+                        - rightSize, rightSize);
+            } else {
+                _writeBuffer.put(buffer.getBytes());
+            }
+
+            final VolumePage vp = new VolumePage(
+                    volumeDescriptorForVolume(volume), buffer.getPageAddress());
+            final FileAddress fa = new FileAddress(_writeChannelFile, address,
+                    buffer.getTimestamp());
+            _pageMap.put(vp, fa);
+            _journaledPageCount++;
+            _persistit.getIOMeter().ioRate(1);
+
+            Debug.$assert(JournalRecord.getLength(_bytes) == recordSize);
+            if (buffer.getPageAddress() != 0) {
+                Debug.$assert(buffer.getPageAddress() == JournalRecord.PA
+                        .getPageAddress(_bytes));
+            }
         }
     }
 
@@ -592,8 +619,8 @@ public class JournalManager {
         JournalRecord.SR.putTreeHandle(_bytes, treeHandle);
         JournalRecord.SR.putKeySize(_bytes, (short) key.getEncodedSize());
         int recordSize = JournalRecord.SR.OVERHEAD;
-        System.arraycopy(key.getEncodedBytes(), 0, _bytes, recordSize, key
-                .getEncodedSize());
+        System.arraycopy(key.getEncodedBytes(), 0, _bytes, recordSize,
+                key.getEncodedSize());
         recordSize += key.getEncodedSize();
         int partialSize = recordSize;
         if (recordSize + value.getEncodedSize() < DOUBLE_COPY_SIZE) {
@@ -621,11 +648,11 @@ public class JournalManager {
         JournalRecord.DR.putTreeHandle(_bytes, treeHandle);
         JournalRecord.DR.putKey1Size(_bytes, (short) key1.getEncodedSize());
         int recordSize = JournalRecord.DR.OVERHEAD;
-        System.arraycopy(key1.getEncodedBytes(), 0, _bytes, recordSize, key1
-                .getEncodedSize());
+        System.arraycopy(key1.getEncodedBytes(), 0, _bytes, recordSize,
+                key1.getEncodedSize());
         recordSize += key1.getEncodedSize();
-        System.arraycopy(key2.getEncodedBytes(), 0, _bytes, recordSize, key2
-                .getEncodedSize());
+        System.arraycopy(key2.getEncodedBytes(), 0, _bytes, recordSize,
+                key2.getEncodedSize());
         recordSize += key2.getEncodedSize();
         JournalRecord.DR.putLength(_bytes, recordSize);
         prepareWriteBuffer(recordSize);
@@ -883,8 +910,7 @@ public class JournalManager {
             _treeToHandleMap.put(td, handle);
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_RECORD)) {
                 _persistit.getLogBase()
-                        .log(
-                                LogBase.LOG_RECOVERY_RECORD,
+                        .log(LogBase.LOG_RECOVERY_RECORD,
                                 "IT",
                                 new FileAddress(file, bufferAddress + from,
                                         timestamp), treeName, timestamp, null,
@@ -1514,6 +1540,15 @@ public class JournalManager {
         protected boolean shouldStop() {
             return _closed.get();
         }
+
+        @Override
+        public long getPollInterval() {
+            if (urgency() >= 10) {
+                return 0;
+            } else {
+                return super.getPollInterval();
+            }
+        }
     }
 
     private class JournalFlusher extends IOTaskRunnable {
@@ -1567,7 +1602,7 @@ public class JournalManager {
         if (journalFileCount > 1) {
             urgency += journalFileCount - 1;
         }
-        return Math.max(urgency, 10);
+        return Math.min(urgency, 10);
     }
 
     private void copierCycle() throws PersistitException {
@@ -1576,8 +1611,8 @@ public class JournalManager {
         final long currentGeneration;
 
         synchronized (this) {
-            final long timeStampUpperBound = Math.min(_lastValidCheckpoint
-                    .getTimestamp(), _copierTimestampLimit);
+            final long timeStampUpperBound = Math.min(
+                    _lastValidCheckpoint.getTimestamp(), _copierTimestampLimit);
             if (!_recovered) {
                 return;
             }
@@ -1684,8 +1719,8 @@ public class JournalManager {
                     .values().iterator(); iterator.hasNext();) {
                 final TransactionStatus ts = iterator.next();
                 if (ts.isOpen()) {
-                    final FileAddress fa = new FileAddress(ts.getFile(), ts
-                            .getAddress(), ts.getTimestamp());
+                    final FileAddress fa = new FileAddress(ts.getFile(),
+                            ts.getAddress(), ts.getTimestamp());
                     if (firstFile == null || firstFile.compareTo(fa) > 0) {
                         firstFile = fa;
                     }
@@ -1740,10 +1775,11 @@ public class JournalManager {
     private long rolloverThreshold() {
         return _closed.get() ? 0 : ROLLOVER_THRESHOLD;
     }
-    
+
     /**
-     * For use only by unit tests that prove having an open transaction
-     * prevents deletion of journal files.
+     * For use only by unit tests that prove having an open transaction prevents
+     * deletion of journal files.
+     * 
      * @param id
      */
     void setUnitTestNeverCloseTransactionId(final long id) {

@@ -43,19 +43,13 @@ import com.persistit.exception.PersistitIOException;
  */
 public class RecoveryPlan {
 
-    private int _readBufferSize = 64 * 1024 * 1024;
-    
     private File _readChannelFile;
 
     private ByteBuffer _readBuffer;
     
-    private long _readBufferAddress;
-
     private final SortedMap<Long, TRecord> _transactionMap = new TreeMap<Long, TRecord>();
 
     private final Persistit _persistit;
-
-    private FileAddress _failureFileAddress;
 
     private final byte[] _bytes = new byte[128];
 
