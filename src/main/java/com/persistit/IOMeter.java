@@ -20,7 +20,13 @@ public class IOMeter {
 
     private final static int DEFAULT_IO_RATE_MIN = 1;
 
-    private final static float DEFAULT_IO_RATE_SLEEP_MULTIPLIER = 0.5f;
+    // TODO: Reconsider I/O scheduling
+    //
+    // Changed to ZERO (was 0.5f) to accelerate bulk load.  Suggests
+    // that the whole idea of trying to throttle the JournalCopy
+    // is bogus.  But for now I'm changing nothing but the constant.
+    //
+    private final static float DEFAULT_IO_RATE_SLEEP_MULTIPLIER = 0.0f;
 
     private int _ioRate;
 
@@ -75,10 +81,12 @@ public class IOMeter {
             final int ioRate = Math.min(Math.max(ioRate(0), _ioRateMin),
                     _ioRateMax);
             final long delay = (long) (_ioRateSleepMultiplier * ioRate);
+            if (delay > 0) {
             try {
                 Thread.sleep(delay);
             } catch (InterruptedException ie) {
                 // ignore
+            }
             }
         }
     }

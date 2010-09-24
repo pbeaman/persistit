@@ -1526,7 +1526,7 @@ public class JournalManager {
         @Override
         public void runTask() throws Exception {
 
-            if (urgency() > _minimumUrgency && !_suspendCopying.get()) {
+            if (urgency() >= _minimumUrgency && !_suspendCopying.get()) {
                 _copying.set(true);
                 try {
                     copierCycle();
