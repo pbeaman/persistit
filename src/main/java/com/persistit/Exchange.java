@@ -1767,7 +1767,7 @@ public final class Exchange implements BuildConstants {
      * 
      * @throws PersistitException
      */
-    public boolean traverse(Key.Direction direction, boolean deep, int minBytes)
+    public boolean traverse(final Key.Direction direction, final boolean deep, final int minBytes)
             throws PersistitException {
         checkOwnerThread();
 
@@ -1782,8 +1782,14 @@ public final class Exchange implements BuildConstants {
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
         Buffer buffer = null;
+        
         if (doFetch) {
             _value.clear();
+        }
+        
+        final boolean reverse = (direction == Key.LT) || (direction == Key.LTEQ);
+        if (_key.getEncodedSize() == 0) {
+        	_key.append(reverse ? Key.AFTER : Key.BEFORE);
         }
 
         checkLevelCache();
@@ -1848,8 +1854,6 @@ public final class Exchange implements BuildConstants {
                 //
                 return false;
             }
-
-            boolean reverse = (direction == Key.LT) || (direction == Key.LTEQ);
 
             //
             // We are committed to computing a new key value. We do this in
@@ -2107,7 +2111,8 @@ public final class Exchange implements BuildConstants {
         if (keyFilter == null) {
             return traverse(direction, true, minBytes);
         }
-        boolean reverse = (direction == Key.LT || direction == Key.LTEQ);
+
+        final boolean reverse = (direction == Key.LT) || (direction == Key.LTEQ);
 
         for (;;) {
             boolean result = traverse(direction, true, minBytes);
