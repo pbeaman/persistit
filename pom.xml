@@ -12,6 +12,24 @@
     <name>akiban-persistit</name>
     <version>2.1-SNAPSHOT</version>
 
+  <repositories>
+        <repository>
+          <id>libs-releases-local</id>
+          <name>Repository</name>
+          <layout>default</layout>
+          <url>http://172.16.20.117:9999/artifactory/libs-releases-local</url>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </repository>
+        <repository>
+            <id>repo</id>
+            <name>libs-snapshots-local</name>
+            <url>http://172.16.20.117:9999/artifactory/libs-snapshots-local</url>
+        </repository>
+  </repositories>
+
+
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
