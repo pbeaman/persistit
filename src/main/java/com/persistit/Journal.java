@@ -167,12 +167,12 @@ class Journal {
                         _os.writeInt((int) _persistit.elapsedTime());
                         _os.writeInt(treeHandle);
                         _os.writeInt(key.getEncodedSize());
-                        _os.write(key.getEncodedBytes(), 0, key
-                                .getEncodedSize());
+                        _os.write(key.getEncodedBytes(), 0,
+                                key.getEncodedSize());
                         _os.writeLong(value.getAtomicIncrementValue());
                         _os.writeInt(value.getEncodedSize());
-                        _os.write(value.getEncodedBytes(), 0, value
-                                .getEncodedSize());
+                        _os.write(value.getEncodedBytes(), 0,
+                                value.getEncodedSize());
                         _os.writeBoolean(fetchFirst);
                         _os.writeByte(END_MARKER);
                     } else {
@@ -182,11 +182,11 @@ class Journal {
                         _os.writeInt((int) _persistit.elapsedTime());
                         _os.writeInt(treeHandle);
                         _os.writeInt(key.getEncodedSize());
-                        _os.write(key.getEncodedBytes(), 0, key
-                                .getEncodedSize());
+                        _os.write(key.getEncodedBytes(), 0,
+                                key.getEncodedSize());
                         _os.writeInt(value.getEncodedSize());
-                        _os.write(value.getEncodedBytes(), 0, value
-                                .getEncodedSize());
+                        _os.write(value.getEncodedBytes(), 0,
+                                value.getEncodedSize());
                         _os.writeBoolean(fetchFirst);
                         _os.writeByte(END_MARKER);
                     }
@@ -307,7 +307,7 @@ class Journal {
     // }
     // return id;
     // }
-    //    
+    //
     // synchronized long beginTraverse(
     // Tree tree,
     // Key key,
@@ -342,7 +342,7 @@ class Journal {
     // }
     // return id;
     // }
-    //    
+    //
     synchronized void completed(long id) {
         if (id > -1 && _enabled) {
             try {
@@ -437,7 +437,7 @@ class Journal {
             int fetchCount = 0;
             int traverseCount = 0;
             long startTime = 0;
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             for (int count = 0;; count++) {
                 lastType = type;
                 lastAddr2 = lastAddr;
@@ -670,9 +670,9 @@ class Journal {
                     Debug.debug1(id == 552818);
                     if (!exchange.isDirectoryExchange()) {
                         exchange.getAuxiliaryKey1().copyTo(exchange.getKey());
-                        exchange.removeKeyRangeInternal(exchange
-                                .getAuxiliaryKey1(), exchange
-                                .getAuxiliaryKey2(), fetchFirst);
+                        exchange.removeKeyRangeInternal(
+                                exchange.getAuxiliaryKey1(),
+                                exchange.getAuxiliaryKey2(), fetchFirst);
                         removeCount++;
                     }
                     break;

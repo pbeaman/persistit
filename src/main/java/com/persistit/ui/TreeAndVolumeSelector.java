@@ -41,8 +41,8 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import com.persistit.Management;
-import com.persistit.Management.TreeInfo;
-import com.persistit.Management.VolumeInfo;
+import com.persistit.ManagementMXBean.TreeInfo;
+import com.persistit.ManagementMXBean.VolumeInfo;
 import com.persistit.ui.AdminUI.AdminAction;
 
 /**
@@ -90,20 +90,20 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
     public void setup(AdminUI ui) {
         _adminUI = ui;
 
-        _addSelectedAction = ui.createAction(this, _adminUI
-                .getProperty("TVSelector.AddSelected"));
+        _addSelectedAction = ui.createAction(this,
+                _adminUI.getProperty("TVSelector.AddSelected"));
 
-        _removeSelectedAction = ui.createAction(this, _adminUI
-                .getProperty("TVSelector.RemoveSelected"));
+        _removeSelectedAction = ui.createAction(this,
+                _adminUI.getProperty("TVSelector.RemoveSelected"));
 
-        _addAllAction = ui.createAction(this, _adminUI
-                .getProperty("TVSelector.AddAll"));
+        _addAllAction = ui.createAction(this,
+                _adminUI.getProperty("TVSelector.AddAll"));
 
-        _addAllAllAction = ui.createAction(this, _adminUI
-                .getProperty("TVSelector.AddAllAll"));
+        _addAllAllAction = ui.createAction(this,
+                _adminUI.getProperty("TVSelector.AddAllAll"));
 
-        _removeAllAction = ui.createAction(this, _adminUI
-                .getProperty("TVSelector.RemoveAll"));
+        _removeAllAction = ui.createAction(this,
+                _adminUI.getProperty("TVSelector.RemoveAll"));
 
         _addAllAllButton = new JButton(_addAllAllAction);
         _addSelectedButton = new JButton(_addSelectedAction);
@@ -293,7 +293,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
     private static class TreeItemListCellRenderer extends
             DefaultListCellRenderer implements ListCellRenderer {
         boolean _supplySide;
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
 
         Color _defaultBackground;
         Color _defaultForeground;
@@ -445,7 +445,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
 
     public String getTreeListString() {
         String volumeName = null;
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         int size = _selectedTreeListModel.size();
         for (int index = 0; index < size; index++) {
             TreeItem item = (TreeItem) _selectedTreeListModel.elementAt(index);
@@ -465,7 +465,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
         if (s.indexOf('\\') == 0 && s.indexOf(',') == 0 && s.indexOf(';') == 0) {
             return s;
         }
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         for (int index = 0; index < s.length(); index++) {
             char c = s.charAt(index);
             if (c == '\\' || c == ',' || c == ';') {

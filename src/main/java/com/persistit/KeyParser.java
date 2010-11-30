@@ -30,7 +30,7 @@ import java.util.Vector;
  */
 public class KeyParser {
     private String _source;
-    private StringBuffer _sb = new StringBuffer();
+    private StringBuilder _sb = new StringBuilder();
     boolean _dp;
     private int _index;
     private int _start;

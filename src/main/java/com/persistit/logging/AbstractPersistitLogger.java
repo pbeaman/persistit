@@ -220,12 +220,12 @@ public abstract class AbstractPersistitLogger {
      *            template
      */
     public void log(LogTemplate logTemplate, Object... args) {
-        StringBuffer sb;
+        StringBuilder sb;
         synchronized (_sbStack) {
             if (_sbStack.isEmpty())
-                sb = new StringBuffer();
+                sb = new StringBuilder();
             else
-                sb = (StringBuffer) _sbStack.pop();
+                sb = (StringBuilder) _sbStack.pop();
         }
 
         sb.setLength(0);

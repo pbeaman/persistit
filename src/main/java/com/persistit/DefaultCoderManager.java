@@ -388,7 +388,7 @@ public final class DefaultCoderManager implements CoderManager {
      * @return The serialization override pattern
      */
     public synchronized String getSerialOverridePatterns() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         for (int index = 0; index < _serialOverrides.length; index++) {
             if (sb.length() > 0)
                 sb.append(',');
@@ -501,7 +501,7 @@ public final class DefaultCoderManager implements CoderManager {
 
         @Override
         public String toString() {
-            StringBuffer sb = new StringBuffer(_startsWith);
+            StringBuilder sb = new StringBuilder(_startsWith);
             if (!_exact) {
                 sb.append('*');
                 if (_multiPath)

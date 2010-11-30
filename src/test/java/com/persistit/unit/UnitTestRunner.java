@@ -18,8 +18,8 @@
  */
 package com.persistit.unit;
 
-import com.persistit.test.PersistitScriptedTestCase;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.AbstractTestRunnerItem;
+import com.persistit.test.TestResult;
 
 /**
  * Adapter that allows the TestRunner to run unit tests
@@ -27,7 +27,7 @@ import com.persistit.test.PersistitTestResult;
  * @author peter
  * 
  */
-public class UnitTestRunner extends PersistitScriptedTestCase {
+public class UnitTestRunner extends AbstractTestRunnerItem {
     boolean _done;
     String _className;
     String[] _args;
@@ -46,7 +46,7 @@ public class UnitTestRunner extends PersistitScriptedTestCase {
             _done = true;
             final Throwable t = e;
             // if (e.getCause() != null) t = e.getCause();
-            _result = new PersistitTestResult(false, t);
+            _result = new TestResult(false, t);
         }
     }
 

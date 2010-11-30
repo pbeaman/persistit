@@ -24,7 +24,7 @@ import com.persistit.Key;
 import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
 import com.persistit.exception.PersistitException;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.TestResult;
 
 /**
  * @version 1.0
@@ -116,7 +116,7 @@ public class Stress8txn extends StressBase {
                 try {
                     totalConsistencyCheck();
                 } catch (final PersistitException pe) {
-                    _result = new PersistitTestResult(false, pe);
+                    _result = new TestResult(false, pe);
                     forceStop();
                 }
             }
@@ -153,7 +153,7 @@ public class Stress8txn extends StressBase {
                         forceStop();
                     }
                 } catch (final Exception pe) {
-                    _result = new PersistitTestResult(false, pe);
+                    _result = new TestResult(false, pe);
                     forceStop();
                 }
             }
@@ -169,7 +169,7 @@ public class Stress8txn extends StressBase {
                 }
             }
         } catch (final PersistitException pe) {
-            _result = new PersistitTestResult(false, pe);
+            _result = new TestResult(false, pe);
             forceStop();
         }
     }
@@ -204,7 +204,7 @@ public class Stress8txn extends StressBase {
             _c2 = (acct2 % 100);
         }
 
-        PersistitTestResult _result = null;
+        TestResult _result = null;
     }
 
     private class Operation0 extends Operation {
@@ -280,8 +280,8 @@ public class Stress8txn extends StressBase {
             final int valueB = getAccountValue(_exs);
             final int totalC = accountTotal(_exs);
             if (valueB != totalC) {
-                _result = new PersistitTestResult(false, "totalC=" + totalC
-                        + " valueB=" + valueB + " at " + _exs);
+                _result = new TestResult(false, "totalC=" + totalC + " valueB="
+                        + valueB + " at " + _exs);
             }
         }
     }
@@ -296,8 +296,8 @@ public class Stress8txn extends StressBase {
             final int valueA = getAccountValue(_exs);
             final int totalB = accountTotal(_exs);
             if (valueA != totalB) {
-                _result = new PersistitTestResult(false, "totalB=" + totalB
-                        + " valueA=" + valueA + " at " + _exs);
+                _result = new TestResult(false, "totalB=" + totalB + " valueA="
+                        + valueA + " at " + _exs);
             }
         }
     }
@@ -311,8 +311,8 @@ public class Stress8txn extends StressBase {
             _exs.clear().append("stress8txn");
             final int totalA = accountTotal(_exs);
             if (totalA != 0) {
-                _result = new PersistitTestResult(false, "totalA=" + totalA
-                        + " at " + _exs);
+                _result = new TestResult(false, "totalA=" + totalA + " at "
+                        + _exs);
             }
         }
     }
@@ -351,22 +351,21 @@ public class Stress8txn extends StressBase {
                     totalC += valueC;
                 }
                 if (totalC != valueB) {
-                    _result = new PersistitTestResult(false, "totalC=" + totalC
+                    _result = new TestResult(false, "totalC=" + totalC
                             + " valueB=" + valueB + " at " + exb);
                     forceStop();
                     return false;
                 }
             }
             if (totalB != valueA) {
-                _result = new PersistitTestResult(false, "totalB=" + totalB
-                        + " valueA=" + valueA + " at " + exa);
+                _result = new TestResult(false, "totalB=" + totalB + " valueA="
+                        + valueA + " at " + exa);
                 forceStop();
                 return false;
             }
         }
         if (totalA != 0) {
-            _result = new PersistitTestResult(false, "totalA=" + totalA
-                    + " at " + exa);
+            _result = new TestResult(false, "totalA=" + totalA + " at " + exa);
             forceStop();
             return false;
         }
@@ -429,7 +428,7 @@ public class Stress8txn extends StressBase {
         }
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         new Stress8txn().runStandalone(args);
     }
 

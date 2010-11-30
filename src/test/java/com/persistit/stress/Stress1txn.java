@@ -23,7 +23,7 @@ import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.TestResult;
 
 public class Stress1txn extends StressBase {
 
@@ -41,7 +41,7 @@ public class Stress1txn extends StressBase {
             "op|String:wrtd|Operations to perform",
             "repeat|int:1:0:1000000000|Repetitions",
             "count|int:10000:0:1000000000|Number of nodes to populate",
-            "size|int:30:1:20000|Size of each data value",
+            "size|int:30:1:5000000|Size of each data value",
             "splay|int:1:1:1000|Splay", };
 
     int _size;
@@ -156,10 +156,9 @@ public class Stress1txn extends StressBase {
                         }
                     }
                     if (_count != _total) {
-                        _result = new PersistitTestResult(false,
-                                "Traverse count=" + _count + " out of "
-                                        + _total + " repetition=" + _repeat
-                                        + " in thread=" + _threadIndex);
+                        _result = new TestResult(false, "Traverse count="
+                                + _count + " out of " + _total + " repetition="
+                                + _repeat + " in thread=" + _threadIndex);
                         println(_result);
                         forceStop();
                         break;
@@ -211,7 +210,7 @@ public class Stress1txn extends StressBase {
         return keyInteger;
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         final Stress1txn test = new Stress1txn();
         test.runStandalone(args);
     }

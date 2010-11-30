@@ -135,12 +135,12 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
         // AdminUI.AdminAction mainModeAction = _adminUI.createAction(
         // this,
         // _adminUI.getProperty("BufferPanel.mode"));
-        //        
+        //
         // JMenu modeMenu = new JMenu(mainModeAction);
         // mainModeAction.addButton(modeMenu);
-        //        
+        //
         // List modeList = new ArrayList();
-        //        
+        //
         // for (int index = 0; ; index++)
         // {
         // String s = _adminUI.getProperty("BufferPanel.mode." + index);
@@ -152,7 +152,7 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
         // Action modeAction =
         // _adminUI.createAction(this,
         // _adminUI.getProperty("BufferPanel.mode"));
-        //            
+        //
         // _modeCombo = new JComboBox(modeList.toArray());
         // _modeCombo.addActionListener(modeAction);
 
@@ -203,7 +203,7 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
                 _selectedIncludeMask += selectionChar;
             }
             if (!selected && p >= 0) {
-                _selectedIncludeMask = new StringBuffer(_selectedIncludeMask)
+                _selectedIncludeMask = new StringBuilder(_selectedIncludeMask)
                         .deleteCharAt(p).toString();
                 if (_selectedIncludeMask.length() == 0) {
                     _selectedIncludeMask = null;
@@ -255,8 +255,8 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
                                 _selectedIncludeMask, _selectedExcludeMask));
 
                 _poolDetailBorder.setTitle(MessageFormat.format(
-                        _poolDetailBorderPattern, new Object[] { _adminUI
-                                .formatInteger(bufferSize) }));
+                        _poolDetailBorderPattern,
+                        new Object[] { _adminUI.formatInteger(bufferSize) }));
                 _poolDetailPanel.repaint(0, 0, 1000, 30);
             } else {
                 _bufferInfoArrayModel.setInfoArray(null);

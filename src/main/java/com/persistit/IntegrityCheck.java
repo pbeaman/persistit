@@ -21,6 +21,7 @@ package com.persistit;
 import java.util.ArrayList;
 import java.util.BitSet;
 
+import com.persistit.IntegrityCheck.Fault;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
@@ -72,8 +73,8 @@ public class IntegrityCheck extends Task {
     private boolean _freezeUpdates;
     private boolean _fixHoles;
 
-    private ArrayList _faults = new ArrayList();
-    private ArrayList _holes = new ArrayList();
+    private ArrayList<Fault> _faults = new ArrayList<Fault>();
+    private ArrayList<Hole> _holes = new ArrayList<Hole>();
     private int _holeCount;
 
     // Used in checking long values
@@ -107,7 +108,7 @@ public class IntegrityCheck extends Task {
             needsToDrain = true;
         }
         try {
-            ArrayList volumes = new ArrayList();
+            ArrayList<Volume> volumes = new ArrayList<Volume>();
             long _totalPages = 0;
             for (int index = 0; index < _trees.length; index++) {
                 Tree tree = _trees[index];
@@ -136,8 +137,9 @@ public class IntegrityCheck extends Task {
                         //
                         Thread.sleep(3000);
                     }
-                    postMessage("Checking " + tree.getName() + " in "
-                            + volume.getPath(), LOG_VERBOSE);
+                    postMessage(
+                            "Checking " + tree.getName() + " in "
+                                    + volume.getPath(), LOG_VERBOSE);
                     boolean okay = checkTree(tree);
                     appendMessage(okay ? " - OKAY" : " - FAULTS", LOG_VERBOSE);
                 } catch (PersistitException pe) {
@@ -193,7 +195,7 @@ public class IntegrityCheck extends Task {
         // Note: avoiding use of JDK 1.2 toArray method.
         Fault[] array = new Fault[_faults.size()];
         for (int index = 0; index < _faults.size(); index++) {
-            array[index] = (Fault) _faults.get(index);
+            array[index] = _faults.get(index);
         }
         return array;
     }
@@ -312,7 +314,7 @@ public class IntegrityCheck extends Task {
      */
 
     public String toString(boolean details) {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append("IntegerityCheck ");
         if (hasFaults()) {
             sb.append(_faults.size());
@@ -389,7 +391,7 @@ public class IntegrityCheck extends Task {
          */
         @Override
         public String toString() {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             {
                 sb.append(_treeName);
                 sb.append(": ");
@@ -422,7 +424,7 @@ public class IntegrityCheck extends Task {
         //
         // Temporary implementation uses ints. This limits its use to
         // volumes with fewer than Integer.MAX_VALUE pages.
-        // 
+        //
         BitSet _bitSet = new BitSet();
 
         public void set(long index, boolean value) {
@@ -723,8 +725,8 @@ public class IntegrityCheck extends Task {
                 }
 
                 if (page <= 0 || page > Buffer.MAX_VALID_PAGE_ADDR) {
-                    addFault("Invalid right sibling address", buffer
-                            .getPageAddress(), level, 0);
+                    addFault("Invalid right sibling address",
+                            buffer.getPageAddress(), level, 0);
                     key.clear();
                     oldBuffer = buffer;
                     return startingBuffer;
@@ -853,7 +855,7 @@ public class IntegrityCheck extends Task {
         Tree tree = null;
         Volume volume = null;
         for (int index = 0; index < _holes.size(); index++) {
-            Hole hole = (Hole) _holes.get(index);
+            Hole hole = _holes.get(index);
             if (hole._tree != tree) {
                 tree = hole._tree;
                 volume = tree.getVolume();

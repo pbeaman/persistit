@@ -319,10 +319,10 @@ public class PersistitTableModel extends AbstractTableModel {
             Exchange ex = PersistitTableModel.this.getExchange();
             ex.clearOwnerThread();
             Key key = ex.getKey();
-            System.arraycopy(_rootKey.getEncodedBytes(), 0, key
-                    .getEncodedBytes(), 0, _rootKey.getEncodedSize());
-            System.arraycopy(_keyBytes, 0, key.getEncodedBytes(), _rootKey
-                    .getEncodedSize(), _keyBytes.length);
+            System.arraycopy(_rootKey.getEncodedBytes(), 0,
+                    key.getEncodedBytes(), 0, _rootKey.getEncodedSize());
+            System.arraycopy(_keyBytes, 0, key.getEncodedBytes(),
+                    _rootKey.getEncodedSize(), _keyBytes.length);
             key.setEncodedSize(_rootKey.getEncodedSize() + _keyBytes.length);
             return ex;
         }

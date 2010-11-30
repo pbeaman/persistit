@@ -452,8 +452,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
             VolumeClosedException {
         _vol = vol;
         _page = page;
-        final boolean readFromLog = _persistit.getJournalManager().readPageFromJournal(
-                this);
+        final boolean readFromLog = _persistit.getJournalManager()
+                .readPageFromJournal(this);
         if (!readFromLog) {
             vol.readPage(this, page);
         }
@@ -485,8 +485,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
             } else {
                 long pageAddr = getLong(PAGE_ADDRESS_OFFSET);
                 if (Debug.ENABLED) {
-                    Debug
-                            .$assert(getByte(BUFFER_LENGTH_OFFSET) * 256 == _bufferSize);
+                    Debug.$assert(getByte(BUFFER_LENGTH_OFFSET) * 256 == _bufferSize);
                     Debug.$assert(pageAddr == _page);
                 }
                 _alloc = getChar(FREE_OFFSET);
@@ -527,7 +526,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         }
         return result;
     }
-    
+
     private void writePageOnCheckpoint() throws PersistitException {
         if (isDirty()) {
             final Checkpoint checkpoint = _persistit.getTimestampAllocator()
@@ -618,8 +617,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
      * Post fields back into the buffer in preparation for writing it to disk.
      */
     void save() {
-        putLong(TIMESTAMP_OFFSET, _timestamp);
         if (_page != 0) {
+            putLong(TIMESTAMP_OFFSET, _timestamp);
             putByte(TYPE_OFFSET, _type);
             putByte(BUFFER_LENGTH_OFFSET, _bufferSize / 256);
             putChar(KEY_BLOCK_END_OFFSET, _keyBlockEnd);
@@ -707,16 +706,22 @@ public final class Buffer extends SharedResource implements BuildConstants {
     public String getPageTypeName() {
         if (_page == 0 && isValid())
             return TYPE_NAMES[PAGE_TYPE_HEAD];
+        return getPageTypeName(_page, _type);
+    }
 
-        if (_type == Buffer.PAGE_TYPE_UNALLOCATED
-                || _type == Buffer.PAGE_TYPE_DATA
-                || _type >= Buffer.PAGE_TYPE_INDEX_MIN
-                && _type <= Buffer.PAGE_TYPE_INDEX_MAX
-                || _type == Buffer.PAGE_TYPE_GARBAGE
-                || _type == Buffer.PAGE_TYPE_LONG_RECORD) {
-            return TYPE_NAMES[_type];
+    public static String getPageTypeName(final long page, final int type) {
+        if (page == 0)
+            return TYPE_NAMES[PAGE_TYPE_HEAD];
+
+        if (type == Buffer.PAGE_TYPE_UNALLOCATED
+                || type == Buffer.PAGE_TYPE_DATA
+                || type >= Buffer.PAGE_TYPE_INDEX_MIN
+                && type <= Buffer.PAGE_TYPE_INDEX_MAX
+                || type == Buffer.PAGE_TYPE_GARBAGE
+                || type == Buffer.PAGE_TYPE_LONG_RECORD) {
+            return TYPE_NAMES[type];
         } else
-            return "Invalid" + _type;
+            return "Invalid" + type;
     }
 
     /**
@@ -1174,7 +1179,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         _findexElements[index] = _findexElements[index] & FINDEX_DB_MASK;
     }
 
-    //    
+    //
     // private int getFindexDb(int index)
     // {
     // return _findexElements[index] & FINDEX_DB_MASK;
@@ -1540,8 +1545,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 } else {
                     putFindexEbc(insertIndex + 1, successorEbc);
                     int newCrossCount = successorEbc < secondSuccessorEbc ? computeFindexCrossCount(
-                            successorEbc, insertIndex + 1, lastIndex)
-                            : 0;
+                            successorEbc, insertIndex + 1, lastIndex) : 0;
                     putFindexRunCount(insertIndex + 1, newCrossCount);
                     // dx +=
                     // " but is not contiguous with inner run, does not change its crossCount";
@@ -1966,8 +1970,9 @@ public final class Buffer extends SharedResource implements BuildConstants {
                         + delta - 1);
 
                 // Write updated successor tail block
-                putInt(successorTail, encodeTailBlock(
-                        successorTailSize - delta, successorKeyLength - delta));
+                putInt(successorTail,
+                        encodeTailBlock(successorTailSize - delta,
+                                successorKeyLength - delta));
 
                 System.arraycopy(_bytes, successorTail + _tailHeaderSize
                         + delta, _bytes, successorTail + _tailHeaderSize,
@@ -2015,12 +2020,10 @@ public final class Buffer extends SharedResource implements BuildConstants {
             putInt(newTail, encodeTailBlock(newTailSize, klength));
 
             if (Debug.ENABLED) {
-                Debug
-                        .$assert(klength >= 0
-                                && ebcNew + 1 >= 0
-                                && ebcNew + 1 + klength <= kbytes.length
-                                && newTail + _tailHeaderSize >= 0
-                                && newTail + _tailHeaderSize + klength <= _bytes.length);
+                Debug.$assert(klength >= 0 && ebcNew + 1 >= 0
+                        && ebcNew + 1 + klength <= kbytes.length
+                        && newTail + _tailHeaderSize >= 0
+                        && newTail + _tailHeaderSize + klength <= _bytes.length);
             }
             try {
                 System.arraycopy(kbytes, ebcNew + 1, _bytes, newTail
@@ -2033,9 +2036,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 int pointer = (int) value.getPointerValue();
 
                 if (Debug.ENABLED) {
-                    Debug
-                            .$assert(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0
-                                    : true);
+                    Debug.$assert(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0
+                            : true);
                     if (value != Value.EMPTY_VALUE) {
                         Debug.$assert(_type - 1 == value.getPointerPageType());
                     }
@@ -2349,8 +2351,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 int newNextKLength = decodeTailBlockKLength(tbNext) + ebcNext
                         - ebc;
                 int newNextTailSize = nextTailSize + ebcNext - ebc;
-                putInt(newNextTail, encodeTailBlock(newNextTailSize,
-                        newNextKLength));
+                putInt(newNextTail,
+                        encodeTailBlock(newNextTailSize, newNextKLength));
                 if (freeNextTailBlock) {
                     int toFree = (nextTailSize + ~TAILBLOCK_MASK)
                             & TAILBLOCK_MASK;
@@ -2432,8 +2434,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         // Make sure the right sibling page is empty.
 
         if (Debug.ENABLED) {
-            Debug
-                    .$assert(rightSibling._keyBlockEnd == INITIAL_KEY_BLOCK_START_VALUE);
+            Debug.$assert(rightSibling._keyBlockEnd == INITIAL_KEY_BLOCK_START_VALUE);
             Debug.$assert(rightSibling._alloc == rightSibling._bufferSize);
             assertVerify();
         }
@@ -2638,7 +2639,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         // If we are inserting the new key as the first key of the right
         // page, then do not scan because the insert key is the same as the
         // split key.
-        // 
+        //
         if (!firstRight) {
             for (int p = scanStart; p <= splitAtPosition; p += KEYBLOCK_LENGTH) {
                 int kbData = getInt(p);
@@ -2719,8 +2720,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 Debug.$assert(newTailBlock != -1);
             }
 
-            rightSibling.putInt(newTailBlock, encodeTailBlock(newTailBlockSize,
-                    newKeyLength));
+            rightSibling.putInt(newTailBlock,
+                    encodeTailBlock(newTailBlockSize, newKeyLength));
             if (isIndexPage()) {
                 rightSibling.putInt(newTailBlock + TAILBLOCK_POINTER,
                         getInt(tail + TAILBLOCK_POINTER));
@@ -2760,15 +2761,15 @@ public final class Buffer extends SharedResource implements BuildConstants {
             //
             // Put the key block into the right page.
             //
-            rightSibling.putInt(rightP, encodeKeyBlock(newEbc, newDb,
-                    newTailBlock));
+            rightSibling.putInt(rightP,
+                    encodeKeyBlock(newEbc, newDb, newTailBlock));
             rightP += KEYBLOCK_LENGTH;
             //
             // Deallocate the tailblock from the left page. If this is the
             // split key, then we deallocate the whole tail only if the
             // insert key is going in as the first key in the right sibling.
             // Otherwise, we simply deallocate the data.
-            // 
+            //
             //
             if (p != splitAtPosition || (firstRight && !exact)) {
                 // deallocate the whole tail block. If this is the split
@@ -2796,8 +2797,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
                     if (newSize != currentSize) {
                         deallocTail(tail + newSize, currentSize - newSize);
                     }
-                    putInt(tail, encodeTailBlock(_tailHeaderSize + klength,
-                            klength));
+                    putInt(tail,
+                            encodeTailBlock(_tailHeaderSize + klength, klength));
                 } else {
                     // edge key for index block. We destroy the pointer value
                     // so that we don't get confused later.
@@ -2858,11 +2859,9 @@ public final class Buffer extends SharedResource implements BuildConstants {
         rightSibling.invalidateFindex();
 
         if (Debug.ENABLED) {
-            Debug
-                    .$assert(rightSibling._keyBlockEnd > rightSibling._keyBlockStart
-                            + KEYBLOCK_LENGTH ? rightSibling
-                            .adjacentKeyCheck(rightSibling._keyBlockStart)
-                            : true);
+            Debug.$assert(rightSibling._keyBlockEnd > rightSibling._keyBlockStart
+                    + KEYBLOCK_LENGTH ? rightSibling
+                    .adjacentKeyCheck(rightSibling._keyBlockStart) : true);
         }
 
         if (!exact) {
@@ -2892,8 +2891,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
 
         if (Debug.ENABLED) {
             Debug.$assert(_keyBlockStart + KEYBLOCK_LENGTH < _keyBlockEnd);
-            Debug
-                    .$assert(rightSibling._keyBlockStart + KEYBLOCK_LENGTH < rightSibling._keyBlockEnd);
+            Debug.$assert(rightSibling._keyBlockStart + KEYBLOCK_LENGTH < rightSibling._keyBlockEnd);
         }
 
         // Indicate that both buffers have changed.
@@ -2928,13 +2926,9 @@ public final class Buffer extends SharedResource implements BuildConstants {
      *            Offset of the first key block in buffer to keep
      * @param indexKey
      *            A Key into which the new right page's first key is copied in
-     *            the event this method results in a rebalance operation. On
-     *            entry, indexKey is contains a key value that is at the lower
-     *            right corner of the deletion range - that is, it is a key that
-     *            is less than the key referred to by foundAt2, but equal to or
-     *            greater than its predecessor.
+     *            the event this method results in a rebalance operation.
      * @param spareKey
-     *            A spare Key used ininternal for intermediate results
+     *            A spare Key used internally for intermediate results
      * @param policy
      *            The JoinPolicy that allocates records between the two pages.
      * @return <i>true</i> if the result is a rebalanced pair of pages.
@@ -2963,6 +2957,19 @@ public final class Buffer extends SharedResource implements BuildConstants {
             buffer.assertVerify();
 
         //
+        // Initialize indexKey to contain the first key of the right
+        // page.
+        //
+        int newEbc = Integer.MAX_VALUE;
+        byte[] indexKeyBytes = indexKey.getEncodedBytes();
+        int kbData = buffer.getInt(buffer._keyBlockStart);
+        indexKeyBytes[0] = (byte) decodeKeyBlockDb(kbData);
+        int tail = decodeKeyBlockTail(kbData);
+        int tbData = buffer.getInt(tail);
+        int klength = decodeTailBlockKLength(tbData);
+        System.arraycopy(buffer._bytes, tail + _tailHeaderSize, indexKeyBytes,
+                1, klength);
+        //
         // Start by assuming all the records will fit into one page. Compute
         // the ebc of the first key after the deletion range. This will be
         // the minimum ebc of all the deleted keys, except that the first
@@ -2972,27 +2979,24 @@ public final class Buffer extends SharedResource implements BuildConstants {
         // At the same time we run these loops we can deallocate the associated
         // tail blocks. That will allow us to measure the available space.
         //
-        int newEbc = Integer.MAX_VALUE;
-        byte[] indexKeyBytes = indexKey.getEncodedBytes();
-
         for (int index = foundAt1; index < _keyBlockEnd; index += KEYBLOCK_LENGTH) {
-            int kbData = getInt(index);
+            kbData = getInt(index);
             int ebc = decodeKeyBlockEbc(kbData);
             if (ebc < newEbc)
                 newEbc = ebc;
-            int tail = decodeKeyBlockTail(kbData);
-            int tbData = getInt(tail);
+            tail = decodeKeyBlockTail(kbData);
+            tbData = getInt(tail);
             int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK)
                     & TAILBLOCK_MASK;
             deallocTail(tail, size);
         }
         for (int index = buffer._keyBlockStart; index < foundAt2; index += KEYBLOCK_LENGTH) {
-            int kbData = buffer.getInt(index);
+            kbData = buffer.getInt(index);
             int ebc = decodeKeyBlockEbc(kbData);
             if (ebc < newEbc && index > buffer._keyBlockStart)
                 newEbc = ebc;
-            int tail = decodeKeyBlockTail(kbData);
-            int tbData = buffer.getInt(tail);
+            tail = decodeKeyBlockTail(kbData);
+            tbData = buffer.getInt(tail);
             int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK)
                     & TAILBLOCK_MASK;
             buffer.deallocTail(tail, size);
@@ -3006,7 +3010,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         clearBytes(foundAt1, _keyBlockEnd);
         buffer.clearBytes(_keyBlockStart, foundAt2);
 
-        int kbData = buffer.getInt(foundAt2);
+        kbData = buffer.getInt(foundAt2);
         int oldEbc = decodeKeyBlockEbc(kbData);
         //
         // This is the amount by which the tailblock for the first record
@@ -3071,7 +3075,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
             //
             // There is a further possible wrinkle, in that removing a key
             // that falls at the beginning of the right page may in rare
-            // cicumstances cause a condition in which the pages cannot be
+            // circumstances cause a condition in which the pages cannot be
             // rebalanced at all. This happens if the key being removed is
             // short and the one following it is very long. In this event
             // the method throws a RebalanceException. The caller must then
@@ -3103,10 +3107,10 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 kbData = getInt(p);
                 int db = decodeKeyBlockDb(kbData);
                 int ebc = decodeKeyBlockEbc(kbData);
-                int tail = decodeKeyBlockTail(kbData);
-                int tbData = getInt(tail);
+                tail = decodeKeyBlockTail(kbData);
+                tbData = getInt(tail);
                 int size = decodeTailBlockSize(tbData);
-                int klength = decodeTailBlockKLength(tbData);
+                klength = decodeTailBlockKLength(tbData);
 
                 spareKeyBytes[ebc] = (byte) db;
                 System.arraycopy(_bytes, tail + _tailHeaderSize, spareKeyBytes,
@@ -3150,10 +3154,10 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 kbData = buffer.getInt(p);
                 int db = decodeKeyBlockDb(kbData);
                 int ebc = decodeKeyBlockEbc(kbData);
-                int tail = decodeKeyBlockTail(kbData);
-                int tbData = buffer.getInt(tail);
+                tail = decodeKeyBlockTail(kbData);
+                tbData = buffer.getInt(tail);
                 int size = decodeTailBlockSize(tbData);
-                int klength = decodeTailBlockKLength(tbData);
+                klength = decodeTailBlockKLength(tbData);
 
                 spareKeyBytes[ebc] = (byte) db;
                 System.arraycopy(buffer._bytes, tail + _tailHeaderSize,
@@ -3169,7 +3173,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 // This is the amount by which the tailblock for the candidate
                 // rebalance key would have to grow if it became the first
                 // key on the right page and its ebc became zero.
-                //                                
+                //
                 int delta = ((size + ebc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
                         - ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
 
@@ -3262,8 +3266,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         if (Debug.ENABLED) {
             Debug.$assert(_keyBlockStart + KEYBLOCK_LENGTH < _keyBlockEnd);
             if (result) {
-                Debug
-                        .$assert(buffer._keyBlockStart + KEYBLOCK_LENGTH < buffer._keyBlockEnd);
+                Debug.$assert(buffer._keyBlockStart + KEYBLOCK_LENGTH < buffer._keyBlockEnd);
             }
         }
         //
@@ -3546,7 +3549,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         }
         _alloc = alloc;
         _slack = 0;
-        //  
+        //
         // Phase 3:
         // Fix up the key blocks.
         //
@@ -4035,46 +4038,13 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 + " timestamp=" + _timestamp + " generation=" + _generation;
     }
 
-    // ----------------------------------------
-    // private void say()
-    // {
-    // Persistit.getOut().println();
-    // }
-    //
-    // private void say(String s)
-    // {
-    // Persistit.getOut().print(s);
-    // }
-    //
-    // private void say(String s, int width)
-    // {
-    // Persistit.getOut().print(pad(width - s.length()));
-    // Persistit.getOut().print(s);
-    // }
-    //
-    // private String fillDisplay(int i, int width)
-    // {
-    // StringBuffer sb = new StringBuffer(width);
-    // String s = Integer.toString(i);
-    // sb.append(pad(width - s.length()));
-    // sb.append(s);
-    // return sb.toString();
-    // }
-    //    
-    // private String pad(int width)
-    // {
-    // if (width < 0) return "";
-    // if (width > SPACES.length()) return SPACES;
-    // return SPACES.substring(0, width);
-    // }
-    //
     public String toString() {
         return "Page " + _page + " in Volume " + _vol + " at index "
                 + _poolIndex + " status=" + getStatusDisplayString();
     }
 
     String foundAtString(int p) {
-        StringBuffer sb = new StringBuffer("<");
+        StringBuilder sb = new StringBuilder("<");
         sb.append(p & P_MASK);
         if ((p & EXACT_MASK) != 0)
             sb.append(":exact");
@@ -4264,33 +4234,33 @@ public final class Buffer extends SharedResource implements BuildConstants {
     }
 
     void populateInfo(ManagementImpl.BufferInfo info) {
-        info._poolIndex = _poolIndex;
-        info._pageAddress = _page;
-        info._rightSiblingAddress = _rightSibling;
+        info.poolIndex = _poolIndex;
+        info.pageAddress = _page;
+        info.rightSiblingAddress = _rightSibling;
         Volume vol = _vol;
         if (vol != null) {
-            info._volumeId = vol.getId();
-            info._volumeName = vol.getPath();
+            info.volumeId = vol.getId();
+            info.volumeName = vol.getPath();
         } else {
-            info._volumeId = 0;
-            info._volumeName = null;
+            info.volumeId = 0;
+            info.volumeName = null;
         }
-        info._type = _type;
-        info._typeName = getPageTypeName();
-        info._bufferSize = _bufferSize;
-        info._keyBlockStart = _keyBlockStart;
-        info._keyBlockEnd = _keyBlockEnd;
-        info._availableBytes = getAvailableSize();
-        info._alloc = _alloc;
-        info._slack = _slack;
+        info.type = _type;
+        info.typeName = getPageTypeName();
+        info.bufferSize = _bufferSize;
+        info.keyBlockStart = _keyBlockStart;
+        info.keyBlockEnd = _keyBlockEnd;
+        info.availableBytes = getAvailableSize();
+        info.alloc = _alloc;
+        info.slack = _slack;
         info.timestamp = _timestamp;
-        info._status = _status;
-        info._statusCode = getStatusCode();
+        info.status = _status;
+        info.statusName = getStatusCode();
         Thread writerThread = getWriterThread();
         if (writerThread != null) {
-            info._writerThreadName = writerThread.getName();
+            info.writerThreadName = writerThread.getName();
         } else {
-            info._writerThreadName = null;
+            info.writerThreadName = null;
         }
         info.updateAcquisitonTime();
 

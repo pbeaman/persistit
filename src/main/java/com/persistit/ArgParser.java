@@ -33,16 +33,16 @@ package com.persistit;
  * Applications needing localization should use a different mechanism.
  * </p>
  * 
- * @author pbeaman
+ * @author peter
  * @version 1.0
  */
 public class ArgParser {
-    private String _progName;
-    private String[] _template;
-    private String _flags;
-    private String[] _strArgs;
-    private int[] _intArgs;
-    private boolean[] _specified;
+    private final String _progName;
+    private final String[] _template;
+    private final String _flags;
+    private final String[] _strArgs;
+    private final long[] _longArgs;
+    private final boolean[] _isDefault;
     private boolean _usageOnly;
 
     /**
@@ -75,7 +75,7 @@ public class ArgParser {
      * <dt><tt><i>flchar</i></tt></dt>
      * <dd>is a single letter that can be used as a flag on the command line.
      * For example, to allow a the flag "-x", use a template string of the form
-     * <tt>_flags|x|Enable the x option</tt>. <</dd>
+     * <tt>_flags|x|Enable the x option</tt>.</dd>
      * <dt><tt><i>argname</i></tt></dt>
      * <dd>Parameter name.</dd>
      * </dd>
@@ -95,10 +95,11 @@ public class ArgParser {
     public ArgParser(String progName, String[] args, String[] template) {
         _progName = progName;
         _template = template;
-        _flags = "";
         _strArgs = new String[template.length];
-        _intArgs = new int[template.length];
-        _specified = new boolean[template.length];
+        _longArgs = new long[template.length];
+        _isDefault = new boolean[template.length];
+
+        StringBuilder flags = new StringBuilder();
 
         String flagsTemplate = "";
         for (int i = 0; i < template.length; i++) {
@@ -113,14 +114,15 @@ public class ArgParser {
             String arg = args[i];
             if (arg.startsWith("-")) {
                 for (int j = 1; j < arg.length(); j++) {
-                    int ch = arg.charAt(j);
-                    if (ch == '?')
+                    final char ch = arg.charAt(j);
+                    if (ch == '?') {
                         usage();
-                    else if (flagsTemplate.indexOf(ch) >= 0)
-                        _flags += (char) ch;
-                    else
+                    } else if (flagsTemplate.indexOf(ch) >= 0) {
+                        flags.append(ch);
+                    } else {
                         throw new IllegalArgumentException("Invalid flag ("
                                 + (char) ch + ") in " + arg);
+                    }
                 }
             } else {
                 String fieldName = piece(args[i], '=', 0);
@@ -133,15 +135,17 @@ public class ArgParser {
                 doField(argValue, position);
             }
         }
+        _flags = flags.toString();
+
     }
 
     /**
-     * Display a discription of the permissible argument values to
+     * Display a description of the permissible argument values to
      * {@link java.lang.System#out}.
      */
     public void usage() {
         _usageOnly = true;
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         System.out.println();
         System.out.println("Usage: java " + _progName + " arguments");
         for (int i = 0; i < _template.length; i++) {
@@ -193,18 +197,9 @@ public class ArgParser {
     }
 
     /**
-     * @param position
-     *            Index to a String value specification in the template array.
-     * @return The corresponding command line argument, or <i>null</i> if the
-     *         command line does not name this item.
-     */
-    private String getStringValue(int position) {
-        return _strArgs[position];
-    }
-
-    /**
      * @param fieldName
-     *            Argname of a String value specification in the template array.
+     *            Argument name of a String value specification in the template
+     *            array.
      * @return The corresponding command line argument, or <i>null</i> if the
      *         command line does not name this item.
      */
@@ -213,23 +208,36 @@ public class ArgParser {
     }
 
     /**
-     * @param position
-     *            Index to an int value specification in the template array.
-     * @return The corresponding command line argument, or <i>null</i> if the
-     *         command line does not name this item.
-     */
-    private int getIntValue(int position) {
-        return _intArgs[position];
-    }
-
-    /**
      * @param fieldName
-     *            Argname of an int value specification in the template array.
+     *            Argument name of an int value specification in the template
+     *            array.
      * @return The corresponding command line argument, or <i>null</i> if the
      *         command line does not name this item.
      */
     public int getIntValue(String fieldName) {
-        return getIntValue(lookupName(fieldName));
+        return (int) _longArgs[lookupName(fieldName)];
+    }
+
+    /**
+     * @param fieldName
+     *            Argument name of a long value specification in the template
+     *            array.
+     * @return The corresponding command line argument, or <i>null</i> if the
+     *         command line does not name this item.
+     */
+    public long getLongValue(String fieldName) {
+        return _longArgs[lookupName(fieldName)];
+    }
+
+    /**
+     * Indicate whether the value returned for the specified field is the
+     * default value.
+     * 
+     * @param fieldName
+     * @return
+     */
+    public boolean isDefault(String fieldName) {
+        return _isDefault[lookupName(fieldName)];
     }
 
     private int lookupName(String name) {
@@ -244,32 +252,45 @@ public class ArgParser {
     private void doField(String arg, int position) {
         String type = piece(_template[position], '|', 1);
         String t = piece(type, ':', 0);
-        if (arg == null)
+        if (arg == null) {
             arg = piece(type, ':', 1);
+            _isDefault[position] = true;
+        }
         if ("int".equals(t)) {
-            int lo = intVal(piece(type, ':', 2));
-            int hi = intVal(piece(type, ':', 3));
-            int argInt = intVal(arg);
-            if (argInt == Integer.MIN_VALUE || argInt < lo || argInt > hi) {
+            long lo = longVal(piece(type, ':', 2));
+            long hi = longVal(piece(type, ':', 3));
+            long argInt = longVal(arg);
+            if (argInt == Integer.MIN_VALUE || argInt < lo || argInt > hi
+                    || argInt > Integer.MAX_VALUE) {
                 throw new IllegalArgumentException("Invalid argument "
                         + piece(_template[position], '|', 0) + "=" + arg);
             }
-            _intArgs[position] = argInt;
-        } else
+            _longArgs[position] = argInt;
+        } else if ("long".equals(t)) {
+            long lo = longVal(piece(type, ':', 2));
+            long hi = longVal(piece(type, ':', 3));
+            long argInt = longVal(arg);
+            if (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi) {
+                throw new IllegalArgumentException("Invalid argument "
+                        + piece(_template[position], '|', 0) + "=" + arg);
+            }
+            _longArgs[position] = argInt;
+        } else {
             _strArgs[position] = arg;
+        }
     }
 
-    private int intVal(String s) {
+    private long longVal(String s) {
         if (s.length() == 0)
             return 0;
         try {
-            return Integer.parseInt(s);
+            return Long.parseLong(s);
         } catch (NumberFormatException e) {
         }
         return Integer.MIN_VALUE;
     }
 
-    private void tab(StringBuffer sb, int count) {
+    private void tab(StringBuilder sb, int count) {
         while (sb.length() < count) {
             sb.append(' ');
         }

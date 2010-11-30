@@ -209,7 +209,7 @@ public class ValueCoderTest1 extends PersistitUnitTestCase {
             }
         }
 
-        public void display(final Value value, final StringBuffer sb,
+        public void display(final Value value, final StringBuilder sb,
                 final Class clazz, final CoderContext context) {
             final int size = value.getInt();
             sb.append("[");

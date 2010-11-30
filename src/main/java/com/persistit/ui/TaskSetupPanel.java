@@ -201,8 +201,7 @@ public class TaskSetupPanel extends Box {
 
             if ("BOOLEAN".equals(_type)) {
                 return (((JRadioButton) _component).isSelected()) ? Boolean.TRUE
-                        .toString()
-                        : Boolean.FALSE.toString();
+                        .toString() : Boolean.FALSE.toString();
             }
 
             if ("TREES".equals(_type)) {

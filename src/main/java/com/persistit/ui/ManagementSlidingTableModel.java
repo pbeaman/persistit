@@ -290,9 +290,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
                 }
                 newValid = _rowCacheSize;
             }
-            System
-                    .arraycopy(fetcher._resultRows, 0, _infoArray, 0, count
-                            - cut);
+            System.arraycopy(fetcher._resultRows, 0, _infoArray, 0, count - cut);
 
             firstUpdatedRow = newOffset;
             lastUpdatedRow = firstUpdatedRow + count - cut - 1;

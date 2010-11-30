@@ -21,8 +21,6 @@ import java.util.UUID;
 
 import com.persistit.ArgParser;
 import com.persistit.Key;
-import com.persistit.Value;
-import com.persistit.test.PersistitTestResult;
 
 public class StressUUID extends StressBase {
 
@@ -78,14 +76,15 @@ public class StressUUID extends StressBase {
         println();
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
             println();
-            print("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal + "  ");
+            print("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal
+                    + "  ");
             final long start = System.nanoTime();
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                 dot();
                 final UUID uuid = UUID.randomUUID();
                 final String uuidString = uuid.toString();
-                _ex.clear().append(uuidString.substring(0, 5)).append(
-                        uuidString.substring(5));
+                _ex.clear().append(uuidString.substring(0, 5))
+                        .append(uuidString.substring(5));
                 setupTestValue(_ex, _count, _size);
                 try {
                     _ex.store();
@@ -106,16 +105,9 @@ public class StressUUID extends StressBase {
         println();
         print("done");
         println();
-        _persistit.getJournalManager().setUrgentDemand(true);
-        println("Allowing 30sec for copyBack");
-        try {
-            Thread.sleep(60000);
-        } catch (InterruptedException e) {
-        }
-        _persistit.getJournalManager().setUrgentDemand(false);
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         final StressUUID test = new StressUUID();
         test.runStandalone(args);
     }

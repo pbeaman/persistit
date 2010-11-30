@@ -550,12 +550,12 @@ public class KeyFilter {
          * @return A canonical String representation
          */
         public String toString(CoderContext context) {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             toString(context, sb);
             return sb.toString();
         }
 
-        abstract void toString(CoderContext context, StringBuffer sb);
+        abstract void toString(CoderContext context, StringBuilder sb);
 
         abstract boolean selected(byte[] keyBytes, int offset, int length);
 
@@ -606,7 +606,7 @@ public class KeyFilter {
          * @return A canonical String representation
          */
         @Override
-        public void toString(CoderContext context, StringBuffer sb) {
+        public void toString(CoderContext context, StringBuilder sb) {
             if (this == ALL)
                 sb.append("*");
             else {
@@ -634,7 +634,7 @@ public class KeyFilter {
         boolean forward(Key key, int offset, int length) {
             if (this == ALL) {
                 key.setEncodedSize(offset + length);
-                key.nudgeUp();
+                key.nudgeRight();
                 return true;
             }
 
@@ -647,7 +647,6 @@ public class KeyFilter {
                 System.arraycopy(_itemBytes, 0, keyBytes, offset,
                         _itemBytes.length);
                 key.setEncodedSize(offset + _itemBytes.length);
-                key.nudgeDown();
                 return true;
             } else
                 return false;
@@ -657,7 +656,7 @@ public class KeyFilter {
         boolean backward(Key key, int offset, int length) {
             if (this == ALL) {
                 key.setEncodedSize(offset + length);
-                key.nudgeDown();
+                key.nudgeLeft();
                 return true;
             }
 
@@ -670,7 +669,6 @@ public class KeyFilter {
                 System.arraycopy(_itemBytes, 0, keyBytes, offset,
                         _itemBytes.length);
                 key.setEncodedSize(offset + _itemBytes.length);
-                key.nudgeUp();
                 return true;
             } else
                 return false;
@@ -765,7 +763,7 @@ public class KeyFilter {
          * @return A canonical String representation
          */
         @Override
-        public void toString(CoderContext context, StringBuffer sb) {
+        public void toString(CoderContext context, StringBuilder sb) {
             Key workKey = new Key((Persistit) null);
             boolean allInclusive = _leftInclusive && _rightInclusive;
             if (!allInclusive)
@@ -784,20 +782,24 @@ public class KeyFilter {
             int compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
                     _itemFromBytes.length);
 
-            if (compare < 0 || (!_leftInclusive && compare == 0))
+            if (compare < 0 || (!_leftInclusive && compare == 0)) {
                 return false;
+            }
 
             compare = compare(keyBytes, offset, length, _itemToBytes, 0,
                     _itemToBytes.length);
 
-            if (compare > 0 || (!_rightInclusive && compare == 0))
+            if (compare > 0 || (!_rightInclusive && compare == 0)) {
                 return false;
+            }
             return true;
         }
 
         @Override
         boolean forward(Key key, int offset, int length) {
             byte[] keyBytes = key.getEncodedBytes();
+
+            boolean moved = false;
 
             int compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
                     _itemFromBytes.length);
@@ -806,36 +808,34 @@ public class KeyFilter {
                 System.arraycopy(_itemFromBytes, 0, keyBytes, offset,
                         _itemFromBytes.length);
                 key.setEncodedSize(offset + _itemFromBytes.length);
-                if (_leftInclusive) {
-                    key.nudgeDown();
+                length = _itemFromBytes.length;
+                moved = true;
+                if (!_leftInclusive) {
+                    key.nudgeRight();
                 }
-                return true;
-            }
-
-            boolean nudged = false;
-            if (compare == 0 && !_leftInclusive) {
-                key.setEncodedSize(offset + length);
-                key.nudgeUp();
-                nudged = true;
             }
 
             compare = compare(keyBytes, offset, length, _itemToBytes, 0,
                     _itemToBytes.length);
 
-            if (compare < 0) {
-                if (!nudged) {
-                    key.setEncodedSize(offset + length);
-                    key.nudgeUp();
-                }
-                return true;
-            } else {
+            if (compare > 0 || (compare == 0 && (!moved || !_rightInclusive))) {
                 return false;
             }
+
+            if (!moved) {
+                key.setEncodedSize(offset + length);
+                key.nudgeRight();
+                compare = compare(keyBytes, offset, length, _itemToBytes, 0,
+                        _itemToBytes.length);
+            }
+            return compare < 0 || compare == 0 && _rightInclusive;
         }
 
         @Override
         boolean backward(Key key, int offset, int length) {
             byte[] keyBytes = key.getEncodedBytes();
+
+            boolean moved = false;
 
             int compare = compare(keyBytes, offset, length, _itemToBytes, 0,
                     _itemToBytes.length);
@@ -844,22 +844,27 @@ public class KeyFilter {
                 System.arraycopy(_itemToBytes, 0, keyBytes, offset,
                         _itemToBytes.length);
                 key.setEncodedSize(offset + _itemToBytes.length);
-                if (_rightInclusive) {
-                    key.nudgeUp();
+                length = _itemToBytes.length;
+                moved = true;
+                if (!_rightInclusive) {
+                    key.nudgeLeft();
                 }
-                return true;
             }
 
             compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
                     _itemFromBytes.length);
 
-            if (compare > 0) {
-                key.setEncodedSize(offset + length);
-                key.nudgeDown();
-                return true;
-            } else {
+            if (compare < 0 || (compare == 0 && (!moved || !_leftInclusive))) {
                 return false;
             }
+
+            if (!moved) {
+                key.setEncodedSize(offset + length);
+                key.nudgeLeft();
+                compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
+                        _itemFromBytes.length);
+            }
+            return compare > 0 || compare == 0 && _leftInclusive;
         }
 
         @Override
@@ -909,7 +914,7 @@ public class KeyFilter {
          * @return A canonical String representation
          */
         @Override
-        public void toString(CoderContext context, StringBuffer sb) {
+        public void toString(CoderContext context, StringBuilder sb) {
             sb.append("{");
             for (int index = 0; index < _terms.length; index++) {
                 if (index > 0)
@@ -1296,7 +1301,7 @@ public class KeyFilter {
      */
     @Override
     public String toString() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append("{");
         int size = _terms.length;
         if (_maxDepth > size && _maxDepth < 100)
@@ -1329,8 +1334,6 @@ public class KeyFilter {
      *         constraints of this filter, otherwise <tt>false</tt>.
      */
     public boolean selected(Key key) {
-        int saveIndex = key.getIndex();
-        key.reset();
         boolean result = true;
 
         int index = 0;
@@ -1346,13 +1349,15 @@ public class KeyFilter {
                 break;
             } else {
                 int nextIndex = key.nextElementIndex(index);
+                if (nextIndex == -1) {
+                    nextIndex = key.getEncodedSize();
+                }
                 Term term = level < _terms.length ? _terms[level] : ALL;
                 result = term.selected(keyBytes, index, nextIndex - index);
                 index = nextIndex;
             }
         }
 
-        key.setIndex(saveIndex);
         return result;
     }
 
@@ -1386,10 +1391,6 @@ public class KeyFilter {
      * <tt>forward</tt> is <tt>false</tt>.
      * </p>
      * <p>
-     * As a side-effect, this method resets the supplied key's index to 0 (see
-     * {@link Key#reset()}.
-     * </p>
-     * <p>
      * Note that this method does not necessarily find a key that actually
      * exists in a Persistit tree, but rather a key value from which traversal
      * in a tree can proceed. The
@@ -1409,46 +1410,75 @@ public class KeyFilter {
      *         otherwise <tt>false</tt>.
      */
     public boolean traverse(Key key, boolean forward) {
-        key.setIndex(0);
-        final boolean result = traverse(key, 0, forward);
-        key.setIndex(0);
+        if (key.getEncodedSize() == 0) {
+            key.append(forward ? Key.BEFORE : Key.AFTER);
+        }
+        final boolean result = traverse(key, 0, 0, forward);
         return result;
     }
 
-    private boolean traverse(Key key, int level, boolean forward) {
-        int index = key.getIndex();
-        if (index >= key.getEncodedSize()) {
-            if (forward)
-                key.nudgeUp2();
-            else
-                key.nudgeDown();
-            return true;
-        }
-        if (level >= _maxDepth) {
-            key.setEncodedSize(index);
-            if (forward)
-                key.nudgeUp();
-            else
-                key.append(Key.BEFORE);
-            return true;
-        }
+    private boolean traverse(Key key, int index, int level, boolean forward) {
+
+        Debug.$assert(level < _maxDepth);
+        Debug.$assert(index < key.getEncodedSize());
+
         int nextIndex = key.nextElementIndex(index);
-        Term term;
-        if (level >= _terms.length)
-            term = ALL;
-        else
-            term = _terms[level];
-        boolean traversed = false;
-        if (term.selected(key.getEncodedBytes(), index, nextIndex - index)) {
-            key.setIndex(nextIndex);
-            traversed = traverse(key, level + 1, forward);
-            key.setIndex(index);
+        if (nextIndex == -1) {
+            nextIndex = key.getEncodedSize();
         }
-        if (!traversed) {
-            if (forward) {
+        final boolean lastKeySegment = nextIndex == key.getEncodedSize();
+
+        Term term = level >= _terms.length ? ALL : _terms[level];
+
+        boolean traversed = false;
+        if (forward) {
+            if (level + 1 < _maxDepth) {
+                if (term.selected(key.getEncodedBytes(), index, nextIndex
+                        - index)) {
+                    if (lastKeySegment && !key.isSpecial()) {
+                        key.append(Key.BEFORE);
+                        traversed = traverse(key, nextIndex, level + 1, true);
+                    } else if (!lastKeySegment) {
+                        traversed = traverse(key, nextIndex, level + 1, true);
+                    }
+                }
+            }
+            if (!traversed) {
                 traversed = term.forward(key, index, nextIndex - index);
-            } else {
+                nextIndex = key.getEncodedSize();
+                if (traversed
+                        && level + 1 < _minDepth
+                        && level < _terms.length
+                        && !key.isSpecial()
+                        && term.selected(key.getEncodedBytes(), index,
+                                nextIndex - index)) {
+                    key.append(Key.BEFORE);
+                    traversed = traverse(key, nextIndex, level + 1, true);
+                }
+            }
+        } else {
+            if (level + 1 < _maxDepth) {
+                if (key.getEncodedSize() > nextIndex
+                        && term.selected(key.getEncodedBytes(), index,
+                                nextIndex - index)) {
+                    traversed = traverse(key, nextIndex, level + 1, false);
+                }
+            } else if (!lastKeySegment && level + 1 == _maxDepth) {
+                key.setEncodedSize(nextIndex);
+                traversed = term.selected(key.getEncodedBytes(), index,
+                        nextIndex - index);
+            }
+            if (!traversed) {
                 traversed = term.backward(key, index, nextIndex - index);
+                nextIndex = key.getEncodedSize();
+                if (traversed
+                        && level + 1 < _maxDepth
+                        && !key.isSpecial()
+                        && term.selected(key.getEncodedBytes(), index,
+                                nextIndex)) {
+                    key.append(Key.AFTER);
+                    traversed = traverse(key, nextIndex, level + 1, false);
+                }
             }
         }
         return traversed;
@@ -1493,7 +1523,7 @@ public class KeyFilter {
     }
 
     private static void appendDisplayableKeySegment(Key workKey,
-            StringBuffer sb, byte[] bytes, CoderContext context,
+            StringBuilder sb, byte[] bytes, CoderContext context,
             boolean before, boolean after) {
         if (bytes == null)
             return;

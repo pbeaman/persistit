@@ -286,6 +286,11 @@ public final class Value {
      */
     public final static int DEFAULT_MAXIMUM_SIZE = 1024 * 1024 * 4;
 
+    /**
+     * Absolute maximum size limit.
+     */
+    public final static int MAXIMUM_SIZE = 64 * 1024 * 1024;
+
     private final static int SIZE_GRANULARITY = 256;
     private final static int SIZE_GROWTH_DENOMINATOR = 8;
 
@@ -752,7 +757,7 @@ public final class Value {
             length = _size / SIZE_GROWTH_DENOMINATOR;
         }
         int newSize = _size + length;
-        if (newSize <= _bytes.length)
+        if (_size + length <= _bytes.length)
             return false;
         newSize = ((newSize + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY)
                 * SIZE_GRANULARITY;
@@ -869,9 +874,14 @@ public final class Value {
      * 
      */
     public void setMaximumSize(int size) {
-        if (size < _size)
+        if (size < _size) {
             throw new IllegalArgumentException(
                     "Value is larger than new maximum size");
+        }
+        if (size > MAXIMUM_SIZE) {
+            throw new IllegalArgumentException(
+                    "Value is larger than absolute limit " + MAXIMUM_SIZE);
+        }
         trim(size);
         _maximumSize = size;
     }
@@ -930,7 +940,7 @@ public final class Value {
     /**
      * Provides a String representation of the state of this <tt>Value</tt>.
      * 
-     * @see #decodeDisplayable(boolean, StringBuffer)
+     * @see #decodeDisplayable(boolean, StringBuilder)
      * 
      * @return A String value. If this Value is undefined, returns the word
      *         "undefined". Note that this value is indistinguishable from the
@@ -948,7 +958,7 @@ public final class Value {
         int saveNext = _next;
         int saveEnd = _end;
         boolean saveAtomic = _atomicIncrementArmed;
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         setStreamMode(true);
         try {
             boolean first = true;
@@ -978,26 +988,26 @@ public final class Value {
 
     /**
      * Appends a displayable, printable String version of a value into the
-     * supplied StringBuffer. If <tt>quoted</tt> is <tt>true</tt>, then the all
+     * supplied StringBuilder. If <tt>quoted</tt> is <tt>true</tt>, then the all
      * String values in the result will be enclosed and converted to a printable
      * format.
      * 
-     * @see #decodeDisplayable(boolean, StringBuffer, CoderContext)
+     * @see #decodeDisplayable(boolean, StringBuilder, CoderContext)
      * 
      * @param quoted
      *            <tt>true</tt> to quote and convert all strings to printable
      *            form.
      * @param sb
-     *            A <tt>StringBuffer</tt> to which the displayable value will be
-     *            appended.
+     *            A <tt>StringBuilder</tt> to which the displayable value will
+     *            be appended.
      */
-    public void decodeDisplayable(boolean quoted, StringBuffer sb) {
+    public void decodeDisplayable(boolean quoted, StringBuilder sb) {
         decodeDisplayable(quoted, sb, null);
     }
 
     /**
      * Appends a displayable String version of a value into the supplied
-     * StringBuffer. If <tt>quoted</tt> is <tt>true</tt>, then the all String
+     * StringBuilder. If <tt>quoted</tt> is <tt>true</tt>, then the all String
      * values in the result will be enclosed and converted to a printable
      * format.
      * 
@@ -1005,13 +1015,13 @@ public final class Value {
      *            <tt>true</tt> to quote and convert all strings to printable
      *            form.
      * @param sb
-     *            A <tt>StringBuffer</tt> to which the displayable value will be
-     *            appended.
+     *            A <tt>StringBuilder</tt> to which the displayable value will
+     *            be appended.
      * @param context
      *            A <tt>CoderContext</tt> to be passed to any underlying
      *            {@link ValueDisplayer}.
      */
-    public void decodeDisplayable(boolean quoted, StringBuffer sb,
+    public void decodeDisplayable(boolean quoted, StringBuilder sb,
             CoderContext context) {
         checkSize(1);
 
@@ -1332,7 +1342,7 @@ public final class Value {
         }
     }
 
-    private void decodeDisplayableMultiArray(boolean quoted, StringBuffer sb,
+    private void decodeDisplayableMultiArray(boolean quoted, StringBuilder sb,
             CoderContext context, Class prototype) {
         int start = _next;
         int type = nextType(CLASS_MULTI_ARRAY, CLASS_REREF);
@@ -1385,13 +1395,13 @@ public final class Value {
         }
     }
 
-    private void appendParenthesizedFriendlyClassName(StringBuffer sb, Class cl) {
+    private void appendParenthesizedFriendlyClassName(StringBuilder sb, Class cl) {
         sb.append('(');
         appendFriendlyClassName(sb, cl);
         sb.append(')');
     }
 
-    private void appendFriendlyClassName(StringBuffer sb, Class cl) {
+    private void appendFriendlyClassName(StringBuilder sb, Class cl) {
         if (cl == null) {
             sb.append("null");
             return;
@@ -1414,7 +1424,7 @@ public final class Value {
         }
     }
 
-    private void appendDisplayable(StringBuffer sb, Object value,
+    private void appendDisplayable(StringBuilder sb, Object value,
             boolean quoted, boolean reference) {
         if (value == null) {
             sb.append("null");
@@ -2349,13 +2359,14 @@ public final class Value {
     /**
      * Decodes the <tt>java.lang.String</tt> value represented by the current
      * state of this <tt>Value</tt> into a supplied
-     * <tt>java.lang.StringBuffer</tt>.
+     * <tt>java.lang.StringBuilder</tt>.
      * 
-     * @return The supplied StringBuffer, modified to contain the decoded String
+     * @return The supplied StringBuilder, modified to contain the decoded
+     *         String
      * @throws ConversionException
      *             if this <tt>Value</tt> does not currently represent a String.
      */
-    public StringBuffer getString(StringBuffer sb) {
+    public StringBuilder getString(StringBuilder sb) {
         _serializedItemCount++;
         if (nextType(CLASS_STRING) == TYPE_NULL)
             return null;
@@ -3176,14 +3187,14 @@ public final class Value {
         } else if (cl == Float.class) {
             ensureFit(5);
             _bytes[_size++] = (byte) CLASS_FLOAT;
-            Util.putInt(_bytes, _size, Float.floatToRawIntBits(((Float) object)
-                    .floatValue()));
+            Util.putInt(_bytes, _size,
+                    Float.floatToRawIntBits(((Float) object).floatValue()));
             _size += 4;
         } else if (cl == Double.class) {
             ensureFit(9);
             _bytes[_size++] = (byte) CLASS_DOUBLE;
-            Util.putLong(_bytes, _size, Double
-                    .doubleToRawLongBits(((Double) object).doubleValue()));
+            Util.putLong(_bytes, _size,
+                    Double.doubleToRawLongBits(((Double) object).doubleValue()));
             _size += 8;
         } else if (cl.isArray()) {
             Class componentClass = cl.getComponentType();
@@ -3366,7 +3377,7 @@ public final class Value {
      * @param sb
      *            The new value
      */
-    public void putString(StringBuffer sb) {
+    public void putString(StringBuilder sb) {
         if (sb == null) {
             putNull();
         } else {
@@ -3727,8 +3738,8 @@ public final class Value {
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_FLOAT;
         for (int index = 0; index < length; index++) {
-            Util.putInt(_bytes, _size, Float.floatToRawIntBits(array[index
-                    + offset]));
+            Util.putInt(_bytes, _size,
+                    Float.floatToRawIntBits(array[index + offset]));
             _size += 4;
         }
         endVariableSizeItem((length * 4) + 2);
@@ -3769,8 +3780,8 @@ public final class Value {
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_DOUBLE;
         for (int index = 0; index < length; index++) {
-            Util.putLong(_bytes, _size, Double.doubleToRawLongBits(array[index
-                    + offset]));
+            Util.putLong(_bytes, _size,
+                    Double.doubleToRawLongBits(array[index + offset]));
             _size += 8;
         }
         endVariableSizeItem((length * 8) + 2);
@@ -4012,14 +4023,11 @@ public final class Value {
 
     void changeLongRecordMode(boolean mode) {
         if (mode != _longMode) {
-            _longMode = mode;
-            if (mode) {
-                if (_longBytes == null
-                        || _longBytes.length < Buffer.LONGREC_SIZE) {
-                    _longBytes = new byte[Buffer.LONGREC_SIZE];
-                }
+            if (_longBytes == null || _longBytes.length < Buffer.LONGREC_SIZE) {
+                _longBytes = new byte[Buffer.LONGREC_SIZE];
                 _longSize = Buffer.LONGREC_SIZE;
             }
+
             //
             // Swap the regular and long raw byte arrays
             //
@@ -4029,6 +4037,13 @@ public final class Value {
             _size = _longSize;
             _longBytes = tempBytes;
             _longSize = tempSize;
+            _longMode = mode;
+
+            if (mode) { // TODO - remove
+                Debug.$assert(_bytes.length == Buffer.LONGREC_SIZE);
+            } else {
+                Debug.$assert(_longBytes.length == Buffer.LONGREC_SIZE);
+            }
         }
     }
 

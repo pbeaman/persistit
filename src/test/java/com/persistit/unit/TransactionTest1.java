@@ -18,11 +18,16 @@
  */
 package com.persistit.unit;
 
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
+
+import org.junit.Test;
 
 import com.persistit.Debug;
 import com.persistit.Exchange;
 import com.persistit.Key;
+import com.persistit.KeyFilter;
 import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
@@ -30,6 +35,7 @@ import com.persistit.exception.RollbackException;
 
 public class TransactionTest1 extends PersistitUnitTestCase {
 
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
 
@@ -75,7 +81,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
             ex.clear().append("test1").append(i).fetch();
             assertTrue(!ex.getValue().isDefined());
         }
-        
+
         txn.begin();
         try {
             ex.removeTree();
@@ -90,10 +96,11 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         } catch (Exception e) {
             // ok
         }
-        
+
         System.out.println("- done");
     }
 
+    @Test
     public void test2() throws PersistitException {
         System.out.print("test2 ");
         final Exchange ex = _persistit.getExchange("persistit",
@@ -128,6 +135,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test3() throws PersistitException {
         System.out.print("test3 ");
         final Exchange ex = _persistit.getExchange("persistit",
@@ -166,13 +174,14 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test4() throws PersistitException {
         System.out.print("test4 ");
         final Exchange ex = _persistit.getExchange("persistit",
                 "TransactionTest1", true);
         ex.removeAll();
 
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         for (int i = 10000; i < 15000; i++) {
             sb.append(" ");
             sb.append(Integer.toString(i).substring(1));
@@ -206,12 +215,13 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test5() throws PersistitException {
         System.out.print("test5 ");
         final Exchange ex = _persistit.getExchange("persistit",
                 "TransactionTest1", true);
         ex.removeAll();
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         for (int i = 10000; i < 15000; i++) {
             sb.append(" ");
             sb.append(Integer.toString(i).substring(1));
@@ -248,6 +258,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
+    @Test
     public void test6() throws PersistitException {
         System.out.print("test6 ");
         final Exchange ex = _persistit.getExchange("persistit",
@@ -342,8 +353,109 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    public Properties getProperties() {
-        return UnitTestProperties.getBiggerProperties();
+    @Test
+    public void test7() throws PersistitException {
+        final Exchange ex = _persistit.getExchange("persistit",
+                "TransactionTest1", true);
+        ex.removeAll();
+        ex.clear();
+
+        for (int i = 10; i < 20; i += 3) {
+            ex.getValue().put("Record #" + i + "'");
+            ex.to(i).store();
+        }
+
+        final Set<Integer> remainingKeys = new HashSet<Integer>();
+        final KeyFilter kf = new KeyFilter("{[12:17]}");
+
+        final Transaction txn = ex.getTransaction();
+        txn.begin();
+        try {
+            for (int i = 10; i < 20; i++) {
+                if ((i - 10) % 3 != 0) {
+                    ex.getValue().put("Record #" + i + "'");
+                    ex.to(i).store();
+                }
+            }
+            for (int i = 5; i < 25; i += 2) {
+                ex.to(i).remove();
+            }
+            // Make sure everything is correct before the commit
+            traverseTest7(remainingKeys, ex, kf);
+
+            txn.commit();
+        } finally {
+            txn.end();
+        }
+        // Make sure everything is correct after the commit
+        traverseTest7(remainingKeys, ex, kf);
+    }
+
+    private void traverseTest7(final Set<Integer> remainingKeys,
+            final Exchange ex, KeyFilter kf) throws PersistitException {
+        remainingKeys.clear();
+        ex.clear().append(Key.BEFORE);
+        while (ex.traverse(Key.GT, true, Integer.MAX_VALUE)) {
+            checkTest7(remainingKeys, ex);
+        }
+        assertEquals(5, remainingKeys.size()); // 10, 12, 14, 16, 18
+
+        remainingKeys.clear();
+        ex.clear().append(Key.AFTER);
+        while (ex.traverse(Key.LT, true, Integer.MAX_VALUE)) {
+            checkTest7(remainingKeys, ex);
+        }
+        assertEquals(5, remainingKeys.size()); // 10, 12, 14, 16, 18
+
+        remainingKeys.clear();
+        ex.clear().append(Key.BEFORE);
+        while (ex.traverse(Key.GT, kf, Integer.MAX_VALUE)) {
+            checkTest7(remainingKeys, ex);
+        }
+        assertEquals(3, remainingKeys.size()); // 12, 14, 16
+
+        remainingKeys.clear();
+        ex.clear().append(Key.AFTER);
+        while (ex.traverse(Key.LT, kf, Integer.MAX_VALUE)) {
+            checkTest7(remainingKeys, ex);
+        }
+        assertEquals(3, remainingKeys.size()); // 10, 12, 14, 16
+
+        remainingKeys.clear();
+        for (int i = 5; i < 25; i++) {
+            ex.to(i);
+            if (ex.traverse(Key.GTEQ, true, Integer.MAX_VALUE)) {
+                checkTest7(remainingKeys, ex);
+            }
+        }
+        assertEquals(5, remainingKeys.size()); // 10, 12, 14, 16, 18
+
+        remainingKeys.clear();
+        for (int i = 5; i < 25; i++) {
+            ex.to(i);
+            if (ex.traverse(Key.LTEQ, true, Integer.MAX_VALUE)) {
+                checkTest7(remainingKeys, ex);
+            }
+        }
+        assertEquals(5, remainingKeys.size()); // 10, 12, 14, 16, 18
+
+    }
+
+    private void checkTest7(final Set<Integer> remainingKeys, final Exchange ex)
+            throws PersistitException {
+        int k = ex.getKey().reset().decodeInt();
+        remainingKeys.add(k);
+        assertTrue(ex.traverse(Key.GTEQ, true, Integer.MAX_VALUE));
+        int m = ex.getKey().reset().decodeInt();
+        assertTrue(ex.traverse(Key.LTEQ, true, Integer.MAX_VALUE));
+        int n = ex.getKey().reset().decodeInt();
+        assertEquals(m, k);
+        assertEquals(n, k);
+    }
+
+    @Override
+    public Properties getProperties(final boolean cleanup) {
+        return UnitTestProperties.getBiggerProperties(cleanup);
     }
 
     public static void main(final String[] args) throws Exception {

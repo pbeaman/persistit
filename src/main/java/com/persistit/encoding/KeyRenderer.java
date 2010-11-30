@@ -31,9 +31,9 @@ import com.persistit.exception.ConversionException;
  * A <tt>KeyRenderer</tt> implements an additional method called
  * {@link #renderKeySegment} that populates a supplied target object rather than
  * creating a new object instance. For example, a {@link KeyStringCoder}, which
- * extends this interface, accepts a <tt>StringBuffer</tt> as a target. Instead
+ * extends this interface, accepts a <tt>StringBuilder</tt> as a target. Instead
  * of decoding and creating a new <tt>String</tt> object,
- * <tt>renderKeySegment</tt> modifies the <tt>StringBuffer</tt> target to
+ * <tt>renderKeySegment</tt> modifies the <tt>StringBuilder</tt> target to
  * contain the decoded String.
  * </p>
  * 

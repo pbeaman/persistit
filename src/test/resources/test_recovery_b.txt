@@ -1,0 +1,26 @@
+
+logpath $logpath$/result_$timestamp$.log
+// ----------------------- Transaction recovery test ----------------------
+#Write Transactions - Interrupt externally
+
+clearprops
+
+prop datapath=$datapath$
+prop logpath=$logpath$
+
+logpath $logpath$/result_$timestamp$.log
+
+
+prop buffer.count.8192=5000
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M,alias:persistit
+prop journalpath=$datapath$/persistit_journal
+prop logpath=$datapath$/persistit_log
+prop rmiport=1099
+prop appendonly=true
+prop showgui=true
+
+
+init
+test com.persistit.stress.StressRecovery verify=/tmp/StressRecovery.log latency=1000
+waitIfFailed Please examine the failure!
+close

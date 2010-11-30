@@ -59,6 +59,10 @@ abstract class IOTaskRunnable implements Runnable {
     }
 
     protected synchronized boolean isStopped() {
+        final Thread thread = _thread;
+        if (thread == null || !thread.isAlive()) {
+            return true;
+        }
         return _stopped;
     }
 
@@ -69,11 +73,14 @@ abstract class IOTaskRunnable implements Runnable {
     @SuppressWarnings("deprecation")
     // Use only for tests.
     protected void crash() {
-        _thread.stop();
+        final Thread thread = _thread;
+        if (thread != null && thread.isAlive()) {
+            thread.stop();
+        }
     }
 
     public void run() {
-        
+
         while (true) {
             synchronized (this) {
                 _notified = false;
@@ -107,13 +114,12 @@ abstract class IOTaskRunnable implements Runnable {
             }
         }
     }
-    
+
     static void crash(final IOTaskRunnable task) {
         if (task != null) {
             task.crash();
         }
     }
-
 
     protected long pollInterval() {
         return getPollInterval();

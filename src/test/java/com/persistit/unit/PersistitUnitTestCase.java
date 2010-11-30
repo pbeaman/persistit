@@ -10,13 +10,17 @@ public abstract class PersistitUnitTestCase extends TestCase {
 
     protected Persistit _persistit = new Persistit();
 
-    protected Properties getProperties() {
-        return UnitTestProperties.getProperties();
+    protected Properties getProperties(final boolean cleanup) {
+        return UnitTestProperties.getProperties(cleanup);
     }
 
     @Override
     public void setUp() throws Exception {
-        _persistit.initialize(getProperties());
+        setUp(true);
+    }
+
+    public void setUp(final boolean cleanup) throws Exception {
+        _persistit.initialize(getProperties(cleanup));
     }
 
     @Override

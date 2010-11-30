@@ -120,10 +120,10 @@ public class TransactionTest3 extends PersistitUnitTestCase {
         txn.begin();
         try {
             for (int i = 3; i < 10; i += 3) {
-                ex.clear().append("test2").append("a").append(i).remove(
-                        Key.GTEQ);
-                ex.clear().append("test2").append("b").append(i).remove(
-                        Key.GTEQ);
+                ex.clear().append("test2").append("a").append(i)
+                        .remove(Key.GTEQ);
+                ex.clear().append("test2").append("b").append(i)
+                        .remove(Key.GTEQ);
             }
 
             ex.getValue().put("String value #" + 3 + " for test2 - pending");
@@ -141,8 +141,8 @@ public class TransactionTest3 extends PersistitUnitTestCase {
                     .remove(Key.GTEQ);
             assertTrue(removed1);
 
-            boolean removed2 = ex.clear().append("test2").append("c").remove(
-                    Key.GTEQ);
+            boolean removed2 = ex.clear().append("test2").append("c")
+                    .remove(Key.GTEQ);
             assertTrue(!removed2);
 
             ex.clear().append("test2");
@@ -173,7 +173,7 @@ public class TransactionTest3 extends PersistitUnitTestCase {
         final Exchange ex = _persistit.getExchange("persistit",
                 "TransactionTest3", true);
         ex.append("test3").remove(Key.GT);
-        final StringBuffer sb = new StringBuffer(20000);
+        final StringBuilder sb = new StringBuilder(20000);
         for (int i = 0; i < 20000; i++) {
             sb.append("1");
         }
@@ -491,8 +491,9 @@ public class TransactionTest3 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    public Properties getProperties() {
-        return UnitTestProperties.getBiggerProperties();
+    @Override
+    public Properties getProperties(final boolean cleanup) {
+        return UnitTestProperties.getBiggerProperties(cleanup);
     }
 
     public static void main(final String[] args) throws Exception {

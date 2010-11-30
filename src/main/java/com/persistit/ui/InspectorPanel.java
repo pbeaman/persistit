@@ -94,8 +94,8 @@ class InspectorPanel extends JPanel {
                 _tabbedPane.addTab(caption, (JComponent) panel);
             } catch (Exception e) {
                 e.printStackTrace(); // TODO
-                _adminUI.showMessage(e, _adminUI
-                        .getProperty("SetupFailedMessage"),
+                _adminUI.showMessage(e,
+                        _adminUI.getProperty("SetupFailedMessage"),
                         JOptionPane.ERROR_MESSAGE);
             }
         }

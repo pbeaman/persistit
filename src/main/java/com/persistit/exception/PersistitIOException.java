@@ -23,8 +23,7 @@ import java.io.IOException;
 /**
  * This is a wrapper for an {@link IOException}. It is convenient for the caller
  * of a Persistit method to catch {@link PersistitException}s without also
- * needing to catch IOExceptions. For compatibility with earlier J2SE releases
- * this is implemented without using JDK 1.4 Exception chaining.
+ * needing to catch IOExceptions.
  * 
  * @version 1.0
  */
@@ -37,5 +36,9 @@ public class PersistitIOException extends PersistitException {
 
     public PersistitIOException(String msg) {
         super(msg);
+    }
+
+    public PersistitIOException(String msg, Exception exception) {
+        super(msg, exception);
     }
 }

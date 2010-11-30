@@ -18,6 +18,8 @@
  */
 package com.persistit;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.rmi.Naming;
 import java.rmi.RemoteException;
@@ -184,20 +186,49 @@ class ManagementImpl implements Management, BuildConstants {
     public void setUpdateSuspended(boolean suspended) {
         _persistit.setUpdateSuspended(suspended);
     }
-    
+
     /**
-     * Controls whether Persistit will suspend the thread that copies pages
-     * from the journal back to their respective Volumes. This flag is used
-     * by tools that provide on-line backup.
      * 
-     * @param suspended
-     *            <tt>true</tt> to specify that Persistit will suspend
-     *            journal copying; otherwise <tt>false</tt>.
      */
-    public void setJournalCopyingSuspended(boolean suspended) {
-        _persistit.getJournalManager().setCopyingSuspended(suspended);
+    public void setIoLogFile(final String path) throws RemoteException {
+        try {
+            if (path == null || path.isEmpty()) {
+                _persistit.getIOMeter().setLogFile(null);
+            } else {
+                _persistit.getIOMeter().setLogFile(new File(path));
+            }
+        } catch (IOException e) {
+            throw new WrappedRemoteException(e);
+        }
     }
 
+    /**
+     * Controls whether Persistit will suspend the thread that copies pages from
+     * the journal back to their respective Volumes. This flag is used by tools
+     * that provide on-line backup.
+     * 
+     * @param suspended
+     *            <tt>true</tt> to specify that Persistit will suspend journal
+     *            copying; otherwise <tt>false</tt>.
+     */
+    public void setAppendOnly(boolean suspended) {
+        _persistit.getJournalManager().setAppendOnly(suspended);
+    }
+
+    /**
+     * Controls whether Persistit copies page from the journal back to their
+     * volumes as fast as possible. Copying consumes disk I/O operations, so
+     * normally the copier thread pauses between copy operations to avoid
+     * saturating the disk. Once all pages have been copied, the fast copying
+     * flag is automatically turned off.
+     * 
+     * @param fast
+     *            <tt>true</tt> to copy pages at maximum speed.
+     * @throws RemoteException
+     */
+    public void setJournalCopyingFast(boolean fast) throws RemoteException {
+        _persistit.getJournalManager().setCopyingFast(fast);
+    }
 
     /**
      * Attempts to close Persistit by invoking {@link Persistit#close}.
@@ -249,7 +280,8 @@ class ManagementImpl implements Management, BuildConstants {
      * @return The array
      */
     public BufferPoolInfo[] getBufferPoolInfoArray() {
-        HashMap<Integer, BufferPool> bufferPoolTable = _persistit.getBufferPoolHashMap();
+        HashMap<Integer, BufferPool> bufferPoolTable = _persistit
+                .getBufferPoolHashMap();
         int size = bufferPoolTable.size();
         BufferPoolInfo[] result = new BufferPoolInfo[size];
         int index = 0;
@@ -265,10 +297,16 @@ class ManagementImpl implements Management, BuildConstants {
         }
         return result;
     }
-    
+
     public JournalInfo getJournalInfo() {
         final JournalInfo info = new JournalInfo();
         _persistit.getJournalManager().populateJournalInfo(info);
+        return info;
+    }
+
+    public RecoveryInfo getRecoveryInfo() {
+        final RecoveryInfo info = new RecoveryInfo();
+        _persistit.getRecoveryManager().populateRecoveryInfo(info);
         return info;
     }
 
@@ -595,8 +633,7 @@ class ManagementImpl implements Management, BuildConstants {
             status |= SharedResource.FIXED_MASK;
 
         if (statusCode.indexOf('a') >= 0)
-            status |= (SharedResource.FIXED_MASK
-                    | SharedResource.CLOSING_MASK
+            status |= (SharedResource.FIXED_MASK | SharedResource.CLOSING_MASK
                     | SharedResource.SUSPENDED_MASK
                     | SharedResource.WRITER_MASK | SharedResource.CLAIMED_MASK
                     | SharedResource.DIRTY_MASK | SharedResource.VALID_MASK);
@@ -865,9 +902,7 @@ class ManagementImpl implements Management, BuildConstants {
             Class clazz = Class.forName(className);
             Task task = (Task) (clazz.newInstance());
             task.setPersistit(_persistit);
-            task
-                    .setup(taskId, description, owner, args, maximumTime,
-                            verbosity);
+            task.setup(taskId, description, owner, args, maximumTime, verbosity);
             _tasks.put(new Long(taskId), task);
             task.start();
             return taskId;

@@ -18,13 +18,12 @@ package com.persistit;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
-import com.persistit.exception.TreeNotFoundException;
-import com.persistit.exception.VolumeNotFoundException;
 
 /**
  * <p>
@@ -302,14 +301,11 @@ public class Transaction {
 
     private final InternalHashSet _touchedPagesSet = new InternalHashSet();
 
-    private long _expirationTime;
-    private long _timeout;
+    private final List<Integer> _visbilityOrder = new ArrayList<Integer>();
 
     private long _rollbackDelay = 50;
 
     private CommitListener _commitListener = DEFAULT_COMMIT_LISTENER;
-
-    private byte[] _stuff = new byte[128];
 
     /**
      * Call-back for commit() processing. Methods of this class are called
@@ -406,7 +402,6 @@ public class Transaction {
         _rollbackDelay = persistit.getLongProperty("rollbackDelay", 10, 0,
                 100000);
         _rootKey = new Key(_persistit);
-        _timeout = _persistit.getDefaultTimeout();
     }
 
     private static synchronized long nextId() {
@@ -510,16 +505,15 @@ public class Transaction {
         _rollbackException = null;
 
         if (_nestedDepth == 0) {
-            if (_pendingStoreCount != 0 || _pendingRemoveCount != 0) {
-                try {
-                    clear();
-                } catch (PersistitException pe) {
-                    if (_persistit.getLogBase().isLoggable(
-                            LogBase.LOG_TXN_EXCEPTION)) {
-                        _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION,
-                                pe, this);
-                    }
+            try {
+                clear();
+            } catch (PersistitException pe) {
+                if (_persistit.getLogBase().isLoggable(
+                        LogBase.LOG_TXN_EXCEPTION)) {
+                    _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe,
+                            this);
                 }
+                throw pe;
             }
             _persistit.getTransactionResourceA().claim(
                     _rollbacksSinceLastCommit >= _pessimisticRetryThreshold,
@@ -600,6 +594,7 @@ public class Transaction {
                 _rollbacksSinceLastCommit = 0;
             }
             _rollbackPending = false;
+            _visbilityOrder.clear();
         }
         // PDB 20050808 - to be sure. Should have been cleared by either
         // commit() or rollbackUpdates().
@@ -1049,7 +1044,6 @@ public class Transaction {
      */
     private boolean doCommit() throws PersistitException {
         boolean committed = false;
-        _expirationTime = 0;
         try {
             for (;;) {
                 //
@@ -1091,7 +1085,11 @@ public class Transaction {
                         }
                     }
                     //
-                    // The serialization timestamp, used to order
+                    // The timestamp at transaction start
+                    //
+                    long startTimestamp = _timestamp;
+                    //
+                    // The commit timestamp, used to order
                     // transactions during recovery. In addition, all pages
                     // modified by applying this transaction will also get
                     // this timestamp, meaning that transactions with a
@@ -1106,7 +1104,7 @@ public class Transaction {
                         // Step 3
                         // Journal the transaction.
                         //
-                        writeUpdatesToJournal();
+                        writeUpdatesToJournal(startTimestamp);
                         //
                         // Step 4
                         // Apply the updates
@@ -1152,7 +1150,7 @@ public class Transaction {
         if (_ex1 == null)
             setupExchanges();
         int treeHandle = handleForTree(tree);
-        _ex1.clear().append(type).append(treeHandle);
+        _ex1.clear().append(treeHandle).append(type);
         _ex1.getKey().copyTo(_rootKey);
         int keySize = key.getEncodedSize();
         byte[] bytes = key.getEncodedBytes();
@@ -1165,11 +1163,12 @@ public class Transaction {
                     + keySize);
         }
 
-        System
-                .arraycopy(bytes, 0, ex1Bytes, _rootKey.getEncodedSize(),
-                        keySize);
-
+        System.arraycopy(bytes, 0, ex1Bytes, _rootKey.getEncodedSize(), keySize);
         ex1Key.setEncodedSize(keySize + _rootKey.getEncodedSize());
+        final Integer treeId = Integer.valueOf(treeHandle);
+        if (!_visbilityOrder.contains(treeId)) {
+            _visbilityOrder.add(treeId);
+        }
     }
 
     private boolean sameTree() {
@@ -1187,6 +1186,7 @@ public class Transaction {
     }
 
     private void clear() throws PersistitException {
+        _visbilityOrder.clear();
         if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
             if (_ex1 == null)
                 setupExchanges();
@@ -1392,9 +1392,7 @@ public class Transaction {
         Tree tree = exchange.getTree();
         prepareTxnExchange(tree, key, 'S');
 
-        boolean longRec = value.isDefined()
-                && (value.getEncodedBytes()[0] & 0xFF) == Buffer.LONGREC_TYPE
-                && value.getEncodedSize() >= Buffer.LONGREC_SIZE;
+        boolean longRec = value.isLongRecordMode();
 
         if (longRec) {
             //
@@ -1403,15 +1401,15 @@ public class Transaction {
             // event the transaction gets rolled back.
             //
             Volume volume = tree.getVolume();
-            long pageAddr = Buffer.decodeLongRecordDescriptorPointer(value
-                    .getEncodedBytes(), 0);
-
-            if (Debug.ENABLED) {
-                Buffer buffer = volume.getPool().get(volume, pageAddr, false,
-                        true);
-                Debug.$assert(buffer.isLongRecordPage());
-                buffer.release();
-            }
+            long pageAddr = Buffer.decodeLongRecordDescriptorPointer(
+                    value.getEncodedBytes(), 0);
+            //
+            // Synchronously flush all the member pages of the long record to
+            // the journal. This ensures that recovery will find them. These
+            // pages aren't likely to change soon anyway, so flushing them
+            // immediately does not impact performance.
+            //
+            exchange.writeLongRecordPagesToJournal();
 
             _longRecordDeallocationList.add(new DeallocationChain(volume, tree
                     .getTreeIndex(), pageAddr, 0));
@@ -1500,7 +1498,7 @@ public class Transaction {
                 // If the right edge of this key removal range overlaps a
                 // previously posted remove operation, then reset the right edge
                 // of this range to the overlapping one.
-                // 
+                //
                 prepareTxnExchange(tree, key2, 'R');
                 if (_ex1.traverse(Key.LT, true) && sameTree()) {
                     shiftOut();
@@ -1540,7 +1538,8 @@ public class Transaction {
         return result1 || result2;
     }
 
-    private void writeUpdatesToJournal() throws PersistitException {
+    private void writeUpdatesToJournal(final long startTimestamp)
+            throws PersistitException {
         final JournalManager jman = _persistit.getJournalManager();
         if (_ex1 == null)
             setupExchanges();
@@ -1550,43 +1549,50 @@ public class Transaction {
 
         final Set<Tree> removedTrees = new HashSet<Tree>();
 
-        jman.writeTransactionStartToJournal(getTimestamp(), getId());
-        while (_ex1.traverse(Key.GT, true)) {
-            Key key1 = _ex1.getKey();
-            key1.reset();
-            char type = key1.decodeChar();
-            if (type != 'R' && type != 'S' && type != 'D')
-                continue;
+        jman.writeTransactionStartToJournal(startTimestamp, getTimestamp());
 
-            int treeHandle = key1.decodeInt();
-            int offset = key1.getIndex();
-            int size = key1.getEncodedSize() - offset;
-
-            Key key2 = _ex2.getKey();
-            System.arraycopy(key1.getEncodedBytes(), offset, key2
-                    .getEncodedBytes(), 0, size);
-            key2.setEncodedSize(size);
-
-            if (type == 'R') {
-                key2.copyTo(_ex2.getAuxiliaryKey1());
-                txnValue.decodeAntiValue(_ex2);
-
-                jman.writeDeleteRecordToJournal(getTimestamp(), treeHandle,
-                        _ex2.getAuxiliaryKey1(), _ex2.getAuxiliaryKey2());
-            } else if (type == 'S') {
-                if (txnValue.isDefined()
-                        && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
-                        && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
-                    txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
+        for (Integer treeId : _visbilityOrder) {
+            _ex1.clear().append(treeId.intValue());
+            while (_ex1.traverse(Key.GT, true)) {
+                Key key1 = _ex1.getKey();
+                key1.reset();
+                int treeHandle = key1.decodeInt();
+                if (treeHandle != treeId.intValue()) {
+                    break;
                 }
-                jman.writeStoreRecordToJournal(getTimestamp(), treeHandle,
-                        key2, txnValue);
-                removedTrees.remove(_ex2.getTree());
-            } else if (type == 'D') {
-                jman.writeDeleteTreeToJournal(getTimestamp(), treeHandle);
+                char type = key1.decodeChar();
+                if (type != 'R' && type != 'S' && type != 'D')
+                    continue;
+
+                int offset = key1.getIndex();
+                int size = key1.getEncodedSize() - offset;
+
+                Key key2 = _ex2.getKey();
+                System.arraycopy(key1.getEncodedBytes(), offset,
+                        key2.getEncodedBytes(), 0, size);
+                key2.setEncodedSize(size);
+
+                if (type == 'R') {
+                    key2.copyTo(_ex2.getAuxiliaryKey1());
+                    txnValue.decodeAntiValue(_ex2);
+
+                    jman.writeDeleteRecordToJournal(getTimestamp(), treeHandle,
+                            _ex2.getAuxiliaryKey1(), _ex2.getAuxiliaryKey2());
+                } else if (type == 'S') {
+                    if (txnValue.isDefined()
+                            && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
+                            && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
+                        txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
+                    }
+                    jman.writeStoreRecordToJournal(getTimestamp(), treeHandle,
+                            key2, txnValue);
+                    removedTrees.remove(_ex2.getTree());
+                } else if (type == 'D') {
+                    jman.writeDeleteTreeToJournal(getTimestamp(), treeHandle);
+                }
             }
         }
-        jman.writeTransactionCommitToJournal(getTimestamp(), getId());
+        jman.writeTransactionCommitToJournal(_timestamp);
     }
 
     private void applyUpdates() throws PersistitException {
@@ -1599,44 +1605,50 @@ public class Transaction {
 
         final Set<Tree> removedTrees = new HashSet<Tree>();
 
-        while (_ex1.traverse(Key.GT, true)) {
-            Key key1 = _ex1.getKey();
-            key1.reset();
-            char type = key1.decodeChar();
-            if (type != 'R' && type != 'S' && type != 'D')
-                continue;
-
-            int treeHandle = key1.decodeInt();
-            if (treeHandle != currentTreeHandle || currentTree == null) {
-                currentTree = treeForHandle(treeHandle);
-                currentTreeHandle = treeHandle;
-            }
-
-            _ex2.setTree(currentTree);
-            int offset = key1.getIndex();
-            int size = key1.getEncodedSize() - offset;
-
-            Key key2 = _ex2.getKey();
-            System.arraycopy(key1.getEncodedBytes(), offset, key2
-                    .getEncodedBytes(), 0, size);
-            key2.setEncodedSize(size);
-
-            if (type == 'R') {
-                key2.copyTo(_ex2.getAuxiliaryKey1());
-                txnValue.decodeAntiValue(_ex2);
-
-                _ex2.removeKeyRangeInternal(_ex2.getAuxiliaryKey1(), _ex2
-                        .getAuxiliaryKey2(), false);
-            } else if (type == 'S') {
-                if (txnValue.isDefined()
-                        && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
-                        && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
-                    txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
+        for (Integer treeId : _visbilityOrder) {
+            _ex1.clear().append(treeId.intValue());
+            while (_ex1.traverse(Key.GT, true)) {
+                Key key1 = _ex1.getKey();
+                key1.reset();
+                int treeHandle = key1.decodeInt();
+                if (treeHandle != treeId.intValue()) {
+                    break;
                 }
-                _ex2.storeInternal(key2, txnValue, 0, false, false);
-                removedTrees.remove(_ex2.getTree());
-            } else if (type == 'D') {
-                removedTrees.add(_ex2.getTree());
+                char type = key1.decodeChar();
+                if (type != 'R' && type != 'S' && type != 'D')
+                    continue;
+
+                if (treeHandle != currentTreeHandle || currentTree == null) {
+                    currentTree = treeForHandle(treeHandle);
+                    currentTreeHandle = treeHandle;
+                }
+
+                _ex2.setTree(currentTree);
+                int offset = key1.getIndex();
+                int size = key1.getEncodedSize() - offset;
+
+                Key key2 = _ex2.getKey();
+                System.arraycopy(key1.getEncodedBytes(), offset,
+                        key2.getEncodedBytes(), 0, size);
+                key2.setEncodedSize(size);
+
+                if (type == 'R') {
+                    key2.copyTo(_ex2.getAuxiliaryKey1());
+                    txnValue.decodeAntiValue(_ex2);
+
+                    _ex2.removeKeyRangeInternal(_ex2.getAuxiliaryKey1(),
+                            _ex2.getAuxiliaryKey2(), false);
+                } else if (type == 'S') {
+                    if (txnValue.isDefined()
+                            && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
+                            && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
+                        txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
+                    }
+                    _ex2.storeInternal(key2, txnValue, 0, false, false);
+                    removedTrees.remove(_ex2.getTree());
+                } else if (type == 'D') {
+                    removedTrees.add(_ex2.getTree());
+                }
             }
         }
 
@@ -1730,63 +1742,6 @@ public class Transaction {
         }
     }
 
-    static void recover(final Persistit persistit) {
-        int committed = 0;
-        int rolledBack = 0;
-
-        if (persistit.getLogBase().isLoggable(LogBase.LOG_TXN_RECOVERY_START)) {
-            persistit.getLogBase().log(LogBase.LOG_TXN_RECOVERY_START);
-        }
-        try {
-            Volume txnVolume = persistit.getTransactionVolume();
-            String txnTreeName = TRANSACTION_TREE_NAME;
-
-            for (;;) {
-                txnTreeName = txnVolume.nextTreeName(txnTreeName);
-                if (txnTreeName == null
-                        || !txnTreeName.startsWith(TRANSACTION_TREE_NAME)) {
-                    break;
-                }
-                Exchange exchange = persistit.getExchange(txnVolume,
-                        txnTreeName, false);
-                long id = Long.parseLong(txnTreeName
-                        .substring(TRANSACTION_TREE_NAME.length()));
-
-                Transaction txn = new Transaction(persistit, id);
-                txn._recoveryMode = true;
-                Value txnValue = exchange.getValue();
-                try {
-                    if (txnValue.isDefined()) {
-                        txn.applyUpdates();
-                        committed++;
-                    } else {
-                        txn.rollbackUpdates();
-                        rolledBack++;
-                    }
-                    exchange.removeTree();
-                } catch (PersistitException pe) {
-                    if (persistit.getLogBase().isLoggable(
-                            LogBase.LOG_TXN_RECOVERY_FAILURE)) {
-                        persistit.getLogBase().log(
-                                LogBase.LOG_TXN_RECOVERY_FAILURE, pe);
-                    }
-                }
-            }
-        } catch (TreeNotFoundException tnfe) {
-            // This is okay - it means there never has been a "_txn"
-            // tree in the transaction volume.
-        } catch (VolumeNotFoundException tnfe) {
-            // This is okay - it means is no transaction volume.
-        } catch (PersistitException pe) {
-            persistit.getLogBase().log(LogBase.LOG_EXCEPTION, pe);
-        }
-
-        if (persistit.getLogBase().isLoggable(LogBase.LOG_TXN_RECOVERY_END)) {
-            persistit.getLogBase().log(LogBase.LOG_TXN_RECOVERY_END, committed,
-                    rolledBack);
-        }
-    }
-
     /**
      * Allocate a new timestamp. Actions performed by this Transaction will be
      * marked with this (or possibly a larger) timestamp.
@@ -1795,6 +1750,16 @@ public class Transaction {
         if (_nestedDepth == 0) {
             _timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         }
+    }
+
+    /**
+     * Assign a specified timestamp to this transaction - to be used only during
+     * recovery.
+     * 
+     * @param timestamp
+     */
+    void assignTimestamp(final long timestamp) {
+        _timestamp = timestamp;
     }
 
     /**

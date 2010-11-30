@@ -88,7 +88,7 @@ class ValueInspectorTreeNode implements TreeNode {
 
     String displayable(String fieldName, Class type, Object object,
             int arrayIndex) {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
 
         if (arrayIndex >= 0) {
             sb.append('[');
@@ -303,7 +303,7 @@ class ValueInspectorTreeNode implements TreeNode {
         if (object == null)
             return "null";
         if (object.getClass().isArray()) {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             Class elementType = object.getClass().getComponentType();
             boolean primitive = elementType.isPrimitive();
             int size = arrayLength(object.getClass(), object);
@@ -339,11 +339,9 @@ class ValueInspectorTreeNode implements TreeNode {
             return sb.toString();
         }
         if (object instanceof String) {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append('\"');
-            Util
-                    .appendQuotedString(sb, object.toString(), 0,
-                            Integer.MAX_VALUE);
+            Util.appendQuotedString(sb, object.toString(), 0, Integer.MAX_VALUE);
             sb.append('\"');
             return sb.toString();
         } else {

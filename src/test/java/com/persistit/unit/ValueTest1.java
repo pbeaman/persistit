@@ -53,7 +53,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         assertEquals(value.getType(), String.class);
         assertEquals(value.getString(), "foobar");
         assertEquals(value.get(), "foobar");
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         value.getString(sb);
         assertEquals(sb.toString(), "foobar");
 
@@ -376,14 +376,14 @@ public class ValueTest1 extends PersistitUnitTestCase {
 
     private String floatBits(final float v) {
         final int bits = Float.floatToIntBits(v);
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         Util.hex(sb, bits, 8);
         return sb.toString();
     }
 
     private String doubleBits(final double v) {
         final long bits = Double.doubleToLongBits(v);
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         Util.hex(sb, bits, 16);
         return sb.toString();
     }

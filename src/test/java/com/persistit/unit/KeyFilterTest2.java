@@ -47,22 +47,22 @@ public class KeyFilterTest2 extends PersistitUnitTestCase {
             ex.clear().append(2).append(ks(i / 100));
             ex.store();
             // 100 unique keys
-            ex.clear().append(2).append(ks(i / 100)).append(3).append(
-                    ks((i / 10) % 10));
+            ex.clear().append(2).append(ks(i / 100)).append(3)
+                    .append(ks((i / 10) % 10));
             ex.store();
             if ((i % 2) == 0) {
                 // 500 unique keys
-                ex.clear().append(2).append(ks(i / 100)).append(3).append(
-                        ks((i / 10) % 10)).append(4).append(ks(i % 10));
+                ex.clear().append(2).append(ks(i / 100)).append(3)
+                        .append(ks((i / 10) % 10)).append(4).append(ks(i % 10));
                 ex.store();
                 // 500 unique keys
-                ex.clear().append(2).append(ks(i / 100)).append(3).append(
-                        ks((i / 10) % 10)).append(5).append(ks(i % 10));
+                ex.clear().append(2).append(ks(i / 100)).append(3)
+                        .append(ks((i / 10) % 10)).append(5).append(ks(i % 10));
                 ex.store();
                 // 500 unique keys
-                ex.clear().append(2).append(ks(i / 100)).append(3).append(
-                        ks((i / 10) % 10)).append(4).append(ks(i % 10)).append(
-                        5).append("x");
+                ex.clear().append(2).append(ks(i / 100)).append(3)
+                        .append(ks((i / 10) % 10)).append(4).append(ks(i % 10))
+                        .append(5).append("x");
                 ex.store();
             }
         }
@@ -76,8 +76,8 @@ public class KeyFilterTest2 extends PersistitUnitTestCase {
         assertEquals(0, countKeys(ex, "{3,*,>3,*,4,*<}"));
         assertEquals(0, countKeys(ex, "{2,*,3,*,>6,*<}"));
         assertEquals(500, countKeys(ex, "{2,\"a\":\"z\",3,*,4,*,5,>\"x\"}"));
-        assertEquals(90, countKeys(ex,
-                "{2,{\"a\",\"b\",\"c\"},3,*,4,>[\"a\":\"e\"]<}"));
+        assertEquals(90,
+                countKeys(ex, "{2,{\"a\",\"b\",\"c\"},3,*,4,>[\"a\":\"e\"]<}"));
         assertEquals(300, countKeys(ex, "{2,*,3,*,4,>[\"a\":\"e\"]<}"));
 
         System.out.println("- done");

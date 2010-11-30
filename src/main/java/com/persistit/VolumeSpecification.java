@@ -166,11 +166,11 @@ public class VolumeSpecification {
     public boolean isCreateOnly() {
         return createOnly;
     }
-    
+
     public boolean isTransient() {
         return tranzient;
     }
-    
+
     public boolean isLoose() {
         return loose;
     }

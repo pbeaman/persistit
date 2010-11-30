@@ -1,0 +1,39 @@
+prop datapath=$datapath$
+prop logpath=$datapath$
+
+logpath $logpath$/result_$timestamp$.log
+
+#Stress-99 test mixture, multithread, 50000 buffers
+
+clearprops
+prop buffer.count.8192=50000
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:10M,extensionSize:10M,maximumSize:4G
+prop logfile=$datapath$/persistit.log
+prop journalpath=$datapath$/persistit_journal
+prop rmiport=1099
+prop log=PWJ:FINER,GAR:FINE,LIFECYCLE:INFO
+
+init
+icheck persistit
+waitIfFailed Please examine the failure!
+
+multithread
+
+test com.persistit.stress.Stress1 repeat=1 count=1000000
+
+
+test com.persistit.stress.Stress2txn repeat=1 count=1000000 size=100000 seed=118 op=w
+test com.persistit.stress.Stress2txn repeat=1 count=1000000 size=100000 seed=119 op=w
+test com.persistit.stress.Stress2txn repeat=1 count=1000000 size=100000 seed=120 op=w
+test com.persistit.stress.Stress2txn repeat=1 count=1000000 size=100000 seed=121 op=w
+test com.persistit.stress.Stress2txn repeat=1 count=1000000 size=100000 seed=122 op=w
+
+
+icheck persistit
+
+waitIfFailed Please examine the failure!
+
+wait Watch the log files go away
+
+close
+

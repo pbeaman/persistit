@@ -85,8 +85,8 @@ public class PersistitIndexedSet {
      * @throws PersistitException
      */
     private Exchange allocateExchange() throws PersistitException {
-        Exchange exchange = _persistit.getExchange(_tree.getVolume(), _tree
-                .getName(), false);
+        Exchange exchange = _persistit.getExchange(_tree.getVolume(),
+                _tree.getName(), false);
         _keyState.copyTo(exchange.getKey());
         return exchange;
     }

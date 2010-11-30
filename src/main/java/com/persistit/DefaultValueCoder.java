@@ -762,7 +762,7 @@ public class DefaultValueCoder implements ValueRenderer {
 
         @Override
         public String toString() {
-            StringBuffer sb = new StringBuffer(_name);
+            StringBuilder sb = new StringBuilder(_name);
             sb.append("[");
             for (int index = 0; index < _accessorNames.length; index++) {
                 if (index > 0)
@@ -1177,8 +1177,8 @@ public class DefaultValueCoder implements ValueRenderer {
             throw new IllegalArgumentException("Target object must not be null");
         }
         if (_superClassValueRenderer != null) {
-            _superClassValueRenderer.render(value, target, clazz
-                    .getSuperclass(), context);
+            _superClassValueRenderer.render(value, target,
+                    clazz.getSuperclass(), context);
         }
 
         if (target instanceof Externalizable) {
@@ -1190,8 +1190,8 @@ public class DefaultValueCoder implements ValueRenderer {
                         + _clazz, e);
             }
         } else if (_readObjectMethod != null) {
-            invokeMethod(value, _readObjectMethod, target, new Object[] { value
-                    .getObjectInputStream() }, true);
+            invokeMethod(value, _readObjectMethod, target,
+                    new Object[] { value.getObjectInputStream() }, true);
         } else {
             renderDefaultFields(value, target);
         }
@@ -1244,7 +1244,7 @@ public class DefaultValueCoder implements ValueRenderer {
      */
     @Override
     public String toString() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         sb.append("DefaultValueCoder(");
         sb.append(_clazz.getName());
         sb.append(",");

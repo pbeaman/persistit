@@ -16,6 +16,18 @@
 
 package com.persistit;
 
+import static com.persistit.Key.AFTER;
+import static com.persistit.Key.BEFORE;
+import static com.persistit.Key.EQ;
+import static com.persistit.Key.GT;
+import static com.persistit.Key.GTEQ;
+import static com.persistit.Key.LEFT_GUARD_KEY;
+import static com.persistit.Key.LT;
+import static com.persistit.Key.LTEQ;
+import static com.persistit.Key.RIGHT_GUARD_KEY;
+import static com.persistit.Key.maxStorableKeySize;
+
+import com.persistit.Key.Direction;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
@@ -114,10 +126,14 @@ public final class Exchange implements BuildConstants {
      */
     final static int MAX_WALK_RIGHT = 50;
 
-    private final static int LEFT_CLAIMED = 1;
-    private final static int RIGHT_CLAIMED = 2;
+    /**
+     * Upper bound on long record chains.
+     */
+    final static int MAX_LONG_RECORD_CHAIN = 5000;
 
-    private final static long RETRY_SLEEP_TIME = 10;
+    private final static int LEFT_CLAIMED = 1;
+
+    private final static int RIGHT_CLAIMED = 2;
 
     private Persistit _persistit;
 
@@ -156,6 +172,8 @@ public final class Exchange implements BuildConstants {
     private boolean _relinquished;
     private boolean _secure = false;
     private boolean _ignoreTransactions;
+
+    private long _longRecordPageAddress;
 
     private Object _lock = new Object();
 
@@ -264,7 +282,7 @@ public final class Exchange implements BuildConstants {
         _spareValue = new Value(persistit);
         _volume = tree.getVolume();
         _tree = tree;
-        _pool = _persistit.getBufferPool(_volume.getBufferSize());
+        _pool = _persistit.getBufferPool(_volume.getPageSize());
         _isDirectoryExchange = true;
         _transaction = _persistit.getTransaction();
         _timeout = _persistit.getDefaultTimeout();
@@ -284,7 +302,7 @@ public final class Exchange implements BuildConstants {
             throw new TreeNotFoundException(treeName);
         }
 
-        _pool = _persistit.getBufferPool(volume.getBufferSize());
+        _pool = _persistit.getBufferPool(volume.getPageSize());
         _transaction = _persistit.getTransaction();
         _timeout = _persistit.getDefaultTimeout();
         _value.clear();
@@ -934,6 +952,7 @@ public final class Exchange implements BuildConstants {
         int currentLevel;
         int foundAt = -1;
         boolean found = false;
+        Exception exception = null;
 
         if (!_tree.claim(false)) {
             if (Debug.ENABLED)
@@ -1018,6 +1037,14 @@ public final class Exchange implements BuildConstants {
             }
             // Should never get here.
             return -1;
+
+            // TODO - remove these catch clauses when not needed for debugging.
+        } catch (PersistitException e) {
+            exception = e;
+            throw e;
+        } catch (RuntimeException e) {
+            exception = e;
+            throw e;
         } finally {
             if (oldBuffer != null) {
                 // _persistit.getLockManager().setOffset();
@@ -1138,10 +1165,12 @@ public final class Exchange implements BuildConstants {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
-        _key.testValidForStore(_volume.getBufferSize());
+        _key.testValidForStoreAndFetch(_volume.getPageSize());
+        _persistit.suspend();
         checkOwnerThread();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
+        _transaction.assignTimestamp();
         storeInternal(key, value, 0, false, false);
         _persistit.getLockManager().verifyNoStrayResourceClaims(
                 lockedResourceCount);
@@ -1163,16 +1192,10 @@ public final class Exchange implements BuildConstants {
         int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
 
-        long journalId = -1;
         final boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
 
-        // if (!inTxn && level == 0) {
-        // journalId = journal().beginStore(_tree, key, value, fetchFirst);
-        // }
-
-        int maxSimpleSize = _volume.getBufferSize() - Buffer.OVERHEAD
-                - Key.maxStorableKeySize(_volume.getBufferSize()) * 2;
+        int maxSimpleSize = _volume.getPageSize() - Buffer.OVERHEAD
+                - maxStorableKeySize(_volume.getPageSize()) * 2;
 
         //
         // First insert the record in the data page
@@ -1253,19 +1276,8 @@ public final class Exchange implements BuildConstants {
                         if (value.getEncodedSize() > maxSimpleSize) {
                             newLongRecordPointer = storeOverlengthRecord(value,
                                     0);
-                            //
-                            // Lie to the transaction system
-                            // TODO - check whether this is really needed
-                            //
-                            value.setLongRecordMode(false);
                         }
-                        try {
-                            _transaction.store(this, key, value);
-                        } finally {
-                            if (newLongRecordPointer != 0) {
-                                value.setLongRecordMode(true);
-                            }
-                        }
+                        _transaction.store(this, key, value);
                         committed = true;
                         break;
                     }
@@ -1325,10 +1337,9 @@ public final class Exchange implements BuildConstants {
                     }
 
                     if (Debug.ENABLED)
-                        Debug
-                                .$assert(buffer != null
-                                        && (buffer._status & SharedResource.WRITER_MASK) != 0
-                                        && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+                        Debug.$assert(buffer != null
+                                && (buffer._status & SharedResource.WRITER_MASK) != 0
+                                && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
 
                     if ((foundAt & Buffer.EXACT_MASK) != 0) {
                         oldLongRecordPointer = buffer
@@ -1343,6 +1354,8 @@ public final class Exchange implements BuildConstants {
                     if (value.getEncodedSize() > maxSimpleSize && !overlength) {
                         newLongRecordPointer = storeLongRecord(value,
                                 oldLongRecordPointer, 0);
+                    } else {
+                        _longRecordPageAddress = 0;
                     }
                     final int lockedResourceCount2 = _persistit
                             .getLockManager().getLockedResourceCount();
@@ -1357,9 +1370,8 @@ public final class Exchange implements BuildConstants {
                             lockedResourceCount2);
 
                     if (Debug.ENABLED)
-                        Debug
-                                .$assert((buffer._status & SharedResource.WRITER_MASK) != 0
-                                        && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+                        Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
+                                && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
                     //
                     // If a split is required then putLevel did not change
                     // anything. We need to repeat this after acquiring a
@@ -1367,7 +1379,7 @@ public final class Exchange implements BuildConstants {
                     // then the putLevel method did not actually split the
                     // page. It just backed out so we could repeat after
                     // acquiring the claim.
-                    // 
+                    //
                     if (splitPerformed && !treeClaimAcquired) {
                         treeClaimRequired = true;
                         _pool.release(buffer);
@@ -1532,13 +1544,13 @@ public final class Exchange implements BuildConstants {
             // it is not necessary to invoke value.setPointerPageType() here.
             //
             value.setPointerValue(leftSiblingPointer);
-            buffer.putValue(Key.LEFT_GUARD_KEY, value);
+            buffer.putValue(LEFT_GUARD_KEY, value);
 
             value.setPointerValue(rightSiblingPointer);
             buffer.putValue(key, value);
 
             value.setPointerValue(-1);
-            buffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
+            buffer.putValue(RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
 
             buffer.setDirtyStructure();
 
@@ -1715,7 +1727,7 @@ public final class Exchange implements BuildConstants {
      * @return <tt>true</tt> if there is a key to traverse to, else null.
      * @throws PersistitException
      */
-    public boolean traverse(Key.Direction direction, boolean deep)
+    public boolean traverse(Direction direction, boolean deep)
             throws PersistitException {
         return traverse(direction, deep, Integer.MAX_VALUE);
     }
@@ -1767,8 +1779,8 @@ public final class Exchange implements BuildConstants {
      * 
      * @throws PersistitException
      */
-    public boolean traverse(final Key.Direction direction, final boolean deep, final int minBytes)
-            throws PersistitException {
+    public boolean traverse(final Direction direction, final boolean deep,
+            final int minBytes) throws PersistitException {
         checkOwnerThread();
 
         boolean doFetch = minBytes > 0;
@@ -1782,35 +1794,41 @@ public final class Exchange implements BuildConstants {
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
         Buffer buffer = null;
-        
+
         if (doFetch) {
             _value.clear();
         }
-        
-        final boolean reverse = (direction == Key.LT) || (direction == Key.LTEQ);
+
+        final boolean reverse = (direction == LT) || (direction == LTEQ);
+
         if (_key.getEncodedSize() == 0) {
-        	_key.append(reverse ? Key.AFTER : Key.BEFORE);
+            _key.append(reverse ? AFTER : BEFORE);
         }
+
+        _key.testValidForTraverse();
+
+        boolean checkEqualCase = (direction == EQ || direction == GTEQ || direction == LTEQ)
+                && !_key.isSpecial();
 
         checkLevelCache();
 
         try {
-            boolean checkEqualCase = (direction == Key.EQ
-                    || direction == Key.GTEQ || direction == Key.LTEQ)
-                    && !_key.isLeftEdge() && !_key.isRightEdge();
-
             if (checkEqualCase && inTxn) {
                 Boolean txnResult = _transaction.fetch(this, this.getValue(),
                         minBytes);
 
+                //
+                // A pending STORE transaction record overrides
+                // the base record.
+                //
                 if (txnResult == Boolean.TRUE) {
                     return true;
 
                 } else if (txnResult == Boolean.FALSE) {
                     //
-                    // A pending transaction record overrides the
+                    // A pending DELETE transaction record overrides the
                     // base record.
-                    // 
+                    //
                     checkEqualCase = false;
                 }
             }
@@ -1845,7 +1863,7 @@ public final class Exchange implements BuildConstants {
                 _pool.release(buffer);
                 buffer = null;
             }
-            if (direction == Key.EQ) {
+            if (direction == EQ) {
                 //
                 // For EQ only, failing to find an exact match causes
                 // traversal to fail. For LTEQ and GTEQ, we fall through
@@ -1863,12 +1881,31 @@ public final class Exchange implements BuildConstants {
             _key.copyTo(_spareKey1);
             int index = _spareKey1.getEncodedSize();
             //
+            //
+            // Asymmetrical because buffer.traverse is asymmetrical.
+            // There is no left-sibling pointer.
+            //
+            boolean nudged = false;
+            Key.Direction dir = direction;
+
             if (index == 0) {
-                _spareKey1.append(reverse ? Key.AFTER : Key.BEFORE);
-            } else if (direction == Key.LT) {
-                _spareKey1.nudgeDown();
-            } else if (!deep && direction == Key.GT) {
-                _spareKey1.nudgeUp();
+                _spareKey1.append(reverse ? AFTER : BEFORE);
+            } else if (dir == GT || dir == GTEQ) {
+                dir = GT;
+                if (!_spareKey1.isSpecial()) {
+                    if (deep) {
+                        _spareKey1.nudgeDeeper();
+                    } else {
+                        _spareKey1.nudgeRight();
+                    }
+                    nudged = true;
+                }
+            } else if (dir == LT || dir == LTEQ) {
+                dir = LTEQ;
+                if (!_spareKey1.isSpecial()) {
+                    _spareKey1.nudgeLeft();
+                    nudged = true;
+                }
             }
 
             int foundAt;
@@ -1880,8 +1917,7 @@ public final class Exchange implements BuildConstants {
                 foundAt = search(_spareKey1);
                 lc = _levelCache[0];
                 buffer = lc._buffer;
-
-                foundAtNext = buffer.traverse(_spareKey1, direction, foundAt);
+                foundAtNext = buffer.traverse(_spareKey1, dir, foundAt);
 
                 if (buffer.isAfterRightEdge(foundAtNext)) {
                     // long leftSiblingPage = buffer.getPageAddress(); //
@@ -1889,9 +1925,8 @@ public final class Exchange implements BuildConstants {
                     long rightSiblingPage = buffer.getRightSibling();
 
                     if (Debug.ENABLED)
-                        Debug
-                                .$assert(rightSiblingPage >= 0
-                                        && rightSiblingPage <= Buffer.MAX_VALID_PAGE_ADDR);
+                        Debug.$assert(rightSiblingPage >= 0
+                                && rightSiblingPage <= Buffer.MAX_VALID_PAGE_ADDR);
 
                     if (rightSiblingPage > 0) {
                         Buffer rightSibling = _pool.get(_volume,
@@ -1903,12 +1938,11 @@ public final class Exchange implements BuildConstants {
                         _pool.release(buffer);
                         //
                         // Reset foundAtNext to point to the first key block
-                        // of
-                        // the right sibling page.
+                        // of the right sibling page.
                         //
                         buffer = rightSibling;
                         checkPageType(buffer, Buffer.PAGE_TYPE_DATA);
-                        foundAtNext = buffer.traverse(_spareKey1, direction,
+                        foundAtNext = buffer.traverse(_spareKey1, dir,
                                 buffer.toKeyBlock(0));
                         // So that we don't mistakenly throw a
                         // CorruptVolumeException
@@ -1916,7 +1950,8 @@ public final class Exchange implements BuildConstants {
                     }
                 }
 
-                if (foundAtNext == foundAt) {
+                if (!nudged && foundAtNext == foundAt
+                        && !_spareKey1.isSpecial()) {
                     if (Debug.ENABLED)
                         Debug.debug1(true);
 
@@ -1935,7 +1970,7 @@ public final class Exchange implements BuildConstants {
                     // that has been added by the pending transaction.
                     // This is split into two calls. The first looks for
                     // a pending remove operation that affects the result.
-                    // 
+                    //
                     //
                     Boolean txnResult = _transaction.traverse(this, _spareKey1,
                             direction, deep, minBytes);
@@ -1961,6 +1996,10 @@ public final class Exchange implements BuildConstants {
                             // range, and then we must go back and
                             // traverse again.
                             //
+                            if (dir == LTEQ && !_spareKey1.isSpecial()) {
+                                _spareKey1.nudgeLeft();
+                                nudged = true;
+                            }
                             continue;
                         }
                     }
@@ -2043,7 +2082,7 @@ public final class Exchange implements BuildConstants {
                 } else {
                     if (deep)
                         _key.setEncodedSize(0);
-                    _key.to(reverse ? Key.AFTER : Key.BEFORE);
+                    _key.to(reverse ? AFTER : BEFORE);
                 }
             }
             result = matches;
@@ -2106,28 +2145,43 @@ public final class Exchange implements BuildConstants {
      * 
      * @throws PersistitException
      */
-    public boolean traverse(Key.Direction direction, KeyFilter keyFilter,
-            int minBytes) throws PersistitException {
+    public boolean traverse(final Direction direction,
+            final KeyFilter keyFilter, int minBytes) throws PersistitException {
         if (keyFilter == null) {
             return traverse(direction, true, minBytes);
         }
 
-        final boolean reverse = (direction == Key.LT) || (direction == Key.LTEQ);
+        if (direction == EQ) {
+            return keyFilter.selected(_key)
+                    && traverse(direction, true, minBytes);
+        }
+
+        final boolean forward = (direction == GT) || (direction == GTEQ);
+
+        boolean edge = (direction == EQ || direction == LTEQ || direction == GTEQ);
+
+        if (_key.getEncodedSize() == 0) {
+            _key.append(forward ? BEFORE : AFTER);
+        }
+
+        if (edge && keyFilter.selected(_key)
+                && traverse(forward ? GTEQ : LTEQ, true, minBytes)) {
+            return true;
+        }
 
         for (;;) {
-            boolean result = traverse(direction, true, minBytes);
-            if (result) {
-                if (keyFilter.selected(_key)) {
-                    return true;
-                } else {
-                    result = keyFilter.traverse(_key, !reverse);
-                    if (!result) {
-                        _key.clear().append(reverse ? Key.AFTER : Key.BEFORE);
-                        return false;
-                    }
-                }
-            } else
+            if (!keyFilter.traverse(_key, forward)) {
                 return false;
+            }
+            edge = keyFilter.selected(_key);
+            Direction dir = forward ? (edge ? GTEQ : GT) : (edge ? LTEQ : LT);
+            if (!traverse(dir, true, minBytes)) {
+                return false;
+            }
+            edge = keyFilter.selected(_key);
+            if (edge) {
+                return true;
+            }
         }
     }
 
@@ -2139,7 +2193,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean next() throws PersistitException {
-        return traverse(Key.GT, false);
+        return traverse(GT, false);
     }
 
     /**
@@ -2150,7 +2204,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean previous() throws PersistitException {
-        return traverse(Key.LT, false);
+        return traverse(LT, false);
     }
 
     /**
@@ -2168,7 +2222,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean next(boolean deep) throws PersistitException {
-        return traverse(Key.GT, deep);
+        return traverse(GT, deep);
     }
 
     /**
@@ -2187,7 +2241,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean previous(boolean deep) throws PersistitException {
-        return traverse(Key.LT, deep);
+        return traverse(LT, deep);
     }
 
     /**
@@ -2199,7 +2253,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean next(KeyFilter filter) throws PersistitException {
-        return traverse(Key.GT, filter, Integer.MAX_VALUE);
+        return traverse(GT, filter, Integer.MAX_VALUE);
     }
 
     /**
@@ -2211,7 +2265,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean previous(KeyFilter filter) throws PersistitException {
-        return traverse(Key.LT, filter, Integer.MAX_VALUE);
+        return traverse(LT, filter, Integer.MAX_VALUE);
     }
 
     /**
@@ -2224,7 +2278,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean hasNext() throws PersistitException {
-        return traverse(Key.GT, false, -1);
+        return traverse(GT, false, -1);
     }
 
     /**
@@ -2240,7 +2294,7 @@ public final class Exchange implements BuildConstants {
         if (filter == null)
             return hasNext();
         _key.copyTo(_spareKey2);
-        boolean result = traverse(Key.GT, filter, 0);
+        boolean result = traverse(GT, filter, 0);
         _spareKey2.copyTo(_key);
         return result;
     }
@@ -2262,7 +2316,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean hasNext(boolean deep) throws PersistitException {
-        return traverse(Key.GT, deep, -1);
+        return traverse(GT, deep, -1);
     }
 
     /**
@@ -2274,7 +2328,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean hasPrevious() throws PersistitException {
-        return traverse(Key.LT, false, -1);
+        return traverse(LT, false, -1);
     }
 
     /**
@@ -2295,7 +2349,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean hasPrevious(boolean deep) throws PersistitException {
-        return traverse(Key.LT, deep, -1);
+        return traverse(LT, deep, -1);
     }
 
     /**
@@ -2311,7 +2365,7 @@ public final class Exchange implements BuildConstants {
         if (filter == null)
             return hasPrevious();
         _key.copyTo(_spareKey2);
-        boolean result = traverse(Key.GT, filter, 0);
+        boolean result = traverse(GT, filter, 0);
         _spareKey2.copyTo(_key);
         return result;
     }
@@ -2327,7 +2381,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean isValueDefined() throws PersistitException {
-        return traverse(Key.EQ, false, -1);
+        return traverse(EQ, false, -1);
     }
 
     /**
@@ -2366,10 +2420,12 @@ public final class Exchange implements BuildConstants {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
-        _key.testValidForStore(_volume.getBufferSize());
+        _key.testValidForStoreAndFetch(_volume.getPageSize());
+        _persistit.suspend();
         checkOwnerThread();
         int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
+        _transaction.assignTimestamp();
         storeInternal(_key, _value, 0, true, false);
         _persistit.getLockManager().verifyNoStrayResourceClaims(
                 lockedResourceCount);
@@ -2457,7 +2513,7 @@ public final class Exchange implements BuildConstants {
     public Exchange fetch(Value value, int minimumBytes)
             throws PersistitException {
         checkOwnerThread();
-        _key.testValidForStore(_volume.getBufferSize());
+        _key.testValidForStoreAndFetch(_volume.getPageSize());
         if (minimumBytes < 0)
             minimumBytes = 0;
         final int lockedResourceCount = _persistit.getLockManager()
@@ -2504,8 +2560,6 @@ public final class Exchange implements BuildConstants {
             // update.
             //
             fetchLongRecord(value, minimumBytes);
-        } else {
-            value.setLongSize(value.getEncodedSize());
         }
     }
 
@@ -2606,9 +2660,10 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean fetchAndRemove() throws PersistitException {
+        _persistit.suspend();
         checkOwnerThread();
         _spareValue.clear();
-        boolean result = remove(Key.EQ, true);
+        boolean result = remove(EQ, true);
         _spareValue.copyTo(_value);
         if (Debug.ENABLED)
             Debug.$assert(_value.isDefined() == result);
@@ -2624,6 +2679,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public void removeTree() throws PersistitException {
+        _persistit.suspend();
         checkOwnerThread();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
@@ -2649,7 +2705,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean remove() throws PersistitException {
-        return remove(Key.EQ, false);
+        return remove(EQ, false);
     }
 
     /**
@@ -2660,7 +2716,7 @@ public final class Exchange implements BuildConstants {
      */
     public boolean removeAll() throws PersistitException {
         clear();
-        return remove(Key.GTEQ);
+        return remove(GTEQ);
     }
 
     /**
@@ -2687,15 +2743,15 @@ public final class Exchange implements BuildConstants {
      *         </i>false</i>.
      * @throws PersistitException
      */
-    public boolean remove(Key.Direction direction) throws PersistitException {
+    public boolean remove(Direction direction) throws PersistitException {
         return remove(direction, false);
     }
 
-    private boolean remove(Key.Direction selection, boolean fetchFirst)
+    private boolean remove(Direction selection, boolean fetchFirst)
             throws PersistitException {
         checkOwnerThread();
 
-        if (selection != Key.EQ && selection != Key.GTEQ && selection != Key.GT) {
+        if (selection != EQ && selection != GTEQ && selection != GT) {
             throw new IllegalArgumentException("Invalid mode " + selection);
         }
 
@@ -2706,19 +2762,20 @@ public final class Exchange implements BuildConstants {
 
         // Special case for empty key
         if (keySize == 0) {
-            if (selection == Key.EQ)
+            if (selection == EQ) {
                 return false;
-            _spareKey1.append(Key.BEFORE);
-            _spareKey2.append(Key.AFTER);
+            }
+            _spareKey1.append(BEFORE);
+            _spareKey2.append(AFTER);
         } else {
-            if (selection == Key.EQ || selection == Key.GTEQ) {
-                _spareKey1.nudgeDown();
+            if (selection == EQ || selection == GTEQ) {
+                _spareKey1.nudgeLeft();
             } else {
-                _spareKey1.nudgeUp2();
+                _spareKey1.nudgeDeeper();
             }
 
-            if (selection == Key.GTEQ || selection == Key.GT) {
-                _spareKey2.nudgeUp();
+            if (selection == GTEQ || selection == GT) {
+                _spareKey2.nudgeRight();
             }
         }
 
@@ -2754,14 +2811,14 @@ public final class Exchange implements BuildConstants {
 
         // Special case for empty key
         if (key1.getEncodedSize() == 0) {
-            _spareKey1.append(Key.BEFORE);
+            _spareKey1.append(BEFORE);
         } else
-            _spareKey1.nudgeDown();
+            _spareKey1.nudgeLeft();
 
         if (key2.getEncodedSize() == 0) {
-            _spareKey2.append(Key.AFTER);
+            _spareKey2.append(AFTER);
         } else {
-            _spareKey2.nudgeDown();
+            _spareKey2.nudgeLeft();
         }
 
         if (_spareKey1.compareTo(_spareKey2) >= 0) {
@@ -2788,6 +2845,7 @@ public final class Exchange implements BuildConstants {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
+        _persistit.suspend();
         checkOwnerThread();
 
         if (Debug.ENABLED)
@@ -2859,9 +2917,9 @@ public final class Exchange implements BuildConstants {
                                                 buffer, foundAt2);
                                     }
                                     final boolean anyLongRecords = _volume
-                                            .harvestLongRecords(_tree
-                                                    .getTreeIndex(), buffer,
-                                                    foundAt1, foundAt2);
+                                            .harvestLongRecords(
+                                                    _tree.getTreeIndex(),
+                                                    buffer, foundAt1, foundAt2);
 
                                     boolean removed = buffer.removeKeys(
                                             foundAt1, foundAt2, _spareKey1);
@@ -2974,8 +3032,7 @@ public final class Exchange implements BuildConstants {
                             foundAt2 &= Buffer.P_MASK;
 
                             if (Debug.ENABLED)
-                                Debug
-                                        .$assert(foundAt2 != Buffer.INITIAL_KEY_BLOCK_START_VALUE);
+                                Debug.$assert(foundAt2 != Buffer.INITIAL_KEY_BLOCK_START_VALUE);
 
                             buffer = lc._buffer;
                             lc._flags |= RIGHT_CLAIMED;
@@ -3091,8 +3148,7 @@ public final class Exchange implements BuildConstants {
                                         int foundAt = buffer
                                                 .findKey(_spareKey1);
                                         if (Debug.ENABLED)
-                                            Debug
-                                                    .$assert((foundAt & Buffer.EXACT_MASK) == 0);
+                                            Debug.$assert((foundAt & Buffer.EXACT_MASK) == 0);
                                         // Try it the simple way
                                         _value.setPointerValue(buffer2
                                                 .getPageAddress());
@@ -3125,7 +3181,7 @@ public final class Exchange implements BuildConstants {
                             _key.copyTo(_spareKey1);
                             //
                             // Before we remove these records, we need to
-                            // recover any LONG_RECORD pointers that mey be
+                            // recover any LONG_RECORD pointers that may be
                             // associated with keys in this range.
                             //
                             final boolean anyLongRecords = _volume
@@ -3223,9 +3279,7 @@ public final class Exchange implements BuildConstants {
                             if (buffer.getGeneration() == lc._deferredReindexChangeCount) {
                                 checkPageType(buffer, level
                                         + Buffer.PAGE_TYPE_DATA);
-                                buffer
-                                        .nextKey(_spareKey2, buffer
-                                                .toKeyBlock(0));
+                                buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
                                 _value.setPointerValue(buffer.getPageAddress());
                                 _value.setPointerPageType(buffer.getPageType());
                                 storeInternal(_spareKey2, _value, level + 1,
@@ -3378,12 +3432,11 @@ public final class Exchange implements BuildConstants {
                                 + (rawBytes[0] & 0xFF) + " but should be "
                                 + Buffer.LONGREC_TYPE);
             }
-            rawSize = Buffer.decodeLongRecordDescriptorSize(rawBytes, 0);
-            long page = Buffer.decodeLongRecordDescriptorPointer(rawBytes, 0);
+            int longSize = Buffer.decodeLongRecordDescriptorSize(rawBytes, 0);
+            long startAtPage = Buffer.decodeLongRecordDescriptorPointer(
+                    rawBytes, 0);
 
-            // long firstPage = page;
-            // long previousPage = -1; // DEBUG - debug only
-            int remainingSize = Math.min(rawSize, minimumBytesFetched);
+            int remainingSize = Math.min(longSize, minimumBytesFetched);
 
             value.ensureFit(remainingSize);
             value.setEncodedSize(remainingSize);
@@ -3394,13 +3447,14 @@ public final class Exchange implements BuildConstants {
             // and JRE 1.4.2 System.arraycopy implementation. Without this, the
             // arraycopy method corrupts the array.
             //
-            Util.arraycopy(rawBytes, Buffer.LONGREC_PREFIX_OFFSET, value
-                    .getEncodedBytes(), offset, Buffer.LONGREC_PREFIX_SIZE);
+            Util.arraycopy(rawBytes, Buffer.LONGREC_PREFIX_OFFSET,
+                    value.getEncodedBytes(), offset, Buffer.LONGREC_PREFIX_SIZE);
 
             offset += Buffer.LONGREC_PREFIX_SIZE;
             remainingSize -= Buffer.LONGREC_PREFIX_SIZE;
+            long page = startAtPage;
 
-            while (page != 0 && offset < minimumBytesFetched) {
+            for (int count = 0; page != 0 && offset < minimumBytesFetched; count++) {
                 if (remainingSize <= 0) {
                     if (Debug.ENABLED)
                         Debug.debug1(true);
@@ -3423,8 +3477,8 @@ public final class Exchange implements BuildConstants {
                 if (segmentSize > remainingSize)
                     segmentSize = remainingSize;
 
-                System.arraycopy(buffer.getBytes(), Buffer.HEADER_SIZE, value
-                        .getEncodedBytes(), offset, segmentSize);
+                System.arraycopy(buffer.getBytes(), Buffer.HEADER_SIZE,
+                        value.getEncodedBytes(), offset, segmentSize);
 
                 offset += segmentSize;
                 remainingSize -= segmentSize;
@@ -3435,6 +3489,15 @@ public final class Exchange implements BuildConstants {
                 }
                 _pool.release(buffer);
                 buffer = null;
+
+                if (count > MAX_LONG_RECORD_CHAIN) {
+                    if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
+                        throw new CorruptVolumeException(
+                                "LONG_RECORD chain starting at " + startAtPage
+                                        + " is too long");
+                    }
+
+                }
             }
             value.setLongSize(rawSize);
             value.setEncodedSize(offset);
@@ -3578,6 +3641,7 @@ public final class Exchange implements BuildConstants {
             completed = true;
             Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize,
                     page);
+            _longRecordPageAddress = page;
             return page;
         } finally {
             if (!completed) {
@@ -3587,9 +3651,9 @@ public final class Exchange implements BuildConstants {
                         if (buffer != null) {
                             _pool.release(buffer);
                             if (loosePageIndex >= 0 && index >= loosePageIndex) {
-                                _volume.deallocateGarbageChainDeferred(_tree
-                                        .getTreeIndex(), buffer
-                                        .getPageAddress(), -1);
+                                _volume.deallocateGarbageChainDeferred(
+                                        _tree.getTreeIndex(),
+                                        buffer.getPageAddress(), -1);
                                 _hasDeferredDeallocations = true;
                             }
                         }
@@ -3687,6 +3751,7 @@ public final class Exchange implements BuildConstants {
                 Buffer.writeLongRecordDescriptor(value.getEncodedBytes(),
                         longSize, page);
                 completed = true;
+                _longRecordPageAddress = page;
                 return page;
             }
         } finally {
@@ -3699,6 +3764,44 @@ public final class Exchange implements BuildConstants {
             }
             if (!completed)
                 value.changeLongRecordMode(false);
+        }
+    }
+
+    void writeLongRecordPagesToJournal() throws PersistitException {
+        Buffer buffer = null;
+        long page = _longRecordPageAddress;
+        if (page == 0) {
+            return;
+        }
+        try {
+            for (int count = 0; page != 0; count++) {
+                buffer = _volume.getPool().get(_volume, page, false, true);
+                if (buffer.getPageType() != Buffer.PAGE_TYPE_LONG_RECORD) {
+                    if (Debug.ENABLED) {
+                        Debug.debug1(true);
+                    }
+                    throw new CorruptVolumeException(
+                            "LONG_RECORD chain  starting at "
+                                    + _longRecordPageAddress
+                                    + " is invalid at page " + page
+                                    + " - invalid page type: " + buffer);
+                }
+                if (buffer.isDirty()) {
+                    buffer.writePage();
+                }
+                page = buffer.getRightSibling();
+                _volume.getPool().release(buffer);
+                buffer = null;
+                if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
+                    throw new CorruptVolumeException(
+                            "LONG_RECORD chain starting at "
+                                    + _longRecordPageAddress + " is too long");
+                }
+            }
+        } finally {
+            if (buffer != null) {
+                _volume.getPool().release(buffer);
+            }
         }
     }
 
@@ -3742,7 +3845,7 @@ public final class Exchange implements BuildConstants {
         checkOwnerThread();
         if (tree.getVolume() != _volume) {
             _volume = tree.getVolume();
-            _pool = _persistit.getBufferPool(_volume.getBufferSize());
+            _pool = _persistit.getBufferPool(_volume.getPageSize());
         }
         if (_tree != tree) {
             _tree = tree;
@@ -3856,7 +3959,7 @@ public final class Exchange implements BuildConstants {
             final int sampleSize, final int keyDepth,
             final KeyFilter keyFilter, final int requestedTreeDepth)
             throws PersistitException {
-        
+
         checkOwnerThread();
         checkLevelCache();
         final int treeDepth = requestedTreeDepth > _treeDepth ? _treeDepth
@@ -3873,12 +3976,12 @@ public final class Exchange implements BuildConstants {
         Buffer previousBuffer = null;
         LevelCache lc = null;
         Buffer buffer = null;
-        Key.Direction direction = Key.GTEQ;
+        Direction direction = GTEQ;
         if (start != null) {
             start.copyTo(_key);
         } else {
-            Key.LEFT_GUARD_KEY.copyTo(_key);
-            direction = Key.GT;
+            LEFT_GUARD_KEY.copyTo(_key);
+            direction = GT;
         }
 
         int foundAt = searchTree(_key, treeDepth);
@@ -3891,7 +3994,7 @@ public final class Exchange implements BuildConstants {
 
             while (foundAt != -1) {
                 foundAt = buffer.traverse(_key, direction, foundAt);
-                direction = Key.GT;
+                direction = GT;
                 if (buffer.isAfterRightEdge(foundAt)) {
                     long rightSiblingPage = buffer.getRightSibling();
                     if (rightSiblingPage > 0) {
@@ -3905,8 +4008,8 @@ public final class Exchange implements BuildConstants {
                         //
                         buffer = rightSibling;
                         checkPageType(buffer, treeDepth + 1);
-                        foundAt = buffer.traverse(_key, Key.GT, buffer
-                                .toKeyBlock(0));
+                        foundAt = buffer.traverse(_key, GT,
+                                buffer.toKeyBlock(0));
                     } else {
                         foundAt = -1;
                         break;
@@ -3917,9 +4020,10 @@ public final class Exchange implements BuildConstants {
                 }
                 if (!_key.isLeftEdge()) {
                     if (buffer != previousBuffer) {
-                        histogram.addPage(buffer.getBufferSize(), buffer
-                                .getBufferSize()
-                                - buffer.getAvailableSize());
+                        histogram.addPage(
+                                buffer.getBufferSize(),
+                                buffer.getBufferSize()
+                                        - buffer.getAvailableSize());
                         previousBuffer = buffer;
                     }
                     if (keyFilter == null || keyFilter.selected(_key)) {

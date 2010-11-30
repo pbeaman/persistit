@@ -1430,6 +1430,10 @@ public final class Key implements Comparable<Object> {
         return this;
     }
 
+    private enum Nudged {
+        NO, LEFT, RIGHT, DOWN
+    };
+
     /**
      * Returns a displayable String representation of the content of this
      * <tt>Key</tt>
@@ -1440,9 +1444,27 @@ public final class Key implements Comparable<Object> {
         if (_size == 0) {
             return "{}";
         }
-        StringBuffer sb = new StringBuffer("{");
+        StringBuilder sb = new StringBuilder("{");
         int index = _index;
         _index = 0;
+
+        Nudged nudged = Nudged.NO;
+        if (_size >= 2) {
+            byte z0 = _bytes[_size - 2];
+            byte z1 = _bytes[_size - 1];
+            if (z0 == 0 && z1 == 0) {
+                nudged = Nudged.DOWN;
+                _size--;
+            } else if (z1 == (byte) 1) {
+                nudged = Nudged.RIGHT;
+                _bytes[_size - 1] = 0;
+            } else if (z1 == (byte) 0xFF) {
+                nudged = Nudged.LEFT;
+                _bytes[_size - 2]++;
+                _bytes[_size - 1] = (byte) 0;
+            }
+        }
+
         try {
             for (int depth = 0; _index < _size; depth++) {
                 if (depth > 0)
@@ -1450,10 +1472,37 @@ public final class Key implements Comparable<Object> {
                 decodeDisplayable(true, sb);
             }
             sb.append("}");
+            switch (nudged) {
+            case LEFT:
+                sb.append('-');
+                break;
+            case RIGHT:
+                sb.append('+');
+                break;
+            case DOWN:
+                sb.append("*");
+                break;
+            case NO:
+                // no annotation
+            }
             return sb.toString();
         } catch (Exception e) {
             return e + "(size=" + _size + ") " + Util.hexDump(_bytes, 0, _size);
         } finally {
+            switch (nudged) {
+            case LEFT:
+                _bytes[_size - 2]--;
+                _bytes[_size - 1] = (byte) 0xFF;
+                break;
+            case RIGHT:
+                _bytes[_size - 1] = (byte) 1;
+                break;
+            case DOWN:
+                _size++;
+                break;
+            case NO:
+                // no correction
+            }
             _index = index;
         }
     }
@@ -1946,8 +1995,8 @@ public final class Key implements Comparable<Object> {
             return appendString((String) object, context);
         }
 
-        if (cl == StringBuffer.class) {
-            return appendString((StringBuffer) object, context);
+        if (cl == StringBuilder.class) {
+            return appendString((StringBuilder) object, context);
         }
 
         if (cl == Boolean.class) {
@@ -2535,7 +2584,7 @@ public final class Key implements Comparable<Object> {
      *             if the next key segment value is not a String.
      */
     public String decodeString() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         decodeString(false, sb, null);
         return sb.toString();
     }
@@ -2554,35 +2603,35 @@ public final class Key implements Comparable<Object> {
      *             if the next key segment value is not a String.
      */
     public String decodeString(CoderContext context) {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         decodeString(false, sb, context);
         return sb.toString();
     }
 
     /**
      * Decodes the next key segment as a <tt>String</tt>, appends the result to
-     * the supplied <tt>StringBuffer</tt> and advance the index to the next key
+     * the supplied <tt>StringBuilder</tt> and advance the index to the next key
      * segment. This method uses the <tt>Key</tt>'s {@link KeyStringCoder} if
      * there is one.
      * 
      * @param sb
-     *            The <tt>StringBuffer</tt>
+     *            The <tt>StringBuilder</tt>
      * 
      * @throws ConversionException
      *             if the next key segment value is not a String.
      */
-    public void decodeString(StringBuffer sb) {
+    public void decodeString(StringBuilder sb) {
         decodeString(false, sb, null);
     }
 
     /**
      * Decodes the next key segment as a <tt>String</tt>, appends the result to
-     * the supplied <tt>StringBuffer</tt> and advances the index to the next key
-     * segment. This method uses the <tt>Key</tt>'s {@link KeyStringCoder} if
-     * there is one.
+     * the supplied <tt>StringBuilder</tt> and advances the index to the next
+     * key segment. This method uses the <tt>Key</tt>'s {@link KeyStringCoder}
+     * if there is one.
      * 
      * @param sb
-     *            The <tt>StringBuffer</tt>
+     *            The <tt>StringBuilder</tt>
      * 
      * @param context
      *            An application-specified value that may assist a
@@ -2592,7 +2641,7 @@ public final class Key implements Comparable<Object> {
      * @throws ConversionException
      *             if the next key segment value is not a String.
      */
-    public void decodeString(StringBuffer sb, CoderContext context) {
+    public void decodeString(StringBuilder sb, CoderContext context) {
         decodeString(false, sb, context);
     }
 
@@ -2873,7 +2922,7 @@ public final class Key implements Comparable<Object> {
      *             if the next key segment value is not a boolean.
      */
     public String decodeDisplayable(boolean quoted) {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         decodeDisplayable(quoted, sb);
         return sb.toString();
     }
@@ -2881,7 +2930,7 @@ public final class Key implements Comparable<Object> {
     /**
      * Decodes the next key segment as a displayable String and advances the
      * index to the next key segment. This method appends the decoded String
-     * value to the supplied StringBuffer. If <tt>quoted</tt> is true, and if
+     * value to the supplied StringBuilder. If <tt>quoted</tt> is true, and if
      * the segment value is a String, then the String value is surrounded by
      * quote (") characters, and backslashes are inserted into the display
      * string to quote any embedded any backslash or quote characters. This
@@ -2891,19 +2940,19 @@ public final class Key implements Comparable<Object> {
      * @param quoted
      *            <tt>true</tt> if the resulting string is to be quoted.
      * @param sb
-     *            The <tt>StringBuffer</tt> to which the displayable String is
+     *            The <tt>StringBuilder</tt> to which the displayable String is
      *            to be appended.
      * @throws ConversionException
      *             if the next key segment value is not a boolean.
      */
-    public void decodeDisplayable(boolean quoted, StringBuffer sb) {
+    public void decodeDisplayable(boolean quoted, StringBuilder sb) {
         decodeDisplayable(quoted, sb, null);
     }
 
     /**
      * Decodes the next key segment as a displayable String and advances the
      * index to the next key segment. This method appends the decoded String
-     * value to the supplied StringBuffer. If <tt>quoted</tt> is true, and if
+     * value to the supplied StringBuilder. If <tt>quoted</tt> is true, and if
      * the segment value is a String, then the String value is surrounded by
      * quote (") characters, and backslashes are inserted into the display
      * string to quote any embedded any backslash or quote characters. This
@@ -2913,7 +2962,7 @@ public final class Key implements Comparable<Object> {
      * @param quoted
      *            <tt>true</tt> if the resulting string is to be quoted.
      * @param sb
-     *            The <tt>StringBuffer</tt> to which the displayable string is
+     *            The <tt>StringBuilder</tt> to which the displayable string is
      *            to be appended.
      * @param context
      *            An application-specified value that may assist a
@@ -2922,7 +2971,7 @@ public final class Key implements Comparable<Object> {
      * @throws ConversionException
      *             if the next key segment value is not a boolean.
      */
-    public void decodeDisplayable(boolean quoted, StringBuffer sb,
+    public void decodeDisplayable(boolean quoted, StringBuilder sb,
             CoderContext context) {
         if (_index >= _size)
             return;
@@ -3158,7 +3207,7 @@ public final class Key implements Comparable<Object> {
         if (_size == 0 || _size > 1 && _bytes[_size - 1] == 0)
             return;
 
-        byte b = _bytes[_size - 1];
+        int b = _bytes[_size - 1] & 0xFF;
         if (_size == 1) {
             if (b == TYPE_LEFT_EDGE) {
                 throw new IllegalArgumentException("append to LEFT_EDGE key");
@@ -3175,13 +3224,13 @@ public final class Key implements Comparable<Object> {
         }
     }
 
-    void testValidForStore(int bufferSize) throws InvalidKeyException {
+    void testValidForStoreAndFetch(int bufferSize) throws InvalidKeyException {
         if (_size == 0) {
             throw new InvalidKeyException("Empty Key not permitted");
         } else if (_size > maxStorableKeySize(bufferSize)) {
             throw new InvalidKeyException("Key too long for buffer: " + _size);
         }
-        byte b = _bytes[_size - 1];
+        int b = _bytes[_size - 1] & 0xFF;
         if (b == TYPE_BEFORE || b == TYPE_AFTER) {
             throw new InvalidKeyException(
                     "BEFORE key or AFTER key not permitted");
@@ -3189,6 +3238,17 @@ public final class Key implements Comparable<Object> {
             throw new InvalidKeyException("Invalid key segment terminator "
                     + (b & 0xFF));
         }
+    }
+
+    void testValidForTraverse() throws InvalidKeyException {
+        if (_size == 0) {
+            throw new InvalidKeyException("Empty Key not permitted");
+        }
+        // int b = _bytes[0] & 0xFF;
+        // if (b < TYPE_BEFORE || b > TYPE_AFTER) {
+        // throw new InvalidKeyException(
+        // "Key not between BEFORE and AFTER");
+        // }
     }
 
     static int maxStorableKeySize(int bufferSize) {
@@ -3206,28 +3266,53 @@ public final class Key implements Comparable<Object> {
         return _size > 0 && (_bytes[_size - 1] & 0xFF) == TYPE_AFTER;
     }
 
-    void nudgeDown() {
-        if (_size > 0 && (_bytes[_size - 1] & 0xFF) == 0) {
-            _size--;
+    /**
+     * Modifies this key to become "slightly" larger. If the original value of
+     * the key is K, then this key changes it to a new value K' such that the
+     * only valid keys between K and K' are children of K. Note the resulting K'
+     * is not a valid encoding of key segments. This method is used in defining
+     * ranges of keys for deletion and in tree traversal methods.
+     */
+    void nudgeLeft() {
+        if (_size >= 2 && _bytes[_size - 1] == 0 && _bytes[_size - 2] != 0) {
+            _bytes[_size - 2]--;
+            _bytes[_size - 1] = (byte) 0xFF;
             bumpGeneration();
         }
     }
 
-    void nudgeUp() {
-        if (_size == 0) {
-            _bytes[_size++] = 0;
-            bumpGeneration();
-        } else if ((_bytes[_size - 1] & 0xFF) == 0) {
+    /**
+     * Modifies this key to become "slightly" smaller. If the original value of
+     * the key is K, then this key changes it to a new value K' such that there
+     * are no valid keys between K and K'. Note the resulting K' is not a valid
+     * encoding of key segments. This method is used in defining ranges of keys
+     * for deletion and in tree traversal methods.
+     */
+    void nudgeRight() {
+        if (_size >= 2 && _bytes[_size - 1] == 0 && _bytes[_size - 2] != 0) {
             _bytes[_size - 1] = (byte) 1;
             bumpGeneration();
         }
     }
 
-    void nudgeUp2() {
+    void nudgeDeeper() {
         if (_size < MAX_KEY_LENGTH) {
             _bytes[_size++] = 0;
             bumpGeneration();
         }
+    }
+
+    boolean isSpecial() {
+        if (_size < 2) {
+            return true;
+        }
+        if (_bytes[_size - 1] != 0) {
+            return true;
+        }
+        if (_bytes[_size - 2] == 0) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -3297,11 +3382,11 @@ public final class Key implements Comparable<Object> {
      * Note: this code is paraphrased from java.io.DataOutputStream.
      * 
      * @param s
-     *            a StringBuffer containing the String to encode and append to
+     *            a StringBuilder containing the String to encode and append to
      *            the key.
      * @return This <tt>Key</tt>, to permit method call chaining
      */
-    private Key appendString(StringBuffer s, CoderContext context) {
+    private Key appendString(StringBuilder s, CoderContext context) {
         notLeftOrRightGuard();
         int strlen = s.length();
         int size = _size;
@@ -3415,7 +3500,7 @@ public final class Key implements Comparable<Object> {
         }
     }
 
-    private void decodeDisplayableByKeyCoder(boolean quoted, StringBuffer sb,
+    private void decodeDisplayableByKeyCoder(boolean quoted, StringBuilder sb,
             CoderContext context) {
         int index = _index;
         int size = _size;
@@ -3551,7 +3636,7 @@ public final class Key implements Comparable<Object> {
      * @param quoted
      * @param sb
      */
-    private void decodeString(boolean quoted, StringBuffer sb,
+    private void decodeString(boolean quoted, StringBuilder sb,
             CoderContext context) {
         int index = _index;
         int c1 = _bytes[index++] & 0xFF;
@@ -3563,21 +3648,20 @@ public final class Key implements Comparable<Object> {
             try {
                 _index = index;
                 index--;
-                _stringCoder.renderKeySegment(this, sb, StringBuffer.class,
+                _stringCoder.renderKeySegment(this, sb, StringBuilder.class,
                         context);
                 if (_bytes[_index++] != 0) {
                     throw new ConversionException(_stringCoder.getClass()
-                            .getName()
-                            + " returned incorrect length");
+                            .getName() + " returned incorrect length");
                 }
                 index = _index;
             } finally {
                 _index = index;
             }
         } else {
-            while ((c1 = _bytes[index++] & 0xFF) != 0) {
+            while ((c1 = _bytes[index++] & 0xFF) != 0 && index <= _size) {
                 char c = 0;
-                // Hande encoded NUL and SOH bytes
+                // Handle encoded NUL and SOH bytes
                 if (c1 == 0x01) {
                     int c2 = _bytes[index++] & 0xFF;
                     if (c2 >= 0x0020 && c2 <= 0x0021) {
@@ -3860,7 +3944,7 @@ public final class Key implements Comparable<Object> {
         // This is guaranteed to be more than enough. Each four-bit field of
         // each int will hold a decimal digit, and therefore will hold slightly
         // more than 3 bits worth of information.
-        // 
+        //
         int iLength = (bigInt.bitLength() / 24) + 1;
         int[] buffer = new int[iLength];
         int index = iLength - 1;

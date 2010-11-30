@@ -20,7 +20,7 @@ package com.persistit.stress;
 import com.persistit.ArgParser;
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.TestResult;
 
 public class Stress2 extends StressBase {
 
@@ -106,8 +106,8 @@ public class Stress2 extends StressBase {
                     dot();
                     final int keyInteger = keyInteger(_count);
 
-                    _exs.clear().append("stress2").append(keyInteger).append(
-                            _threadIndex);
+                    _exs.clear().append("stress2").append(keyInteger)
+                            .append(_threadIndex);
                     setupTestValue(_exs, keyInteger, random(20, _size));
 
                     _ex.clear().append(keyInteger);
@@ -130,8 +130,8 @@ public class Stress2 extends StressBase {
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
                     final int keyInteger = keyInteger(_count);
-                    _exs.clear().append("stress2").append(keyInteger).append(
-                            _threadIndex);
+                    _exs.clear().append("stress2").append(keyInteger)
+                            .append(_threadIndex);
                     setupTestValue(_exs, keyInteger, random(20, _size));
                     _ex.clear().append(keyInteger);
                     try {
@@ -144,9 +144,9 @@ public class Stress2 extends StressBase {
                         _exs.fetch(value2);
                         final int size2 = value2.getEncodedSize();
                         if (size2 != size1) {
-                            _result = new PersistitTestResult(false,
-                                    "Value is size " + size2 + ", should be "
-                                            + size1 + " key=" + _ex.getKey());
+                            _result = new TestResult(false, "Value is size "
+                                    + size2 + ", should be " + size1 + " key="
+                                    + _ex.getKey());
                             println(_result);
                             forceStop();
                         }
@@ -192,10 +192,10 @@ public class Stress2 extends StressBase {
                     }
                 }
                 if (count1 != count2) {
-                    _result = new PersistitTestResult(false,
-                            "Traverse count is " + count1 + " but should be "
-                                    + count2 + " on repetition=" + _repeat
-                                    + " in thread=" + _threadIndex);
+                    _result = new TestResult(false, "Traverse count is "
+                            + count1 + " but should be " + count2
+                            + " on repetition=" + _repeat + " in thread="
+                            + _threadIndex);
 
                     break;
                 }
@@ -208,8 +208,8 @@ public class Stress2 extends StressBase {
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
                     final int keyInteger = keyInteger(_count);
-                    _exs.clear().append("stress2").append(keyInteger).append(
-                            _threadIndex);
+                    _exs.clear().append("stress2").append(keyInteger)
+                            .append(_threadIndex);
                     _ex.clear().append(keyInteger);
                     try {
                         _exs.remove();
@@ -238,7 +238,7 @@ public class Stress2 extends StressBase {
         return keyInteger;
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         final Stress2 test = new Stress2();
         test.runStandalone(args);
     }

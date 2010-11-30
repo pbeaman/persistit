@@ -32,8 +32,8 @@ import com.persistit.Value;
  * <li>{@link Key#append(Object, CoderContext)}</li>
  * <li>{@link Key#decode(Object, CoderContext)}</li>
  * <li>{@link Key#decodeString(CoderContext)}</li>
- * <li>{@link Key#decodeString(StringBuffer, CoderContext)}</li>
- * <li>{@link Key#decodeDisplayable(boolean, StringBuffer, CoderContext)}</li>
+ * <li>{@link Key#decodeString(StringBuilder, CoderContext)}</li>
+ * <li>{@link Key#decodeDisplayable(boolean, StringBuilder, CoderContext)}</li>
  * <li>{@link Value#put(Object, CoderContext)}</li>
  * <li>{@link Value#get(Object, CoderContext)}</li>
  * </ul>

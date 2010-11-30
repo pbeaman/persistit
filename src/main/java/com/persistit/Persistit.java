@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -37,7 +36,12 @@ import java.util.ResourceBundle;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+
 import com.persistit.TimestampAllocator.Checkpoint;
+import com.persistit.WaitingThreadManager.WaitingThread;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
@@ -86,12 +90,12 @@ public class Persistit implements BuildConstants {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit JSA 2.1-20100801"
+    public final static String VERSION = "Persistit JSA 2.2-20101115"
             + (Debug.ENABLED ? "-DEBUG" : "");
     /**
      * The internal version number
      */
-    public final static int BUILD_ID = 21002;
+    public final static int BUILD_ID = 22000;
     /**
      * The copyright notice
      */
@@ -113,12 +117,6 @@ public class Persistit implements BuildConstants {
      */
     private final static String PERSISTIT_GUI_CLASS_NAME = SYSTEM_PROPERTY_PREFIX
             + "ui.AdminUI";
-
-    /**
-     * Name of Open MBean class
-     */
-    private final static String PERSISTIT_JMX_CLASS_NAME = SYSTEM_PROPERTY_PREFIX
-            + "jmx.PersistitOpenMBean";
 
     /**
      * Default suffix for properties file name
@@ -255,10 +253,20 @@ public class Persistit implements BuildConstants {
      * Property name for enabling Persistit Open MBean for JMX
      */
     public final static String JMX_PARAMS = "jmx";
+
+    /**
+     * Object name (as String) for stock MXBean
+     */
+    public final static String MXBEAN_OBJECT_NAME = "com.persistit.PersistitOpenMBean:type=Persistit";
     /**
      * Property name for pseudo-property "timestamp";
      */
     public final static String TIMESTAMP_PROPERTY = "timestamp";
+
+    /**
+     * Property name for the "append only" property.
+     */
+    public final static String APPEND_ONLY_PROPERTY = "appendonly";
 
     /**
      * Maximum number of Exchanges that will be held in an internal pool.
@@ -316,18 +324,20 @@ public class Persistit implements BuildConstants {
 
     private final LogBase _logBase = new LogBase(this);
 
-    private boolean _suspendShutdown;
-    private boolean _suspendUpdates;
+    private AtomicBoolean _suspendShutdown = new AtomicBoolean(false);
+    private AtomicBoolean _suspendUpdates = new AtomicBoolean(false);
 
     private UtilControl _localGUI;
 
     private CoderManager _coderManager;
     private ClassIndex _classIndex = new ClassIndex(this);
     private ThreadLocal<Transaction> _transactionThreadLocal = new ThreadLocal<Transaction>();
-    private ThreadLocal _waitingThreadLocal = new ThreadLocal();
+    private ThreadLocal<WaitingThread> _waitingThreadLocal = new ThreadLocal<WaitingThread>();
     private ThreadLocal<Throttle> _throttleThreadLocal = new ThreadLocal<Throttle>();
 
     private ManagementImpl _management;
+
+    private final RecoveryManager _recoveryManager = new RecoveryManager(this);
 
     private final JournalManager _journalManager = new JournalManager(this);
 
@@ -352,7 +362,12 @@ public class Persistit implements BuildConstants {
     private static volatile long _globalThrottleCount;
 
     private long _nextThrottleBumpTime;
+
     private long _localThrottleCount;
+
+    private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
+
+    private Checkpoint _currentCheckpoint = new Checkpoint(0, 0);
 
     /**
      * <p>
@@ -429,19 +444,13 @@ public class Persistit implements BuildConstants {
         initializeManagement();
         initializeOther();
         initializeLogging();
+        initializeRecovery();
         initializeJournal();
-        _journalManager.recover();
-
         initializeBufferPools();
         initializeVolumes();
-
-        for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.startThreads();
-        }
-
-        _journalManager.getRecoveryPlan().applyAllCommittedTransactions();
-        _journalManager.startThreads();
-
+        startBufferPools();
+        finishRecovery();
+        startJournal();
         flush();
 
         _initialized.set(true);
@@ -505,19 +514,29 @@ public class Persistit implements BuildConstants {
         }
     }
 
+    void initializeRecovery() throws PersistitException {
+        String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME,
+                DEFAULT_JOURNAL_PATH);
+        _recoveryManager.init(journalPath);
+        _recoveryManager.buildRecoveryPlan();
+    }
+
     void initializeJournal() throws PersistitException {
         String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME,
                 DEFAULT_JOURNAL_PATH);
         int journalSize = (int) getLongProperty(JOURNAL_SIZE_PROPERTY_NAME,
-                JournalManager.DEFAULT_JOURNAL_SIZE,
-                JournalManager.MINIMUM_JOURNAL_SIZE,
-                JournalManager.MAXIMUM_JOURNAL_SIZE);
+                JournalManager.DEFAULT_BLOCK_SIZE,
+                JournalManager.MINIMUM_BLOCK_SIZE,
+                JournalManager.MAXIMUM_BLOCK_SIZE);
 
-        _journalManager.init(journalPath, journalSize);
+        _journalManager.init(_recoveryManager, journalPath, journalSize);
+        if (getBooleanProperty(APPEND_ONLY_PROPERTY, false)) {
+            _journalManager.setAppendOnly(true);
+        }
     }
 
     void initializeBufferPools() {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         int bufferSize = Buffer.MIN_BUFFER_SIZE;
         while (bufferSize <= Buffer.MAX_BUFFER_SIZE) {
             sb.setLength(0);
@@ -577,7 +596,7 @@ public class Persistit implements BuildConstants {
             management.register(rmiHost, rmiPort);
         }
         if (enableJmx) {
-            setupOpenMBean();
+            registerMXBean();
         }
 
     }
@@ -598,6 +617,31 @@ public class Persistit implements BuildConstants {
         }
     }
 
+    void startBufferPools() throws PersistitException {
+        for (final BufferPool pool : _bufferPoolTable.values()) {
+            pool.startThreads();
+        }
+    }
+
+    void startJournal() throws PersistitException {
+        _journalManager.startThreads();
+    }
+
+    void finishRecovery() throws PersistitException {
+        _recoveryManager.applyAllCommittedTransactions(_recoveryManager
+                .getDefaultRecoveredTransactionActor());
+        _recoveryManager.close();
+        flush();
+        checkpoint();
+        if (_logBase.isLoggable(LogBase.LOG_RECOVERY_DONE)) {
+            _logBase.log(LogBase.LOG_RECOVERY_DONE,
+                    _journalManager.getPageMapSize(),
+                    _recoveryManager.getAppliedTransactionCount(),
+                    _recoveryManager.getErrorCount());
+        }
+
+    }
+
     /**
      * Reflectively attempts to load and execute the PersistitOpenMBean setup
      * method. This will work only if the persistit_jsaXXX_jmx.jar is on the
@@ -607,15 +651,30 @@ public class Persistit implements BuildConstants {
      * @param params
      *            "true" to enable the PersistitOpenMBean, else "false".
      */
-    private void setupOpenMBean() {
+    private void registerMXBean() {
+        MBeanServer server = java.lang.management.ManagementFactory
+                .getPlatformMBeanServer();
         try {
-            Class clazz = Class.forName(PERSISTIT_JMX_CLASS_NAME);
-            Method setupMethod = clazz.getMethod("setup",
-                    new Class[] { Persistit.class });
-            setupMethod.invoke(null, new Object[] { this });
-        } catch (Exception e) {
+            ObjectName objectName = new ObjectName(MXBEAN_OBJECT_NAME);
+            server.registerMBean((ManagementMXBean) getManagement(), objectName);
+        } catch (Exception exception) {
             if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
-                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, e);
+                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
+            }
+        }
+    }
+
+    private void unregisterMXBean() {
+        MBeanServer server = java.lang.management.ManagementFactory
+                .getPlatformMBeanServer();
+        try {
+            ObjectName objectName = new ObjectName(MXBEAN_OBJECT_NAME);
+            server.unregisterMBean(objectName);
+        } catch (InstanceNotFoundException exception) {
+            // ignore
+        } catch (Exception exception) {
+            if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
+                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
             }
         }
     }
@@ -699,9 +758,9 @@ public class Persistit implements BuildConstants {
      * The property is taken from one of the following sources:
      * <ol>
      * <li>A system property having a prefix of "com.persistit.". For example,
-     * the property named "pwjpath" can be supplied as the system property named
-     * com.persistit.pwjpath. (Note: if the security context does not permit
-     * access to system properties, then system properties are ignored.)</li>
+     * the property named "journalpath" can be supplied as the system property
+     * named com.persistit.journalpath. (Note: if the security context does not
+     * permit access to system properties, then system properties are ignored.)</li>
      * <li>The supplied Properties object, which was either passed to the
      * {@link #initialize(Properties)} method, or was loaded from the file named
      * in the {@link #initialize(String)} method.</li>
@@ -1331,33 +1390,137 @@ public class Persistit implements BuildConstants {
         return _readRetryEnabled;
     }
 
+    public synchronized Checkpoint getCurrentCheckpoint() {
+        return _currentCheckpoint;
+    }
+
     /**
-     * Force a checkpoint. Sets a checkpoint later than all operations
-     * previously completed and then flushes all dirty data. If Persistit is
-     * closed or not yet initialized, does nothing and returns <tt>null</tt>.
+     * Force a new Checkpoint and wait for it to be written. If Persistit is
+     * closed or not yet initialized, do nothing and return <tt>null</tt>.
      * 
      * @return the Checkpoint allocated by this process.
      */
-    public Checkpoint checkpoint() throws PersistitException {
+    public Checkpoint checkpoint() {
         if (_closed.get() || !_initialized.get()) {
             return null;
         }
-        for (final Volume volume : _volumes) {
-            volume.flush();
-        }
-        final Checkpoint checkpoint = _timestampAllocator.forceCheckpoint();
-        flush();
-        Checkpoint earliest = checkpoint;
-        for (final BufferPool bufferPool : _bufferPoolTable.values()) {
-            final Checkpoint cp = bufferPool.checkpoint(checkpoint);
-            if (cp == null) {
-                earliest = null;
-            } else if (earliest != null
-                    && cp.getTimestamp() < earliest.getTimestamp()) {
-                earliest = cp;
+        final Checkpoint checkpoint = getTimestampAllocator().forceCheckpoint();
+        applyCheckpoint(checkpoint);
+        while (true) {
+            synchronized (this) {
+                if (!_outstandingCheckpoints.contains(checkpoint)) {
+                    return checkpoint;
+                }
+            }
+            flushCheckpoint();
+            try {
+                Thread.sleep(SHORT_DELAY);
+            } catch (InterruptedException ie) {
+                return null;
             }
         }
-        return earliest;
+    }
+
+    void applyCheckpoint() {
+        final Checkpoint newCheckpoint = getTimestampAllocator()
+                .updateCheckpoint();
+        applyCheckpoint(newCheckpoint);
+
+    }
+
+    void applyCheckpoint(final Checkpoint newCheckpoint) {
+        synchronized (this) {
+            if (newCheckpoint.getTimestamp() > _currentCheckpoint
+                    .getTimestamp()) {
+                _outstandingCheckpoints.add(newCheckpoint);
+                _currentCheckpoint = newCheckpoint;
+                if (getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_PROPOSED)) {
+                    getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED,
+                            newCheckpoint);
+                }
+                // Now attempt to complete a recent Checkpoint -
+                // which is not the one just added to the outstanding
+                // checkpoints list, but probably the previous one.
+                flushCheckpoint();
+            }
+        }
+    }
+
+    Checkpoint flushCheckpoint() {
+        final Checkpoint validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
+        if (validCheckpoint != null) {
+            try {
+                getJournalManager().writeCheckpointToJournal(validCheckpoint);
+            } catch (PersistitIOException e) {
+                getLogBase().log(LogBase.LOG_EXCEPTION,
+                        e + " while writing " + validCheckpoint + ":" + e);
+            }
+            synchronized (this) {
+                _outstandingCheckpoints.remove(validCheckpoint);
+            }
+        }
+        return validCheckpoint;
+    }
+
+    /**
+     * Propose a new Checkpoint and update the journal to include all pages made
+     * dirty before that Checkpoint.
+     * 
+     * @param newCheckpoint
+     * @return the latest valid checkpoint
+     */
+    public Checkpoint checkpoint(final Checkpoint newCheckpoint) {
+        final Checkpoint validCheckpoint;
+        synchronized (this) {
+            if (newCheckpoint.getTimestamp() > _currentCheckpoint
+                    .getTimestamp()) {
+                _outstandingCheckpoints.add(newCheckpoint);
+                _currentCheckpoint = newCheckpoint;
+                if (getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_PROPOSED)) {
+                    getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED,
+                            newCheckpoint);
+                }
+            }
+        }
+        validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
+        if (validCheckpoint != null) {
+            try {
+                getJournalManager().writeCheckpointToJournal(validCheckpoint);
+            } catch (PersistitIOException e) {
+                getLogBase().log(LogBase.LOG_EXCEPTION,
+                        e + " while writing " + validCheckpoint + ":" + e);
+                return null;
+            }
+        }
+        return validCheckpoint;
+    }
+
+    /**
+     * Given List of outstanding Checkpoints, finds the latest one that is safe
+     * to write and returns it. If there are none, return <tt>null</tt>
+     * 
+     * @param List
+     *            of outstanding Checkpoint instances
+     * @return The latest Checkpoint from the list that can be written, or
+     *         <tt>null</tt> if there are none.
+     */
+    private Checkpoint findValidCheckpoint(
+            final List<Checkpoint> outstandingCheckpoints) {
+        long earliestDirtyTimestamp = Long.MAX_VALUE;
+        for (final BufferPool pool : _bufferPoolTable.values()) {
+            earliestDirtyTimestamp = Math.min(earliestDirtyTimestamp,
+                    pool.earliestDirtyTimestamp());
+        }
+        for (int index = outstandingCheckpoints.size(); --index >= 0;) {
+            final Checkpoint checkpoint = outstandingCheckpoints.get(index);
+            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
+                for (int k = index; k >= 0; --k) {
+                    outstandingCheckpoints.remove(k);
+                }
+                return checkpoint;
+            }
+        }
+        return null;
     }
 
     /**
@@ -1423,7 +1586,7 @@ public class Persistit implements BuildConstants {
      *         closed it, otherwise false.
      */
     public void close() throws PersistitException {
-        close0(true, false);
+        close(true, false);
     }
 
     /**
@@ -1483,19 +1646,21 @@ public class Persistit implements BuildConstants {
      *         closed it, otherwise false.
      */
     public void close(final boolean flush) throws PersistitException {
-        close0(flush, false);
+        close(flush, false);
     }
 
-    private synchronized void close0(final boolean flush, final boolean byHook)
+    private void close(final boolean flush, final boolean byHook)
             throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
             return;
         }
-        // Wait for UI to go down.
-        while (!byHook && _suspendShutdown) {
-            try {
-                wait(500);
-            } catch (InterruptedException ie) {
+        synchronized (this) {
+            // Wait for UI to go down.
+            while (!byHook && _suspendShutdown.get()) {
+                try {
+                    wait(SHORT_DELAY);
+                } catch (InterruptedException ie) {
+                }
             }
         }
 
@@ -1507,7 +1672,11 @@ public class Persistit implements BuildConstants {
 
         _closed.set(true);
 
-        final List<Volume> volumes = new ArrayList<Volume>(_volumes);
+        final List<Volume> volumes;
+        synchronized (this) {
+            volumes = new ArrayList<Volume>(_volumes);
+        }
+
         for (final Volume volume : volumes) {
             volume.close();
         }
@@ -1541,6 +1710,7 @@ public class Persistit implements BuildConstants {
         _waitingThreadLocal.set(null);
 
         if (_management != null) {
+            unregisterMXBean();
             _management.unregister();
             _management = null;
         }
@@ -1741,6 +1911,10 @@ public class Persistit implements BuildConstants {
         return _coderManager.lookupValueCoder(cl);
     }
 
+    public RecoveryManager getRecoveryManager() {
+        return _recoveryManager;
+    }
+
     public JournalManager getJournalManager() {
         return _journalManager;
     }
@@ -1753,7 +1927,7 @@ public class Persistit implements BuildConstants {
         return _ioMeter;
     }
 
-    ThreadLocal getWaitingThreadThreadLocal() {
+    ThreadLocal<WaitingThread> getWaitingThreadThreadLocal() {
         return _waitingThreadLocal;
     }
 
@@ -1953,7 +2127,7 @@ public class Persistit implements BuildConstants {
                     .newInstance();
         }
         _localGUI.setManagement(getManagement());
-        _suspendShutdown = suspendShutdown;
+        _suspendShutdown.set(suspendShutdown);
     }
 
     /**
@@ -1964,7 +2138,7 @@ public class Persistit implements BuildConstants {
         final UtilControl localGUI;
         synchronized (this) {
             localGUI = _localGUI;
-            _suspendShutdown = false;
+            _suspendShutdown.set(false);
             _localGUI = null;
         }
         if (localGUI != null) {
@@ -1983,8 +2157,8 @@ public class Persistit implements BuildConstants {
      *         <tt>false</tt> if the <tt>close</tt> operation will not be
      *         suspended.
      */
-    public synchronized boolean isShutdownSuspended() {
-        return _suspendShutdown;
+    public boolean isShutdownSuspended() {
+        return _suspendShutdown.get();
     }
 
     /**
@@ -1998,8 +2172,8 @@ public class Persistit implements BuildConstants {
      *            <tt>true</tt> to specify that Persistit will wait when
      *            attempting to close; otherwise <tt>false</tt>.
      */
-    public synchronized void setShutdownSuspended(boolean suspended) {
-        _suspendShutdown = suspended;
+    public void setShutdownSuspended(boolean suspended) {
+        _suspendShutdown.set(suspended);
     }
 
     /**
@@ -2011,8 +2185,8 @@ public class Persistit implements BuildConstants {
      * @return <tt>true</tt> if all updates are suspended; otherwise
      *         <tt>false</tt>.
      */
-    public synchronized boolean isUpdateSuspended() {
-        return _suspendUpdates;
+    public boolean isUpdateSuspended() {
+        return _suspendUpdates.get();
     }
 
     /**
@@ -2026,7 +2200,7 @@ public class Persistit implements BuildConstants {
      *            updates.
      */
     public synchronized void setUpdateSuspended(boolean suspended) {
-        _suspendUpdates = suspended;
+        _suspendUpdates.set(suspended);
         if (Debug.ENABLED && !suspended)
             Debug.setSuspended(false);
     }
@@ -2043,36 +2217,6 @@ public class Persistit implements BuildConstants {
             throttleThreadLocal.set(throttle);
         }
         return throttle;
-    }
-
-    void bumpThrottleCount() {
-        _globalThrottleCount++;
-        Throttle throttle = getThrottle();
-        throttle._throttleCount = _globalThrottleCount;
-    }
-
-    void setNextThrottleDelay(final long now) {
-        _nextThrottleBumpTime = now + THROTTLE_THRESHOLD;
-    }
-
-    void handleRetryThrottleBump(final long now) {
-        if (now > _nextThrottleBumpTime) {
-            _nextThrottleBumpTime += THROTTLE_THRESHOLD;
-            bumpThrottleCount();
-        }
-    }
-
-    void throttle() {
-        if (_globalThrottleCount != _localThrottleCount) {
-            Throttle throttle = getThrottle();
-            if (throttle._throttleCount < _globalThrottleCount) {
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException ie) {
-                }
-            }
-            _localThrottleCount = throttle._throttleCount = _globalThrottleCount;
-        }
     }
 
     /**

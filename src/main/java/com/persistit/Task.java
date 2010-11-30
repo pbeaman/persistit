@@ -240,7 +240,7 @@ public abstract class Task implements Runnable, BuildConstants {
     protected Tree[] parseTreeList(String specification)
             throws PersistitException {
         Vector vector = new Vector();
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         Volume volume = null;
         int end = specification.length();
         for (int index = 0; index <= end; index++) {
@@ -579,18 +579,18 @@ public abstract class Task implements Runnable, BuildConstants {
      */
     public void populateTaskStatus(Management.TaskStatus ts, boolean details,
             boolean clearMessages) {
-        ts._taskId = _taskId;
-        ts._state = _state;
-        ts._description = _description;
-        ts._owner = _owner;
-        ts._startTime = _startTime;
-        ts._finishTime = _finishTime;
-        ts._expirationTime = _expirationTime;
-        ts._lastException = _lastException;
-        ts._statusSummary = getStatus();
+        ts.taskId = _taskId;
+        ts.state = _state;
+        ts.description = _description;
+        ts.owner = _owner;
+        ts.startTime = _startTime;
+        ts.finishTime = _finishTime;
+        ts.expirationTime = _expirationTime;
+        ts.lastException = _lastException.toString();
+        ts.statusSummary = getStatus();
         if (details) {
-            ts._newMessages = getMessages(0);
-            ts._statusDetail = getStatusDetail();
+            ts.newMessages = getMessages(0);
+            ts.statusDetail = getStatusDetail();
             if (clearMessages)
                 cullMessages(Integer.MAX_VALUE);
         }

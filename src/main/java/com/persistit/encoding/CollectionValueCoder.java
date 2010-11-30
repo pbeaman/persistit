@@ -75,7 +75,7 @@ import com.persistit.exception.ConversionException;
  * because access by index may be inefficient.
  * </p>
  * 
- *@since 1.1
+ * @since 1.1
  * @version 1.1
  */
 public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
@@ -252,8 +252,9 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
     /**
      * <p>
      * Writes a String representation of the value into a supplied
-     * <tt>StringBuffer</tt>. This is used in utility programs to display stored
-     * content without actually deserialized Objects represented by the value.
+     * <tt>StringBuilder</tt>. This is used in utility programs to display
+     * stored content without actually deserialized Objects represented by the
+     * value.
      * </p>
      * <p>
      * This method will be called only if this <tt>ValueDisplayer</tt> has been
@@ -268,7 +269,7 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      *            are to be retrieved
      * 
      * @param target
-     *            The <tt>StringBuffer</tt> into which the decoded value is to
+     *            The <tt>StringBuilder</tt> into which the decoded value is to
      *            be written
      * 
      * @param clazz
@@ -283,7 +284,7 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      * 
      * @throws ConversionException
      */
-    public void display(Value value, StringBuffer target, Class clazz,
+    public void display(Value value, StringBuilder target, Class clazz,
             CoderContext context) throws ConversionException {
         if (Map.class.isAssignableFrom(clazz)) {
             target.append('[');

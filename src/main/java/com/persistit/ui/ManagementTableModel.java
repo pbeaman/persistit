@@ -249,9 +249,7 @@ public class ManagementTableModel extends AbstractTableModel {
             table.setDefaultRenderer(Long.class, new LongRenderer());
             table.setDefaultRenderer(Integer.class, new IntegerRenderer());
             table.setDefaultRenderer(KeyState.class, new KeyStateRenderer());
-            table
-                    .setDefaultRenderer(ValueState.class,
-                            new ValueStateRenderer());
+            table.setDefaultRenderer(ValueState.class, new ValueStateRenderer());
             fireTableStructureChanged();
         }
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);

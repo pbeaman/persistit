@@ -26,6 +26,7 @@ import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
 import com.persistit.KeyState;
+import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
 
 /**
@@ -60,17 +61,12 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         key.to("z0");
         assertTrue(!kf.selected(key));
 
-        kf = kf
-                .append(
-                        KeyFilter
-                                .orTerm(new KeyFilter.Term[] {
-                                        KeyFilter.rangeTerm(new Integer(100),
-                                                new Integer(150)),
-                                        KeyFilter.rangeTerm(new Integer(200),
-                                                new Integer(250)),
-                                        KeyFilter.rangeTerm(new Integer(300),
-                                                new Integer(350), true, false,
-                                                null), })).limit(2, 5);
+        kf = kf.append(
+                KeyFilter.orTerm(new KeyFilter.Term[] {
+                        KeyFilter.rangeTerm(new Integer(100), new Integer(150)),
+                        KeyFilter.rangeTerm(new Integer(200), new Integer(250)),
+                        KeyFilter.rangeTerm(new Integer(300), new Integer(350),
+                                true, false, null), })).limit(2, 5);
 
         s = kf.toString();
         String t = "{\"atlantic\",>(float)1.3,\"x\":\"z\",{100:150,200:250,[300:350)},*<}";
@@ -131,7 +127,7 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         assertEquals("{\"atlantic\",(float)1.3,\"x\"}", key.toString());
         key.to("zz");
         assertTrue(kf.traverse(key, false));
-        assertEquals("{\"atlantic\",(float)1.3,\"z\"}", key.toString());
+        assertEquals("{\"atlantic\",(float)1.3,\"z\"}-", key.toString());
         System.out.println("- done");
     }
 
@@ -157,14 +153,17 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
 
         ex.to(Key.BEFORE);
         boolean[] traversed = new boolean[100];
-        while (ex.next()) {
+        Key.Direction direction = Key.GT;
+        while (ex.traverse(direction, true)) {
             if (kf.selected(ex.getKey())) {
                 final int k = key.reset().decodeInt();
                 traversed[k] = true;
+                direction = Key.GT;
             } else {
                 if (!kf.traverse(key, true)) {
                     break;
                 }
+                direction = Key.GTEQ;
             }
         }
         for (int k = 0; k < 100; k++) {
@@ -175,14 +174,17 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
 
         ex.to(Key.AFTER);
         traversed = new boolean[100];
-        while (ex.previous()) {
+        direction = Key.LT;
+        while (ex.traverse(direction, true)) {
             if (kf.selected(ex.getKey())) {
                 final int k = key.reset().decodeInt();
                 traversed[k] = true;
+                direction = Key.LT;
             } else {
                 if (!kf.traverse(key, false)) {
                     break;
                 }
+                direction = Key.LTEQ;
             }
         }
         for (int k = 0; k < 100; k++) {
@@ -204,20 +206,17 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         final Key key = ex.getKey();
         key.clear().append("atlantic");
         key.append((float) 1.3);
-        final KeyFilter kf = new KeyFilter(key).append(
-                new KeyFilter.Term[] {
+        final KeyFilter kf = new KeyFilter(key)
+                .append(new KeyFilter.Term[] {
                         KeyFilter.rangeTerm("x", "z"),
-                        KeyFilter
-                                .orTerm(new KeyFilter.Term[] {
-                                        KeyFilter.rangeTerm(new Integer(100),
-                                                new Integer(150), true, false,
-                                                null),
-                                        KeyFilter.rangeTerm(new Integer(200),
-                                                new Integer(250), true, false,
-                                                null),
-                                        KeyFilter.rangeTerm(new Integer(300),
-                                                new Integer(350), true, false,
-                                                null), }) }).limit(2, 5);
+                        KeyFilter.orTerm(new KeyFilter.Term[] {
+                                KeyFilter.rangeTerm(new Integer(100),
+                                        new Integer(150), true, false, null),
+                                KeyFilter.rangeTerm(new Integer(200),
+                                        new Integer(250), true, false, null),
+                                KeyFilter.rangeTerm(new Integer(300),
+                                        new Integer(350), true, false, null), }) })
+                .limit(2, 5);
 
         final String s = kf.toString();
         final String t = "{\"atlantic\",<(float)1.3,[\"x\":\"z\"),{[100:150),[200:250),[300:350)},*<}";
@@ -310,32 +309,38 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
 
         TreeMap treeMapCopy = new TreeMap(treeMap);
         key.clear().append(Key.BEFORE);
-        while (ex.traverse(Key.GT, true)) {
+        Key.Direction direction = Key.GT;
+        while (ex.traverse(direction, true)) {
             final KeyState ks = new KeyState(key);
             if (kf.selected(key)) {
                 assertEquals(key.toString(), treeMapCopy.get(ks));
                 treeMapCopy.remove(ks);
+                direction = Key.GT;
             } else {
                 assertEquals(null, treeMap.get(ks));
                 if (!kf.traverse(key, true)) {
                     break;
                 }
+                direction = Key.GTEQ;
             }
         }
         assertEquals(0, treeMapCopy.size());
 
         treeMapCopy = new TreeMap(treeMap);
         key.clear().append(Key.AFTER);
-        while (ex.traverse(Key.LT, true)) {
+        direction = key.LT;
+        while (ex.traverse(direction, true)) {
             final KeyState ks = new KeyState(key);
             if (kf.selected(key)) {
                 assertEquals(key.toString(), treeMapCopy.get(ks));
                 treeMapCopy.remove(ks);
+                direction = key.LT;
             } else {
                 assertEquals(null, treeMap.get(ks));
                 if (!kf.traverse(key, false)) {
                     break;
                 }
+                direction = key.LTEQ;
             }
         }
         assertEquals(0, treeMapCopy.size());
@@ -363,14 +368,63 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         ex.removeAll();
         final KeyFilter filter = new KeyFilter(
                 "{2,*,4,(long)1004:(long)1007,3,>*<}");
-        ex.append(2).append(1L).append(4).append(1006L).append(3).append(
-                1005007L);
+        ex.append(2).append(1L).append(4).append(1006L).append(3)
+                .append(1005007L);
         ex.getValue().put("test6");
         ex.store();
         ex.clear().append(Key.BEFORE);
         assertTrue(ex.traverse(Key.GTEQ, filter, 0));
         System.out.println("- done");
+    }
 
+    @Test
+    public void test7() throws PersistitException {
+        final KeyFilter filter = new KeyFilter("{\"byName\",\"foo\",>*<}");
+        final Key key = new Key((Persistit) null);
+        boolean result;
+
+        key.clear().append(Key.BEFORE);
+        result = filter.traverse(key, true);
+        assertTrue(result);
+        key.clear().append(Key.BEFORE);
+        result = filter.traverse(key, false);
+        assertFalse(result);
+
+        key.clear().append(Key.AFTER);
+        result = filter.traverse(key, false);
+        assertTrue(result);
+        key.clear().append(Key.AFTER);
+        result = filter.traverse(key, true);
+        assertFalse(result);
+
+    }
+
+    @Test
+    public void test8() throws PersistitException {
+        final KeyFilter filter = new KeyFilter("{1,*<}");
+        final Key key = new Key((Persistit) null);
+        final Key key2 = new Key((Persistit) null);
+        key.append(Key.AFTER);
+        assertFalse(filter.selected(key));
+        assertTrue(filter.traverse(key, false));
+        key2.append(1).append(1);
+        assertTrue(filter.selected(key));
+        assertTrue(key.compareTo(key2) > 0);
+        // assertFalse(filter.traverse(key, false));
+    }
+
+    @Test
+    public void test9() throws PersistitException {
+        final KeyFilter filter = new KeyFilter("{1:2}");
+        final Key key = new Key((Persistit) null);
+        final Key key2 = new Key((Persistit) null);
+        key.append(Key.AFTER);
+        assertFalse(filter.selected(key));
+        assertTrue(filter.traverse(key, false));
+        key2.append(2).append(Key.AFTER);
+        assertTrue(filter.selected(key));
+        assertTrue(key.compareTo(key2) == 0);
+        // assertFalse(filter.traverse(key, false));
     }
 
     public static void main(final String[] args) throws Exception {

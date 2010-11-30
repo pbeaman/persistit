@@ -101,6 +101,7 @@ public class Volume extends SharedResource {
     private FileChannel _channel;
     private String _path;
     private String _name;
+    private long _timestamp;
     private long _id;
     private long _initialPages;
     private long _maximumPages;
@@ -277,14 +278,15 @@ public class Volume extends SharedResource {
         if (volumeSpec.isCreate() || volumeSpec.isCreateOnly()
                 || volumeSpec.isTransient()) {
             return create(persistit, volumeSpec.getPath(),
-                    volumeSpec.getName(), volumeSpec.getId(), volumeSpec
-                            .getBufferSize(), volumeSpec.getInitialPages(),
-                    volumeSpec.getExtensionPages(), volumeSpec
-                            .getMaximumPages(), volumeSpec.isCreateOnly(),
+                    volumeSpec.getName(), volumeSpec.getId(),
+                    volumeSpec.getBufferSize(), volumeSpec.getInitialPages(),
+                    volumeSpec.getExtensionPages(),
+                    volumeSpec.getMaximumPages(), volumeSpec.isCreateOnly(),
                     volumeSpec.isTransient(), volumeSpec.isLoose());
         } else {
-            return openVolume(persistit, volumeSpec.getPath(), volumeSpec
-                    .getName(), volumeSpec.getId(), volumeSpec.isReadOnly());
+            return openVolume(persistit, volumeSpec.getPath(),
+                    volumeSpec.getName(), volumeSpec.getId(),
+                    volumeSpec.isReadOnly());
         }
     }
 
@@ -411,8 +413,8 @@ public class Volume extends SharedResource {
 
             if (!tranzient) {
                 _channel = new RandomAccessFile(_path, "rw").getChannel();
-                _headBuffer.getByteBuffer().position(0).limit(
-                        _headBuffer.getBufferSize());
+                _headBuffer.getByteBuffer().position(0)
+                        .limit(_headBuffer.getBufferSize());
                 _channel.write(_headBuffer.getByteBuffer(), 0);
                 _channel.force(true);
             }
@@ -505,7 +507,7 @@ public class Volume extends SharedResource {
             //
             _headBuffer = _pool.get(this, 0, true, true);
             getHeaderInfo(_headBuffer.getBytes());
-
+            _persistit.getTimestampAllocator().updateTimestamp(_timestamp);
             if (id != 0 && id != _id) {
                 throw new CorruptVolumeException(
                         "Attempt to open with invalid id " + id + " (!= " + _id
@@ -707,7 +709,7 @@ public class Volume extends SharedResource {
      * 
      * @return The buffer size.
      */
-    public int getBufferSize() {
+    public int getPageSize() {
         return _bufferSize;
     }
 
@@ -807,7 +809,7 @@ public class Volume extends SharedResource {
 
     /**
      * Returns the count of {@link Exchange#traverse} operations. These include
-     * {@link Exchange#next} and {@link Exchange#previous} operations. This
+     * {@link Exchange#next} and {@link Exchange#_previous} operations. This
      * count is maintained with the stored Volume and is not reset when
      * Persistit closes. It is provided to assist application performance
      * tuning.
@@ -1298,11 +1300,11 @@ public class Volume extends SharedResource {
         } else {
             Exchange ex = directoryExchange();
             tree.store(ex.getValue());
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(
-                    tree.getName()).store();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
+                    .append(tree.getName()).store();
             ex.getValue().put(null);
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_INDEX).append(
-                    tree.getTreeIndex()).append(tree.getName()).store();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_INDEX)
+                    .append(tree.getTreeIndex()).append(tree.getName()).store();
         }
     }
 
@@ -1353,11 +1355,12 @@ public class Volume extends SharedResource {
 
             Exchange ex = directoryExchange();
 
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(
-                    tree.getName()).remove();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
+                    .append(tree.getName()).remove();
 
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_INDEX).append(
-                    tree.getTreeIndex()).append(tree.getName()).remove();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_INDEX)
+                    .append(tree.getTreeIndex()).append(tree.getName())
+                    .remove();
 
             synchronized (_lock) {
                 _treeNameHashMap.remove(tree.getName());
@@ -1484,8 +1487,8 @@ public class Volume extends SharedResource {
 
             if (virgin) {
                 Exchange ex = directoryExchange();
-                ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(
-                        name);
+                ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
+                        .append(name);
                 Value value = ex.fetch().getValue();
                 if (value.isDefined())
                     tree.load(value);
@@ -1653,6 +1656,8 @@ public class Volume extends SharedResource {
         final ByteBuffer bb = buffer.getByteBuffer();
         bb.position(0).limit(buffer.getBufferSize());
         writePage(bb, buffer.getPageAddress());
+        _persistit.getIOMeter().chargeWritePageToVolume(this,
+                buffer.getPageAddress(), buffer.getBufferSize());
     }
 
     void writePage(final ByteBuffer bb, final long page) throws IOException,
@@ -1747,8 +1752,7 @@ public class Volume extends SharedResource {
                     if (Debug.ENABLED)
                         Debug.$assert(garbageBuffer.isGarbagePage());
                     if (Debug.ENABLED)
-                        Debug
-                                .$assert((garbageBuffer.getStatus() & CLAIMED_MASK) == 1);
+                        Debug.$assert((garbageBuffer.getStatus() & CLAIMED_MASK) == 1);
 
                     long page = garbageBuffer.getGarbageChainLeftPage();
                     long rightPage = garbageBuffer.getGarbageChainRightPage();
@@ -1817,18 +1821,17 @@ public class Volume extends SharedResource {
                         }
                     }
                     if (Debug.ENABLED) {
-                        Debug
-                                .$assert(buffer != null
-                                        && buffer.getPageAddress() != 0
-                                        && buffer.getPageAddress() != _garbageRoot
-                                        && buffer.getPageAddress() != _directoryRootPage);
+                        Debug.$assert(buffer != null
+                                && buffer.getPageAddress() != 0
+                                && buffer.getPageAddress() != _garbageRoot
+                                && buffer.getPageAddress() != _directoryRootPage);
                     }
 
                     harvestLongRecords(treeIndex, buffer, 0, Integer.MAX_VALUE);
 
-                    buffer
-                            .init(Buffer.PAGE_TYPE_UNALLOCATED,
-                                    "initFromGarbage"); // DEBUG - debug
+                    buffer.init(Buffer.PAGE_TYPE_UNALLOCATED, "initFromGarbage"); // DEBUG
+                                                                                  // -
+                                                                                  // debug
                     buffer.clear();
                     return buffer;
                 } finally {
@@ -1872,26 +1875,18 @@ public class Volume extends SharedResource {
         }
     }
 
-    void extend() throws PersistitException {
-        extend(_pageCount + _extensionPages);
+    private void extend() throws PersistitException {
+
+        if (_pageCount >= _maximumPages || _extensionPages <= 0) {
+            throw new VolumeFullException(this + " is full: " + _pageCount
+                    + " pages");
+        }
+        // Do not extend past maximum pages
+        long pageCount = Math.min(_pageCount + _extensionPages, _maximumPages);
+        extend(pageCount);
     }
 
-    void extend(long pageCount) throws PersistitException {
-        // Do no extend past maximum pages
-        if (pageCount > _maximumPages) {
-            pageCount = _maximumPages;
-        }
-
-        // Check for maximum size
-        if (_maximumPages < _pageCount) {
-            throw new VolumeFullException(this.getPath());
-        }
-
-        // No extension required.
-        if (pageCount <= _pageCount) {
-            return;
-        }
-
+    private void extend(final long pageCount) throws PersistitException {
         long newSize = pageCount * _bufferSize;
         long currentSize = -1;
 
@@ -1901,10 +1896,9 @@ public class Volume extends SharedResource {
                 currentSize = _channel.size();
                 if (currentSize > newSize) {
                     if (_persistit.getLogBase().isLoggable(
-                            LogBase.LOG_EXTEND_BADLENGTH)) {
-                        _persistit.getLogBase().log(
-                                LogBase.LOG_EXTEND_BADLENGTH, currentSize,
-                                newSize);
+                            LogBase.LOG_EXTEND_LARGER)) {
+                        _persistit.getLogBase().log(LogBase.LOG_EXTEND_LARGER,
+                                currentSize, newSize, this);
                     }
                 }
                 if (currentSize < newSize) {
@@ -1915,10 +1909,8 @@ public class Volume extends SharedResource {
                     if (_persistit.getLogBase().isLoggable(
                             LogBase.LOG_EXTEND_NORMAL)) {
                         _persistit.getLogBase().log(LogBase.LOG_EXTEND_NORMAL,
-                                currentSize, newSize, 0, 0, 0, this, null,
-                                null, null, null);
+                                currentSize, newSize, this);
                     }
-
                 }
             }
 
@@ -1931,7 +1923,7 @@ public class Volume extends SharedResource {
         } catch (IOException ioe) {
             _lastIOException = ioe;
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_EXTEND_IOE)) {
-                _persistit.getLogBase().log(LogBase.LOG_EXTEND_BADLENGTH,
+                _persistit.getLogBase().log(LogBase.LOG_EXTEND_IOE,
                         currentSize, newSize, 0, 0, 0, ioe, this, null, null,
                         null);
             }
@@ -1980,9 +1972,7 @@ public class Volume extends SharedResource {
         changed |= Util.changeBytes(bytes, 0, SIGNATURE);
         changed |= Util.changeInt(bytes, 16, VERSION);
         changed |= Util.changeInt(bytes, 20, _bufferSize);
-        // Generation is an attribute of the buffer, not the page
-        // -- should not be serialized
-        // Util.putLong(bytes, 24, _generation);
+        Util.putLong(bytes, 24, _timestamp);
         changed |= Util.changeLong(bytes, 32, _id);
         changed |= Util.changeLong(bytes, 40, _readCounter.get());
         // Ugly, but the act of closing the system increments this
@@ -2013,9 +2003,7 @@ public class Volume extends SharedResource {
 
     private void getHeaderInfo(byte[] bytes) {
         _bufferSize = Util.getInt(bytes, 20);
-        // Generation is an attribute of the buffer, not the page
-        // -- should not be deserialized
-        // _generation = Util.getLong(bytes, 24);
+        _timestamp = Util.getLong(bytes, 24);
         _id = Util.getLong(bytes, 32);
         _readCounter.set(Util.getLong(bytes, 40));
         _writeCounter.set(Util.getLong(bytes, 48));

@@ -36,24 +36,22 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         store1();
         fetch1a();
         fetch1b();
+        fetch1c();
     }
 
     private void checkEmpty() throws PersistitException {
-        System.out.print("test1_0 ");
         final Exchange exchange = _persistit.getExchange(_volumeName,
                 "SimpleTest1", true);
         exchange.append(Key.BEFORE);
         final boolean empty = !exchange.traverse(Key.GT, true);
         assertTrue(empty);
-        System.out.println("- done");
     }
 
     private void store1() throws PersistitException {
-        System.out.print("test1_1 ");
         final Exchange exchange = _persistit.getExchange(_volumeName,
                 "SimpleTest1", true);
         exchange.removeAll();
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
 
         for (int i = 1; i < 400; i++) {
             sb.setLength(0);
@@ -68,7 +66,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
     private void fetch1a() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName,
                 "SimpleTest1", false);
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
 
         for (int i = 1; i < 400; i++) {
             sb.setLength(0);
@@ -85,7 +83,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
     private void fetch1b() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName,
                 "SimpleTest1", false);
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         for (int i = 1; i < 400; i++) {
             sb.setLength(0);
             sb.append((char) (i % 20 + 64));
@@ -96,7 +94,24 @@ public class SimpleTest1 extends PersistitUnitTestCase {
             assertEquals(exchange.getValue().getString(), "Record #" + k);
         }
 
-        System.out.println("- done");
+    }
+
+    private void fetch1c() throws PersistitException {
+        final Exchange exchange = _persistit.getExchange(_volumeName,
+                "SimpleTest1", false);
+        int count;
+
+        exchange.getKey().clear().append(Key.BEFORE);
+
+        for (count = 1; exchange.next() && count < 10000; count++) {
+        }
+        assertEquals(400, count);
+
+        exchange.getKey().clear().append(Key.AFTER);
+        count = 0;
+        for (count = 1; exchange.previous() && count < 10000; count++) {
+        }
+        assertEquals(400, count);
     }
 
     public void test2() throws PersistitException {
@@ -105,57 +120,52 @@ public class SimpleTest1 extends PersistitUnitTestCase {
     }
 
     private void store2() throws PersistitException {
-        System.out.print("test4 ");
         final Exchange exchange = _persistit.getExchange(_volumeName,
                 "SimpleTest1LongRecord", true);
         exchange.getValue().setMaximumSize(32 * 1024 * 1024);
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         int length = 19;
         while (length < 10000000) {
             sb.setLength(0);
             sb.append(com.persistit.Util.format(length));
             sb.append("  ");
             sb.setLength(length);
-            //System.out.print("Record length " + length);
+            // System.out.print("Record length " + length);
             exchange.getValue().put(sb.toString());
-            //System.out.print(" encoded: "
-            //        + exchange.getValue().getEncodedSize());
+            // System.out.print(" encoded: "
+            // + exchange.getValue().getEncodedSize());
             exchange.clear().append(length).store();
-            //System.out.println(" - stored");
+            // System.out.println(" - stored");
             length *= 2;
         }
-        System.out.println("- done");
     }
 
     private void fetch2() throws PersistitException {
-        System.out.print("test5 ");
         final Exchange exchange = _persistit.getExchange(_volumeName,
                 "SimpleTest1LongRecord", true);
         exchange.getValue().setMaximumSize(32 * 1024 * 1024);
-        final StringBuffer sb = new StringBuffer();
-        final StringBuffer sb2 = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
+        final StringBuilder sb2 = new StringBuilder();
         int length = 19;
         while (length < 10000000) {
             sb.setLength(0);
             sb.append(com.persistit.Util.format(length));
             sb.append("  ");
             sb.setLength(length);
-            //System.out.print("Record length " + length);
+            // System.out.print("Record length " + length);
             exchange.clear().append(length).fetch();
             exchange.getValue().getString(sb2);
             assertEquals(sb.toString(), sb2.toString());
-            //System.out.println(" - read");
+            // System.out.println(" - read");
             length *= 2;
         }
-        System.out.println("- done");
     }
 
     public void test3() throws PersistitException {
         // Tests fix for split calculation failure.
         //
-        System.out.print("test6 ");
 
-        final StringBuffer sb = new StringBuffer(4000);
+        final StringBuilder sb = new StringBuilder(4000);
         final Exchange exchange = _persistit.getExchange(_volumeName,
                 "SimpleTest1BadSplit", true);
         exchange.removeAll();
@@ -207,16 +217,13 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         value.putString(sb);
         exchange.store();
 
-        System.out.println("- done");
-
     }
 
     public void test4() throws PersistitException {
         // Tests join calculation.
         //
-        System.out.print("test7 ");
 
-        final StringBuffer sb = new StringBuffer(4000);
+        final StringBuilder sb = new StringBuilder(4000);
         final Exchange exchange = _persistit.getExchange(_volumeName,
                 "SimpleTest1BadJoin", true);
         exchange.removeAll();
@@ -238,14 +245,12 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         value.putString(sb);
         exchange.store();
 
-        key
-                .clear()
+        key.clear()
                 .append("B")
-                .append(
-                        "... a pretty long key value. The goal is to get the the record "
-                                + "for this key into the penultimate slot of the left page, followed "
-                                + "by a short key on the edge.  Then delete that short key, so that"
-                                + "this becomes the edge key.");
+                .append("... a pretty long key value. The goal is to get the the record "
+                        + "for this key into the penultimate slot of the left page, followed "
+                        + "by a short key on the edge.  Then delete that short key, so that"
+                        + "this becomes the edge key.");
         setupString(sb, 10);
         value.putString(sb);
         exchange.store();
@@ -322,13 +327,11 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         key.clear().append("B").append("z");
         exchange.remove(); // may cause wedge failure.
 
-        System.out.println("- done");
     }
 
     public void test5() throws PersistitException {
-        System.out.print("test8 ");
-        final StringBuffer sb = new StringBuffer(1024 * 1024 * 16);
-        final StringBuffer sb2 = new StringBuffer(1024 * 1024 * 16);
+        final StringBuilder sb = new StringBuilder(1024 * 1024 * 16);
+        final StringBuilder sb2 = new StringBuilder(1024 * 1024 * 16);
 
         final Exchange exchange = _persistit.getExchange(_volumeName,
                 "SimpleTest1BadStoreOverLengthRecord", true);
@@ -339,7 +342,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
 
         key.clear().append("A").append(1);
         final int length = 8160 * 1024 * 2 + 1;
-        //System.out.print(" " + length);
+        // System.out.print(" " + length);
         setupString(sb, length);
         value.putString(sb);
         exchange.store();
@@ -348,10 +351,9 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         final int length2 = sb2.length();
         assertEquals(length, length2);
         assertTrue(sb.toString().equals(sb2.toString()));
-        System.out.println("- done");
     }
 
-    void setupString(final StringBuffer sb, final int length) {
+    void setupString(final StringBuilder sb, final int length) {
         sb.setLength(length);
         final String s = "length=" + length;
         sb.replace(0, s.length(), s);
@@ -376,8 +378,9 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         new SimpleTest1().initAndRunTest();
     }
 
-    public Properties getProperties() {
-        return UnitTestProperties.getBiggerProperties();
+    @Override
+    public Properties getProperties(final boolean cleanup) {
+        return UnitTestProperties.getBiggerProperties(cleanup);
     }
 
     public void runAllTests() throws Exception {

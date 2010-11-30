@@ -23,7 +23,7 @@ import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.TestResult;
 
 public class Stress5 extends StressBase {
     private final static String SHORT_DESCRIPTION = "Extreme variations in key and record length";
@@ -174,7 +174,7 @@ public class Stress5 extends StressBase {
                         break;
                     }
                     if (!_ex.remove()) {
-                        _result = new PersistitTestResult(false,
+                        _result = new TestResult(false,
                                 "Failed to remove depth=" + depth);
                         forceStop();
                         break;
@@ -230,7 +230,7 @@ public class Stress5 extends StressBase {
         }
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         new Stress5().runStandalone(args);
     }
 }

@@ -28,7 +28,7 @@ import com.persistit.ArgParser;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.TestResult;
 
 public class Stress3 extends StressBase {
 
@@ -39,7 +39,7 @@ public class Stress3 extends StressBase {
             + "   incrementValue() method.  Tests integrity of resulting \r\n"
             + "   data structures.  Performs random and whole-tree deletes \r\n";
 
-    private final static String DEFAULT_DATA_FILE_NAME = "./testdata/test3_data.txt";
+    private final static String DEFAULT_DATA_FILE_NAME = "src/test/resources/testdata/test3_data.txt";
 
     private final static String[] ARGS_TEMPLATE = {
             "op|String:wrd|Operations to perform",
@@ -218,8 +218,8 @@ public class Stress3 extends StressBase {
                         final long atomic = ex1.getValue().getLong();
 
                         setupTestValue(ex2, _count, random(30, _size));
-                        ex2.clear().append("byCounter").append(atomic).fetch(
-                                value2);
+                        ex2.clear().append("byCounter").append(atomic)
+                                .fetch(value2);
 
                         if (!value2.isDefined() || value2.isNull()) {
                             throw new RuntimeException(
@@ -292,7 +292,7 @@ public class Stress3 extends StressBase {
                             ex1.clear().append("byName").append(s).fetch();
                             if (!ex1.getValue().isDefined()
                                     || ex1.getValue().isNull()) {
-                                _result = new PersistitTestResult(false,
+                                _result = new TestResult(false,
                                         "Expected filename <" + s
                                                 + "> was not found - key="
                                                 + ex1.getKey() + " keyInteger="
@@ -324,7 +324,7 @@ public class Stress3 extends StressBase {
 
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         final Stress3 test = new Stress3();
         test.runStandalone(args);
     }

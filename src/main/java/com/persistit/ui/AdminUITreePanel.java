@@ -216,15 +216,15 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
         JPanel panel = new JPanel(new BorderLayout(3, 3));
         panel.setBorder(BorderFactory.createEmptyBorder(3, 3, 3, 3));
 
-        _displayAction = _adminUI.createAction(this, _adminUI
-                .getProperty("TreePanel.display"));
+        _displayAction = _adminUI.createAction(this,
+                _adminUI.getProperty("TreePanel.display"));
 
         _displayButton = new JButton(_displayAction);
         _displayAction.addButton(_displayButton);
 
         _filterTextField = new JTextField();
-        JLabel label = new JLabel(_adminUI
-                .getProperty("TreePanel.filterCaption"));
+        JLabel label = new JLabel(
+                _adminUI.getProperty("TreePanel.filterCaption"));
         JPanel filterPanel = new JPanel(new BorderLayout());
         filterPanel.add(label, BorderLayout.WEST);
         filterPanel.add(_filterTextField, BorderLayout.CENTER);
@@ -236,8 +236,8 @@ public class AdminUITreePanel extends AdminPanel implements AdminCommand {
         JMenuItem displayMenuItem = new JMenuItem(_displayAction);
         JMenuItem[] menus = new JMenuItem[] { displayMenuItem };
         _menuMap.put("VIEW.1", menus);
-        _menuMap.put("VIEW.2", _adminUI.createMenuArray(_adminUI,
-                "TreePanelMenu", "VIEW"));
+        _menuMap.put("VIEW.2",
+                _adminUI.createMenuArray(_adminUI, "TreePanelMenu", "VIEW"));
 
         ListSelectionListener listener = new ListSelectionListener() {
             public void valueChanged(ListSelectionEvent evt) {

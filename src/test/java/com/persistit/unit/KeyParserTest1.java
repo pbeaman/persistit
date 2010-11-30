@@ -48,11 +48,11 @@ public class KeyParserTest1 extends PersistitUnitTestCase {
         final Key key = new Key(_persistit);
         System.out.print("test1 ");
         for (int i = 0; i < VALID_STRINGS.length; i++) {
-//            System.out.println(i + " " + VALID_STRINGS[i]);
+            // System.out.println(i + " " + VALID_STRINGS[i]);
             final KeyParser kp = new KeyParser(VALID_STRINGS[i]);
             key.clear();
             final boolean result = kp.parseKey(key);
-//            System.out.println("  " + result + "  " + key.toString());
+            // System.out.println("  " + result + "  " + key.toString());
             assertTrue(result);
             assertEquals(VALID_STRINGS[i], key.toString());
         }
@@ -70,7 +70,7 @@ public class KeyParserTest1 extends PersistitUnitTestCase {
     // {
     // System.out.print("test3 ");
     // }
-    //    
+    //
     // public void test4()
     // throws PersistitException
     // {

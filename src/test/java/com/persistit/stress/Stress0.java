@@ -20,7 +20,7 @@ package com.persistit.stress;
 import com.persistit.ArgParser;
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.TestResult;
 
 public class Stress0 extends StressBase {
 
@@ -139,9 +139,9 @@ public class Stress0 extends StressBase {
                     }
                 }
                 if (_count != _total) {
-                    _result = new PersistitTestResult(false, "Traverse count="
-                            + _count + " out of " + _total + " repetition="
-                            + _repeat + " in thread=" + _threadIndex);
+                    _result = new TestResult(false, "Traverse count=" + _count
+                            + " out of " + _total + " repetition=" + _repeat
+                            + " in thread=" + _threadIndex);
                     println(_result);
                     forceStop();
                     break;
@@ -192,7 +192,7 @@ public class Stress0 extends StressBase {
         }
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         final Stress0 test = new Stress0();
         test.runStandalone(args);
     }

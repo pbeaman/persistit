@@ -3,6 +3,8 @@ package com.persistit;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.persistit.KeyHistogram.KeyCount;
+
 /**
  * <p>
  * Accumulates and holds information about the distribution of {@link Key}
@@ -98,9 +100,7 @@ public class KeyHistogram {
 
         public String toString() {
             final Key key = new Key((Persistit) null);
-            System
-                    .arraycopy(_bytes, 0, key.getEncodedBytes(), 0,
-                            _bytes.length);
+            System.arraycopy(_bytes, 0, key.getEncodedBytes(), 0, _bytes.length);
             key.setEncodedSize(_bytes.length);
             return String.format("%,10d %s", _count, key);
         }

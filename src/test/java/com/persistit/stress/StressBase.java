@@ -22,16 +22,16 @@ import java.util.Random;
 import com.persistit.ArgParser;
 import com.persistit.Exchange;
 import com.persistit.Value;
-import com.persistit.test.PersistitScriptedTestCase;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.AbstractTestRunnerItem;
+import com.persistit.test.TestResult;
 
-public abstract class StressBase extends PersistitScriptedTestCase {
+public abstract class StressBase extends AbstractTestRunnerItem {
 
     protected ArgParser _ap;
 
-    protected StringBuffer _sb = new StringBuffer(20);
-    protected StringBuffer _sb1 = new StringBuffer(4096);
-    protected StringBuffer _sb2 = new StringBuffer(4096);
+    protected StringBuilder _sb = new StringBuilder(20);
+    protected StringBuilder _sb1 = new StringBuilder(4096);
+    protected StringBuilder _sb2 = new StringBuilder(4096);
 
     protected Exchange _ex;
     protected Exchange _exs;
@@ -69,7 +69,9 @@ public abstract class StressBase extends PersistitScriptedTestCase {
     }
 
     protected void setPhase(final String phase) {
-        print(phase);
+        if (isVerbose()) {
+            print(phase);
+        }
         _phase = phase;
     }
 
@@ -78,7 +80,7 @@ public abstract class StressBase extends PersistitScriptedTestCase {
     }
 
     protected synchronized void handleThrowable(final Throwable thx) {
-        _result = new PersistitTestResult(false, thx);
+        _result = new TestResult(false, thx);
         println(_result);
         thx.printStackTrace(getErrorStream());
         getErrorStream().flush();
@@ -112,14 +114,12 @@ public abstract class StressBase extends PersistitScriptedTestCase {
     protected void compareValues(final Value value1, final Value value2) {
         boolean ok = true;
         if (!value2.isDefined() || value2.isNull()) {
-            _result = new PersistitTestResult(false,
-                    "value not expected to be null");
+            _result = new TestResult(false, "value not expected to be null");
             ok = false;
         } else if (!value1.equals(value2)) {
             final String difference = displayDifference(value1.getString(),
                     value2.getString());
-            _result = new PersistitTestResult(false, "Values differ: "
-                    + difference);
+            _result = new TestResult(false, "Values differ: " + difference);
             ok = false;
         }
         if (!ok) {
@@ -130,13 +130,11 @@ public abstract class StressBase extends PersistitScriptedTestCase {
     protected void compareStrings(final String value1, final String value2) {
         boolean ok = true;
         if (value2 == null) {
-            _result = new PersistitTestResult(false,
-                    "value not expected to be null");
+            _result = new TestResult(false, "value not expected to be null");
             ok = false;
         } else if (!value2.equals(value1)) {
             final String difference = displayDifference(value1, value2);
-            _result = new PersistitTestResult(false, "Values differ: "
-                    + difference);
+            _result = new TestResult(false, "Values differ: " + difference);
             ok = false;
         }
         if (!ok) {
@@ -230,14 +228,17 @@ public abstract class StressBase extends PersistitScriptedTestCase {
             println("STOPPED");
             throw new RuntimeException("STOPPED");
         }
-        final int i = _count;
-        if ((i > 0) && (_dotGranularity > 0) && ((i % _dotGranularity) == 0)) {
-            if ((i % (_dotGranularity * 10)) == 0) {
-                print(Integer.toString(i));
-            } else {
-                print(".");
-            }
+        if (isVerbose()) {
+            final int i = _count;
+            if ((i > 0) && (_dotGranularity > 0)
+                    && ((i % _dotGranularity) == 0)) {
+                if ((i % (_dotGranularity * 10)) == 0) {
+                    print(Integer.toString(i));
+                } else {
+                    print(".");
+                }
 
+            }
         }
     }
 }

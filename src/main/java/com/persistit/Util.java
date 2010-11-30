@@ -123,7 +123,7 @@ public class Util {
             bytes[index + 3] = (byte) (value >>> 24);
         }
     }
-    
+
     public static void putLong(byte[] bytes, int index, long value) {
         if (Persistit.BIG_ENDIAN) {
             bytes[index + 7] = (byte) (value);
@@ -150,7 +150,7 @@ public class Util {
         System.arraycopy(value, 0, bytes, index, value.length);
         return value.length;
     }
-    
+
     public static boolean changeBytes(byte[] bytes, int index, byte[] value) {
         boolean same = equalsByteSubarray(bytes, index, value);
         if (same) {
@@ -206,7 +206,6 @@ public class Util {
         }
     }
 
-
     public static String format(String s, int width, boolean right) {
         int pad = width - s.length();
         if (pad < 0)
@@ -245,11 +244,11 @@ public class Util {
         return true;
     }
 
-    public static void fill(StringBuffer sb, long value, int width) {
+    public static void fill(StringBuilder sb, long value, int width) {
         fill(sb, Long.toString(value), width);
     }
 
-    public static void fill(StringBuffer sb, String s, int width) {
+    public static void fill(StringBuilder sb, String s, int width) {
         for (int i = s.length(); i < width; i++)
             sb.append(' ');
         sb.append(s);
@@ -266,8 +265,8 @@ public class Util {
     }
 
     public static String dump(byte[] b, int offset, int size) {
-        StringBuffer sb = new StringBuffer();
-        StringBuffer sb2 = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
+        StringBuilder sb2 = new StringBuilder();
         for (int m = 0; m < size - offset; m += 16) {
             sb2.setLength(0);
             hex(sb, m, 4);
@@ -295,8 +294,8 @@ public class Util {
     }
 
     public static String dump(char[] c, int offset, int size) {
-        StringBuffer sb = new StringBuffer();
-        StringBuffer sb2 = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
+        StringBuilder sb2 = new StringBuilder();
         for (int m = 0; m < size - offset; m += 8) {
             sb2.setLength(0);
             hex(sb, m, 4);
@@ -327,8 +326,8 @@ public class Util {
     }
 
     public static String hexDump(byte[] b, int offset, int length) {
-        StringBuffer sb = new StringBuffer();
-        StringBuffer sb2 = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
+        StringBuilder sb2 = new StringBuilder();
         sb2.setLength(0);
         for (int i = offset; i < offset + length; i++) {
             sb.append(" ");
@@ -344,7 +343,7 @@ public class Util {
         return sb.toString();
     }
 
-    public static StringBuffer hex(StringBuffer sb, long value, int length) {
+    public static StringBuilder hex(StringBuilder sb, long value, int length) {
         for (int i = length - 1; i >= 0; i--) {
             sb.append(HEX_DIGITS[(int) (value >> (i * 4)) & 0xF]);
         }
@@ -374,12 +373,12 @@ public class Util {
     }
 
     public static String bytesToHex(byte[] bytes) {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         bytesToHex(sb, bytes, 0, bytes.length);
         return sb.toString();
     }
 
-    public static void bytesToHex(StringBuffer sb, byte[] bytes, int offset,
+    public static void bytesToHex(StringBuilder sb, byte[] bytes, int offset,
             int length) {
         length += offset;
         for (int i = offset; i < length; i++) {
@@ -492,15 +491,15 @@ public class Util {
         }
     }
 
-    public static void appendQuotedString(StringBuffer sb, String s, int start,
-            int length) {
+    public static void appendQuotedString(StringBuilder sb, String s,
+            int start, int length) {
         int end = Math.min(start + length, s.length());
         for (int index = start; index < end; index++) {
             appendQuotedChar(sb, s.charAt(index));
         }
     }
 
-    public static void appendQuotedChar(StringBuffer sb, int c) {
+    public static void appendQuotedChar(StringBuilder sb, int c) {
         int q = 0;
         if (c == '\b')
             q = 'b';
@@ -520,6 +519,10 @@ public class Util {
             Util.hex(sb, c, 4);
         } else
             sb.append((char) c);
+    }
+
+    public static void println(final String template, final Object... args) {
+        System.out.println(String.format(template, args));
     }
 
 }

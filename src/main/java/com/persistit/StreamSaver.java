@@ -384,7 +384,7 @@ public class StreamSaver extends Task {
         _dos.writeLong(volume.getInitialpages());
         _dos.writeLong(volume.getExtensionPages());
         _dos.writeLong(volume.getMaximumPages());
-        _dos.writeInt(volume.getBufferSize());
+        _dos.writeInt(volume.getPageSize());
         _dos.writeUTF(volume.getPath());
         _lastVolume = volume;
         _lastTree = null;
@@ -459,12 +459,13 @@ public class StreamSaver extends Task {
     public void save(Exchange exchange, KeyFilter filter)
             throws PersistitException, IOException {
         if (_verbose) {
-            postMessage("Saving Tree "
-                    + exchange.getTree().getName()
-                    + " in volume "
-                    + exchange.getVolume().getPath()
-                    + (filter == null ? "" : " using KeyFilter: "
-                            + filter.toString()), LOG_VERBOSE);
+            postMessage(
+                    "Saving Tree "
+                            + exchange.getTree().getName()
+                            + " in volume "
+                            + exchange.getVolume().getPath()
+                            + (filter == null ? "" : " using KeyFilter: "
+                                    + filter.toString()), LOG_VERBOSE);
         }
 
         writeTimestamp();

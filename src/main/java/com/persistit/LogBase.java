@@ -64,8 +64,8 @@ public class LogBase {
     final static int LOG_GENERAL = addLogTemplate(INFO, LIFECYCLE,
             "Persistit: {0}");
     final static int LOG_DEBUG = addLogTemplate(INFO, DEBUG, "{0}");
-    final static int LOG_COPYRIGHT = addLogTemplate(INFO, LIFECYCLE, Persistit
-            .copyright());
+    final static int LOG_COPYRIGHT = addLogTemplate(INFO, LIFECYCLE,
+            Persistit.copyright());
     final static int LOG_START = addLogTemplate(INFO, LIFECYCLE, "START");
     final static int LOG_END = addLogTemplate(INFO, LIFECYCLE, "END");
     final static int LOG_LICENSE = addLogTemplate(INFO, LIFECYCLE, "LICENSE");
@@ -77,18 +77,20 @@ public class LogBase {
             LIFECYCLE, "INIT_ALLOCATE_BUFFERS");
     final static int LOG_INIT_OPEN_VOLUME = addLogTemplate(INFO, LIFECYCLE,
             "INIT_OPEN_VOLUME");
-    final static int LOG_INIT_RECOVER_BEGIN = addLogTemplate(WARNING,
-            JOURNAL, "INIT_RECOVER_BEGIN");
-    final static int LOG_INIT_RECOVER_PLAN = addLogTemplate(FINE, JOURNAL,
-            "INIT_RECOVER_PLAN");
-    final static int LOG_INIT_RECOVER_END = addLogTemplate(WARNING, JOURNAL,
-            "INIT_RECOVER_END");
-    final static int LOG_INIT_RECOVER_TERMINATE = addLogTemplate(WARNING,
-            JOURNAL, "INIT_RECOVER_TERMINATE");
+    final static int LOG_JOURNAL_WRITE_ERROR = addLogTemplate(SEVERE,
+            LIFECYCLE, "JOURNAL_WRITE_ERROR");
+    final static int LOG_RECOVERY_DONE = addLogTemplate(WARNING, JOURNAL,
+            "RECOVERY_DONE");
     final static int LOG_RECOVERY_FAILURE = addLogTemplate(SEVERE, LIFECYCLE,
             "RECOVERY_FAILURE");
     final static int LOG_RECOVERY_RECORD = addLogTemplate(DEBUG, JOURNAL,
             "RECOVERY_RECORD");
+    final static int LOG_RECOVERY_PLAN = addLogTemplate(INFO, JOURNAL,
+            "RECOVERY_PLAN");
+    final static int LOG_RECOVERY_PROGRESS = addLogTemplate(INFO, JOURNAL,
+            "RECOVERY_PROGRESS");
+    final static int LOG_RECOVERY_EXCEPTION = addLogTemplate(WARNING, JOURNAL,
+            "RECOVERY_EXCEPTION");
     final static int LOG_CHECKPOINT_PROPOSED = addLogTemplate(INFO, JOURNAL,
             "CHECKPOINT_PROPOSED");
     final static int LOG_CHECKPOINT_WRITTEN = addLogTemplate(INFO, JOURNAL,
@@ -99,14 +101,6 @@ public class LogBase {
             "TXN_EXCEPTION");
     final static int LOG_TXN_NOT_COMMITTED = addLogTemplate(FINE, PERSISTIT,
             "TXN_NOT_COMMITTED");
-    final static int LOG_TXN_RECOVERY_START = addLogTemplate(FINE, JOURNAL,
-            "TXN_RECOVERY_START");
-    final static int LOG_TXN_RECOVERY_FAILURE = addLogTemplate(SEVERE,
-            JOURNAL, "TXN_RECOVERY_FAILURE");
-    final static int LOG_TXN_RECOVERY_EXCEPTION = addLogTemplate(WARNING,
-            JOURNAL, "TXN_RECOVERY_EXCEPTION");
-    final static int LOG_TXN_RECOVERY_END = addLogTemplate(FINE, JOURNAL,
-            "TXN_RECOVERY_END");
     final static int LOG_INIT_CREATE_GUI = addLogTemplate(FINE, LIFECYCLE,
             "INIT_CREATE_GUI");
     public final static int LOG_MBEAN_REGISTRATION = addLogTemplate(FINE,
@@ -140,8 +134,8 @@ public class LogBase {
             "ALLOC_GAR_UPDATE");
     final static int LOG_EXTEND_NORMAL = addLogTemplate(FINE, POOL,
             "EXTEND_NORMAL");
-    final static int LOG_EXTEND_BADLENGTH = addLogTemplate(SEVERE, POOL,
-            "EXTEND_BADLENGTH");
+    final static int LOG_EXTEND_LARGER = addLogTemplate(DEBUG, POOL,
+            "EXTEND_LARGER");
     final static int LOG_EXTEND_IOE = addLogTemplate(SEVERE, POOL, "EXTEND_IOE");
     final static int LOG_RMI_SERVER = addLogTemplate(FINE, RMI, "RMI_SERVER");
     final static int LOG_UNINDEXED_PAGE = addLogTemplate(INFO, PERSISTIT,
@@ -260,8 +254,8 @@ public class LogBase {
                 subsystem = lookup(TYPE_NAMES, st2.nextToken());
             }
             if (st2.hasMoreTokens()) {
-                level = lookup(AbstractPersistitLogger.LEVEL_NAMES, st2
-                        .nextToken());
+                level = lookup(AbstractPersistitLogger.LEVEL_NAMES,
+                        st2.nextToken());
             }
 
             if (subsystem == -1 || level == -1) {

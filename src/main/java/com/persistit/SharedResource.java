@@ -508,7 +508,7 @@ class SharedResource extends WaitingThreadManager {
     }
 
     public static String getStatusCode(int status) {
-        // Common cases so we don't have to construct new StringBuffers
+        // Common cases so we don't have to construct new StringBuilders
         switch (status) {
         case 0:
             return "";
@@ -527,7 +527,7 @@ class SharedResource extends WaitingThreadManager {
         case VALID_MASK | WRITER_MASK | DIRTY_MASK | 1:
             return "vdwr1";
         default:
-            StringBuffer sb = new StringBuffer(8);
+            StringBuilder sb = new StringBuilder(8);
             if ((status & SUSPENDED_MASK) != 0) {
                 sb.append("s");
             }

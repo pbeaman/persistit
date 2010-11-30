@@ -506,7 +506,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
     public void test12() {
         System.out.print("test12 ");
         final Key key = new Key(_persistit);
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
 
         sb.setLength(0);
         sb.append("1");
@@ -533,7 +533,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
     @Test
     public void test13() {
         System.out.print("test13 ");
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         final Key key = new Key(_persistit);
         sb.setLength(0);
         sb.append("0.");
@@ -640,11 +640,11 @@ public class KeyTest1 extends PersistitUnitTestCase {
             System.out.println();
             System.out.println(" lv1=" + lv1 + " lv2=" + lv2);
             System.out.println(" key1="
-                    + Util.hexDump(_key1.getEncodedBytes(), 0, _key1
-                            .getEncodedSize()));
+                    + Util.hexDump(_key1.getEncodedBytes(), 0,
+                            _key1.getEncodedSize()));
             System.out.println(" key2="
-                    + Util.hexDump(_key2.getEncodedBytes(), 0, _key2
-                            .getEncodedSize()));
+                    + Util.hexDump(_key2.getEncodedBytes(), 0,
+                            _key2.getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);
@@ -656,11 +656,11 @@ public class KeyTest1 extends PersistitUnitTestCase {
             System.out.println(" fv1=" + fv1 + " (" + floatBits(fv1) + ")"
                     + " fv2=" + fv2 + " (" + floatBits(fv2) + ")");
             System.out.println(" key1="
-                    + Util.hexDump(_key1.getEncodedBytes(), 0, _key1
-                            .getEncodedSize()));
+                    + Util.hexDump(_key1.getEncodedBytes(), 0,
+                            _key1.getEncodedSize()));
             System.out.println(" key2="
-                    + Util.hexDump(_key2.getEncodedBytes(), 0, _key2
-                            .getEncodedSize()));
+                    + Util.hexDump(_key2.getEncodedBytes(), 0,
+                            _key2.getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);
@@ -672,11 +672,11 @@ public class KeyTest1 extends PersistitUnitTestCase {
             System.out.println(" dv1=" + dv1 + " (" + doubleBits(dv1) + ")"
                     + " dv2=" + dv2 + " (" + doubleBits(dv2) + ")");
             System.out.println(" key1="
-                    + Util.hexDump(_key1.getEncodedBytes(), 0, _key1
-                            .getEncodedSize()));
+                    + Util.hexDump(_key1.getEncodedBytes(), 0,
+                            _key1.getEncodedSize()));
             System.out.println(" key2="
-                    + Util.hexDump(_key2.getEncodedBytes(), 0, _key2
-                            .getEncodedSize()));
+                    + Util.hexDump(_key2.getEncodedBytes(), 0,
+                            _key2.getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);
@@ -684,14 +684,14 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     private String floatBits(final float v) {
         final int bits = Float.floatToIntBits(v);
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         Util.hex(sb, bits, 8);
         return sb.toString();
     }
 
     private String doubleBits(final double v) {
         final long bits = Double.doubleToLongBits(v);
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         Util.hex(sb, bits, 16);
         return sb.toString();
     }

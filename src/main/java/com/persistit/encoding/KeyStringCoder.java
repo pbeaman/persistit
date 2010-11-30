@@ -26,8 +26,8 @@ import com.persistit.exception.ConversionException;
  * A specialized KeyCoder for String encoding/decoding implementations. An
  * implementation of this class may provide specialized logic for translating a
  * <tt>String</tt>s or various other string representation classes (e.g.,
- * <tt>StringBuffer</tt>, <tt>StringBuilder</tt> and <tt>CharSequence</tt>) into
- * a subarray of bytes and back again. The default key encoding mechanism
+ * <tt>StringBuilder</tt>, <tt>StringBuilder</tt> and <tt>CharSequence</tt>)
+ * into a subarray of bytes and back again. The default key encoding mechanism
  * converts a string to UTF-8.
  * </p>
  * <p>
@@ -37,7 +37,7 @@ import com.persistit.exception.ConversionException;
  * language-specific alphabetical collation of strings. </b>
  * <p>
  * By default, {@link Key} uses the registered <tt>KeyStringCoder</tt> to encode
- * and decode <tt>String</tt> and <tt>StringBuffer</tt> objects. Because
+ * and decode <tt>String</tt> and <tt>StringBuilder</tt> objects. Because
  * <tt>KeyStringCoder</tt> extends <tt>KeyCoder</tt>, you may register a
  * <tt>KeyStringEncoder</tt> to handle encoding and decoding for any other type
  * of object provided that the <tt>KeyStringCoder</tt>'s implementation handles
@@ -46,8 +46,8 @@ import com.persistit.exception.ConversionException;
  * </p>
  * <p>
  * In Persistit, all strings are represented internally as a single type.
- * Therefore if you append a <tt>StringBuffer</tt> to a <tt>Key</tt>, you can
- * decode the value as a <tt>Sting</tt> rather than as a <tt>StringBuffer</tt>.
+ * Therefore if you append a <tt>StringBuilder</tt> to a <tt>Key</tt>, you can
+ * decode the value as a <tt>Sting</tt> rather than as a <tt>StringBuilder</tt>.
  * This conversion is similar to "autoboxing", where primitive values are
  * automatically interchangeable with their wrapper types. By registering
  * additional classes that reasonably implement string values, the application
@@ -90,7 +90,7 @@ public interface KeyStringCoder extends KeyRenderer {
      *            The string to encode, provided by any of several classes that
      *            reasonably represent a String. At minimum, the
      *            <tt>KeyStringEncoder</tt> must handle object of type
-     *            <tt>String</tt>, <tt>StringBuffer</tt>, and for JDK 1.5
+     *            <tt>String</tt>, <tt>StringBuilder</tt>, and for JDK 1.5
      *            installations, <tt>StringBuiler</tt>. (If you are using a JVM
      *            compatible with JDK 1.4 or above, you can accomplish this by
      *            casting the object as a <tt>CharSequence</tt>.)
@@ -132,7 +132,7 @@ public interface KeyStringCoder extends KeyRenderer {
      * <p>
      * Decode the encoded form of a String from the backing byte array of a
      * <tt>Key</tt> into an instance of a supplied class that reasonably
-     * represents string values, such as a <tt>StringBuffer</tt> or
+     * represents string values, such as a <tt>StringBuilder</tt> or
      * <tt>StringBuilder</tt> (for JDK 1.5 and above).
      * </p>
      * 
@@ -140,7 +140,7 @@ public interface KeyStringCoder extends KeyRenderer {
      *            The <tt>Key</tt>
      * @param target
      *            A mutable object that accepts a string value. Implementations
-     *            of this interface must accept a <tt>StringBuffer</tt> as a
+     *            of this interface must accept a <tt>StringBuilder</tt> as a
      *            target.
      * @param context
      *            An arbitrary object that can optionally be supplied by the

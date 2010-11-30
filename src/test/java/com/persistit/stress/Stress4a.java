@@ -118,7 +118,7 @@ public class Stress4a extends Stress4Base {
         }
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         new Stress4a().runStandalone(args);
     }
 }

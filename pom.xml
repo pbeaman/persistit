@@ -101,7 +101,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.4.1</version>
                 <configuration>
-                    <argLine>-Xmx640m -Xms128m -Drmiport=${rmiport}</argLine>
+                    <argLine>-Xmx640m -Xms128m -Xrunjdwp:transport=dt_socket,address=9091,suspend=n,server=y -Xdebug -Xnoagent -Drmiport=${rmiport}</argLine>
                     <includes>
                         <include>**/*Test.java</include>
                         <include>**/*Test?.java</include>

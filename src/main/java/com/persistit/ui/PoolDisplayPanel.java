@@ -36,8 +36,8 @@ import javax.swing.JToggleButton;
 import javax.swing.table.AbstractTableModel;
 
 import com.persistit.Management;
-import com.persistit.Management.BufferInfo;
-import com.persistit.Management.BufferPoolInfo;
+import com.persistit.ManagementMXBean.BufferInfo;
+import com.persistit.ManagementMXBean.BufferPoolInfo;
 
 public class PoolDisplayPanel extends JPanel {
     private final static String[] HEADER_NAMES = { "Index", "Page", "Type",
@@ -92,8 +92,8 @@ public class PoolDisplayPanel extends JPanel {
         JToggleButton tb;
         tb = new JToggleButton(new AbstractAction("Valid") {
             public void actionPerformed(ActionEvent ae) {
-                _btm.setIncludeMask("v", ((JToggleButton) (ae.getSource()))
-                        .isSelected());
+                _btm.setIncludeMask("v",
+                        ((JToggleButton) (ae.getSource())).isSelected());
                 stats.setText(_btm.getBufferStats());
             }
         });
@@ -101,8 +101,8 @@ public class PoolDisplayPanel extends JPanel {
 
         tb = new JToggleButton(new AbstractAction("Dirty") {
             public void actionPerformed(ActionEvent ae) {
-                _btm.setIncludeMask("d", ((JToggleButton) (ae.getSource()))
-                        .isSelected());
+                _btm.setIncludeMask("d",
+                        ((JToggleButton) (ae.getSource())).isSelected());
                 stats.setText(_btm.getBufferStats());
             }
         });
@@ -110,8 +110,8 @@ public class PoolDisplayPanel extends JPanel {
 
         tb = new JToggleButton(new AbstractAction("Reader") {
             public void actionPerformed(ActionEvent ae) {
-                _btm.setIncludeMask("r", ((JToggleButton) (ae.getSource()))
-                        .isSelected());
+                _btm.setIncludeMask("r",
+                        ((JToggleButton) (ae.getSource())).isSelected());
                 stats.setText(_btm.getBufferStats());
             }
         });
@@ -119,8 +119,8 @@ public class PoolDisplayPanel extends JPanel {
 
         tb = new JToggleButton(new AbstractAction("Writer") {
             public void actionPerformed(ActionEvent ae) {
-                _btm.setIncludeMask("w", ((JToggleButton) (ae.getSource()))
-                        .isSelected());
+                _btm.setIncludeMask("w",
+                        ((JToggleButton) (ae.getSource())).isSelected());
                 stats.setText(_btm.getBufferStats());
             }
         });
@@ -221,7 +221,7 @@ public class PoolDisplayPanel extends JPanel {
                 return threadName == null ? "" : threadName;
 
             case 5:
-                return Integer.toString(bufferInfo.getAvailableSize());
+                return Integer.toString(bufferInfo.getAvailableBytes());
 
             case 6:
                 return Long.toString(bufferInfo.getRightSiblingAddress());
@@ -249,9 +249,9 @@ public class PoolDisplayPanel extends JPanel {
                     BufferPoolInfo info = pools[0];
 
                     if (isRemote) {
-                        _buffers = _management.getBufferInfoArray(info
-                                .getBufferSize(), _traversalType, _includeMask,
-                                _excludeMask);
+                        _buffers = _management.getBufferInfoArray(
+                                info.getBufferSize(), _traversalType,
+                                _includeMask, _excludeMask);
                         _selectedBufferCount = _buffers == null ? -1
                                 : _buffers.length;
                     } else {
@@ -261,8 +261,8 @@ public class PoolDisplayPanel extends JPanel {
                         }
 
                         _selectedBufferCount = _management
-                                .populateBufferInfoArray(_buffers, info
-                                        .getBufferSize(), _traversalType,
+                                .populateBufferInfoArray(_buffers,
+                                        info.getBufferSize(), _traversalType,
                                         _includeMask, _excludeMask);
                     }
 

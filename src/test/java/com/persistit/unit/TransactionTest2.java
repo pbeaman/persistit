@@ -78,8 +78,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         o.println("and the total number of accounts to receive these");
         o.println("transfers.  Usage:");
         o.println();
-        o
-                .println("java SimpleTransaction <nthreads> <itersPerThread> <accounts>");
+        o.println("java SimpleTransaction <nthreads> <itersPerThread> <accounts>");
         o.println();
     }
 

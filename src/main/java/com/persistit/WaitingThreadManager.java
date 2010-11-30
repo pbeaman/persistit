@@ -275,9 +275,6 @@ class WaitingThreadManager {
             _wokenBy = null;
             while (!_notified && timeout > 0) {
                 wait(timeout < 2000 ? timeout : 2000);
-                if (!_notified && _persistit != null) {
-                    _persistit.bumpThrottleCount();
-                }
                 timeout -= 2000;
             }
             _resource = null; // avoid memory leak

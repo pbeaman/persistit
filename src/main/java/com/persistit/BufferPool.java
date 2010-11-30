@@ -18,13 +18,10 @@
 package com.persistit;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.InvalidPageStructureException;
@@ -155,10 +152,6 @@ public class BufferPool {
 
     private DirtyPageCollector _collector;
 
-    private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
-
-    private Checkpoint _currentCheckpoint = new Checkpoint(0, 0);
-
     /**
      * Construct a BufferPool with the specified count of <tt>Buffer</tt>s of
      * the specified size.
@@ -261,8 +254,8 @@ public class BufferPool {
                     synchronized (_lock[bucket]) {
                         if (buffer.isDirty() && !buffer.isEnqueued()) {
                             if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                                enqueueDirtyPage(buffer, bucket, !buffer
-                                        .isTransient(), 0, 0);
+                                enqueueDirtyPage(buffer, bucket,
+                                        !buffer.isTransient(), 0, 0);
                             } else {
                                 unavailable++;
                             }
@@ -334,10 +327,10 @@ public class BufferPool {
     }
 
     void populateBufferPoolInfo(ManagementImpl.BufferPoolInfo info) {
-        info._bufferCount = _bufferCount;
-        info._bufferSize = _bufferSize;
-        info._getCounter = _getCounter.get();
-        info._hitCounter = _hitCounter.get();
+        info.bufferCount = _bufferCount;
+        info.bufferSize = _bufferSize;
+        info.getCounter = _getCounter.get();
+        info.hitCounter = _hitCounter.get();
         int validPages = 0;
         int dirtyPages = 0;
         int readerClaimedPages = 0;
@@ -354,10 +347,10 @@ public class BufferPool {
             else if ((status & SharedResource.CLAIMED_MASK) != 0)
                 readerClaimedPages++;
         }
-        info._validPageCount = validPages;
-        info._dirtyPageCount = dirtyPages;
-        info._readerClaimedPageCount = readerClaimedPages;
-        info._writerClaimedPageCount = writerClaimedPages;
+        info.validPageCount = validPages;
+        info.dirtyPageCount = dirtyPages;
+        info.readerClaimedPageCount = readerClaimedPages;
+        info.writerClaimedPageCount = writerClaimedPages;
         info.updateAcquisitonTime();
     }
 
@@ -577,41 +570,6 @@ public class BufferPool {
             return ((double) hitCounter) / ((double) getCounter);
     }
 
-    /**
-     * Attempt to write the supplied Checkpoint and update the journal to
-     * include all pages made dirty before that Checkpoint.
-     * 
-     * @param newCheckpoint
-     * @return
-     */
-    public Checkpoint checkpoint(final Checkpoint newCheckpoint) {
-        final Checkpoint validCheckpoint;
-        synchronized (this) {
-            if (newCheckpoint.getTimestamp() > _currentCheckpoint
-                    .getTimestamp()) {
-                _outstandingCheckpoints.add(newCheckpoint);
-                _currentCheckpoint = newCheckpoint;
-                if (_persistit.getLogBase().isLoggable(
-                        LogBase.LOG_CHECKPOINT_PROPOSED)) {
-                    _persistit.getLogBase().log(
-                            LogBase.LOG_CHECKPOINT_PROPOSED, newCheckpoint);
-                }
-            }
-        }
-        validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
-        if (validCheckpoint != null) {
-            try {
-                _persistit.getJournalManager().writeCheckpointToJournal(
-                        validCheckpoint);
-            } catch (PersistitIOException e) {
-                _persistit.getLogBase().log(LogBase.LOG_EXCEPTION,
-                        e + " while writing " + validCheckpoint + ":" + e);
-                return null;
-            }
-        }
-        return validCheckpoint;
-    }
-
     private int bucket(Buffer b) {
         return (int) (b.getPageAddress() % _bucketCount);
     }
@@ -673,8 +631,8 @@ public class BufferPool {
                 return;
             }
 
-            final int hash = hashIndex(buffer.getVolume(), buffer
-                    .getPageAddress());
+            final int hash = hashIndex(buffer.getVolume(),
+                    buffer.getPageAddress());
             //
             // Detach this buffer from the hash table.
             //
@@ -691,7 +649,7 @@ public class BufferPool {
                     prev = next;
                 }
             }
-            //       
+            //
             // Detach buffer from the LRU queue.
             //
             if (_lru[bucket] == buffer)
@@ -716,7 +674,7 @@ public class BufferPool {
         synchronized (_lock[bucket]) {
             //
             // Return if buffer is already least-recently-used.
-            //       
+            //
             if (_lru[bucket] == null) {
                 _lru[bucket] = buffer;
             } else if (_lru[bucket] != buffer) {
@@ -881,8 +839,8 @@ public class BufferPool {
                             if (Debug.ENABLED)
                                 Debug.$assert(buffer.getPageAddress() == page
                                         && buffer.getVolume() == vol
-                                        && hashIndex(buffer.getVolume(), buffer
-                                                .getPageAddress()) == hash);
+                                        && hashIndex(buffer.getVolume(),
+                                                buffer.getPageAddress()) == hash);
 
                             buffer.load(vol, page);
                             loaded = true;
@@ -942,8 +900,7 @@ public class BufferPool {
                 if (buffer.getPageAddress() == page
                         && buffer.getVolume() == vol) {
                     if (Debug.ENABLED)
-                        Debug
-                                .$assert((buffer._status & SharedResource.VALID_MASK) != 0);
+                        Debug.$assert((buffer._status & SharedResource.VALID_MASK) != 0);
                     //
                     // Found it - now return a copy of it.
                     //
@@ -1093,7 +1050,8 @@ public class BufferPool {
         if (buffer.isTransient()) {
             return false;
         }
-        if (buffer.getTimestamp() > _currentCheckpoint.getTimestamp()) {
+        if (buffer.getTimestamp() > _persistit.getCurrentCheckpoint()
+                .getTimestamp()) {
             return false;
         }
         if (buffer.isDataPage() && !buffer.isStructure()
@@ -1127,16 +1085,7 @@ public class BufferPool {
         return result;
     }
 
-    /**
-     * Given a Checkpoint, determines whether there are any dirty pages in the
-     * BufferPool having timestamps smaller than the checkpoint. If not, then
-     * the logs are complete and the checkpoint record can be written.
-     * 
-     * @param checkpoint
-     * @return <tt>true</tt> if there are no dangerous pages in the BufferPool
-     */
-    private Checkpoint findValidCheckpoint(
-            final List<Checkpoint> outstandingCheckpoints) {
+    long earliestDirtyTimestamp() {
         long earliestDirtyTimestamp = Long.MAX_VALUE;
         for (int index = 0; index < _buffers.length; index++) {
             final Buffer buffer = _buffers[index];
@@ -1147,16 +1096,7 @@ public class BufferPool {
                 }
             }
         }
-        for (int index = outstandingCheckpoints.size(); --index >= 0;) {
-            final Checkpoint checkpoint = outstandingCheckpoints.get(index);
-            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
-                for (int k = index; k >= 0; --k) {
-                    outstandingCheckpoints.remove(k);
-                }
-                return checkpoint;
-            }
-        }
-        return null;
+        return earliestDirtyTimestamp;
     }
 
     private class DirtyPageCollector extends IOTaskRunnable {
@@ -1326,12 +1266,7 @@ public class BufferPool {
                 }
             }
 
-            final Checkpoint newCheckpoint = _persistit.getTimestampAllocator()
-                    .updateCheckpoint();
-
-            if (newCheckpoint != _currentCheckpoint) {
-                checkpoint(newCheckpoint);
-            }
+            _persistit.applyCheckpoint();
         }
 
         protected boolean shouldStop() {

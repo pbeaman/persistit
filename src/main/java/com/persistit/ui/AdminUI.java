@@ -820,11 +820,10 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         if (caption == null || caption.length() == 0)
             caption = " ";
 
-        return BorderFactory
-                .createTitledBorder(BorderFactory
-                        .createEmptyBorder(10, 2, 2, 2), caption,
-                        TitledBorder.LEADING, TitledBorder.DEFAULT_POSITION,
-                        _boldFont, _persistitAccentColor);
+        return BorderFactory.createTitledBorder(
+                BorderFactory.createEmptyBorder(10, 2, 2, 2), caption,
+                TitledBorder.LEADING, TitledBorder.DEFAULT_POSITION, _boldFont,
+                _persistitAccentColor);
     }
 
     private void connectDialog(String defaultHost) {
@@ -1105,19 +1104,36 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 } else {
                     ((AbstractButton) ae.getSource()).setSelected(false);
                 }
-            } else if ("JSUSP".equals(name)) {
+            } else if ("AONLY".equals(name)) {
                 boolean state = ((AbstractButton) ae.getSource()).isSelected();
                 if (management != null && management.isInitialized()) {
                     if (state) {
 
                         int confirm = JOptionPane.showConfirmDialog(_frame,
-                                getProperty("jsusp.confirm"));
+                                getProperty("aonly.confirm"));
 
                         if (confirm != JOptionPane.YES_OPTION) {
                             state = false;
                         }
                     }
-                    management.setJournalCopyingSuspended(state);
+                    management.setAppendOnly(state);
+                    scheduleRefresh(-1);
+                } else {
+                    ((AbstractButton) ae.getSource()).setSelected(false);
+                }
+            } else if ("JCOPY".equals(name)) {
+                boolean state = ((AbstractButton) ae.getSource()).isSelected();
+                if (management != null && management.isInitialized()) {
+                    if (state) {
+
+                        int confirm = JOptionPane.showConfirmDialog(_frame,
+                                getProperty("jcopy.confirm"));
+
+                        if (confirm != JOptionPane.YES_OPTION) {
+                            state = false;
+                        }
+                    }
+                    management.setJournalCopyingFast(state);
                     scheduleRefresh(-1);
                 } else {
                     ((AbstractButton) ae.getSource()).setSelected(false);
@@ -1126,15 +1142,15 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 if (management != null && management.isInitialized()) {
                     management.flushAndSync();
                 }
-//            } else if ("SHUTDOWN".equals(name)) {
-//                if (management != null && management.isInitialized()) {
-//                    int confirm = JOptionPane.showConfirmDialog(_frame,
-//                            getProperty("shutdown.confirm"));
-//
-//                    if (confirm == JOptionPane.YES_OPTION) {
-//                        management.close();
-//                    }
-//                }
+                // } else if ("SHUTDOWN".equals(name)) {
+                // if (management != null && management.isInitialized()) {
+                // int confirm = JOptionPane.showConfirmDialog(_frame,
+                // getProperty("shutdown.confirm"));
+                //
+                // if (confirm == JOptionPane.YES_OPTION) {
+                // management.close();
+                // }
+                // }
             } else if ("WRAP_MODE_NONE".equals(name)) {
                 _wrapMode = false;
                 textModeChanged = true;
@@ -1163,8 +1179,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                         JOptionPane.QUESTION_MESSAGE,
                         JOptionPane.OK_CANCEL_OPTION);
 
-                JDialog dialog = optionPane.createDialog(_frame, tsp
-                        .getTaskName());
+                JDialog dialog = optionPane.createDialog(_frame,
+                        tsp.getTaskName());
                 dialog.setResizable(true);
 
                 tsp.refresh(false);
@@ -1212,6 +1228,12 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             }
             if ("USUSP".equals(name)) {
                 return _management.isUpdateSuspended();
+            }
+            if ("AONLY".equals(name)) {
+                return _management.getJournalInfo().isAppendOnly();
+            }
+            if ("USUSP".equals(name)) {
+                return _management.getJournalInfo().isFastCopying();
             }
         } catch (RemoteException re) {
         }
@@ -1301,10 +1323,10 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     protected void doTask(TaskSetupPanel tsp) throws RemoteException {
         Management management = getManagement();
         if (management != null) {
-            management.startTask(tsp.getDescriptionString(), tsp
-                    .getOwnerString(), tsp.getTaskClassName(),
-                    tsp.argStrings(), tsp.getExpirationTime(), tsp
-                            .isVerboseEnabled() ? 1 : 0);
+            management.startTask(tsp.getDescriptionString(),
+                    tsp.getOwnerString(), tsp.getTaskClassName(),
+                    tsp.argStrings(), tsp.getExpirationTime(),
+                    tsp.isVerboseEnabled() ? 1 : 0);
         }
         scheduleRefresh(1000);
     }

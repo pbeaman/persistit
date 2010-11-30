@@ -317,8 +317,9 @@ public class PersistitMapTest extends PersistitUnitTestCase {
     public void test6() throws PersistitException {
         System.out.print("test6 ");
 
-        final Exchange ex = _persistit.getExchange("persistit",
-                "PersistitMapTest", true).append("a").append("b");
+        final Exchange ex = _persistit
+                .getExchange("persistit", "PersistitMapTest", true).append("a")
+                .append("b");
 
         final PersistitMap pmap = new PersistitMap(ex);
 
@@ -356,7 +357,7 @@ public class PersistitMapTest extends PersistitUnitTestCase {
                     || (k == 999));
             count++;
         }
-        assertEquals(count, 201 + 99 + 1);
+        assertEquals(201 + 99 + 1, count);
 
         System.out.println("- done");
     }
@@ -626,14 +627,14 @@ public class PersistitMapTest extends PersistitUnitTestCase {
 
     private String floatBits(final float v) {
         final int bits = Float.floatToIntBits(v);
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         Util.hex(sb, bits, 8);
         return sb.toString();
     }
 
     private String doubleBits(final double v) {
         final long bits = Double.doubleToLongBits(v);
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         Util.hex(sb, bits, 16);
         return sb.toString();
     }

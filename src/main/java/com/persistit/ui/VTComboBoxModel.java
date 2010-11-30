@@ -25,8 +25,8 @@ import javax.swing.AbstractListModel;
 import javax.swing.ComboBoxModel;
 
 import com.persistit.Management;
-import com.persistit.Management.TreeInfo;
-import com.persistit.Management.VolumeInfo;
+import com.persistit.ManagementMXBean.TreeInfo;
+import com.persistit.ManagementMXBean.VolumeInfo;
 
 class VTComboBoxModel extends AbstractListModel implements ComboBoxModel {
 

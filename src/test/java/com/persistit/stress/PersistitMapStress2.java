@@ -25,7 +25,7 @@ import java.util.TreeMap;
 import com.persistit.ArgParser;
 import com.persistit.PersistitMap;
 import com.persistit.Value;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.TestResult;
 
 public class PersistitMapStress2 extends StressBase {
 
@@ -139,10 +139,10 @@ public class PersistitMapStress2 extends StressBase {
                     }
                 }
                 if (_dm1.size() != _total) {
-                    _result = new PersistitTestResult(false,
-                            "PersistitMap.size()=" + _dm1.size() + " out of "
-                                    + _total + " repetition=" + _repeat
-                                    + " in thread=" + _threadIndex);
+                    _result = new TestResult(false, "PersistitMap.size()="
+                            + _dm1.size() + " out of " + _total
+                            + " repetition=" + _repeat + " in thread="
+                            + _threadIndex);
                     println(_result);
                     forceStop();
                     break;
@@ -186,9 +186,9 @@ public class PersistitMapStress2 extends StressBase {
                     }
                 }
                 if (_count != _total) {
-                    _result = new PersistitTestResult(false, "Traverse count="
-                            + _count + " out of " + _total + " repetition="
-                            + _repeat + " in thread=" + _threadIndex);
+                    _result = new TestResult(false, "Traverse count=" + _count
+                            + " out of " + _total + " repetition=" + _repeat
+                            + " in thread=" + _threadIndex);
                     println(_result);
                     forceStop();
                     break;
@@ -228,8 +228,8 @@ public class PersistitMapStress2 extends StressBase {
                     }
                 }
                 if (_count != 0) {
-                    _result = new PersistitTestResult(false, "Traverse count="
-                            + _count + " when 0 were expected" + " repetition="
+                    _result = new TestResult(false, "Traverse count=" + _count
+                            + " when 0 were expected" + " repetition="
                             + _repeat + " in thread=" + _threadIndex);
                     println(_result);
                     forceStop();
@@ -259,10 +259,10 @@ public class PersistitMapStress2 extends StressBase {
                     }
                 }
                 if (_dm1.size() != 0) {
-                    _result = new PersistitTestResult(false,
-                            "PersistitMap.size()= " + _dm1.size()
-                                    + " when 0 were expected" + " repetition="
-                                    + _repeat + " in thread=" + _threadIndex);
+                    _result = new TestResult(false, "PersistitMap.size()= "
+                            + _dm1.size() + " when 0 were expected"
+                            + " repetition=" + _repeat + " in thread="
+                            + _threadIndex);
                     println(_result);
                     forceStop();
                     break;
@@ -317,7 +317,7 @@ public class PersistitMapStress2 extends StressBase {
         return false;
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         final PersistitMapStress2 test = new PersistitMapStress2();
         test.runStandalone(args);
     }

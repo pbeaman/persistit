@@ -41,9 +41,9 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import com.persistit.Management;
+import com.persistit.ManagementMXBean.TaskStatus;
 import com.persistit.Task;
 import com.persistit.Util;
-import com.persistit.Management.TaskStatus;
 import com.persistit.ui.AdminUI.AdminAction;
 
 public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
@@ -88,8 +88,8 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
         _taskStatusArrayModel = new ManagementTableModel(TaskStatus.class,
                 "TaskStatus", ui);
 
-        _menuMap.put("TASK.1", _adminUI.createMenuArray(this, "TaskPanelMenu",
-                "TASK"));
+        _menuMap.put("TASK.1",
+                _adminUI.createMenuArray(this, "TaskPanelMenu", "TASK"));
 
         _taskTable = new JTable(_taskStatusArrayModel);
         _taskTable.setAutoCreateRowSorter(true);
@@ -286,7 +286,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
                             : taskStatus.getLastException().toString());
             _statusDetailArea.setText(taskStatus.getStatusDetail());
 
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             int size = 0;
             if (taskStatus.getMessages() != null) {
                 size = taskStatus.getMessages().length;

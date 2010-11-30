@@ -26,7 +26,7 @@ import com.persistit.Key;
 import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.RollbackException;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.TestResult;
 
 public class Stress3txn extends StressBase {
 
@@ -38,7 +38,7 @@ public class Stress3txn extends StressBase {
             + "   data structures.  Performs random and whole-tree deletes \r\n"
             + "   Same as Stress3, except this class tests Transaction support";
 
-    private final static String DEFAULT_DATA_FILE_NAME = "./testdata/test3_data.txt";
+    private final static String DEFAULT_DATA_FILE_NAME = "src/test/resources/test3_data.txt";
 
     private final static String[] ARGS_TEMPLATE = {
             "op|String:wrd|Operations to perform",
@@ -88,6 +88,7 @@ public class Stress3txn extends StressBase {
         }
 
         initialize(_ap.getStringValue("datafile"));
+        _persistit.getManagement().setAppendOnly(true); // debugging only
     }
 
     /**
@@ -181,8 +182,8 @@ public class Stress3txn extends StressBase {
                                 _sb1.reverse();
 
                                 ex3.getValue().put(atomic);
-                                ex3.clear().append("byReversedName").append(
-                                        _sb1).store();
+                                ex3.clear().append("byReversedName")
+                                        .append(_sb1).store();
                                 txn.commit();
                                 break;
                             } catch (final RollbackException rbe) {
@@ -230,8 +231,8 @@ public class Stress3txn extends StressBase {
                         final long atomic = ex1.getValue().getLong();
 
                         setupTestValue(ex2, _count, random(30, _size));
-                        ex2.clear().append("byCounter").append(atomic).fetch(
-                                value2);
+                        ex2.clear().append("byCounter").append(atomic)
+                                .fetch(value2);
 
                         if (!value2.isDefined() || value2.isNull()) {
                             throw new RuntimeException(
@@ -305,7 +306,7 @@ public class Stress3txn extends StressBase {
                                             .fetch();
                                     if (!ex1.getValue().isDefined()
                                             || ex1.getValue().isNull()) {
-                                        _result = new PersistitTestResult(
+                                        _result = new TestResult(
                                                 false,
                                                 "Expected filename <"
                                                         + s
@@ -322,8 +323,8 @@ public class Stress3txn extends StressBase {
                                     final long atomic = ex1.getValue()
                                             .getLong();
                                     ex1.remove();
-                                    ex2.clear().append("byCounter").append(
-                                            atomic).remove();
+                                    ex2.clear().append("byCounter")
+                                            .append(atomic).remove();
                                     sizeArray[(int) atomic] = 0;
                                     _sb1.setLength(0);
                                     _sb1.append(s);
@@ -352,7 +353,7 @@ public class Stress3txn extends StressBase {
 
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         final Stress3txn test = new Stress3txn();
         test.runStandalone(args);
     }

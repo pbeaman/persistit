@@ -97,7 +97,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
         assertEquals(url1.toString(), obj1.toString());
         assertEquals(url2.toString(), obj2.toString());
 
-        final StringBuffer sb = new StringBuffer();
+        final StringBuilder sb = new StringBuilder();
         _key1.indexTo(1);
         _key1.decode(sb);
         assertEquals(url1.toString(), sb.toString());
@@ -129,11 +129,11 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
         if (!condition) {
             System.out.println();
             System.out.println(" key1="
-                    + Util.hexDump(_key1.getEncodedBytes(), 0, _key1
-                            .getEncodedSize()));
+                    + Util.hexDump(_key1.getEncodedBytes(), 0,
+                            _key1.getEncodedSize()));
             System.out.println(" key2="
-                    + Util.hexDump(_key2.getEncodedBytes(), 0, _key2
-                            .getEncodedSize()));
+                    + Util.hexDump(_key2.getEncodedBytes(), 0,
+                            _key2.getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);
@@ -172,7 +172,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
 
         public void renderKeySegment(final Key key, final Object target,
                 final Class cl, final CoderContext context) {
-            final StringBuffer sb = (StringBuffer) target;
+            final StringBuilder sb = (StringBuilder) target;
             key.decodeString(sb);
             sb.append("://");
             key.decodeString(sb);
@@ -212,9 +212,9 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
 
         public Object decodeKeySegment(final Key key, final Class cl,
                 final CoderContext context) {
-            final StringBuffer sb = new StringBuffer();
+            final StringBuilder sb = new StringBuilder();
             renderKeySegment(key, sb, cl, context);
-            if (cl == StringBuffer.class) {
+            if (cl == StringBuilder.class) {
                 return sb;
             }
             if (cl == String.class) {
@@ -226,7 +226,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
 
         public void renderKeySegment(final Key key, final Object target,
                 final Class cl, final CoderContext context) {
-            final StringBuffer sb = (StringBuffer) target;
+            final StringBuilder sb = (StringBuilder) target;
             final byte[] bytes = key.getEncodedBytes();
             final int start = key.getIndex();
             for (int end = start;; end++) {

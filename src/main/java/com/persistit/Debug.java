@@ -68,7 +68,7 @@ public class Debug {
         de.fillInStackTrace();
         String s = LogBase.detailString(de).replace('\r', ' ');
         StringTokenizer st = new StringTokenizer(s, "\n");
-        StringBuffer sb = new StringBuffer(msg);
+        StringBuilder sb = new StringBuilder(msg);
         sb.append(Util.NEW_LINE);
         while (st.hasMoreTokens()) {
             sb.append("    ");
@@ -114,7 +114,7 @@ public class Debug {
             setSuspended(true);
             long time = elapsedTime();
 
-            //    
+            //
             // Put a breakpoint on the next statement.
             //
             setSuspended(false); // <-- BREAKPOINT HERE
@@ -139,7 +139,7 @@ public class Debug {
             logDebugMessage("debug1");
             setSuspended(true);
             long time = elapsedTime();
-            //    
+            //
             // Put a breakpoint on the next statement.
             //
             setSuspended(false); // <-- BREAKPOINT HERE
@@ -191,7 +191,7 @@ public class Debug {
             setSuspended(true);
             long time = elapsedTime();
 
-            //    
+            //
             // Put a breakpoint on the next statement.
             //
             setSuspended(false); // <-- BREAKPOINT HERE
@@ -212,7 +212,7 @@ public class Debug {
             logDebugMessage("$assert");
             long time = elapsedTime();
 
-            //    
+            //
             // Put a breakpoint on the next statement.
             //
             setSuspended(false); // <-- BREAKPOINT HERE
@@ -381,7 +381,7 @@ public class Debug {
             if (_thread == null)
                 return "<empty>";
 
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append(_eventName);
             while (sb.length() < 15) {
                 sb.append(" ");
@@ -425,7 +425,7 @@ public class Debug {
 
         @Override
         public String toString() {
-            StringBuffer sb = new StringBuffer(Util.NEW_LINE);
+            StringBuilder sb = new StringBuilder(Util.NEW_LINE);
             int start = _next - _events.length + 1;
             if (start < 0)
                 start = 0;
@@ -501,9 +501,9 @@ public class Debug {
         if (_dh == null)
             return null;
 
-        DebugPageEvent dpe = stateChanged(buffer.getVolume(), buffer
-                .getPageAddress(), buffer.getPageType(), eventName, buffer
-                .getGeneration(), generation);
+        DebugPageEvent dpe = stateChanged(buffer.getVolume(),
+                buffer.getPageAddress(), buffer.getPageType(), eventName,
+                buffer.getGeneration(), generation);
         if (dpe != null) {
             dpe._poolIndex = buffer.getIndex();
             dpe._status = buffer.getStatus();
@@ -559,7 +559,7 @@ public class Debug {
 
         @Override
         public String toString() {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             int end = _ioLogCounter;
             int start = end - _ioLogBuffer.length;
             if (start < 0)
@@ -585,7 +585,7 @@ public class Debug {
 
         @Override
         public String toString() {
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             Util.fill(sb, _id, 5);
             sb.append(" ");
             Util.fill(sb, _type, 15);

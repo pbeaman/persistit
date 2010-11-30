@@ -22,7 +22,7 @@ import com.persistit.ArgParser;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
-import com.persistit.test.PersistitTestResult;
+import com.persistit.test.TestResult;
 
 /**
  * Test to try all split and join locations and conditions. Plan: 1. For each of
@@ -94,16 +94,16 @@ public class Stress6 extends StressBase {
                 println("Starting test cycle " + _repeat + " at " + tsString());
                 describeTest("Deleting all records");
                 setPhase("@");
-                _exs.clear().append("stress6").append(_threadIndex).remove(
-                        Key.GTEQ);
+                _exs.clear().append("stress6").append(_threadIndex)
+                        .remove(Key.GTEQ);
                 println();
 
                 describeTest("Creating baseline records");
                 setPhase("a");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
-                    _exs.clear().append("stress6").append(_threadIndex).append(
-                            _count).append(_sb1);
+                    _exs.clear().append("stress6").append(_threadIndex)
+                            .append(_count).append(_sb1);
                     _exs.store();
                 }
                 println();
@@ -112,8 +112,8 @@ public class Stress6 extends StressBase {
                 setPhase("b");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
-                    _exs.clear().append("stress6").append(_threadIndex).append(
-                            _count).append(_sb1);
+                    _exs.clear().append("stress6").append(_threadIndex)
+                            .append(_count).append(_sb1);
                     _sb2.setLength(0);
                     for (int size = 0; (size < _size) && !isStopped(); size++) {
                         _sb2.append('y');
@@ -132,8 +132,8 @@ public class Stress6 extends StressBase {
                 setPhase("c");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
-                    _exs.clear().append("stress6").append(_threadIndex).append(
-                            _count).append(_sb1);
+                    _exs.clear().append("stress6").append(_threadIndex)
+                            .append(_count).append(_sb1);
                     _exs.fetch();
                     final Value value = _exs.getValue();
                     boolean okay = false;
@@ -144,9 +144,8 @@ public class Stress6 extends StressBase {
                         }
                     }
                     if (!okay) {
-                        _result = new PersistitTestResult(false,
-                                "Value for key " + _exs.getKey()
-                                        + " is not zero-length");
+                        _result = new TestResult(false, "Value for key "
+                                + _exs.getKey() + " is not zero-length");
                         forceStop();
                         break;
                     }
@@ -178,7 +177,7 @@ public class Stress6 extends StressBase {
         }
     }
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) {
         new Stress6().runStandalone(args);
     }
 }
