@@ -46,6 +46,7 @@ import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
 import com.persistit.exception.LogInitializationException;
+import com.persistit.exception.PersistitClosedException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PropertiesNotFoundException;
@@ -90,12 +91,12 @@ public class Persistit implements BuildConstants {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit JSA 2.2-20101115"
+    public final static String VERSION = "Persistit JSA 2.2-20101201"
             + (Debug.ENABLED ? "-DEBUG" : "");
     /**
      * The internal version number
      */
-    public final static int BUILD_ID = 22000;
+    public final static int BUILD_ID = 22001;
     /**
      * The copyright notice
      */
@@ -255,10 +256,6 @@ public class Persistit implements BuildConstants {
     public final static String JMX_PARAMS = "jmx";
 
     /**
-     * Object name (as String) for stock MXBean
-     */
-    public final static String MXBEAN_OBJECT_NAME = "com.persistit.PersistitOpenMBean:type=Persistit";
-    /**
      * Property name for pseudo-property "timestamp";
      */
     public final static String TIMESTAMP_PROPERTY = "timestamp";
@@ -299,11 +296,6 @@ public class Persistit implements BuildConstants {
     private final static long SHORT_DELAY = 500;
 
     private final static long CLOSE_LOG_INTERVAL = 30000;
-    /**
-     * If a thread waits longer than this, apply throttle to slow down other
-     * threads.
-     */
-    private static final long THROTTLE_THRESHOLD = 5000;
 
     private AbstractPersistitLogger _logger;
 
@@ -358,12 +350,6 @@ public class Persistit implements BuildConstants {
             this);
 
     private final LockManager _lockManager = new LockManager();
-
-    private static volatile long _globalThrottleCount;
-
-    private long _nextThrottleBumpTime;
-
-    private long _localThrottleCount;
 
     private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
@@ -596,7 +582,7 @@ public class Persistit implements BuildConstants {
             management.register(rmiHost, rmiPort);
         }
         if (enableJmx) {
-            registerMXBean();
+            registerMXBeans();
         }
 
     }
@@ -651,25 +637,30 @@ public class Persistit implements BuildConstants {
      * @param params
      *            "true" to enable the PersistitOpenMBean, else "false".
      */
-    private void registerMXBean() {
+    private void registerMXBeans() {
         MBeanServer server = java.lang.management.ManagementFactory
                 .getPlatformMBeanServer();
         try {
-            ObjectName objectName = new ObjectName(MXBEAN_OBJECT_NAME);
-            server.registerMBean((ManagementMXBean) getManagement(), objectName);
+            server.registerMBean((ManagementMXBean) getManagement(), new ObjectName(ManagementMXBean.MXBEAN_NAME));
+            server.registerMBean((IOMeterMXBean) _ioMeter, new ObjectName(IOMeterMXBean.MXBEAN_NAME));
+            server.registerMBean((JournalManagerMXBean) _journalManager, new ObjectName(JournalManagerMXBean.MXBEAN_NAME));
+            server.registerMBean((RecoveryManagerMXBean) _recoveryManager, new ObjectName(RecoveryManagerMXBean.MXBEAN_NAME));
         } catch (Exception exception) {
             if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
                 _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
             }
         }
     }
-
-    private void unregisterMXBean() {
+    
+    
+    private void unregisterMXBeans() {
         MBeanServer server = java.lang.management.ManagementFactory
                 .getPlatformMBeanServer();
         try {
-            ObjectName objectName = new ObjectName(MXBEAN_OBJECT_NAME);
-            server.unregisterMBean(objectName);
+            server.unregisterMBean(new ObjectName(RecoveryManagerMXBean.MXBEAN_NAME));
+            server.unregisterMBean(new ObjectName(JournalManagerMXBean.MXBEAN_NAME));
+            server.unregisterMBean(new ObjectName(IOMeterMXBean.MXBEAN_NAME));
+            server.unregisterMBean(new ObjectName(ManagementMXBean.MXBEAN_NAME));
         } catch (InstanceNotFoundException exception) {
             // ignore
         } catch (Exception exception) {
@@ -1710,7 +1701,7 @@ public class Persistit implements BuildConstants {
         _waitingThreadLocal.set(null);
 
         if (_management != null) {
-            unregisterMXBean();
+            unregisterMXBeans();
             _management.unregister();
             _management = null;
         }
@@ -1817,12 +1808,17 @@ public class Persistit implements BuildConstants {
         _journalManager.force();
     }
 
+    public void checkClosed() throws PersistitClosedException {
+        if (isClosed()) {
+            throw new PersistitClosedException();
+        }
+    }
     /**
      * Waits until updates are no longer suspended. The
      * {@link #setUpdateSuspended} method controls whether update operations are
      * currently suspended.
      */
-    public void suspend() {
+    public void checkSuspended() {
         while (isUpdateSuspended()) {
             try {
                 Thread.sleep(SHORT_DELAY);

@@ -1166,7 +1166,8 @@ public final class Exchange implements BuildConstants {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
         _key.testValidForStoreAndFetch(_volume.getPageSize());
-        _persistit.suspend();
+        _persistit.checkClosed();
+        _persistit.checkSuspended();
         checkOwnerThread();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
@@ -1781,6 +1782,7 @@ public final class Exchange implements BuildConstants {
      */
     public boolean traverse(final Direction direction, final boolean deep,
             final int minBytes) throws PersistitException {
+        _persistit.checkClosed();
         checkOwnerThread();
 
         boolean doFetch = minBytes > 0;
@@ -2420,9 +2422,10 @@ public final class Exchange implements BuildConstants {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
-        _key.testValidForStoreAndFetch(_volume.getPageSize());
-        _persistit.suspend();
+        _persistit.checkClosed();
+        _persistit.checkSuspended();
         checkOwnerThread();
+        _key.testValidForStoreAndFetch(_volume.getPageSize());
         int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         _transaction.assignTimestamp();
@@ -2512,6 +2515,7 @@ public final class Exchange implements BuildConstants {
      */
     public Exchange fetch(Value value, int minimumBytes)
             throws PersistitException {
+        _persistit.checkClosed();
         checkOwnerThread();
         _key.testValidForStoreAndFetch(_volume.getPageSize());
         if (minimumBytes < 0)
@@ -2603,6 +2607,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public long incrementValue(long by, long from) throws PersistitException {
+        _persistit.checkClosed();
         checkOwnerThread();
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
@@ -2624,6 +2629,7 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
+        _persistit.checkClosed();
         checkOwnerThread();
 
         boolean result;
@@ -2660,7 +2666,8 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public boolean fetchAndRemove() throws PersistitException {
-        _persistit.suspend();
+        _persistit.checkClosed();
+        _persistit.checkSuspended();
         checkOwnerThread();
         _spareValue.clear();
         boolean result = remove(EQ, true);
@@ -2679,7 +2686,8 @@ public final class Exchange implements BuildConstants {
      * @throws PersistitException
      */
     public void removeTree() throws PersistitException {
-        _persistit.suspend();
+        _persistit.checkClosed();
+        _persistit.checkSuspended();
         checkOwnerThread();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
@@ -2749,6 +2757,7 @@ public final class Exchange implements BuildConstants {
 
     private boolean remove(Direction selection, boolean fetchFirst)
             throws PersistitException {
+        _persistit.checkClosed();
         checkOwnerThread();
 
         if (selection != EQ && selection != GTEQ && selection != GT) {
@@ -2845,7 +2854,8 @@ public final class Exchange implements BuildConstants {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
-        _persistit.suspend();
+        _persistit.checkClosed();
+        _persistit.checkSuspended();
         checkOwnerThread();
 
         if (Debug.ENABLED)
@@ -3842,6 +3852,7 @@ public final class Exchange implements BuildConstants {
      * @param _treeName
      */
     void setTree(Tree tree) throws PersistitException {
+        _persistit.checkClosed();
         checkOwnerThread();
         if (tree.getVolume() != _volume) {
             _volume = tree.getVolume();
@@ -3877,7 +3888,6 @@ public final class Exchange implements BuildConstants {
      * 
      */
     private void checkOwnerThread() {
-
         if (_ownerThread == Thread.currentThread() && !_relinquished) {
             return;
         }
@@ -3960,6 +3970,7 @@ public final class Exchange implements BuildConstants {
             final KeyFilter keyFilter, final int requestedTreeDepth)
             throws PersistitException {
 
+        _persistit.checkClosed();
         checkOwnerThread();
         checkLevelCache();
         final int treeDepth = requestedTreeDepth > _treeDepth ? _treeDepth

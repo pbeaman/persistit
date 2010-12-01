@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import com.persistit.JournalManager.JournalNotClosedException;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TransactionStatus;
 import com.persistit.JournalManager.TreeDescriptor;
@@ -102,7 +101,7 @@ import com.persistit.exception.PersistitIOException;
  * @author peter
  * 
  */
-public class RecoveryManager implements VolumeHandleLookup {
+public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLookup {
 
     public final static int DEFAULT_BUFFER_SIZE = 1 * 1024 * 1024;
 
@@ -144,7 +143,7 @@ public class RecoveryManager implements VolumeHandleLookup {
 
     private volatile boolean _recoveryDisabledForTestMode;
 
-    private File _journalFilePath;
+    private String _journalFilePath;
 
     private File _keystoneFile;
 
@@ -170,7 +169,7 @@ public class RecoveryManager implements VolumeHandleLookup {
 
     private long _recoveryEndedAddress;
 
-    private Exception _recoveryEndedException;
+    private String _recoveryEndedException;
 
     private RecoveredTransactionActor _defaultActor = new DefaultRecoveredTransctionActor();
 
@@ -193,14 +192,12 @@ public class RecoveryManager implements VolumeHandleLookup {
         @Override
         public void store(final long address, final long timestamp,
                 Exchange exchange) throws PersistitException {
-            final Transaction txn = exchange.getTransaction();
             exchange.store();
         }
 
         @Override
         public void removeKeyRange(final long address, final long timestamp,
                 Exchange exchange) throws PersistitException {
-            final Transaction txn = exchange.getTransaction();
             exchange.removeKeyRange(exchange.getAuxiliaryKey1(),
                     exchange.getAuxiliaryKey2());
         }
@@ -208,13 +205,13 @@ public class RecoveryManager implements VolumeHandleLookup {
         @Override
         public void removeTree(final long address, final long timestamp,
                 Exchange exchange) throws PersistitException {
-            final Transaction txn = exchange.getTransaction();
             exchange.removeTree();
         }
     }
 
-    static File[] files(final File path) {
+    static File[] files(final String pathName) {
         final File directory;
+        final File path = new File(pathName);
         if (!path.isDirectory()) {
             directory = path.getParentFile() == null ? new File(".") : path
                     .getParentFile();
@@ -300,11 +297,11 @@ public class RecoveryManager implements VolumeHandleLookup {
     }
 
     public void init(final String path) throws PersistitException {
-        _journalFilePath = new File(path).getAbsoluteFile();
+        _journalFilePath = new File(path).getAbsolutePath();
         _readBuffer = ByteBuffer.allocate(_readBufferSize);
     }
 
-    public File getJournalFilePath() {
+    public String getJournalFilePath() {
         return _journalFilePath;
     }
 
@@ -341,12 +338,16 @@ public class RecoveryManager implements VolumeHandleLookup {
     public Checkpoint getLastValidCheckpoint() {
         return _lastValidCheckpoint;
     }
+    
+    public long getLastValidCheckpointTimestamp() {
+        return _lastValidCheckpoint.getTimestamp();
+    }
 
     public long getLastValidCheckpointAddress() {
         return _lastValidCheckpointJournalAddress;
     }
 
-    public Exception getRecoveryEndedException() {
+    public String getRecoveryEndedException() {
         return _recoveryEndedException;
     }
 
@@ -619,7 +620,7 @@ public class RecoveryManager implements VolumeHandleLookup {
                             break;
                         }
                     } catch (CorruptJournalException cje) {
-                        _recoveryEndedException = cje;
+                        _recoveryEndedException = cje.toString();
                         _recoveryEndedAddress = _currentAddress;
                         if (!checkpointFound) {
                             throw cje;

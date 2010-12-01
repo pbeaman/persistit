@@ -37,7 +37,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.persistit.JournalManager.JournalNotClosedException;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
@@ -88,7 +87,7 @@ public class JournalTool {
 
     private final Action _action;
 
-    private File _journalFilePath;
+    private String _journalFilePath;
 
     private long _startAddr;
 
@@ -258,7 +257,7 @@ public class JournalTool {
                 _endAddr = (generation + 1) * JournalManager.DEFAULT_BLOCK_SIZE;
             }
         }
-        _journalFilePath = new File(pathName);
+        _journalFilePath = pathName;
         _flags = ap.getFlags();
         _readBuffer = ByteBuffer.allocate(_readBufferSize);
         parseTypes(ap.getStringValue("types"));

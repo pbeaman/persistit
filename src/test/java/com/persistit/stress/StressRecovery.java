@@ -322,7 +322,7 @@ public class StressRecovery extends StressBase {
                     }
                     _exs.store();
 
-                    txn.commit(true);
+                    txn.commit(false);
                     break;
                 } catch (RollbackException e) {
                     continue;

@@ -1334,7 +1334,7 @@ public class Volume extends SharedResource {
             throw new IllegalArgumentException(
                     "Can't delete the Directory tree");
         }
-        _persistit.suspend();
+        _persistit.checkSuspended();
 
         int treeIndex = -1;
         int depth = -1;
@@ -1542,7 +1542,7 @@ public class Volume extends SharedResource {
      */
     private Tree createTree(String treeName, Tree tree)
             throws PersistitException {
-        _persistit.suspend();
+        _persistit.checkSuspended();
         _persistit.getTransaction().assignTimestamp();
 
         Buffer rootPageBuffer = null;

@@ -41,8 +41,8 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import com.persistit.Management;
-import com.persistit.ManagementMXBean.TreeInfo;
-import com.persistit.ManagementMXBean.VolumeInfo;
+import com.persistit.Management.TreeInfo;
+import com.persistit.Management.VolumeInfo;
 import com.persistit.ui.AdminUI.AdminAction;
 
 /**

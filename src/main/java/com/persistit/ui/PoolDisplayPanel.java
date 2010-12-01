@@ -36,8 +36,8 @@ import javax.swing.JToggleButton;
 import javax.swing.table.AbstractTableModel;
 
 import com.persistit.Management;
-import com.persistit.ManagementMXBean.BufferInfo;
-import com.persistit.ManagementMXBean.BufferPoolInfo;
+import com.persistit.Management.BufferInfo;
+import com.persistit.Management.BufferPoolInfo;
 
 public class PoolDisplayPanel extends JPanel {
     private final static String[] HEADER_NAMES = { "Index", "Page", "Type",

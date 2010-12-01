@@ -11,4 +11,5 @@ init
 test com.persistit.stress.StressRecovery verify=$datapath$/recovery.log latency=0
 
 icheck persistit
+wait
 close

@@ -14,21 +14,32 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Attempt to meter I/O operations so that background I/O-intensive processes
+ * 
+ * Meter I/O operations so that background I/O-intensive processes
  * (e.g., the JournalManager's JOURNAL_COPIER thread) can voluntarily throttle
  * I/O consumption.
  * 
+ * This class contains methods called by the JournalManager and BufferPool
+ * to register various I/O operations performed there. The chargeXX methods
+ * modify a various called _ioRate.  _ioRate is an indication of how many
+ * I/O operations are being invoked by Persistit.
+ * 
+ * The chargeXX method can also optionally write details for each I/O operation
+ * an ancillary I/O log file. The file can be used to    
  * @author peter
  * 
  */
-public class IOMeter {
+public class IOMeter implements IOMeterMXBean {
+
+    final static int URGENT = 10;
 
     private static final String DUMP_FORMAT = "time=%,12d op=%2s vol=%4s page=%,16d addr=%,16d size=%,8d";
 
     private final static long NANOS_TO_MILLIS = 1000000l;
     private final static long DEFAULT_TICK_SIZE = 500 * NANOS_TO_MILLIS;
     private final static int DEFAULT_QUIESCENT_IO_THRESHOLD = 100000;
-    private final static long DEFAULT_COPY_SLEEP_INTERVAL = 50;
+    private final static long DEFAULT_COPY_PAGE_SLEEP_INTERVAL = 10;
+    private final static long DEFAULT_WRITE_PAGE_SLEEP_INTERVAL = 100;
 
     private final static int COPY_PAGE_TO_VOLUME = 1;
     private final static int READ_PAGE_FROM_VOLUME = 2;
@@ -45,59 +56,78 @@ public class IOMeter {
     private final static String[] OPERATIONS = { "??", "CC", "RV", "WV", "RJ",
             "WJ", "TS", "TC", "SR", "DR", "DT", "XX" };
 
-    private AtomicReference<DataOutputStream> _logStream = new AtomicReference<DataOutputStream>();
-
     private long _ioRate;
 
     private long _lastTick;
 
     private long _tickSize = DEFAULT_TICK_SIZE;
 
-    private long _copySleepInterval = DEFAULT_COPY_SLEEP_INTERVAL;
+    private long _copyPageSleepInterval = DEFAULT_COPY_PAGE_SLEEP_INTERVAL;
 
-    private long _quiescentIO = DEFAULT_QUIESCENT_IO_THRESHOLD;
+    private long _writePageSleepInterval = DEFAULT_WRITE_PAGE_SLEEP_INTERVAL;
+    
+    private long _quiescentIOthreshold = DEFAULT_QUIESCENT_IO_THRESHOLD;
+
+    private AtomicReference<DataOutputStream> _logStream = new AtomicReference<DataOutputStream>();
+
+    private String _logFileName;
+    
+    /**
+     * @return the writePageSleepInterval
+     */
+    public synchronized long getWritePageSleepInterval() {
+        return _writePageSleepInterval;
+    }
+
+    /**
+     * @param writePageSleepInterval the writePageSleepInterval to set
+     */
+    public synchronized void setWritePageSleepInterval(long writePageSleepInterval) {
+        _writePageSleepInterval = writePageSleepInterval;
+    }
 
     /**
      * Time interval in milliseconds between page copy operations.
      * 
      * @return the CopySleepInterval
      */
-    public synchronized long getCopySleepInterval() {
-        return _copySleepInterval;
+    public synchronized long getCopyPageSleepInterval() {
+        return _copyPageSleepInterval;
     }
 
     /**
-     * @param _copySleepInterval
-     *            the _copySleepInterval to set
+     * @param copyPageSleepInterval
+     *            the copySleepInterval to set
      */
-    public synchronized void setCopySleepInterval(long copySleepInterval) {
-        _copySleepInterval = copySleepInterval;
+    public synchronized void setCopyPageSleepInterval(long copyPageSleepInterval) {
+        _copyPageSleepInterval = copyPageSleepInterval;
     }
 
     /**
-     * @return the _quiescentIO
+     * @return the quiescentIOthreshold
      */
     public synchronized long getQuiescentIOthreshold() {
-        return _quiescentIO;
+        return _quiescentIOthreshold;
     }
 
     /**
-     * @param _quiescentIO
-     *            the _quiescentIO to set
+     * @param quiescentIOthreshold
+     *            the quiescentIOthreshold to set
      */
-    public void setQuiescentIOthreshold(long quiescentIO) {
-        _quiescentIO = quiescentIO;
+    public synchronized void setQuiescentIOthreshold(long quiescentIO) {
+        _quiescentIOthreshold = quiescentIO;
     }
 
     /**
-     * @return the _ioRate
+     * @return the ioRate
      */
-    public long getIoRate() {
+    public synchronized long getIoRate() {
+        charge(System.nanoTime(), 0);
         return _ioRate;
     }
 
-    public void setLogFile(final File toFile) throws IOException {
-        if (toFile == null) {
+    public void setLogFile(final String toFile) throws IOException {
+        if (toFile == null || toFile.isEmpty()) {
             final DataOutputStream dos = _logStream.get();
             if (dos != null) {
                 _logStream.set(null);
@@ -107,11 +137,17 @@ public class IOMeter {
             _logStream.set(new DataOutputStream(new BufferedOutputStream(
                     new FileOutputStream(toFile))));
         }
+        _logFileName = toFile;
+    }
+    
+    public String getLogFile() {
+        return _logFileName;
     }
 
+    
     private synchronized void charge(final long time, final int size) {
         final long ticks = (time - _lastTick) / _tickSize;
-        if (ticks > 32) {
+        if (ticks > 10) {
             _ioRate = 0;
         } else {
             _ioRate >>>= ticks;
@@ -171,7 +207,7 @@ public class IOMeter {
 
     public void chargeCopyPageToVolume(final Volume volume,
             final long pageAddress, final int size, final long journalAddress,
-            final boolean urgent) {
+            final int urgency) {
         final long time = System.nanoTime();
         log(COPY_PAGE_TO_VOLUME, time, volume, pageAddress, size,
                 journalAddress);
@@ -179,11 +215,13 @@ public class IOMeter {
         // Determine how long to sleep. This logic attempts to slow down
         // page copy operations when there are a lot of other I/O operations
         // going on concurrently. But when the ioRate falls below the
-        // _quiecentIO threshold, it returns immediately without sleeping.
+        // _quiecentIO threshold, or when the need for copying is nearly
+        // URGENT, it returns immediately without sleeping.
+        //
         long sleep = 0;
-        if (!urgent) {
+        if (urgency < URGENT - 2) {
             synchronized (this) {
-                sleep = _ioRate > _quiescentIO ? _copySleepInterval : 0;
+                sleep = _ioRate > _quiescentIOthreshold ? _copyPageSleepInterval : 0;
             }
         }
         if (sleep > 0) {
@@ -218,11 +256,24 @@ public class IOMeter {
     }
 
     public void chargeWritePageToJournal(final Volume volume,
-            final long pageAddress, final int size, final long journalAddress) {
+            final long pageAddress, final int size, final long journalAddress,
+            final int urgency) {
         final long time = System.nanoTime();
         log(WRITE_PAGE_TO_JOURNAL, time, volume, pageAddress, size,
                 journalAddress);
         charge(time, size);
+
+        //
+        // Following throttles all clients by preventing dirty pages from being
+        // added to the journal faster than the copier can clear them.
+        //
+        if (urgency == URGENT) {
+            try {
+                Thread.sleep(_writePageSleepInterval);
+            } catch (InterruptedException ie) {
+
+            }
+        }
     }
 
     public void chargeWriteTStoJournal(final int size, final long journalAddress) {

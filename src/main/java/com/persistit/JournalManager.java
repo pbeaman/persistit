@@ -1,5 +1,7 @@
 package com.persistit;
 
+import static com.persistit.IOMeter.URGENT;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -44,39 +46,7 @@ import com.persistit.exception.PersistitIOException;
  * @author peter
  * 
  */
-public class JournalManager implements VolumeHandleLookup {
-
-    final static int VERSION = 1;
-
-    public final static long DEFAULT_BLOCK_SIZE = 1000000000L;
-
-    public final static long MINIMUM_BLOCK_SIZE = 10000000L;
-
-    public final static long MAXIMUM_BLOCK_SIZE = 100000000000L;
-
-    public final static long ROLLOVER_THRESHOLD = 4 * 1024 * 1024;
-
-    public final static int DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024;
-
-    public final static int DEFAULT_READ_BUFFER_SIZE = 64 * 1024;
-
-    public final static long DEFAULT_FLUSH_INTERVAL = 100;
-
-    public final static long DEFAULT_COPIER_INTERVAL = 10000;
-
-    public final static int DEFAULT_COPIES_PER_CYCLE = 1000;
-
-    /**
-     * 60 seconds. This is the default interval for logging repetitive I/O
-     * exceptions on attempts to write to the journal.
-     */
-    public final static long DEFAULT_LOG_REPEAT_INTERVAL = 60000000000L;
-
-    final static String PATH_FORMAT = "%s.%012d";
-
-    final static Pattern PATH_PATTERN = Pattern.compile(".+\\.(\\d{12})");
-
-    private final static int DEFAULT_PAGE_MAP_SIZE_BASE = 250000;
+public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     private long _journalCreatedTime;
 
@@ -120,7 +90,7 @@ public class JournalManager implements VolumeHandleLookup {
 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
 
-    private File _journalFilePath;
+    private String _journalFilePath;
 
     /**
      * Address of first available byte in the journal. This is usually the
@@ -150,8 +120,6 @@ public class JournalManager implements VolumeHandleLookup {
     private long _lastValidCheckpointBaseAddress = 0;
 
     private long _deleteBoundaryAddress = 0;
-
-    private JournalAddress _dirtyRecoveryJournalAddress = null;
 
     private volatile long _writePageCount = 0;
 
@@ -230,7 +198,7 @@ public class JournalManager implements VolumeHandleLookup {
             rman.collectRecoveredTreeMaps(_handleToTreeMap, _treeToHandleMap);
             rman.collectRecoveredTransactionMap(_liveTransactionMap);
         } else {
-            _journalFilePath = new File(path).getAbsoluteFile();
+            _journalFilePath = new File(path).getAbsoluteFile().toString();
             _blockSize = maximumSize;
             _currentAddress = 0;
             _journalCreatedTime = System.currentTimeMillis();
@@ -293,10 +261,6 @@ public class JournalManager implements VolumeHandleLookup {
         return _currentAddress;
     }
 
-    public synchronized JournalAddress getDirtyRecoveryFileAddress() {
-        return _dirtyRecoveryJournalAddress;
-    }
-
     public long getBlockSize() {
         return _blockSize;
     }
@@ -341,7 +305,7 @@ public class JournalManager implements VolumeHandleLookup {
         return _copying.get();
     }
 
-    public File getJournalFilePath() {
+    public String getJournalFilePath() {
         return _journalFilePath;
     }
 
@@ -360,6 +324,10 @@ public class JournalManager implements VolumeHandleLookup {
     public Checkpoint getLastValidCheckpoint() {
         return _lastValidCheckpoint;
     }
+    
+    public long getLastValidCheckpointTimestamp() {
+        return _lastValidCheckpoint.getTimestamp();
+    }
 
     /**
      * Computes an "urgency" factor that determines how vigorously the copyBack
@@ -371,7 +339,7 @@ public class JournalManager implements VolumeHandleLookup {
      */
     public synchronized int urgency() {
         if (_copyFast.get()) {
-            return 10;
+            return URGENT;
         }
         int urgency = _pageMap.size() / _pageMapSizeBase;
         int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress
@@ -379,7 +347,7 @@ public class JournalManager implements VolumeHandleLookup {
         if (journalFileCount > 1) {
             urgency += journalFileCount - 1;
         }
-        return Math.min(urgency, 10);
+        return Math.min(urgency, URGENT);
     }
 
     public int handleForVolume(final Volume volume) throws PersistitIOException {
@@ -757,6 +725,7 @@ public class JournalManager implements VolumeHandleLookup {
         // CP record.
         //
         if (!prepareWriteBuffer(recordSize)) {
+            final long address = _currentAddress;
             CP.putLength(_writeBuffer, CP.OVERHEAD);
             CP.putType(_writeBuffer);
             CP.putTimestamp(_writeBuffer, checkpoint.getTimestamp());
@@ -772,36 +741,21 @@ public class JournalManager implements VolumeHandleLookup {
 
             if (_persistit.getLogBase().isLoggable(
                     LogBase.LOG_CHECKPOINT_WRITTEN)) {
-                _persistit.getLogBase().log(
-                        LogBase.LOG_CHECKPOINT_WRITTEN,
-                        checkpoint,
-                        new JournalAddress(_currentAddress, checkpoint
-                                .getTimestamp()));
+                _persistit.getLogBase().log(LogBase.LOG_CHECKPOINT_WRITTEN,
+                        checkpoint, addressToFile(address), address);
             }
         }
     }
 
     void writePageToJournal(final Buffer buffer) throws PersistitIOException {
 
-        if (!_appendOnly.get()) {
-            // TODO -
-            // Crude hack to try to keep journal files from running away
-            //
-            final int urgency = urgency();
-            if (urgency > 7) {
-                final long delay = urgency < 10 ? urgency - 6 : 100;
-                try {
-                    Thread.sleep(delay);
-                } catch (InterruptedException ie) {
+        final Volume volume;
+        final int recordSize;
 
-                }
-            }
-        }
         synchronized (this) {
-            final Volume volume = buffer.getVolume();
+            volume = buffer.getVolume();
             final int available = buffer.getAvailableSize();
-            final int recordSize = PA.OVERHEAD + buffer.getBufferSize()
-                    - available;
+            recordSize = PA.OVERHEAD + buffer.getBufferSize() - available;
             prepareWriteBuffer(recordSize);
             int handle = handleForVolume(volume);
             final long address = _currentAddress;
@@ -836,10 +790,10 @@ public class JournalManager implements VolumeHandleLookup {
             final PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
             pageNode.setPrevious(oldPageNode);
             _writePageCount++;
-            _persistit.getIOMeter().chargeWritePageToJournal(volume,
-                    buffer.getPageAddress(), buffer.getBufferSize(),
-                    _currentAddress - recordSize);
         }
+        _persistit.getIOMeter().chargeWritePageToJournal(volume,
+                buffer.getPageAddress(), buffer.getBufferSize(),
+                _currentAddress - recordSize, urgency());
     }
 
     /**
@@ -986,7 +940,7 @@ public class JournalManager implements VolumeHandleLookup {
         }
     }
 
-    static File generationToFile(final File path, final long generation) {
+    static File generationToFile(final String path, final long generation) {
         return new File(String.format(PATH_FORMAT, path, generation));
     }
 
@@ -1412,55 +1366,6 @@ public class JournalManager implements VolumeHandleLookup {
         }
     }
 
-    public static class JournalAddress implements Comparable<JournalAddress> {
-
-        private final long _address;
-
-        private final long _timestamp;
-
-        JournalAddress(final long address, final long timestamp) {
-            _address = address;
-            _timestamp = timestamp;
-        }
-
-        long getAddress() {
-            return _address;
-        }
-
-        long getTimestamp() {
-            return _timestamp;
-        }
-
-        @Override
-        public int hashCode() {
-            return (int) _address ^ (int) (_address >>> 32);
-        }
-
-        @Override
-        public boolean equals(final Object object) {
-            final JournalAddress ja = (JournalAddress) object;
-            return _address == ja._address;
-        }
-
-        @Override
-        public int compareTo(final JournalAddress ja) {
-
-            if (_address != ja.getAddress()) {
-                return _address > ja.getAddress() ? 1 : -1;
-            }
-            if (_timestamp != ja.getTimestamp()) {
-                return _timestamp > ja.getTimestamp() ? 1 : -1;
-            }
-            return 0;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("JournalAddress %,d{%,d}", _address,
-                    _timestamp);
-        }
-    }
-
     /**
      * A PageNode represents the existence of a copy of a page in the journal.
      * It links to previously created PageNode objects which refer to earlier
@@ -1639,21 +1544,6 @@ public class JournalManager implements VolumeHandleLookup {
 
     }
 
-    static class JournalNotClosedException extends PersistitException {
-
-        private static final long serialVersionUID = 1L;
-
-        final JournalAddress _fileAddress;
-
-        JournalNotClosedException(final JournalAddress ja) {
-            _fileAddress = ja;
-        }
-
-        JournalAddress getFileAddress() {
-            return _fileAddress;
-        }
-    }
-
     private class JournalCopier extends IOTaskRunnable {
 
         JournalCopier() {
@@ -1685,18 +1575,18 @@ public class JournalManager implements VolumeHandleLookup {
         @Override
         /**
          * Return a nice interval, in milliseconds, to wait between
-         * copierCycle. The interval decreases as interval goes up, and
-         * becomes zero when the urgency is 10.
+         * copierCycle invocations. The interval decreases as interval 
+         * goes up, and becomes zero when the urgency is 10.
          */
         public long getPollInterval() {
             int urgency = urgency();
-            if (urgency < 5) {
+            if (urgency <= URGENT / 2) {
                 return super.getPollInterval();
             }
-            if (urgency() >= 10) {
+            if (urgency() >= URGENT) {
                 return 0;
             }
-            return super.getPollInterval() / (urgency - 3);
+            return super.getPollInterval() / (urgency - URGENT / 2);
         }
     }
 
@@ -1839,7 +1729,7 @@ public class JournalManager implements VolumeHandleLookup {
                 _persistit.getIOMeter().chargeCopyPageToVolume(volume,
                         pageAddress, volume.getPageSize(),
                         pageNode.getJournalAddress(),
-                        wasUrgent || urgency() == 10);
+                        wasUrgent ? URGENT : urgency());
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);
             }

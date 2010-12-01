@@ -195,7 +195,7 @@ class ManagementImpl implements Management, BuildConstants {
             if (path == null || path.isEmpty()) {
                 _persistit.getIOMeter().setLogFile(null);
             } else {
-                _persistit.getIOMeter().setLogFile(new File(path));
+                _persistit.getIOMeter().setLogFile(path);
             }
         } catch (IOException e) {
             throw new WrappedRemoteException(e);

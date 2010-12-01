@@ -41,7 +41,7 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import com.persistit.Management;
-import com.persistit.ManagementMXBean.TaskStatus;
+import com.persistit.Management.TaskStatus;
 import com.persistit.Task;
 import com.persistit.Util;
 import com.persistit.ui.AdminUI.AdminAction;
@@ -239,7 +239,6 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
     }
 
     private void updateDetailedTaskStatus() {
-        TaskStatus taskStatus;
         Management management = _adminUI.getManagement();
 
         if (_selectedTaskId == -1 || management == null) {
