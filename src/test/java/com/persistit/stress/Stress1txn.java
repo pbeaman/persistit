@@ -94,10 +94,10 @@ public class Stress1txn extends StressBase {
         } finally {
             txn.end();
         }
-        println();
+        verboseln();
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            println();
-            println("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
+            verboseln();
+            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
             if (_opflags.indexOf('w') >= 0) {
                 setPhase("w");
@@ -198,8 +198,8 @@ public class Stress1txn extends StressBase {
             }
 
         }
-        println();
-        print("done");
+        verboseln();
+        verbose("done");
     }
 
     int keyInteger(final int counter) {

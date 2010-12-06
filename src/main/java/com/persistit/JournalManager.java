@@ -1,5 +1,7 @@
 package com.persistit;
 
+import static com.persistit.IOMeter.ALMOST_URGENT;
+import static com.persistit.IOMeter.HALF_URGENT;
 import static com.persistit.IOMeter.URGENT;
 
 import java.io.File;
@@ -19,7 +21,6 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.DR;
@@ -1580,13 +1581,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
          */
         public long getPollInterval() {
             int urgency = urgency();
-            if (urgency <= URGENT / 2) {
+            if (urgency <= HALF_URGENT) {
                 return super.getPollInterval();
             }
-            if (urgency() >= URGENT) {
+            if (urgency >= ALMOST_URGENT) {
                 return 0;
             }
-            return super.getPollInterval() / (urgency - URGENT / 2);
+            return super.getPollInterval() / (urgency - HALF_URGENT);
         }
     }
 

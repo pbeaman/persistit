@@ -69,9 +69,7 @@ public abstract class StressBase extends AbstractTestRunnerItem {
     }
 
     protected void setPhase(final String phase) {
-        if (isVerbose()) {
-            print(phase);
-        }
+        verbose(phase);
         _phase = phase;
     }
 
@@ -82,8 +80,7 @@ public abstract class StressBase extends AbstractTestRunnerItem {
     protected synchronized void handleThrowable(final Throwable thx) {
         _result = new TestResult(false, thx);
         println(_result);
-        thx.printStackTrace(getErrorStream());
-        getErrorStream().flush();
+        printStackTrace(thx);
         forceStop();
     }
 
@@ -224,8 +221,8 @@ public abstract class StressBase extends AbstractTestRunnerItem {
 
     protected void dot() {
         if (_forceStop) {
-            println();
-            println("STOPPED");
+            verboseln();
+            verboseln("STOPPED");
             throw new RuntimeException("STOPPED");
         }
         if (isVerbose()) {
@@ -237,7 +234,6 @@ public abstract class StressBase extends AbstractTestRunnerItem {
                 } else {
                     print(".");
                 }
-
             }
         }
     }

@@ -92,11 +92,11 @@ public class Stress11 extends StressBase {
         } catch (final Exception e) {
             handleThrowable(e);
         }
-        println();
+        verboseln();
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            println();
-            println("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
+            verboseln();
+            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
             _random.setSeed(_seed);
 
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {
@@ -216,8 +216,8 @@ public class Stress11 extends StressBase {
             }
         }
 
-        println();
-        print("done");
+        verboseln();
+        verbose("done");
 
     }
 

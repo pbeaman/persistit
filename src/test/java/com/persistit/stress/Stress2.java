@@ -93,11 +93,11 @@ public class Stress2 extends StressBase {
         } catch (final Exception e) {
             handleThrowable(e);
         }
-        println();
+        verboseln();
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            println();
-            println("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
+            verboseln();
+            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
             if (_opflags.indexOf('w') >= 0) {
                 setPhase("w");
@@ -228,8 +228,8 @@ public class Stress2 extends StressBase {
                 }
             }
         }
-        println();
-        print("done");
+        verboseln();
+        verbose("done");
 
     }
 

@@ -30,7 +30,7 @@ public class MD5Sum extends AbstractTestRunnerItem {
         try {
             md = MessageDigest.getInstance("MD5");
         } catch (Exception e) {
-            e.printStackTrace();
+            printStackTrace(e);
             throw new RuntimeException(e);
         }
     }

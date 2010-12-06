@@ -32,6 +32,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class IOMeter implements IOMeterMXBean {
 
     final static int URGENT = 10;
+    final static int ALMOST_URGENT = 8;
+    final static int HALF_URGENT = 5;
 
     private static final String DUMP_FORMAT = "time=%,12d op=%2s vol=%4s page=%,16d addr=%,16d size=%,8d";
 

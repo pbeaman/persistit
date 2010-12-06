@@ -392,7 +392,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
     public void test8() {
         System.out.print("test8 ");
         final int start = Integer.MIN_VALUE;
-        final int end = Integer.MAX_VALUE;
+        final int end = Integer.MAX_VALUE - INCREMENT;
         for (int u = start; u < end; u += INCREMENT) {
             if ((u % 100000000) == 0) {
                 System.out.print(" " + u);

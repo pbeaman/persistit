@@ -114,12 +114,12 @@ public class PersistitMapStress2 extends StressBase {
             } catch (final Exception e) {
                 handleThrowable(e);
             }
-            println();
+            verboseln();
         }
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            println();
-            println("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
+            verboseln();
+            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
             long ts = ts();
             long tt;
@@ -280,12 +280,12 @@ public class PersistitMapStress2 extends StressBase {
             }
 
         }
-        println();
-        println(" timeWrite=" + _timeWrite + " timeRead=" + _timeRead
+        verboseln();
+        verboseln(" timeWrite=" + _timeWrite + " timeRead=" + _timeRead
                 + " timeIter=" + _timeIter + " timeRemove=" + _timeRemove
                 + " total="
                 + (_timeWrite + _timeRead + _timeIter + _timeRemove));
-        print("done");
+        verbose("done");
     }
 
     int keyInteger(final int counter) {
@@ -311,9 +311,9 @@ public class PersistitMapStress2 extends StressBase {
         if ((o1 != null) && o1.equals(o2)) {
             return true;
         }
-        System.out.println("Object o1 != o2:");
-        System.out.println("  o1=" + o1);
-        System.out.println("  o2=" + o2);
+        println("Object o1 != o2:");
+        println("  o1=" + o1);
+        println("  o2=" + o2);
         return false;
     }
 

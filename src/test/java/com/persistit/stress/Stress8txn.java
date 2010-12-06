@@ -131,9 +131,9 @@ public class Stress8txn extends StressBase {
         ops[4] = new Operation4();
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            println();
-            println();
-            println("Starting test cycle " + _repeat + " at " + tsString());
+            verboseln();
+            verboseln();
+            verboseln("Starting test cycle " + _repeat + " at " + tsString());
 
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                 try {
@@ -145,7 +145,7 @@ public class Stress8txn extends StressBase {
                     op.setup(acct1, acct2);
                     final int passes = txn.run(op, 100, 5, false);
                     if (passes > 10) {
-                        println("pass count=" + passes);
+                        verboseln("pass count=" + passes);
                     }
                     if (op._result != null) {
                         _result = op._result;
@@ -384,7 +384,7 @@ public class Stress8txn extends StressBase {
                 return ex.getValue().getInt();
             }
         } catch (final NullPointerException npe) {
-            System.out.println(ex);
+            printStackTrace(npe);
             try {
                 Thread.sleep(10000);
             } catch (final InterruptedException ie) {
@@ -417,14 +417,6 @@ public class Stress8txn extends StressBase {
             ex.getValue().putString(_sb);
         } else {
             ex.getValue().put(value);
-        }
-    }
-
-    private void describeTest(final String m) {
-        print(m);
-        print(": ");
-        for (int i = m.length(); i < 52; i++) {
-            print(" ");
         }
     }
 

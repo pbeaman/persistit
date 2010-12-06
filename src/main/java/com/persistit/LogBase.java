@@ -55,7 +55,6 @@ public class LogBase {
     private final static int INFO = AbstractPersistitLogger.INFO;
     private final static int WARNING = AbstractPersistitLogger.WARNING;
     private final static int SEVERE = AbstractPersistitLogger.SEVERE;
-    private final static int ALWAYS = AbstractPersistitLogger.ALWAYS;
 
     private static LogTemplate[] _templateArray = new LogTemplate[70];
 
@@ -68,9 +67,6 @@ public class LogBase {
             Persistit.copyright());
     final static int LOG_START = addLogTemplate(INFO, LIFECYCLE, "START");
     final static int LOG_END = addLogTemplate(INFO, LIFECYCLE, "END");
-    final static int LOG_LICENSE = addLogTemplate(INFO, LIFECYCLE, "LICENSE");
-    final static int LOG_LICENSE_EXPIRED = addLogTemplate(WARNING, LIFECYCLE,
-            "LICENSE_EXPIRED");
     public final static int LOG_EXCEPTION = addLogTemplate(SEVERE, ALL,
             "EXCEPTION");
     final static int LOG_INIT_ALLOCATE_BUFFERS = addLogTemplate(INFO,
@@ -79,7 +75,7 @@ public class LogBase {
             "INIT_OPEN_VOLUME");
     final static int LOG_JOURNAL_WRITE_ERROR = addLogTemplate(SEVERE,
             LIFECYCLE, "JOURNAL_WRITE_ERROR");
-    final static int LOG_RECOVERY_DONE = addLogTemplate(WARNING, JOURNAL,
+    final static int LOG_RECOVERY_DONE = addLogTemplate(INFO, JOURNAL,
             "RECOVERY_DONE");
     final static int LOG_RECOVERY_FAILURE = addLogTemplate(SEVERE, LIFECYCLE,
             "RECOVERY_FAILURE");

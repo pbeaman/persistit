@@ -132,15 +132,15 @@ public class Stress3txn extends StressBase {
         } catch (final Exception e) {
             handleThrowable(e);
         }
-        println();
+        verboseln();
 
         final Exchange ex1 = new Exchange(_ex);
         final Exchange ex2 = new Exchange(_ex);
         final Exchange ex3 = new Exchange(_ex);
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            println();
-            println("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
+            verboseln();
+            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
             final Transaction txn = ex1.getTransaction();
             if (_opflags.indexOf('w') >= 0) {
@@ -200,7 +200,7 @@ public class Stress3txn extends StressBase {
                     }
 
                     if ((_count > 0) && ((_count % 100) == 0)) {
-                        println("Commits: "
+                        verboseln("Commits: "
                                 + txn.getCommittedTransactionCount()
                                 + " Rollbacks="
                                 + txn.getRolledBackTransactionCount());
@@ -348,8 +348,8 @@ public class Stress3txn extends StressBase {
                 }
             }
         }
-        println();
-        print("done");
+        verboseln();
+        verbose("done");
 
     }
 

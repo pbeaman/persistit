@@ -82,15 +82,15 @@ public abstract class Stress4Base extends StressBase {
             } catch (final Exception e) {
                 handleThrowable(e);
             }
-            println();
+            verboseln();
 
             for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-                println();
-                println("Starting cycle " + (_repeat + 1) + " of "
+                verboseln();
+                verboseln("Starting cycle " + (_repeat + 1) + " of "
                         + _repeatTotal);
 
                 repeatedTasks();
-                println();
+                verboseln();
             }
         } catch (final Throwable t) {
             handleThrowable(t);

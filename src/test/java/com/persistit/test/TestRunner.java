@@ -416,13 +416,11 @@ public class TestRunner {
                     final AbstractTestRunnerItem test = _test;
                     test.initialize(0);
                     test._args = args;
-                    test.setUp();
                     if (_gui != null) {
                         _gui.addTest(test);
                     }
                     _allTests.add(_test);
                     test.runIt();
-                    test.tearDown();
                     return test.getResult();
                 }
 
@@ -438,7 +436,6 @@ public class TestRunner {
                         final AbstractTestRunnerItem test = command._test;
                         test.initialize(index);
                         test._args = command._args;
-                        test.setUp();
                         if (_gui != null) {
                             _gui.addTest(test);
                         }
@@ -453,11 +450,6 @@ public class TestRunner {
                     }
                     for (int index = 0; index < threadCount; index++) {
                         threads[index].join();
-                    }
-                    for (int index = 0; index < threadCount; index++) {
-                        final Command command = (Command) _concurrentTests
-                                .get(index);
-                        command._test.tearDown();
                     }
                     final TestResult[] results = new TestResult[threadCount];
                     boolean pass = true;

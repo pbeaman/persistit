@@ -73,10 +73,10 @@ public class StressUUID extends StressBase {
             handleThrowable(e);
         }
         setPhase("w");
-        println();
+        verboseln();
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            println();
-            print("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal
+            verboseln();
+            verbose("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal
                     + "  ");
             final long start = System.nanoTime();
             for (_count = 0; (_count < _total) && !isStopped(); _count++) {
@@ -94,17 +94,17 @@ public class StressUUID extends StressBase {
                 }
             }
             final long end = System.nanoTime();
-            println();
-            println("  Ending cycle "
+            verboseln();
+            verboseln("  Ending cycle "
                     + (_repeat + 1)
                     + " of "
                     + _repeatTotal
                     + String.format(" cycle elapsed time=%,d msec",
                             (end - start) / 1000000));
         }
-        println();
-        print("done");
-        println();
+        verboseln();
+        verbose("done");
+        verboseln();
     }
 
     public static void main(final String[] args) {

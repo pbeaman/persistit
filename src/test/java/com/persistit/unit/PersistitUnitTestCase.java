@@ -16,12 +16,12 @@ public abstract class PersistitUnitTestCase extends TestCase {
 
     @Override
     public void setUp() throws Exception {
-        setUp(true);
+        _persistit.initialize(getProperties(true));
     }
 
-    public void setUp(final boolean cleanup) throws Exception {
-        _persistit.initialize(getProperties(cleanup));
-    }
+//    public void setUp(final boolean cleanup) throws Exception {
+//        _persistit.initialize(getProperties(cleanup));
+//    }
 
     @Override
     public void tearDown() throws Exception {

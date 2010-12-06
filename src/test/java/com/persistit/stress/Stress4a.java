@@ -39,83 +39,75 @@ public class Stress4a extends Stress4Base {
     public void repeatedTasks() throws PersistitException {
         describeTest("sequential write " + _total + " records 30 bytes long ");
         writeRecords(_total, false, 30, 30);
-        println();
+        verboseln();
 
         describeTest("sequential read " + _total
                 + " short records 30 bytes long");
         readRecords(_total, false, 30, 30);
-        println();
+        verboseln();
 
         describeTest("traverse records forward");
         testForward();
-        println();
+        verboseln();
 
         describeTest("traverse records reverse");
         testReverse();
-        println();
+        verboseln();
 
         describeTest("read records");
         testReads(_total);
-        println();
+        verboseln();
 
         seed(_seed);
         describeTest("random write " + _total + " records 20-80 bytes long");
         writeRecords(_total, true, 20, 80);
-        println();
+        verboseln();
 
         seed(_seed);
         describeTest("random read " + _total + " records 20-80 bytes long");
         readRecords(_total, true, 20, 80);
-        println();
+        verboseln();
 
         seed(_seed * 7);
         describeTest("random write " + (_total / 50)
                 + " records 20-8000 bytes long");
         writeRecords(_total / 50, true, 20, 8000);
-        println();
+        verboseln();
 
         seed(_seed * 7);
         describeTest("random read " + (_total / 50)
                 + " records 20-8000 bytes long");
         readRecords(_total / 50, true, 20, 8000);
-        println();
+        verboseln();
 
         describeTest("traverse records in reverse order");
         testReverse();
-        println();
+        verboseln();
 
         seed(_seed * 7);
         describeTest("random write " + (_total / 200)
                 + " records 20-80000 bytes long");
         writeRecords(_total / 200, true, 20, 80000);
-        println();
+        verboseln();
 
         seed(_seed * 7);
         describeTest("random read " + (_total / 200)
                 + " records 20-80000 bytes long");
         readRecords(_total / 200, true, 20, 80000);
-        println();
+        verboseln();
 
         describeTest("traverse records in forward order");
         testReverse();
-        println();
+        verboseln();
 
         seed(_seed * 17);
         describeTest("randomly remove " + (_total / 3) + " records");
         removeRecords(_seed, true);
-        println();
+        verboseln();
 
         describeTest("traverse records in reverse order");
         testForward();
-        println();
-    }
-
-    private void describeTest(final String m) {
-        print(m);
-        print(": ");
-        for (int i = m.length(); i < 52; i++) {
-            print(" ");
-        }
+        verboseln();
     }
 
     public static void main(final String[] args) {

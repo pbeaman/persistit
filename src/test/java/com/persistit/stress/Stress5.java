@@ -91,13 +91,13 @@ public class Stress5 extends StressBase {
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
             try {
-                println();
-                println();
-                println("Starting test cycle " + _repeat + " at " + tsString());
+                verboseln();
+                verboseln();
+                verboseln("Starting test cycle " + _repeat + " at " + tsString());
                 describeTest("Deleting all records");
                 setPhase("@");
                 _ex.clear().remove(Key.GTEQ);
-                println();
+                verboseln();
 
                 describeTest("Creating baseline records");
                 setPhase("a");
@@ -107,7 +107,7 @@ public class Stress5 extends StressBase {
                     _ex.store();
                     dot();
                 }
-                println();
+                verboseln();
                 if (isStopped()) {
                     break;
                 }
@@ -123,7 +123,7 @@ public class Stress5 extends StressBase {
                     _ex.store();
                     dot();
                 }
-                println();
+                verboseln();
                 if (isStopped()) {
                     break;
                 }
@@ -137,7 +137,7 @@ public class Stress5 extends StressBase {
                     _ex.store();
                     dot();
                 }
-                println();
+                verboseln();
                 if (isStopped()) {
                     break;
                 }
@@ -157,7 +157,7 @@ public class Stress5 extends StressBase {
                     _ex.remove();
                     dot();
                 }
-                println();
+                verboseln();
                 if (isStopped()) {
                     break;
                 }
@@ -181,7 +181,7 @@ public class Stress5 extends StressBase {
                     }
                     dot();
                 }
-                println();
+                verboseln();
                 if (isStopped()) {
                     break;
                 }
@@ -195,7 +195,7 @@ public class Stress5 extends StressBase {
                     }
                     dot();
                 }
-                println();
+                verboseln();
 
                 describeTest("Verifying empty tree");
                 setPhase("g");
@@ -203,12 +203,12 @@ public class Stress5 extends StressBase {
                 if (_ex.traverse(Key.GT, true)) {
                     println("Tree is not empty");
                 }
-                println();
+                verboseln();
 
             } catch (final PersistitException de) {
                 handleThrowable(de);
             }
-            println("Done at " + tsString());
+            verboseln("Done at " + tsString());
         }
     }
 
@@ -222,13 +222,6 @@ public class Stress5 extends StressBase {
         ex.clear().append(a).append(_sb1);
     }
 
-    private void describeTest(final String m) {
-        print(m);
-        print(": ");
-        for (int i = m.length(); i < 52; i++) {
-            print(" ");
-        }
-    }
 
     public static void main(final String[] args) {
         new Stress5().runStandalone(args);

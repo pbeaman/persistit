@@ -641,24 +641,29 @@ public class Persistit implements BuildConstants {
         MBeanServer server = java.lang.management.ManagementFactory
                 .getPlatformMBeanServer();
         try {
-            server.registerMBean((ManagementMXBean) getManagement(), new ObjectName(ManagementMXBean.MXBEAN_NAME));
-            server.registerMBean((IOMeterMXBean) _ioMeter, new ObjectName(IOMeterMXBean.MXBEAN_NAME));
-            server.registerMBean((JournalManagerMXBean) _journalManager, new ObjectName(JournalManagerMXBean.MXBEAN_NAME));
-            server.registerMBean((RecoveryManagerMXBean) _recoveryManager, new ObjectName(RecoveryManagerMXBean.MXBEAN_NAME));
+            server.registerMBean((ManagementMXBean) getManagement(),
+                    new ObjectName(ManagementMXBean.MXBEAN_NAME));
+            server.registerMBean((IOMeterMXBean) _ioMeter, new ObjectName(
+                    IOMeterMXBean.MXBEAN_NAME));
+            server.registerMBean((JournalManagerMXBean) _journalManager,
+                    new ObjectName(JournalManagerMXBean.MXBEAN_NAME));
+            server.registerMBean((RecoveryManagerMXBean) _recoveryManager,
+                    new ObjectName(RecoveryManagerMXBean.MXBEAN_NAME));
         } catch (Exception exception) {
             if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
                 _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
             }
         }
     }
-    
-    
+
     private void unregisterMXBeans() {
         MBeanServer server = java.lang.management.ManagementFactory
                 .getPlatformMBeanServer();
         try {
-            server.unregisterMBean(new ObjectName(RecoveryManagerMXBean.MXBEAN_NAME));
-            server.unregisterMBean(new ObjectName(JournalManagerMXBean.MXBEAN_NAME));
+            server.unregisterMBean(new ObjectName(
+                    RecoveryManagerMXBean.MXBEAN_NAME));
+            server.unregisterMBean(new ObjectName(
+                    JournalManagerMXBean.MXBEAN_NAME));
             server.unregisterMBean(new ObjectName(IOMeterMXBean.MXBEAN_NAME));
             server.unregisterMBean(new ObjectName(ManagementMXBean.MXBEAN_NAME));
         } catch (InstanceNotFoundException exception) {
@@ -1765,12 +1770,10 @@ public class Persistit implements BuildConstants {
         }
         task.kick();
         while (!task.isStopped()) {
-            synchronized (this) {
-                try {
-                    wait(SHORT_DELAY);
-                } catch (InterruptedException ie) {
-                    break;
-                }
+            try {
+                task.join(SHORT_DELAY);
+            } catch (InterruptedException ie) {
+                break;
             }
             final long now = System.currentTimeMillis();
             if (now > _nextCloseTime) {
@@ -1813,6 +1816,7 @@ public class Persistit implements BuildConstants {
             throw new PersistitClosedException();
         }
     }
+
     /**
      * Waits until updates are no longer suspended. The
      * {@link #setUpdateSuspended} method controls whether update operations are

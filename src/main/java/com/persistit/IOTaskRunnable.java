@@ -10,7 +10,7 @@ abstract class IOTaskRunnable implements Runnable {
 
     private final Persistit _persistit;
 
-    private Thread _thread;
+    private volatile Thread _thread;
 
     private boolean _stopped;
 
@@ -30,31 +30,31 @@ abstract class IOTaskRunnable implements Runnable {
         _thread.start();
     }
 
-    public Thread getThread() {
+    Thread getThread() {
         return _thread;
     }
 
-    public synchronized void kick() {
+    synchronized void kick() {
         if (!_notified) {
             _notified = true;
             notify();
         }
     }
 
-    public synchronized long getPollInterval() {
+    synchronized long getPollInterval() {
         return _pollInterval;
     }
 
-    public synchronized void setPollInterval(long pollInterval) {
+    synchronized void setPollInterval(long pollInterval) {
         _pollInterval = pollInterval;
         kick();
     }
 
-    public synchronized Exception getLastException() {
+    synchronized Exception getLastException() {
         return _lastException;
     }
 
-    public synchronized void setLastException(Exception lastException) {
+    synchronized void setLastException(Exception lastException) {
         _lastException = lastException;
     }
 
@@ -70,6 +70,11 @@ abstract class IOTaskRunnable implements Runnable {
         _stopped = true;
     }
 
+    void join(final long millis) throws InterruptedException {
+        if (_thread != null) {
+            _thread.join(millis);
+        }
+    }
     @SuppressWarnings("deprecation")
     // Use only for tests.
     protected void crash() {

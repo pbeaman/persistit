@@ -133,7 +133,9 @@ public abstract class AbstractTestRunnerItem {
                 + " " + getName() + " at ts=" + _startTime);
         println();
 
+        
         try {
+            setUp();
             executeTest();
         } catch (final Throwable t) {
             if ((t instanceof RuntimeException)
@@ -144,10 +146,14 @@ public abstract class AbstractTestRunnerItem {
                     _result = new TestResult(false, t);
                 }
             } else {
-                println();
-                println("Failed: " + t);
-                t.printStackTrace(_out);
-                println(t.getMessage());
+                if ((_result == null) || _result._passed) {
+                    _result = new TestResult(false, t);
+                }
+            }
+        } finally {
+            try {
+            tearDown();
+            } catch (final Throwable t) {
                 if ((_result == null) || _result._passed) {
                     _result = new TestResult(false, t);
                 }
@@ -158,7 +164,7 @@ public abstract class AbstractTestRunnerItem {
                 + " " + getName() + " at ts=" + _finishTime + " - elapsed="
                 + (_finishTime - _startTime) + " - "
                 + (_result == null ? "PASSED" : _result.toString()));
-        println();
+        verboseln();
         if ((_result != null) && !_result._passed) {
             TestRunner.logMessage("Failed test unit=" + getUnitName()
                     + " test=" + getTestName() + " " + getName());
@@ -318,6 +324,44 @@ public abstract class AbstractTestRunnerItem {
 
     protected void printStackTrace(final Throwable t) {
         t.printStackTrace(_err);
+    }
+
+    protected void verbosef(final String format, final Object... args) {
+        if (isVerbose()) {
+            println(String.format(format, args));
+        }
+    }
+
+    protected void verbose(final Object o) {
+        if (isVerbose()) {
+            _out.print(o);
+            _out.flush();
+        }
+    }
+
+    protected void verboseln() {
+        if (isVerbose()) {
+            _out.println();
+            _out.flush();
+        }
+    }
+
+    protected void verboseln(final Object o) {
+        if (isVerbose()) {
+            _out.println(o);
+            _out.flush();
+        }
+    }
+    
+
+    protected void describeTest(final String m) {
+        if (isVerbose()) {
+            print(m);
+            print(": ");
+            for (int i = m.length(); i < 52; i++) {
+                print(" ");
+            }
+        }
     }
 
     protected void fail(final Object o) {

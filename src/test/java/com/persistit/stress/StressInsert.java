@@ -88,10 +88,10 @@ public class StressInsert extends StressBase {
         } catch (final Exception e) {
             handleThrowable(e);
         }
-        println();
+        verboseln();
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
-            println();
-            println("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
+            verboseln();
+            verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
             if (_opflags.indexOf('w') >= 0) {
                 setPhase("w");
@@ -147,7 +147,7 @@ public class StressInsert extends StressBase {
                     _result = new TestResult(false, "Traverse count=" + _count
                             + " out of " + _total + " repetition=" + _repeat
                             + " in thread=" + _threadIndex);
-                    println(_result);
+                    verboseln(_result);
                     forceStop();
                     break;
                 }
@@ -177,8 +177,8 @@ public class StressInsert extends StressBase {
             }
 
         }
-        println();
-        print("done");
+        verboseln();
+        verbose("done");
     }
 
     private void seed() {

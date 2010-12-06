@@ -89,14 +89,14 @@ public class Stress6 extends StressBase {
                 for (int i = 0; i < 500; i++) {
                     _sb2.append('x');
                 }
-                println();
-                println();
-                println("Starting test cycle " + _repeat + " at " + tsString());
+                verboseln();
+                verboseln();
+                verboseln("Starting test cycle " + _repeat + " at " + tsString());
                 describeTest("Deleting all records");
                 setPhase("@");
                 _exs.clear().append("stress6").append(_threadIndex)
                         .remove(Key.GTEQ);
-                println();
+                verboseln();
 
                 describeTest("Creating baseline records");
                 setPhase("a");
@@ -106,7 +106,7 @@ public class Stress6 extends StressBase {
                             .append(_count).append(_sb1);
                     _exs.store();
                 }
-                println();
+                verboseln();
 
                 describeTest("Splitting and joining");
                 setPhase("b");
@@ -126,7 +126,7 @@ public class Stress6 extends StressBase {
                         _exs.store();
                     }
                 }
-                println();
+                verboseln();
 
                 describeTest("Verifying");
                 setPhase("c");
@@ -150,12 +150,12 @@ public class Stress6 extends StressBase {
                         break;
                     }
                 }
-                println();
+                verboseln();
 
             } catch (final Exception de) {
                 handleThrowable(de);
             }
-            println("Done at " + tsString());
+            verboseln("Done at " + tsString());
         }
     }
 
@@ -169,13 +169,6 @@ public class Stress6 extends StressBase {
         ex.clear().append(a).append(_sb1);
     }
 
-    private void describeTest(final String m) {
-        print(m);
-        print(": ");
-        for (int i = m.length(); i < 52; i++) {
-            print(" ");
-        }
-    }
 
     public static void main(final String[] args) {
         new Stress6().runStandalone(args);
