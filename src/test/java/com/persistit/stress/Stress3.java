@@ -47,13 +47,11 @@ public class Stress3 extends StressBase {
             "count|int:10000:0:1000000000|Number of nodes to populate",
             "seed|int:1:1:20000|Random seed",
             "size|int:3000:1:20000|Maximum record size",
-            "splay|int:1:1:1000|Splay",
             "datafile|String:" + DEFAULT_DATA_FILE_NAME, };
 
     static String[] _fileNames = null;
     static boolean _filesLoaded;
 
-    int _splay;
     int _seed;
     int _size;
     String _opflags;
@@ -72,7 +70,6 @@ public class Stress3 extends StressBase {
     public void setUp() throws Exception {
         super.setUp();
         _ap = new ArgParser("com.persistit.Stress3", _args, ARGS_TEMPLATE);
-        _splay = _ap.getIntValue("splay");
         _opflags = _ap.getStringValue("op");
         _seed = _ap.getIntValue("seed");
         _size = _ap.getIntValue("size");

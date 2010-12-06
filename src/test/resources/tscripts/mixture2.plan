@@ -2,12 +2,14 @@ logpath $logpath$/result_$timestamp$.log
 
 #Stress-99 test mixture, multithread, 50000 buffers
 
+delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+
 clearprops
 prop buffer.count.8192=50000
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:10M,extensionSize:10M,maximumSize:4G
-prop logfile=$datapath$/persistit.log
 prop journalpath=$datapath$/persistit_journal
-prop rmiport=1099
+prop logfile=$logpath$/persistit_$timestamp$.log
+prop rmiport=8081
 
 init
 icheck persistit
@@ -51,8 +53,6 @@ test com.persistit.stress.Stress2 repeat=3 count=100000 seed=220
 icheck persistit
 
 waitIfFailed Please examine the failure!
-
-wait Watch the log files go away
 
 close
 

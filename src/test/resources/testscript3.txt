@@ -5,10 +5,10 @@ logpath $logpath$/result_$timestamp$.log
 clearprops
 prop buffer.count.8192=1K
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
-prop logpath=$datapath$/persistit_log
-prop log=PWJ:FINER,GAR:FINE
+prop journalpath=$datapath$/persistit_journal
+prop rmiport=1099
 
-//delete $datapath$/persistit.v01 $datapath$/persistit.pwj
+delete $datapath$/persistit.v01 $datapath$/persistit_journal*
 
 
 init
@@ -17,8 +17,8 @@ icheck persistit
 
 multithread
 test com.persistit.stress.Stress8txn repeat=1 count=25000 size=10000 seed=1
-//test com.persistit.stress.Stress8txn repeat=1 count=25000 size=10000 seed=2
-//test com.persistit.stress.Stress8txn repeat=1 count=25000 size=10000 seed=3
+test com.persistit.stress.Stress8txn repeat=1 count=25000 size=10000 seed=2
+test com.persistit.stress.Stress8txn repeat=1 count=25000 size=10000 seed=3
 
 icheck persistit
 close

@@ -1037,7 +1037,7 @@ public class Volume extends SharedResource {
 
             harvestLongRecords(treeIndex, garbageBuffer, 0, Integer.MAX_VALUE);
 
-            garbageBuffer.init(Buffer.PAGE_TYPE_GARBAGE, "initGarbage");
+            garbageBuffer.init(Buffer.PAGE_TYPE_GARBAGE);
 
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_DEALLOCGC6)) {
                 _persistit.getLogBase().log(LogBase.LOG_DEALLOCGC6,
@@ -1071,7 +1071,6 @@ public class Volume extends SharedResource {
             Buffer garbageBuffer = null;
             try {
                 garbageBuffer = _pool.get(this, left, false, true);
-                Debug.stateChanged(garbageBuffer, "deallocDeferred", -1);
                 Debug.$assert(garbageBuffer != null
                         && (garbageBuffer.isDataPage() || garbageBuffer
                                 .isIndexPage())
@@ -1562,7 +1561,7 @@ public class Volume extends SharedResource {
         long rootPage = rootPageBuffer.getPageAddress();
 
         try {
-            rootPageBuffer.init(Buffer.PAGE_TYPE_DATA, "initRootPage");
+            rootPageBuffer.init(Buffer.PAGE_TYPE_DATA);
             rootPageBuffer.putValue(Key.LEFT_GUARD_KEY, Value.EMPTY_VALUE);
             rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
             rootPageBuffer.setDirtyStructure();
@@ -1736,7 +1735,7 @@ public class Volume extends SharedResource {
 
         if (buffer != null) {
             harvestLongRecords(treeIndex, buffer, 0, Integer.MAX_VALUE);
-            buffer.init(Buffer.PAGE_TYPE_UNALLOCATED, "initFromGarbage"); // DEBUG
+            buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
             buffer.clear();
             return buffer;
         }
@@ -1829,9 +1828,7 @@ public class Volume extends SharedResource {
 
                     harvestLongRecords(treeIndex, buffer, 0, Integer.MAX_VALUE);
 
-                    buffer.init(Buffer.PAGE_TYPE_UNALLOCATED, "initFromGarbage"); // DEBUG
-                                                                                  // -
-                                                                                  // debug
+                    buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
                     buffer.clear();
                     return buffer;
                 } finally {
@@ -1854,7 +1851,7 @@ public class Volume extends SharedResource {
                 // No need to read the prior content of the page - we trust
                 // it's never been used before.
                 buffer = _pool.get(this, page, true, false);
-                buffer.init(Buffer.PAGE_TYPE_UNALLOCATED, "initFromExtension"); // DEBUG
+                buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
                 // -
                 // debug
                 if (page > _highestPageUsed) {

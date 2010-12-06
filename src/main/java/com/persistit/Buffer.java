@@ -429,7 +429,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
     /**
      * Initializes the buffer so that it contains no keys or data.
      */
-    void init(int type, String reason) {
+    void init(int type) {
         _type = type;
         _keyBlockStart = INITIAL_KEY_BLOCK_START_VALUE;
         _keyBlockEnd = INITIAL_KEY_BLOCK_START_VALUE;
@@ -440,8 +440,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
         _slack = 0;
         // _generation = 0;
         bumpGeneration();
-        if (Debug.HISTORY_ENABLED)
-            Debug.stateChanged(this, reason, -1);
     }
 
     /**
@@ -458,9 +456,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
             vol.readPage(this, page);
         }
         load();
-        if (Debug.HISTORY_ENABLED) {
-            Debug.stateChanged(this, readFromLog ? "readFromLog" : "read", -1);
-        }
     }
 
     void load() throws InvalidPageStructureException {
@@ -559,9 +554,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
             final long timestamp = _persistit.getTransaction().getTimestamp();
             _timestamp = Math.max(_timestamp, timestamp);
         }
-        if (Debug.HISTORY_ENABLED) {
-            Debug.stateChanged(this, "dirty", -1);
-        }
     }
 
     void setDirtyStructure() {
@@ -570,9 +562,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
             super.setDirtyStructure();
             final long timestamp = _persistit.getTransaction().getTimestamp();
             _timestamp = Math.max(_timestamp, timestamp);
-        }
-        if (Debug.HISTORY_ENABLED) {
-            Debug.stateChanged(this, "dirty", -1);
         }
     }
 
@@ -627,8 +616,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
             putLong(PAGE_ADDRESS_OFFSET, _page);
             putLong(RIGHT_SIBLING_OFFSET, _rightSibling);
         }
-        if (Debug.HISTORY_ENABLED)
-            Debug.stateChanged(this, "save", -1);
     }
 
     /**

@@ -371,6 +371,7 @@ public class TestRunnerGui extends JFrame {
         final TestRunnerGui gui = new TestRunnerGui();
 
         runner.setGui(gui);
+        runner.setVerbose(true);
         runner.parseScript(args);
         runner.execute();
     }

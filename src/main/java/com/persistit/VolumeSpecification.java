@@ -97,7 +97,8 @@ public class VolumeSpecification {
                         bad = true;
                     if (bad || innerTokenizer.hasMoreTokens()) {
                         throw new InvalidVolumeSpecificationException(
-                                specification);
+                                "Unknown attribute " + attr + " in "
+                                        + specification);
                     }
                 }
             }

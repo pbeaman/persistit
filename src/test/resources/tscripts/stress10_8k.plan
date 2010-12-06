@@ -1,0 +1,29 @@
+#Stress10 tests, multithread, large pool with 8K buffers
+
+delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+
+clearprops
+prop buffer.count.8192=64k
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:10M,extensionSize:10M,maximumSize:100G
+prop journalpath=$datapath$/persistit_journal
+prop logfile=$logpath$/persistit_$timestamp$.log
+prop rmiport=8081
+
+init
+multithread
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=1
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=2
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=3
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=4
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=5
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=6
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=7
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=8
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=9
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=10
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=11
+test com.persistit.stress.Stress10 repeat=1 count=1000000 size=3000 seed=12
+
+icheck persistit
+waitIfFailed Please examine the failure!
+close

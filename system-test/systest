@@ -64,14 +64,14 @@ function persistit-test
 	
 	local classpath="${PERSISTIT_JAR}"
 	local mainClass="com.persistit.test.TestRunner"
-	local args="script=recovery_1.plan datapath=/tmp/persistit_test_data"
+	local args="script=recovery_1.plan datapath=/tmp/persistit_test_data logpath=/tmp/persistit_test_data"
 
 	java -ea ${jvmargs} -cp ${classpath} ${mainClass} ${args} 1>/tmp/persistit_test_data/recovery.log & local PID=$!
 	#let it run a bit
 	info "process PID=${PID} started, sleeping for ${time} seconds" && sleep ${time} 
 
 	# you can send any signal here
-	kill -9 ${PID}	|| warn "process PID=${PID} does not exist, proeeding with verification anyways"
+	kill -9 ${PID}	|| warn "process PID=${PID} does not exist, proceeding with verification anyways"
 
 	# wait for child pid to process signal and then die
 	wait ${PID}     || info "nothing to wait for, process completed handling signal" 

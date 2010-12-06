@@ -1,0 +1,29 @@
+
+// Runs the second half of the StressRecovery.  The first half wrote
+// a file containing a "ticket" for each completed transaction.
+// This second phase tests whether each completed transaction
+// is actually present in the recovered database.
+//
+// This plan assumes that competed tickets were piped to
+// file $datapath$/recover.log
+//
+//
+// To run this:
+// 
+//    java -cp ${PERSISTIT_JAR} com.persistit.test.TestRunner 
+//              script=recovery_2.plan datapath=/tmp/persistit_test_data -e
+//
+// The -e flag causes TestRunner to exit with a non-zero status on failure.
+//
+prop buffer.count.8192=5000
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M,alias:persistit
+prop journalpath=$datapath$/persistit_journal
+prop logfile=$logpath$/persistit_$timestamp$.log
+prop rmiport=8081
+prop appendonly=true
+
+init
+test com.persistit.stress.StressRecovery verify=$datapath$/recovery.log latency=500
+
+icheck persistit
+close

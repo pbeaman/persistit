@@ -58,9 +58,9 @@ public class TestRunner {
     private final static int CODE_WAIT_IF = 10;
 
     private final static String SPACES = "                                   ";
-    private final static SimpleDateFormat _sdf = new SimpleDateFormat(
+    private final static SimpleDateFormat SDF = new SimpleDateFormat(
             "yyyyMMddHHmm");
-    private final static SimpleDateFormat _sdfExternal = new SimpleDateFormat(
+    private final static SimpleDateFormat SDF_EXTERNAL = new SimpleDateFormat(
             "dd-MMM-yyyy HH:mm:ss");
 
     private final static String[] ARGS_TEMPLATE = { "script|String:",
@@ -76,7 +76,8 @@ public class TestRunner {
     private static String _scriptPath;
     private static String _logPath;
     private static String _dataPath;
-    private static String _timeStamp;
+    private static String _timeStamp = SDF.format(new Date());
+
 
     private static PrintWriter _logWriter = null;
     private static PrintWriter _displayWriter = new PrintWriter(System.out);
@@ -115,7 +116,7 @@ public class TestRunner {
         final int count = _units.size();
         int passCount = 0;
         int failCount = 0;
-        _timeStamp = _sdf.format(new Date());
+        _timeStamp = SDF.format(new Date());
 
         new ProgressLogger().start();
         for (int index = 0; !_stopAll && (index < count); index++) {
@@ -664,7 +665,7 @@ public class TestRunner {
 
     private void startLog() throws Exception {
         _logWriter.println("Persistit Test Run "
-                + _sdfExternal.format(new Date()));
+                + SDF_EXTERNAL.format(new Date()));
         _logWriter.println("Persistit version " + Persistit.version());
         _logWriter.println("JVM " + System.getProperty("java.vm.name") + " "
                 + System.getProperty("java.vm.vendor") + " "
@@ -733,6 +734,14 @@ public class TestRunner {
 
     public TestRunnerGui getGui() {
         return _gui;
+    }
+    
+    public boolean isVerbose() {
+        return _verbose;
+    }
+    
+    public void setVerbose(final boolean verbose) {
+        _verbose = verbose;
     }
 
     private void deleteFiles(final String pattern) {

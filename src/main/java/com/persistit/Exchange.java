@@ -1530,8 +1530,7 @@ public final class Exchange implements BuildConstants {
         try {
             buffer = _volume.allocPage(_tree.getTreeIndex());
 
-            buffer.init(Buffer.PAGE_TYPE_INDEX_MIN + _treeDepth - 1,
-                    "initInsertIndexLevel"); // DEBUG - debug
+            buffer.init(Buffer.PAGE_TYPE_INDEX_MIN + _treeDepth - 1);
 
             long newTopPage = buffer.getPageAddress();
             long leftSiblingPointer = _rootPage;
@@ -1625,7 +1624,7 @@ public final class Exchange implements BuildConstants {
                 if (Debug.ENABLED)
                     Debug.$assert(rightSibling != buffer);
 
-                rightSibling.init(buffer.getPageType(), "initSplit"); // DEBUG -
+                rightSibling.init(buffer.getPageType());
                 // debug
                 //
                 // Split the page. As a side-effect, this will bump the
@@ -3633,7 +3632,7 @@ public final class Exchange implements BuildConstants {
                 if (segmentSize > maxSegmentSize)
                     segmentSize = maxSegmentSize;
                 Buffer buffer = bufferArray[index];
-                buffer.init(Buffer.PAGE_TYPE_LONG_RECORD, "initLongRecord");
+                buffer.init(Buffer.PAGE_TYPE_LONG_RECORD);
                 buffer.setRightSibling(page);
 
                 System.arraycopy(longBytes, offset, buffer.getBytes(),
@@ -3727,7 +3726,7 @@ public final class Exchange implements BuildConstants {
             for (;;) {
                 while (offset >= from) {
                     buffer = _volume.allocPage(_tree.getTreeIndex());
-                    buffer.init(Buffer.PAGE_TYPE_LONG_RECORD, "initLongRecord");
+                    buffer.init(Buffer.PAGE_TYPE_LONG_RECORD);
 
                     int segmentSize = longSize - offset;
                     if (segmentSize > maxSegmentSize)

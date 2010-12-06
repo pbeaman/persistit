@@ -1,7 +1,7 @@
 logpath $logpath$/result_$timestamp$.log
 
 
-#Stress test mixture, multithread, medium pool, transactions
+#Stress-11 test mixture, multithread, large pool, transactions
 
 delete $datapath$/persistit*
 
@@ -9,6 +9,7 @@ clearprops
 prop buffer.count.8192=12000
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
+prop logfile=$logpath$/persistit_$timestamp$.log
 prop rmiport=8081
 
 init
@@ -27,7 +28,6 @@ test com.persistit.stress.Stress6 repeat=10 count=500 size=250
 test com.persistit.stress.Stress6 repeat=10 count=500 size=250
 test com.persistit.stress.Stress8txn repeat=2 count=1000 size=1000 seed=1
 test com.persistit.stress.Stress8txn repeat=2 count=1000 size=1000 seed=2
-
 icheck persistit
 waitIfFailed Please examine the failure!
 close

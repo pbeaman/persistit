@@ -1,0 +1,164 @@
+prop datapath=$datapath$
+
+logpath $logpath$/result_$timestamp$.log
+
+// Large multi-threaded test with huge buffer pool
+
+delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+#Stress huge test mixture, multithread
+
+
+prop buffer.count.8192=50000
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:100M,extensionSize:100M,maximumSize:10G
+prop logfile=$logpath$/persistit_$timestamp$.log
+prop journalpath=$datapath$/persistit_journal
+
+prop rmiport=8081
+
+init
+
+multithread
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=10000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=117
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=118
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=119
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=120
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=217
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=218
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=219
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=220
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=121
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=122
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=317
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=318
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=319
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=320
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=417
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=418
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=419
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=420
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=221
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=222
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=517
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=518
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=519
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=520
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=617
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=618
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=619
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=620
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=321
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=322
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=717
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=718
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=719
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=720
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=817
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=818
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=819
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=820
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=4121
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=422
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=917
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=918
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=919
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=920
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=1017
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=1018
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=1019
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=1020
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=521
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=522
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=1117
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=1118
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=1119
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=1120
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=1217
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=1218
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=1219
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=1220
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=621
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=622
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=1317
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=1318
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=1319
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=1320
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress1 repeat=10 count=100000
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=1417
+test com.persistit.stress.Stress2 repeat=5 count=100000 seed=1418
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=1419
+test com.persistit.stress.Stress3 repeat=5 count=100000 seed=1420
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress5 repeat=20 count=20000
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress6 repeat=10 count=5000 size=250
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=721
+test com.persistit.stress.Stress7 repeat=10 count=5000 size=250 seed=722
+
+icheck persistit
+waitIfFailed Please examine the failure!
+close

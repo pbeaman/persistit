@@ -1,11 +1,13 @@
 logpath $logpath$/result_$timestamp$.log
-delete $datapath$/persistit*
+delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+
 
 clearprops
 prop buffer.count.8192=8K
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
-prop rmiport=1099
+prop logfile=$logpath$/persistit_$timestamp$.log
+prop rmiport=8081
 
 #1 PersistitMapStress
 init
@@ -21,5 +23,6 @@ test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000 -t splay=17
 test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000 splay=179
 test com.persistit.stress.PersistitMapStress1 repeat=1 count=1000000 -t splay=179
 
-wait
+icheck persistit
+waitIfFailed Please examine the failure!
 close

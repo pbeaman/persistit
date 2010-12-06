@@ -1,11 +1,12 @@
 #Stress-10 test mixture, multithread, large pool, temporary volume
 
-delete $datapath$/persistit.v01 $datapath$/persistit_log.*
+delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
 
 clearprops
 prop buffer.count.8192=50000
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:100M,extensionSize:100,maximumSize:50G
-prop logpath=$datapath$/persistit_log
+prop journalpath=$datapath$/persistit_journal
+
 prop rmiport=1099
 
 init

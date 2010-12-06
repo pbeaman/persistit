@@ -9,9 +9,9 @@ public class BufferTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         final StringBuilder sb = new StringBuilder();
         final Buffer b1 = new Buffer(1024, 0, null, _persistit);
-        b1.init(Buffer.PAGE_TYPE_DATA, "test");
+        b1.init(Buffer.PAGE_TYPE_DATA);
         final Buffer b2 = new Buffer(1024, 0, null, _persistit);
-        b2.init(Buffer.PAGE_TYPE_DATA, "test");
+        b2.init(Buffer.PAGE_TYPE_DATA);
         b1.claim(true);
         b2.claim(true);
         final Key key = new Key((Persistit) null);

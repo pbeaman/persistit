@@ -109,8 +109,8 @@ public class Persistit implements BuildConstants {
     public final static boolean BIG_ENDIAN = true;
     /**
      * Prefix used to form the a system property name. For example, the property
-     * named <tt>pwjpath=xyz</tt> can also be specified as a system property on
-     * the command line with the option -Dcom.persistit.pwjpath=xyz.
+     * named <tt>journalpath=xyz</tt> can also be specified as a system property on
+     * the command line with the option -Dcom.persistit.journalpath=xyz.
      */
     public final static String SYSTEM_PROPERTY_PREFIX = "com.persistit.";
     /**
@@ -160,16 +160,10 @@ public class Persistit implements BuildConstants {
     public final static String JOURNAL_PATH_PROPERTY_NAME = "journalpath";
 
     /**
-     * Property name for specifying the size of each prewrite journal, e.g.,
-     * "pwjsize=512K".
+     * Property name for specifying the size of each journal file, e.g.,
+     * "journalsize=400000000".
      */
-    public final static String JOURNAL_SIZE_PROPERTY_NAME = "journalsize";
-
-    /**
-     * Property name for specifying whether Persistit should write fetch and
-     * traverse operations to the journal file.
-     */
-    public final static String JOURNAL_FETCHES = "journalfetches";
+    public final static String JOURNAL_BLOCKSIZE_PROPERTY_NAME = "journalsize";
 
     /**
      * Default path name for the journal. Note, sequence suffix in the form
@@ -198,7 +192,7 @@ public class Persistit implements BuildConstants {
     public final static String TXN_VOLUME_PROPERTY = "txnvolume";
 
     /**
-     * Property name for specifing whether Persistit should display diagnostic
+     * Property name for specifying whether Persistit should display diagnostic
      * messages. Property value must be "true" or "false".
      */
     public final static String VERBOSE_PROPERTY = "verbose";
@@ -510,7 +504,7 @@ public class Persistit implements BuildConstants {
     void initializeJournal() throws PersistitException {
         String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME,
                 DEFAULT_JOURNAL_PATH);
-        int journalSize = (int) getLongProperty(JOURNAL_SIZE_PROPERTY_NAME,
+        int journalSize = (int) getLongProperty(JOURNAL_BLOCKSIZE_PROPERTY_NAME,
                 JournalManager.DEFAULT_BLOCK_SIZE,
                 JournalManager.MINIMUM_BLOCK_SIZE,
                 JournalManager.MAXIMUM_BLOCK_SIZE);
@@ -787,8 +781,8 @@ public class Persistit implements BuildConstants {
      * property. The property is taken from one of the following sources:
      * <ol>
      * <li>A system property having a prefix of "com.persistit.". For example,
-     * the property named "pwjpath" can be supplied as the system property named
-     * com.persistit.pwjpath. (Note: if the security context does not permit
+     * the property named "journalpath" can be supplied as the system property named
+     * com.persistit.journalpath. (Note: if the security context does not permit
      * access to system properties, then system properties are ignored.)</li>
      * <li>The supplied Properties object, which was either passed to the
      * {@link #initialize(Properties)} method, or was loaded from the file named

@@ -103,6 +103,8 @@ public abstract class Stress4Base extends StressBase {
     }
 
     public boolean testReads(final int to) throws PersistitException {
+        setPhase("f");
+
         for (_count = 0; (_count < _total) && (_count < to) && !isStopped(); _count++) {
             _ex.clear().append(_count).fetch();
             final int cksum = checksum(_ex.getValue());
@@ -114,6 +116,8 @@ public abstract class Stress4Base extends StressBase {
     }
 
     public boolean testForward() throws PersistitException {
+        setPhase("a");
+
         _ex.clear().append(Key.BEFORE);
         int index1 = 0;
         int index2;
@@ -142,6 +146,8 @@ public abstract class Stress4Base extends StressBase {
     }
 
     public boolean testReverse() throws PersistitException {
+        setPhase("b");
+
         _ex.clear().append(Key.AFTER);
         int index1 = _total - 1;
         int index2;
@@ -172,6 +178,7 @@ public abstract class Stress4Base extends StressBase {
 
     public void writeRecords(final int to, final boolean random,
             final int minsize, final int maxsize) throws PersistitException {
+        setPhase("w");
         for (_count = 0; (_count < to) && !isStopped(); _count++) {
             dot();
             int keyInteger;
@@ -195,6 +202,7 @@ public abstract class Stress4Base extends StressBase {
             final int minsize, final int maxsize) throws PersistitException {
         final Value value1 = _ex.getValue();
         final Value value2 = new Value(getPersistit());
+        setPhase("r");
 
         for (_count = 0; (_count < to) && !isStopped(); _count++) {
             dot();
@@ -219,6 +227,8 @@ public abstract class Stress4Base extends StressBase {
 
     public void removeRecords(final int to, final boolean random)
             throws PersistitException {
+        setPhase("d");
+
         for (_count = 0; (_count < _total) && (_count < to) && !isStopped(); _count++) {
             dot();
             int keyInteger;

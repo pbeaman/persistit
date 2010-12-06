@@ -12,7 +12,6 @@ prop logfile=$datapath$/persistit.log
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 prop appendonly=true
-prop log=PWJ:FINER,GAR:FINE,LIFECYCLE:INFO
 
 init
 icheck persistit

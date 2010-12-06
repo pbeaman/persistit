@@ -1,6 +1,3 @@
-prop datapath=$datapath$
-prop logpath=$logpath$
-
 logpath $logpath$/result_$timestamp$.log
 
 // ----------------------------- Unit Tests ----------------------
@@ -12,7 +9,6 @@ clearprops
 prop buffer.count.8192=1000
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
-prop logpath=$datapath$/persistit_log
 prop rmiport=1099
 
 init

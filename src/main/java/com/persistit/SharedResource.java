@@ -286,9 +286,7 @@ class SharedResource extends WaitingThreadManager {
                     Debug.setSuspended(true);
                     System.out.println("*** " + Thread.currentThread()
                             + ": claim failed on " + this + "***");
-                    Debug.dump(new InUseException(this.toString()));
                     Debug.setSuspended(false);
-
                     Debug.debug1(true);
                 }
             }

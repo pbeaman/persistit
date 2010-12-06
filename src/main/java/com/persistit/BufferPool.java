@@ -854,8 +854,7 @@ public class BufferPool {
                         bumpGetCounter();
                     } else {
                         buffer.clear();
-                        buffer.init(Buffer.PAGE_TYPE_UNALLOCATED,
-                                "initGetWithoutRead");
+                        buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
                     }
                     if (!writer) {
                         buffer.releaseWriterClaim();

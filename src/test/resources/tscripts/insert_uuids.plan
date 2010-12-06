@@ -7,12 +7,14 @@ clearprops
 prop buffer.count.8192=50000
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:1G,extensionSize:1G,maximumSize:500G
 prop journalpath=$datapath$/persistit_journal
+prop logfile=$logpath$/persistit_$timestamp$.log
 prop rmiport=8081
 
 init
 multithread
 
-test com.persistit.stress.StressUUID repeat=10 count=100000
+test com.persistit.stress.StressUUID repeat=100000 count=1000
+
 icheck persistit
 waitIfFailed Please examine the failure!
 close

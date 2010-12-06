@@ -131,9 +131,7 @@ public abstract class AbstractTestRunnerItem {
 
         println("Starting unit=" + getUnitName() + " test=" + getTestName()
                 + " " + getName() + " at ts=" + _startTime);
-        println();
-
-        
+        verboseln();
         try {
             setUp();
             executeTest();

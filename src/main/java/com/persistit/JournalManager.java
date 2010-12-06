@@ -1010,7 +1010,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      */
     synchronized void flush() throws PersistitIOException {
         final long address = _writeBufferAddress;
-        if (address != Long.MAX_VALUE) {
+        if (address != Long.MAX_VALUE  && _writeBuffer != null) {
             try {
                 if (_writeBuffer.position() > 0) {
                     final FileChannel channel = getFileChannel(address);
