@@ -222,7 +222,7 @@ public class Volume extends SharedResource {
      * alias attribute is not specified, the the Volume's path name is used
      * instead.</dd>
      * <dt><tt>drive<tt></dt>
-     * <dd>Name of the drive on which the volume is located. Sepcifying the
+     * <dd>Name of the drive on which the volume is located. Specifying the
      * drive on which each volume is physically located is optional. If
      * supplied, Persistit uses the information to improve I/O throughput in
      * multi-volume configurations by interleaving write operations to different

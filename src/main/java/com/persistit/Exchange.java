@@ -114,7 +114,7 @@ import com.persistit.exception.WrongThreadException;
  * 
  * @version 1.0
  */
-public final class Exchange implements BuildConstants {
+public class Exchange implements BuildConstants {
     /**
      * Maximum number of levels in one tree. (This count represents a highly
      * pathological case: most trees, even large ones, are no more than four or
@@ -208,7 +208,7 @@ public final class Exchange implements BuildConstants {
      * 
      * @throws PersistitException
      */
-    Exchange(Persistit persistit, String volumeName, String treeName,
+    public Exchange(Persistit persistit, String volumeName, String treeName,
             boolean create) throws PersistitException {
         this(persistit, persistit.getVolume(volumeName), treeName, create);
     }
@@ -232,7 +232,7 @@ public final class Exchange implements BuildConstants {
      *            name does not already exist.
      * @throws PersistitException
      */
-    Exchange(Persistit persistit, Volume volume, String treeName, boolean create)
+    public Exchange(Persistit persistit, Volume volume, String treeName, boolean create)
             throws PersistitException {
         _persistit = persistit;
         _key = new Key(persistit);
