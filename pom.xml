@@ -2,33 +2,11 @@
 
 <project>
     <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>com.akiban</groupId>
-        <artifactId>akiban</artifactId>
-        <version>1.0.0</version>
-    </parent>
+     <groupId>com.akiban</groupId>
     <artifactId>akiban-persistit</artifactId>
     <packaging>jar</packaging>
     <name>akiban-persistit</name>
     <version>2.1-SNAPSHOT</version>
-
-  <repositories>
-        <repository>
-          <id>libs-releases-local</id>
-          <name>Repository</name>
-          <layout>default</layout>
-          <url>http://172.16.20.117:9999/artifactory/libs-releases-local</url>
-          <snapshots>
-            <enabled>false</enabled>
-          </snapshots>
-        </repository>
-        <repository>
-            <id>repo</id>
-            <name>libs-snapshots-local</name>
-            <url>http://172.16.20.117:9999/artifactory/libs-snapshots-local</url>
-        </repository>
-  </repositories>
-
 
     <dependencies>
         <dependency>
@@ -49,7 +27,7 @@
         </dependency>
         <dependency>
             <groupId>javax.help</groupId>
-            <artifactId>search</artifactId>
+            <artifactId>javahelp</artifactId>
             <version>2.0.02</version>
         </dependency>
     </dependencies>
@@ -70,7 +48,6 @@
           <configuration>
             <portNames>
               <portName>rmiport</portName>
-              <portName>debugport</portName>
             </portNames>
           </configuration>
         </execution>
@@ -84,18 +61,6 @@
                     <target>1.6</target>
                 </configuration>
             </plugin>
-	    <plugin>
-		<groupId>org.apache.maven.plugins</groupId>
-		<artifactId>maven-jar-plugin</artifactId>
-		<version>2.2</version>
-		<executions>
-			<execution>
-				<goals>
-					<goal>test-jar</goal>
-				</goals>
-			</execution>
-		</executions>
-	    </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
@@ -114,7 +79,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.4.1</version>
                 <configuration>
-                    <argLine>-Xmx640m -Xms128m -Xrunjdwp:transport=dt_socket,address=${debugport},suspend=n,server=y -Xdebug -Xnoagent -Drmiport=${rmiport}</argLine>
+                    <argLine>-Xmx640m -Xms128m -Drmiport=${rmiport}</argLine>
                     <includes>
                         <include>**/*Test.java</include>
                         <include>**/*Test?.java</include>
@@ -157,31 +122,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>findbugs-maven-plugin</artifactId>
-                <version>1.2</version>
-                <configuration>
-                    <findbugsXmlOutput>true</findbugsXmlOutput>
-                    <findbugsXmlWithMessages>true</findbugsXmlWithMessages>
-                    <xmlOutput>true</xmlOutput>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>com.atlassian.maven.plugins</groupId>
-                <artifactId>maven-clover2-plugin</artifactId>
-                <version>3.0.1</version>
-                <configuration>
-                    <generateHistorical>true</generateHistorical>
-                    <historyDir>/clover/history</historyDir>
-                    <license><![CDATA[PpMOqBXixXwmrECcCXcNWMiPdoNUxGimeeaAxQLAHXjuxGq
-mj2L00k1BlPcP>5lr6tcyjP5U2KJ>74Tfqpr3R>yJZm5IOW
-rqortTONOOQqqprRPqnuVOQmPNRMMqqnnnVVTXusxXowuUx
-xMnmnmUUnotqnmqummmmmUUnotqnmqummmmmUUXhfYXkWfk
-ZUUn]]></license>
-                    <generateXml>true</generateXml>
-                </configuration>
             </plugin>
 
         </plugins>
