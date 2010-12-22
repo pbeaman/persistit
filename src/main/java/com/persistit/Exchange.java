@@ -279,15 +279,10 @@ public class Exchange implements BuildConstants {
         _spareKey1 = new Key(_persistit);
         _spareKey2 = new Key(_persistit);
         _value = new Value(_persistit);
+        init(tree);
         _spareValue = new Value(_persistit);
         _volume = tree.getVolume();
-        _tree = tree;
-        _pool = _persistit.getBufferPool(_volume.getPageSize());
-        _isDirectoryExchange = true;
-        _transaction = _persistit.getTransaction();
-        _timeout = _persistit.getDefaultTimeout();
-        _treeGeneration = -1;
-
+        _isDirectoryExchange = tree == _volume.getDirectoryTree();
         initCache();
     }
 
