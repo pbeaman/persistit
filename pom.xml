@@ -1,13 +1,11 @@
 <?xml version="1.0"?>
-
 <project>
     <modelVersion>4.0.0</modelVersion>
-     <groupId>com.akiban</groupId>
+    <groupId>com.akiban</groupId>
     <artifactId>akiban-persistit</artifactId>
     <packaging>jar</packaging>
     <name>akiban-persistit</name>
     <version>2.1-SNAPSHOT</version>
-
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -31,28 +29,27 @@
             <version>2.0.02</version>
         </dependency>
     </dependencies>
-
     <build>
         <plugins>
-     <plugin>
-      <groupId>org.codehaus.mojo</groupId>
-      <artifactId>build-helper-maven-plugin</artifactId>
-      <version>1.5</version>
-      <executions>
-        <execution>
-          <id>reserve-network-port</id>
-          <goals>
-            <goal>reserve-network-port</goal>
-          </goals>
-          <phase>process-resources</phase>
-          <configuration>
-            <portNames>
-              <portName>rmiport</portName>
-            </portNames>
-          </configuration>
-        </execution>
-      </executions>
-    </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>1.5</version>
+                <executions>
+                    <execution>
+                        <id>reserve-network-port</id>
+                        <goals>
+                            <goal>reserve-network-port</goal>
+                        </goals>
+                        <phase>process-resources</phase>
+                        <configuration>
+                            <portNames>
+                                <portName>rmiport</portName>
+                            </portNames>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -123,11 +120,8 @@
                     </execution>
                 </executions>
             </plugin>
-
         </plugins>
-
     </build>
-
     <reporting>
         <plugins>
             <plugin>
@@ -141,5 +135,4 @@
             </plugin>
         </plugins>
     </reporting>
-
 </project>
