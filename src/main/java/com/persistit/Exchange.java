@@ -232,8 +232,8 @@ public class Exchange implements BuildConstants {
      *            name does not already exist.
      * @throws PersistitException
      */
-    public Exchange(Persistit persistit, Volume volume, String treeName, boolean create)
-            throws PersistitException {
+    public Exchange(Persistit persistit, Volume volume, String treeName,
+            boolean create) throws PersistitException {
         _persistit = persistit;
         _key = new Key(persistit);
         _spareKey1 = new Key(persistit);
@@ -268,26 +268,21 @@ public class Exchange implements BuildConstants {
     }
 
     /**
-     * Package-private constructor used only to access the directory Tree for a
-     * Volume.
+     * Construct a new <tt>Exchange</tt> to access the specified {@link Tree}.
      * 
      * @param tree
+     *            The <tt>Tree</tt> to access.
      */
-    Exchange(Persistit persistit, Tree tree) {
-        _persistit = persistit;
-        _key = new Key(persistit);
-        _spareKey1 = new Key(persistit);
-        _spareKey2 = new Key(persistit);
-        _value = new Value(persistit);
-        _spareValue = new Value(persistit);
+    public Exchange(Tree tree) {
+        _persistit = tree._persistit;
+        _key = new Key(_persistit);
+        _spareKey1 = new Key(_persistit);
+        _spareKey2 = new Key(_persistit);
+        _value = new Value(_persistit);
+        init(tree);
+        _spareValue = new Value(_persistit);
         _volume = tree.getVolume();
-        _tree = tree;
-        _pool = _persistit.getBufferPool(_volume.getPageSize());
-        _isDirectoryExchange = true;
-        _transaction = _persistit.getTransaction();
-        _timeout = _persistit.getDefaultTimeout();
-        _treeGeneration = -1;
-
+        _isDirectoryExchange = tree == _volume.getDirectoryTree();
         initCache();
     }
 
@@ -301,7 +296,11 @@ public class Exchange implements BuildConstants {
         if (tree == null) {
             throw new TreeNotFoundException(treeName);
         }
+        init(tree);
+    }
 
+    void init(final Tree tree) {
+        final Volume volume = tree.getVolume();
         _pool = _persistit.getBufferPool(volume.getPageSize());
         _transaction = _persistit.getTransaction();
         _timeout = _persistit.getDefaultTimeout();

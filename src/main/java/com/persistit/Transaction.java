@@ -1767,7 +1767,7 @@ public class Transaction {
      * 
      * @return The timestamp.
      */
-    long getTimestamp() {
+    public long getTimestamp() {
         return _timestamp;
     }
 }
