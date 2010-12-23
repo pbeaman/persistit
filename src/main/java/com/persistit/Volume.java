@@ -1177,7 +1177,7 @@ public class Volume extends SharedResource {
     }
 
     Exchange directoryExchange() {
-        Exchange ex = new Exchange(_persistit, _directoryTree);
+        Exchange ex = new Exchange(_directoryTree);
         ex.ignoreTransactions();
         return ex;
     }
