@@ -714,7 +714,6 @@ public interface Management extends Remote, ManagementMXBean {
         // Only for garbage pages.
         //
         int _garbageStatus;
-        int _garbageTreeIndex;
         long _garbageLeftPage;
         long _garbageRightPage;
 
@@ -760,10 +759,6 @@ public interface Management extends Remote, ManagementMXBean {
 
         public int getGarbageStatus() {
             return _garbageStatus;
-        }
-
-        public int getGarbageTreeIndex() {
-            return _garbageTreeIndex;
         }
 
         public long getGarbageLeftPage() {
@@ -1624,7 +1619,6 @@ public interface Management extends Remote, ManagementMXBean {
         public final static long serialVersionUID = -8707513438024673939L;
 
         String name;
-        int index;
         long rootPageAddress;
         int depth;
         String volumePathName;
@@ -1634,7 +1628,6 @@ public interface Management extends Remote, ManagementMXBean {
         TreeInfo(Tree tree) {
             super();
             name = tree.getName();
-            index = tree.getTreeIndex();
             rootPageAddress = tree.getRootPageAddr();
             depth = tree.getDepth();
             status = tree.getStatusCode();
@@ -1645,12 +1638,11 @@ public interface Management extends Remote, ManagementMXBean {
 
         @ConstructorProperties({ "name", "index", "rootPageAddress", "depth",
                 "volumePathName", "status", "writerThreadName" })
-        public TreeInfo(String name, int index, long rootPageAddress,
+        public TreeInfo(String name, long rootPageAddress,
                 int depth, String volumePathName, String status,
                 String writerThreadName) {
             super();
             this.name = name;
-            this.index = index;
             this.rootPageAddress = rootPageAddress;
             this.depth = depth;
             this.volumePathName = volumePathName;
@@ -1665,16 +1657,6 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public String getName() {
             return name;
-        }
-
-        /**
-         * Returns the index of the <tt>Tree</tt>. Each new tree in
-         * <tt>Volume</tt> gets a unique index number.
-         * 
-         * @return the index
-         */
-        public int getIndex() {
-            return index;
         }
 
         /**
@@ -1743,7 +1725,6 @@ public interface Management extends Remote, ManagementMXBean {
         @Override
         public boolean equals(Object object) {
             return object instanceof TreeInfo
-                    && ((TreeInfo) object).getIndex() == index
                     && ((TreeInfo) object).getName().equals(name);
         }
     }

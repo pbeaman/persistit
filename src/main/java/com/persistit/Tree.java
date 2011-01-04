@@ -25,27 +25,20 @@ import com.persistit.exception.PersistitException;
  * @version 1.1
  */
 public class Tree extends SharedResource {
-    private String _name;
-    private int _treeIndex;
+    private final String _name;
+    private final Volume _volume;
     private long _rootPageAddr;
-    private boolean _initialized = false;
-    private Volume _volume;
     private int _depth;
     private long _changeCount;
     int _hashCode = -1;
 
-    Tree(final Persistit persistit, final Volume volume) {
-        super(persistit);
-        _volume = volume;
-    }
-
-    Tree(final Persistit persistit, Volume volume, String name, int index,
+    Tree(final Persistit persistit, Volume volume, String name,
             long rootPageAddr) throws PersistitException {
-        this(persistit, volume);
+        super(persistit);
         _name = name;
-        _treeIndex = index;
+        _volume = volume;
         _rootPageAddr = rootPageAddr;
-        _initialized = true;
+        // Derive the index depth
         Buffer buffer = null;
         try {
             buffer = volume.getPool().get(volume, rootPageAddr, false, true);
@@ -57,29 +50,13 @@ public class Tree extends SharedResource {
         }
     }
 
-    void initialize(String name, int index) {
-        mustNotBeInitialized();
-        _treeIndex = index;
-        _name = name;
-        _initialized = true;
-    }
-
     public Volume getVolume() {
         return _volume;
     }
 
     public String getName() {
-        mustBeInitialized();
+
         return _name;
-    }
-
-    public int getTreeIndex() {
-        mustBeInitialized();
-        return _treeIndex;
-    }
-
-    boolean isInitialized() {
-        return _initialized;
     }
 
     @Override
@@ -107,7 +84,6 @@ public class Tree extends SharedResource {
      * @return The page address
      */
     public long getRootPageAddr() {
-        mustBeInitialized();
         synchronized (_lock) {
             return _rootPageAddr;
         }
@@ -125,7 +101,6 @@ public class Tree extends SharedResource {
     }
 
     void changeRootPageAddr(long rootPageAddr, int deltaDepth) {
-        mustBeInitialized();
         if (Debug.ENABLED)
             Debug.$assert(isMine());
         synchronized (_lock) {
@@ -144,7 +119,6 @@ public class Tree extends SharedResource {
      */
     void loadRootLevelInfo(Exchange exchange) {
         synchronized (_lock) {
-            mustBeInitialized();
             exchange.setRootLevelInfo(_rootPageAddr, _depth, _generation);
         }
     }
@@ -173,25 +147,11 @@ public class Tree extends SharedResource {
         }
     }
 
-    private void mustBeInitialized() {
-        if (!_initialized) {
-            throw new IllegalStateException(this + " is not initialized");
-        }
-    }
-
-    private void mustNotBeInitialized() {
-        if (_initialized) {
-            throw new IllegalStateException(this + " is already initialized");
-        }
-    }
-
     void store(Value value) {
-        mustBeInitialized();
         byte[] nameBytes = Util.stringToBytes(_name);
         byte[] encoded = new byte[32 + nameBytes.length];
 
         Util.putLong(encoded, 0, _rootPageAddr);
-        Util.putInt(encoded, 8, _treeIndex);
         Util.putShort(encoded, 12, _depth);
         Util.putLong(encoded, 16, _changeCount);
         // 24-30 free
@@ -201,15 +161,16 @@ public class Tree extends SharedResource {
     }
 
     void load(Value value) {
-        mustNotBeInitialized();
         byte[] encoded = value.getByteArray();
+        int nameLength = Util.getShort(encoded, 30);
+        final String name = new String(encoded, 32, nameLength);
+        if (!_name.equals(name)) {
+            throw new IllegalStateException("Invalid tree name recorded: "
+                    + name + " for tree " + _name);
+        }
         _rootPageAddr = Util.getLong(encoded, 0);
-        _treeIndex = Util.getInt(encoded, 8);
         _depth = Util.getShort(encoded, 12);
         _changeCount = Util.getLong(encoded, 16);
-        int nameLength = Util.getShort(encoded, 30);
-        _name = new String(encoded, 32, nameLength);
-        _initialized = true;
     }
 
     /**
@@ -218,7 +179,6 @@ public class Tree extends SharedResource {
      */
     void invalidate() {
         synchronized (_lock) {
-            _initialized = false;
             _generation = -1;
             super.setValid(false);
         }
@@ -232,9 +192,8 @@ public class Tree extends SharedResource {
      */
     @Override
     public String toString() {
-        return "<Tree " + _name + " treeIndex=" + _treeIndex + " rootPageAddr="
-                + _rootPageAddr + " depth=" + _depth + " status="
-                + getStatusDisplayString() + ">";
+        return "<Tree " + _name + " rootPageAddr=" + _rootPageAddr + " depth="
+                + _depth + " status=" + getStatusDisplayString() + ">";
     }
 
 }

@@ -357,14 +357,11 @@ public class Transaction {
 
     private static class DeallocationChain {
         Volume _volume;
-        int _treeIndex;
         long _leftPage;
         long _rightPage;
 
-        DeallocationChain(Volume volume, int treeIndex, long leftPage,
-                long rightPage) {
+        DeallocationChain(Volume volume, long leftPage, long rightPage) {
             _volume = volume;
-            _treeIndex = treeIndex;
             _leftPage = leftPage;
             _rightPage = rightPage;
         }
@@ -1411,8 +1408,8 @@ public class Transaction {
             //
             exchange.writeLongRecordPagesToJournal();
 
-            _longRecordDeallocationList.add(new DeallocationChain(volume, tree
-                    .getTreeIndex(), pageAddr, 0));
+            _longRecordDeallocationList.add(new DeallocationChain(volume,
+                    pageAddr, 0));
 
             value.getEncodedBytes()[0] = (byte) NEUTERED_LONGREC;
 
@@ -1688,8 +1685,7 @@ public class Transaction {
                     buffer.release();
                 }
 
-                dc._volume.deallocateGarbageChain(dc._treeIndex, dc._leftPage,
-                        dc._rightPage);
+                dc._volume.deallocateGarbageChain(dc._leftPage, dc._rightPage);
 
                 _longRecordDeallocationList.remove(index);
             }
@@ -1737,7 +1733,7 @@ public class Transaction {
                 }
 
                 _longRecordDeallocationList.add(new DeallocationChain(volume,
-                        currentTree.getTreeIndex(), pageAddress, 0));
+                        pageAddress, 0));
             }
         }
     }
