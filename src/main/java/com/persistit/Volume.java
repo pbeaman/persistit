@@ -1158,8 +1158,8 @@ public class Volume extends SharedResource {
      *            Determines whether this method will create a new tree if there
      *            is no tree having the specified name.
      * 
-     * @return The <tt>Tree</tt>, or <tt>null</tt> if there is no such tree in
-     *         this <tt>Volume</tt>.
+     * @return The <tt>Tree</tt>, or <tt>null</tt> if <tt>createIfNecessary</tt> is false
+     *         and there is no such tree in this <tt>Volume</tt>.
      * 
      * @throws PersistitException
      */
@@ -1176,9 +1176,11 @@ public class Volume extends SharedResource {
             Value value = ex.fetch().getValue();
             if (value.isDefined()) {
                 tree.load(ex.getValue());
-            } else {
+            } else if (createIfNecessary) {
                 tree = createTree(name);
                 tree.commit();
+            } else {
+                return null;
             }
             _treeNameHashMap.put(name, tree);
             return tree;
@@ -1337,13 +1339,15 @@ public class Volume extends SharedResource {
      * @return The array.
      */
     Tree[] getTrees() {
-        int size = _treeNameHashMap.values().size();
-        Tree[] trees = new Tree[size];
-        int index = 0;
-        for (final Tree tree : _treeNameHashMap.values()) {
-            trees[index++] = tree;
+        synchronized (_lock) {
+            int size = _treeNameHashMap.values().size();
+            Tree[] trees = new Tree[size];
+            int index = 0;
+            for (final Tree tree : _treeNameHashMap.values()) {
+                trees[index++] = tree;
+            }
+            return trees;
         }
-        return trees;
     }
 
     /**
