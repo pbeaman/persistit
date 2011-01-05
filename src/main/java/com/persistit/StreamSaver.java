@@ -402,7 +402,6 @@ public class StreamSaver extends Task {
      */
     protected void writeTreeInfo(Tree tree) throws IOException {
         _dos.writeChar(RECORD_TYPE_TREE_ID);
-        _dos.writeInt(tree.getTreeIndex());
         _dos.writeUTF(tree.getName());
         _lastTree = tree;
         _otherRecordCount++;

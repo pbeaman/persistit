@@ -1479,13 +1479,12 @@ public class Exchange implements BuildConstants {
                 //
                 if (newLongRecordPointer != oldLongRecordPointer
                         && newLongRecordPointer != 0) {
-                    _volume.deallocateGarbageChainDeferred(
-                            _tree.getTreeIndex(), newLongRecordPointer, 0);
+                    _volume.deallocateGarbageChainDeferred(newLongRecordPointer, 0);
                     _hasDeferredDeallocations = true;
                 }
             } else if (oldLongRecordPointer != newLongRecordPointer
                     && oldLongRecordPointer != 0) {
-                _volume.deallocateGarbageChainDeferred(_tree.getTreeIndex(),
+                _volume.deallocateGarbageChainDeferred(
                         oldLongRecordPointer, 0);
                 _hasDeferredDeallocations = true;
             }
@@ -1527,7 +1526,7 @@ public class Exchange implements BuildConstants {
 
         Buffer buffer = null;
         try {
-            buffer = _volume.allocPage(_tree.getTreeIndex());
+            buffer = _volume.allocPage();
 
             buffer.init(Buffer.PAGE_TYPE_INDEX_MIN + _treeDepth - 1);
 
@@ -1616,7 +1615,7 @@ public class Exchange implements BuildConstants {
                 //
                 // Allocate a new page
                 //
-                rightSibling = _volume.allocPage(_tree.getTreeIndex());
+                rightSibling = _volume.allocPage();
 
                 if (Debug.ENABLED)
                     Debug.$assert(rightSibling.getPageAddress() != 0);
@@ -2926,7 +2925,6 @@ public class Exchange implements BuildConstants {
                                     }
                                     final boolean anyLongRecords = _volume
                                             .harvestLongRecords(
-                                                    _tree.getTreeIndex(),
                                                     buffer, foundAt1, foundAt2);
 
                                     boolean removed = buffer.removeKeys(
@@ -3099,10 +3097,10 @@ public class Exchange implements BuildConstants {
                             // Before we remove the records in this range, we
                             // need to recover any LONG_RECORD pointers that
                             // are associated with keys in this range.
-                            _volume.harvestLongRecords(_tree.getTreeIndex(),
+                            _volume.harvestLongRecords(
                                     buffer1, foundAt1, Integer.MAX_VALUE);
 
-                            _volume.harvestLongRecords(_tree.getTreeIndex(),
+                            _volume.harvestLongRecords(
                                     buffer2, 0, foundAt2);
 
                             boolean rebalanced = buffer1.join(buffer2,
@@ -3193,7 +3191,7 @@ public class Exchange implements BuildConstants {
                             // associated with keys in this range.
                             //
                             final boolean anyLongRecords = _volume
-                                    .harvestLongRecords(_tree.getTreeIndex(),
+                                    .harvestLongRecords(
                                             buffer1, foundAt1, foundAt2);
 
                             result |= buffer1.removeKeys(foundAt1, foundAt2,
@@ -3250,7 +3248,7 @@ public class Exchange implements BuildConstants {
                     left = lc._deallocLeftPage;
                     right = lc._deallocRightPage;
                     if (left != 0) {
-                        _volume.deallocateGarbageChain(_tree.getTreeIndex(),
+                        _volume.deallocateGarbageChain(
                                 left, right);
                         lc._deallocLeftPage = 0;
                         lc._deallocRightPage = 0;
@@ -3616,7 +3614,7 @@ public class Exchange implements BuildConstants {
             }
 
             for (; index < count; index++) {
-                Buffer buffer = _volume.allocPage(_tree.getTreeIndex());
+                Buffer buffer = _volume.allocPage();
                 bufferArray[index] = buffer;
             }
             //
@@ -3660,7 +3658,6 @@ public class Exchange implements BuildConstants {
                             _pool.release(buffer);
                             if (loosePageIndex >= 0 && index >= loosePageIndex) {
                                 _volume.deallocateGarbageChainDeferred(
-                                        _tree.getTreeIndex(),
                                         buffer.getPageAddress(), -1);
                                 _hasDeferredDeallocations = true;
                             }
@@ -3670,8 +3667,7 @@ public class Exchange implements BuildConstants {
                 value.changeLongRecordMode(false);
             } else {
                 if (looseChain != 0) {
-                    _volume.deallocateGarbageChainDeferred(
-                            _tree.getTreeIndex(), looseChain, 0);
+                    _volume.deallocateGarbageChainDeferred(looseChain, 0);
                     _hasDeferredDeallocations = true;
                 }
             }
@@ -3724,7 +3720,7 @@ public class Exchange implements BuildConstants {
         try {
             for (;;) {
                 while (offset >= from) {
-                    buffer = _volume.allocPage(_tree.getTreeIndex());
+                    buffer = _volume.allocPage();
                     buffer.init(Buffer.PAGE_TYPE_LONG_RECORD);
 
                     int segmentSize = longSize - offset;
@@ -3766,7 +3762,7 @@ public class Exchange implements BuildConstants {
             if (buffer != null)
                 _pool.release(buffer);
             if (looseChain != 0) {
-                _volume.deallocateGarbageChainDeferred(_tree.getTreeIndex(),
+                _volume.deallocateGarbageChainDeferred(
                         looseChain, 0);
                 _hasDeferredDeallocations = true;
             }

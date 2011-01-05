@@ -65,11 +65,6 @@ public class Volume extends SharedResource {
      */
     private final static String BY_NAME = "byName";
     /**
-     * Key segment name for index by directory tree index.
-     */
-    private final static String BY_INDEX = "byIndex";
-
-    /**
      * Signature value - human and machine readable confirmation that this file
      * resulted from Persistit.
      */
@@ -137,23 +132,16 @@ public class Volume extends SharedResource {
 
     private HashMap<String, Tree> _treeNameHashMap = new HashMap<String, Tree>();
 
-    // Tree index --> Tree tree
-    private HashMap<Integer, Tree> _treeIndexHashMap = new HashMap<Integer, Tree>();
-
-    private int _maxTreeIndex = 0;
-
     private boolean _closed;
-    private Tree _directoryTree;
+    private final Tree _directoryTree;
 
     private ArrayList<DeallocationChain> _deallocationList = new ArrayList<DeallocationChain>();
 
     private static class DeallocationChain {
-        int _treeIndex;
         long _leftPage;
         long _rightPage;
 
-        DeallocationChain(int treeIndex, long leftPage, long rightPage) {
-            _treeIndex = treeIndex;
+        DeallocationChain(long leftPage, long rightPage) {
             _leftPage = leftPage;
             _rightPage = rightPage;
         }
@@ -423,8 +411,7 @@ public class Volume extends SharedResource {
                 extend(initialPages);
             }
 
-            _directoryTree = new Tree(_persistit, this);
-            createTree(DIRECTORY_TREE_NAME, _directoryTree);
+            _directoryTree = createTree(DIRECTORY_TREE_NAME);
             checkpointMetaData();
 
             open = true;
@@ -518,10 +505,9 @@ public class Volume extends SharedResource {
 
             if (_directoryRootPage != 0) {
                 _directoryTree = new Tree(_persistit, this,
-                        DIRECTORY_TREE_NAME, 0, _directoryRootPage);
+                        DIRECTORY_TREE_NAME, _directoryRootPage);
             } else {
-                _directoryTree = new Tree(_persistit, this);
-                createTree(DIRECTORY_TREE_NAME, _directoryTree);
+                _directoryTree = createTree(DIRECTORY_TREE_NAME);
                 checkpointMetaData();
             }
 
@@ -745,25 +731,6 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Sets the directory <tt>Tree</tt> for this <tt>Volume</tt>.
-     * 
-     * @param tree
-     *            The <tt>Tree</tt>
-     * @throws RetryException
-     * @throws InUseException
-     */
-    void setDirectoryTree(Tree tree) throws PersistitException {
-        claimHeadBuffer();
-        try {
-            _directoryTree = tree;
-            _directoryRootPage = tree.getRootPageAddr();
-            checkpointMetaData();
-        } finally {
-            releaseHeadBuffer();
-        }
-    }
-
-    /**
      * Returns the count of physical disk read requests performed on this
      * <tt>Volume</tt>.
      * 
@@ -979,7 +946,7 @@ public class Volume extends SharedResource {
         return "@<" + buffer.getPageAddress() + ":" + buffer.getAlloc() + ">";
     }
 
-    void deallocateGarbageChain(int treeIndex, long left, long right)
+    void deallocateGarbageChain(long left, long right)
             throws PersistitException {
         if (Debug.ENABLED)
             Debug.$assert(left > 0);
@@ -996,8 +963,7 @@ public class Volume extends SharedResource {
                 }
 
                 garbageBuffer = _pool.get(this, garbagePage, true, true);
-                boolean fits = garbageBuffer.addGarbageChain(treeIndex, left,
-                        right, -1);
+                boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
 
                 if (fits) {
                     if (_persistit.getLogBase().isLoggable(
@@ -1035,7 +1001,7 @@ public class Volume extends SharedResource {
             if (Debug.ENABLED)
                 Debug.$assert(nextGarbagePage > 0 || right == 0 || solitaire);
 
-            harvestLongRecords(treeIndex, garbageBuffer, 0, Integer.MAX_VALUE);
+            harvestLongRecords(garbageBuffer, 0, Integer.MAX_VALUE);
 
             garbageBuffer.init(Buffer.PAGE_TYPE_GARBAGE);
 
@@ -1046,8 +1012,7 @@ public class Volume extends SharedResource {
 
             if (!solitaire && nextGarbagePage != right) {
                 // Will always fit because this is a freshly initialized page
-                garbageBuffer.addGarbageChain(treeIndex, nextGarbagePage,
-                        right, -1);
+                garbageBuffer.addGarbageChain(nextGarbagePage, right, -1);
                 if (_persistit.getLogBase().isLoggable(LogBase.LOG_DEALLOCGC7)) {
                     _persistit.getLogBase().log(LogBase.LOG_DEALLOCGC7,
                             nextGarbagePage, right, 0, 0, 0,
@@ -1066,7 +1031,7 @@ public class Volume extends SharedResource {
         }
     }
 
-    void deallocateGarbageChainDeferred(int treeIndex, long left, long right) {
+    void deallocateGarbageChainDeferred(long left, long right) {
         if (Debug.ENABLED && right != -1) {
             Buffer garbageBuffer = null;
             try {
@@ -1092,12 +1057,11 @@ public class Volume extends SharedResource {
                     Debug.$assert(chain._leftPage != left);
                 }
             }
-            _deallocationList
-                    .add(new DeallocationChain(treeIndex, left, right));
+            _deallocationList.add(new DeallocationChain(left, right));
         }
     }
 
-    boolean harvestLongRecords(int treeIndex, Buffer buffer, int start, int end) {
+    boolean harvestLongRecords(Buffer buffer, int start, int end) {
         boolean anyLongRecords = false;
         if (buffer.isDataPage()) {
             int p1 = buffer.toKeyBlock(start);
@@ -1105,7 +1069,7 @@ public class Volume extends SharedResource {
             for (int p = p1; p < p2 && p != -1; p = buffer.nextKeyBlock(p)) {
                 long pointer = buffer.fetchLongRecordPointer(p);
                 if (pointer != 0) {
-                    deallocateGarbageChainDeferred(treeIndex, pointer, 0);
+                    deallocateGarbageChainDeferred(pointer, 0);
                     anyLongRecords |= true;
                 }
             }
@@ -1155,8 +1119,7 @@ public class Volume extends SharedResource {
             while (list.size() > 0) {
                 DeallocationChain chain = list.get(list.size() - 1);
 
-                deallocateGarbageChain(chain._treeIndex, chain._leftPage,
-                        chain._rightPage);
+                deallocateGarbageChain(chain._leftPage, chain._rightPage);
                 list.remove(list.size() - 1);
             }
         } finally {
@@ -1195,95 +1158,32 @@ public class Volume extends SharedResource {
      *            Determines whether this method will create a new tree if there
      *            is no tree having the specified name.
      * 
-     * @return The <tt>Tree</tt>, or <tt>null</tt> if there is no such tree in
-     *         this <tt>Volume</tt>.
+     * @return The <tt>Tree</tt>, or <tt>null</tt> if <tt>createIfNecessary</tt> is false
+     *         and there is no such tree in this <tt>Volume</tt>.
      * 
      * @throws PersistitException
      */
     public Tree getTree(String name, boolean createIfNecessary)
             throws PersistitException {
-        Tree tree = null;
-        boolean virgin = false;
-        boolean claimed = false;
-        long expirationTime = 0;
-
-        if (name.equals(DIRECTORY_TREE_NAME)) {
-            throw new IllegalArgumentException("Reserved tree name: " + name);
-        }
-        for (;;) {
-            synchronized (_lock) {
-                tree = _treeNameHashMap.get(name);
-                if (tree == null) {
-                    tree = new Tree(_persistit, this);
-                    claimed = tree.claim(true); // will always succeed
-                    if (Debug.ENABLED)
-                        Debug.$assert(claimed);
-
-                    _treeNameHashMap.put(name, tree);
-                    virgin = true;
-                }
-            }
-
-            // At this point, we have a Tree object with a writer
-            // claim on it, and it is in the map.
-            try {
-                if (!virgin) {
-                    // We need to get a temporary claim on the Tree so that
-                    // we do not read an uncommitted new tree structure's data.
-                    //
-                    if (tree.claim(true)) {
-                        claimed = true;
-                        if (!tree.isValid())
-                            return null;
-                    } else {
-                        throw new InUseException("Thread "
-                                + Thread.currentThread().getName()
-                                + " could not get reader claim on " + tree);
-                    }
-                }
-
-                else {
-                    Exchange ex = directoryExchange();
-                    ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
-                            .append(name);
-                    Value value = ex.fetch().getValue();
-
-                    if (value.isDefined()) {
-                        tree.load(value);
-                    } else if (createIfNecessary) {
-                        createTree(name, tree);
-                    } else {
-                        return null;
-                    }
-                    tree.setValid(true);
-                    virgin = false;
-                }
+        synchronized (_lock) {
+            Tree tree = _treeNameHashMap.get(name);
+            if (tree != null) {
                 return tree;
-            } finally {
-                if (virgin) {
-                    synchronized (_lock) {
-                        if (claimed)
-                            tree.release();
-                        _treeNameHashMap.remove(name);
-                        tree = null;
-                    }
-                } else {
-                    // PDB 11/22/04 - removed this because it forces us to
-                    // commit every time we do a getTree after any store().
-                    // Need to confirm that this isn't needed. Note that if
-                    // We called createTree() above, the tree was committed
-                    // then.
-                    // if (tree != null &&
-                    // tree.isDirty() &&
-                    // createIfNecessary)
-                    // {
-                    // tree.commit();
-                    // }
-                    if (claimed)
-                        tree.release();
-                    claimed = false;
-                }
             }
+            tree = new Tree(_persistit, this, name, 1);
+            final Exchange ex = directoryExchange();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(name);
+            Value value = ex.fetch().getValue();
+            if (value.isDefined()) {
+                tree.load(ex.getValue());
+            } else if (createIfNecessary) {
+                tree = createTree(name);
+                tree.commit();
+            } else {
+                return null;
+            }
+            _treeNameHashMap.put(name, tree);
+            return tree;
         }
     }
 
@@ -1301,9 +1201,6 @@ public class Volume extends SharedResource {
             tree.store(ex.getValue());
             ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
                     .append(tree.getName()).store();
-            ex.getValue().put(null);
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_INDEX)
-                    .append(tree.getTreeIndex()).append(tree.getName()).store();
         }
     }
 
@@ -1335,39 +1232,26 @@ public class Volume extends SharedResource {
         }
         _persistit.checkSuspended();
 
-        int treeIndex = -1;
         int depth = -1;
         long page = -1;
 
         tree.claim(true);
         try {
-            if (!tree.isInitialized())
-                return false;
-
             // long journalId = _persistit.getJournal().beginRemoveTree(tree);
 
-            long rootPage = tree.getRootPageAddr();
-            tree.changeRootPageAddr(-1, 0);
-            page = rootPage;
-            treeIndex = tree.getTreeIndex();
-            depth = tree.getDepth();
-
-            Exchange ex = directoryExchange();
-
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
-                    .append(tree.getName()).remove();
-
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_INDEX)
-                    .append(tree.getTreeIndex()).append(tree.getName())
-                    .remove();
-
             synchronized (_lock) {
+                long rootPage = tree.getRootPageAddr();
+                tree.changeRootPageAddr(-1, 0);
+                page = rootPage;
+                depth = tree.getDepth();
+                Exchange ex = directoryExchange();
+
+                ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
+                        .append(tree.getName()).remove();
                 _treeNameHashMap.remove(tree.getName());
-                _treeIndexHashMap.remove(new Integer(treeIndex));
                 tree.bumpGeneration();
                 tree.invalidate();
             }
-
             // _persistit.getJournal().completed(journalId);
         } finally {
             tree.release();
@@ -1386,7 +1270,7 @@ public class Volume extends SharedResource {
                             + " type code=" + buffer.getPageType()
                             + " is not equal to expected value " + depth);
                 }
-                deallocateGarbageChainDeferred(treeIndex, page, 0);
+                deallocateGarbageChainDeferred(page, 0);
                 if (buffer.isIndexPage()) {
                     int p = buffer.toKeyBlock(0);
                     if (p > 0)
@@ -1455,13 +1339,15 @@ public class Volume extends SharedResource {
      * @return The array.
      */
     Tree[] getTrees() {
-        int size = _treeNameHashMap.values().size();
-        Tree[] trees = new Tree[size];
-        int index = 0;
-        for (final Tree tree : _treeNameHashMap.values()) {
-            trees[index++] = tree;
+        synchronized (_lock) {
+            int size = _treeNameHashMap.values().size();
+            Tree[] trees = new Tree[size];
+            int index = 0;
+            for (final Tree tree : _treeNameHashMap.values()) {
+                trees[index++] = tree;
+            }
+            return trees;
         }
-        return trees;
     }
 
     /**
@@ -1473,28 +1359,13 @@ public class Volume extends SharedResource {
      * @return an information structure for the Management interface.
      */
     Management.TreeInfo getTreeInfo(String name) {
-        Tree tree;
-        boolean virgin = false;
         try {
-            synchronized (_lock) {
-                tree = _treeNameHashMap.get(name);
-                if (tree == null) {
-                    tree = new Tree(_persistit, this);
-                    virgin = true;
-                }
+            final Tree tree = getTree(name, false);
+            if (tree != null) {
+                return new Management.TreeInfo(tree);
+            } else {
+                return null;
             }
-
-            if (virgin) {
-                Exchange ex = directoryExchange();
-                ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
-                        .append(name);
-                Value value = ex.fetch().getValue();
-                if (value.isDefined())
-                    tree.load(value);
-                tree.setValid(true);
-                virgin = false;
-            }
-            return new Management.TreeInfo(tree);
         } catch (PersistitException pe) {
             return null;
         }
@@ -1539,25 +1410,16 @@ public class Volume extends SharedResource {
      * @return newly create Tree object
      * @throws PersistitException
      */
-    private Tree createTree(String treeName, Tree tree)
-            throws PersistitException {
+    private Tree createTree(String treeName) throws PersistitException {
         _persistit.checkSuspended();
         _persistit.getTransaction().assignTimestamp();
 
         Buffer rootPageBuffer = null;
 
-        int treeIndex = 0;
-
-        if (!treeName.equals(DIRECTORY_TREE_NAME)) {
-            synchronized (_lock) {
-                treeIndex = ++_maxTreeIndex;
-            }
-        }
-
         // long journalId = _persistit.getJournal().beginCreateTree(this,
         // treeName, treeIndex);
 
-        rootPageBuffer = allocPage(treeIndex);
+        rootPageBuffer = allocPage();
         long rootPage = rootPageBuffer.getPageAddress();
 
         try {
@@ -1569,13 +1431,14 @@ public class Volume extends SharedResource {
             _pool.release(rootPageBuffer);
         }
 
-        tree.initialize(treeName, treeIndex);
-        _treeIndexHashMap.put(new Integer(treeIndex), tree);
+        final Tree tree = new Tree(_persistit, this, treeName, rootPage);
         tree.claim(true);
-        tree.changeRootPageAddr(rootPage, 1);
+        tree.changeRootPageAddr(rootPage, 0);
         tree.release();
         tree.setValid(true);
-        tree.commit();
+        if (!DIRECTORY_TREE_NAME.equals(tree.getName())) {
+            tree.commit();
+        }
 
         // if (journalId != -1) {
         // _persistit.getJournal().completed(journalId);
@@ -1694,12 +1557,10 @@ public class Volume extends SharedResource {
      * page. Empties all previous content of that page and sets its type to
      * UNUSED.
      * 
-     * @param treeIndex
-     *            The tree in which this page will be used
      * @return a Buffer containing the newly allocated page. The returned buffer
      *         has a writer claim on it.
      */
-    Buffer allocPage(int treeIndex) throws PersistitException {
+    Buffer allocPage() throws PersistitException {
         Buffer buffer = null;
 
         // First we attempt to allocate from the uncommitted deallocation list
@@ -1734,7 +1595,7 @@ public class Volume extends SharedResource {
         }
 
         if (buffer != null) {
-            harvestLongRecords(treeIndex, buffer, 0, Integer.MAX_VALUE);
+            harvestLongRecords(buffer, 0, Integer.MAX_VALUE);
             buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
             buffer.clear();
             return buffer;
@@ -1772,9 +1633,6 @@ public class Volume extends SharedResource {
                         buffer = garbageBuffer;
                         garbageBuffer = null;
                     } else {
-                        int garbageTreeIndex = garbageBuffer
-                                .getGarbageChainTreeIndex();
-
                         if (_persistit.getLogBase().isLoggable(
                                 LogBase.LOG_ALLOC_GAR)) {
                             _persistit.getLogBase().log(LogBase.LOG_ALLOC_GAR,
@@ -1815,8 +1673,7 @@ public class Volume extends SharedResource {
                             if (Debug.ENABLED)
                                 Debug.$assert(nextGarbagePage > 0);
 
-                            garbageBuffer.setGarbageLeftPage(garbageTreeIndex,
-                                    nextGarbagePage);
+                            garbageBuffer.setGarbageLeftPage(nextGarbagePage);
                         }
                     }
                     if (Debug.ENABLED) {
@@ -1826,7 +1683,7 @@ public class Volume extends SharedResource {
                                 && buffer.getPageAddress() != _directoryRootPage);
                     }
 
-                    harvestLongRecords(treeIndex, buffer, 0, Integer.MAX_VALUE);
+                    harvestLongRecords(buffer, 0, Integer.MAX_VALUE);
 
                     buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
                     buffer.clear();
