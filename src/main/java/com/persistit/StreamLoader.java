@@ -193,9 +193,8 @@ public class StreamLoader extends Task {
             break;
         }
         case StreamSaver.RECORD_TYPE_TREE_ID: {
-            int treeIndex = _dis.readInt();
             String treeName = _dis.readUTF();
-            handler.handleTreeIdRecord(treeIndex, treeName);
+            handler.handleTreeIdRecord(treeName);
             _otherRecordCount++;
             break;
         }
@@ -349,7 +348,7 @@ public class StreamLoader extends Task {
             }
         }
 
-        public void handleTreeIdRecord(int treeIndex, String treeName)
+        public void handleTreeIdRecord(String treeName)
                 throws PersistitException {
             Exchange oldExchange = _exchange;
             _exchange = null;

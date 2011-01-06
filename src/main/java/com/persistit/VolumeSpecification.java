@@ -216,4 +216,35 @@ public class VolumeSpecification {
         }
     }
 
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(path);
+        sb.append(',').append(ATTR_ID).append(':').append(id);
+        sb.append(',').append(ATTR_PAGE_SIZE).append(':').append(bufferSize);
+        sb.append(',').append(ATTR_INITIAL_PAGES).append(':')
+                .append(initialPages);
+        sb.append(',').append(ATTR_MAXIMUM_PAGES).append(':')
+                .append(maximumPages);
+        sb.append(',').append(ATTR_EXTENSION_PAGES).append(':')
+                .append(extensionPages);
+        if (name != null) {
+            sb.append(',').append(ATTR_ALIAS).append(':').append(name);
+        }
+        if (readOnly) {
+            sb.append(',').append(ATTR_READONLY);
+        }
+        if (createOnly) {
+            sb.append(',').append(ATTR_CREATEONLY);
+        } else if (create) {
+            sb.append(',').append(ATTR_CREATE);
+        }
+        if (tranzient) {
+            sb.append(',').append(ATTR_TRANSIENT);
+        }
+        if (loose) {
+            sb.append(',').append(ATTR_LOOSE);
+        }
+        return sb.toString();
+    }
+
 }

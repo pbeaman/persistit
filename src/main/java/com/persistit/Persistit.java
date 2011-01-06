@@ -109,8 +109,8 @@ public class Persistit implements BuildConstants {
     public final static boolean BIG_ENDIAN = true;
     /**
      * Prefix used to form the a system property name. For example, the property
-     * named <tt>journalpath=xyz</tt> can also be specified as a system property on
-     * the command line with the option -Dcom.persistit.journalpath=xyz.
+     * named <tt>journalpath=xyz</tt> can also be specified as a system property
+     * on the command line with the option -Dcom.persistit.journalpath=xyz.
      */
     public final static String SYSTEM_PROPERTY_PREFIX = "com.persistit.";
     /**
@@ -504,7 +504,8 @@ public class Persistit implements BuildConstants {
     void initializeJournal() throws PersistitException {
         String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME,
                 DEFAULT_JOURNAL_PATH);
-        int journalSize = (int) getLongProperty(JOURNAL_BLOCKSIZE_PROPERTY_NAME,
+        int journalSize = (int) getLongProperty(
+                JOURNAL_BLOCKSIZE_PROPERTY_NAME,
                 JournalManager.DEFAULT_BLOCK_SIZE,
                 JournalManager.MINIMUM_BLOCK_SIZE,
                 JournalManager.MAXIMUM_BLOCK_SIZE);
@@ -705,6 +706,22 @@ public class Persistit implements BuildConstants {
      *            String in in which to make substitutions
      * @param properties
      *            Properties containing substitution values
+     * @return text with substituted property values
+     */
+    public String substituteProperties(String text, Properties properties) {
+        return substituteProperties(text, properties, 0);
+    }
+
+    /**
+     * Replaces substitution variables in a supplied string with values taken
+     * from the properties available to Persistit (see {@link getProperty}).
+     * 
+     * @param text
+     *            String in in which to make substitutions
+     * @param properties
+     *            Properties containing substitution values
+     * @param depth
+     *            Count of recursive calls - maximum depth is 20. Generall
      * @return
      */
     String substituteProperties(String text, Properties properties, int depth) {
@@ -781,9 +798,9 @@ public class Persistit implements BuildConstants {
      * property. The property is taken from one of the following sources:
      * <ol>
      * <li>A system property having a prefix of "com.persistit.". For example,
-     * the property named "journalpath" can be supplied as the system property named
-     * com.persistit.journalpath. (Note: if the security context does not permit
-     * access to system properties, then system properties are ignored.)</li>
+     * the property named "journalpath" can be supplied as the system property
+     * named com.persistit.journalpath. (Note: if the security context does not
+     * permit access to system properties, then system properties are ignored.)</li>
      * <li>The supplied Properties object, which was either passed to the
      * {@link #initialize(Properties)} method, or was loaded from the file named
      * in the {@link #initialize(String)} method.</li>
@@ -1085,8 +1102,8 @@ public class Persistit implements BuildConstants {
     }
 
     /**
-     * Loads and/or creates a volume based on a String-valued specification. The
-     * specification has the form: <br />
+     * Look up, load and/or creates a volume based on a String-valued
+     * specification. The specification has the form: <br />
      * <i>pathname</i>[,<i>options</i>]... <br />
      * where options include: <br />
      * <dl>
@@ -1096,7 +1113,7 @@ public class Persistit implements BuildConstants {
      * alias attribute is not specified, the the Volume's path name is used
      * instead.</dd>
      * <dt><tt>drive<tt></dt>
-     * <dd>Name of the drive on which the volume is located. Sepcifying the
+     * <dd>Name of the drive on which the volume is located. Specifying the
      * drive on which each volume is physically located is optional. If
      * supplied, Persistit uses the information to improve I/O throughput in
      * multi-volume configurations by interleaving write operations to different
@@ -1139,18 +1156,48 @@ public class Persistit implements BuildConstants {
      * extend.</dd>
      * 
      * </dl>
+     * <p>
+     * If a Volume has already been loaded having the same ID or name, this
+     * method returns that Volume. Otherwise it tries to open or create a volume
+     * on disk (depending on the volume specification) and returns that.
      * 
-     * 
-     * @param volumeSpec
-     *            Volume specification
+     * @param vstring
+     *            Volume specification string
      * 
      * @return The <tt>Volume</tt>
      * 
      * @throws PersistitException
      */
-    public Volume loadVolume(final String volumeSpec) throws PersistitException {
-        return Volume.loadVolume(this, new VolumeSpecification(
-                substituteProperties(volumeSpec, _properties, 0)));
+    public Volume loadVolume(final String vstring) throws PersistitException {
+        final VolumeSpecification volumeSpec = new VolumeSpecification(
+                substituteProperties(vstring, _properties, 0));
+        return loadVolume(volumeSpec);
+    }
+
+    /**
+     * Look up, load and/or creates a volume based on a
+     * {@link com.persistit.VolumeSpecification}. If a Volume has already been
+     * loaded having the same ID or name, this method returns that Volume.
+     * Otherwise it tries to open or create a volume on disk (depending on the
+     * volume specification) and returns that.
+     * 
+     * @param volumeSpec
+     *            The VolumeSpecification
+     * 
+     * @return The <tt>Volume</tt>
+     * 
+     * @throws PersistitException
+     */
+    public Volume loadVolume(final VolumeSpecification volumeSpec)
+            throws PersistitException {
+        Volume volume = getVolume(volumeSpec.getId());
+        if (volume == null) {
+            volume = getVolume(volumeSpec.describe());
+        }
+        if (volume == null) {
+            volume = Volume.loadVolume(this, volumeSpec);
+        }
+        return volume;
     }
 
     public boolean deleteVolume(final String volumeName)

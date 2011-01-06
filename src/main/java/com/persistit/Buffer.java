@@ -4116,7 +4116,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 ManagementImpl.RecordInfo rec = new ManagementImpl.RecordInfo();
                 rec._tbOffset = p;
                 rec._garbageStatus = getInt(p + GARBAGE_BLOCK_STATUS);
-                rec._garbageTreeIndex = getInt(p + GARBAGE_BLOCK_TREE_INDEX);
                 rec._garbageLeftPage = getLong(p + GARBAGE_BLOCK_LEFT_PAGE);
                 rec._garbageRightPage = getLong(p + GARBAGE_BLOCK_RIGHT_PAGE);
                 result[n++] = rec;
@@ -4132,7 +4131,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         }
     }
 
-    boolean addGarbageChain(int treeIndex, long left, long right,
+    boolean addGarbageChain(long left, long right,
             long expectedCount) {
         if (Debug.ENABLED)
             Debug.$assert(left > 0 && left <= MAX_VALID_PAGE_ADDR
@@ -4142,7 +4141,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
             return false;
         } else {
             _alloc -= GARBAGE_BLOCK_SIZE;
-            putInt(_alloc + GARBAGE_BLOCK_TREE_INDEX, treeIndex);
             putInt(_alloc + GARBAGE_BLOCK_STATUS, 0);
             putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
             putLong(_alloc + GARBAGE_BLOCK_RIGHT_PAGE, right);
@@ -4160,15 +4158,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
             return -1;
         else
             return getInt(_alloc + GARBAGE_BLOCK_STATUS);
-    }
-
-    int getGarbageChainTreeIndex() {
-        if (Debug.ENABLED)
-            Debug.$assert(isGarbagePage());
-        if (_alloc + GARBAGE_BLOCK_SIZE > _bufferSize)
-            return -1;
-        else
-            return getInt(_alloc + GARBAGE_BLOCK_TREE_INDEX);
     }
 
     long getGarbageChainLeftPage() {
@@ -4204,7 +4193,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         return true;
     }
 
-    void setGarbageLeftPage(int treeIndex, long left) {
+    void setGarbageLeftPage(long left) {
         Debug.$assert(isMine());
         if (Debug.ENABLED) {
             if (Debug.ENABLED)
@@ -4213,7 +4202,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
             Debug.$assert(isGarbagePage());
             Debug.$assert(_alloc + GARBAGE_BLOCK_SIZE <= _bufferSize);
             Debug.$assert(_alloc >= _keyBlockEnd);
-            Debug.$assert(getGarbageChainTreeIndex() == treeIndex);
         }
         putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
         bumpGeneration();

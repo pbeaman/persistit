@@ -227,7 +227,7 @@ class Journal {
         return id;
     }
 
-    long beginCreateTree(Volume volume, String treeName, int treeIndex) {
+    long beginCreateTree(Volume volume, String treeName) {
 
         long id = -1;
         if (_enabled) {
@@ -242,7 +242,6 @@ class Journal {
                     _os.writeInt((int) _persistit.elapsedTime());
                     _os.writeLong(volume.getId());
                     _os.writeUTF(volume.getPath());
-                    _os.writeInt(treeIndex);
                     _os.writeUTF(treeName);
                     _os.writeByte(END_MARKER);
                 }
@@ -370,7 +369,6 @@ class Journal {
             _os.writeInt(treeHandle);
             _os.writeLong(tree.getVolume().getId());
             _os.writeUTF(tree.getVolume().getPath());
-            _os.writeInt(tree.getTreeIndex());
             _os.writeUTF(tree.getName());
             _os.writeByte(END_MARKER);
 
@@ -503,7 +501,6 @@ class Journal {
                     int treeHandle = is.readInt();
                     long volumeId = is.readLong();
                     String volumeName = is.readUTF();
-                    int treeIndex = is.readInt();
                     String treeName = is.readUTF();
                     verifyMarker(is, addr);
                     addr += 4 + 8 + (2 + volumeName.length()) + 4
@@ -525,7 +522,6 @@ class Journal {
                 case CREATE_TREE: {
                     long volumeId = is.readLong();
                     String volumeName = is.readUTF();
-                    int treeIndex = is.readInt();
                     String treeName = is.readUTF();
                     verifyMarker(is, addr);
                     addr += 8 + (2 + volumeName.length()) + 4
