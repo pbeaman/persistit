@@ -6,6 +6,18 @@
     <packaging>jar</packaging>
     <name>akiban-persistit</name>
     <version>2.1-SNAPSHOT</version>
+    <distributionManagement>
+        <snapshotRepository>
+            <id>snapshots</id>
+            <name>lib-snapshots-local</name>
+            <url>${snapshots.url}</url>
+        </snapshotRepository>
+        <repository>
+            <id>releases</id>
+            <name>lib-releases-local</name>
+            <url>${releases.url}</url>
+        </repository>
+    </distributionManagement>
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -132,11 +144,7 @@
                 <configuration>
                     <generateHistorical>true</generateHistorical>
                     <historyDir>/clover/history</historyDir>
-                    <license><![CDATA[PpMOqBXixXwmrECcCXcNWMiPdoNUxGimeeaAxQLAHXjuxGq
-mj2L00k1BlPcP>5lr6tcyjP5U2KJ>74Tfqpr3R>yJZm5IOW
-rqortTONOOQqqprRPqnuVOQmPNRMMqqnnnVVTXusxXowuUx
-xMnmnmUUnotqnmqummmmmUUnotqnmqummmmmUUXhfYXkWfk
-ZUUn]]></license>
+                    <license>${clover.license}</license>
                     <generateXml>true</generateXml>
                 </configuration>
             </plugin>
