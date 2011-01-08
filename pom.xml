@@ -6,6 +6,9 @@
     <packaging>jar</packaging>
     <name>akiban-persistit</name>
     <version>2.1-SNAPSHOT</version>
+    <properties>
+        <BZR_REVISION></BZR_REVISION>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -25,6 +28,7 @@
         </dependency>
     </dependencies>
     <build>
+        <finalName>${project.artifactId}-${project.version}${BZR_REVISION}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -101,8 +105,9 @@
                         <descriptor>src/main/resources/assembly_descriptor.xml</descriptor>
                     </descriptors>
                     <archive>
-                        <manifest>
-                        </manifest>
+                        <manifestEntries>
+                            <implementation-Build>xxxxx-12${buildNumber}</implementation-Build>
+                        </manifestEntries>
                     </archive>
                 </configuration>
                 <executions>
@@ -133,10 +138,10 @@
                     <generateHistorical>true</generateHistorical>
                     <historyDir>/clover/history</historyDir>
                     <license><![CDATA[PpMOqBXixXwmrECcCXcNWMiPdoNUxGimeeaAxQLAHXjuxGq
-mj2L00k1BlPcP>5lr6tcyjP5U2KJ>74Tfqpr3R>yJZm5IOW
-rqortTONOOQqqprRPqnuVOQmPNRMMqqnnnVVTXusxXowuUx
-xMnmnmUUnotqnmqummmmmUUnotqnmqummmmmUUXhfYXkWfk
-ZUUn]]></license>
+                        mj2L00k1BlPcP>5lr6tcyjP5U2KJ>74Tfqpr3R>yJZm5IOW
+                        rqortTONOOQqqprRPqnuVOQmPNRMMqqnnnVVTXusxXowuUx
+                        xMnmnmUUnotqnmqummmmmUUnotqnmqummmmmUUXhfYXkWfk
+                        ZUUn]]></license>
                     <generateXml>true</generateXml>
                 </configuration>
             </plugin>
