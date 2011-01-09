@@ -134,11 +134,6 @@
                     <descriptors>
                         <descriptor>src/main/resources/assembly_descriptor.xml</descriptor>
                     </descriptors>
-                    <archive>
-                        <manifestEntries>
-                            <implementation-Build>xxxxx-12${buildNumber}</implementation-Build>
-                        </manifestEntries>
-                    </archive>
                 </configuration>
                 <executions>
                     <execution>
