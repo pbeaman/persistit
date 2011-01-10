@@ -12,7 +12,7 @@ public class GetVersion{
 
     public static void main (String[] a) throws Exception
     {
-        System.out.println (new GetVersion("/version") );
+        System.out.println (new GetVersion("/persistit_version") );
     }
 
     String version;
