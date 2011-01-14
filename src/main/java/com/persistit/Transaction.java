@@ -1472,7 +1472,7 @@ public class Transaction {
         // no committed records to remove.
         //
         if (result2) {
-            // This logic coallesces previous remove operations when possible.
+            // This logic coalesces previous remove operations when possible.
             // This simplifies the work necessary to perform a correct
             // traversal across the uncommitted updates.
             //
