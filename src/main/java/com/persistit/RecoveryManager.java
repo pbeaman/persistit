@@ -187,7 +187,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 final Exchange exchange) throws PersistitException;
     }
 
-    static private class DefaultRecoveredTransctionActor implements
+    static public class DefaultRecoveredTransctionActor implements
             RecoveredTransactionActor {
         @Override
         public void store(final long address, final long timestamp,
@@ -381,6 +381,10 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     public RecoveredTransactionActor getDefaultRecoveredTransactionActor() {
         return _defaultActor;
+    }
+    
+    public void setRecoveredTransactionActor(final RecoveredTransactionActor actor) {
+        this._defaultActor = actor;
     }
 
     @Override

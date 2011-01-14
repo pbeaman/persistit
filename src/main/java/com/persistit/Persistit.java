@@ -1458,13 +1458,26 @@ public class Persistit implements BuildConstants {
         }
     }
 
+    /**
+     * Called periodically by PAGE_WRITER threads to see whether a new
+     * Checkpoint should be written.
+     */
     void applyCheckpoint() {
         final Checkpoint newCheckpoint = getTimestampAllocator()
-                .updateCheckpoint();
+                .updatedCheckpoint();
         applyCheckpoint(newCheckpoint);
 
     }
 
+    /**
+     * Apply a checkpoint.  If the checkpoint has already been applied,
+     * this method does nothing.  If it is a new checkpoint, this
+     * method adds it to the outstanding checkpoint list.  As a side-
+     * effect, this method also calls {@link #flushCheckpoint()}
+     * which attempts to find some checkpoint on the outstanding
+     * list that can be closed (written to the journal).
+     * @param newCheckpoint
+     */
     void applyCheckpoint(final Checkpoint newCheckpoint) {
         synchronized (this) {
             if (newCheckpoint.getTimestamp() > _currentCheckpoint
@@ -1483,7 +1496,7 @@ public class Persistit implements BuildConstants {
         }
     }
 
-    Checkpoint flushCheckpoint() {
+    void flushCheckpoint() {
         final Checkpoint validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
         if (validCheckpoint != null) {
             try {
@@ -1496,40 +1509,6 @@ public class Persistit implements BuildConstants {
                 _outstandingCheckpoints.remove(validCheckpoint);
             }
         }
-        return validCheckpoint;
-    }
-
-    /**
-     * Propose a new Checkpoint and update the journal to include all pages made
-     * dirty before that Checkpoint.
-     * 
-     * @param newCheckpoint
-     * @return the latest valid checkpoint
-     */
-    public Checkpoint checkpoint(final Checkpoint newCheckpoint) {
-        final Checkpoint validCheckpoint;
-        synchronized (this) {
-            if (newCheckpoint.getTimestamp() > _currentCheckpoint
-                    .getTimestamp()) {
-                _outstandingCheckpoints.add(newCheckpoint);
-                _currentCheckpoint = newCheckpoint;
-                if (getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_PROPOSED)) {
-                    getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED,
-                            newCheckpoint);
-                }
-            }
-        }
-        validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
-        if (validCheckpoint != null) {
-            try {
-                getJournalManager().writeCheckpointToJournal(validCheckpoint);
-            } catch (PersistitIOException e) {
-                getLogBase().log(LogBase.LOG_EXCEPTION,
-                        e + " while writing " + validCheckpoint + ":" + e);
-                return null;
-            }
-        }
-        return validCheckpoint;
     }
 
     /**
