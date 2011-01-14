@@ -407,6 +407,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             return null;
         }
         final Volume volume = volumeForHandle(td.getVolumeHandle());
+        if (volume == null) {
+            return null;
+        }
         return volume.getTree(td.getTreeName(), true);
     }
 
