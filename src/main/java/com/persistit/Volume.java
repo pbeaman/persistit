@@ -1256,24 +1256,24 @@ public class Volume extends SharedResource {
         long page = -1;
 
         tree.claim(true);
+        
         try {
+            final long rootPage = tree.getRootPageAddr();
+            tree.changeRootPageAddr(-1, 0);
+            page = rootPage;
+            depth = tree.getDepth();
+            Exchange ex = directoryExchange();
+
+            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
+                    .append(tree.getName()).remove();
 
             synchronized (_lock) {
-                long rootPage = tree.getRootPageAddr();
-                tree.changeRootPageAddr(-1, 0);
-                page = rootPage;
-                depth = tree.getDepth();
-                Exchange ex = directoryExchange();
-
-                ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
-                        .append(tree.getName()).remove();
                 if (tree.getChangeCount() >= 0) {
                     _treeNameHashMap.remove(tree.getName());
                 }
                 tree.bumpGeneration();
                 tree.invalidate();
             }
-
         } finally {
             tree.release();
         }
