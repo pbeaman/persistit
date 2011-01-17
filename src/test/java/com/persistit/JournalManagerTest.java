@@ -9,7 +9,7 @@ import java.util.Set;
 import org.junit.Test;
 
 import com.persistit.JournalManager.PageNode;
-import com.persistit.RecoveryManager.RecoveredTransactionActor;
+import com.persistit.RecoveryManager.RecoveryListener;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -133,7 +133,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
 
         final Set<Long> recoveryTimestamps = new HashSet<Long>();
-        final RecoveredTransactionActor actor = new RecoveredTransactionActor() {
+        final RecoveryListener actor = new RecoveryListener() {
 
             @Override
             public void store(final long address, final long timestamp,
@@ -152,6 +152,26 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             public void removeTree(final long address, final long timestamp,
                     Exchange exchange) throws PersistitException {
                 recoveryTimestamps.add(timestamp);
+            }
+
+            @Override
+            public void startRecovery(long address, long timestamp)
+                    throws PersistitException {
+            }
+
+            @Override
+            public void startTransaction(long address, long timestamp)
+                    throws PersistitException {
+            }
+
+            @Override
+            public void endTransaction(long address, long timestamp)
+                    throws PersistitException {
+            }
+
+            @Override
+            public void endRecovery(long address, long timestamp)
+                    throws PersistitException {
             }
 
         };

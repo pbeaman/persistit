@@ -27,6 +27,8 @@ import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
 
+import java.lang.ref.WeakReference;
+
 import com.persistit.Key.Direction;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
@@ -34,7 +36,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.TreeNotFoundException;
-import com.persistit.exception.WrongThreadException;
 
 /**
  * <p>
@@ -86,7 +87,7 @@ import com.persistit.exception.WrongThreadException;
  * either its key or value. Any subsequent attempt to access or modify either of
  * these fields by a different <tt>Thread</tt> results in a
  * {@link com.persistit.exception.WrongThreadException WrongThreadException}.
- * Also see {@link #clearOwnerThread} and {@link #getOwnerThread()}.
+ * Also see {@link #clearOwnerThread} and {@link #getOwner()}.
  * </p>
  * <p>
  * Despite the fact that the methods of <tt>Exchange</tt> are not threadsafe,
@@ -168,14 +169,13 @@ public class Exchange implements BuildConstants {
 
     private Transaction _transaction;
 
-    private Thread _ownerThread;
-    private boolean _relinquished;
-    private boolean _secure = false;
     private boolean _ignoreTransactions;
 
     private long _longRecordPageAddress;
-
-    private Object _lock = new Object();
+    
+    private WeakReference<Thread> _currentThread;
+    
+    private boolean _secure;
 
     /**
      * <p>
@@ -304,6 +304,7 @@ public class Exchange implements BuildConstants {
         _pool = _persistit.getBufferPool(volume.getPageSize());
         _transaction = _persistit.getTransaction();
         _timeout = _persistit.getDefaultTimeout();
+        _key.clear();
         _value.clear();
 
         if (_volume != volume || _tree != tree) {
@@ -337,19 +338,14 @@ public class Exchange implements BuildConstants {
         exchange._value.copyTo(_value);
     }
 
-    void removeState() {
-        boolean secure = _secure;
-        if (_ownerThread == Thread.currentThread()) {
-            secure = false;
-        } else {
-            clearOwnerThread();
-            _transaction = null;
-        }
+    void removeState(boolean secure) {
         _key.clear(secure);
         _value.clear(secure);
         _spareKey1.clear(secure);
         _spareKey2.clear(secure);
         _spareValue.clear(secure);
+        _transaction = null;
+        _ignoreTransactions = false;
     }
 
     private void initCache() {
@@ -707,7 +703,6 @@ public class Exchange implements BuildConstants {
      * @return This <tt>Key</tt>.
      */
     public Key getKey() {
-        checkOwnerThread();
         return _key;
     }
 
@@ -717,7 +712,6 @@ public class Exchange implements BuildConstants {
      * @return The <tt>Value</tt>.
      */
     public Value getValue() {
-        checkOwnerThread();
         return _value;
     }
 
@@ -1037,13 +1031,6 @@ public class Exchange implements BuildConstants {
             // Should never get here.
             return -1;
 
-            // TODO - remove these catch clauses when not needed for debugging.
-        } catch (PersistitException e) {
-            exception = e;
-            throw e;
-        } catch (RuntimeException e) {
-            exception = e;
-            throw e;
         } finally {
             if (oldBuffer != null) {
                 // _persistit.getLockManager().setOffset();
@@ -1167,7 +1154,6 @@ public class Exchange implements BuildConstants {
         _key.testValidForStoreAndFetch(_volume.getPageSize());
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        checkOwnerThread();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         _transaction.assignTimestamp();
@@ -1780,7 +1766,6 @@ public class Exchange implements BuildConstants {
     public boolean traverse(final Direction direction, final boolean deep,
             final int minBytes) throws PersistitException {
         _persistit.checkClosed();
-        checkOwnerThread();
 
         boolean doFetch = minBytes > 0;
         boolean doModify = minBytes >= 0;
@@ -2421,7 +2406,6 @@ public class Exchange implements BuildConstants {
         }
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        checkOwnerThread();
         _key.testValidForStoreAndFetch(_volume.getPageSize());
         int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
@@ -2513,7 +2497,6 @@ public class Exchange implements BuildConstants {
     public Exchange fetch(Value value, int minimumBytes)
             throws PersistitException {
         _persistit.checkClosed();
-        checkOwnerThread();
         _key.testValidForStoreAndFetch(_volume.getPageSize());
         if (minimumBytes < 0)
             minimumBytes = 0;
@@ -2605,7 +2588,6 @@ public class Exchange implements BuildConstants {
      */
     public long incrementValue(long by, long from) throws PersistitException {
         _persistit.checkClosed();
-        checkOwnerThread();
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
@@ -2627,7 +2609,6 @@ public class Exchange implements BuildConstants {
      */
     public boolean hasChildren() throws PersistitException {
         _persistit.checkClosed();
-        checkOwnerThread();
 
         boolean result;
         final int lockedResourceCount = _persistit.getLockManager()
@@ -2665,7 +2646,6 @@ public class Exchange implements BuildConstants {
     public boolean fetchAndRemove() throws PersistitException {
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        checkOwnerThread();
         _spareValue.clear();
         boolean result = remove(EQ, true);
         _spareValue.copyTo(_value);
@@ -2685,7 +2665,6 @@ public class Exchange implements BuildConstants {
     public void removeTree() throws PersistitException {
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        checkOwnerThread();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
@@ -2755,7 +2734,6 @@ public class Exchange implements BuildConstants {
     private boolean remove(Direction selection, boolean fetchFirst)
             throws PersistitException {
         _persistit.checkClosed();
-        checkOwnerThread();
 
         if (selection != EQ && selection != GTEQ && selection != GT) {
             throw new IllegalArgumentException("Invalid mode " + selection);
@@ -2853,7 +2831,6 @@ public class Exchange implements BuildConstants {
         }
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        checkOwnerThread();
 
         if (Debug.ENABLED)
             Debug.suspend();
@@ -3831,7 +3808,6 @@ public class Exchange implements BuildConstants {
      * @return The <tt>Transaction</tt> context for this thread.
      */
     public Transaction getTransaction() {
-        checkOwnerThread();
         return _transaction;
     }
 
@@ -3847,7 +3823,6 @@ public class Exchange implements BuildConstants {
      */
     void setTree(Tree tree) throws PersistitException {
         _persistit.checkClosed();
-        checkOwnerThread();
         if (tree.getVolume() != _volume) {
             _volume = tree.getVolume();
             _pool = _persistit.getBufferPool(_volume.getPageSize());
@@ -3870,84 +3845,12 @@ public class Exchange implements BuildConstants {
         return _isDirectoryExchange;
     }
 
-    /**
-     * Determines whether this Exchange is already owned by another thread.
-     * 
-     * @throws WrongThreadException
-     *             if this Exchange is already owned by another thread.
-     * 
-     * @throws IllegalStateException
-     *             if this Exchange has been relinquished to the Exchange pool
-     *             by {@link Persistit#releaseExchange(Exchange, boolean)}.
-     * 
-     */
-    private void checkOwnerThread() {
-        if (_ownerThread == Thread.currentThread() && !_relinquished) {
-            return;
-        }
-
-        synchronized (_lock) {
-            if (_relinquished) {
-                throw new IllegalStateException(
-                        "Exchange has been relinquished to the pool");
-            }
-            if (_ownerThread == null) {
-                _ownerThread = Thread.currentThread();
-                _transaction = _persistit.getTransaction();
-            } else if (_ownerThread != Thread.currentThread()) {
-                throw new WrongThreadException("Exchange owner: "
-                        + _ownerThread);
-            }
-        }
-    }
-
-    void setRelinquished(boolean b) {
-        _relinquished = b;
-        if (b) {
-            _value.clear();
-        }
-    }
-
-    void setSecure(boolean b) {
-        _secure = b;
-    }
-
     void setSplitPolicy(SplitPolicy policy) {
         _splitPolicy = policy;
     }
 
     void setJoinPolicy(JoinPolicy policy) {
         _joinPolicy = policy;
-    }
-
-    /**
-     * Sets the owner thread of this Exchange to <tt>null</tt>. This permits a
-     * different <tt>Thread</tt> to become the owner on the next operation.
-     * Generally an Exchange should be created, owned and used by only one
-     * thread for its entire existence. This method is intended for applications
-     * with a specialized need to share an Exchange among multiple threads. Such
-     * an application must carefully synchronize access to all structures
-     * associated with the Exchange.
-     */
-    public void clearOwnerThread() {
-        synchronized (_lock) {
-            _ownerThread = null;
-            _transaction = null;
-        }
-    }
-
-    /**
-     * Returns the owner thread of this Exchange. The owner thread is the first
-     * <tt>Thread</tt> that performs an operation that accesses or modifies
-     * either the key or value of this Exchange.
-     * 
-     * @return The <tt>Thread</tt>, or <tt>null</tt> if this <tt>Exchange</tt>
-     *         is not associated with a thread at this time.
-     */
-    public Thread getOwnerThread() {
-        synchronized (_lock) {
-            return _ownerThread;
-        }
     }
 
     /**
@@ -3965,7 +3868,6 @@ public class Exchange implements BuildConstants {
             throws PersistitException {
 
         _persistit.checkClosed();
-        checkOwnerThread();
         checkLevelCache();
         final int treeDepth = requestedTreeDepth > _treeDepth ? _treeDepth
                 : requestedTreeDepth;

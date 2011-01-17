@@ -26,7 +26,7 @@ import java.util.TreeMap;
 
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.VolumeDescriptor;
-import com.persistit.RecoveryManager.RecoveredTransactionActor;
+import com.persistit.RecoveryManager.RecoveryListener;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -88,7 +88,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertEquals(15, plan.getCommittedCount());
         plan.setRecoveryDisabledForTestMode(false);
         final Set<Long> recoveryTimestamps = new HashSet<Long>();
-        final RecoveredTransactionActor actor = new RecoveredTransactionActor() {
+        final RecoveryListener actor = new RecoveryListener() {
 
             @Override
             public void store(final long address, final long timestamp,
@@ -107,6 +107,26 @@ public class RecoveryTest extends PersistitUnitTestCase {
             public void removeTree(final long address, final long timestamp,
                     Exchange exchange) throws PersistitException {
                 recoveryTimestamps.add(timestamp);
+            }
+
+            @Override
+            public void startRecovery(long address, long timestamp)
+                    throws PersistitException {
+            }
+
+            @Override
+            public void startTransaction(long address, long timestamp)
+                    throws PersistitException {
+            }
+
+            @Override
+            public void endTransaction(long address, long timestamp)
+                    throws PersistitException {
+            }
+
+            @Override
+            public void endRecovery(long address, long timestamp)
+                    throws PersistitException {
             }
 
         };
@@ -130,7 +150,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertTrue(rman.getCommittedCount() > 0);
         rman.setRecoveryDisabledForTestMode(false);
         rman.applyAllCommittedTransactions(rman
-                .getDefaultRecoveredTransactionActor());
+                .getDefaultRecoveryListener());
         fetch3();
     }
 

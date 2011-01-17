@@ -18,6 +18,7 @@
 package com.persistit.stress;
 
 import com.persistit.ArgParser;
+import com.persistit.Debug;
 import com.persistit.Key;
 import com.persistit.test.TestResult;
 
@@ -144,6 +145,7 @@ public class Stress10 extends StressBase {
                                     + size2 + ", should be " + size1 + " key="
                                     + _ex.getKey());
                             println(_result);
+                            Debug.debug1(true);
                             forceStop();
                         }
                     } catch (final Exception e) {
@@ -177,6 +179,7 @@ public class Stress10 extends StressBase {
                                                 + ", should be " + size1
                                                 + " key=" + _ex.getKey());
                                 println(_result);
+                                Debug.debug1(true);
                                 forceStop();
                             }
                             _exs.cut();

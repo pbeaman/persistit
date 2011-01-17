@@ -1158,19 +1158,28 @@ public class Volume extends SharedResource {
      *            Determines whether this method will create a new tree if there
      *            is no tree having the specified name.
      * 
-     * @return The <tt>Tree</tt>, or <tt>null</tt> if <tt>createIfNecessary</tt> is false
-     *         and there is no such tree in this <tt>Volume</tt>.
+     * @return The <tt>Tree</tt>, or <tt>null</tt> if <tt>createIfNecessary</tt>
+     *         is false and there is no such tree in this <tt>Volume</tt>.
      * 
      * @throws PersistitException
      */
     public Tree getTree(String name, boolean createIfNecessary)
             throws PersistitException {
-        synchronized (_lock) {
-            Tree tree = _treeNameHashMap.get(name);
-            if (tree != null) {
-                return tree;
+        for (;;) {
+            synchronized (_lock) {
+                Tree tree = _treeNameHashMap.get(name);
+                if (tree != null) {
+                    return tree;
+                }
             }
-            tree = new Tree(_persistit, this, name, 1);
+
+            // Can't do this while synchronized due to deadlock
+            // Since collisions on tree names are extremely rare,
+            // we simply create a tree and then in case another thread
+            // has already inserted a different Tree with the same
+            // name, we discard it.
+            //
+            Tree tree = new Tree(_persistit, this, name, 1);
             final Exchange ex = directoryExchange();
             ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(name);
             Value value = ex.fetch().getValue();
@@ -1182,8 +1191,19 @@ public class Volume extends SharedResource {
             } else {
                 return null;
             }
-            _treeNameHashMap.put(name, tree);
-            return tree;
+            
+            synchronized(_lock) {
+                // the normal case: no race, return the Tree just created
+                if (!_treeNameHashMap.containsKey(name)) {
+                    _treeNameHashMap.put(name, tree);
+                    return tree;
+                }
+            }
+            
+            // The unusual case.
+            tree.destroy();
+            removeTree(tree);
+            
         }
     }
 
@@ -1237,7 +1257,6 @@ public class Volume extends SharedResource {
 
         tree.claim(true);
         try {
-            // long journalId = _persistit.getJournal().beginRemoveTree(tree);
 
             synchronized (_lock) {
                 long rootPage = tree.getRootPageAddr();
@@ -1248,11 +1267,13 @@ public class Volume extends SharedResource {
 
                 ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
                         .append(tree.getName()).remove();
-                _treeNameHashMap.remove(tree.getName());
+                if (tree.getChangeCount() >= 0) {
+                    _treeNameHashMap.remove(tree.getName());
+                }
                 tree.bumpGeneration();
                 tree.invalidate();
             }
-            // _persistit.getJournal().completed(journalId);
+
         } finally {
             tree.release();
         }
