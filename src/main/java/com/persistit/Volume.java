@@ -411,7 +411,8 @@ public class Volume extends SharedResource {
                 extend(initialPages);
             }
 
-            _directoryTree = createTree(DIRECTORY_TREE_NAME);
+            _directoryTree = new Tree(_persistit, this, DIRECTORY_TREE_NAME);
+            initTree(_directoryTree);
             checkpointMetaData();
 
             open = true;
@@ -504,10 +505,11 @@ public class Volume extends SharedResource {
             _persistit.addVolume(this);
 
             if (_directoryRootPage != 0) {
-                _directoryTree = new Tree(_persistit, this,
-                        DIRECTORY_TREE_NAME, _directoryRootPage);
+                _directoryTree = new Tree(_persistit, this, DIRECTORY_TREE_NAME);
+                _directoryTree.init(_directoryRootPage);
             } else {
-                _directoryTree = createTree(DIRECTORY_TREE_NAME);
+                _directoryTree = new Tree(_persistit, this, DIRECTORY_TREE_NAME);
+                initTree(_directoryTree);
                 checkpointMetaData();
             }
 
@@ -1165,45 +1167,25 @@ public class Volume extends SharedResource {
      */
     public Tree getTree(String name, boolean createIfNecessary)
             throws PersistitException {
-        for (;;) {
-            synchronized (_lock) {
-                Tree tree = _treeNameHashMap.get(name);
-                if (tree != null) {
-                    return tree;
-                }
+        synchronized (_treeNameHashMap) {
+            Tree tree = _treeNameHashMap.get(name);
+            if (tree != null) {
+                return tree;
             }
-
-            // Can't do this while synchronized due to deadlock
-            // Since collisions on tree names are extremely rare,
-            // we simply create a tree and then in case another thread
-            // has already inserted a different Tree with the same
-            // name, we discard it.
-            //
-            Tree tree = new Tree(_persistit, this, name, 1);
             final Exchange ex = directoryExchange();
             ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(name);
             Value value = ex.fetch().getValue();
+            tree = new Tree(_persistit, this, name);
             if (value.isDefined()) {
                 tree.load(ex.getValue());
             } else if (createIfNecessary) {
-                tree = createTree(name);
+                initTree(tree);
                 tree.commit();
             } else {
                 return null;
             }
-            
-            synchronized(_lock) {
-                // the normal case: no race, return the Tree just created
-                if (!_treeNameHashMap.containsKey(name)) {
-                    _treeNameHashMap.put(name, tree);
-                    return tree;
-                }
-            }
-            
-            // The unusual case.
-            tree.destroy();
-            removeTree(tree);
-            
+            _treeNameHashMap.put(name, tree);
+            return tree;
         }
     }
 
@@ -1256,7 +1238,7 @@ public class Volume extends SharedResource {
         long page = -1;
 
         tree.claim(true);
-        
+
         try {
             final long rootPage = tree.getRootPageAddr();
             tree.changeRootPageAddr(-1, 0);
@@ -1431,14 +1413,11 @@ public class Volume extends SharedResource {
      * @return newly create Tree object
      * @throws PersistitException
      */
-    private Tree createTree(String treeName) throws PersistitException {
+    private Tree initTree(final Tree tree) throws PersistitException {
         _persistit.checkSuspended();
         _persistit.getTransaction().assignTimestamp();
 
         Buffer rootPageBuffer = null;
-
-        // long journalId = _persistit.getJournal().beginCreateTree(this,
-        // treeName, treeIndex);
 
         rootPageBuffer = allocPage();
         long rootPage = rootPageBuffer.getPageAddress();
@@ -1452,19 +1431,13 @@ public class Volume extends SharedResource {
             _pool.release(rootPageBuffer);
         }
 
-        final Tree tree = new Tree(_persistit, this, treeName, rootPage);
         tree.claim(true);
-        tree.changeRootPageAddr(rootPage, 0);
+        tree.init(rootPage);
         tree.release();
         tree.setValid(true);
         if (!DIRECTORY_TREE_NAME.equals(tree.getName())) {
             tree.commit();
         }
-
-        // if (journalId != -1) {
-        // _persistit.getJournal().completed(journalId);
-        // }
-
         return tree;
     }
 

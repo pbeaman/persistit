@@ -325,8 +325,7 @@ public class Persistit implements BuildConstants {
     };
 
     private ThreadLocal<WaitingThread> _waitingThreadLocal = new ThreadLocal<WaitingThread>();
-    private ThreadLocal<Throttle> _throttleThreadLocal = new ThreadLocal<Throttle>();
-
+    
     private final WeakHashMap<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
 
     private ManagementImpl _management;
@@ -1990,10 +1989,6 @@ public class Persistit implements BuildConstants {
         return _waitingThreadLocal;
     }
 
-    ThreadLocal<Throttle> getThrottleThreadLocal() {
-        return _throttleThreadLocal;
-    }
-
     SharedResource getTransactionResourceA() {
         return _transactionResourceA;
     }
@@ -2260,31 +2255,14 @@ public class Persistit implements BuildConstants {
      */
     public synchronized void setUpdateSuspended(boolean suspended) {
         _suspendUpdates.set(suspended);
-        if (Debug.ENABLED && !suspended)
-            Debug.setSuspended(false);
-    }
-
-    private static class Throttle {
-        private long _throttleCount;
-    }
-
-    private Throttle getThrottle() {
-        ThreadLocal<Throttle> throttleThreadLocal = getThrottleThreadLocal();
-        Throttle throttle = throttleThreadLocal.get();
-        if (throttle == null) {
-            throttle = new Throttle();
-            throttleThreadLocal.set(throttle);
-        }
-        return throttle;
     }
 
     /**
      * Initializes Persistit using a property file path supplied as the first
-     * argument, or if no arguments are supplied, the default property file
-     * name. As a side-effect, this method will apply any uncommitted updates
-     * from the prewrite journal. As a side-effect, this method will also open
-     * the diagnostic UI if requested by system property or property value in
-     * the property file.
+     * argument, or if no arguments are supplied, the default property file name
+     * (<tt>persistit.properties</tt> in the default directory). Command-line
+     * argument flags can invoke the integrity checker, start the AdminUI and
+     * suspend shutdown. See {@link #USAGE} for details.
      * 
      * @param args
      * @throws Exception

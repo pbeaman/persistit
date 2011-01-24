@@ -21,6 +21,7 @@ import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
 
+import com.persistit.Management.RecordInfo;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.InvalidPageStructureException;
@@ -141,11 +142,8 @@ public final class Buffer extends SharedResource implements BuildConstants {
      */
     public final static int HEADER_SIZE = 32;
 
-    final static long MAX_VALID_PAGE_ADDR = Integer.MAX_VALUE - 1; // TODO -
-    // allow
-    // larger
-    // pointer
-    // size
+    // TODO - allow larger pointer size
+    final static long MAX_VALID_PAGE_ADDR = Integer.MAX_VALUE - 1; 
     /**
      * A <code>Buffer</code> contains header information, a series of contiguous
      * key blocks, each of which contains a Elided Byte Count (EBC), one byte of
@@ -245,6 +243,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
     private final static Stack REPACK_BUFFER_STACK = new Stack();
 
     private final static int FINDEX_DB_MASK = 0x000000FF;
+    
     // private final static int FINDEX_DB_SHIFT = 0;
 
     private final static int FINDEX_EBC_MASK = 0x000FFF00;
@@ -252,6 +251,10 @@ public final class Buffer extends SharedResource implements BuildConstants {
 
     private final static int FINDEX_RUNCOUNT_MASK = 0xFFF00000;
     private final static int FINDEX_RUNCOUNT_SHIFT = 20;
+
+    // For debugging - set true in debugger to create verbose toString() output.
+    //
+    boolean _toStringDebug = false;
 
     /**
      * The BufferPool in which this buffer is allocated.
@@ -1889,7 +1892,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
      */
     int putValue(Key key, Value value) {
         int p = findKey(key);
-        return putValue(key, value, p);
+        return putValue(key, value, p, false);
     }
 
     /**
@@ -1904,7 +1907,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
      * @param foundAt
      *            The keyblock before which this record will be inserted
      */
-    int putValue(Key key, Value value, int foundAt) {
+    int putValue(Key key, Value value, int foundAt, boolean postSplit) {
         if (Debug.ENABLED)
             assertVerify();
 
@@ -1928,10 +1931,24 @@ public final class Buffer extends SharedResource implements BuildConstants {
             int ebcNew;
             int ebcSuccessor;
             int kbSuccessor = 0;
+            int delta = 0;
+            int successorTail = 0;
+            int successorTailBlock = 0;
+            int successorTailSize = 0;
+            int free1 = 0;
+            int free2 = 0;
             if (fixupSuccessor) {
                 kbSuccessor = getInt(p);
                 ebcNew = decodeKeyBlockEbc(kbSuccessor);
                 ebcSuccessor = depth;
+                delta = ebcSuccessor - ebcNew;
+                successorTail = decodeKeyBlockTail(kbSuccessor);
+                successorTailBlock = getInt(successorTail);
+                successorTailSize = decodeTailBlockSize(successorTailBlock);
+                free1 = (successorTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+                free2 = (successorTailSize - delta + ~TAILBLOCK_MASK)
+                        & TAILBLOCK_MASK;
+
             } else {
                 ebcSuccessor = 0;
                 ebcNew = depth;
@@ -1939,8 +1956,10 @@ public final class Buffer extends SharedResource implements BuildConstants {
             int klength = key.getEncodedSize() - ebcNew - 1;
             int newTailSize = klength + length + _tailHeaderSize;
 
-            if (!willFit(newTailSize + KEYBLOCK_LENGTH))
+            if (!willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
+                Debug.$assert(!postSplit);
                 return -1;
+            }
 
             //
             // Possibly increase the ebc value of the successor
@@ -1948,11 +1967,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
             // is correct.
             //
             if (fixupSuccessor && ebcNew != ebcSuccessor) {
-                int successorTail = decodeKeyBlockTail(kbSuccessor);
-                int successorTailBlock = getInt(successorTail);
-                int successorTailSize = decodeTailBlockSize(successorTailBlock);
                 int successorKeyLength = decodeTailBlockKLength(successorTailBlock);
-                int delta = ebcSuccessor - ebcNew;
                 int successorDb = getByte(successorTail + _tailHeaderSize
                         + delta - 1);
 
@@ -1964,11 +1979,6 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 System.arraycopy(_bytes, successorTail + _tailHeaderSize
                         + delta, _bytes, successorTail + _tailHeaderSize,
                         successorTailSize - _tailHeaderSize - delta);
-
-                int free1 = (successorTailSize + ~TAILBLOCK_MASK)
-                        & TAILBLOCK_MASK;
-                int free2 = (successorTailSize - delta + ~TAILBLOCK_MASK)
-                        & TAILBLOCK_MASK;
 
                 if (free2 < free1) {
                     deallocTail(successorTail + free2, free1 - free2);
@@ -2859,9 +2869,11 @@ public final class Buffer extends SharedResource implements BuildConstants {
                     foundAt = (foundAt & P_MASK) | FIXUP_MASK
                             | (ebc << DEPTH_SHIFT);
                 }
-                rightSibling.putValue(key, value, foundAt);
+                final int t = rightSibling.putValue(key, value, foundAt, true);
+                Debug.$assert(t != -1);
             } else {
-                putValue(key, value, foundAt);
+                final int t = putValue(key, value, foundAt, true);
+                Debug.$assert(t != -1);
             }
         } else {
             int p = -1;
@@ -4026,8 +4038,31 @@ public final class Buffer extends SharedResource implements BuildConstants {
     }
 
     public String toString() {
-        return "Page " + _page + " in Volume " + _vol + " at index "
-                + _poolIndex + " status=" + getStatusDisplayString();
+
+        final StringBuilder sb = new StringBuilder("Page " + _page
+                + " in Volume " + _vol + " at index " + _poolIndex + " status="
+                + getStatusDisplayString());
+
+        if (_toStringDebug) {
+            sb.append(String.format("\n  type=%,d  alloc=%,d  slack=%,d  "
+                    + "keyBlockStart=%,d  keyBlockEnd=%,d\n", _type, _alloc,
+                    _slack, _keyBlockStart, _keyBlockEnd));
+            final Key key = new Key((Persistit) null);
+            final Value value = new Value((Persistit) null);
+
+            for (RecordInfo r : getRecords()) {
+                r.getKeyState().copyTo(key);
+                r.getValueState().copyTo(value);
+                sb.append(String.format(
+                        "%5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s\n", r
+                                .getKbOffset(), r.getDb(), r.getEbc(), r
+                                .getTbOffset(), r.getKLength(), key, r
+                                .getValueState().getEncodedBytes().length,
+                        value));
+            }
+        }
+        return sb.toString();
+
     }
 
     String foundAtString(int p) {
@@ -4131,8 +4166,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
         }
     }
 
-    boolean addGarbageChain(long left, long right,
-            long expectedCount) {
+    boolean addGarbageChain(long left, long right, long expectedCount) {
         if (Debug.ENABLED)
             Debug.$assert(left > 0 && left <= MAX_VALID_PAGE_ADDR
                     && left != _page && right != _page && isGarbagePage());

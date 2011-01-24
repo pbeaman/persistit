@@ -29,7 +29,8 @@ import java.io.Serializable;
 public class ValueState implements Serializable {
     public static final long serialVersionUID = -3715600225940676772L;
 
-    private byte[] _bytes;
+    private final byte[] _bytes;
+    private final boolean _longRecordMode;
     private int _hashCode = -1;
 
     /**
@@ -43,6 +44,7 @@ public class ValueState implements Serializable {
      *            The <tt>Value</tt> from which the state is copied.
      */
     public ValueState(Value value) {
+        _longRecordMode = value.isLongRecordMode();
         int length = value.getEncodedSize();
         _bytes = new byte[length];
         System.arraycopy(value.getEncodedBytes(), 0, _bytes, 0, length);
@@ -64,6 +66,7 @@ public class ValueState implements Serializable {
      *            Size at which the the copied encoded byte array is truncated.
      */
     public ValueState(Value value, int truncateSize) {
+        _longRecordMode = value.isLongRecordMode();
         int length = value.getEncodedSize();
         if (length > truncateSize)
             length = truncateSize;
@@ -86,13 +89,14 @@ public class ValueState implements Serializable {
         value.ensureFit(_bytes.length);
         System.arraycopy(_bytes, 0, value.getEncodedBytes(), 0, _bytes.length);
         value.setEncodedSize(_bytes.length);
+        value.setLongRecordMode(_longRecordMode);
     }
 
     /**
      * The hash code for this <tt>ValueState</tt>. The hashCode is the same as
      * for the equivalent <tt>Value</tt>, that is the <tt>Value</tt> from which
      * this <tt>ValueState</tt> was constructed prior to any subsequent
-     * modificiations.
+     * modifications.
      * 
      * @return The hashCode.
      */
@@ -141,7 +145,23 @@ public class ValueState implements Serializable {
         return false;
     }
 
-    byte[] getBytes() {
+    /**
+     * @return the encoded byte array. See
+     *         {@link com.persistit.Value#getEncodedBytes()}.
+     */
+    public byte[] getEncodedBytes() {
         return _bytes;
+    }
+
+    /**
+     * @return the size of the encoded byte array. See
+     *         {@link com.persistit.Value#getEncodedSize()}.
+     */
+    public int getEncodedSize() {
+        return _bytes.length;
+    }
+
+    boolean isLongRecordMode() {
+        return _longRecordMode;
     }
 }

@@ -32,24 +32,12 @@ public class Tree extends SharedResource {
     private long _changeCount;
     int _hashCode = -1;
 
-    Tree(final Persistit persistit, Volume volume, String name,
-            long rootPageAddr) throws PersistitException {
+    Tree(final Persistit persistit, Volume volume, String name) {
         super(persistit);
         _name = name;
         _volume = volume;
-        _rootPageAddr = rootPageAddr;
-        // Derive the index depth
-        Buffer buffer = null;
-        try {
-            buffer = volume.getPool().get(volume, rootPageAddr, false, true);
-            int type = buffer.getPageType();
-            _depth = type - Buffer.PAGE_TYPE_DATA + 1;
-        } finally {
-            if (buffer != null)
-                volume.getPool().release(buffer);
-        }
     }
-
+    
     public Volume getVolume() {
         return _volume;
     }
@@ -156,6 +144,10 @@ public class Tree extends SharedResource {
         }
     }
 
+    /**
+     * Save a Tree in the directory
+     * @param value
+     */
     void store(Value value) {
         byte[] nameBytes = Util.stringToBytes(_name);
         byte[] encoded = new byte[32 + nameBytes.length];
@@ -168,7 +160,11 @@ public class Tree extends SharedResource {
         Util.putBytes(encoded, 32, nameBytes);
         value.put(encoded);
     }
-
+    
+    /**
+     * Load an existing Tree from the directory
+     * @param value
+     */
     void load(Value value) {
         byte[] encoded = value.getByteArray();
         int nameLength = Util.getShort(encoded, 30);
@@ -180,6 +176,25 @@ public class Tree extends SharedResource {
         _rootPageAddr = Util.getLong(encoded, 0);
         _depth = Util.getShort(encoded, 12);
         _changeCount = Util.getLong(encoded, 16);
+    }
+
+    /**
+     * Initialize a Tree.
+     * @param rootPageAddr
+     * @throws PersistitException
+     */
+    void init(final long rootPageAddr) throws PersistitException {
+        _rootPageAddr = rootPageAddr;
+        // Derive the index depth
+        Buffer buffer = null;
+        try {
+            buffer = getVolume().getPool().get(getVolume(), rootPageAddr, false, true);
+            int type = buffer.getPageType();
+            _depth = type - Buffer.PAGE_TYPE_DATA + 1;
+        } finally {
+            if (buffer != null)
+                getVolume().getPool().release(buffer);
+        }
     }
 
     /**

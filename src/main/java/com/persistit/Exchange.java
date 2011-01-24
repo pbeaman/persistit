@@ -1578,7 +1578,7 @@ public class Exchange implements BuildConstants {
             Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
                     && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
 
-        int result = buffer.putValue(key, value, foundAt);
+        int result = buffer.putValue(key, value, foundAt, false);
         if (result != -1) {
             buffer.setDirty();
             // lc.update(buffer, key, exact ? foundAt : -1);
@@ -2507,8 +2507,7 @@ public class Exchange implements BuildConstants {
                 lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
-        if (Debug.ENABLED)
-            Debug.suspend();
+
         if (inTxn && _transaction.fetch(this, value, minimumBytes) != null) {
             return this;
         }
@@ -2613,8 +2612,7 @@ public class Exchange implements BuildConstants {
         boolean result;
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
-        if (Debug.ENABLED)
-            Debug.suspend();
+
         _persistit.getLockManager().verifyNoStrayResourceClaims(
                 lockedResourceCount);
         Buffer buffer = null;
@@ -3138,7 +3136,7 @@ public class Exchange implements BuildConstants {
                                         _value.setPointerPageType(buffer2
                                                 .getPageType());
                                         int fit = buffer.putValue(_spareKey1,
-                                                _value, foundAt);
+                                                _value, foundAt, false);
 
                                         // If it worked then we're done.
                                         if (fit != -1) {
@@ -3389,8 +3387,7 @@ public class Exchange implements BuildConstants {
      */
     private void fetchLongRecord(Value value, int minimumBytesFetched)
             throws PersistitException {
-        if (Debug.ENABLED)
-            Debug.suspend();
+
         Buffer buffer = null;
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
@@ -3845,11 +3842,11 @@ public class Exchange implements BuildConstants {
         return _isDirectoryExchange;
     }
 
-    void setSplitPolicy(SplitPolicy policy) {
+    public void setSplitPolicy(SplitPolicy policy) {
         _splitPolicy = policy;
     }
 
-    void setJoinPolicy(JoinPolicy policy) {
+    public void setJoinPolicy(JoinPolicy policy) {
         _joinPolicy = policy;
     }
 
