@@ -2536,7 +2536,7 @@ public final class Buffer extends SharedResource implements BuildConstants {
                 // PDB 20050802 - because when inserting a record
                 // this is the actual successor, not tbSuccessor.
                 int edgeTailBlockSize = (decodeTailBlockKLength(tbData)
-                        - deltaSuccessorTailSize + _tailHeaderSize + ~TAILBLOCK_MASK)
+                        - deltaSuccessorEbc + _tailHeaderSize + ~TAILBLOCK_MASK)
                         & TAILBLOCK_MASK;
 
                 int rightSize = virtualSize - leftSize + tbSizeDelta;

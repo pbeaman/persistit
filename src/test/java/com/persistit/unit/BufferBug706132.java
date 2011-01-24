@@ -33,7 +33,7 @@ public class BufferBug706132 extends PersistitUnitTestCase  {
     }
     
     @Test
-    public void testBug70612() throws Exception {
+    public void test1() throws Exception {
         final Exchange ex = _persistit.getExchange("persistit",
                 "bug70612", true);
         StringBuilder sb = new StringBuilder();
@@ -65,9 +65,44 @@ public class BufferBug706132 extends PersistitUnitTestCase  {
         assertTrue(ex.getValue().getString().length() == 416);
     }
 
+    @Test
+    public void test2() throws Exception {
+        final Exchange ex = _persistit.getExchange("persistit",
+                "bug70612", true);
+        StringBuilder sb = new StringBuilder();
+        ex.removeAll();
+        ex.setSplitPolicy(SplitPolicy.LEFT_BIAS);
+        sb.setLength(100);
+        ex.getValue().put(sb.toString());
+        for (int i = 0; i < 8; i++) {
+            ex.clear().append(i).store();
+        }
+        sb.setLength(900);
+        ex.getValue().put(sb.toString());
+        ex.clear().append("stress10").append(521479).append(8).store();
+        ex.clear().append("stress10").append(521482).append(8).store();
+        ex.clear().append("stress10").append(521485).append(4).store();
+        ex.clear().append("stress10").append(521490).append(4).store();
+        sb.setLength(321);
+        ex.getValue().put(sb.toString());
+        ex.clear().append("stress10").append(521491).append(7).store();
+        ex.getValue().clear();
+        ex.clear().append("stress10").append(521492).append(7).store();
+        
+        ex.setSplitPolicy(SplitPolicy.NICE_BIAS);
+        
+        sb.setLength(427);
+        ex.getValue().put(sb.toString());
+        ex.clear().append("stress10").append(521491).append(0).store();
+        ex.getValue().clear();
+        ex.fetch();
+        assertTrue(ex.getValue().getString().length() == 427);
+    }
+
     @Override
     public void runAllTests() throws Exception {
-        testBug70612();
+        test1();
+        test2();
     }
 
 }
