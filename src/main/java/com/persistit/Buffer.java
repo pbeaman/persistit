@@ -53,7 +53,7 @@ import com.persistit.exception.VolumeClosedException;
  * @version 1.0
  */
 
-public final class Buffer extends SharedResource implements BuildConstants {
+public final class Buffer extends SharedResource {
     private final static boolean ENABLE_COUNTERS = false;
     /**
      * Architectural lower bound on buffer size

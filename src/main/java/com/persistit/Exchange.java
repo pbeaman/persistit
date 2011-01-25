@@ -114,7 +114,7 @@ import com.persistit.exception.WrongThreadException;
  * 
  * @version 1.0
  */
-public class Exchange implements BuildConstants {
+public class Exchange {
     /**
      * Maximum number of levels in one tree. (This count represents a highly
      * pathological case: most trees, even large ones, are no more than four or

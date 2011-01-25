@@ -87,7 +87,7 @@ import com.persistit.logging.DefaultPersistitLogger;
  * 
  * @version 1.1
  */
-public class Persistit implements BuildConstants {
+public class Persistit {
     /**
      * This version of Persistit
      */
