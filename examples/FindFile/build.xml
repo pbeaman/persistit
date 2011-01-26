@@ -1,0 +1,22 @@
+<project name="FindFile" default="run" basedir=".">
+    <description>
+        Build FindFile.java
+    </description>
+
+  <target name="compile" description="compile the source " >
+    <javac debug="true"
+           source="1.4" 
+           target="1.4"
+           srcdir="."
+    	   destdir="."
+    	   classpath="../../core/target/akiban-persistit-core-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar" />
+  </target>
+
+  <target name="run" depends="compile">
+    <java  fork="true"
+           classname="FindFile"
+           classpath="../../core/target/akiban-persistit-core-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar;." />
+  </target>
+  
+</project>
+
