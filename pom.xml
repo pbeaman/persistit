@@ -25,6 +25,5 @@
     <modules>
         <module>core</module>
         <module>bench</module>
-        <module>examples</module>
     </modules>
 </project>
