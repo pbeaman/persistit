@@ -697,7 +697,7 @@ public class JournalTool {
                     key2Size);
             key2.setEncodedSize(key2Size);
             start(address, timestamp, "DR", recordSize);
-            appendf(" tree %05d key1Size %5,d key2Size %,5d  ", thandle,
+            appendf(" tree %05d key1Size %,5d key2Size %,5d  ", thandle,
                     key1Size, key2Size);
             keyf(key1);
             sb.append("->");

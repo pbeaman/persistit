@@ -130,7 +130,7 @@ public class Tree extends SharedResource {
 
     /**
      * Sets the tree name to null. This is done only by Volume.getTree() which
-     * may create a Tree and then immediately discard it. Clearing the name
+     * may create a Tree and then immediately discard it. Clearing the change count
      * prevents removing the surviving tree having the same name from the
      * tree map.
      */
@@ -185,6 +185,7 @@ public class Tree extends SharedResource {
      */
     void init(final long rootPageAddr) throws PersistitException {
         _rootPageAddr = rootPageAddr;
+        setDirtyStructure();
         // Derive the index depth
         Buffer buffer = null;
         try {
