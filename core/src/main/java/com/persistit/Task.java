@@ -24,6 +24,7 @@ import java.util.Vector;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TaskEndedException;
 
+
 /**
  * Abstract superclass of classes that perform long-running utility operations,
  * such as export, import and integrity check. Concrete classes should
@@ -34,7 +35,7 @@ import com.persistit.exception.TaskEndedException;
  * @author Peter Beaman
  * @version 1.0
  */
-public abstract class Task implements Runnable, BuildConstants {
+public abstract class Task implements Runnable {
     /**
      * Status value indicates this <tt>Task</tt> has been set up but not yet
      * started.

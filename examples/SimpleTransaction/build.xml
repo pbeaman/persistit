@@ -1,0 +1,19 @@
+<project name="SimpleTransaction" default="run" basedir=".">
+    <description>
+        Build SimpleTransaction.java
+    </description>
+
+  <target name="compile" description="compile the source " >
+    <javac debug="true"
+    	   srcdir="."
+    	   destdir="."
+    	   classpath="../../core/target/akiban-persistit-core-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar" />
+  </target>
+
+  <target name="run" depends="compile">
+    <java  classname="SimpleTransaction"
+           classpath="../../core/target/akiban-persistit-core-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar;." />
+  </target>
+  
+</project>
+
