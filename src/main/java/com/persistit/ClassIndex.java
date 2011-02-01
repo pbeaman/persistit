@@ -52,9 +52,6 @@ public class ClassIndex {
     private final static String BY_HANDLE = "byHandle";
     private final static String BY_NAME = "byName";
     private final static String CLASS_INDEX_TREE_NAME = "_classIndex";
-    private Exchange _systemExchange;
-
-    private Stack _exStack = new Stack();
 
     private int _capacityById = INITIAL_CAPACITY;
     private int _capacityByName = INITIAL_CAPACITY;
@@ -289,26 +286,16 @@ public class ClassIndex {
     }
 
     private synchronized Exchange getExchange() throws PersistitException {
-        Exchange ex;
-        if (_exStack.isEmpty()) {
-            if (_systemExchange == null) {
-                try {
-                    Volume volume = _persistit.getSystemVolume();
-                    _systemExchange = _persistit.getExchange(volume,
-                            CLASS_INDEX_TREE_NAME, true);
-                } catch (PersistitException pe) {
-                    throw new ConversionException(pe);
-                }
-            }
-            ex = new Exchange(_systemExchange);
-        } else {
-            ex = (Exchange) _exStack.pop();
+        try {
+            Volume volume = _persistit.getSystemVolume();
+            return _persistit.getExchange(volume,
+                    CLASS_INDEX_TREE_NAME, true);
+        } catch (PersistitException pe) {
+            throw new ConversionException(pe);
         }
-        ex.clearOwnerThread();
-        return ex;
     }
 
     private synchronized void releaseExchange(Exchange ex) {
-        _exStack.push(ex);
+        _persistit.releaseExchange(ex);
     }
 }

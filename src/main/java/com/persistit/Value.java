@@ -950,8 +950,14 @@ public final class Value {
      *         <tt>Value</tt> is defined.
      */
     public String toString() {
-        if (_size == 0)
+        if (_size == 0) {
             return "undefined";
+        }
+        
+        if (_longMode && (_bytes[0] & 0xFF) == Buffer.LONGREC_TYPE
+                && (_size >= Buffer.LONGREC_SIZE)) {
+            return toStringLongMode();
+        }
 
         int saveDepth = _depth;
         int saveLevel = _level;
@@ -983,6 +989,15 @@ public final class Value {
             _level = saveLevel;
             _depth = saveDepth;
         }
+        return sb.toString();
+    }
+
+    private String toStringLongMode() {
+        final StringBuilder sb = new StringBuilder();
+        sb.append("LongRec size=");
+        sb.append(Util.getLong(_bytes, Buffer.LONGREC_SIZE_OFFSET));
+        sb.append(" page=");
+        sb.append(Util.getLong(_bytes, Buffer.LONGREC_PAGE_OFFSET));
         return sb.toString();
     }
 

@@ -317,7 +317,6 @@ public class PersistitTableModel extends AbstractTableModel {
 
         private Exchange setupExchange() {
             Exchange ex = PersistitTableModel.this.getExchange();
-            ex.clearOwnerThread();
             Key key = ex.getKey();
             System.arraycopy(_rootKey.getEncodedBytes(), 0,
                     key.getEncodedBytes(), 0, _rootKey.getEncodedSize());

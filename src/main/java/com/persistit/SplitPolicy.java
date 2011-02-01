@@ -73,8 +73,7 @@ public abstract class SplitPolicy {
                 boolean replace, int leftSize, int rightSize, int currentSize,
                 int virtualSize, int capacity, int splitInfo) {
             //
-            // This implementation minimizes the difference -- i.e., attempts
-            // to split the page into equally sized siblings.
+            // This implementation maximizes the number of bytes in the left sibling.
             //
             if (leftSize > capacity || rightSize > capacity)
                 return 0;
@@ -93,8 +92,8 @@ public abstract class SplitPolicy {
                 boolean replace, int leftSize, int rightSize, int currentSize,
                 int virtualSize, int capacity, int splitInfo) {
             //
-            // This implementation minimizes the difference -- i.e., attempts
-            // to split the page into equally sized siblings.
+            // This implementation maximizes the number of bytes
+            // moved to the right sibling.
             //
             if (leftSize > capacity || rightSize > capacity)
                 return 0;

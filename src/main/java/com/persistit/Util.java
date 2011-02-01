@@ -260,7 +260,7 @@ public class Util {
     }
 
     public static String dump(ValueState vs) {
-        byte[] bytes = vs.getBytes();
+        byte[] bytes = vs.getEncodedBytes();
         return dump(bytes, 0, bytes.length);
     }
 

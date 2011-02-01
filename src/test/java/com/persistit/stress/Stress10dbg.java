@@ -19,10 +19,11 @@ package com.persistit.stress;
 
 import com.persistit.ArgParser;
 import com.persistit.Debug;
+import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.test.TestResult;
 
-public class Stress10 extends StressBase {
+public class Stress10dbg extends StressBase {
 
     private final static String SHORT_DESCRIPTION = "Random key and value size write/read/delete/traverse loops";
 
@@ -40,6 +41,9 @@ public class Stress10 extends StressBase {
     int _splay;
     int _seed;
     String _opflags;
+
+    Exchange _exs1;
+    Exchange _ex1;
 
     @Override
     public String shortDescription() {
@@ -67,6 +71,9 @@ public class Stress10 extends StressBase {
             _ex = getPersistit().getExchange("persistit",
                     _rootName + _threadIndex, true);
             _exs = getPersistit().getExchange("persistit", "shared", true);
+            _ex1 = getPersistit().getExchange("persistit",
+                    _rootName + _threadIndex, false);
+            _exs1 = getPersistit().getExchange("persistit", "shared", false);
         } catch (final Exception ex) {
             handleThrowable(ex);
         }
@@ -113,11 +120,40 @@ public class Stress10 extends StressBase {
                     setupTestValue(_exs, keyInteger, random(20, _size));
 
                     _ex.clear().append(keyInteger);
-                    _ex.getValue().put(_exs.getValue().getEncodedSize());
+                    _ex.getValue().put(
+                            _exs.getValue().getEncodedSize() + "@"
+                                    + _ex.getTransaction().getTimestamp());
 
                     try {
                         _exs.store();
                         _ex.store();
+                    } catch (final Exception e) {
+                        handleThrowable(e);
+
+                    }
+
+                    // immediately try reading values back
+                    try {
+                        _exs1.clear().append("stress10").append(keyInteger)
+                                .append(_threadIndex);
+                        _ex1.clear().append(keyInteger);
+                        _ex1.fetch();
+                        int size1 = 0;
+                        if (_ex1.getValue().isDefined()
+                                && !_ex1.getValue().isNull()) {
+                            size1 = parseSize(_ex1);
+                        }
+                        _exs1.fetch();
+                        final int size2 = _exs1.getValue().getEncodedSize();
+                        if (size2 != size1) {
+                            _result = new TestResult(false, "Value is size "
+                                    + size2 + ", should be " + size1 + " key="
+                                    + _ex1.getKey());
+                            println(_result);
+                            Debug.debug1(true);
+                            forceStop();
+                        }
+
                     } catch (final Exception e) {
                         handleThrowable(e);
 
@@ -129,14 +165,13 @@ public class Stress10 extends StressBase {
 
                     _exs.clear().append("stress10").append(keyInteger)
                             .append(_threadIndex);
-                    setupTestValue(_exs, keyInteger, random(20, _size));
                     _ex.clear().append(keyInteger);
                     try {
                         _ex.fetch();
                         int size1 = 0;
                         if (_ex.getValue().isDefined()
                                 && !_ex.getValue().isNull()) {
-                            size1 = _ex.getValue().getInt();
+                            size1 = parseSize(_ex);
                         }
                         _exs.fetch();
                         final int size2 = _exs.getValue().getEncodedSize();
@@ -171,7 +206,7 @@ public class Stress10 extends StressBase {
                             _ex.clear().append(curKeyInteger).fetch();
                             int size1 = 0;
                             if (_ex.getValue().isDefined()) {
-                                size1 = _ex.getValue().getInt();
+                                size1 = parseSize(_ex);
                             }
                             if (size2 != size1) {
                                 _result = new TestResult(false,
@@ -212,13 +247,18 @@ public class Stress10 extends StressBase {
 
     }
 
+    int parseSize(final Exchange ex) {
+        String s = ex.getValue().getString();
+        return Integer.parseInt(s.split("@")[0]);
+    }
+
     int keyInteger(final int counter) {
         final int keyInteger = random(0, _total);
         return keyInteger;
     }
 
     public static void main(final String[] args) {
-        final Stress10 test = new Stress10();
+        final Stress10dbg test = new Stress10dbg();
         test.runStandalone(args);
     }
 }

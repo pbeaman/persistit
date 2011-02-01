@@ -180,7 +180,6 @@ public class PersistitMap implements SortedMap {
     private PersistitMap(PersistitMap pm, boolean useFrom, Object fromKey,
             boolean useTo, Object toKey) {
         _ex = new Exchange(pm._ex);
-        _ex.clearOwnerThread();
 
         _sizeGeneration = -1; // Unknown
         if (useFrom) {
@@ -293,7 +292,6 @@ public class PersistitMap implements SortedMap {
      * @return the number of key-value mappings in this map.
      */
     public synchronized int size() {
-        _ex.clearOwnerThread();
         if (_ex.getChangeCount() == _sizeGeneration) {
             return _size;
         }
@@ -323,7 +321,6 @@ public class PersistitMap implements SortedMap {
      * @return <tt>true</tt> if this map contains no key-value mappings.
      */
     public synchronized boolean isEmpty() {
-        _ex.clearOwnerThread();
         if (_ex.getChangeCount() == _sizeGeneration) {
             return _size == 0;
         }
@@ -360,7 +357,6 @@ public class PersistitMap implements SortedMap {
      * @return <tt>true</tt> if this map maps one or more keys to this value.
      */
     public synchronized boolean containsValue(Object value) {
-        _ex.clearOwnerThread();
         Value lookupValue = new Value(_ex.getPersistitInstance());
         try {
             lookupValue.put(value);
@@ -395,7 +391,6 @@ public class PersistitMap implements SortedMap {
      *             <tt>null</tt> keys.
      */
     public synchronized boolean containsKey(Object key) {
-        _ex.clearOwnerThread();
         try {
             if (!toKey(key))
                 return false;
@@ -433,7 +428,6 @@ public class PersistitMap implements SortedMap {
      * @see #containsKey(Object)
      */
     public synchronized Object get(Object key) {
-        _ex.clearOwnerThread();
         try {
             if (!toKey(key))
                 return null;
@@ -479,7 +473,6 @@ public class PersistitMap implements SortedMap {
      * 
      */
     public synchronized Object put(Object key, Object value) {
-        _ex.clearOwnerThread();
         try {
             if (!toKey(key)) {
                 throw new IllegalArgumentException("Key " + key
@@ -531,7 +524,6 @@ public class PersistitMap implements SortedMap {
      * 
      */
     public synchronized void putFast(Object key, Object value) {
-        _ex.clearOwnerThread();
         try {
             if (!toKey(key)) {
                 throw new IllegalArgumentException("Key " + key
@@ -563,7 +555,6 @@ public class PersistitMap implements SortedMap {
      * 
      */
     public synchronized Object remove(Object key) {
-        _ex.clearOwnerThread();
         try {
             if (!toKey(key)) {
                 throw new IllegalArgumentException("Key " + key
@@ -596,7 +587,6 @@ public class PersistitMap implements SortedMap {
      * 
      */
     public synchronized void removeFast(Object key) {
-        _ex.clearOwnerThread();
         try {
             if (!toKey(key)) {
                 throw new IllegalArgumentException("Key " + key
@@ -666,7 +656,6 @@ public class PersistitMap implements SortedMap {
      *             the specified map is <tt>null</tt>.
      */
     public synchronized void putAll(Map t) {
-        _ex.clearOwnerThread();
         for (Iterator iterator = t.entrySet().iterator(); iterator.hasNext();) {
             Map.Entry entry = (Map.Entry) iterator.next();
             putFast(entry.getKey(), entry.getValue());
@@ -680,7 +669,6 @@ public class PersistitMap implements SortedMap {
      * This implementation calls <tt>entrySet().clear()</tt>.
      */
     public synchronized void clear() {
-        _ex.clearOwnerThread();
         try {
             toLeftEdge();
             Key key = new Key(_ex.getKey());
@@ -768,7 +756,6 @@ public class PersistitMap implements SortedMap {
          *         <tt>ExchangeEntry</tt>.
          */
         public synchronized Object setValue(Object value) {
-            _ex.clearOwnerThread();
             Object result = null;
             try {
                 _ex.to(_key);
@@ -888,7 +875,6 @@ public class PersistitMap implements SortedMap {
         }
 
         public synchronized boolean hasNext() {
-            _iteratorExchange.clearOwnerThread();
             ;
             try {
                 boolean result = _iteratorExchange.hasNext(_keyFilter);
@@ -903,7 +889,6 @@ public class PersistitMap implements SortedMap {
         }
 
         public synchronized Object next() {
-            _iteratorExchange.clearOwnerThread();
             ;
             try {
                 if (!_iteratorExchange.next(_keyFilter) || _toKey != null
@@ -940,7 +925,6 @@ public class PersistitMap implements SortedMap {
         }
 
         public synchronized void remove() {
-            _iteratorExchange.clearOwnerThread();
             ;
             if (!_okToRemove) {
                 throw new IllegalStateException();
