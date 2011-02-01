@@ -128,19 +128,25 @@ class SharedResource extends WaitingThreadManager {
 
     private boolean isAvailableSync(boolean writer, int count) {
 
+        // Available - No claims
         if ((_status & (WRITER_MASK | CLAIMED_MASK)) == 0) {
             return true;
         }
 
+        // This thread already claims it
         if (_writerThread == Thread.currentThread()
                 && (_status & CLAIMED_MASK) < CLAIMED_MASK) {
             return true;
         }
 
+        // Handles upgradeClaim when count > 0
         if (writer) {
             return ((_status & WRITER_MASK) == 0 && (_status & CLAIMED_MASK) <= count);
         }
 
+        // Caller wants a reader claim (see if statement above), there are other
+        // readers, and either no other waiting writer, or this thread already
+        // has a reader claim
         if (((_status & WRITER_MASK) == 0)
                 && ((_status & CLAIMED_MASK) < CLAIMED_MASK)
                 && (!isWriterWaiting() || _persistit.getLockManager().isMine(

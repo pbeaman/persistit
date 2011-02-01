@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Stack;
+import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.management.InstanceNotFoundException;
@@ -317,9 +318,15 @@ public class Persistit {
 
     private CoderManager _coderManager;
     private ClassIndex _classIndex = new ClassIndex(this);
-    private ThreadLocal<Transaction> _transactionThreadLocal = new ThreadLocal<Transaction>();
+    private ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
+        protected SessionId initialValue() {
+            return new SessionId();
+        }
+    };
+
     private ThreadLocal<WaitingThread> _waitingThreadLocal = new ThreadLocal<WaitingThread>();
-    private ThreadLocal<Throttle> _throttleThreadLocal = new ThreadLocal<Throttle>();
+    
+    private final WeakHashMap<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
 
     private ManagementImpl _management;
 
@@ -331,7 +338,7 @@ public class Persistit {
 
     private final IOMeter _ioMeter = new IOMeter();
 
-    private Stack<Exchange> _exchangePool = new Stack<Exchange>();
+    private WeakHashMap<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
 
     private boolean _readRetryEnabled;
 
@@ -610,7 +617,7 @@ public class Persistit {
 
     void finishRecovery() throws PersistitException {
         _recoveryManager.applyAllCommittedTransactions(_recoveryManager
-                .getDefaultRecoveredTransactionActor());
+                .getDefaultRecoveryListener());
         _recoveryManager.close();
         flush();
         checkpoint();
@@ -904,20 +911,23 @@ public class Persistit {
             throws PersistitException {
         if (volume == null)
             throw new VolumeNotFoundException();
-        Exchange exchange = null;
-        synchronized (_exchangePool) {
-            if (!_exchangePool.isEmpty()) {
-                exchange = _exchangePool.pop();
-                exchange.setRelinquished(false);
+        List<Exchange> stack;
+        final SessionId sessionId = getSessionId();
+
+        synchronized (_exchangePoolMap) {
+            stack = _exchangePoolMap.get(sessionId);
+            if (stack == null) {
+                stack = new ArrayList<Exchange>();
+                _exchangePoolMap.put(sessionId, stack);
             }
         }
-        if (exchange == null) {
-            exchange = new Exchange(this, volume, treeName, create);
+        if (stack.isEmpty()) {
+            return new Exchange(this, volume, treeName, create);
         } else {
-            exchange.removeState();
+            final Exchange exchange = stack.remove(stack.size() - 1);
             exchange.init(volume, treeName, create);
+            return exchange;
         }
-        return exchange;
     }
 
     /**
@@ -969,16 +979,17 @@ public class Persistit {
     /**
      * <p>
      * Releases an <tt>Exchange</tt> to the internal pool. A subsequent
-     * invocation of {@link #getExchange} will reuse this <tt>Exchange</tt>. An
+     * invocation of {@link #getExchange} may reuse this <tt>Exchange</tt>. An
      * application that gets an <tt>Exchange</tt> through the
      * {@link #getExchange} method <i>should</i> release it through this method.
      * An attempt to release the <tt>Exchange</tt> if it is already in the pool
      * results in an <tt>IllegalStateException</tt>.
      * </p>
      * <p>
-     * This method clears all state information in the <tt>Exchange</tt> so that
-     * no information residing in the <tt>Exhange</tt> can be obtained by a
-     * different, untrusted application.
+     * This method clears the key and value fields. Use the
+     * {@link #releaseExchange(Exchange, boolean)} method to clear all state
+     * information if this <tt>Exchange</tt> may subsequently be used by another
+     * untrusted thread.
      * </p>
      * 
      * @param exchange
@@ -988,13 +999,13 @@ public class Persistit {
      * @throws IllegalStateException
      */
     public void releaseExchange(Exchange exchange) {
-        releaseExchange(exchange, true);
+        releaseExchange(exchange, false);
     }
 
     /**
      * <p>
      * Releases an <tt>Exchange</tt> to the internal pool. A subsequent
-     * invocation of {@link #getExchange} will reuse this <tt>Exchange</tt>. An
+     * invocation of {@link #getExchange} may reuse this <tt>Exchange</tt>. An
      * application that gets an <tt>Exchange</tt> through the
      * {@link #getExchange} method <i>should</i> release it through this method.
      * An attempt to release the <tt>Exchange</tt> if it is already in the pool
@@ -1002,17 +1013,17 @@ public class Persistit {
      * </p>
      * <p>
      * This method optionally clears all state information in the
-     * <tt>Exchange</tt> so that no residual information in the <tt>Exhange</tt>
-     * can be obtained by a different, untrusted thread. In a closed
-     * configuration in which there is only one application, it is somewhat
-     * faster to avoid clearing the byte arrays used in representing the state
-     * of this <tt>Exchange</tt> by passing <tt>false</tt> as the value of the
+     * <tt>Exchange</tt> so that no residual information in the
+     * <tt>Exchange</tt> can be obtained by a different, untrusted thread. In a
+     * closed configuration in which there is only one application, it is faster
+     * to avoid clearing the byte arrays used in representing the state of this
+     * <tt>Exchange</tt> by passing <tt>false</tt> as the value of the
      * <tt>secure</tt> flag.
      * </p>
      * 
      * @param exchange
      *            The <tt>Exchange</tt> to release to the pool. If <tt>null</tt>
-     *            , this method returns silently.
+     *            this method returns silently.
      * @param secure
      *            <tt>true</tt> to clear all state information; <tt>false</tt>
      *            to leave the state unchanged.
@@ -1020,19 +1031,22 @@ public class Persistit {
      * @throws IllegalStateException
      */
     public void releaseExchange(Exchange exchange, boolean secure) {
-        if (exchange != null) {
-            synchronized (_exchangePool) {
-                exchange.setRelinquished(true);
-                exchange.setSecure(secure);
+        if (exchange == null) {
+            return;
+        }
+        List<Exchange> stack;
+        final SessionId sessionId = getSessionId();
 
-                if (_exchangePool.contains(exchange)) {
-                    throw new IllegalStateException(
-                            "Exchange is already in the pool");
-                }
-                if (_exchangePool.size() < MAX_POOLED_EXCHANGES) {
-                    _exchangePool.push(exchange);
-                }
+        synchronized (_exchangePoolMap) {
+            stack = _exchangePoolMap.get(sessionId);
+            if (stack == null) {
+                stack = new Stack<Exchange>();
+                _exchangePoolMap.put(sessionId, stack);
             }
+        }
+        if (stack.size() < MAX_POOLED_EXCHANGES) {
+            exchange.removeState(secure);
+            stack.add(exchange);
         }
     }
 
@@ -1458,13 +1472,26 @@ public class Persistit {
         }
     }
 
+    /**
+     * Called periodically by PAGE_WRITER threads to see whether a new
+     * Checkpoint should be written.
+     */
     void applyCheckpoint() {
         final Checkpoint newCheckpoint = getTimestampAllocator()
-                .updateCheckpoint();
+                .updatedCheckpoint();
         applyCheckpoint(newCheckpoint);
 
     }
 
+    /**
+     * Apply a checkpoint. If the checkpoint has already been applied, this
+     * method does nothing. If it is a new checkpoint, this method adds it to
+     * the outstanding checkpoint list. As a side- effect, this method also
+     * calls {@link #flushCheckpoint()} which attempts to find some checkpoint
+     * on the outstanding list that can be closed (written to the journal).
+     * 
+     * @param newCheckpoint
+     */
     void applyCheckpoint(final Checkpoint newCheckpoint) {
         synchronized (this) {
             if (newCheckpoint.getTimestamp() > _currentCheckpoint
@@ -1483,7 +1510,7 @@ public class Persistit {
         }
     }
 
-    Checkpoint flushCheckpoint() {
+    void flushCheckpoint() {
         final Checkpoint validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
         if (validCheckpoint != null) {
             try {
@@ -1496,45 +1523,12 @@ public class Persistit {
                 _outstandingCheckpoints.remove(validCheckpoint);
             }
         }
-        return validCheckpoint;
     }
 
     /**
-     * Propose a new Checkpoint and update the journal to include all pages made
-     * dirty before that Checkpoint.
-     * 
-     * @param newCheckpoint
-     * @return the latest valid checkpoint
-     */
-    public Checkpoint checkpoint(final Checkpoint newCheckpoint) {
-        final Checkpoint validCheckpoint;
-        synchronized (this) {
-            if (newCheckpoint.getTimestamp() > _currentCheckpoint
-                    .getTimestamp()) {
-                _outstandingCheckpoints.add(newCheckpoint);
-                _currentCheckpoint = newCheckpoint;
-                if (getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_PROPOSED)) {
-                    getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED,
-                            newCheckpoint);
-                }
-            }
-        }
-        validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
-        if (validCheckpoint != null) {
-            try {
-                getJournalManager().writeCheckpointToJournal(validCheckpoint);
-            } catch (PersistitIOException e) {
-                getLogBase().log(LogBase.LOG_EXCEPTION,
-                        e + " while writing " + validCheckpoint + ":" + e);
-                return null;
-            }
-        }
-        return validCheckpoint;
-    }
-
-    /**
-     * Given List of outstanding Checkpoints, finds the latest one that is safe
-     * to write and returns it. If there are none, return <tt>null</tt>
+     * Given a List of outstanding Checkpoints, find the latest one that is safe
+     * to write and return it. If there is no safe Checkpoint, return
+     * <tt>null</tt>
      * 
      * @param List
      *            of outstanding Checkpoint instances
@@ -1743,7 +1737,6 @@ public class Persistit {
         _volumes.clear();
         _volumesById.clear();
         _bufferPoolTable.clear();
-        _transactionThreadLocal.set(null);
         _waitingThreadLocal.set(null);
 
         if (_management != null) {
@@ -1874,6 +1867,29 @@ public class Persistit {
     }
 
     /**
+     * Return this thread's SessionId. Constructs a new unique SessionId if the
+     * thread has not already been bound to one.
+     * 
+     * @return Thread-private SessionId
+     */
+    public SessionId getSessionId() {
+        return _sessionIdThreadLocal.get();
+    }
+
+    /**
+     * Modify this thread's SessionId. This method is intended for server
+     * applications that may execute multiple requests, possible on different
+     * threads, within the scope of one session. Such applications much use
+     * extreme care to avoid having two threads with the same SessionId at any
+     * time.
+     * 
+     * @param sessionId
+     */
+    public void changeSessionId(final SessionId sessionId) {
+        _sessionIdThreadLocal.set(sessionId);
+    }
+
+    /**
      * Gets the <tt>Transaction</tt> object for the current thread. The
      * <tt>Transaction</tt> object lasts for the life of the thread. See
      * {@link com.persistit.Transaction} for more information on how to use
@@ -1882,10 +1898,11 @@ public class Persistit {
      * @return This thread <tt>Transaction</tt> object.
      */
     public Transaction getTransaction() {
-        Transaction txn = _transactionThreadLocal.get();
+        final SessionId sessionId = getSessionId();
+        Transaction txn = _transactionSessionMap.get(sessionId);
         if (txn == null) {
             txn = new Transaction(this);
-            _transactionThreadLocal.set(txn);
+            _transactionSessionMap.put(sessionId, txn);
         }
         return txn;
     }
@@ -1970,10 +1987,6 @@ public class Persistit {
 
     ThreadLocal<WaitingThread> getWaitingThreadThreadLocal() {
         return _waitingThreadLocal;
-    }
-
-    ThreadLocal<Throttle> getThrottleThreadLocal() {
-        return _throttleThreadLocal;
     }
 
     SharedResource getTransactionResourceA() {
@@ -2242,31 +2255,14 @@ public class Persistit {
      */
     public synchronized void setUpdateSuspended(boolean suspended) {
         _suspendUpdates.set(suspended);
-        if (Debug.ENABLED && !suspended)
-            Debug.setSuspended(false);
-    }
-
-    private static class Throttle {
-        private long _throttleCount;
-    }
-
-    private Throttle getThrottle() {
-        ThreadLocal<Throttle> throttleThreadLocal = getThrottleThreadLocal();
-        Throttle throttle = throttleThreadLocal.get();
-        if (throttle == null) {
-            throttle = new Throttle();
-            throttleThreadLocal.set(throttle);
-        }
-        return throttle;
     }
 
     /**
      * Initializes Persistit using a property file path supplied as the first
-     * argument, or if no arguments are supplied, the default property file
-     * name. As a side-effect, this method will apply any uncommitted updates
-     * from the prewrite journal. As a side-effect, this method will also open
-     * the diagnostic UI if requested by system property or property value in
-     * the property file.
+     * argument, or if no arguments are supplied, the default property file name
+     * (<tt>persistit.properties</tt> in the default directory). Command-line
+     * argument flags can invoke the integrity checker, start the AdminUI and
+     * suspend shutdown. See {@link #USAGE} for details.
      * 
      * @param args
      * @throws Exception

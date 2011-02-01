@@ -198,6 +198,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     _volumeToHandleMap);
             rman.collectRecoveredTreeMaps(_handleToTreeMap, _treeToHandleMap);
             rman.collectRecoveredTransactionMap(_liveTransactionMap);
+            // Set _handleCount so that newly created handles are do not
+            // conflict with existing resources.
+            for (Integer handle : _handleToTreeMap.keySet()) {
+                _handleCounter = Math.max(_handleCounter, handle + 1);
+            }
+            for (Integer handle : _handleToVolumeMap.keySet()) {
+                _handleCounter = Math.max(_handleCounter, handle + 1);
+            }
         } else {
             _journalFilePath = new File(path).getAbsoluteFile().toString();
             _blockSize = maximumSize;
@@ -366,6 +374,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             //
             synchronized (this) {
                 handle = Integer.valueOf(++_handleCounter);
+                Debug.$assert(!_handleToVolumeMap.containsKey(handle));
                 writeVolumeHandleToJournal(vd, handle.intValue());
                 _volumeToHandleMap.put(vd, handle);
                 _handleToVolumeMap.put(handle, vd);
@@ -387,6 +396,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             //
             synchronized (this) {
                 handle = Integer.valueOf(++_handleCounter);
+                Debug.$assert(!_handleToTreeMap.containsKey(handle));
                 writeTreeHandleToJournal(td, handle.intValue());
                 _treeToHandleMap.put(td, handle);
                 _handleToTreeMap.put(handle, td);

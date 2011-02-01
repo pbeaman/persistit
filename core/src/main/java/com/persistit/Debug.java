@@ -17,16 +17,8 @@
 
 package com.persistit;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.Random;
 import java.util.StringTokenizer;
 
@@ -34,10 +26,6 @@ public class Debug {
     public final static boolean ENABLED = false;
 
     public final static boolean VERIFY_PAGES = false;
-
-    public final static boolean HISTORY_ENABLED = false;
-
-    public final static boolean IOLOG_ENABLED = false;
 
     private static int _suspendedCount;
     // Lazily instantiated

@@ -1114,9 +1114,6 @@ public class Transaction {
                         clear();
                     }
                     _longRecordDeallocationList.clear();
-                    // simulates writing a transaction to the log.
-                    // _persistit.getLogManager().writeStuff(_stuff, 0,
-                    // _stuff.length);
                     committed = true;
                     try {
                         _commitListener.committed();
