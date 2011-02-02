@@ -26,6 +26,7 @@ import java.util.TreeMap;
 
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.VolumeDescriptor;
+import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.RecoveryManager.RecoveryListener;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
@@ -249,6 +250,35 @@ public class RecoveryTest extends PersistitUnitTestCase {
             pn = pn.getPrevious();
         }
         assertEquals(1, count);
+    }
+    
+    public void testVolumeMetadataValid() throws Exception {
+    	// create a junk volume to make sure the internal handle count is bumped up
+    	VolumeDescriptor vd = new VolumeDescriptor("foo", 123);
+    	int volumeHandle = _persistit.getJournalManager().handleForVolume(vd);
+    	// retrieve the value of the handle counter before crashing
+    	int initialHandleValue = _persistit.getJournalManager().getHandleCount();
+        _persistit.getJournalManager().flush();
+    	_persistit.crash();
+        Properties saveProperties = _persistit.getProperties();
+        _persistit = new Persistit();
+        _persistit.initialize(saveProperties);
+        // verify the value of the handle counter after recovery is
+        // still valid. 
+        assertEquals(initialHandleValue + 1, _persistit.getJournalManager().getHandleCount());
+        
+    	// create a junk tree to make sure the internal handle count is bumped up
+        TreeDescriptor td = new TreeDescriptor(volumeHandle, "gray");
+        _persistit.getJournalManager().handleForTree(td);
+        int updatedHandleValue = _persistit.getJournalManager().getHandleCount();
+        _persistit.getJournalManager().flush();
+        _persistit.crash();
+        saveProperties = _persistit.getProperties();
+        _persistit = new Persistit();
+        _persistit.initialize(saveProperties);
+        // verify the value of the handle counter after recovery is
+        // still valid. 
+        assertEquals(updatedHandleValue + 1, _persistit.getJournalManager().getHandleCount());
     }
 
     private void store1() throws PersistitException {
