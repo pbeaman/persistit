@@ -258,8 +258,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     	int volumeHandle = _persistit.getJournalManager().handleForVolume(vd);
     	// retrieve the value of the handle counter before crashing
     	int initialHandleValue = _persistit.getJournalManager().getHandleCount();
-        _persistit.getJournalManager().flush();
-    	_persistit.crash();
+    	_persistit.close();
         Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
@@ -271,8 +270,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         TreeDescriptor td = new TreeDescriptor(volumeHandle, "gray");
         _persistit.getJournalManager().handleForTree(td);
         int updatedHandleValue = _persistit.getJournalManager().getHandleCount();
-        _persistit.getJournalManager().flush();
-        _persistit.crash();
+        _persistit.close();
         saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
