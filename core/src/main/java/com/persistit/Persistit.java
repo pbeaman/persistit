@@ -99,7 +99,7 @@ public class Persistit {
     /**
      * The copyright notice
      */
-    public final static String COPYRIGHT = "Copyright (c) 2004-2010 Persistit Corporation. All Rights Reserved.";
+    public final static String COPYRIGHT = "Copyright (c) 2011 Akiban Technologies Inc.";
 
     /**
      * Determines whether multi-byte integers will be written in little- or
