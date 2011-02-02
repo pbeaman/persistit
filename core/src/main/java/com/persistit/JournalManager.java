@@ -1884,6 +1884,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private long rolloverThreshold() {
         return _closed.get() ? 0 : ROLLOVER_THRESHOLD;
     }
+    
+    /**
+     * @return number of internal handle values that have been assigned so far
+     */
+    public int getHandleCount() {
+    	return _handleCounter;
+    }
 
     /**
      * For use only by unit tests that prove having an open transaction prevents
