@@ -26,4 +26,27 @@
         <module>core</module>
         <module>bench</module>
     </modules>
+    <build>
+        <plugins>
+            <plugin>
+                <inherited>false</inherited>
+                <groupId>com.mycila.maven-license-plugin</groupId>
+                <artifactId>maven-license-plugin</artifactId>
+                <configuration>
+                    <header>LICENSE.txt</header>
+                    <aggregate>true</aggregate>
+                    <properties>
+                        <year>2011</year>
+                    </properties>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
