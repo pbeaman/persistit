@@ -3552,7 +3552,7 @@ public final class Key implements Comparable<Object> {
      * Append a key segment that represents the left edge of the subtree at this
      * level. The result key value should only be used in traversal operations.
      */
-    private Key appendBefore() {
+    Key appendBefore() {
         int size = _size;
         _bytes[size++] = TYPE_BEFORE;
         _bytes[size] = 0;
@@ -3568,7 +3568,7 @@ public final class Key implements Comparable<Object> {
      * this level. The result key value should only be used in traversal
      * operations.
      */
-    private Key appendAfter() {
+    Key appendAfter() {
         int size = _size;
         _bytes[size++] = (byte) TYPE_AFTER;
         _bytes[size] = 0;
@@ -3902,13 +3902,13 @@ public final class Key implements Comparable<Object> {
      * Recomputes the number of segments in this <tt>Key</tt>
      */
     private void recomputeCurrentDepth() {
-        int index = -1;
-        for (int depth = 0;; depth++) {
-            if ((index = nextElementIndex(index)) == -1) {
-                _depth = depth;
-                break;
+        int depth = 0;
+        for (int index = 0; index < _size; index++) {
+            if (_bytes[index] == 0) {
+                depth++;
             }
         }
+        _depth = depth;
     }
 
     private void notLeftOrRightGuard() {

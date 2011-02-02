@@ -18,7 +18,10 @@ public class LockManager {
 
     private final ThreadLocal<ResourceTracker> _resourceThreadLocal = new ThreadLocal<ResourceTracker>();
 
+    /*
+     * Reinstate this to enable the toString method.
     private final Map<Thread, ResourceTracker> _resourceTrackerMap = new ConcurrentHashMap<Thread, ResourceTracker>();
+    */
 
     static class ResourceTracker {
         private final List<SharedResource> _resources = new ArrayList<SharedResource>();
@@ -30,13 +33,13 @@ public class LockManager {
             return "[" + _offset + "]" + _resources;
         }
 
-        private void register(final SharedResource resource) {
+        void register(final SharedResource resource) {
             if (!_disabled) {
                 _resources.add(resource);
             }
         }
 
-        private void unregister(final SharedResource resource) {
+        void unregister(final SharedResource resource) {
             if (!_disabled) {
                 final int size = _resources.size();
                 final int position = size - _offset - 1;
@@ -57,7 +60,7 @@ public class LockManager {
             }
         }
 
-        private boolean isMine(final SharedResource resource) {
+        boolean isMine(final SharedResource resource) {
             for (int index = _resources.size(); --index >= 0;) {
                 if (_resources.get(index) == resource) {
                     return true;
@@ -66,36 +69,43 @@ public class LockManager {
             return false;
         }
 
-        private int getLockedResourceCount() {
+        int getLockedResourceCount() {
             return _resources.size();
         }
 
-        private boolean verifyLockedResourceCount(final int count) {
+        boolean verifyLockedResourceCount(final int count) {
             if (!_disabled && count != _resources.size()) {
                 Debug.debug1(true);
                 return false;
             }
             return true;
         }
+        
+        void setOffset() {
+            _offset = 1;
+        }
 
-        private void setOffset(final int offset) {
+        void setOffset(final int offset) {
             _offset = offset;
         }
 
-        private void setDisabled(final boolean disabled) {
+        void setDisabled(final boolean disabled) {
             _disabled = disabled;
         }
 
-        private boolean isDisabled() {
+        boolean isDisabled() {
             return _disabled;
         }
     }
 
-    private ResourceTracker getMyResourceTracker() {
+    ResourceTracker getMyResourceTracker() {
         ResourceTracker tracker = _resourceThreadLocal.get();
         if (tracker == null) {
             tracker = new ResourceTracker();
+            /*
+             * Reinstate this to enable the toString method.
             _resourceTrackerMap.put(Thread.currentThread(), tracker);
+             */
             _resourceThreadLocal.set(tracker);
         }
         return tracker;
@@ -117,12 +127,12 @@ public class LockManager {
         return getMyResourceTracker().getLockedResourceCount();
     }
 
-    public boolean verifyNoStrayResourceClaims(final int count) {
+    public boolean verifyLockedResourceCount(final int count) {
         return getMyResourceTracker().verifyLockedResourceCount(count);
     }
 
     public void setOffset() {
-        getMyResourceTracker().setOffset(1);
+        getMyResourceTracker().setOffset();
     }
 
     public void setOffset(final int offset) {
@@ -137,6 +147,7 @@ public class LockManager {
         return getMyResourceTracker().isDisabled();
     }
 
+    /*
     @Override
     public synchronized String toString() {
         final SortedMap<Thread, ResourceTracker> sorted = new TreeMap<Thread, ResourceTracker>(
@@ -150,5 +161,6 @@ public class LockManager {
         }
         return sb.toString();
     }
+    */
 
 }

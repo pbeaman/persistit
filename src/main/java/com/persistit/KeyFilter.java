@@ -1152,17 +1152,14 @@ public class KeyFilter {
             boolean leftInclusive, boolean rightInclusive, CoderContext context) {
         Key key = new Key((Persistit) null);
         if (fromValue == null)
-            key.append(Key.BEFORE);
+            key.appendBefore();
         else
             key.append(fromValue, context);
         key.reset();
         byte[] leftBytes = segmentBytes(key);
         key.clear();
         if (toValue != fromValue && toValue != null) {
-            if (toValue == null)
-                key.append(Key.AFTER);
-            else
-                key.append(toValue, context);
+            key.append(toValue, context);
             key.reset();
             byte[] rightBytes = segmentBytes(key);
             if (compare(leftBytes, rightBytes) > 0) {
@@ -1411,17 +1408,21 @@ public class KeyFilter {
      */
     public boolean traverse(Key key, boolean forward) {
         if (key.getEncodedSize() == 0) {
-            key.append(forward ? Key.BEFORE : Key.AFTER);
+            if (forward) {
+                key.appendBefore();
+            } else {
+                key.appendAfter();
+            }
         }
         final boolean result = traverse(key, 0, 0, forward);
         return result;
     }
 
     private boolean traverse(Key key, int index, int level, boolean forward) {
-
-        Debug.$assert(level < _maxDepth);
-        Debug.$assert(index < key.getEncodedSize());
-
+        if (Debug.ENABLED) {
+            Debug.$assert(level < _maxDepth);
+            Debug.$assert(index < key.getEncodedSize());
+        }
         int nextIndex = key.nextElementIndex(index);
         if (nextIndex == -1) {
             nextIndex = key.getEncodedSize();
@@ -1436,7 +1437,7 @@ public class KeyFilter {
                 if (term.selected(key.getEncodedBytes(), index, nextIndex
                         - index)) {
                     if (lastKeySegment && !key.isSpecial()) {
-                        key.append(Key.BEFORE);
+                        key.appendBefore();
                         traversed = traverse(key, nextIndex, level + 1, true);
                     } else if (!lastKeySegment) {
                         traversed = traverse(key, nextIndex, level + 1, true);
@@ -1452,7 +1453,7 @@ public class KeyFilter {
                         && !key.isSpecial()
                         && term.selected(key.getEncodedBytes(), index,
                                 nextIndex - index)) {
-                    key.append(Key.BEFORE);
+                    key.appendBefore();
                     traversed = traverse(key, nextIndex, level + 1, true);
                 }
             }
@@ -1476,7 +1477,7 @@ public class KeyFilter {
                         && !key.isSpecial()
                         && term.selected(key.getEncodedBytes(), index,
                                 nextIndex)) {
-                    key.append(Key.AFTER);
+                    key.appendAfter();
                     traversed = traverse(key, nextIndex, level + 1, false);
                 }
             }

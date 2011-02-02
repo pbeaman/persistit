@@ -30,6 +30,7 @@ import static com.persistit.Key.maxStorableKeySize;
 import java.lang.ref.WeakReference;
 
 import com.persistit.Key.Direction;
+import com.persistit.LockManager.ResourceTracker;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
@@ -172,9 +173,9 @@ public class Exchange implements BuildConstants {
     private boolean _ignoreTransactions;
 
     private long _longRecordPageAddress;
-    
+
     private WeakReference<Thread> _currentThread;
-    
+
     private boolean _secure;
 
     /**
@@ -406,8 +407,9 @@ public class Exchange implements BuildConstants {
         }
 
         private void copyTo(LevelCache to) {
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.$assert(to._level == _level || to._level == -1);
+            }
             to._buffer = _buffer;
             to._page = _page;
             to._foundAt = _foundAt;
@@ -428,7 +430,9 @@ public class Exchange implements BuildConstants {
                 if (foundAt != -1 && (foundAt & Buffer.EXACT_MASK) != 0) {
                     int depth = Buffer.decodeDepth(foundAt);
                     int klength = key.getEncodedSize();
-                    Debug.$assert(depth == klength);
+                    if (Debug.ENABLED) {
+                        Debug.$assert(depth == klength);
+                    }
                 }
             }
 
@@ -867,25 +871,10 @@ public class Exchange implements BuildConstants {
 
         if (buffer.isBeforeLeftEdge(foundAt)
                 || buffer.isAfterRightEdge(foundAt)) {
-            // _pool.release(buffer);
-            buffer.release(); // Don't move to front of MRU queue - it's not
-            // a helpful buffer.
+            buffer.release(); // Don't make Most-Recently-Used
             buffer = null;
             return searchTree(key, 0);
         }
-        // updateFastFindCache(key);
-
-        // DEBUG - remove after reclaim fix
-        if (Debug.ENABLED) {
-            if (buffer.getGeneration() != lc._bufferGeneration) {
-                int foundAt2 = searchTree(key, 0);
-                Buffer buffer2 = lc._buffer;
-                Debug.$assert(buffer2 == buffer);
-                buffer.release();
-                foundAt = foundAt2;
-            }
-        }
-
         return foundAt;
     }
 
@@ -900,23 +889,6 @@ public class Exchange implements BuildConstants {
                 // return foundAt;
                 done = true;
             }
-
-            // else if (_fastFindGeneration == lc._keyGeneration)
-            // {
-            // int depth = Buffer.decodeDepth(foundAt);
-            // if (depth < key.getEncodedSize())
-            // {
-            // byte[] bytes = key.getEncodedBytes();
-            // if (depth < _fastFindSize &&
-            // (bytes[depth] & 0xFF) >= (_fastFindCache[depth] & 0xFF) &&
-            // Util.equalsByteSubarray(bytes, 0, _fastFindCache, 0, depth - 1))
-            // {
-            // foundAt = buffer.findKey(key, foundAt);
-            // lc.update(buffer, key, foundAt);
-            // done = true;
-            // }
-            // }
-            // }
         }
         if (Debug.ENABLED && done) {
             int foundAt2 = buffer.findKey(key);
@@ -945,12 +917,11 @@ public class Exchange implements BuildConstants {
         int currentLevel;
         int foundAt = -1;
         boolean found = false;
-        Exception exception = null;
 
         if (!_tree.claim(false)) {
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.debug1(true);
-
+            }
             throw new InUseException("Thread "
                     + Thread.currentThread().getName()
                     + " failed to get reader claim on " + _tree);
@@ -959,16 +930,16 @@ public class Exchange implements BuildConstants {
 
         long pageAddress = _rootPage;
         long oldPageAddress = pageAddress;
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             Debug.$assert(pageAddress != 0);
+        }
 
-        // if (Debug.ENABLED) Debug.$assert(_treeGeneration ==
-        // _tree.getGeneration());
         try {
             for (currentLevel = _cacheDepth; --currentLevel >= toLevel;) {
                 if (pageAddress <= 0) {
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
+                    }
 
                     throw new CorruptVolumeException("Volume " + _volume
                             + " level=" + currentLevel + " page=" + pageAddress
@@ -988,8 +959,9 @@ public class Exchange implements BuildConstants {
 
                 if (buffer == null || buffer.isBeforeLeftEdge(foundAt)) {
                     oldBuffer = buffer; // So it will be released
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
+                    }
 
                     throw new CorruptVolumeException("Volume " + _volume
                             + " level=" + currentLevel + " page=" + pageAddress
@@ -1014,13 +986,15 @@ public class Exchange implements BuildConstants {
                     oldPageAddress = pageAddress;
                     pageAddress = buffer.getPointer(p);
 
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.$assert(pageAddress > 0
                                 && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
+                    }
                 } else {
                     oldBuffer = buffer; // So it will be released
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
+                    }
 
                     throw new CorruptVolumeException("Volume " + _volume
                             + " level=" + currentLevel + " page=" + pageAddress
@@ -1061,9 +1035,9 @@ public class Exchange implements BuildConstants {
             for (int rightWalk = MAX_WALK_RIGHT; rightWalk-- > 0;) {
                 Buffer buffer = null;
                 if (pageAddress <= 0) {
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
-
+                    }
                     throw new CorruptVolumeException("Volume " + _volume
                             + " level=" + currentLevel + " page=" + pageAddress
                             + " previousPage=" + oldPageAddress
@@ -1120,15 +1094,15 @@ public class Exchange implements BuildConstants {
                 oldPageAddress = pageAddress;
                 pageAddress = buffer.getRightSibling();
 
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(pageAddress > 0
                             && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
-
+                }
                 oldBuffer = buffer;
             }
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.debug1(true);
-
+            }
             throw new CorruptVolumeException("Volume " + _volume + " level="
                     + currentLevel + " page=" + oldPageAddress
                     + " initialPage=" + initialPageAddress + " key=<"
@@ -1158,7 +1132,7 @@ public class Exchange implements BuildConstants {
                 .getLockedResourceCount();
         _transaction.assignTimestamp();
         storeInternal(key, value, 0, false, false);
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
         return this;
     }
@@ -1215,18 +1189,20 @@ public class Exchange implements BuildConstants {
             }
 
             for (;;) {
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(buffer == null);
-                _persistit.getLockManager().verifyNoStrayResourceClaims(
+                }
+                _persistit.getLockManager().verifyLockedResourceCount(
                         lockedResourceCount);
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.suspend();
+                }
 
                 if (treeClaimRequired && !treeClaimAcquired) {
                     if (!_tree.claim(treeWriterClaimRequired)) {
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.debug1(true);
-
+                        }
                         throw new InUseException("Thread "
                                 + Thread.currentThread().getName()
                                 + " failed to get reader claim on " + _tree);
@@ -1238,7 +1214,7 @@ public class Exchange implements BuildConstants {
                 checkLevelCache();
 
                 try {
-                    _persistit.getLockManager().verifyNoStrayResourceClaims(
+                    _persistit.getLockManager().verifyLockedResourceCount(
                             lockedResourceCount);
                     if (inTxn) {
                         if (value.isAtomicIncrementArmed()) {
@@ -1269,8 +1245,9 @@ public class Exchange implements BuildConstants {
                     }
 
                     if (level >= _cacheDepth) {
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.$assert(level == _cacheDepth);
+                        }
                         //
                         // Need to lock the tree because we may need to change
                         // its root.
@@ -1281,14 +1258,16 @@ public class Exchange implements BuildConstants {
                             throw RetryException.SINGLE;
                         }
 
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.$assert(value.getPointerValue() > 0);
+                        }
                         insertIndexLevel(key, value);
                         break;
                     }
 
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.$assert(buffer == null);
+                    }
                     int foundAt = -1;
                     LevelCache lc = _levelCache[level];
                     buffer = reclaimQuickBuffer(lc);
@@ -1311,22 +1290,11 @@ public class Exchange implements BuildConstants {
                         buffer = lc._buffer;
                     }
 
-                    // DEBUG - remove after reclaim fix
                     if (Debug.ENABLED) {
-                        if (buffer.getGeneration() != lc._bufferGeneration) {
-                            int foundAt2 = searchTree(key, 0);
-                            Debug.$assert(lc._buffer == buffer);
-                            buffer.release();
-                            buffer = lc._buffer;
-                            foundAt = foundAt2;
-                        }
-                    }
-
-                    if (Debug.ENABLED)
                         Debug.$assert(buffer != null
                                 && (buffer._status & SharedResource.WRITER_MASK) != 0
                                 && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
-
+                    }
                     if ((foundAt & Buffer.EXACT_MASK) != 0) {
                         oldLongRecordPointer = buffer
                                 .fetchLongRecordPointer(foundAt);
@@ -1352,12 +1320,13 @@ public class Exchange implements BuildConstants {
                     boolean splitPerformed = putLevel(lc, key, value, buffer,
                             foundAt, treeClaimAcquired);
 
-                    _persistit.getLockManager().verifyNoStrayResourceClaims(
+                    _persistit.getLockManager().verifyLockedResourceCount(
                             lockedResourceCount2);
 
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
                                 && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+                    }
                     //
                     // If a split is required then putLevel did not change
                     // anything. We need to repeat this after acquiring a
@@ -1395,8 +1364,9 @@ public class Exchange implements BuildConstants {
                     } else {
                         // Otherwise we need to index the new right
                         // sibling at the next higher index level.
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.$assert(value.getPointerValue() > 0);
+                        }
                         key = _spareKey1;
                         key.bumpGeneration(); // because otherwise we may
                         // use the wrong cached
@@ -1442,7 +1412,7 @@ public class Exchange implements BuildConstants {
                         _pool.release(buffer);
                         buffer = null;
                     }
-                    _persistit.getLockManager().verifyNoStrayResourceClaims(
+                    _persistit.getLockManager().verifyLockedResourceCount(
                             lockedResourceCount);
                 }
             }
@@ -1465,13 +1435,13 @@ public class Exchange implements BuildConstants {
                 //
                 if (newLongRecordPointer != oldLongRecordPointer
                         && newLongRecordPointer != 0) {
-                    _volume.deallocateGarbageChainDeferred(newLongRecordPointer, 0);
+                    _volume.deallocateGarbageChainDeferred(
+                            newLongRecordPointer, 0);
                     _hasDeferredDeallocations = true;
                 }
             } else if (oldLongRecordPointer != newLongRecordPointer
                     && oldLongRecordPointer != 0) {
-                _volume.deallocateGarbageChainDeferred(
-                        oldLongRecordPointer, 0);
+                _volume.deallocateGarbageChainDeferred(oldLongRecordPointer, 0);
                 _hasDeferredDeallocations = true;
             }
         }
@@ -1487,8 +1457,9 @@ public class Exchange implements BuildConstants {
 
     private void commitAllDeferredUpdates() throws PersistitException {
 
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             Debug.suspend();
+        }
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         for (;;) {
@@ -1503,7 +1474,7 @@ public class Exchange implements BuildConstants {
             }
             break;
         }
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
     }
 
@@ -1519,9 +1490,9 @@ public class Exchange implements BuildConstants {
             long newTopPage = buffer.getPageAddress();
             long leftSiblingPointer = _rootPage;
 
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.$assert(leftSiblingPointer == _tree.getRootPageAddr());
-
+            }
             long rightSiblingPointer = value.getPointerValue();
             //
             // Note: left and right sibling are of the same level and therefore
@@ -1571,13 +1542,11 @@ public class Exchange implements BuildConstants {
     private boolean putLevel(LevelCache lc, Key key, Value value,
             Buffer buffer, int foundAt, boolean okToSplit)
             throws PersistitException {
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             Debug.$assert(_exclusive);
-
-        if (Debug.ENABLED)
             Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
                     && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
-
+        }
         int result = buffer.putValue(key, value, foundAt, false);
         if (result != -1) {
             buffer.setDirty();
@@ -1585,9 +1554,10 @@ public class Exchange implements BuildConstants {
             lc.update(buffer, key, result);
             return false;
         } else {
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.$assert(buffer.getPageAddress() != _volume
                         .getGarbageRoot());
+            }
             Buffer rightSibling = null;
 
             try {
@@ -1603,10 +1573,10 @@ public class Exchange implements BuildConstants {
                 //
                 rightSibling = _volume.allocPage();
 
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(rightSibling.getPageAddress() != 0);
-                if (Debug.ENABLED)
                     Debug.$assert(rightSibling != buffer);
+                }
 
                 rightSibling.init(buffer.getPageType());
                 // debug
@@ -1623,13 +1593,12 @@ public class Exchange implements BuildConstants {
                 long oldRightSibling = buffer.getRightSibling();
                 long newRightSibling = rightSibling.getPageAddress();
 
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(newRightSibling > 0
                             && oldRightSibling != newRightSibling);
-
-                if (Debug.ENABLED)
                     Debug.$assert(rightSibling.getPageType() == buffer
                             .getPageType());
+                }
 
                 rightSibling.setRightSibling(oldRightSibling);
                 buffer.setRightSibling(newRightSibling);
@@ -1766,15 +1735,15 @@ public class Exchange implements BuildConstants {
     public boolean traverse(final Direction direction, final boolean deep,
             final int minBytes) throws PersistitException {
         _persistit.checkClosed();
-
+        final ResourceTracker resourceTracker = _persistit.getLockManager()
+                .getMyResourceTracker();
         boolean doFetch = minBytes > 0;
         boolean doModify = minBytes >= 0;
         boolean result;
-        final int lockedResourceCount = _persistit.getLockManager()
+        final int lockedResourceCount = resourceTracker
                 .getLockedResourceCount();
 
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
-                lockedResourceCount);
+        resourceTracker.verifyLockedResourceCount(lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
         Buffer buffer = null;
@@ -1873,7 +1842,11 @@ public class Exchange implements BuildConstants {
             Key.Direction dir = direction;
 
             if (index == 0) {
-                _spareKey1.append(reverse ? AFTER : BEFORE);
+                if (reverse) {
+                    _spareKey1.appendAfter();
+                } else {
+                    _spareKey1.appendBefore();
+                }
             } else if (dir == GT || dir == GTEQ) {
                 dir = GT;
                 if (!_spareKey1.isSpecial()) {
@@ -1908,17 +1881,17 @@ public class Exchange implements BuildConstants {
                     // DEBUG - debug
                     long rightSiblingPage = buffer.getRightSibling();
 
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.$assert(rightSiblingPage >= 0
                                 && rightSiblingPage <= Buffer.MAX_VALID_PAGE_ADDR);
-
+                    }
                     if (rightSiblingPage > 0) {
                         Buffer rightSibling = _pool.get(_volume,
                                 rightSiblingPage, _exclusive, true);
                         if (inTxn) {
                             _transaction.touchedPage(this, buffer);
                         }
-                        _persistit.getLockManager().setOffset();
+                        resourceTracker.setOffset();
                         _pool.release(buffer);
                         //
                         // Reset foundAtNext to point to the first key block
@@ -1936,9 +1909,9 @@ public class Exchange implements BuildConstants {
 
                 if (!nudged && foundAtNext == foundAt
                         && !_spareKey1.isSpecial()) {
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
-
+                    }
                     throw new CorruptVolumeException("Volume " + _volume
                             + " near page " + buffer.getPageAddress()
                             + " traversal on key <" + _spareKey1 + ">"
@@ -2078,8 +2051,7 @@ public class Exchange implements BuildConstants {
                 _pool.release(buffer);
                 buffer = null;
             }
-            _persistit.getLockManager().verifyNoStrayResourceClaims(
-                    lockedResourceCount);
+            resourceTracker.verifyLockedResourceCount(lockedResourceCount);
         }
         _volume.bumpTraverseCounter();
         return result;
@@ -2141,11 +2113,14 @@ public class Exchange implements BuildConstants {
         }
 
         final boolean forward = (direction == GT) || (direction == GTEQ);
-
-        boolean edge = (direction == EQ || direction == LTEQ || direction == GTEQ);
+        boolean edge = (direction == LTEQ || direction == GTEQ);
 
         if (_key.getEncodedSize() == 0) {
-            _key.append(forward ? BEFORE : AFTER);
+            if (forward) {
+                _key.appendBefore();
+            } else {
+                _key.appendAfter();
+            }
         }
 
         if (edge && keyFilter.selected(_key)
@@ -2411,7 +2386,7 @@ public class Exchange implements BuildConstants {
                 .getLockedResourceCount();
         _transaction.assignTimestamp();
         storeInternal(_key, _value, 0, true, false);
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
         _spareValue.copyTo(_value);
         return this;
@@ -2503,7 +2478,7 @@ public class Exchange implements BuildConstants {
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
 
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
@@ -2528,7 +2503,7 @@ public class Exchange implements BuildConstants {
                 }
                 _pool.release(buffer);
             }
-            _persistit.getLockManager().verifyNoStrayResourceClaims(
+            _persistit.getLockManager().verifyLockedResourceCount(
                     lockedResourceCount);
         }
     }
@@ -2613,7 +2588,7 @@ public class Exchange implements BuildConstants {
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
 
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
         Buffer buffer = null;
         try {
@@ -2625,7 +2600,7 @@ public class Exchange implements BuildConstants {
         } finally {
             if (buffer != null)
                 _pool.release(buffer);
-            _persistit.getLockManager().verifyNoStrayResourceClaims(
+            _persistit.getLockManager().verifyLockedResourceCount(
                     lockedResourceCount);
         }
     }
@@ -2647,8 +2622,9 @@ public class Exchange implements BuildConstants {
         _spareValue.clear();
         boolean result = remove(EQ, true);
         _spareValue.copyTo(_value);
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             Debug.$assert(_value.isDefined() == result);
+        }
         return result;
     }
 
@@ -2675,7 +2651,7 @@ public class Exchange implements BuildConstants {
             _volume.removeTree(_tree);
         }
         initCache();
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
     }
 
@@ -2830,9 +2806,9 @@ public class Exchange implements BuildConstants {
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             Debug.suspend();
-
+        }
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
         boolean treeClaimAcquired = false;
@@ -2858,7 +2834,7 @@ public class Exchange implements BuildConstants {
             // again until the expiration time.
             //
             for (;;) {
-                _persistit.getLockManager().verifyNoStrayResourceClaims(
+                _persistit.getLockManager().verifyLockedResourceCount(
                         lockedResourceCount);
 
                 checkLevelCache();
@@ -2891,16 +2867,16 @@ public class Exchange implements BuildConstants {
                                     }
                                     foundAt2 &= Buffer.P_MASK;
 
-                                    if (Debug.ENABLED)
+                                    if (Debug.ENABLED) {
                                         Debug.$assert(foundAt2 >= foundAt1);
-
+                                    }
                                     if (fetchFirst) {
                                         removeFetchFirst(buffer, foundAt1,
                                                 buffer, foundAt2);
                                     }
                                     final boolean anyLongRecords = _volume
-                                            .harvestLongRecords(
-                                                    buffer, foundAt1, foundAt2);
+                                            .harvestLongRecords(buffer,
+                                                    foundAt1, foundAt2);
 
                                     boolean removed = buffer.removeKeys(
                                             foundAt1, foundAt2, _spareKey1);
@@ -2928,9 +2904,9 @@ public class Exchange implements BuildConstants {
 
                     if (!treeClaimAcquired) {
                         if (!_tree.claim(treeWriterClaimRequired)) {
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.debug1(true);
-
+                            }
                             throw new InUseException("Thread "
                                     + Thread.currentThread().getName()
                                     + " failed to get writer claim on " + _tree);
@@ -3007,14 +2983,15 @@ public class Exchange implements BuildConstants {
                             foundAt2 = searchLevel(key2, pageAddr2, level);
                             if ((foundAt2 & Buffer.EXACT_MASK) != 0) {
                                 foundAt2 = buffer.nextKeyBlock(foundAt2);
-                                if (Debug.ENABLED)
+                                if (Debug.ENABLED) {
                                     Debug.$assert(foundAt2 != -1);
+                                }
                             }
                             foundAt2 &= Buffer.P_MASK;
 
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(foundAt2 != Buffer.INITIAL_KEY_BLOCK_START_VALUE);
-
+                            }
                             buffer = lc._buffer;
                             lc._flags |= RIGHT_CLAIMED;
                             lc._rightBuffer = buffer;
@@ -3023,22 +3000,22 @@ public class Exchange implements BuildConstants {
                         }
 
                         if (lc._leftBuffer.isIndexPage()) {
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(lc._rightBuffer.isIndexPage()
                                         && depth > 0);
-
+                            }
                             int p1 = lc._leftBuffer.previousKeyBlock(foundAt1);
                             int p2 = lc._rightBuffer.previousKeyBlock(foundAt2);
 
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(p1 != -1 && p2 != -1);
-
+                            }
                             pageAddr1 = lc._leftBuffer.getPointer(p1);
                             pageAddr2 = lc._rightBuffer.getPointer(p2);
                         } else {
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(depth == 0);
-
+                            }
                             break;
                         }
                     }
@@ -3072,11 +3049,10 @@ public class Exchange implements BuildConstants {
                             // Before we remove the records in this range, we
                             // need to recover any LONG_RECORD pointers that
                             // are associated with keys in this range.
-                            _volume.harvestLongRecords(
-                                    buffer1, foundAt1, Integer.MAX_VALUE);
+                            _volume.harvestLongRecords(buffer1, foundAt1,
+                                    Integer.MAX_VALUE);
 
-                            _volume.harvestLongRecords(
-                                    buffer2, 0, foundAt2);
+                            _volume.harvestLongRecords(buffer2, 0, foundAt2);
 
                             boolean rebalanced = buffer1.join(buffer2,
                                     foundAt1, foundAt2, _spareKey1, _spareKey2,
@@ -3122,14 +3098,15 @@ public class Exchange implements BuildConstants {
                                     LevelCache parentLc = _levelCache[level + 1];
                                     Buffer buffer = parentLc._leftBuffer;
 
-                                    if (Debug.ENABLED)
+                                    if (Debug.ENABLED) {
                                         Debug.$assert(buffer != null);
-
+                                    }
                                     if (parentLc._rightBuffer == buffer) {
                                         int foundAt = buffer
                                                 .findKey(_spareKey1);
-                                        if (Debug.ENABLED)
+                                        if (Debug.ENABLED) {
                                             Debug.$assert((foundAt & Buffer.EXACT_MASK) == 0);
+                                        }
                                         // Try it the simple way
                                         _value.setPointerValue(buffer2
                                                 .getPageAddress());
@@ -3157,8 +3134,9 @@ public class Exchange implements BuildConstants {
 
                             result = true;
                         } else if (foundAt1 != foundAt2) {
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(foundAt2 >= foundAt1);
+                            }
                             _key.copyTo(_spareKey1);
                             //
                             // Before we remove these records, we need to
@@ -3166,8 +3144,8 @@ public class Exchange implements BuildConstants {
                             // associated with keys in this range.
                             //
                             final boolean anyLongRecords = _volume
-                                    .harvestLongRecords(
-                                            buffer1, foundAt1, foundAt2);
+                                    .harvestLongRecords(buffer1, foundAt1,
+                                            foundAt2);
 
                             result |= buffer1.removeKeys(foundAt1, foundAt2,
                                     _spareKey1);
@@ -3204,9 +3182,9 @@ public class Exchange implements BuildConstants {
                 }
                 if (treeWriterClaimRequired) {
                     if (!_tree.claim(true)) {
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.debug1(true);
-
+                        }
                         throw new InUseException("Thread "
                                 + Thread.currentThread().getName()
                                 + " failed to get reader claim on " + _tree);
@@ -3223,8 +3201,7 @@ public class Exchange implements BuildConstants {
                     left = lc._deallocLeftPage;
                     right = lc._deallocRightPage;
                     if (left != 0) {
-                        _volume.deallocateGarbageChain(
-                                left, right);
+                        _volume.deallocateGarbageChain(left, right);
                         lc._deallocLeftPage = 0;
                         lc._deallocRightPage = 0;
                     }
@@ -3242,9 +3219,9 @@ public class Exchange implements BuildConstants {
                         if (lc._deferredReindexPage != 0) {
                             if (!treeClaimAcquired) {
                                 if (!_tree.claim(treeWriterClaimRequired)) {
-                                    if (Debug.ENABLED)
+                                    if (Debug.ENABLED) {
                                         Debug.debug1(true);
-
+                                    }
                                     throw new InUseException("Thread "
                                             + Thread.currentThread().getName()
                                             + " failed to get writer claim on "
@@ -3301,7 +3278,7 @@ public class Exchange implements BuildConstants {
                 treeClaimAcquired = false;
             }
             _exclusive = false;
-            _persistit.getLockManager().verifyNoStrayResourceClaims(
+            _persistit.getLockManager().verifyLockedResourceCount(
                     lockedResourceCount);
         }
         // if (journalId != -1)
@@ -3396,17 +3373,17 @@ public class Exchange implements BuildConstants {
             byte[] rawBytes = value.getEncodedBytes();
             int rawSize = value.getEncodedSize();
             if (rawSize != Buffer.LONGREC_SIZE) {
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.debug1(true);
-
+                }
                 throw new CorruptVolumeException(
                         "Invalid LONG_RECORD value size=" + rawSize
                                 + " but should be " + Buffer.LONGREC_SIZE);
             }
             if ((rawBytes[0] & 0xFF) != Buffer.LONGREC_TYPE) {
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.debug1(true);
-
+                }
                 throw new CorruptVolumeException(
                         "Invalid LONG_RECORD value type="
                                 + (rawBytes[0] & 0xFF) + " but should be "
@@ -3436,9 +3413,9 @@ public class Exchange implements BuildConstants {
 
             for (int count = 0; page != 0 && offset < minimumBytesFetched; count++) {
                 if (remainingSize <= 0) {
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
-
+                    }
                     throw new CorruptVolumeException(
                             "Invalid LONG_RECORD remaining size="
                                     + remainingSize + " of " + rawSize
@@ -3446,9 +3423,9 @@ public class Exchange implements BuildConstants {
                 }
                 buffer = _pool.get(_volume, page, false, true);
                 if (buffer.getPageType() != Buffer.PAGE_TYPE_LONG_RECORD) {
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
-
+                    }
                     throw new CorruptVolumeException(
                             "LONG_RECORD chain is invalid at page " + page
                                     + " - invalid page type: " + buffer);
@@ -3565,16 +3542,18 @@ public class Exchange implements BuildConstants {
             bufferArray = new Buffer[count];
             for (; index < count && page != 0; index++) {
                 Buffer buffer = _pool.get(_volume, page, true, true);
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(buffer.isLongRecordPage());
+                }
                 bufferArray[index] = buffer;
                 page = buffer.getRightSibling();
 
                 // verify that there's no cycle
                 for (int i = 0; i < index; i++) {
                     if (bufferArray[i].getPageAddress() == page) {
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.debug1(true);
+                        }
 
                         throw new CorruptVolumeException(
                                 "LONG_RECORD chain cycle at " + bufferArray[0]);
@@ -3736,8 +3715,7 @@ public class Exchange implements BuildConstants {
             if (buffer != null)
                 _pool.release(buffer);
             if (looseChain != 0) {
-                _volume.deallocateGarbageChainDeferred(
-                        looseChain, 0);
+                _volume.deallocateGarbageChainDeferred(looseChain, 0);
                 _hasDeferredDeallocations = true;
             }
             if (!completed)
@@ -3787,9 +3765,9 @@ public class Exchange implements BuildConstants {
             throws PersistitException {
         int type = buffer.getPageType();
         if (type != expectedType) {
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.$assert(false);
-
+            }
             throw new CorruptVolumeException("Volume " + _volume + " page "
                     + buffer.getPageAddress() + " invalid page type " + type
                     + ": should be " + expectedType);
@@ -3940,7 +3918,7 @@ public class Exchange implements BuildConstants {
                 _pool.release(buffer);
             }
         }
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
 
         histogram.cull();
