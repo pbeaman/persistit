@@ -264,7 +264,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit.initialize(saveProperties);
         // verify the value of the handle counter after recovery is
         // still valid. 
-        assertEquals(initialHandleValue + 1, _persistit.getJournalManager().getHandleCount());
+        assertTrue(_persistit.getJournalManager().getHandleCount() > initialHandleValue);
         
     	// create a junk tree to make sure the internal handle count is bumped up
         TreeDescriptor td = new TreeDescriptor(volumeHandle, "gray");
@@ -276,7 +276,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit.initialize(saveProperties);
         // verify the value of the handle counter after recovery is
         // still valid. 
-        assertEquals(updatedHandleValue + 1, _persistit.getJournalManager().getHandleCount());
+        assertTrue(_persistit.getJournalManager().getHandleCount() > updatedHandleValue);
     }
 
     private void store1() throws PersistitException {
