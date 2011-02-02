@@ -13,16 +13,4 @@
     along with this program.  If not, see http://www.gnu.org/licenses.
 ====
 
-# /* <GENERIC-HEADER - BEGIN>
-#  *
-#  * $(COMPANY) $(COPYRIGHT)
-#  *
-#  * Created on: Nov, 20, 2009
-#  * Created by: Thomas Hazel
-#  *
-#  * </GENERIC-HEADER - END> */
-#
-# Install jars in your local repository
-#
-$ mvn clean source:jar install
 
