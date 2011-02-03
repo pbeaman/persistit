@@ -168,9 +168,21 @@ public class ExchangeTest extends PersistitUnitTestCase {
 			ex.fetch();
 			assertEquals(mockValue, ex.getValue().getString());
 		}
+		ex.clear().to(Key.BEFORE);
+		while (ex.hasNext()) {
+			ex.next();
+			ex.fetch();
+			assertEquals(mockValue, ex.getValue().getString());
+		}
 		/* now traverse backwards through those values */
 		ex.clear().to(Key.AFTER);
 		while (ex.previous()) {
+			ex.fetch();
+			assertEquals(mockValue, ex.getValue().getString());
+		}
+		ex.clear().to(Key.AFTER);
+		while (ex.hasPrevious()) {
+			ex.previous();
 			ex.fetch();
 			assertEquals(mockValue, ex.getValue().getString());
 		}
