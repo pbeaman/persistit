@@ -723,9 +723,9 @@ public class KeyFilter {
             if (object instanceof RangeTerm) {
                 RangeTerm t = (RangeTerm) object;
                 boolean result = _leftInclusive == t._leftInclusive
-                        && _rightInclusive == t._rightInclusive
-                        && compare(_itemFromBytes, t._itemFromBytes) == 0
-                        && compare(_itemToBytes, t._itemToBytes) == 0;
+                && _rightInclusive == t._rightInclusive
+                && compare(_itemFromBytes, t._itemFromBytes) == 0
+                && compare(_itemToBytes, t._itemToBytes) == 0;
                 return result;
             }
             return false;
@@ -741,7 +741,7 @@ public class KeyFilter {
             if (_hashCode == -1) {
                 _hashCode = (byteHash(_itemFromBytes) ^ byteHash(_itemToBytes)
                         ^ (_leftInclusive ? 123 : 0) ^ (_rightInclusive ? 456
-                        : 0)) & 0x7FFFFFFF;
+                                : 0)) & 0x7FFFFFFF;
             }
             return _hashCode;
         }
@@ -1351,8 +1351,8 @@ public class KeyFilter {
                 }
                 Term term = level < _terms.length ? _terms[level] : ALL;
                 if (term == null) {
-                	result = false;
-                	break;
+                    result = false;
+                    break;
                 }
                 result = term.selected(keyBytes, index, nextIndex - index);
                 index = nextIndex;
@@ -1431,7 +1431,7 @@ public class KeyFilter {
 
         Term term = level >= _terms.length ? ALL : _terms[level];
         if (term == null) {
-        	return false;
+            return false;
         }
 
         boolean traversed = false;
