@@ -116,7 +116,7 @@ import com.persistit.exception.TreeNotFoundException;
  * 
  * @version 1.0
  */
-public class Exchange implements BuildConstants {
+public class Exchange {
     /**
      * Maximum number of levels in one tree. (This count represents a highly
      * pathological case: most trees, even large ones, are no more than four or
@@ -1547,6 +1547,7 @@ public class Exchange implements BuildConstants {
             Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
                     && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
         }
+
         int result = buffer.putValue(key, value, foundAt, false);
         if (result != -1) {
             buffer.setDirty();
@@ -1737,6 +1738,7 @@ public class Exchange implements BuildConstants {
         _persistit.checkClosed();
         final ResourceTracker resourceTracker = _persistit.getLockManager()
                 .getMyResourceTracker();
+
         boolean doFetch = minBytes > 0;
         boolean doModify = minBytes >= 0;
         boolean result;
@@ -1753,23 +1755,20 @@ public class Exchange implements BuildConstants {
         }
 
         final boolean reverse = (direction == LT) || (direction == LTEQ);
-
         if (_key.getEncodedSize() == 0) {
             _key.append(reverse ? AFTER : BEFORE);
         }
 
         _key.testValidForTraverse();
 
-        boolean checkEqualCase = (direction == EQ || direction == GTEQ || direction == LTEQ)
-                && !_key.isSpecial();
-
+        boolean edge = direction == EQ || direction == GTEQ
+                || direction == LTEQ;
         checkLevelCache();
 
         try {
-            if (checkEqualCase && inTxn) {
+            if (inTxn && edge && !_key.isSpecial()) {
                 Boolean txnResult = _transaction.fetch(this, this.getValue(),
                         minBytes);
-
                 //
                 // A pending STORE transaction record overrides
                 // the base record.
@@ -1782,63 +1781,21 @@ public class Exchange implements BuildConstants {
                     // A pending DELETE transaction record overrides the
                     // base record.
                     //
-                    checkEqualCase = false;
-                }
-            }
-
-            if (checkEqualCase) {
-                int foundAt = search(_key);
-                LevelCache lc = _levelCache[0];
-                buffer = lc._buffer;
-                //
-                // Buffer has a reader claim on it. Will be released by
-                // the finally clause if we return.
-                //
-                if ((foundAt & Buffer.EXACT_MASK) != 0) {
-                    //
-                    // For any of EQ, GTEQ or LTEQ, finding an exact match
-                    // satisfies the traversal request.
-                    //
-                    if (doFetch) {
-                        buffer.fetch(foundAt, _value);
-                        fetchFixupForLongRecords(_value, minBytes);
+                    if (direction == EQ) {
+                        return false;
+                    } else {
+                        edge = false;
                     }
-                    //
-                    // Buffer is released by the finally clause, which
-                    // also registers the active transaction's interest,
-                    // if there is one, in this page.
-                    //
-                    return true;
                 }
-                //
-                // This buffer is not of interest, so we release it here.
-                //
-                _pool.release(buffer);
-                buffer = null;
-            }
-            if (direction == EQ) {
-                //
-                // For EQ only, failing to find an exact match causes
-                // traversal to fail. For LTEQ and GTEQ, we fall through
-                // to code that handles the LT and GT cases. In this
-                // case the key is left unchanged.
-                //
-                return false;
             }
 
             //
-            // We are committed to computing a new key value. We do this in
-            // a scratch key so that the original key value is available for
-            // comparison.
+            // Now we are committed to computing a new key value. Save the 
+            // original key value for comparison.
             //
             _key.copyTo(_spareKey1);
-            int index = _spareKey1.getEncodedSize();
-            //
-            //
-            // Asymmetrical because buffer.traverse is asymmetrical.
-            // There is no left-sibling pointer.
-            //
-            boolean nudged = false;
+            int index = _key.getEncodedSize();
+
             Key.Direction dir = direction;
 
             if (index == 0) {
@@ -1847,67 +1804,101 @@ public class Exchange implements BuildConstants {
                 } else {
                     _spareKey1.appendBefore();
                 }
-            } else if (dir == GT || dir == GTEQ) {
-                dir = GT;
-                if (!_spareKey1.isSpecial()) {
-                    if (deep) {
-                        _spareKey1.nudgeDeeper();
-                    } else {
-                        _spareKey1.nudgeRight();
-                    }
-                    nudged = true;
-                }
-            } else if (dir == LT || dir == LTEQ) {
-                dir = LTEQ;
-                if (!_spareKey1.isSpecial()) {
-                    _spareKey1.nudgeLeft();
-                    nudged = true;
-                }
             }
 
             int foundAt;
             int foundAtNext;
             LevelCache lc;
             boolean fetchFromPendingTxn = false;
+            // Save original key
+            _key.copyTo(_spareKey1);
 
             for (;;) {
-                foundAt = search(_spareKey1);
+
                 lc = _levelCache[0];
-                buffer = lc._buffer;
-                foundAtNext = buffer.traverse(_spareKey1, dir, foundAt);
-
-                if (buffer.isAfterRightEdge(foundAtNext)) {
-                    // long leftSiblingPage = buffer.getPageAddress(); //
-                    // DEBUG - debug
-                    long rightSiblingPage = buffer.getRightSibling();
-
-                    if (Debug.ENABLED) {
-                        Debug.$assert(rightSiblingPage >= 0
-                                && rightSiblingPage <= Buffer.MAX_VALID_PAGE_ADDR);
-                    }
-                    if (rightSiblingPage > 0) {
-                        Buffer rightSibling = _pool.get(_volume,
-                                rightSiblingPage, _exclusive, true);
-                        if (inTxn) {
-                            _transaction.touchedPage(this, buffer);
+                //
+                // Optimal path - pick up the buffer and location left
+                // by previous operation.
+                //
+                if (lc._keyGeneration == _key.getGeneration()) {
+                    buffer = reclaimQuickBuffer(lc);
+                    foundAt = lc._foundAt;
+                }
+                //
+                // But if direction is leftward and the position is at the left
+                // edge of the buffer, re-do with a key search - there is no other
+                // way to find the left sibling page.
+                if (reverse && buffer != null && foundAt <= buffer.getKeyBlockStart()) {
+                    // Going left from first record in the page requires a
+                    // key search.
+                    buffer.release();
+                    buffer = null;
+                }
+                //
+                // If either of the operations above failed to get the key, then
+                // look it up using a search operation.
+                //
+                if (buffer == null){
+                    if (dir == GT || dir == GTEQ) {
+                        if (!_key.isSpecial()) {
+                            if (deep) {
+                                _key.nudgeDeeper();
+                            } else {
+                                _key.nudgeRight();
+                            }
                         }
-                        resourceTracker.setOffset();
-                        _pool.release(buffer);
-                        //
-                        // Reset foundAtNext to point to the first key block
-                        // of the right sibling page.
-                        //
-                        buffer = rightSibling;
-                        checkPageType(buffer, Buffer.PAGE_TYPE_DATA);
-                        foundAtNext = buffer.traverse(_spareKey1, dir,
-                                buffer.toKeyBlock(0));
-                        // So that we don't mistakenly throw a
-                        // CorruptVolumeException
-                        foundAt = -1;
+                    } else if (dir == LT || dir == LTEQ) {
+                        if (!_key.isSpecial()) {
+                            _key.nudgeLeft();
+                        }
+                    }
+                    edge = false;
+                    foundAt = search(_key);
+                    buffer = lc._buffer;
+                }
+                
+                boolean exact = (foundAt & Buffer.EXACT_MASK) != 0;
+                
+                for (;;) {
+                    buffer = lc._buffer;
+                    foundAtNext = buffer.traverse(_key, dir, foundAt);
+                    if (buffer.isAfterRightEdge(foundAtNext)) {
+                        long rightSiblingPage = buffer.getRightSibling();
+
+                        if (Debug.ENABLED) {
+                            Debug.$assert(rightSiblingPage >= 0
+                                    && rightSiblingPage <= Buffer.MAX_VALID_PAGE_ADDR);
+                        }
+                        if (rightSiblingPage > 0) {
+                            Buffer rightSibling = _pool.get(_volume,
+                                    rightSiblingPage, _exclusive, true);
+                            if (inTxn) {
+                                _transaction.touchedPage(this, buffer);
+                            }
+                            resourceTracker.setOffset();
+                            _pool.release(buffer);
+                            //
+                            // Reset foundAtNext to point to the first key block
+                            // of the right sibling page.
+                            //
+                            buffer = rightSibling;
+                            checkPageType(buffer, Buffer.PAGE_TYPE_DATA);
+                            foundAtNext = buffer.traverse(_spareKey1, dir,
+                                    buffer.toKeyBlock(0));
+                            // So that we don't mistakenly throw a
+                            // CorruptVolumeException below
+                            foundAt = -1;
+                        }
+                    }
+                    if (edge || !exact) {
+                        break;
+                    } else {
+                        foundAt = foundAtNext;
+                        exact = false;
                     }
                 }
 
-                if (!nudged && foundAtNext == foundAt
+                if (foundAtNext == foundAt
                         && !_spareKey1.isSpecial()) {
                     if (Debug.ENABLED) {
                         Debug.debug1(true);
@@ -1917,17 +1908,18 @@ public class Exchange implements BuildConstants {
                             + " traversal on key <" + _spareKey1 + ">"
                             + " failed: foundAtNext == foundAt == " + foundAt);
                 }
+                
+                
                 if (inTxn) {
                     //
-                    // Here we need to test whether pending updates in an
+                    // Here we need to test whether pending updates in a
                     // transaction, if there is one, will modify the result.
-                    // The candidate key is in _sparekey1. This code
+                    // The candidate key is in _key. This code
                     // determines whether (a) that key has been deleted by
                     // the pending transaction, or (b) there's a nearer key
                     // that has been added by the pending transaction.
                     // This is split into two calls. The first looks for
                     // a pending remove operation that affects the result.
-                    //
                     //
                     Boolean txnResult = _transaction.traverse(this, _spareKey1,
                             direction, deep, minBytes);
@@ -2121,10 +2113,12 @@ public class Exchange implements BuildConstants {
             } else {
                 _key.appendAfter();
             }
+            edge = false;
         }
 
         if (edge && keyFilter.selected(_key)
-                && traverse(forward ? GTEQ : LTEQ, true, minBytes)) {
+                && traverse(forward ? GTEQ : LTEQ, true, minBytes)
+                && keyFilter.selected(_key)) {
             return true;
         }
 

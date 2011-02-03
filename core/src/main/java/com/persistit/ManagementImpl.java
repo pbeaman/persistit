@@ -60,7 +60,7 @@ import com.persistit.exception.PersistitException;
  * 
  * @version 1.0
  */
-class ManagementImpl implements Management, BuildConstants {
+class ManagementImpl implements Management {
     private static boolean _localRegistryCreated;
     private static long _taskIdCounter;
 
