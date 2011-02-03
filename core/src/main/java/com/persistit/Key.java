@@ -3335,6 +3335,10 @@ public final class Key implements Comparable<Object> {
         notLeftOrRightGuard();
         testValidForAppend();
         int strlen = s.length();
+        if (strlen > _maxSize) {
+        	throw new ConversionException("Requested size=" + strlen
+                    + " exceeds maximum size=" + _maxSize);
+        }
         int size = _size;
         _bytes[size++] = (byte) TYPE_STRING;
         if (_stringCoder != null) {
