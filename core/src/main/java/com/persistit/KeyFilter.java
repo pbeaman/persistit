@@ -1350,6 +1350,10 @@ public class KeyFilter {
                     nextIndex = key.getEncodedSize();
                 }
                 Term term = level < _terms.length ? _terms[level] : ALL;
+                if (term == null) {
+                	result = false;
+                	break;
+                }
                 result = term.selected(keyBytes, index, nextIndex - index);
                 index = nextIndex;
             }
@@ -1426,6 +1430,9 @@ public class KeyFilter {
         final boolean lastKeySegment = nextIndex == key.getEncodedSize();
 
         Term term = level >= _terms.length ? ALL : _terms[level];
+        if (term == null) {
+        	return false;
+        }
 
         boolean traversed = false;
         if (forward) {

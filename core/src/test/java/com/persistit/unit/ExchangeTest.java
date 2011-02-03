@@ -18,7 +18,9 @@ package com.persistit.unit;
 import java.util.Random;
 
 import com.persistit.Exchange;
+import com.persistit.KeyFilter;
 import com.persistit.Volume;
+import com.persistit.Key;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.ConversionException;
 
@@ -148,6 +150,40 @@ public class ExchangeTest extends PersistitUnitTestCase {
 			Exchange ex = new Exchange(_persistit, nullVol, "whatever", true);
 			fail("NullPointerException should have been thrown for null Volume");
 		} catch (NullPointerException expected) {}
+	}
+	
+	public void testTraversal() throws PersistitException {
+		Exchange ex = _persistit.getExchange("persistit", "gogo", true);
+		String mockValue = generateASCIIString(256);
+		/* insert 1000 records */
+		for (int i = 0; i < 1000; i++) {
+			String key = generateASCIIString(32);
+			ex.clear().append(key);
+			ex.getValue().put(mockValue);
+			ex.store();
+		}
+		/* traverse forwards through those values */
+		ex.clear().to(Key.BEFORE);
+		while (ex.next()) {
+			ex.fetch();
+			assertEquals(mockValue, ex.getValue().getString());
+		}
+		/* now traverse backwards through those values */
+		ex.clear().to(Key.AFTER);
+		while (ex.previous()) {
+			ex.fetch();
+			assertEquals(mockValue, ex.getValue().getString());
+		}
+		/* now use the traverse method with various directions */
+		ex.clear().to(Key.BEFORE);
+		Key key = ex.getKey();
+		KeyFilter kf = new KeyFilter(key);
+		/* this is mostly to test if we can trigger bad things */
+		assertEquals(false, ex.traverse(Key.EQ, kf, 4));
+		assertEquals(false, ex.traverse(Key.GT, kf, 4));
+		assertEquals(false, ex.traverse(Key.GTEQ, kf, 4));
+		assertEquals(false, ex.traverse(Key.LT, kf, 4));
+		assertEquals(false, ex.traverse(Key.LTEQ, kf, 4));
 	}
 	
 	/*
