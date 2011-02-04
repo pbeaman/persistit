@@ -1282,8 +1282,11 @@ public class Transaction {
      * pending store operation, or (b) the candidate key is subject to a pending
      * remove operation.
      * 
-     * @param exchange
-     *            The original Exchange
+     * @param Tree
+     *            The original Tree
+     *@param originalKey The key value at the beginning of
+     *            the {@link Exchange#traverse(com.persistit.Key.Direction, boolean, int)
+     *            method.
      * @param candidateKey
      *            The candidate Key value.
      * @param direction
@@ -1295,7 +1298,7 @@ public class Transaction {
      * 
      * @throws PersistitException
      */
-    Boolean traverse(Exchange exchange, Key candidateKey,
+    Boolean traverse(Tree tree, Key originalKey, Key candidateKey,
             Key.Direction direction, boolean deep, int minBytes)
             throws PersistitException {
         checkState();
@@ -1306,15 +1309,13 @@ public class Transaction {
 
         if (_ex1 == null)
             setupExchanges();
-        Tree tree = exchange.getTree();
 
         if (_pendingStoreCount > 0) {
-            Key key = exchange.getKey();
             Key candidateKey2 = _ex1.getKey();
             //
             // First see if there is a pending store operation
             //
-            prepareTxnExchange(tree, key, 'S');
+            prepareTxnExchange(tree, originalKey, 'S');
             if (_ex1.traverse(direction, deep, minBytes) && sameTree()) {
                 shiftOut();
                 int comparison = candidateKey.compareTo(candidateKey2);
@@ -1327,7 +1328,6 @@ public class Transaction {
                     return Boolean.TRUE;
                 }
             }
-
         }
 
         if (_pendingRemoveCount > 0) {

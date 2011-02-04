@@ -1763,6 +1763,8 @@ public class Exchange {
 
         boolean edge = direction == EQ || direction == GTEQ
                 || direction == LTEQ;
+        boolean nudged = false;
+
         checkLevelCache();
 
         try {
@@ -1790,28 +1792,24 @@ public class Exchange {
             }
 
             //
-            // Now we are committed to computing a new key value. Save the 
+            // Now we are committed to computing a new key value. Save the
             // original key value for comparison.
             //
             _key.copyTo(_spareKey1);
             int index = _key.getEncodedSize();
 
-            Key.Direction dir = direction;
-
             if (index == 0) {
                 if (reverse) {
-                    _spareKey1.appendAfter();
+                    _key.appendAfter();
                 } else {
-                    _spareKey1.appendBefore();
+                    _key.appendBefore();
                 }
+                nudged = true;
             }
 
-            int foundAt;
-            int foundAtNext;
+            int foundAt = 0;
             LevelCache lc;
             boolean fetchFromPendingTxn = false;
-            // Save original key
-            _key.copyTo(_spareKey1);
 
             for (;;) {
 
@@ -1826,43 +1824,48 @@ public class Exchange {
                 }
                 //
                 // But if direction is leftward and the position is at the left
-                // edge of the buffer, re-do with a key search - there is no other
+                // edge of the buffer, re-do with a key search - there is no
+                // other
                 // way to find the left sibling page.
-                if (reverse && buffer != null && foundAt <= buffer.getKeyBlockStart()) {
+                //
+                if (reverse && buffer != null
+                        && foundAt <= buffer.getKeyBlockStart()) {
                     // Going left from first record in the page requires a
                     // key search.
                     buffer.release();
                     buffer = null;
                 }
                 //
-                // If either of the operations above failed to get the key, then
-                // look it up using a search operation.
+                // If the operations above failed to get the key, then
+                // look it up with search.
                 //
-                if (buffer == null){
-                    if (dir == GT || dir == GTEQ) {
-                        if (!_key.isSpecial()) {
-                            if (deep) {
-                                _key.nudgeDeeper();
-                            } else {
-                                _key.nudgeRight();
+                if (buffer == null) {
+                    if (!edge && !nudged) {
+                        if (reverse) {
+                            if (!_key.isSpecial()) {
+                                _key.nudgeLeft();
+                            }
+                        } else {
+                            if (!_key.isSpecial()) {
+                                if (deep) {
+                                    _key.nudgeDeeper();
+                                } else {
+                                    _key.nudgeRight();
+                                }
                             }
                         }
-                    } else if (dir == LT || dir == LTEQ) {
-                        if (!_key.isSpecial()) {
-                            _key.nudgeLeft();
-                        }
+                        nudged = true;
                     }
-                    edge = false;
                     foundAt = search(_key);
                     buffer = lc._buffer;
                 }
-                
-                boolean exact = (foundAt & Buffer.EXACT_MASK) != 0;
-                
-                for (;;) {
-                    buffer = lc._buffer;
-                    foundAtNext = buffer.traverse(_key, dir, foundAt);
-                    if (buffer.isAfterRightEdge(foundAtNext)) {
+
+                if (edge && (foundAt & Buffer.EXACT_MASK) != 0) {
+                    break;
+                } else {
+                    edge = false;
+                    foundAt = buffer.traverse(_key, direction, foundAt);
+                    if (buffer.isAfterRightEdge(foundAt)) {
                         long rightSiblingPage = buffer.getRightSibling();
 
                         if (Debug.ENABLED) {
@@ -1883,33 +1886,35 @@ public class Exchange {
                             //
                             buffer = rightSibling;
                             checkPageType(buffer, Buffer.PAGE_TYPE_DATA);
-                            foundAtNext = buffer.traverse(_spareKey1, dir,
+                            foundAt = buffer.traverse(_key, direction,
                                     buffer.toKeyBlock(0));
-                            // So that we don't mistakenly throw a
-                            // CorruptVolumeException below
-                            foundAt = -1;
+
                         }
                     }
-                    if (edge || !exact) {
-                        break;
-                    } else {
-                        foundAt = foundAtNext;
-                        exact = false;
+
+
+                    //
+                    // If (a) the key was not nudged, and (b) this is not a deep
+                    // traverse, and (c) the foundAtNext refers now to a child
+                    // of the original key, then it's the wrong result - the
+                    // optimistic assumption that the next key would be adjacent
+                    // to the preceding result is wrong. To resolve this,
+                    // invalidate the LevelCache entry and retry the loop. That
+                    // will nudge the key appropriately and do a standard
+                    // search.
+                    //
+
+                    if (!nudged
+                            && !deep
+                            && _key.compareKeyFragment(_spareKey1, 0,
+                                    _spareKey1.getEncodedSize()) == 0) {
+                        lc._keyGeneration = -1;
+                        buffer.release();
+                        buffer = null;
+                        continue;
                     }
                 }
 
-                if (foundAtNext == foundAt
-                        && !_spareKey1.isSpecial()) {
-                    if (Debug.ENABLED) {
-                        Debug.debug1(true);
-                    }
-                    throw new CorruptVolumeException("Volume " + _volume
-                            + " near page " + buffer.getPageAddress()
-                            + " traversal on key <" + _spareKey1 + ">"
-                            + " failed: foundAtNext == foundAt == " + foundAt);
-                }
-                
-                
                 if (inTxn) {
                     //
                     // Here we need to test whether pending updates in a
@@ -1921,8 +1926,8 @@ public class Exchange {
                     // This is split into two calls. The first looks for
                     // a pending remove operation that affects the result.
                     //
-                    Boolean txnResult = _transaction.traverse(this, _spareKey1,
-                            direction, deep, minBytes);
+                    Boolean txnResult = _transaction.traverse(_tree,
+                            _spareKey1, _key, direction, deep, minBytes);
 
                     if (txnResult != null) {
                         _transaction.touchedPage(this, buffer);
@@ -1931,22 +1936,22 @@ public class Exchange {
 
                         if (txnResult == Boolean.TRUE) {
                             // There's a pending new record that
-                            // yields a closer key. The _spareKey1
+                            // yields a closer key. The key
                             // was updated to reflect its content, and
                             // if the key is selected by criteria below
                             // then the pending value is fetched.
                             //
                             fetchFromPendingTxn = true;
                         } else {
-                            // There's a pending remove operation that
-                            // covers the candidate key. The _spareKey1
-                            // key has been modified to the beginning or
-                            // end, depending on direction, of the remove
-                            // range, and then we must go back and
-                            // traverse again.
                             //
-                            if (dir == LTEQ && !_spareKey1.isSpecial()) {
-                                _spareKey1.nudgeLeft();
+                            // There's a pending remove operation that
+                            // covers the candidate key. The key has been
+                            // modified to the beginning or end, depending
+                            // on direction, of the remove range, and then
+                            // we must go back and traverse again.
+                            //
+                            if (direction == LTEQ && !_key.isSpecial()) {
+                                _key.nudgeLeft();
                                 nudged = true;
                             }
                             continue;
@@ -1958,40 +1963,39 @@ public class Exchange {
 
             boolean matches;
 
-            if (reverse && _spareKey1.isLeftEdge() || !reverse
-                    && _spareKey1.isRightEdge()) {
+            if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
                 matches = false;
             } else {
                 if (deep) {
                     matches = true;
-                    index = _spareKey1.getEncodedSize();
+                    index = _key.getEncodedSize();
 
                     if (doFetch) {
                         if (fetchFromPendingTxn) {
                             _transaction.fetchFromLastTraverse(this, minBytes);
                         } else {
-                            buffer.fetch(foundAtNext, _value);
+                            buffer.fetch(foundAt, _value);
                             fetchFixupForLongRecords(_value, minBytes);
                         }
                     }
                 } else {
-                    int parentIndex = _key.previousElementIndex(index);
+                    int parentIndex = _spareKey1.previousElementIndex(index);
                     if (parentIndex < 0)
                         parentIndex = 0;
 
-                    matches = (_key.compareKeyFragment(_spareKey1, 0,
+                    matches = (_spareKey1.compareKeyFragment(_key, 0,
                             parentIndex) == 0);
 
                     if (matches) {
-                        index = _spareKey1.nextElementIndex(parentIndex);
+                        index = _key.nextElementIndex(parentIndex);
                         if (index > 0) {
-                            if (index == _spareKey1.getEncodedSize()) {
+                            if (index == _key.getEncodedSize()) {
                                 if (doFetch) {
                                     if (fetchFromPendingTxn) {
                                         _transaction.fetchFromLastTraverse(
                                                 this, minBytes);
                                     } else {
-                                        buffer.fetch(foundAtNext, _value);
+                                        buffer.fetch(foundAt, _value);
                                         fetchFixupForLongRecords(_value,
                                                 minBytes);
                                     }
@@ -2008,7 +2012,7 @@ public class Exchange {
                                 if (doFetch) {
                                     _value.clear();
                                 }
-                                foundAtNext &= ~Buffer.EXACT_MASK;
+                                foundAt &= ~Buffer.EXACT_MASK;
                             }
                         } else
                             matches = false;
@@ -2016,23 +2020,23 @@ public class Exchange {
                 }
             }
 
-            //
-            // We update the source Key only after successful completion
-            // of all operations that might throw a RetryException.
-            // This permits correct retry operations.
-            //
             if (doModify) {
                 if (matches) {
-                    _spareKey1.copyTo(_key);
                     _key.setEncodedSize(index);
                     if (!fetchFromPendingTxn) {
-                        lc.update(buffer, _key, foundAtNext);
+                        lc.update(buffer, _key, foundAt);
                     }
                 } else {
-                    if (deep)
+                    if (deep) {
                         _key.setEncodedSize(0);
+                    } else {
+                        _spareKey1.copyTo(_key);
+                    }
                     _key.to(reverse ? AFTER : BEFORE);
                 }
+            } else {
+                // Restore original key
+                _spareKey1.copyTo(_key);
             }
             result = matches;
 

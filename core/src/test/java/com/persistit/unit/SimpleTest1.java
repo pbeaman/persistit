@@ -102,16 +102,26 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         int count;
 
         exchange.getKey().clear().append(Key.BEFORE);
+        final StringBuilder sb = new StringBuilder();
 
         for (count = 1; exchange.next() && count < 10000; count++) {
+            sb.setLength(0);
+            sb.append((char) (count / 20 + 64));
+            sb.append((char) (count % 20 + 64));
+            String key = exchange.getKey().reset().decodeString();
+            assertEquals(sb.toString(), key);
         }
         assertEquals(400, count);
 
         exchange.getKey().clear().append(Key.AFTER);
-        count = 0;
-        for (count = 1; exchange.previous() && count < 10000; count++) {
+        for (count = 399; exchange.previous() && count > -10000; count--) {
+            sb.setLength(0);
+            sb.append((char) (count / 20 + 64));
+            sb.append((char) (count % 20 + 64));
+            String key = exchange.getKey().reset().decodeString();
+            assertEquals(sb.toString(), key);
         }
-        assertEquals(400, count);
+        assertEquals(0, count);
     }
 
     public void test2() throws PersistitException {
