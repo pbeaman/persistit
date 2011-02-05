@@ -1892,7 +1892,6 @@ public class Exchange {
                         }
                     }
 
-
                     //
                     // If (a) the key was not nudged, and (b) this is not a deep
                     // traverse, and (c) the foundAtNext refers now to a child
@@ -2127,16 +2126,17 @@ public class Exchange {
         }
 
         for (;;) {
-            if (!keyFilter.traverse(_key, forward)) {
+            if (keyFilter.exhausted(_key, direction)
+                    && !keyFilter.traverse(_key, forward)) {
                 return false;
             }
-            edge = keyFilter.selected(_key);
-            Direction dir = forward ? (edge ? GTEQ : GT) : (edge ? LTEQ : LT);
-            if (!traverse(dir, true, minBytes)) {
+//            edge = keyFilter.selected(_key);
+//            Direction dir = forward ? (edge ? GTEQ : GT) : (edge ? LTEQ : LT);
+            if (!traverse(direction, true, minBytes)) {
                 return false;
             }
-            edge = keyFilter.selected(_key);
-            if (edge) {
+            if ( keyFilter.selected(_key)) {
+//            if (edge) {
                 return true;
             }
         }

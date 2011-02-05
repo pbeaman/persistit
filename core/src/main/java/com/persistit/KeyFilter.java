@@ -558,6 +558,8 @@ public class KeyFilter {
         abstract void toString(CoderContext context, StringBuilder sb);
 
         abstract boolean selected(byte[] keyBytes, int offset, int length);
+        
+        abstract boolean exhausted(byte[] keyBytes, int offset, int length, Key.Direction direction);
 
         abstract boolean forward(Key key, int offset, int length);
 
@@ -628,6 +630,15 @@ public class KeyFilter {
                     return false;
             }
             return true;
+        }
+        
+        @Override
+        boolean exhausted(byte[] keyBytes, int offset, int length, Key.Direction direction) {
+            if (direction == Key.LT || direction == Key.GT){
+                return true;
+            } else {
+                return !selected(keyBytes, offset, length);
+            }
         }
 
         @Override
@@ -794,6 +805,37 @@ public class KeyFilter {
             }
             return true;
         }
+        
+        @Override
+        boolean exhausted(byte[] keyBytes, int offset, int length, Key.Direction direction) {
+            if (direction == Key.EQ) {
+                return selected(keyBytes, offset, length);
+            }
+            int compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
+                    _itemFromBytes.length);
+
+            if (compare < 0) {
+                return false;
+            }
+            if (compare == 0 && (direction == Key.LT || direction == Key.LTEQ && !_leftInclusive)) {
+                return false;
+            }
+
+            compare = compare(keyBytes, offset, length, _itemToBytes, 0,
+                    _itemToBytes.length);
+
+            if (compare > 0) {
+                return false;
+            }
+            
+            if (compare == 0 && (direction == Key.GT || direction == Key.GTEQ && !_rightInclusive)) {
+                return false;
+            }
+            
+            return true;
+        }
+
+
 
         @Override
         boolean forward(Key key, int offset, int length) {
@@ -810,8 +852,8 @@ public class KeyFilter {
                 key.setEncodedSize(offset + _itemFromBytes.length);
                 length = _itemFromBytes.length;
                 moved = true;
-                if (!_leftInclusive) {
-                    key.nudgeRight();
+                if (_leftInclusive) {
+                    key.nudgeLeft();
                 }
             }
 
@@ -846,8 +888,8 @@ public class KeyFilter {
                 key.setEncodedSize(offset + _itemToBytes.length);
                 length = _itemToBytes.length;
                 moved = true;
-                if (!_rightInclusive) {
-                    key.nudgeLeft();
+                if (_rightInclusive) {
+                    key.nudgeDeeper();
                 }
             }
 
@@ -974,6 +1016,16 @@ public class KeyFilter {
                 }
             }
             return false;
+        }
+        
+        @Override
+        boolean exhausted(byte[] keyBytes, int offset, int length, Key.Direction direction) {
+            for (int index = 0; index < _terms.length; index++) {
+                if (!_terms[index].exhausted(keyBytes, offset, length, direction)) {
+                    return false;
+                }
+            }
+            return true;
         }
 
         @Override
@@ -1331,31 +1383,75 @@ public class KeyFilter {
      *         constraints of this filter, otherwise <tt>false</tt>.
      */
     public boolean selected(Key key) {
-        boolean result = true;
 
         int index = 0;
         int size = key.getEncodedSize();
         byte[] keyBytes = key.getEncodedBytes();
 
-        for (int level = 0; result; level++) {
+        for (int level = 0; ; level++) {
             if (index == size) {
-                result = (level >= _minDepth);
-                break;
+                return (level >= _minDepth);
             } else if (level >= _maxDepth) {
-                result = false;
-                break;
+                return false;
             } else {
                 int nextIndex = key.nextElementIndex(index);
                 if (nextIndex == -1) {
                     nextIndex = key.getEncodedSize();
                 }
                 Term term = level < _terms.length ? _terms[level] : ALL;
-                result = term.selected(keyBytes, index, nextIndex - index);
+                if (!term.selected(keyBytes, index, nextIndex - index)) {
+                    return false;
+                }
                 index = nextIndex;
             }
         }
+    }
 
-        return result;
+    /**
+     * Given a key value, determines whether the adjacent key (as determined by
+     * the Direction and the value of the deep flag) is selected by this
+     * KeyFilter. If not, the KeyFilter range is <i>exhausted</i> and the
+     * {@link #traverse(Key, boolean)} method must be used to find the next
+     * possible range of selected keys, if there are any.
+     * <p />
+     * More formally, if there is no B-Tree for which the result of
+     * {@link com.persistit.Exchange#traverse(com.persistit.Key.Direction, boolean)}
+     * can be selected, then the KeyFilter is <i>exhausted</i> for that Key,
+     * Direction and deep value.
+     * 
+     * @param key
+     *            the Key
+     * @param direction
+     *            the Direction
+     * @param deep
+     *            whether this is a deep (depth-first) traversal
+     * @return <tt>true</tt> if the filter is exhausted.
+     */
+    public boolean exhausted(Key key, Key.Direction direction) {
+        int index = 0;
+        int size = key.getEncodedSize();
+        byte[] keyBytes = key.getEncodedBytes();
+        boolean exhausted = true;
+
+        for (int level = 0; ; level++) {
+            if (index == size) {
+                if (level < _minDepth) {
+                    return true;
+                } else {
+                    return exhausted;
+                }
+            } else if (level >= _maxDepth) {
+                return exhausted;
+            } else {
+                int nextIndex = key.nextElementIndex(index);
+                if (nextIndex == -1) {
+                    nextIndex = key.getEncodedSize();
+                }
+                Term term = level < _terms.length ? _terms[level] : ALL;
+                exhausted &= term.exhausted(keyBytes, index, nextIndex - index, direction);
+                index = nextIndex;
+            }
+        }
     }
 
     /**
@@ -1368,23 +1464,23 @@ public class KeyFilter {
      * value indicates whether such a key exists in the filtered subset.
      * </p>
      * <p>
-     * Suppose <tt>key</tt> has some value <i>V</i>. Then if <i>V</i> is
+     * Suppose <tt>key</tt> has some value <i>K</i>. Then if <i>K</i> is
      * selected by this <tt>KeyFilter</tt>, this method returns <tt>true</tt>
      * and modifies the value of <tt>key</tt>, to the next (or previous, if
-     * <tt>forward</tt> is <tt>false</tt>) key value <i>V'</i> such that there
-     * is no other key value between <i>V</i> and <i>V'</i> in <a
+     * <tt>forward</tt> is <tt>false</tt>) key value <i>K'</i> such that there
+     * is no other key value between <i>K</i> and <i>K'</i> in <a
      * href="Key.html#_keyOrdering">key order</a>.
      * </p>
      * <p>
-     * If <i>V</i> is not selected by this <tt>KeyFilter</tt>, then let <i>W</i>
-     * be the smallest key value larger than than <i>V</i> (or if
+     * If <i>K</i> is not selected by this <tt>KeyFilter</tt>, then let <i>J</i>
+     * be the smallest key value larger than than <i>K</i> (or if
      * <tt>forward</tt> is <tt>false</tt>, the largest key value smaller than
-     * <i>V</i>) that is selected by this <tt>KeyFilter</tt>. If no such key
-     * value <i>W</i> exists then this method returns <tt>false</tt>. Otherwise
+     * <i>K</i>) that is selected by this <tt>KeyFilter</tt>. If no such key
+     * value <i>J</i> exists then this method returns <tt>false</tt>. Otherwise
      * it modifies the value of the supplied <tt>key</tt> and returns
-     * <tt>true</tt>. The new key value is <i>W'</i> where <i>W'</i> is the
-     * largest key value smaller than <i>W</i> if <tt>forward</tt> is
-     * <tt>true</tt>, or the smallest key value larger than <i>W</i> if
+     * <tt>true</tt>. The new key value is <i>J'</i> where <i>J'</i> is the
+     * largest key value smaller than <i>J</i> if <tt>forward</tt> is
+     * <tt>true</tt>, or the smallest key value larger than <i>J</i> if
      * <tt>forward</tt> is <tt>false</tt>.
      * </p>
      * <p>
