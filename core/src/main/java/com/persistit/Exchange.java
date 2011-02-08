@@ -2606,6 +2606,19 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
+        KeyState ks = new KeyState(_key);
+        final int size = _key.getEncodedSize();
+        boolean result = traverse(GT, true, 0);
+        ks.copyTo(_spareKey1);
+        if (result && _key.getEncodedSize() < size
+                || _spareKey1.compareKeyFragment(_key, 0, size) != 0) {
+            result = false;
+        }
+        _spareKey1.copyTo(_key);
+        return result;
+    }
+/*
+    public boolean hasChildren() throws PersistitException {
         _persistit.checkClosed();
 
         boolean result;
@@ -2628,6 +2641,7 @@ public class Exchange {
                     lockedResourceCount);
         }
     }
+*/
 
     /**
      * Remove a single key/value pair from this <tt>Exchange</tt>'s
