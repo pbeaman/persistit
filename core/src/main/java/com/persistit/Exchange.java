@@ -2107,36 +2107,22 @@ public class Exchange {
                     && traverse(direction, true, minBytes);
         }
 
-        final boolean forward = (direction == GT) || (direction == GTEQ);
-        boolean edge = (direction == LTEQ || direction == GTEQ);
-
         if (_key.getEncodedSize() == 0) {
-            if (forward) {
+            if (direction == GT || direction == GTEQ) {
                 _key.appendBefore();
             } else {
                 _key.appendAfter();
             }
-            edge = false;
-        }
-
-        if (edge && keyFilter.selected(_key)
-                && traverse(forward ? GTEQ : LTEQ, true, minBytes)
-                && keyFilter.selected(_key)) {
-            return true;
         }
 
         for (;;) {
-            if (keyFilter.exhausted(_key, direction)
-                    && !keyFilter.traverse(_key, forward)) {
+            if (!keyFilter.next(_key, direction)) {
                 return false;
             }
-//            edge = keyFilter.selected(_key);
-//            Direction dir = forward ? (edge ? GTEQ : GT) : (edge ? LTEQ : LT);
             if (!traverse(direction, true, minBytes)) {
                 return false;
             }
-            if ( keyFilter.selected(_key)) {
-//            if (edge) {
+            if (keyFilter.selected(_key)) {
                 return true;
             }
         }
@@ -2580,27 +2566,15 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
-        _persistit.checkClosed();
-
-        boolean result;
-        final int lockedResourceCount = _persistit.getLockManager()
-                .getLockedResourceCount();
-
-        _persistit.getLockManager().verifyLockedResourceCount(
-                lockedResourceCount);
-        Buffer buffer = null;
-        try {
-            int foundAt = search(_key);
-            LevelCache lc = _levelCache[0];
-            buffer = lc._buffer;
-            result = buffer.hasChild(foundAt, _key);
-            return result;
-        } finally {
-            if (buffer != null)
-                _pool.release(buffer);
-            _persistit.getLockManager().verifyLockedResourceCount(
-                    lockedResourceCount);
+        _key.copyTo(_spareKey2);
+        final int size = _key.getEncodedSize();
+        boolean result = traverse(GT, true, 0);
+        if (result && _key.getEncodedSize() < size
+                || _spareKey2.compareKeyFragment(_key, 0, size) != 0) {
+            result = false;
         }
+        _spareKey2.copyTo(_key);
+        return result;
     }
 
     /**

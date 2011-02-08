@@ -123,10 +123,10 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         assertEquals("{\"atlantic\",(float)1.3}", s);
         kf = kf.append(KeyFilter.rangeTerm("x", "z", true, false));
         key.append("a");
-        assertTrue(kf.traverse(key, true));
+        assertTrue(kf.next(key, Key.GT));
         assertEquals("{\"atlantic\",(float)1.3,\"x\"}-", key.toString());
         key.to("zz");
-        assertTrue(kf.traverse(key, false));
+        assertTrue(kf.next(key, Key.LT));
         assertEquals("{\"atlantic\",(float)1.3,\"z\"}", key.toString());
         System.out.println("- done");
     }
@@ -153,17 +153,15 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
 
         ex.to(Key.BEFORE);
         boolean[] traversed = new boolean[100];
-        Key.Direction direction = Key.GT;
-        while (ex.traverse(direction, true)) {
+
+        while (ex.traverse(Key.GT, true)) {
             if (kf.selected(ex.getKey())) {
                 final int k = key.reset().decodeInt();
                 traversed[k] = true;
-                direction = Key.GT;
             } else {
-                if (!kf.traverse(key, true)) {
+                if (!kf.next(key, Key.GT)) {
                     break;
                 }
-                direction = Key.GTEQ;
             }
         }
         for (int k = 0; k < 100; k++) {
@@ -174,17 +172,14 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
 
         ex.to(Key.AFTER);
         traversed = new boolean[100];
-        direction = Key.LT;
-        while (ex.traverse(direction, true)) {
+        while (ex.traverse(Key.LT, true)) {
             if (kf.selected(ex.getKey())) {
                 final int k = key.reset().decodeInt();
                 traversed[k] = true;
-                direction = Key.LT;
             } else {
-                if (!kf.traverse(key, false)) {
+                if (!kf.next(key, Key.LT)) {
                     break;
                 }
-                direction = Key.LTEQ;
             }
         }
         for (int k = 0; k < 100; k++) {
@@ -309,38 +304,33 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
 
         TreeMap treeMapCopy = new TreeMap(treeMap);
         key.clear().append(Key.BEFORE);
-        Key.Direction direction = Key.GT;
-        while (ex.traverse(direction, true)) {
+        while (ex.traverse(Key.GT, true)) {
             final KeyState ks = new KeyState(key);
             if (kf.selected(key)) {
                 assertEquals(key.toString(), treeMapCopy.get(ks));
                 treeMapCopy.remove(ks);
-                direction = Key.GT;
             } else {
                 assertEquals(null, treeMap.get(ks));
-                if (!kf.traverse(key, true)) {
+                if (!kf.next(key, Key.GT)) {
                     break;
                 }
-                direction = Key.GTEQ;
+
             }
         }
         assertEquals(0, treeMapCopy.size());
 
         treeMapCopy = new TreeMap(treeMap);
         key.clear().append(Key.AFTER);
-        direction = key.LT;
-        while (ex.traverse(direction, true)) {
+        while (ex.traverse(key.LT, true)) {
             final KeyState ks = new KeyState(key);
             if (kf.selected(key)) {
                 assertEquals(key.toString(), treeMapCopy.get(ks));
                 treeMapCopy.remove(ks);
-                direction = key.LT;
             } else {
                 assertEquals(null, treeMap.get(ks));
-                if (!kf.traverse(key, false)) {
+                if (!kf.next(key, key.LT)) {
                     break;
                 }
-                direction = key.LTEQ;
             }
         }
         assertEquals(0, treeMapCopy.size());
@@ -384,17 +374,17 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         boolean result;
 
         key.clear().append(Key.BEFORE);
-        result = filter.traverse(key, true);
+        result = filter.next(key, Key.GT);
         assertTrue(result);
         key.clear().append(Key.BEFORE);
-        result = filter.traverse(key, false);
+        result = filter.next(key, Key.LT);
         assertFalse(result);
 
         key.clear().append(Key.AFTER);
-        result = filter.traverse(key, false);
+        result = filter.next(key, Key.LT);
         assertTrue(result);
         key.clear().append(Key.AFTER);
-        result = filter.traverse(key, true);
+        result = filter.next(key, Key.GT);
         assertFalse(result);
 
     }
@@ -403,14 +393,10 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
     public void test8() throws PersistitException {
         final KeyFilter filter = new KeyFilter("{1,*<}");
         final Key key = new Key((Persistit) null);
-        final Key key2 = new Key((Persistit) null);
         key.append(Key.AFTER);
         assertFalse(filter.selected(key));
-        assertTrue(filter.traverse(key, false));
-        key2.append(1).append(1);
-        assertTrue(filter.selected(key));
-        assertTrue(key.compareTo(key2) > 0);
-        // assertFalse(filter.traverse(key, false));
+        assertTrue(filter.next(key, Key.LT));
+        assertEquals("{1}+", key.toString());
     }
 
     @Test
@@ -420,7 +406,7 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         final Key key2 = new Key((Persistit) null);
         key.append(Key.AFTER);
         assertFalse(filter.selected(key));
-        assertTrue(filter.traverse(key, false));
+        assertTrue(filter.next(key, Key.LT));
 //        key2.append(2).nudgeDeeper();
 //        assertTrue(filter.selected(key));
 //        assertTrue(key.compareTo(key2) == 0);

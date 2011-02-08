@@ -121,9 +121,9 @@ public class KeyParserTest2 extends PersistitUnitTestCase {
         key.setDepth(2);
         assertTrue(filter.selected(key));
         key.to(50);
-        assertTrue(filter.traverse(key, true));
+        assertTrue(filter.next(key, Key.GT));
         key.to(120);
-        assertTrue(filter.traverse(key, true));
+        assertTrue(filter.next(key, Key.GT));
         System.out.println("- done");
     }
 

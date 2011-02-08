@@ -35,8 +35,8 @@ import com.persistit.exception.MissingKeySegmentException;
  * {@link #selected(Key)} indicates whether the value of the specified
  * <tt>Key</tt> is a member of the subset specified by this filter, and</li>
  * <li>
- * {@link #traverse(Key, boolean)} modifies the <tt>Key</tt> to the next larger
- * or smaller key value that lies within the subset specified by this filter.</li>
+ * {@link #next(Key, boolean)} modifies the <tt>Key</tt> to the next larger or
+ * smaller key value that lies within the subset specified by this filter.</li>
  * </ul>
  * These methods permit efficient traversal of a filtered subset of keys within
  * a <tt>Tree</tt>.
@@ -558,8 +558,9 @@ public class KeyFilter {
         abstract void toString(CoderContext context, StringBuilder sb);
 
         abstract boolean selected(byte[] keyBytes, int offset, int length);
-        
-        abstract boolean exhausted(byte[] keyBytes, int offset, int length, Key.Direction direction);
+
+        abstract boolean atEdge(byte[] keyBytes, int offset, int length,
+                boolean forward);
 
         abstract boolean forward(Key key, int offset, int length);
 
@@ -631,21 +632,15 @@ public class KeyFilter {
             }
             return true;
         }
-        
+
         @Override
-        boolean exhausted(byte[] keyBytes, int offset, int length, Key.Direction direction) {
-            if (direction == Key.LT || direction == Key.GT){
-                return true;
-            } else {
-                return !selected(keyBytes, offset, length);
-            }
+        boolean atEdge(byte[] keyBytes, int offset, int length, boolean forward) {
+            return this == ALL ? false : true;
         }
 
         @Override
         boolean forward(Key key, int offset, int length) {
             if (this == ALL) {
-                key.setEncodedSize(offset + length);
-                key.nudgeRight();
                 return true;
             }
 
@@ -659,8 +654,9 @@ public class KeyFilter {
                         _itemBytes.length);
                 key.setEncodedSize(offset + _itemBytes.length);
                 return true;
-            } else
+            } else {
                 return false;
+            }
         }
 
         @Override
@@ -681,8 +677,9 @@ public class KeyFilter {
                         _itemBytes.length);
                 key.setEncodedSize(offset + _itemBytes.length);
                 return true;
-            } else
+            } else {
                 return false;
+            }
         }
 
         @Override
@@ -805,43 +802,27 @@ public class KeyFilter {
             }
             return true;
         }
-        
+
         @Override
-        boolean exhausted(byte[] keyBytes, int offset, int length, Key.Direction direction) {
-            if (direction == Key.EQ) {
-                return selected(keyBytes, offset, length);
+        boolean atEdge(byte[] keyBytes, int offset, int length, boolean forward) {
+            if (forward) {
+                if (!_rightInclusive) {
+                    return false;
+                }
+                return compare(keyBytes, offset, length, _itemToBytes, 0,
+                        _itemToBytes.length) == 0;
+            } else {
+                if (!_leftInclusive) {
+                    return false;
+                }
+                return compare(keyBytes, offset, length, _itemFromBytes, 0,
+                        _itemFromBytes.length) == 0;
             }
-            int compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
-                    _itemFromBytes.length);
-
-            if (compare < 0) {
-                return false;
-            }
-            if (compare == 0 && (direction == Key.LT || direction == Key.LTEQ && !_leftInclusive)) {
-                return false;
-            }
-
-            compare = compare(keyBytes, offset, length, _itemToBytes, 0,
-                    _itemToBytes.length);
-
-            if (compare > 0) {
-                return false;
-            }
-            
-            if (compare == 0 && (direction == Key.GT || direction == Key.GTEQ && !_rightInclusive)) {
-                return false;
-            }
-            
-            return true;
         }
-
-
 
         @Override
         boolean forward(Key key, int offset, int length) {
             byte[] keyBytes = key.getEncodedBytes();
-
-            boolean moved = false;
 
             int compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
                     _itemFromBytes.length);
@@ -851,33 +832,18 @@ public class KeyFilter {
                         _itemFromBytes.length);
                 key.setEncodedSize(offset + _itemFromBytes.length);
                 length = _itemFromBytes.length;
-                moved = true;
-                if (_leftInclusive) {
-                    key.nudgeLeft();
+                return true;
+            } else {
+                if (compare == 0 && !_leftInclusive) {
+                    return true;
                 }
             }
-
-            compare = compare(keyBytes, offset, length, _itemToBytes, 0,
-                    _itemToBytes.length);
-
-            if (compare > 0 || (compare == 0 && (!moved || !_rightInclusive))) {
-                return false;
-            }
-
-            if (!moved) {
-                key.setEncodedSize(offset + length);
-                key.nudgeRight();
-                compare = compare(keyBytes, offset, length, _itemToBytes, 0,
-                        _itemToBytes.length);
-            }
-            return compare < 0 || compare == 0 && _rightInclusive;
+            return false;
         }
 
         @Override
         boolean backward(Key key, int offset, int length) {
             byte[] keyBytes = key.getEncodedBytes();
-
-            boolean moved = false;
 
             int compare = compare(keyBytes, offset, length, _itemToBytes, 0,
                     _itemToBytes.length);
@@ -887,26 +853,13 @@ public class KeyFilter {
                         _itemToBytes.length);
                 key.setEncodedSize(offset + _itemToBytes.length);
                 length = _itemToBytes.length;
-                moved = true;
-                if (_rightInclusive) {
-                    key.nudgeDeeper();
+                return true;
+            } else {
+                if (compare == 0 && !_rightInclusive) {
+                    return true;
                 }
             }
-
-            compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
-                    _itemFromBytes.length);
-
-            if (compare < 0 || (compare == 0 && (!moved || !_leftInclusive))) {
-                return false;
-            }
-
-            if (!moved) {
-                key.setEncodedSize(offset + length);
-                key.nudgeLeft();
-                compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
-                        _itemFromBytes.length);
-            }
-            return compare > 0 || compare == 0 && _leftInclusive;
+            return false;
         }
 
         @Override
@@ -1017,15 +970,17 @@ public class KeyFilter {
             }
             return false;
         }
-        
+
         @Override
-        boolean exhausted(byte[] keyBytes, int offset, int length, Key.Direction direction) {
+        boolean atEdge(byte[] keyBytes, int offset, int length, boolean forward) {
             for (int index = 0; index < _terms.length; index++) {
-                if (!_terms[index].exhausted(keyBytes, offset, length, direction)) {
-                    return false;
+                if (_terms[index].selected(keyBytes, offset, length)
+                        && _terms[index].atEdge(keyBytes, offset, length,
+                                forward)) {
+                    return true;
                 }
             }
-            return true;
+            return false;
         }
 
         @Override
@@ -1388,7 +1343,7 @@ public class KeyFilter {
         int size = key.getEncodedSize();
         byte[] keyBytes = key.getEncodedBytes();
 
-        for (int level = 0; ; level++) {
+        for (int level = 0;; level++) {
             if (index == size) {
                 return (level >= _minDepth);
             } else if (level >= _maxDepth) {
@@ -1408,87 +1363,30 @@ public class KeyFilter {
     }
 
     /**
-     * Given a key value, determines whether the adjacent key (as determined by
-     * the Direction and the value of the deep flag) is selected by this
-     * KeyFilter. If not, the KeyFilter range is <i>exhausted</i> and the
-     * {@link #traverse(Key, boolean)} method must be used to find the next
-     * possible range of selected keys, if there are any.
-     * <p />
-     * More formally, if there is no B-Tree for which the result of
-     * {@link com.persistit.Exchange#traverse(com.persistit.Key.Direction, boolean)}
-     * can be selected, then the KeyFilter is <i>exhausted</i> for that Key,
-     * Direction and deep value.
-     * 
-     * @param key
-     *            the Key
-     * @param direction
-     *            the Direction
-     * @param deep
-     *            whether this is a deep (depth-first) traversal
-     * @return <tt>true</tt> if the filter is exhausted.
-     */
-    public boolean exhausted(Key key, Key.Direction direction) {
-        int index = 0;
-        int size = key.getEncodedSize();
-        byte[] keyBytes = key.getEncodedBytes();
-        boolean exhausted = true;
-
-        for (int level = 0; ; level++) {
-            if (index == size) {
-                if (level < _minDepth) {
-                    return true;
-                } else {
-                    return exhausted;
-                }
-            } else if (level >= _maxDepth) {
-                return exhausted;
-            } else {
-                int nextIndex = key.nextElementIndex(index);
-                if (nextIndex == -1) {
-                    nextIndex = key.getEncodedSize();
-                }
-                Term term = level < _terms.length ? _terms[level] : ALL;
-                exhausted &= term.exhausted(keyBytes, index, nextIndex - index, direction);
-                index = nextIndex;
-            }
-        }
-    }
-
-    /**
      * <p>
-     * Determines a key value that is <i>adjacent</i> to the next or previous
-     * (depending on the supplied value of <tt>forward</tt>) key value in the
-     * subset of all keys selected by this <tt>KeyFilter</tt>. This method
-     * modifies the state of the supplied <tt>key</tt> to reflect that next or
-     * previous adjacent value if there is one. The returned <tt>boolean</tt>
-     * value indicates whether such a key exists in the filtered subset.
+     * Determine the next key value from which B-Tree traversal should proceed.
+     * A KeyFilter defines a subset of the the set of all Key values: the
+     * {@link Exchange#traverse(com.persistit.Key.Direction, KeyFilter, int)}
+     * method returns only values in this subset. The subset is called the
+     * <i>range</i> of the traverse method.
      * </p>
      * <p>
-     * Suppose <tt>key</tt> has some value <i>K</i>. Then if <i>K</i> is
-     * selected by this <tt>KeyFilter</tt>, this method returns <tt>true</tt>
-     * and modifies the value of <tt>key</tt>, to the next (or previous, if
-     * <tt>forward</tt> is <tt>false</tt>) key value <i>K'</i> such that there
-     * is no other key value between <i>K</i> and <i>K'</i> in <a
-     * href="Key.html#_keyOrdering">key order</a>.
+     * This method modifies the supplied key as needed so that only key values
+     * in the range are traversed. For example suppose the KeyFilter admits key
+     * values between {5} and {10} (inclusive) and suppose the key currently
+     * contains {3}. Then if the traversal direction is GTEQ, this method
+     * modifies key to {5}, which is the next smallest memory of the range. If
+     * the direction is GT, this method modifies the value of key to {5}-, which
+     * is a pseudo-value immediately before {5}.
      * </p>
      * <p>
-     * If <i>K</i> is not selected by this <tt>KeyFilter</tt>, then let <i>J</i>
-     * be the smallest key value larger than than <i>K</i> (or if
-     * <tt>forward</tt> is <tt>false</tt>, the largest key value smaller than
-     * <i>K</i>) that is selected by this <tt>KeyFilter</tt>. If no such key
-     * value <i>J</i> exists then this method returns <tt>false</tt>. Otherwise
-     * it modifies the value of the supplied <tt>key</tt> and returns
-     * <tt>true</tt>. The new key value is <i>J'</i> where <i>J'</i> is the
-     * largest key value smaller than <i>J</i> if <tt>forward</tt> is
-     * <tt>true</tt>, or the smallest key value larger than <i>J</i> if
-     * <tt>forward</tt> is <tt>false</tt>.
+     * Similarly, if key is {12} and then the directions LTEQ and LT result in
+     * key values {10} and {10}+, respectively.
      * </p>
      * <p>
-     * Note that this method does not necessarily find a key that actually
-     * exists in a Persistit tree, but rather a key value from which traversal
-     * in a tree can proceed. The
-     * {@link Exchange#traverse(Key.Direction, KeyFilter, int)} method uses this
-     * method to perform efficient filtered key traversal.
+     * The return value indicates whether there exist any remaining values in
+     * the range. For example, if the value of key is {10} and the direction is
+     * GT, then this method returns <tt>false</tt>.
      * </p>
      * 
      * @param key
@@ -1502,83 +1400,121 @@ public class KeyFilter {
      * @return <tt>true</tt> if a successor (or predecessor) key exists,
      *         otherwise <tt>false</tt>.
      */
-    public boolean traverse(Key key, boolean forward) {
-        if (key.getEncodedSize() == 0) {
+    public boolean next(Key key, Key.Direction direction) {
+        return next(key, 0, 0, direction == Key.GT || direction == Key.GTEQ,
+                direction == Key.GTEQ || direction == Key.LTEQ);
+    }
+
+    private boolean next(Key key, int index, int level, boolean forward,
+            boolean eq) {
+
+        if (Debug.ENABLED) {
+            Debug.$assert(level < _maxDepth);
+            Debug.$assert(index < key.getEncodedSize());
+        }
+        int size = key.getEncodedSize();
+        byte[] bytes = key.getEncodedBytes();
+
+        if (index == size) {
             if (forward) {
                 key.appendBefore();
             } else {
                 key.appendAfter();
             }
+            size = key.getEncodedSize();
         }
-        final boolean result = traverse(key, 0, 0, forward);
-        return result;
-    }
 
-    private boolean traverse(Key key, int index, int level, boolean forward) {
-        if (Debug.ENABLED) {
-            Debug.$assert(level < _maxDepth);
-            Debug.$assert(index < key.getEncodedSize());
-        }
         int nextIndex = key.nextElementIndex(index);
         if (nextIndex == -1) {
-            nextIndex = key.getEncodedSize();
+            nextIndex = size;
         }
-        final boolean lastKeySegment = nextIndex == key.getEncodedSize();
 
+        final boolean isLastKeySegment = nextIndex == size;
         Term term = level >= _terms.length ? ALL : _terms[level];
 
-        boolean traversed = false;
-        if (forward) {
-            if (level + 1 < _maxDepth) {
-                if (term.selected(key.getEncodedBytes(), index, nextIndex
-                        - index)) {
-                    if (lastKeySegment && !key.isSpecial()) {
-                        key.appendBefore();
-                        traversed = traverse(key, nextIndex, level + 1, true);
-                    } else if (!lastKeySegment) {
-                        traversed = traverse(key, nextIndex, level + 1, true);
+        for (;;) {
+            if (term.selected(bytes, index, nextIndex - index)) {
+                if (level + 1 == _maxDepth) {
+                    if (isLastKeySegment) {
+                        if (eq
+                                || !term.atEdge(bytes, index, size - index,
+                                        forward)) {
+                            return true;
+                        }
+                    } else {
+                        //
+                        // The Key is deeper than this KeyFilter's max depth.
+                        // Therefore truncate the key, which results in a
+                        // smaller key value than the original. If the traversal
+                        // direction is LT or LTEQ, then truncating the key is
+                        // all that's needed nudge the key leftward to avoid
+                        // traversing the same subtree. If the direction is
+                        // GT or GTEQ, then the key needs to be nudged past
+                        // any children.
+                        //
+                        key.setEncodedSize(nextIndex);
+                        if (forward && !key.isSpecial()) {
+                            key.nudgeRight();
+                            if (term.selected(bytes, index, nextIndex - index)) {
+                                return true;
+                            }
+                        } else {
+                            key.nudgeDeeper();
+                            return true;
+                        }
+                    }
+                } else if (level < _minDepth) {
+                    if (key.isSpecial()
+                            || next(key, nextIndex, level + 1, forward, eq)) {
+                        return true;
+                    }
+                } else if (isLastKeySegment) {
+                    if (eq || !term.atEdge(bytes, index, size - index, forward)) {
+                        return true;
+                    }
+                } else {
+                    if (key.isSpecial()
+                            || next(key, nextIndex, level + 1, forward, eq)) {
+                        return true;
                     }
                 }
             }
-            if (!traversed) {
-                traversed = term.forward(key, index, nextIndex - index);
-                nextIndex = key.getEncodedSize();
-                if (traversed
-                        && level + 1 < _minDepth
-                        && level < _terms.length
-                        && !key.isSpecial()
-                        && term.selected(key.getEncodedBytes(), index,
-                                nextIndex - index)) {
-                    key.appendBefore();
-                    traversed = traverse(key, nextIndex, level + 1, true);
+
+            long generation = key.getGeneration();
+            if (forward) {
+                if (!term.forward(key, index, nextIndex - index)) {
+                    return false;
+                }
+            } else {
+                if (!term.backward(key, index, nextIndex - index)) {
+                    return false;
                 }
             }
-        } else {
-            if (level + 1 < _maxDepth) {
-                if (key.getEncodedSize() > nextIndex
-                        && term.selected(key.getEncodedBytes(), index,
-                                nextIndex - index)) {
-                    traversed = traverse(key, nextIndex, level + 1, false);
-                }
-            } else if (!lastKeySegment && level + 1 == _maxDepth) {
-                key.setEncodedSize(nextIndex);
-                traversed = term.selected(key.getEncodedBytes(), index,
-                        nextIndex - index);
+            if (generation != key.getGeneration()) {
+                // If the forward or backward operations actually changed the
+                // key then they truncated it to the current term, possibly
+                // changing the term's length. Here the size is restored to
+                // the correct value.
+                size = key.getEncodedSize();
             }
-            if (!traversed) {
-                traversed = term.backward(key, index, nextIndex - index);
-                nextIndex = key.getEncodedSize();
-                if (traversed
-                        && level + 1 < _maxDepth
-                        && !key.isSpecial()
-                        && term.selected(key.getEncodedBytes(), index,
-                                nextIndex)) {
-                    key.appendAfter();
-                    traversed = traverse(key, nextIndex, level + 1, false);
+
+            if (level + 1 >= _minDepth) {
+                if (!eq && !key.isSpecial()
+                        && term.selected(bytes, index, size - index)
+                        && term.atEdge(bytes, index, size - index, !forward)) {
+                    if (forward) {
+                        key.nudgeLeft();
+                    } else {
+                        key.nudgeRight();
+                    }
                 }
+                return true;
+            }
+
+            if (next(key, size, level + 1, forward, eq)) {
+                return true;
             }
         }
-        return traversed;
     }
 
     private static int compare(byte[] a, byte[] b) {
