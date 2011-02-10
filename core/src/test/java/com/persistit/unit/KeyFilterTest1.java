@@ -127,7 +127,7 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         assertEquals("{\"atlantic\",(float)1.3,\"x\"}-", key.toString());
         key.to("zz");
         assertTrue(kf.next(key, Key.LT));
-        assertEquals("{\"atlantic\",(float)1.3,\"z\"}", key.toString());
+        assertEquals("{\"atlantic\",(float)1.3,\"z\"}-", key.toString());
         System.out.println("- done");
     }
 

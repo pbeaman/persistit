@@ -1125,7 +1125,7 @@ public class Exchange {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
-        _key.testValidForStoreAndFetch(_volume.getPageSize());
+        key.testValidForStoreAndFetch(_volume.getPageSize());
         _persistit.checkClosed();
         _persistit.checkSuspended();
         final int lockedResourceCount = _persistit.getLockManager()
@@ -1756,7 +1756,11 @@ public class Exchange {
 
         final boolean reverse = (direction == LT) || (direction == LTEQ);
         if (_key.getEncodedSize() == 0) {
-            _key.append(reverse ? AFTER : BEFORE);
+            if (reverse) {
+                _key.appendAfter();
+            } else {
+                _key.appendBefore();
+            }
         }
 
         _key.testValidForTraverse();
@@ -2031,7 +2035,12 @@ public class Exchange {
                     } else {
                         _spareKey1.copyTo(_key);
                     }
-                    _key.to(reverse ? AFTER : BEFORE);
+                    _key.cut();
+                    if (reverse) {
+                        _key.appendAfter();
+                    } else {
+                        _key.appendBefore();
+                    }
                 }
             } else {
                 // Restore original key
@@ -2117,6 +2126,12 @@ public class Exchange {
 
         for (;;) {
             if (!keyFilter.next(_key, direction)) {
+                    _key.setEncodedSize(0);
+                if (direction == LT || direction == LTEQ) {
+                    _key.appendAfter();
+                } else {
+                    _key.appendBefore();
+                }
                 return false;
             }
             if (!traverse(direction, true, minBytes)) {
@@ -2566,14 +2581,14 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
-        _key.copyTo(_spareKey2);
+        _key.copyTo(_spareKey1);
         final int size = _key.getEncodedSize();
         boolean result = traverse(GT, true, 0);
         if (result && _key.getEncodedSize() < size
-                || _spareKey2.compareKeyFragment(_key, 0, size) != 0) {
+                || _spareKey1.compareKeyFragment(_key, 0, size) != 0) {
             result = false;
         }
-        _spareKey2.copyTo(_key);
+        _spareKey1.copyTo(_key);
         return result;
     }
 
