@@ -32,8 +32,9 @@ import com.persistit.exception.MissingKeySegmentException;
  * {@link #selected(Key)} indicates whether the value of the specified
  * <tt>Key</tt> is a member of the subset specified by this filter, and</li>
  * <li>
- * {@link #traverse(Key, boolean)} modifies the <tt>Key</tt> to the next larger
- * or smaller key value that lies within the subset specified by this filter.</li>
+ * {@link #next(Key, Key.Direction)} modifies the <tt>Key</tt> to the next
+ * larger or smaller key value that lies within the range specified by this
+ * filter.</li>
  * </ul>
  * These methods permit efficient traversal of a filtered subset of keys within
  * a <tt>Tree</tt>.
@@ -76,25 +77,21 @@ import com.persistit.exception.MissingKeySegmentException;
  * first name and a person ID number for a person. Such a key value might be
  * constructed with code such as this:
  * 
- * <pre>
- * <blockquote><code>
- * key.clear().append("McDonald").append("Bob").append(12345);
- * </code></blockquote>
- * </pre>
+ * <code><pre>
+ *     key.clear().append("McDonald").append("Bob").append(12345);
+ * </pre></code>
  * 
  * Suppose we now want to enumerate all members of a tree having keys of this
  * form with last names falling between "M" and "Q", and first names equal to
  * either "Alice" or "Bob". The following code constructs a <tt>KeyFilter</tt>
  * for this purpose:
  * 
- * <pre>
- * <blockquote><code>
- * KeyFilter keyFilter = new KeyFilter();
- * keyFilter = keyFilter.append(KeyFilter.rangeTerm("M", "Q"));
- * keyFilter = keyFilter.append(KeyFilter.orTerm(new KeyFilter.Term[]{
- *    KeyFilter.simpleTerm("Alice"), KeyFilter.simpleTerm("Bob"))});
- * </code></blockquote>
- * </pre>
+ * <code><pre>
+ *     KeyFilter keyFilter = new KeyFilter();
+ *     keyFilter = keyFilter.append(KeyFilter.rangeTerm("M", "Q"));
+ *     keyFilter = keyFilter.append(KeyFilter.orTerm(new KeyFilter.Term[]{
+ *         KeyFilter.simpleTerm("Alice"), KeyFilter.simpleTerm("Bob"))});
+ * </pre></code>
  * 
  * The first term specifies a range that includes any last name that sorts
  * alphabetically between "M" and "Q" (inclusively). The second term is an
@@ -104,11 +101,9 @@ import com.persistit.exception.MissingKeySegmentException;
  * A RangeTerm optionally specifies whether the end-points are inclusive. For
  * example, the term
  * 
- * <pre>
- * <blockquote><code>
- *   KeyFilter.rangeTerm("Jones", "Smith", true, false)
- * </code></blockquote>
- * </pre>
+ * <code><pre>
+ *     KeyFilter.rangeTerm("Jones", "Smith", true, false)
+ * </pre></code>
  * 
  * includes the name "Jones" and all names that follow up to, but not including,
  * "Smith". If unspecified, the end-points of the range are included.
@@ -128,22 +123,18 @@ import com.persistit.exception.MissingKeySegmentException;
  * the current terms for this <tt>KeyFilter</tt>. For example, the string
  * representation of the filter constructed in above is
  * 
- * <pre>
- * <blockquote><code>
- * {"M":"Q",{"Alice","Bob"}}
- * </code></blockquote>
- * </pre>
+ * <code><pre>
+ *     {"M":"Q",{"Alice","Bob"}}
+ * </pre></code>
  * 
  * You can construct a <tt>KeyFilter</tt> from its string representation with
  * the {@link KeyParser#parseKeyFilter} method. For example, the following code
  * generates an equivalent <tt>KeyFilter</tt>:
  * 
- * <pre>
- * <blockquote><code>
- * KeyParser parser = new KeyParser("{\"M\":\"Q\",{\"Alice\",\"Bob\"}};
- * KeyFilter filter = parser.parseKeyFilter();
- * </code></blockquote>
- * </pre>
+ * <code><pre>
+ *     KeyParser parser = new KeyParser("{\"M\":\"Q\",{\"Alice\",\"Bob\"}};
+ *     KeyFilter filter = parser.parseKeyFilter();
+ * </pre></code>
  * 
  * As a convenience, the constructor {@link #KeyFilter(String)} automatically
  * creates and invokes a <tt>KeyParser</tt> to create a <tt>KeyFilter</tt> from
@@ -155,8 +146,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * representation</a> in {@link Key} for information on how to specify a key
  * segment value.
  * 
- * <pre>
- * <blockquote><code>
+ * <code><pre>
  *    keyFilter ::= '{' termElement [',' termElement]... '}'
  *    termElement ::= [ '&gt;' ] term [ '&lt;' ]
  *    term ::= segment | range | qualifiedRange | orTerm
@@ -164,8 +154,7 @@ import com.persistit.exception.MissingKeySegmentException;
  *    range ::= segment ':' segment | ':' segment | segment ':'
  *    qualifiedRange = ('(' | '[') range (')' | ']')
  *    orTerm ::= '{' term [',' term ]...'}'
- * </code></blockquote>
- * </pre>
+ * </pre></code>
  * 
  * A <i>range</i> may omit either the starting segment value or the ending
  * segment value. When the starting segment value is omitted, the range starts
@@ -173,19 +162,15 @@ import com.persistit.exception.MissingKeySegmentException;
  * omitted, the range ends after the last possible key value. Thus the range
  * specification
  * 
- * <pre>
- * <blockquote><code>
+ * <code><pre>
  *   {"Smith":}
- * </code></blockquote>
- * </pre>
+ * </pre></code>
  * 
  * include every key with a first segment value of "Smith" or above. Similarly,
  * 
- * <pre>
- * <blockquote><code>
+ * <code><pre>
  *   {:"Smith"}
- * </code></blockquote>
- * </pre>
+ * </pre></code>
  * 
  * includes all keys up to and including "Smith".
  * </p>
@@ -195,28 +180,22 @@ import com.persistit.exception.MissingKeySegmentException;
  * indicates that the end-point is included, while a parenthesis indicates that
  * it is excluded. For example
  * 
- * <pre>
- * <blockquote><code>
+ * <code><pre>
  *   {("Jones":"Smith"]}
- * </code></blockquote>
- * </pre>
+ * </pre></code>
  * 
  * does not include "Jones" but does include "Smith". An unqualified
  * <i>range</i> specification such as
  * 
- * <pre>
- * <blockquote><code>
+ * <code><pre>
  *   {"Jones":"Smith"}
- * </code></blockquote>
- * </pre>
+ * </pre></code>
  * 
  * includes both end-points. It is equivelent to
  * 
- * <pre>
- * <blockquote><code>
+ * <code><pre>
  *   {["Jones":"Smith"]}
- * </code></blockquote>
- * </pre>
+ * </pre></code>
  * 
  * </p>
  * <p>
@@ -229,16 +208,14 @@ import com.persistit.exception.MissingKeySegmentException;
  * including the term marked with a "&gt;". For example, in the
  * <tt>KeyFilter</tt> represented by the string
  * 
- * <pre>
- * <blockquote><code>
+ * <code><pre>
  *   {*,>100:200,*<}
- * </code></blockquote>
- * </pre>
+ * </pre></code>
  * 
  * the minimum depth is 2 and the maximum depth is 3.
  * </p>
- * <p>
  * <h3>Building KeyFilters by Appending Terms</h3>
+ * <p>
  * A <tt>KeyFilter</tt> is immutable. The methods {@link #append(KeyFilter)},
  * {@link #append(KeyFilter.Term)}, {@link #append(KeyFilter.Term[])}, create
  * new <tt>KeyFilter</tt>s with additional terms supplied by the supplied
@@ -248,7 +225,75 @@ import com.persistit.exception.MissingKeySegmentException;
  * <tt>KeyFilter</tt> which results from combining the original
  * <tt>KeyFilter</tt> with the supplied information.
  * </p>
- * 
+ * <h3>
+ * Formal Specification of the {@link #next(Key, Key.Direction)} Method</h3>
+ * <p>
+ * A KeyFilter defines a subset of the the set of all Key values: the
+ * {@link Exchange#traverse(Key.Direction, KeyFilter, int)} method returns only
+ * values in this subset. The following definitions are used in describing the
+ * behavior of the {@link #next(Key, Key.Direction)} method.
+ * <dl>
+ * <dt>Range</dt>
+ * <dd>Let S be the ordered set of all possible key values. (Though large, this
+ * set is finite because a Keys have finite length.) The <i>range</i> R is the
+ * subset of keys in S selected by this KeyFilter.</dd>
+ * <dt>Adjacent</dt>
+ * <dd>Two keys K1 and K2 in this set are <i>adjacent</i> if K1 != K2 and there
+ * exists no other key value K such that K1 &lt; K &lt; k2. The terms
+ * <i>left-adjacent</i> and <i>right-adjacent</i> describe the precedence: K1 is
+ * left-adjacent to K2; K2 is right-adjacent to K1</dd>
+ * <dt>Contiguous</dt>
+ * <dd>Let C be a subset of R. Let Kmin and Kmax be the smallest and largest
+ * keys in C, respectively. Then C is <i>contiguous</i> if there is no key K not
+ * in R where Kmin &lt; K &lt; Kmax.</dd>
+ * <dt>Direction</dt>
+ * <dd>The {@link Key.Direction} is supplied to the
+ * {@link Exchange#traverse(Key.Direction, KeyFilter, int)} method to control
+ * navigation. There are five possible values:
+ * <ul>
+ * <li>LT: the result key must be strictly less than the supplied key.</li>
+ * <li>LTEQ: the result key must be less than or equal to the supplied key.</li>
+ * <li>EQ: the result key must be equal to the supplied key.</li>
+ * <li>GTEQ: the result key must be greater than or equal to the supplied key.</li>
+ * <li>GT: the result key must be strictly greater than the supplied key.</li>
+ * </ul>
+ * LT and GT are called <i>exclusive</i> because the result of <tt>traverse</tt>
+ * excludes the supplied key. LTEQ and GTEQ are <i>inclusive</i>.
+ * </dl>
+ * </p>
+ * <p>
+ * A KeyFilter defines the range R as zero or more contiguous subsets of S. The
+ * <tt>next</tt> method is used to assist the <tt>traverse</tt> method by
+ * skipping efficiently over keys that are not in contained in R. Given a
+ * {@link Key} K and a {@link Key.Direction} D, the method behaves as follows:
+ * </p>
+ * <p>
+ * <ol>
+ * <li>
+ * If K is in R (i.e., is <i>selected</i>) and either D is inclusive, or there
+ * exists a key value K' in R that is adjacent to K (where K' is larger than K
+ * if D is GT, or smaller than K if D is LT), then return <tt>true</tt> without
+ * modifying the K.</li>
+ * <li>
+ * Otherwise attempt to modify K to a new value K' which is either adjacent to
+ * or in the next contiguous subset of R, and return <tt>true</tt> to indicate
+ * that more keys exist in the range. Specifically, for each Direction D, K' is
+ * defined as follows:
+ * <ul>
+ * <li>LT: find the largest key J in R where J &lt; K. Then K' is the key
+ * right-adjacent to J.</li>
+ * <li>LTEQ: find the largest key J in R where J &lt; K. Then K' is J.</li>
+ * <li>EQ: there is no K'</li>
+ * <li>GTEQ: find the smallest key J in R where J &gt; K. Then K' is J.</li>
+ * <li>GT: find the smallest key J in R where J &lt; K. Then K' is the key
+ * left-adjacent to J.</li>
+ * </ul>
+ * </li>
+ * <li>
+ * Otherwise, if there is no key K' that satisfies the requirements of #2,
+ * return <tt>false</tt> to indicate that the range has been exhausted.</li>
+ * </ol>
+ * </p>
  * 
  * @version 1.0
  */
@@ -556,6 +601,9 @@ public class KeyFilter {
 
         abstract boolean selected(byte[] keyBytes, int offset, int length);
 
+        abstract boolean atEdge(byte[] keyBytes, int offset, int length,
+                boolean forward);
+
         abstract boolean forward(Key key, int offset, int length);
 
         abstract boolean backward(Key key, int offset, int length);
@@ -604,9 +652,9 @@ public class KeyFilter {
          */
         @Override
         public void toString(CoderContext context, StringBuilder sb) {
-            if (this == ALL)
+            if (this == ALL) {
                 sb.append("*");
-            else {
+            } else {
                 final Key workKey = new Key((Persistit) null);
                 appendDisplayableKeySegment(workKey, sb, _itemBytes, context,
                         false, false);
@@ -615,11 +663,15 @@ public class KeyFilter {
 
         @Override
         boolean selected(byte[] keyBytes, int offset, int length) {
-            if (this == ALL)
-                return true;
-
-            if (length != _itemBytes.length)
+            if (length == 0) {
                 return false;
+            }
+            if (this == ALL) {
+                return true;
+            }
+            if (length != _itemBytes.length) {
+                return false;
+            }
             for (int index = 0; index < length; index++) {
                 if (_itemBytes[index] != keyBytes[offset + index])
                     return false;
@@ -628,10 +680,19 @@ public class KeyFilter {
         }
 
         @Override
+        boolean atEdge(byte[] keyBytes, int offset, int length, boolean forward) {
+            return this == ALL ? false : true;
+        }
+
+        @Override
         boolean forward(Key key, int offset, int length) {
             if (this == ALL) {
-                key.setEncodedSize(offset + length);
-                key.nudgeRight();
+                if (length == 0) {
+                    key.setEncodedSize(offset);
+                    key.appendBefore();
+                } else if (!key.isSpecial()) {
+                    key.nudgeRight();
+                }
                 return true;
             }
 
@@ -645,21 +706,26 @@ public class KeyFilter {
                         _itemBytes.length);
                 key.setEncodedSize(offset + _itemBytes.length);
                 return true;
-            } else
+            } else {
                 return false;
+            }
         }
 
         @Override
         boolean backward(Key key, int offset, int length) {
             if (this == ALL) {
-                key.setEncodedSize(offset + length);
-                key.nudgeLeft();
+                if (length == 0) {
+                    key.setEncodedSize(offset);
+                    key.appendAfter();
+                } else if (!key.isSpecial()) {
+                    key.nudgeLeft();
+                }
                 return true;
             }
 
             byte[] keyBytes = key.getEncodedBytes();
 
-            int compare = compare(keyBytes, offset, length, _itemBytes, 0,
+            int compare =length == 0 ? 1 : compare(keyBytes, offset, length, _itemBytes, 0,
                     _itemBytes.length);
 
             if (compare > 0) {
@@ -667,8 +733,9 @@ public class KeyFilter {
                         _itemBytes.length);
                 key.setEncodedSize(offset + _itemBytes.length);
                 return true;
-            } else
+            } else {
                 return false;
+            }
         }
 
         @Override
@@ -694,17 +761,17 @@ public class KeyFilter {
      * appropriate <tt>Term</tt> instances.
      */
     static class RangeTerm extends Term {
-        private boolean _leftInclusive = true;
-        private boolean _rightInclusive = true;
-        private byte[] _itemFromBytes;
-        private byte[] _itemToBytes;
+        private final byte[] _itemFromBytes;
+        private final byte[] _itemToBytes;
+        private final boolean _leftInclusive;
+        private final boolean _rightInclusive;
 
         RangeTerm(byte[] leftBytes, byte[] rightBytes, boolean leftInclusive,
                 boolean rightInclusive) {
+            _itemFromBytes = leftInclusive ? leftBytes : nudgeRight(leftBytes);
+            _itemToBytes = rightInclusive ? rightBytes : nudgeLeft(rightBytes);
             _leftInclusive = leftInclusive;
             _rightInclusive = rightInclusive;
-            _itemFromBytes = leftBytes;
-            _itemToBytes = rightBytes;
         }
 
         /**
@@ -722,9 +789,7 @@ public class KeyFilter {
         public boolean equals(Object object) {
             if (object instanceof RangeTerm) {
                 RangeTerm t = (RangeTerm) object;
-                boolean result = _leftInclusive == t._leftInclusive
-                        && _rightInclusive == t._rightInclusive
-                        && compare(_itemFromBytes, t._itemFromBytes) == 0
+                boolean result = compare(_itemFromBytes, t._itemFromBytes) == 0
                         && compare(_itemToBytes, t._itemToBytes) == 0;
                 return result;
             }
@@ -739,9 +804,7 @@ public class KeyFilter {
         @Override
         public int hashCode() {
             if (_hashCode == -1) {
-                _hashCode = (byteHash(_itemFromBytes) ^ byteHash(_itemToBytes)
-                        ^ (_leftInclusive ? 123 : 0) ^ (_rightInclusive ? 456
-                        : 0)) & 0x7FFFFFFF;
+                _hashCode = (byteHash(_itemFromBytes) ^ byteHash(_itemToBytes)) & 0x7FFFFFFF;
             }
             return _hashCode;
         }
@@ -763,15 +826,19 @@ public class KeyFilter {
         public void toString(CoderContext context, StringBuilder sb) {
             Key workKey = new Key((Persistit) null);
             boolean allInclusive = _leftInclusive && _rightInclusive;
-            if (!allInclusive)
+            if (!allInclusive) {
                 sb.append(_leftInclusive ? "[" : "(");
-            appendDisplayableKeySegment(workKey, sb, _itemFromBytes, context,
-                    true, false);
+            }
+            byte[] from = _leftInclusive ? _itemFromBytes
+                    : unnudgeRight(_itemFromBytes);
+            appendDisplayableKeySegment(workKey, sb, from, context, true, false);
             sb.append(":");
-            appendDisplayableKeySegment(workKey, sb, _itemToBytes, context,
-                    false, true);
-            if (!allInclusive)
+            byte[] to = _rightInclusive ? _itemToBytes
+                    : unnudgeLeft(_itemToBytes);
+            appendDisplayableKeySegment(workKey, sb, to, context, false, true);
+            if (!allInclusive) {
                 sb.append(_rightInclusive ? "]" : ")");
+            }
         }
 
         @Override
@@ -779,24 +846,33 @@ public class KeyFilter {
             int compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
                     _itemFromBytes.length);
 
-            if (compare < 0 || (!_leftInclusive && compare == 0)) {
+            if (compare < 0) {
                 return false;
             }
 
             compare = compare(keyBytes, offset, length, _itemToBytes, 0,
                     _itemToBytes.length);
 
-            if (compare > 0 || (!_rightInclusive && compare == 0)) {
+            if (compare > 0) {
                 return false;
             }
             return true;
         }
 
         @Override
+        boolean atEdge(byte[] keyBytes, int offset, int length, boolean forward) {
+            if (forward) {
+                return compare(keyBytes, offset, length, _itemToBytes, 0,
+                        _itemToBytes.length) == 0;
+            } else {
+                return compare(keyBytes, offset, length, _itemFromBytes, 0,
+                        _itemFromBytes.length) == 0;
+            }
+        }
+
+        @Override
         boolean forward(Key key, int offset, int length) {
             byte[] keyBytes = key.getEncodedBytes();
-
-            boolean moved = false;
 
             int compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
                     _itemFromBytes.length);
@@ -805,34 +881,14 @@ public class KeyFilter {
                 System.arraycopy(_itemFromBytes, 0, keyBytes, offset,
                         _itemFromBytes.length);
                 key.setEncodedSize(offset + _itemFromBytes.length);
-                length = _itemFromBytes.length;
-                moved = true;
-                if (!_leftInclusive) {
-                    key.nudgeRight();
-                }
+                return true;
             }
-
-            compare = compare(keyBytes, offset, length, _itemToBytes, 0,
-                    _itemToBytes.length);
-
-            if (compare > 0 || (compare == 0 && (!moved || !_rightInclusive))) {
-                return false;
-            }
-
-            if (!moved) {
-                key.setEncodedSize(offset + length);
-                key.nudgeRight();
-                compare = compare(keyBytes, offset, length, _itemToBytes, 0,
-                        _itemToBytes.length);
-            }
-            return compare < 0 || compare == 0 && _rightInclusive;
+            return false;
         }
 
         @Override
         boolean backward(Key key, int offset, int length) {
             byte[] keyBytes = key.getEncodedBytes();
-
-            boolean moved = false;
 
             int compare = compare(keyBytes, offset, length, _itemToBytes, 0,
                     _itemToBytes.length);
@@ -842,26 +898,9 @@ public class KeyFilter {
                         _itemToBytes.length);
                 key.setEncodedSize(offset + _itemToBytes.length);
                 length = _itemToBytes.length;
-                moved = true;
-                if (!_rightInclusive) {
-                    key.nudgeLeft();
-                }
+                return true;
             }
-
-            compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
-                    _itemFromBytes.length);
-
-            if (compare < 0 || (compare == 0 && (!moved || !_leftInclusive))) {
-                return false;
-            }
-
-            if (!moved) {
-                key.setEncodedSize(offset + length);
-                key.nudgeLeft();
-                compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
-                        _itemFromBytes.length);
-            }
-            return compare > 0 || compare == 0 && _leftInclusive;
+            return false;
         }
 
         @Override
@@ -872,6 +911,48 @@ public class KeyFilter {
         @Override
         byte[] rightBytes() {
             return _itemToBytes;
+        }
+
+        private byte[] nudgeRight(byte[] from) {
+            int size = from.length;
+            final byte[] to = new byte[size];
+            System.arraycopy(from, 0, to, 0, size);
+            if (size > 1 && to[size - 1] == 0) {
+                to[size - 1] = 1;
+            }
+            return to;
+        }
+
+        private byte[] nudgeLeft(byte[] from) {
+            int size = from.length;
+            final byte[] to = new byte[size];
+            System.arraycopy(from, 0, to, 0, size);
+            if (size > 1 && to[size - 1] == 0 && to[size - 2] != 0) {
+                to[size - 2]--;
+                to[size - 1] = -1;
+            }
+            return to;
+        }
+
+        private byte[] unnudgeRight(byte[] from) {
+            int size = from.length;
+            final byte[] to = new byte[size];
+            System.arraycopy(from, 0, to, 0, size);
+            if (size > 1 && to[size - 1] == 1) {
+                to[size - 1] = 0;
+            }
+            return to;
+        }
+
+        private byte[] unnudgeLeft(byte[] from) {
+            int size = from.length;
+            final byte[] to = new byte[size];
+            System.arraycopy(from, 0, to, 0, size);
+            if (size > 1 && to[size - 1] == -1) {
+                to[size - 2]++;
+                to[size - 1] = (byte) 0;
+            }
+            return to;
         }
     }
 
@@ -967,6 +1048,18 @@ public class KeyFilter {
         boolean selected(byte[] keyBytes, int offset, int length) {
             for (int index = 0; index < _terms.length; index++) {
                 if (_terms[index].selected(keyBytes, offset, length)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        boolean atEdge(byte[] keyBytes, int offset, int length, boolean forward) {
+            for (int index = 0; index < _terms.length; index++) {
+                if (_terms[index].selected(keyBytes, offset, length)
+                        && _terms[index].atEdge(keyBytes, offset, length,
+                                forward)) {
                     return true;
                 }
             }
@@ -1149,17 +1242,14 @@ public class KeyFilter {
             boolean leftInclusive, boolean rightInclusive, CoderContext context) {
         Key key = new Key((Persistit) null);
         if (fromValue == null)
-            key.append(Key.BEFORE);
+            key.appendBefore();
         else
             key.append(fromValue, context);
         key.reset();
         byte[] leftBytes = segmentBytes(key);
         key.clear();
         if (toValue != fromValue && toValue != null) {
-            if (toValue == null)
-                key.append(Key.AFTER);
-            else
-                key.append(toValue, context);
+            key.append(toValue, context);
             key.reset();
             byte[] rightBytes = segmentBytes(key);
             if (compare(leftBytes, rightBytes) > 0) {
@@ -1331,68 +1421,79 @@ public class KeyFilter {
      *         constraints of this filter, otherwise <tt>false</tt>.
      */
     public boolean selected(Key key) {
-        boolean result = true;
 
         int index = 0;
         int size = key.getEncodedSize();
         byte[] keyBytes = key.getEncodedBytes();
 
-        for (int level = 0; result; level++) {
+        for (int level = 0;; level++) {
             if (index == size) {
-                result = (level >= _minDepth);
-                break;
+                return (level >= _minDepth);
             } else if (level >= _maxDepth) {
-                result = false;
-                break;
+                return false;
             } else {
                 int nextIndex = key.nextElementIndex(index);
                 if (nextIndex == -1) {
                     nextIndex = key.getEncodedSize();
                 }
                 Term term = level < _terms.length ? _terms[level] : ALL;
-                result = term.selected(keyBytes, index, nextIndex - index);
+                if (!term.selected(keyBytes, index, nextIndex - index)) {
+                    return false;
+                }
                 index = nextIndex;
             }
         }
-
-        return result;
     }
 
     /**
      * <p>
-     * Determines a key value that is <i>adjacent</i> to the next or previous
-     * (depending on the supplied value of <tt>forward</tt>) key value in the
-     * subset of all keys selected by this <tt>KeyFilter</tt>. This method
-     * modifies the state of the supplied <tt>key</tt> to reflect that next or
-     * previous adjacent value if there is one. The returned <tt>boolean</tt>
-     * value indicates whether such a key exists in the filtered subset.
+     * Determine the next key value from which B-Tree traversal should proceed.
      * </p>
      * <p>
-     * Suppose <tt>key</tt> has some value <i>V</i>. Then if <i>V</i> is
-     * selected by this <tt>KeyFilter</tt>, this method returns <tt>true</tt>
-     * and modifies the value of <tt>key</tt>, to the next (or previous, if
-     * <tt>forward</tt> is <tt>false</tt>) key value <i>V'</i> such that there
-     * is no other key value between <i>V</i> and <i>V'</i> in <a
-     * href="Key.html#_keyOrdering">key order</a>.
+     * A KeyFilter defines a subset of the the set of all Key values: the
+     * {@link Exchange#traverse(Key.Direction, KeyFilter, int)} method returns
+     * only values in this subset. The following definitions are used in
+     * describing the behavior of this method.
      * </p>
      * <p>
-     * If <i>V</i> is not selected by this <tt>KeyFilter</tt>, then let <i>W</i>
-     * be the smallest key value larger than than <i>V</i> (or if
-     * <tt>forward</tt> is <tt>false</tt>, the largest key value smaller than
-     * <i>V</i>) that is selected by this <tt>KeyFilter</tt>. If no such key
-     * value <i>W</i> exists then this method returns <tt>false</tt>. Otherwise
-     * it modifies the value of the supplied <tt>key</tt> and returns
-     * <tt>true</tt>. The new key value is <i>W'</i> where <i>W'</i> is the
-     * largest key value smaller than <i>W</i> if <tt>forward</tt> is
-     * <tt>true</tt>, or the smallest key value larger than <i>W</i> if
-     * <tt>forward</tt> is <tt>false</tt>.
+     * <dl>
+     * <dt>Range</dt>
+     * <dd>Let S be the ordered set of all possible key values. (Though large,
+     * this set is finite because of maximum length of a key.) T range R is the
+     * subset of S selected by this KeyFilter.</dd>
+     * <dt>Adjacent</dt>
+     * <dd>Two keys K1 and K2 in this set are <i>adjacent</i> if K1 != K2 and
+     * there exists no other key value K such that K1 &lt; K &lt; k2.</dd>
+     * <dt>Contiguous</dt>
+     * <dd>Let C be a subset of R. Let Kmin and Kmax be the smallest and largest
+     * keys in C, respectively. Then C is <i>contiguous</i> if there is no key K
+     * where K1 &lt; K &lt; K2 and K is not in R.</dd>
+     * </dl>
+     * 
+     * A KeyFilter defines a subset of S
      * </p>
      * <p>
-     * Note that this method does not necessarily find a key that actually
-     * exists in a Persistit tree, but rather a key value from which traversal
-     * in a tree can proceed. The
-     * {@link Exchange#traverse(Key.Direction, KeyFilter, int)} method uses this
-     * method to perform efficient filtered key traversal.
+     * This method modifies the supplied key as needed so that only key values
+     * in the range are traversed. For example suppose the KeyFilter admits key
+     * values between {5} and {10} (inclusive) and suppose the key currently
+     * contains {3}. Then if the traversal direction is GTEQ, this method
+     * modifies key to {5}, which is the next smallest memory of the range. If
+     * the direction is GT, this method modifies the value of key to {5}-, which
+     * is a pseudo-value immediately before {5}.
+     * </p>
+     * <p>
+     * In most cases, if the supplied key is <i>selected</i> (in the range) then
+     * this method returns <tt>true</tt> and does not modify the key. The
+     * exception is that if the current key is selected, the direction is LT or
+     * GT, and there is no adjacent key in the range, this method w
+     * <p>
+     * </p>
+     * Similarly, if key is {12} and then the directions LTEQ and LT result in
+     * key values {10} and {10}+, respectively. </p>
+     * <p>
+     * The return value indicates whether there exist any remaining values in
+     * the range. For example, if the value of key is {10} and the direction is
+     * GT, then this method returns <tt>false</tt>.
      * </p>
      * 
      * @param key
@@ -1406,79 +1507,142 @@ public class KeyFilter {
      * @return <tt>true</tt> if a successor (or predecessor) key exists,
      *         otherwise <tt>false</tt>.
      */
-    public boolean traverse(Key key, boolean forward) {
-        if (key.getEncodedSize() == 0) {
-            key.append(forward ? Key.BEFORE : Key.AFTER);
-        }
-        final boolean result = traverse(key, 0, 0, forward);
-        return result;
+    public boolean next(Key key, Key.Direction direction) {
+        return next(key, 0, 0, direction == Key.GT || direction == Key.GTEQ,
+                direction == Key.GTEQ || direction == Key.LTEQ);
     }
 
-    private boolean traverse(Key key, int index, int level, boolean forward) {
+    /**
+     * Process the a Term in the KeyFilter. The first <code>level</code> terms
+     * of the KeyFilter have already been satisfied.
+     * 
+     * @param key
+     * @param index
+     * @param level
+     * @param forward
+     * @param eq
+     * @return
+     */
+    private boolean next(Key key, int index, int level, boolean forward,
+            boolean eq) {
 
-        Debug.$assert(level < _maxDepth);
-        Debug.$assert(index < key.getEncodedSize());
-
-        int nextIndex = key.nextElementIndex(index);
-        if (nextIndex == -1) {
-            nextIndex = key.getEncodedSize();
-        }
-        final boolean lastKeySegment = nextIndex == key.getEncodedSize();
-
+        int size = key.getEncodedSize();
+        byte[] bytes = key.getEncodedBytes();
         Term term = level >= _terms.length ? ALL : _terms[level];
+        int nextIndex;
 
-        boolean traversed = false;
-        if (forward) {
-            if (level + 1 < _maxDepth) {
-                if (term.selected(key.getEncodedBytes(), index, nextIndex
-                        - index)) {
-                    if (lastKeySegment && !key.isSpecial()) {
-                        key.append(Key.BEFORE);
-                        traversed = traverse(key, nextIndex, level + 1, true);
-                    } else if (!lastKeySegment) {
-                        traversed = traverse(key, nextIndex, level + 1, true);
+        if (Debug.ENABLED) {
+            Debug.$assert(level < _maxDepth);
+            Debug.$assert(index <= size);
+        }
+
+        /*
+         * If at end of key and the key is deep enough to satisfy the KeyFilter,
+         * then
+         */
+        if (size == index && level >= _minDepth) {
+            return true;
+        }
+
+        if (size == index) {
+            nextIndex = size;
+        } else {
+            nextIndex = key.nextElementIndex(index);
+            if (nextIndex == -1) {
+                nextIndex = size;
+            }
+        }
+
+        boolean isLastKeySegment = nextIndex == size;
+
+        for (;;) {
+            if (term.selected(bytes, index, nextIndex - index)) {
+                if (level + 1 == _maxDepth) {
+                    if (isLastKeySegment) {
+                        if (eq
+                                || !term.atEdge(bytes, index,
+                                        nextIndex - index, forward)) {
+                            return true;
+                        }
+                    } else {
+                        //
+                        // The Key is deeper than this KeyFilter's max depth.
+                        // Therefore truncate the key, which results in a
+                        // smaller key value than the original. If the traversal
+                        // direction is LT or LTEQ, then truncating the key is
+                        // all that's needed nudge the key leftward to avoid
+                        // traversing the same subtree. If the direction is
+                        // GT or GTEQ, then the key needs to be nudged past
+                        // any children.
+                        //
+                        key.setEncodedSize(nextIndex);
+                        size = nextIndex;
+                        isLastKeySegment = true;
+
+                        if (forward && !key.isSpecial()) {
+                            key.nudgeRight();
+                            continue;
+                        } else if (!forward && !key.isSpecial()) {
+                            key.nudgeDeeper();
+                            continue;
+                        }
+                    }
+                } else if (level < _minDepth) {
+                    if (key.isSpecial()
+                            || next(key, nextIndex, level + 1, forward, eq)) {
+                        return true;
+                    }
+                } else if (isLastKeySegment) {
+                    if (eq || (forward && level + 1 < _maxDepth)
+                            || !term.atEdge(bytes, index, nextIndex - index,
+                                    forward)) {
+                        return true;
+                    }
+                } else {
+                    if (key.isSpecial()
+                            || next(key, nextIndex, level + 1, forward, eq)) {
+                        return true;
                     }
                 }
             }
-            if (!traversed) {
-                traversed = term.forward(key, index, nextIndex - index);
-                nextIndex = key.getEncodedSize();
-                if (traversed
-                        && level + 1 < _minDepth
-                        && level < _terms.length
-                        && !key.isSpecial()
-                        && term.selected(key.getEncodedBytes(), index,
-                                nextIndex - index)) {
-                    key.append(Key.BEFORE);
-                    traversed = traverse(key, nextIndex, level + 1, true);
+
+            //
+            // If the term was not selected, or if a deeper level of the
+            // KeyFilter was exhausted, then attempt to modify the current
+            // key segment to a value at the edge of a new contiguous
+            // area of the range.
+            //
+
+            key.setEncodedSize(nextIndex);
+            
+            if (forward) {
+                if (!term.forward(key, index, nextIndex - index)) {
+                    return false;
+                }
+            } else {
+                if (!term.backward(key, index, nextIndex - index)) {
+                    return false;
                 }
             }
-        } else {
-            if (level + 1 < _maxDepth) {
-                if (key.getEncodedSize() > nextIndex
-                        && term.selected(key.getEncodedBytes(), index,
-                                nextIndex - index)) {
-                    traversed = traverse(key, nextIndex, level + 1, false);
-                }
-            } else if (!lastKeySegment && level + 1 == _maxDepth) {
-                key.setEncodedSize(nextIndex);
-                traversed = term.selected(key.getEncodedBytes(), index,
-                        nextIndex - index);
+            size = key.getEncodedSize();
+            nextIndex = size;
+            isLastKeySegment = true;
+
+            if (key.isSpecial()) {
+                return true;
             }
-            if (!traversed) {
-                traversed = term.backward(key, index, nextIndex - index);
-                nextIndex = key.getEncodedSize();
-                if (traversed
-                        && level + 1 < _maxDepth
-                        && !key.isSpecial()
-                        && term.selected(key.getEncodedBytes(), index,
-                                nextIndex)) {
-                    key.append(Key.AFTER);
-                    traversed = traverse(key, nextIndex, level + 1, false);
+
+            if (level + 1 >= _minDepth) {
+                if (!eq) {
+                    if (forward) {
+                        key.nudgeLeft();
+                    } else {
+                        key.nudgeRight();
+                    }
                 }
+                return true;
             }
         }
-        return traversed;
     }
 
     private static int compare(byte[] a, byte[] b) {
@@ -1522,8 +1686,9 @@ public class KeyFilter {
     private static void appendDisplayableKeySegment(Key workKey,
             StringBuilder sb, byte[] bytes, CoderContext context,
             boolean before, boolean after) {
-        if (bytes == null)
+        if (bytes == null) {
             return;
+        }
         System.arraycopy(bytes, 0, workKey.getEncodedBytes(), 0, bytes.length);
         workKey.setEncodedSize(bytes.length);
         if (before && workKey.isBefore() || after && workKey.isAfter()) {

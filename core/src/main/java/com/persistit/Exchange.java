@@ -29,6 +29,7 @@ import static com.persistit.Key.maxStorableKeySize;
 import java.lang.ref.WeakReference;
 
 import com.persistit.Key.Direction;
+import com.persistit.LockManager.ResourceTracker;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
@@ -171,9 +172,9 @@ public class Exchange {
     private boolean _ignoreTransactions;
 
     private long _longRecordPageAddress;
-    
+
     private WeakReference<Thread> _currentThread;
-    
+
     private boolean _secure;
 
     /**
@@ -405,8 +406,9 @@ public class Exchange {
         }
 
         private void copyTo(LevelCache to) {
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.$assert(to._level == _level || to._level == -1);
+            }
             to._buffer = _buffer;
             to._page = _page;
             to._foundAt = _foundAt;
@@ -427,7 +429,9 @@ public class Exchange {
                 if (foundAt != -1 && (foundAt & Buffer.EXACT_MASK) != 0) {
                     int depth = Buffer.decodeDepth(foundAt);
                     int klength = key.getEncodedSize();
-                    Debug.$assert(depth == klength);
+                    if (Debug.ENABLED) {
+                        Debug.$assert(depth == klength);
+                    }
                 }
             }
 
@@ -866,25 +870,10 @@ public class Exchange {
 
         if (buffer.isBeforeLeftEdge(foundAt)
                 || buffer.isAfterRightEdge(foundAt)) {
-            // _pool.release(buffer);
-            buffer.release(); // Don't move to front of MRU queue - it's not
-            // a helpful buffer.
+            buffer.release(); // Don't make Most-Recently-Used
             buffer = null;
             return searchTree(key, 0);
         }
-        // updateFastFindCache(key);
-
-        // DEBUG - remove after reclaim fix
-        if (Debug.ENABLED) {
-            if (buffer.getGeneration() != lc._bufferGeneration) {
-                int foundAt2 = searchTree(key, 0);
-                Buffer buffer2 = lc._buffer;
-                Debug.$assert(buffer2 == buffer);
-                buffer.release();
-                foundAt = foundAt2;
-            }
-        }
-
         return foundAt;
     }
 
@@ -899,23 +888,6 @@ public class Exchange {
                 // return foundAt;
                 done = true;
             }
-
-            // else if (_fastFindGeneration == lc._keyGeneration)
-            // {
-            // int depth = Buffer.decodeDepth(foundAt);
-            // if (depth < key.getEncodedSize())
-            // {
-            // byte[] bytes = key.getEncodedBytes();
-            // if (depth < _fastFindSize &&
-            // (bytes[depth] & 0xFF) >= (_fastFindCache[depth] & 0xFF) &&
-            // Util.equalsByteSubarray(bytes, 0, _fastFindCache, 0, depth - 1))
-            // {
-            // foundAt = buffer.findKey(key, foundAt);
-            // lc.update(buffer, key, foundAt);
-            // done = true;
-            // }
-            // }
-            // }
         }
         if (Debug.ENABLED && done) {
             int foundAt2 = buffer.findKey(key);
@@ -944,12 +916,11 @@ public class Exchange {
         int currentLevel;
         int foundAt = -1;
         boolean found = false;
-        Exception exception = null;
 
         if (!_tree.claim(false)) {
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.debug1(true);
-
+            }
             throw new InUseException("Thread "
                     + Thread.currentThread().getName()
                     + " failed to get reader claim on " + _tree);
@@ -958,16 +929,16 @@ public class Exchange {
 
         long pageAddress = _rootPage;
         long oldPageAddress = pageAddress;
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             Debug.$assert(pageAddress != 0);
+        }
 
-        // if (Debug.ENABLED) Debug.$assert(_treeGeneration ==
-        // _tree.getGeneration());
         try {
             for (currentLevel = _cacheDepth; --currentLevel >= toLevel;) {
                 if (pageAddress <= 0) {
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
+                    }
 
                     throw new CorruptVolumeException("Volume " + _volume
                             + " level=" + currentLevel + " page=" + pageAddress
@@ -987,8 +958,9 @@ public class Exchange {
 
                 if (buffer == null || buffer.isBeforeLeftEdge(foundAt)) {
                     oldBuffer = buffer; // So it will be released
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
+                    }
 
                     throw new CorruptVolumeException("Volume " + _volume
                             + " level=" + currentLevel + " page=" + pageAddress
@@ -1013,13 +985,15 @@ public class Exchange {
                     oldPageAddress = pageAddress;
                     pageAddress = buffer.getPointer(p);
 
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.$assert(pageAddress > 0
                                 && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
+                    }
                 } else {
                     oldBuffer = buffer; // So it will be released
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
+                    }
 
                     throw new CorruptVolumeException("Volume " + _volume
                             + " level=" + currentLevel + " page=" + pageAddress
@@ -1060,9 +1034,9 @@ public class Exchange {
             for (int rightWalk = MAX_WALK_RIGHT; rightWalk-- > 0;) {
                 Buffer buffer = null;
                 if (pageAddress <= 0) {
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
-
+                    }
                     throw new CorruptVolumeException("Volume " + _volume
                             + " level=" + currentLevel + " page=" + pageAddress
                             + " previousPage=" + oldPageAddress
@@ -1119,15 +1093,15 @@ public class Exchange {
                 oldPageAddress = pageAddress;
                 pageAddress = buffer.getRightSibling();
 
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(pageAddress > 0
                             && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
-
+                }
                 oldBuffer = buffer;
             }
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.debug1(true);
-
+            }
             throw new CorruptVolumeException("Volume " + _volume + " level="
                     + currentLevel + " page=" + oldPageAddress
                     + " initialPage=" + initialPageAddress + " key=<"
@@ -1150,14 +1124,14 @@ public class Exchange {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
-        _key.testValidForStoreAndFetch(_volume.getPageSize());
+        key.testValidForStoreAndFetch(_volume.getPageSize());
         _persistit.checkClosed();
         _persistit.checkSuspended();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         _transaction.assignTimestamp();
         storeInternal(key, value, 0, false, false);
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
         return this;
     }
@@ -1214,18 +1188,20 @@ public class Exchange {
             }
 
             for (;;) {
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(buffer == null);
-                _persistit.getLockManager().verifyNoStrayResourceClaims(
+                }
+                _persistit.getLockManager().verifyLockedResourceCount(
                         lockedResourceCount);
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.suspend();
+                }
 
                 if (treeClaimRequired && !treeClaimAcquired) {
                     if (!_tree.claim(treeWriterClaimRequired)) {
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.debug1(true);
-
+                        }
                         throw new InUseException("Thread "
                                 + Thread.currentThread().getName()
                                 + " failed to get reader claim on " + _tree);
@@ -1237,7 +1213,7 @@ public class Exchange {
                 checkLevelCache();
 
                 try {
-                    _persistit.getLockManager().verifyNoStrayResourceClaims(
+                    _persistit.getLockManager().verifyLockedResourceCount(
                             lockedResourceCount);
                     if (inTxn) {
                         if (value.isAtomicIncrementArmed()) {
@@ -1268,8 +1244,9 @@ public class Exchange {
                     }
 
                     if (level >= _cacheDepth) {
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.$assert(level == _cacheDepth);
+                        }
                         //
                         // Need to lock the tree because we may need to change
                         // its root.
@@ -1280,14 +1257,16 @@ public class Exchange {
                             throw RetryException.SINGLE;
                         }
 
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.$assert(value.getPointerValue() > 0);
+                        }
                         insertIndexLevel(key, value);
                         break;
                     }
 
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.$assert(buffer == null);
+                    }
                     int foundAt = -1;
                     LevelCache lc = _levelCache[level];
                     buffer = reclaimQuickBuffer(lc);
@@ -1310,22 +1289,11 @@ public class Exchange {
                         buffer = lc._buffer;
                     }
 
-                    // DEBUG - remove after reclaim fix
                     if (Debug.ENABLED) {
-                        if (buffer.getGeneration() != lc._bufferGeneration) {
-                            int foundAt2 = searchTree(key, 0);
-                            Debug.$assert(lc._buffer == buffer);
-                            buffer.release();
-                            buffer = lc._buffer;
-                            foundAt = foundAt2;
-                        }
-                    }
-
-                    if (Debug.ENABLED)
                         Debug.$assert(buffer != null
                                 && (buffer._status & SharedResource.WRITER_MASK) != 0
                                 && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
-
+                    }
                     if ((foundAt & Buffer.EXACT_MASK) != 0) {
                         oldLongRecordPointer = buffer
                                 .fetchLongRecordPointer(foundAt);
@@ -1351,12 +1319,13 @@ public class Exchange {
                     boolean splitPerformed = putLevel(lc, key, value, buffer,
                             foundAt, treeClaimAcquired);
 
-                    _persistit.getLockManager().verifyNoStrayResourceClaims(
+                    _persistit.getLockManager().verifyLockedResourceCount(
                             lockedResourceCount2);
 
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
                                 && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+                    }
                     //
                     // If a split is required then putLevel did not change
                     // anything. We need to repeat this after acquiring a
@@ -1394,8 +1363,9 @@ public class Exchange {
                     } else {
                         // Otherwise we need to index the new right
                         // sibling at the next higher index level.
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.$assert(value.getPointerValue() > 0);
+                        }
                         key = _spareKey1;
                         key.bumpGeneration(); // because otherwise we may
                         // use the wrong cached
@@ -1441,7 +1411,7 @@ public class Exchange {
                         _pool.release(buffer);
                         buffer = null;
                     }
-                    _persistit.getLockManager().verifyNoStrayResourceClaims(
+                    _persistit.getLockManager().verifyLockedResourceCount(
                             lockedResourceCount);
                 }
             }
@@ -1464,13 +1434,13 @@ public class Exchange {
                 //
                 if (newLongRecordPointer != oldLongRecordPointer
                         && newLongRecordPointer != 0) {
-                    _volume.deallocateGarbageChainDeferred(newLongRecordPointer, 0);
+                    _volume.deallocateGarbageChainDeferred(
+                            newLongRecordPointer, 0);
                     _hasDeferredDeallocations = true;
                 }
             } else if (oldLongRecordPointer != newLongRecordPointer
                     && oldLongRecordPointer != 0) {
-                _volume.deallocateGarbageChainDeferred(
-                        oldLongRecordPointer, 0);
+                _volume.deallocateGarbageChainDeferred(oldLongRecordPointer, 0);
                 _hasDeferredDeallocations = true;
             }
         }
@@ -1486,8 +1456,9 @@ public class Exchange {
 
     private void commitAllDeferredUpdates() throws PersistitException {
 
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             Debug.suspend();
+        }
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         for (;;) {
@@ -1502,7 +1473,7 @@ public class Exchange {
             }
             break;
         }
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
     }
 
@@ -1518,9 +1489,9 @@ public class Exchange {
             long newTopPage = buffer.getPageAddress();
             long leftSiblingPointer = _rootPage;
 
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.$assert(leftSiblingPointer == _tree.getRootPageAddr());
-
+            }
             long rightSiblingPointer = value.getPointerValue();
             //
             // Note: left and right sibling are of the same level and therefore
@@ -1570,12 +1541,11 @@ public class Exchange {
     private boolean putLevel(LevelCache lc, Key key, Value value,
             Buffer buffer, int foundAt, boolean okToSplit)
             throws PersistitException {
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             Debug.$assert(_exclusive);
-
-        if (Debug.ENABLED)
             Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
                     && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+        }
 
         int result = buffer.putValue(key, value, foundAt, false);
         if (result != -1) {
@@ -1584,9 +1554,10 @@ public class Exchange {
             lc.update(buffer, key, result);
             return false;
         } else {
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.$assert(buffer.getPageAddress() != _volume
                         .getGarbageRoot());
+            }
             Buffer rightSibling = null;
 
             try {
@@ -1602,10 +1573,10 @@ public class Exchange {
                 //
                 rightSibling = _volume.allocPage();
 
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(rightSibling.getPageAddress() != 0);
-                if (Debug.ENABLED)
                     Debug.$assert(rightSibling != buffer);
+                }
 
                 rightSibling.init(buffer.getPageType());
                 // debug
@@ -1622,13 +1593,12 @@ public class Exchange {
                 long oldRightSibling = buffer.getRightSibling();
                 long newRightSibling = rightSibling.getPageAddress();
 
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(newRightSibling > 0
                             && oldRightSibling != newRightSibling);
-
-                if (Debug.ENABLED)
                     Debug.$assert(rightSibling.getPageType() == buffer
                             .getPageType());
+                }
 
                 rightSibling.setRightSibling(oldRightSibling);
                 buffer.setRightSibling(newRightSibling);
@@ -1765,15 +1735,16 @@ public class Exchange {
     public boolean traverse(final Direction direction, final boolean deep,
             final int minBytes) throws PersistitException {
         _persistit.checkClosed();
+        final ResourceTracker resourceTracker = _persistit.getLockManager()
+                .getMyResourceTracker();
 
         boolean doFetch = minBytes > 0;
         boolean doModify = minBytes >= 0;
         boolean result;
-        final int lockedResourceCount = _persistit.getLockManager()
+        final int lockedResourceCount = resourceTracker
                 .getLockedResourceCount();
 
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
-                lockedResourceCount);
+        resourceTracker.verifyLockedResourceCount(lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
         Buffer buffer = null;
@@ -1783,23 +1754,26 @@ public class Exchange {
         }
 
         final boolean reverse = (direction == LT) || (direction == LTEQ);
-
         if (_key.getEncodedSize() == 0) {
-            _key.append(reverse ? AFTER : BEFORE);
+            if (reverse) {
+                _key.appendAfter();
+            } else {
+                _key.appendBefore();
+            }
         }
 
         _key.testValidForTraverse();
 
-        boolean checkEqualCase = (direction == EQ || direction == GTEQ || direction == LTEQ)
-                && !_key.isSpecial();
+        boolean edge = direction == EQ || direction == GTEQ
+                || direction == LTEQ;
+        boolean nudged = false;
 
         checkLevelCache();
 
         try {
-            if (checkEqualCase && inTxn) {
+            if (inTxn && edge && !_key.isSpecial()) {
                 Boolean txnResult = _transaction.fetch(this, this.getValue(),
                         minBytes);
-
                 //
                 // A pending STORE transaction record overrides
                 // the base record.
@@ -1812,151 +1786,150 @@ public class Exchange {
                     // A pending DELETE transaction record overrides the
                     // base record.
                     //
-                    checkEqualCase = false;
-                }
-            }
-
-            if (checkEqualCase) {
-                int foundAt = search(_key);
-                LevelCache lc = _levelCache[0];
-                buffer = lc._buffer;
-                //
-                // Buffer has a reader claim on it. Will be released by
-                // the finally clause if we return.
-                //
-                if ((foundAt & Buffer.EXACT_MASK) != 0) {
-                    //
-                    // For any of EQ, GTEQ or LTEQ, finding an exact match
-                    // satisfies the traversal request.
-                    //
-                    if (doFetch) {
-                        buffer.fetch(foundAt, _value);
-                        fetchFixupForLongRecords(_value, minBytes);
+                    if (direction == EQ) {
+                        return false;
+                    } else {
+                        edge = false;
                     }
-                    //
-                    // Buffer is released by the finally clause, which
-                    // also registers the active transaction's interest,
-                    // if there is one, in this page.
-                    //
-                    return true;
                 }
-                //
-                // This buffer is not of interest, so we release it here.
-                //
-                _pool.release(buffer);
-                buffer = null;
-            }
-            if (direction == EQ) {
-                //
-                // For EQ only, failing to find an exact match causes
-                // traversal to fail. For LTEQ and GTEQ, we fall through
-                // to code that handles the LT and GT cases. In this
-                // case the key is left unchanged.
-                //
-                return false;
             }
 
             //
-            // We are committed to computing a new key value. We do this in
-            // a scratch key so that the original key value is available for
-            // comparison.
+            // Now we are committed to computing a new key value. Save the
+            // original key value for comparison.
             //
             _key.copyTo(_spareKey1);
-            int index = _spareKey1.getEncodedSize();
-            //
-            //
-            // Asymmetrical because buffer.traverse is asymmetrical.
-            // There is no left-sibling pointer.
-            //
-            boolean nudged = false;
-            Key.Direction dir = direction;
+            int index = _key.getEncodedSize();
 
             if (index == 0) {
-                _spareKey1.append(reverse ? AFTER : BEFORE);
-            } else if (dir == GT || dir == GTEQ) {
-                dir = GT;
-                if (!_spareKey1.isSpecial()) {
-                    if (deep) {
-                        _spareKey1.nudgeDeeper();
-                    } else {
-                        _spareKey1.nudgeRight();
-                    }
-                    nudged = true;
+                if (reverse) {
+                    _key.appendAfter();
+                } else {
+                    _key.appendBefore();
                 }
-            } else if (dir == LT || dir == LTEQ) {
-                dir = LTEQ;
-                if (!_spareKey1.isSpecial()) {
-                    _spareKey1.nudgeLeft();
-                    nudged = true;
-                }
+                nudged = true;
             }
 
-            int foundAt;
-            int foundAtNext;
+            int foundAt = 0;
             LevelCache lc;
             boolean fetchFromPendingTxn = false;
 
             for (;;) {
-                foundAt = search(_spareKey1);
+
                 lc = _levelCache[0];
-                buffer = lc._buffer;
-                foundAtNext = buffer.traverse(_spareKey1, dir, foundAt);
-
-                if (buffer.isAfterRightEdge(foundAtNext)) {
-                    // long leftSiblingPage = buffer.getPageAddress(); //
-                    // DEBUG - debug
-                    long rightSiblingPage = buffer.getRightSibling();
-
-                    if (Debug.ENABLED)
-                        Debug.$assert(rightSiblingPage >= 0
-                                && rightSiblingPage <= Buffer.MAX_VALID_PAGE_ADDR);
-
-                    if (rightSiblingPage > 0) {
-                        Buffer rightSibling = _pool.get(_volume,
-                                rightSiblingPage, _exclusive, true);
-                        if (inTxn) {
-                            _transaction.touchedPage(this, buffer);
+                //
+                // Optimal path - pick up the buffer and location left
+                // by previous operation.
+                //
+                if (lc._keyGeneration == _key.getGeneration()) {
+                    buffer = reclaimQuickBuffer(lc);
+                    foundAt = lc._foundAt;
+                }
+                //
+                // But if direction is leftward and the position is at the left
+                // edge of the buffer, re-do with a key search - there is no
+                // other
+                // way to find the left sibling page.
+                //
+                if (reverse && buffer != null
+                        && foundAt <= buffer.getKeyBlockStart()) {
+                    // Going left from first record in the page requires a
+                    // key search.
+                    buffer.release();
+                    buffer = null;
+                }
+                //
+                // If the operations above failed to get the key, then
+                // look it up with search.
+                //
+                if (buffer == null) {
+                    if (!edge && !nudged) {
+                        if (reverse) {
+                            if (!_key.isSpecial()) {
+                                _key.nudgeLeft();
+                            }
+                        } else {
+                            if (!_key.isSpecial()) {
+                                if (deep) {
+                                    _key.nudgeDeeper();
+                                } else {
+                                    _key.nudgeRight();
+                                }
+                            }
                         }
-                        _persistit.getLockManager().setOffset();
-                        _pool.release(buffer);
-                        //
-                        // Reset foundAtNext to point to the first key block
-                        // of the right sibling page.
-                        //
-                        buffer = rightSibling;
-                        checkPageType(buffer, Buffer.PAGE_TYPE_DATA);
-                        foundAtNext = buffer.traverse(_spareKey1, dir,
-                                buffer.toKeyBlock(0));
-                        // So that we don't mistakenly throw a
-                        // CorruptVolumeException
-                        foundAt = -1;
+                        nudged = true;
+                    }
+                    foundAt = search(_key);
+                    buffer = lc._buffer;
+                }
+
+                if (edge && (foundAt & Buffer.EXACT_MASK) != 0) {
+                    break;
+                } else {
+                    edge = false;
+                    foundAt = buffer.traverse(_key, direction, foundAt);
+                    if (buffer.isAfterRightEdge(foundAt)) {
+                        long rightSiblingPage = buffer.getRightSibling();
+
+                        if (Debug.ENABLED) {
+                            Debug.$assert(rightSiblingPage >= 0
+                                    && rightSiblingPage <= Buffer.MAX_VALID_PAGE_ADDR);
+                        }
+                        if (rightSiblingPage > 0) {
+                            Buffer rightSibling = _pool.get(_volume,
+                                    rightSiblingPage, _exclusive, true);
+                            if (inTxn) {
+                                _transaction.touchedPage(this, buffer);
+                            }
+                            resourceTracker.setOffset();
+                            _pool.release(buffer);
+                            //
+                            // Reset foundAtNext to point to the first key block
+                            // of the right sibling page.
+                            //
+                            buffer = rightSibling;
+                            checkPageType(buffer, Buffer.PAGE_TYPE_DATA);
+                            foundAt = buffer.traverse(_key, direction,
+                                    buffer.toKeyBlock(0));
+
+                        }
+                    }
+
+                    //
+                    // If (a) the key was not nudged, and (b) this is not a deep
+                    // traverse, and (c) the foundAtNext refers now to a child
+                    // of the original key, then it's the wrong result - the
+                    // optimistic assumption that the next key would be adjacent
+                    // to the preceding result is wrong. To resolve this,
+                    // invalidate the LevelCache entry and retry the loop. That
+                    // will nudge the key appropriately and do a standard
+                    // search.
+                    //
+
+                    if (!nudged
+                            && !deep
+                            && _key.compareKeyFragment(_spareKey1, 0,
+                                    _spareKey1.getEncodedSize()) == 0) {
+                        lc._keyGeneration = -1;
+                        buffer.release();
+                        buffer = null;
+                        continue;
                     }
                 }
 
-                if (!nudged && foundAtNext == foundAt
-                        && !_spareKey1.isSpecial()) {
-                    if (Debug.ENABLED)
-                        Debug.debug1(true);
-
-                    throw new CorruptVolumeException("Volume " + _volume
-                            + " near page " + buffer.getPageAddress()
-                            + " traversal on key <" + _spareKey1 + ">"
-                            + " failed: foundAtNext == foundAt == " + foundAt);
-                }
                 if (inTxn) {
                     //
-                    // Here we need to test whether pending updates in an
+                    // Here we need to test whether pending updates in a
                     // transaction, if there is one, will modify the result.
-                    // The candidate key is in _sparekey1. This code
+                    // The candidate key is in _key. This code
                     // determines whether (a) that key has been deleted by
                     // the pending transaction, or (b) there's a nearer key
                     // that has been added by the pending transaction.
                     // This is split into two calls. The first looks for
                     // a pending remove operation that affects the result.
                     //
-                    //
-                    Boolean txnResult = _transaction.traverse(this, _spareKey1,
-                            direction, deep, minBytes);
+                    Boolean txnResult = _transaction.traverse(_tree,
+                            _spareKey1, _key, direction, deep, minBytes);
 
                     if (txnResult != null) {
                         _transaction.touchedPage(this, buffer);
@@ -1965,22 +1938,22 @@ public class Exchange {
 
                         if (txnResult == Boolean.TRUE) {
                             // There's a pending new record that
-                            // yields a closer key. The _spareKey1
+                            // yields a closer key. The key
                             // was updated to reflect its content, and
                             // if the key is selected by criteria below
                             // then the pending value is fetched.
                             //
                             fetchFromPendingTxn = true;
                         } else {
-                            // There's a pending remove operation that
-                            // covers the candidate key. The _spareKey1
-                            // key has been modified to the beginning or
-                            // end, depending on direction, of the remove
-                            // range, and then we must go back and
-                            // traverse again.
                             //
-                            if (dir == LTEQ && !_spareKey1.isSpecial()) {
-                                _spareKey1.nudgeLeft();
+                            // There's a pending remove operation that
+                            // covers the candidate key. The key has been
+                            // modified to the beginning or end, depending
+                            // on direction, of the remove range, and then
+                            // we must go back and traverse again.
+                            //
+                            if (direction == LTEQ && !_key.isSpecial()) {
+                                _key.nudgeLeft();
                                 nudged = true;
                             }
                             continue;
@@ -1992,40 +1965,39 @@ public class Exchange {
 
             boolean matches;
 
-            if (reverse && _spareKey1.isLeftEdge() || !reverse
-                    && _spareKey1.isRightEdge()) {
+            if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
                 matches = false;
             } else {
                 if (deep) {
                     matches = true;
-                    index = _spareKey1.getEncodedSize();
+                    index = _key.getEncodedSize();
 
                     if (doFetch) {
                         if (fetchFromPendingTxn) {
                             _transaction.fetchFromLastTraverse(this, minBytes);
                         } else {
-                            buffer.fetch(foundAtNext, _value);
+                            buffer.fetch(foundAt, _value);
                             fetchFixupForLongRecords(_value, minBytes);
                         }
                     }
                 } else {
-                    int parentIndex = _key.previousElementIndex(index);
+                    int parentIndex = _spareKey1.previousElementIndex(index);
                     if (parentIndex < 0)
                         parentIndex = 0;
 
-                    matches = (_key.compareKeyFragment(_spareKey1, 0,
+                    matches = (_spareKey1.compareKeyFragment(_key, 0,
                             parentIndex) == 0);
 
                     if (matches) {
-                        index = _spareKey1.nextElementIndex(parentIndex);
+                        index = _key.nextElementIndex(parentIndex);
                         if (index > 0) {
-                            if (index == _spareKey1.getEncodedSize()) {
+                            if (index == _key.getEncodedSize()) {
                                 if (doFetch) {
                                     if (fetchFromPendingTxn) {
                                         _transaction.fetchFromLastTraverse(
                                                 this, minBytes);
                                     } else {
-                                        buffer.fetch(foundAtNext, _value);
+                                        buffer.fetch(foundAt, _value);
                                         fetchFixupForLongRecords(_value,
                                                 minBytes);
                                     }
@@ -2042,7 +2014,7 @@ public class Exchange {
                                 if (doFetch) {
                                     _value.clear();
                                 }
-                                foundAtNext &= ~Buffer.EXACT_MASK;
+                                foundAt &= ~Buffer.EXACT_MASK;
                             }
                         } else
                             matches = false;
@@ -2050,23 +2022,28 @@ public class Exchange {
                 }
             }
 
-            //
-            // We update the source Key only after successful completion
-            // of all operations that might throw a RetryException.
-            // This permits correct retry operations.
-            //
             if (doModify) {
                 if (matches) {
-                    _spareKey1.copyTo(_key);
                     _key.setEncodedSize(index);
                     if (!fetchFromPendingTxn) {
-                        lc.update(buffer, _key, foundAtNext);
+                        lc.update(buffer, _key, foundAt);
                     }
                 } else {
-                    if (deep)
+                    if (deep) {
                         _key.setEncodedSize(0);
-                    _key.to(reverse ? AFTER : BEFORE);
+                    } else {
+                        _spareKey1.copyTo(_key);
+                    }
+                    _key.cut();
+                    if (reverse) {
+                        _key.appendAfter();
+                    } else {
+                        _key.appendBefore();
+                    }
                 }
+            } else {
+                // Restore original key
+                _spareKey1.copyTo(_key);
             }
             result = matches;
 
@@ -2077,8 +2054,7 @@ public class Exchange {
                 _pool.release(buffer);
                 buffer = null;
             }
-            _persistit.getLockManager().verifyNoStrayResourceClaims(
-                    lockedResourceCount);
+            resourceTracker.verifyLockedResourceCount(lockedResourceCount);
         }
         _volume.bumpTraverseCounter();
         return result;
@@ -2139,30 +2115,28 @@ public class Exchange {
                     && traverse(direction, true, minBytes);
         }
 
-        final boolean forward = (direction == GT) || (direction == GTEQ);
-
-        boolean edge = (direction == EQ || direction == LTEQ || direction == GTEQ);
-
         if (_key.getEncodedSize() == 0) {
-            _key.append(forward ? BEFORE : AFTER);
-        }
-
-        if (edge && keyFilter.selected(_key)
-                && traverse(forward ? GTEQ : LTEQ, true, minBytes)) {
-            return true;
+            if (direction == GT || direction == GTEQ) {
+                _key.appendBefore();
+            } else {
+                _key.appendAfter();
+            }
         }
 
         for (;;) {
-            if (!keyFilter.traverse(_key, forward)) {
+            if (!keyFilter.next(_key, direction)) {
+                    _key.setEncodedSize(0);
+                if (direction == LT || direction == LTEQ) {
+                    _key.appendAfter();
+                } else {
+                    _key.appendBefore();
+                }
                 return false;
             }
-            edge = keyFilter.selected(_key);
-            Direction dir = forward ? (edge ? GTEQ : GT) : (edge ? LTEQ : LT);
-            if (!traverse(dir, true, minBytes)) {
+            if (!traverse(direction, true, minBytes)) {
                 return false;
             }
-            edge = keyFilter.selected(_key);
-            if (edge) {
+            if (keyFilter.selected(_key)) {
                 return true;
             }
         }
@@ -2410,7 +2384,7 @@ public class Exchange {
                 .getLockedResourceCount();
         _transaction.assignTimestamp();
         storeInternal(_key, _value, 0, true, false);
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
         _spareValue.copyTo(_value);
         return this;
@@ -2502,7 +2476,7 @@ public class Exchange {
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
 
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
@@ -2527,7 +2501,7 @@ public class Exchange {
                 }
                 _pool.release(buffer);
             }
-            _persistit.getLockManager().verifyNoStrayResourceClaims(
+            _persistit.getLockManager().verifyLockedResourceCount(
                     lockedResourceCount);
         }
     }
@@ -2606,10 +2580,9 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
-        KeyState ks = new KeyState(_key);
+        _key.copyTo(_spareKey1);
         final int size = _key.getEncodedSize();
         boolean result = traverse(GT, true, 0);
-        ks.copyTo(_spareKey1);
         if (result && _key.getEncodedSize() < size
                 || _spareKey1.compareKeyFragment(_key, 0, size) != 0) {
             result = false;
@@ -2617,31 +2590,6 @@ public class Exchange {
         _spareKey1.copyTo(_key);
         return result;
     }
-/*
-    public boolean hasChildren() throws PersistitException {
-        _persistit.checkClosed();
-
-        boolean result;
-        final int lockedResourceCount = _persistit.getLockManager()
-                .getLockedResourceCount();
-
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
-                lockedResourceCount);
-        Buffer buffer = null;
-        try {
-            int foundAt = search(_key);
-            LevelCache lc = _levelCache[0];
-            buffer = lc._buffer;
-            result = buffer.hasChild(foundAt, _key);
-            return result;
-        } finally {
-            if (buffer != null)
-                _pool.release(buffer);
-            _persistit.getLockManager().verifyNoStrayResourceClaims(
-                    lockedResourceCount);
-        }
-    }
-*/
 
     /**
      * Remove a single key/value pair from this <tt>Exchange</tt>'s
@@ -2660,8 +2608,9 @@ public class Exchange {
         _spareValue.clear();
         boolean result = remove(EQ, true);
         _spareValue.copyTo(_value);
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             Debug.$assert(_value.isDefined() == result);
+        }
         return result;
     }
 
@@ -2688,7 +2637,7 @@ public class Exchange {
             _volume.removeTree(_tree);
         }
         initCache();
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
     }
 
@@ -2843,9 +2792,9 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             Debug.suspend();
-
+        }
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         _transaction.assignTimestamp();
         boolean treeClaimAcquired = false;
@@ -2871,7 +2820,7 @@ public class Exchange {
             // again until the expiration time.
             //
             for (;;) {
-                _persistit.getLockManager().verifyNoStrayResourceClaims(
+                _persistit.getLockManager().verifyLockedResourceCount(
                         lockedResourceCount);
 
                 checkLevelCache();
@@ -2904,16 +2853,16 @@ public class Exchange {
                                     }
                                     foundAt2 &= Buffer.P_MASK;
 
-                                    if (Debug.ENABLED)
+                                    if (Debug.ENABLED) {
                                         Debug.$assert(foundAt2 >= foundAt1);
-
+                                    }
                                     if (fetchFirst) {
                                         removeFetchFirst(buffer, foundAt1,
                                                 buffer, foundAt2);
                                     }
                                     final boolean anyLongRecords = _volume
-                                            .harvestLongRecords(
-                                                    buffer, foundAt1, foundAt2);
+                                            .harvestLongRecords(buffer,
+                                                    foundAt1, foundAt2);
 
                                     boolean removed = buffer.removeKeys(
                                             foundAt1, foundAt2, _spareKey1);
@@ -2941,9 +2890,9 @@ public class Exchange {
 
                     if (!treeClaimAcquired) {
                         if (!_tree.claim(treeWriterClaimRequired)) {
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.debug1(true);
-
+                            }
                             throw new InUseException("Thread "
                                     + Thread.currentThread().getName()
                                     + " failed to get writer claim on " + _tree);
@@ -3020,14 +2969,15 @@ public class Exchange {
                             foundAt2 = searchLevel(key2, pageAddr2, level);
                             if ((foundAt2 & Buffer.EXACT_MASK) != 0) {
                                 foundAt2 = buffer.nextKeyBlock(foundAt2);
-                                if (Debug.ENABLED)
+                                if (Debug.ENABLED) {
                                     Debug.$assert(foundAt2 != -1);
+                                }
                             }
                             foundAt2 &= Buffer.P_MASK;
 
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(foundAt2 != Buffer.INITIAL_KEY_BLOCK_START_VALUE);
-
+                            }
                             buffer = lc._buffer;
                             lc._flags |= RIGHT_CLAIMED;
                             lc._rightBuffer = buffer;
@@ -3036,22 +2986,22 @@ public class Exchange {
                         }
 
                         if (lc._leftBuffer.isIndexPage()) {
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(lc._rightBuffer.isIndexPage()
                                         && depth > 0);
-
+                            }
                             int p1 = lc._leftBuffer.previousKeyBlock(foundAt1);
                             int p2 = lc._rightBuffer.previousKeyBlock(foundAt2);
 
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(p1 != -1 && p2 != -1);
-
+                            }
                             pageAddr1 = lc._leftBuffer.getPointer(p1);
                             pageAddr2 = lc._rightBuffer.getPointer(p2);
                         } else {
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(depth == 0);
-
+                            }
                             break;
                         }
                     }
@@ -3085,11 +3035,10 @@ public class Exchange {
                             // Before we remove the records in this range, we
                             // need to recover any LONG_RECORD pointers that
                             // are associated with keys in this range.
-                            _volume.harvestLongRecords(
-                                    buffer1, foundAt1, Integer.MAX_VALUE);
+                            _volume.harvestLongRecords(buffer1, foundAt1,
+                                    Integer.MAX_VALUE);
 
-                            _volume.harvestLongRecords(
-                                    buffer2, 0, foundAt2);
+                            _volume.harvestLongRecords(buffer2, 0, foundAt2);
 
                             boolean rebalanced = buffer1.join(buffer2,
                                     foundAt1, foundAt2, _spareKey1, _spareKey2,
@@ -3135,14 +3084,15 @@ public class Exchange {
                                     LevelCache parentLc = _levelCache[level + 1];
                                     Buffer buffer = parentLc._leftBuffer;
 
-                                    if (Debug.ENABLED)
+                                    if (Debug.ENABLED) {
                                         Debug.$assert(buffer != null);
-
+                                    }
                                     if (parentLc._rightBuffer == buffer) {
                                         int foundAt = buffer
                                                 .findKey(_spareKey1);
-                                        if (Debug.ENABLED)
+                                        if (Debug.ENABLED) {
                                             Debug.$assert((foundAt & Buffer.EXACT_MASK) == 0);
+                                        }
                                         // Try it the simple way
                                         _value.setPointerValue(buffer2
                                                 .getPageAddress());
@@ -3170,8 +3120,9 @@ public class Exchange {
 
                             result = true;
                         } else if (foundAt1 != foundAt2) {
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(foundAt2 >= foundAt1);
+                            }
                             _key.copyTo(_spareKey1);
                             //
                             // Before we remove these records, we need to
@@ -3179,8 +3130,8 @@ public class Exchange {
                             // associated with keys in this range.
                             //
                             final boolean anyLongRecords = _volume
-                                    .harvestLongRecords(
-                                            buffer1, foundAt1, foundAt2);
+                                    .harvestLongRecords(buffer1, foundAt1,
+                                            foundAt2);
 
                             result |= buffer1.removeKeys(foundAt1, foundAt2,
                                     _spareKey1);
@@ -3217,9 +3168,9 @@ public class Exchange {
                 }
                 if (treeWriterClaimRequired) {
                     if (!_tree.claim(true)) {
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.debug1(true);
-
+                        }
                         throw new InUseException("Thread "
                                 + Thread.currentThread().getName()
                                 + " failed to get reader claim on " + _tree);
@@ -3236,8 +3187,7 @@ public class Exchange {
                     left = lc._deallocLeftPage;
                     right = lc._deallocRightPage;
                     if (left != 0) {
-                        _volume.deallocateGarbageChain(
-                                left, right);
+                        _volume.deallocateGarbageChain(left, right);
                         lc._deallocLeftPage = 0;
                         lc._deallocRightPage = 0;
                     }
@@ -3255,9 +3205,9 @@ public class Exchange {
                         if (lc._deferredReindexPage != 0) {
                             if (!treeClaimAcquired) {
                                 if (!_tree.claim(treeWriterClaimRequired)) {
-                                    if (Debug.ENABLED)
+                                    if (Debug.ENABLED) {
                                         Debug.debug1(true);
-
+                                    }
                                     throw new InUseException("Thread "
                                             + Thread.currentThread().getName()
                                             + " failed to get writer claim on "
@@ -3314,7 +3264,7 @@ public class Exchange {
                 treeClaimAcquired = false;
             }
             _exclusive = false;
-            _persistit.getLockManager().verifyNoStrayResourceClaims(
+            _persistit.getLockManager().verifyLockedResourceCount(
                     lockedResourceCount);
         }
         // if (journalId != -1)
@@ -3409,17 +3359,17 @@ public class Exchange {
             byte[] rawBytes = value.getEncodedBytes();
             int rawSize = value.getEncodedSize();
             if (rawSize != Buffer.LONGREC_SIZE) {
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.debug1(true);
-
+                }
                 throw new CorruptVolumeException(
                         "Invalid LONG_RECORD value size=" + rawSize
                                 + " but should be " + Buffer.LONGREC_SIZE);
             }
             if ((rawBytes[0] & 0xFF) != Buffer.LONGREC_TYPE) {
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.debug1(true);
-
+                }
                 throw new CorruptVolumeException(
                         "Invalid LONG_RECORD value type="
                                 + (rawBytes[0] & 0xFF) + " but should be "
@@ -3449,9 +3399,9 @@ public class Exchange {
 
             for (int count = 0; page != 0 && offset < minimumBytesFetched; count++) {
                 if (remainingSize <= 0) {
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
-
+                    }
                     throw new CorruptVolumeException(
                             "Invalid LONG_RECORD remaining size="
                                     + remainingSize + " of " + rawSize
@@ -3459,9 +3409,9 @@ public class Exchange {
                 }
                 buffer = _pool.get(_volume, page, false, true);
                 if (buffer.getPageType() != Buffer.PAGE_TYPE_LONG_RECORD) {
-                    if (Debug.ENABLED)
+                    if (Debug.ENABLED) {
                         Debug.debug1(true);
-
+                    }
                     throw new CorruptVolumeException(
                             "LONG_RECORD chain is invalid at page " + page
                                     + " - invalid page type: " + buffer);
@@ -3578,16 +3528,18 @@ public class Exchange {
             bufferArray = new Buffer[count];
             for (; index < count && page != 0; index++) {
                 Buffer buffer = _pool.get(_volume, page, true, true);
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(buffer.isLongRecordPage());
+                }
                 bufferArray[index] = buffer;
                 page = buffer.getRightSibling();
 
                 // verify that there's no cycle
                 for (int i = 0; i < index; i++) {
                     if (bufferArray[i].getPageAddress() == page) {
-                        if (Debug.ENABLED)
+                        if (Debug.ENABLED) {
                             Debug.debug1(true);
+                        }
 
                         throw new CorruptVolumeException(
                                 "LONG_RECORD chain cycle at " + bufferArray[0]);
@@ -3749,8 +3701,7 @@ public class Exchange {
             if (buffer != null)
                 _pool.release(buffer);
             if (looseChain != 0) {
-                _volume.deallocateGarbageChainDeferred(
-                        looseChain, 0);
+                _volume.deallocateGarbageChainDeferred(looseChain, 0);
                 _hasDeferredDeallocations = true;
             }
             if (!completed)
@@ -3800,9 +3751,9 @@ public class Exchange {
             throws PersistitException {
         int type = buffer.getPageType();
         if (type != expectedType) {
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.$assert(false);
-
+            }
             throw new CorruptVolumeException("Volume " + _volume + " page "
                     + buffer.getPageAddress() + " invalid page type " + type
                     + ": should be " + expectedType);
@@ -3953,7 +3904,7 @@ public class Exchange {
                 _pool.release(buffer);
             }
         }
-        _persistit.getLockManager().verifyNoStrayResourceClaims(
+        _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
 
         histogram.cull();

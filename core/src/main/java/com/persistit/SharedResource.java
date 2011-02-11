@@ -320,8 +320,9 @@ class SharedResource extends WaitingThreadManager {
     void release() {
         synchronized (_lock) {
             if ((_status & CLAIMED_MASK) == 0) {
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.debug2(true);
+                }
                 throw new IllegalStateException(
                         "Release on unclaimed resource " + this);
             }
@@ -341,10 +342,10 @@ class SharedResource extends WaitingThreadManager {
             // Dequeue and wake up each WaitingThread that could now execute
             //
             if (free) {
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(_writerThread == null);
-                if (Debug.ENABLED)
                     Debug.$assert(checkWaitQueue());
+                }
 
                 while ((_status & WRITER_MASK) == 0) {
                     WaitingThread wt = dequeue((_status & CLAIMED_MASK) == 0);
@@ -366,8 +367,9 @@ class SharedResource extends WaitingThreadManager {
                     }
                     wt.wake();
                 }
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(checkWaitQueue());
+                }
             }
         }
     }

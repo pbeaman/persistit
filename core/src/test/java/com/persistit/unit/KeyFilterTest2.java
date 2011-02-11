@@ -63,6 +63,10 @@ public class KeyFilterTest2 extends PersistitUnitTestCase {
                 ex.store();
             }
         }
+        
+        ex.clear();
+        assertTrue(ex.traverse(Key.GT, new KeyFilter("{2,*,3,*,4,>[\"a\":\"e\"]<}"), 0));
+        assertEquals("{2,\"a\",3,\"a\",4,\"a\"}", ex.getKey().toString());
 
         assertEquals(600, countKeys(ex, "{2,*,>3,*,4,*<}"));
         assertEquals(500, countKeys(ex, "{2,*,3,*,4,>*<}"));

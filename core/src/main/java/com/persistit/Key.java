@@ -46,7 +46,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * <p>
  * Within a <tt>Tree</tt>, keys are ordered in lexicographic order, by unsigned
  * byte value. Thus keys encoded physically as shown will be stored in the
- * following order: <blockquote>
+ * following order: 
  * 
  * <pre>
  *   1st: {0x01, 0x01}
@@ -60,7 +60,7 @@ import com.persistit.exception.MissingKeySegmentException;
  *   9th: {0xF9}
  * </pre>
  * 
- * </blockquote> The ordering is important because it governs the order in which
+ *  The ordering is important because it governs the order in which
  * the {@link Exchange#traverse} operations visit records, and the set of
  * keys/value pairs that will be removed by the range {@link Exchange#remove}
  * operations. Key ordering also affects the physical proxmitity of items in the
@@ -80,7 +80,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * </p>
  * <p>
  * There is also an implicit ordering between different encoded types. The
- * ordering of key values with differing types is as follows: <blockquote>
+ * ordering of key values with differing types is as follows:
  * 
  * <pre>
  *  BEFORE &lt; null &lt; boolean &lt; byte &lt; short &lt; 
@@ -89,8 +89,8 @@ import com.persistit.exception.MissingKeySegmentException;
  *  byte[] &lt; java.lang.String &lt; java.util.Date &lt; 
  *  <i>custom-encoded types</i> &lt; AFTER
  * </pre>
- * 
- * </blockquote> (Note: {@link #BEFORE} and {@link #AFTER} are special
+ *  
+ * (Note: {@link #BEFORE} and {@link #AFTER} are special
  * pseudo-values that allow traversal from the first and last keys in a tree.)
  * </p>
  * <h4>Equivalence of Wrapped and Primitive Types</h3>
@@ -130,7 +130,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * </a>
  * <p>
  * Persistit offers built-in support for encoding and decoding of a few commonly
- * used Object types. These include: <blockquote>
+ * used Object types. These include:
  * 
  * <pre>
  *      java.lang.String
@@ -138,7 +138,6 @@ import com.persistit.exception.MissingKeySegmentException;
  *      java.math.BigDecimal
  *      java.util.Date
  *      byte[]
- * </blockquote>
  * </pre>
  * 
  * (Note that for byte array, a zero-valued bytes are converted to two-byte
@@ -149,15 +148,14 @@ import com.persistit.exception.MissingKeySegmentException;
  * are required to be used as key values, can be overridden by a custom
  * {@link com.persistit.encoding.KeyCoder}. For consistency, the application
  * should register all custom <tt>KeyCoder</tt> objects immediately after
- * initializing Persistit, for example: <blockquote>
+ * initializing Persistit, for example: 
  * 
- * <pre>
+ * <code><pre>
  *      Persistit.initialize();
  *      KeyCoder coder = new MyKeyCoder();
  *      Persistit.getInstance().getCoderManager()
  *          .registerKeyCoder(MyClass.class, coder);
- * </blockquote>
- * </pre>
+ * </pre></code>
  * 
  * All overridden object types sort <i>after</i> all other value types. Ordering
  * among various custom types is determined by the custom encoding algorithm's
@@ -199,16 +197,14 @@ import com.persistit.exception.MissingKeySegmentException;
  * <p>
  * Segments fall naturally into the ordering scheme. If two keys are different,
  * then the first segment that differs between the two keys controls their
- * ordering. For example, the code fragment <blockquote>
+ * ordering. For example, the code fragment
  * 
- * <pre>
- * <tt>
+ * <code><pre>
  *      key1.clear().append(1).append(1);
  *      key2.clear().append(1).append(2);
  *      key3.clear().append(2).append(1);
  *      key4.clear().append(2).append(1).append(0);
- * </tt></blockquote>
- * </pre>
+ * </pre></code>
  * 
  * sets the four keys so that their ordering sequence is
  * <tt>key1 &lt; key2 &lt; key3 &lt; key4.</tt>
@@ -225,9 +221,9 @@ import com.persistit.exception.MissingKeySegmentException;
  * segment representing the purchase order number. The purchase order's
  * subsidiary line items might then be stored with keys that are logical
  * children of the purchase order number, as suggested in this code snippet:
- * <blockquote>
  * 
- * <pre>
+ * 
+ * <code><pre>
  *  PurchaseOrderSummary poSummary = ...
  *  List poLineItems = ...
  *  ...
@@ -243,9 +239,9 @@ import com.persistit.exception.MissingKeySegmentException;
  *      exchange.clear().to(item.getLineItemId()).store();
  *  }
  *  ...
- * </pre>
+ * </pre></code>
  * 
- * </blockquote> This example would store the PurchaseOrderSummary under a key
+ *  This example would store the PurchaseOrderSummary under a key
  * containing just the purchase order number, and then store each of the line
  * items from the poLineItems List in a key containing the purchase order number
  * and the line item number as separate segments. (The {@link #to(Object)}
@@ -306,9 +302,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * The String representation is of the form:
  * 
  * <pre>
- * <blockquote>
  *  { <i>segment</i>,... }
- * </blockquote>
  * </pre>
  * 
  * where each segment value is one of the following:
@@ -330,20 +324,16 @@ import com.persistit.exception.MissingKeySegmentException;
  * </ul>
  * For example, the following code excerpt
  * 
- * <pre>
- * <code><blockquote>
+ * <code><pre>
  *   Key key = new Key();
  *   key.append("xyz").append(1.23).append((long)456).append(new Date());
  *   System.out.println(key.toString());
- * </blockquote></code>
- * </pre>
+ * </pre></code>
  * 
  * would produce a string representation such as
  * 
  * <pre>
- * <blockquote>
  *   {"xyz",1.23,(long)456,(java.util.Date)20040901114722.563+0500}
- * </blockquote>
  * </pre>
  * 
  * All numeric types other than <tt>double</tt> and <tt>int</tt> use a cast
@@ -395,15 +385,12 @@ import com.persistit.exception.MissingKeySegmentException;
  * requirement.
  * </p>
  * <p>
- * The low-level API methods are: <blockquote>
+ * The low-level API methods are: 
  * 
- * <pre>
- * 
+ * <pre> 
  *      byte[] {@link #getEncodedBytes}
  *      int {@link #getEncodedSize}
  *      void {@link #setEncodedSize(int)}
- * 
- * </blockquote>
  * </pre>
  * 
  * </p>
@@ -465,7 +452,7 @@ public final class Key implements Comparable<Object> {
      * its final segment, but the {@link Exchange#store store} and
      * {@link Exchange#fetch fetch} methods will not permit such a key as
      * inputs. Use <tt>BEFORE</tt> to seed a {@link Exchange#traverse traverse}
-     * loop, as shown in this code fragment: <blockquote>
+     * loop, as shown in this code fragment: 
      * 
      * <pre>
      *      key.to(BEFORE);
@@ -475,7 +462,7 @@ public final class Key implements Comparable<Object> {
      *      }
      * </pre>
      * 
-     * </blockquote>
+     * 
      */
     public final static EdgeValue BEFORE = new EdgeValue(false);
     /**
@@ -484,7 +471,7 @@ public final class Key implements Comparable<Object> {
      * its final segment, but the {@link Exchange#store store} and
      * {@link Exchange#fetch fetch} methods will not permit such a key as
      * inputs. Use <tt>AFTER</tt> to seed a {@link Exchange#traverse traverse}
-     * loop, as shown in this code fragment: <blockquote>
+     * loop, as shown in this code fragment: 
      * 
      * <pre>
      *      key.to(AFTER);
@@ -494,7 +481,7 @@ public final class Key implements Comparable<Object> {
      *      }
      * </pre>
      * 
-     * </blockquote>
+     * 
      */
     public final static EdgeValue AFTER = new EdgeValue(true);
 
@@ -957,13 +944,13 @@ public final class Key implements Comparable<Object> {
      * Copies all state information from this to the supplied <code>Key</code>.
      * To create a new <code>Key</code> with state identical to this one, the
      * preferred mechanism for use outside of this package is this the copy
-     * constructor: <blockquote>
+     * constructor: 
      * 
-     * <pre>
-     * Key copiedKey = new Key(originalKey);
-     * </pre>
+     * <code><pre>
+     *     Key copiedKey = new Key(originalKey);
+     * </pre></code>
      * 
-     * </blockquote>
+     * 
      * 
      * @param key
      *            The <tt>Key</tt> to copy.
@@ -1071,13 +1058,13 @@ public final class Key implements Comparable<Object> {
 
     /**
      * The number of key segments in this <tt>Key</tt>. For example, the code
-     * <blockquote>
      * 
-     * <pre>
-     * key.clear().append(&quot;a&quot;).append(&quot;b&quot;).append(&quot;c&quot;);
-     * </pre>
      * 
-     * </blockquote> results in a depth of 3.
+     * <code><pre>
+     *     key.clear().append(&quot;a&quot;).append(&quot;b&quot;).append(&quot;c&quot;);
+     * </pre></code>
+     * 
+     *  results in a depth of 3.
      * 
      * @return The number of key segments.
      */
@@ -1288,13 +1275,13 @@ public final class Key implements Comparable<Object> {
      * <tt>depth</tt> is positive, then this <tt>Key</tt> is truncated so that
      * it has no more than <tt>depth</tt> key segments. If <tt>depth</tt> is
      * negative, then up to <tt>-depth</tt> segments are removed from the end.
-     * For example, <blockquote>
+     * For example, 
      * 
-     * <pre>
-     * key.clear().append(&quot;a&quot;).append(&quot;b&quot;).append(&quot;c&quot;).setDepth(-1);
-     * </pre>
+     * <code><pre>
+     *     key.clear().append(&quot;a&quot;).append(&quot;b&quot;).append(&quot;c&quot;).setDepth(-1);
+     * </pre></code>
      * 
-     * </blockquote> results in a key with two segment, "a" and "b".
+     *  results in a key with two segment, "a" and "b".
      * 
      * @param depth
      *            The depth, as defined above.
@@ -1332,14 +1319,14 @@ public final class Key implements Comparable<Object> {
      * is positive, then the index is set to point to the <tt>depth</tt>th key
      * segment. If <tt>depth</tt> is negative, then the index is set to point to
      * a key segment <tt>-depth</tt> segments from the end. For example,
-     * <blockquote>
      * 
-     * <pre>
-     * key.clear().append(&quot;a&quot;).append(&quot;b&quot;).append(&quot;c&quot;);
-     * return key.indexTo(2).indexTo(-1).decode();
-     * </pre>
      * 
-     * </blockquote> returns "b".
+     * <code><pre>
+     *     key.clear().append(&quot;a&quot;).append(&quot;b&quot;).append(&quot;c&quot;);
+     *     return key.indexTo(2).indexTo(-1).decode();
+     * </pre></code>
+     * 
+     *  returns "b".
      * 
      * @param depth
      *            The depth, as defined above.
@@ -1392,15 +1379,15 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Remove up to <tt>count</tt> key segment values from the end of this
-     * <tt>Key</tt>. For example, the code fragment <blockquote>
+     * <tt>Key</tt>. For example, the code fragment 
      * 
-     * <pre>
-     * key.clear();
-     * key.append(&quot;a&quot;).append(&quot;b&quot;).append(&quot;c&quot;);
-     * key.cut(2).append(&quot;d&quot;);
-     * </pre>
+     * <code><pre>
+     *     key.clear();
+     *     key.append(&quot;a&quot;).append(&quot;b&quot;).append(&quot;c&quot;);
+     *     key.cut(2).append(&quot;d&quot;);
+     * </pre></code>
      * 
-     * </blockquote> leaves a key with the just the segment values {"a","d"}.
+     *  leaves a key with the just the segment values {"a","d"}.
      * 
      * @param count
      *            The number of key segments to cut.
@@ -3550,7 +3537,7 @@ public final class Key implements Comparable<Object> {
      * Append a key segment that represents the left edge of the subtree at this
      * level. The result key value should only be used in traversal operations.
      */
-    private Key appendBefore() {
+    Key appendBefore() {
         int size = _size;
         _bytes[size++] = TYPE_BEFORE;
         _bytes[size] = 0;
@@ -3566,7 +3553,7 @@ public final class Key implements Comparable<Object> {
      * this level. The result key value should only be used in traversal
      * operations.
      */
-    private Key appendAfter() {
+    Key appendAfter() {
         int size = _size;
         _bytes[size++] = (byte) TYPE_AFTER;
         _bytes[size] = 0;
@@ -3900,13 +3887,13 @@ public final class Key implements Comparable<Object> {
      * Recomputes the number of segments in this <tt>Key</tt>
      */
     private void recomputeCurrentDepth() {
-        int index = -1;
-        for (int depth = 0;; depth++) {
-            if ((index = nextElementIndex(index)) == -1) {
-                _depth = depth;
-                break;
+        int depth = 0;
+        for (int index = 0; index < _size; index++) {
+            if (_bytes[index] == 0) {
+                depth++;
             }
         }
+        _depth = depth;
     }
 
     private void notLeftOrRightGuard() {
