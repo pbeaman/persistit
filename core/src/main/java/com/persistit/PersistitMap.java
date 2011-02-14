@@ -662,15 +662,20 @@ public class PersistitMap implements SortedMap {
      * This implementation calls <tt>entrySet().clear()</tt>.
      */
     public synchronized void clear() {
-        toLeftEdge();
-        Key key = new Key(_ex.getKey());
-        if (_toKey == null) {
-            key.to(Key.AFTER);
-        } else {
-            _toKey.copyTo(key);
+        try {
+            toLeftEdge();
+            Key key = new Key(_ex.getKey());
+            if (_toKey == null) {
+                key.to(Key.AFTER);
+            } else {
+                _toKey.copyTo(key);
+            }
+            _ex.removeKeyRange(_ex.getKey(), key);
+            _size = 0;
+            _sizeGeneration = _ex.getChangeCount();
+        } catch (PersistitException de) {
+            throw new PersistitMapException(de);
         }
-        _size = 0;
-        _sizeGeneration = _ex.getChangeCount();
     }
 
     public class PersistitMapException extends RuntimeException {
