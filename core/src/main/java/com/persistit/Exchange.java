@@ -173,10 +173,6 @@ public class Exchange {
 
     private long _longRecordPageAddress;
 
-    private WeakReference<Thread> _currentThread;
-
-    private boolean _secure;
-
     /**
      * <p>
      * Construct a new <tt>Exchange</tt> object to create and/or access the
