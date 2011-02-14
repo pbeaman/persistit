@@ -53,7 +53,7 @@ import com.persistit.exception.VolumeClosedException;
  */
 
 public final class Buffer extends SharedResource {
-    private final static boolean ENABLE_COUNTERS = false;
+
     /**
      * Architectural lower bound on buffer size
      */
@@ -366,20 +366,6 @@ public final class Buffer extends SharedResource {
      * Back pointer for dirty list
      */
     private Buffer _prevDirty = this;
-
-    static int s0;
-    static int s1;
-    static int s2;
-    static int s3;
-    static int s4;
-    static int s4a;
-    static int s4a1;
-    static int s4b;
-    static int s4c;
-    static int s5;
-    static int s6;
-    static int s7;
-    static int s8;
 
     /**
      * Construct a new buffer.
@@ -779,7 +765,7 @@ public final class Buffer extends SharedResource {
      * @param key
      *            The key to seek
      * @return An encoded result (see above). Returns 0 if the supplied key
-     *         preceeds the first key in the page. Returns Integer.MAX_VALUE if
+     *         precedes the first key in the page. Returns Integer.MAX_VALUE if
      *         it follows the last key in the page.
      */
     int findKey(Key key) {
@@ -796,8 +782,6 @@ public final class Buffer extends SharedResource {
         int tailHeaderSize = _tailHeaderSize;
 
         for (int p = start; p < right;) {
-            if (ENABLE_COUNTERS)
-                s0++;
             //
             // Here we MUST land on a KeyBlock at an ebc value change point.
             //
@@ -812,8 +796,6 @@ public final class Buffer extends SharedResource {
                 // equal to or greater than this one, so whether there's a
                 // runCount (positive) or crossCount (negative), we skip
                 // this KeyBlock and all its successors.
-                if (ENABLE_COUNTERS)
-                    s1++;
                 if (runCount < 0)
                     runCount = -runCount;
                 p += KEYBLOCK_LENGTH * (runCount + 1);
@@ -821,8 +803,6 @@ public final class Buffer extends SharedResource {
             }
 
             else if (depth > ebc) {
-                if (ENABLE_COUNTERS)
-                    s2++;
                 int result = p | (depth << DEPTH_SHIFT);
                 return result;
             }
@@ -831,21 +811,15 @@ public final class Buffer extends SharedResource {
             {
                 // Now we are looking for the keyblock with the matching db
                 //
-                if (ENABLE_COUNTERS)
-                    s3++;
                 // int kbData = getInt(p);
                 int db = element & FINDEX_DB_MASK; // getDb(p);
                 int kb = kbytes[depth] & 0xFF;
 
                 if (kb < db) {
-                    if (ENABLE_COUNTERS)
-                        s4++;
                     int result = p | (depth << DEPTH_SHIFT);
                     return result;
                 }
                 if (kb > db) {
-                    if (ENABLE_COUNTERS)
-                        s4a++;
                     if (runCount > 0) {
                         int p2 = p + (runCount << 2);
                         //
@@ -863,8 +837,6 @@ public final class Buffer extends SharedResource {
                         // value of db2.
                         //
                         if (runCount == 1) {
-                            if (ENABLE_COUNTERS)
-                                s4a1++;
                             if (db2 > kb) {
                                 //
                                 // This is right because we already know
@@ -874,8 +846,6 @@ public final class Buffer extends SharedResource {
 
                                 return result;
                             } else if (db2 < kb) {
-                                if (ENABLE_COUNTERS)
-                                    s4c++;
                                 // we just want to move forward from kb2.
                                 // index = (p2 - start) >> 2;
                                 // runCount = _findexElements[index] >>
@@ -920,8 +890,6 @@ public final class Buffer extends SharedResource {
                             }
 
                             while (right > left) {
-                                if (ENABLE_COUNTERS)
-                                    s4b++;
                                 p = ((left + right) >> 1) & P_MASK;
                                 if (p == left) {
                                     //
@@ -946,8 +914,6 @@ public final class Buffer extends SharedResource {
                                 }
                             }
                         } else if (db2 < kb) {
-                            if (ENABLE_COUNTERS)
-                                s4c++;
                             // we just want to move forward from kb2, skipping
                             // the crossCount if non-zero.
                             index = (p2 - start) >> 2;
@@ -970,8 +936,6 @@ public final class Buffer extends SharedResource {
                 }
 
                 if (kb == db) {
-                    if (ENABLE_COUNTERS)
-                        s5++;
                     int kbData = getInt(p);
                     int tail = decodeKeyBlockTail(kbData);
                     int tbData = getInt(tail);
@@ -987,8 +951,6 @@ public final class Buffer extends SharedResource {
                         db = _bytes[q++];
 
                         while (kb == db && ++depth < qlength) {
-                            if (ENABLE_COUNTERS)
-                                s7++;
                             kb = kbytes[depth];
                             db = _bytes[q++];
                         }
@@ -1035,8 +997,6 @@ public final class Buffer extends SharedResource {
                         }
                     }
                 }
-                if (ENABLE_COUNTERS)
-                    s6++;
                 // Advance to the next keyblock
                 p += KEYBLOCK_LENGTH;
             }
@@ -1044,8 +1004,6 @@ public final class Buffer extends SharedResource {
         }
         // Should never fall through. If so, then we've walked to the right of
         // maxkey.
-        if (ENABLE_COUNTERS)
-            s8++;
         int result = right | (depth << DEPTH_SHIFT);
         return result;
     }
