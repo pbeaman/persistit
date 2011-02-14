@@ -9,4 +9,40 @@
   <Match>
     <Package name="com.persistit.ui.renderers" />
   </Match>
+  <Match>
+    <Class name="com.persistit.Exchange" />
+    <Bug pattern="URF_UNREAD_FIELD" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.DefaultObjectCode" />
+    <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.IntegrityCheck" />
+    <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.Journal" />
+    <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.JournalManager" />
+    <Bug pattern="DLS_DEAD_LOCAL_STORE" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.ManagementImpl" />
+    <Bug pattern="SIC_INNER_SHOULD_BE_STATIC_ANON" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.Persistit" />
+    <Bug pattern="SIC_INNER_SHOULD_BE_STATIC_ANON" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.PersistitMap" />
+    <Bug pattern="SIC_INNER_SHOULD_BE_STATIC_ANON" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.Value" />
+    <Bug pattern="SIC_INNER_SHOULD_BE_STATIC_ANON" />
+  </Match>
 </FindBugsFilter>

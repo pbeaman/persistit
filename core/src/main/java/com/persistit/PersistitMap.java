@@ -125,7 +125,6 @@ public class PersistitMap implements SortedMap {
     private final static int VALUE = 2;
     private final static int ENTRY = 3;
 
-    PersistitMap _parentPersistitMap = null;
     private Exchange _ex;
     private long _sizeGeneration;
     private int _size;
@@ -620,9 +619,6 @@ public class PersistitMap implements SortedMap {
                 _sizeGeneration = -1;
             }
         }
-        if (_parentPersistitMap != null) {
-            _parentPersistitMap.adjustSize(changeCount, delta);
-        }
     }
 
     // Bulk Operations
@@ -666,23 +662,15 @@ public class PersistitMap implements SortedMap {
      * This implementation calls <tt>entrySet().clear()</tt>.
      */
     public synchronized void clear() {
-        try {
-            toLeftEdge();
-            Key key = new Key(_ex.getKey());
-            if (_toKey == null) {
-                key.to(Key.AFTER);
-            } else {
-                _toKey.copyTo(key);
-            }
-            boolean removed = _ex.removeKeyRange(_ex.getKey(), key);
-            if (_parentPersistitMap != null && removed) {
-                _parentPersistitMap._sizeGeneration = -1;
-            }
-            _size = 0;
-            _sizeGeneration = _ex.getChangeCount();
-        } catch (PersistitException de) {
-            throw new PersistitMapException(de);
+        toLeftEdge();
+        Key key = new Key(_ex.getKey());
+        if (_toKey == null) {
+            key.to(Key.AFTER);
+        } else {
+            _toKey.copyTo(key);
         }
+        _size = 0;
+        _sizeGeneration = _ex.getChangeCount();
     }
 
     public class PersistitMapException extends RuntimeException {
