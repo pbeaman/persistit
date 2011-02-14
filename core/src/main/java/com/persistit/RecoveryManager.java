@@ -165,8 +165,6 @@ public class RecoveryManager implements RecoveryManagerMXBean,
 
     private long _journalCreatedTime;
 
-    private long _keystoneCreatedTime;
-
     private long _blockSize;
 
     private long _baseAddress = 0;
@@ -638,7 +636,6 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                 _blockSize = JH.getBlockSize(_readBuffer);
                 _baseAddress = JH.getBaseJournalAddress(_readBuffer);
                 _journalCreatedTime = JH.getJournalCreatedTime(_readBuffer);
-                _keystoneCreatedTime = JH.getFileCreatedTime(_readBuffer);
                 _keystoneAddress = JH.getCurrentJournalAddress(_readBuffer);
                 _currentAddress = _keystoneAddress + recordSize;
 

@@ -29,8 +29,6 @@ public class Debug {
     // Lazily instantiated
     private static Random _random;
 
-    private static HashMap _threadClaims = new HashMap();
-
     private static ArrayList _brokenThreads = new ArrayList();
 
     private static long _startTime;

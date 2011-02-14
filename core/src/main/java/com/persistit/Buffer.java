@@ -486,8 +486,6 @@ public final class Buffer extends SharedResource {
         bumpGeneration();
     }
 
-    static int _previousType = 0;
-
     boolean claim(final boolean writer) throws PersistitException {
         return claim(writer, DEFAULT_MAX_WAIT_TIME);
     }

@@ -51,7 +51,6 @@ class Journal {
     private FileOutputStream _fos;
     private DataOutputStream _os;
     private boolean _enabled = false;
-    private boolean _enabledFetches = false;
     private Hashtable _treeHashTable = new Hashtable();
     private Hashtable _threadHashTable = new Hashtable();
     int _maxTreeHandle = 0;
@@ -71,14 +70,12 @@ class Journal {
                 _fos = null;
                 _treeHashTable.clear();
                 _enabled = false;
-                _enabledFetches = false;
             }
             if (path != null) {
                 _fos = new FileOutputStream(path, false);
                 _os = new DataOutputStream(new BufferedOutputStream(_fos,
                         JOURNAL_BUFFER_SIZE));
                 _enabled = true;
-                _enabledFetches = enableFetchOperations;
 
                 Thread flusher = new Thread(new Runnable() {
                     public void run() {
@@ -121,7 +118,6 @@ class Journal {
                 _fos = null;
                 _treeHashTable.clear();
                 _enabled = false;
-                _enabledFetches = false;
             }
         } catch (IOException ioe) {
             // TODO
