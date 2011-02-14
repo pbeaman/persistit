@@ -1575,7 +1575,7 @@ public class Persistit {
 
         Volume volume = getVolume(volumeName);
         if (volume == null) {
-            if ((_volumes.size() == 1) && (volumeName == dflt)) {
+            if ((_volumes.size() == 1) && (volumeName.equals(dflt))) {
                 volume = _volumes.get(0);
             } else {
                 throw new VolumeNotFoundException(volumeName);

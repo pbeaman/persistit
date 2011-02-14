@@ -515,6 +515,8 @@ public class DefaultValueCoder implements ValueRenderer {
                 accessor = new FloatFieldAccessor();
             } else if (field.getType() == double.class) {
                 accessor = new DoubleFieldAccessor();
+            } else {
+                accessor = new ObjectFieldAccessor();
             }
         } else {
             accessor = new ObjectFieldAccessor();

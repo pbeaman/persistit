@@ -373,8 +373,9 @@ public class KeyFilter {
      */
     public KeyFilter(Key key, int minDepth, int maxDepth) {
         checkLimits(minDepth, maxDepth);
-        int depth = key.getDepth();
-        _terms = new Term[depth];
+        if (key != null) {
+            _terms = new Term[key.getDepth()];
+        }
         int size = key.getEncodedSize();
         int index = 0;
         if (key != null && size != 0) {
@@ -1648,7 +1649,7 @@ public class KeyFilter {
     }
 
     private static int compare(byte[] a, byte[] b) {
-        if (a == b)
+        if ((a == b) || (a == null && b == null))
             return 0;
         if (a == null && b != null)
             return Integer.MIN_VALUE;

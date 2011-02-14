@@ -320,7 +320,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
         info.recoveryStatus = _recoveryStatus;
         info.recoveryEndAddress = _recoveryEndedAddress;
         info.recoveryException = _recoveryEndedException == null ? ""
-                : _recoveryEndedException.toString();
+                : _recoveryEndedException;
         if (_keystoneAddress > 0) {
             info.keystoneJournalFile = addressToFile(_keystoneAddress)
                     .getPath();

@@ -1012,11 +1012,6 @@ public final class Buffer extends SharedResource {
         _isFindexValid = false;
     }
 
-    private void createFindex() {
-        _findexElements = new int[_bufferSize
-                / (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_DATA)];
-    }
-
     private void recomputeFindex() {
         if (_isFindexValid) {
             if (Debug.ENABLED) {

@@ -1781,7 +1781,7 @@ public class Exchange {
                 }
                 else if (txnResult.equals(Boolean.TRUE)) {
                     return true;
-                } else if (txnResult == Boolean.FALSE) {
+                } else if (txnResult.equals(Boolean.FALSE)) {
                     //
                     // A pending DELETE transaction record overrides the
                     // base record.
