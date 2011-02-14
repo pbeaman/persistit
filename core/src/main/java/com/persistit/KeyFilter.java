@@ -1437,7 +1437,7 @@ public class KeyFilter {
                     nextIndex = key.getEncodedSize();
                 }
                 Term term = level < _terms.length ? _terms[level] : ALL;
-                if (!term.selected(keyBytes, index, nextIndex - index)) {
+                if (term == null || !term.selected(keyBytes, index, nextIndex - index)) {
                     return false;
                 }
                 index = nextIndex;
@@ -1534,6 +1534,10 @@ public class KeyFilter {
         if (Debug.ENABLED) {
             Debug.$assert(level < _maxDepth);
             Debug.$assert(index <= size);
+        }
+        
+        if (term == null) {
+            return false;
         }
 
         /*

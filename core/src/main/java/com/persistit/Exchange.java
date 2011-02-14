@@ -1778,9 +1778,14 @@ public class Exchange {
                 // A pending STORE transaction record overrides
                 // the base record.
                 //
-                if (txnResult == Boolean.TRUE) {
+                if (txnResult == null) {
+                    /* 
+                     * if the transaction is null then the pending operations
+                     * do not affect the result
+                     */
+                }
+                else if (txnResult.equals(Boolean.TRUE)) {
                     return true;
-
                 } else if (txnResult == Boolean.FALSE) {
                     //
                     // A pending DELETE transaction record overrides the
@@ -1936,7 +1941,7 @@ public class Exchange {
                         _pool.release(buffer);
                         buffer = null;
 
-                        if (txnResult == Boolean.TRUE) {
+                        if (txnResult.equals(Boolean.TRUE)) {
                             // There's a pending new record that
                             // yields a closer key. The key
                             // was updated to reflect its content, and
