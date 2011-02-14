@@ -145,6 +145,7 @@
                     <findbugsXmlOutput>true</findbugsXmlOutput>
                     <findbugsXmlWithMessages>true</findbugsXmlWithMessages>
                     <xmlOutput>true</xmlOutput>
+                    <visitors>FindDeadLocalStores,UnreadFields,FindBadCast,FindBadCast2,FindBadForLoop</visitors>
                 </configuration>
             </plugin>
             <plugin>
