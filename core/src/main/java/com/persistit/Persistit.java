@@ -90,7 +90,7 @@ public class Persistit {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit JSA 2.2-20101201"
+    public final static String VERSION = "Persistit 2.1"
             + (Debug.ENABLED ? "-DEBUG" : "");
     /**
      * The internal version number
