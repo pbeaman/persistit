@@ -1657,7 +1657,6 @@ public final class Buffer extends SharedResource {
             knownGood = depth;
 
         int tail = decodeKeyBlockTail(kbData);
-        int tbData = getInt(tail);
         //
         // This is the length of the key value we need to reconstruct.
         // We walk backward through the keys on this page until we find
@@ -1667,7 +1666,7 @@ public final class Buffer extends SharedResource {
         // the unknown count becomes less than or equal to the knownGood count,
         // we are done.
         //
-        int unknown = decodeTailBlockKLength(tbData) + ebc + 1; // (+1 is for the discriminator byte)
+        int unknown = decodeTailBlockKLength(getInt(tail)) + ebc + 1; // (+1 is for the discriminator byte)
         key.setEncodedSize(unknown);
 
         int result = p | (unknown << DEPTH_SHIFT) | EXACT_MASK;
@@ -1694,7 +1693,6 @@ public final class Buffer extends SharedResource {
             kbData = getInt(p);
             ebc = decodeKeyBlockEbc(kbData);
             tail = decodeKeyBlockTail(kbData);
-            tbData = getInt(tail);
         }
         return result;
     }

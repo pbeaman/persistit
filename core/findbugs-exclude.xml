@@ -1,0 +1,12 @@
+<FindBugsFilter>
+  <!-- we do not care about the persistit UI or logging packages for now -->
+  <Match>
+    <Package name="com.persistit.ui" />
+  </Match>
+  <Match>
+    <Package name="com.persistit.ui" />
+  </Match>
+  <Match>
+    <Package name="com.persistit.ui.renderers" />
+  </Match>
+</FindBugsFilter>
