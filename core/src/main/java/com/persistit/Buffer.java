@@ -1606,49 +1606,6 @@ public final class Buffer extends SharedResource {
         return getInt(tail + 4); // TODO - allow larger pointer size
     }
 
-    /**
-     * Provides general key traversal mechanism. For a specified key,
-     * determines, the next key, previous key, or the existence of the specified
-     * key, depending on the value of <i>mode</i>. The Key is updated to reflect
-     * the new key.
-     * <p>
-     * Mode values:
-     * <p>
-     * <ul>
-     * <li>Key.GT: Find the next key that is strictly greater than the supplied
-     * key. If there is none, return false.</li>
-     * <li>Key.GTEQ: If the supplied key exists in the database, return that
-     * key; otherwise find the next greater key and return it.</li>
-     * <li>Key.EQ: Return <i>true</i> iff the specified key exists in the
-     * database. Does not update the Key.</li>
-     * <li>Key.LT: Find the next key that is strictly less than the supplied
-     * key. If there is none, return false.</li>
-     * <li>Key.LTEQ: If the supplied key exists in the database, return that
-     * key; otherwise find the next greater key and return it.</li>
-     * </ul>
-     * The result is encoded as
-     * <p>
-     * <br>
-     * (fixupRequired ? FIXUP_MASK : 0) | <br>
-     * (exact ? EXACT_MASK : 0) | <br>
-     * (depth &lt;&lt; DEPTH_SHIFT) | <br>
-     * offset
-     * <p>
-     * In the traversal cases (KEY_GT, KEY_GTEQ, KEY_LT, KEY_LTEQ), the
-     * EXACT_MASK bit will be set if a modified key is returned. The modified
-     * key is read from the page which means that it is indeed an exact match.
-     * <p>
-     * 
-     * @param key
-     *            A key from which traversal will procede.
-     * @param mode
-     *            Specifies traversal order and conditions.
-     * @return A result encoded as specified above.
-     */
-    int traverse(Key key, Key.Direction mode) {
-        int foundAt = findKey(key);
-        return traverse(key, mode, foundAt);
-    }
 
     /**
      * Internal implementation of getKey using a previously computed result from

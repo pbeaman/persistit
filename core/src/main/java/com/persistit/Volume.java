@@ -927,7 +927,7 @@ public class Volume extends SharedResource {
     }
 
     void bumpTraverseCounter() {
-        _fetchCounter.incrementAndGet();
+        _traverseCounter.incrementAndGet();
     }
 
     void bumpStoreCounter() {

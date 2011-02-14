@@ -27,13 +27,13 @@ public class GetVersion{
 
     public static void main (String[] a) throws Exception
     {
-        System.out.println (new GetVersion("/persistit_version") );
+        System.out.println (new GetVersion("version/persistit_version") );
     }
 
     String version;
 
     public GetVersion(String jarResource) throws IOException {
-        InputStream in = getClass().getResourceAsStream( jarResource );
+        InputStream in = ClassLoader.getSystemResourceAsStream( jarResource );
         BufferedReader reader = new BufferedReader ( new InputStreamReader ( in ) );
 
         version = reader.readLine();

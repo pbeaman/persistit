@@ -348,7 +348,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     public Checkpoint getLastValidCheckpoint() {
         return _lastValidCheckpoint;
     }
-    
+
     public long getLastValidCheckpointTimestamp() {
         return _lastValidCheckpoint.getTimestamp();
     }
@@ -389,7 +389,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             //
             synchronized (this) {
                 handle = Integer.valueOf(++_handleCounter);
-                Debug.$assert(!_handleToVolumeMap.containsKey(handle));
+                if (Debug.ENABLED) {
+                    Debug.$assert(!_handleToVolumeMap.containsKey(handle));
+                }
                 writeVolumeHandleToJournal(vd, handle.intValue());
                 _volumeToHandleMap.put(vd, handle);
                 _handleToVolumeMap.put(handle, vd);
@@ -411,7 +413,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             //
             synchronized (this) {
                 handle = Integer.valueOf(++_handleCounter);
-                Debug.$assert(!_handleToTreeMap.containsKey(handle));
+                if (Debug.ENABLED) {
+                    Debug.$assert(!_handleToTreeMap.containsKey(handle));
+                }
                 writeTreeHandleToJournal(td, handle.intValue());
                 _treeToHandleMap.put(td, handle);
                 _handleToTreeMap.put(handle, td);
@@ -581,9 +585,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     private void advance(final int recordSize) {
-        Debug.$assert(recordSize > 0
-                && recordSize + _writeBuffer.position() <= _writeBuffer
-                        .capacity());
+        if (Debug.ENABLED) {
+            Debug.$assert(recordSize > 0
+                    && recordSize + _writeBuffer.position() <= _writeBuffer
+                            .capacity());
+        }
         _currentAddress += recordSize;
         _writeBuffer.position(_writeBuffer.position() + recordSize);
     }
@@ -702,7 +708,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 pageNode = pageNode.getPrevious();
             }
         }
-        Debug.$assert(count == 0);
+        if (Debug.ENABLED) {
+            Debug.$assert(count == 0);
+        }
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize,
                 _currentAddress - recordSize);
     }
@@ -732,7 +740,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             }
         }
 
-        Debug.$assert(count == 0);
+        if (Debug.ENABLED) {
+            Debug.$assert(count == 0);
+        }
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize,
                 _currentAddress - recordSize);
     }
@@ -811,7 +821,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             } else {
                 _writeBuffer.put(buffer.getBytes());
             }
-            Debug.$assert(_writeBuffer.position() - position == recordSize);
+            if (Debug.ENABLED) {
+                Debug.$assert(_writeBuffer.position() - position == recordSize);
+            }
             _currentAddress += recordSize - PA.OVERHEAD;
 
             final PageNode pageNode = new PageNode(handle,
@@ -1038,11 +1050,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      */
     synchronized void flush() throws PersistitIOException {
         final long address = _writeBufferAddress;
-        if (address != Long.MAX_VALUE  && _writeBuffer != null) {
+        if (address != Long.MAX_VALUE && _writeBuffer != null) {
             try {
                 if (_writeBuffer.position() > 0) {
                     final FileChannel channel = getFileChannel(address);
-                    Debug.$assert(channel.size() == addressToOffset(address));
+                    if (Debug.ENABLED) {
+                        Debug.$assert(channel.size() == addressToOffset(address));
+                    }
                     _writeBuffer.flip();
                     channel.write(_writeBuffer);
                     _writeBufferAddress += _writeBuffer.position();
@@ -1107,7 +1121,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             startJournalFile();
             newJournalFile = true;
         }
-        Debug.$assert(_writeBufferAddress + _writeBuffer.position() == _currentAddress);
+        if (Debug.ENABLED) {
+            Debug.$assert(_writeBufferAddress + _writeBuffer.position() == _currentAddress);
+        }
         //
         // If the current journal file has room for the record, then return.
         //
@@ -1152,7 +1168,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 final long length = _currentAddress % _blockSize;
                 final boolean matches = length == (_writeBuffer.position() + _writeBufferAddress)
                         % _blockSize;
-                Debug.$assert(matches);
+                if (Debug.ENABLED) {
+                    Debug.$assert(matches);
+                }
                 if (matches) {
                     channel.truncate(length);
                 }
@@ -1251,7 +1269,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     // ignore;
                 }
             }
-            Debug.$assert(_pageMap.isEmpty()); // TODO - remove this
+            if (Debug.ENABLED) {
+                Debug.$assert(_pageMap.isEmpty()); // TODO - remove this
+            }
         }
     }
 
