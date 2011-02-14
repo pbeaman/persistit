@@ -897,7 +897,6 @@ public class KeyFilter {
                 System.arraycopy(_itemToBytes, 0, keyBytes, offset,
                         _itemToBytes.length);
                 key.setEncodedSize(offset + _itemToBytes.length);
-                length = _itemToBytes.length;
                 return true;
             }
             return false;
@@ -1580,7 +1579,6 @@ public class KeyFilter {
                         // any children.
                         //
                         key.setEncodedSize(nextIndex);
-                        size = nextIndex;
                         isLastKeySegment = true;
 
                         if (forward && !key.isSpecial()) {

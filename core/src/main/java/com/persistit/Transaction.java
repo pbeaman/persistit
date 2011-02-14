@@ -283,7 +283,7 @@ public class Transaction {
     private boolean _commitCompleted;
     private RollbackException _rollbackException;
 
-    private boolean _recoveryMode;
+    private boolean _recoveryMode = false;
 
     private long _rollbackCount = 0;
     private long _commitCount = 0;

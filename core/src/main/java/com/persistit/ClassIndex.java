@@ -188,7 +188,6 @@ public class ClassIndex {
             osc = ObjectStreamClass.lookup(clazz);
         if (osc != null)
             suid = osc.getSerialVersionUID();
-        oscLookupDone = true;
 
         Exchange ex = null;
         try {

@@ -521,7 +521,7 @@ public class JournalTool {
 
     class SimpleDumpAction implements Action {
 
-        final String ELIPSES = "...";
+        final static String ELIPSES = "...";
 
         final StringBuilder sb = new StringBuilder();
 

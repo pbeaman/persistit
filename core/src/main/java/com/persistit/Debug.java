@@ -46,8 +46,6 @@ public class Debug {
     }
 
     private static void logDebugMessage(String msg) {
-        long now = now();
-
         DebugException de = new DebugException();
         de.fillInStackTrace();
         String s = LogBase.detailString(de).replace('\r', ' ');
@@ -96,8 +94,6 @@ public class Debug {
         if (condition) {
             logDebugMessage("debug0");
             setSuspended(true);
-            long time = elapsedTime();
-
             //
             // Put a breakpoint on the next statement.
             //
@@ -122,7 +118,6 @@ public class Debug {
         if (condition) {
             logDebugMessage("debug1");
             setSuspended(true);
-            long time = elapsedTime();
             //
             // Put a breakpoint on the next statement.
             //
@@ -147,8 +142,6 @@ public class Debug {
         if (condition) {
             logDebugMessage("debug2");
             setSuspended(true);
-            long time = elapsedTime();
-
             //
             // Put a breakpoint on the next statement.
             //
@@ -173,8 +166,6 @@ public class Debug {
         if (condition) {
             logDebugMessage("debug3");
             setSuspended(true);
-            long time = elapsedTime();
-
             //
             // Put a breakpoint on the next statement.
             //
@@ -194,8 +185,6 @@ public class Debug {
         if (!condition) {
             setSuspended(true);
             logDebugMessage("$assert");
-            long time = elapsedTime();
-
             //
             // Put a breakpoint on the next statement.
             //

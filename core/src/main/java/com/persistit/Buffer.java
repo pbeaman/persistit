@@ -465,10 +465,9 @@ public final class Buffer extends SharedResource {
                 _slack = 0;
                 _rightSibling = 0;
             } else {
-                long pageAddr = getLong(PAGE_ADDRESS_OFFSET);
                 if (Debug.ENABLED) {
                     Debug.$assert(getByte(BUFFER_LENGTH_OFFSET) * 256 == _bufferSize);
-                    Debug.$assert(pageAddr == _page);
+                    Debug.$assert(getLong(PAGE_ADDRESS_OFFSET) == _page);
                 }
                 _alloc = getChar(FREE_OFFSET);
                 _slack = getChar(SLACK_OFFSET);
@@ -905,7 +904,6 @@ public final class Buffer extends SharedResource {
                                     break;
                                 } else if (db1 > kb) {
                                     right = p;
-                                    db2 = db1;
                                 } else {
                                     left = p;
                                     db = db1;
@@ -1660,7 +1658,6 @@ public final class Buffer extends SharedResource {
 
         int tail = decodeKeyBlockTail(kbData);
         int tbData = getInt(tail);
-        int klength = decodeTailBlockKLength(tbData);
         //
         // This is the length of the key value we need to reconstruct.
         // We walk backward through the keys on this page until we find
@@ -1670,7 +1667,7 @@ public final class Buffer extends SharedResource {
         // the unknown count becomes less than or equal to the knownGood count,
         // we are done.
         //
-        int unknown = klength + ebc + 1; // (+1 is for the discriminator byte)
+        int unknown = decodeTailBlockKLength(tbData) + ebc + 1; // (+1 is for the discriminator byte)
         key.setEncodedSize(unknown);
 
         int result = p | (unknown << DEPTH_SHIFT) | EXACT_MASK;
@@ -1698,7 +1695,6 @@ public final class Buffer extends SharedResource {
             ebc = decodeKeyBlockEbc(kbData);
             tail = decodeKeyBlockTail(kbData);
             tbData = getInt(tail);
-            klength = decodeTailBlockKLength(tbData);
         }
         return result;
     }

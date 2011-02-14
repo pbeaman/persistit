@@ -125,7 +125,7 @@ public class PersistitMap implements SortedMap {
     private final static int VALUE = 2;
     private final static int ENTRY = 3;
 
-    PersistitMap _parentPersistitMap;
+    PersistitMap _parentPersistitMap = null;
     private Exchange _ex;
     private long _sizeGeneration;
     private int _size;

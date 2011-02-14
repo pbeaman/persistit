@@ -749,7 +749,6 @@ public class Persistit {
                         propertyValue = "";
                     text = text.substring(0, p - 2) + propertyValue
                             + text.substring(q + 1);
-                    q += propertyValue.length() - (propertyName.length() + 3);
                 } else
                     break;
             } else {

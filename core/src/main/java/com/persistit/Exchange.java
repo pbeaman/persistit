@@ -867,7 +867,6 @@ public class Exchange {
         if (buffer.isBeforeLeftEdge(foundAt)
                 || buffer.isAfterRightEdge(foundAt)) {
             buffer.release(); // Don't make Most-Recently-Used
-            buffer = null;
             return searchTree(key, 0);
         }
         return foundAt;

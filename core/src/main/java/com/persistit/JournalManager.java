@@ -754,7 +754,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         // writing this record.
         //
         force();
-        final int recordSize = CP.OVERHEAD;
         _lastValidCheckpoint = checkpoint;
         _lastValidCheckpointJournalAddress = _currentAddress - CP.OVERHEAD;
         _lastValidCheckpointBaseAddress = _baseAddress;
@@ -763,7 +762,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         // started a new journal file then there's no need to write another
         // CP record.
         //
-        if (!prepareWriteBuffer(recordSize)) {
+        if (!prepareWriteBuffer(CP.OVERHEAD)) {
             final long address = _currentAddress;
             CP.putLength(_writeBuffer, CP.OVERHEAD);
             CP.putType(_writeBuffer);
@@ -771,9 +770,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             CP.putSystemTimeMillis(_writeBuffer,
                     checkpoint.getSystemTimeMillis());
             CP.putBaseAddress(_writeBuffer, _baseAddress);
-            _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize,
+            _persistit.getIOMeter().chargeWriteOtherToJournal(CP.OVERHEAD,
                     _currentAddress);
-            advance(recordSize);
+            advance(CP.OVERHEAD);
             force();
 
             checkpointWritten(checkpoint);
@@ -912,15 +911,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     synchronized void writeDeleteTreeToJournal(final long timestamp,
             final int treeHandle) throws PersistitIOException {
-        final int recordSize = DT.OVERHEAD;
-        prepareWriteBuffer(recordSize);
-        DT.putLength(_writeBuffer, recordSize);
+        prepareWriteBuffer(DT.OVERHEAD);
+        DT.putLength(_writeBuffer, DT.OVERHEAD);
         DT.putType(_writeBuffer);
         DT.putTimestamp(_writeBuffer, timestamp);
         DT.putTreeHandle(_writeBuffer, treeHandle);
-        advance(recordSize);
-        _persistit.getIOMeter().chargeWriteDTtoJournal(recordSize,
-                _currentAddress - recordSize);
+        advance(DT.OVERHEAD);
+        _persistit.getIOMeter().chargeWriteDTtoJournal(DT.OVERHEAD,
+                _currentAddress - DT.OVERHEAD);
     }
 
     synchronized void writeTransactionStartToJournal(final long startTimestamp,
@@ -937,15 +935,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 _currentAddress);
         _liveTransactionMap.put(key, ts);
 
-        final int recordSize = TS.OVERHEAD;
-        prepareWriteBuffer(recordSize);
+        prepareWriteBuffer(TS.OVERHEAD);
         TS.putType(_writeBuffer);
         TS.putTimestamp(_writeBuffer, commitTimestamp);
         TS.putStartTimestamp(_writeBuffer, startTimestamp);
-        TS.putLength(_writeBuffer, recordSize);
-        advance(recordSize);
-        _persistit.getIOMeter().chargeWriteTStoJournal(recordSize,
-                _currentAddress - recordSize);
+        TS.putLength(_writeBuffer, TS.OVERHEAD);
+        advance(TS.OVERHEAD);
+        _persistit.getIOMeter().chargeWriteTStoJournal(TS.OVERHEAD,
+                _currentAddress - TS.OVERHEAD);
     }
 
     synchronized void writeTransactionCommitToJournal(final long timestamp)
@@ -961,14 +958,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             ts.setCommitted(true);
         }
 
-        final int recordSize = TC.OVERHEAD;
-        prepareWriteBuffer(recordSize);
+        prepareWriteBuffer(TC.OVERHEAD);
         TC.putType(_writeBuffer);
         TC.putTimestamp(_writeBuffer, timestamp);
-        TC.putLength(_writeBuffer, recordSize);
-        advance(recordSize);
-        _persistit.getIOMeter().chargeWriteTCtoJournal(recordSize,
-                _currentAddress - recordSize);
+        TC.putLength(_writeBuffer, TC.OVERHEAD);
+        advance(TC.OVERHEAD);
+        _persistit.getIOMeter().chargeWriteTCtoJournal(TC.OVERHEAD,
+                _currentAddress - TC.OVERHEAD);
     }
 
     static long fileToGeneration(final File file) {
