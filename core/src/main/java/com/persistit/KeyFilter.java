@@ -373,11 +373,12 @@ public class KeyFilter {
      */
     public KeyFilter(Key key, int minDepth, int maxDepth) {
         checkLimits(minDepth, maxDepth);
+        int size = 0;
+        int index = 0;
         if (key != null) {
             _terms = new Term[key.getDepth()];
+            size = key.getEncodedSize();
         }
-        int size = key.getEncodedSize();
-        int index = 0;
         if (key != null && size != 0) {
             for (int level = 0;; level++) {
                 int previous = index;

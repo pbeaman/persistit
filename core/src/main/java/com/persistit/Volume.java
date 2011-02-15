@@ -901,7 +901,7 @@ public class Volume extends SharedResource {
         return _highestPageUsed;
     }
 
-    long getInitialpages() {
+    long getInitialPages() {
         return _initialPages;
     }
 

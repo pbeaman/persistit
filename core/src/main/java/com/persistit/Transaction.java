@@ -372,6 +372,9 @@ public class Transaction {
 
         @Override
         public boolean equals(Object o) {
+            if (o == null || !(o instanceof DeallocationChain)) {
+                return false;
+            }
             DeallocationChain dc = (DeallocationChain) o;
             return (dc._leftPage == _leftPage && dc._rightPage == _rightPage && dc._volume == _volume);
         }

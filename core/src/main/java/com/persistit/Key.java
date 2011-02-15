@@ -2813,31 +2813,31 @@ public final class Key implements Comparable<Object> {
         }
 
         if (type >= TYPE_BYTE && type < TYPE_SHORT) {
-            return new Byte((byte) decodeInt());
+            return Byte.valueOf((byte) decodeInt());
         }
 
         if (type >= TYPE_SHORT && type < TYPE_CHAR) {
-            return new Short((short) decodeInt());
+            return Short.valueOf((short) decodeInt());
         }
 
         if (type >= TYPE_CHAR && type < TYPE_INT) {
-            return new Character((char) decodeInt());
+            return Character.valueOf((char) decodeInt());
         }
 
         if (type >= TYPE_INT && type < TYPE_LONG) {
-            return new Integer((int) decodeInt());
+            return Integer.valueOf((int) decodeInt());
         }
 
         if (type >= TYPE_LONG && type < TYPE_FLOAT) {
-            return new Long(decodeLong());
+            return Long.valueOf(decodeLong());
         }
 
         if (type == TYPE_FLOAT) {
-            return new Float(decodeFloat());
+            return Float.valueOf(decodeFloat());
         }
 
         if (type == TYPE_DOUBLE) {
-            return new Double(decodeDouble());
+            return Double.valueOf(decodeDouble());
         }
 
         if (type == TYPE_BYTE_ARRAY) {
@@ -4146,7 +4146,7 @@ public final class Key implements Comparable<Object> {
                     } else {
                         int digit0 = (b & 0x0F);
                         int digit1 = ((b >>> 4) & 0x0F);
-                        lowBits = lowBits * 100 + digit1 * 10 + digit0;
+                        lowBits = lowBits * 100L + digit1 * 10L + digit0;
                         chunk -= 2;
                         lastDigitZero = (digit0 == 0);
                         leftOverDigit = false;

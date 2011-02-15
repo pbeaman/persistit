@@ -365,7 +365,7 @@ class Journal {
             _os.writeUTF(tree.getName());
             _os.writeByte(END_MARKER);
 
-            handleValue = new Integer(treeHandle);
+            handleValue = Integer.valueOf(treeHandle);
             _treeHashTable.put(tree, handleValue);
             return treeHandle;
         }
@@ -384,7 +384,7 @@ class Journal {
             _os.writeUTF(threadName);
             _os.writeByte(END_MARKER);
 
-            handleValue = new Integer(threadHandle);
+            handleValue = Integer.valueOf(threadHandle);
             _threadHashTable.put(threadName, handleValue);
             return threadHandle;
         }
@@ -484,7 +484,7 @@ class Journal {
                     String threadName = is.readUTF();
                     verifyMarker(is, addr);
                     addr += 2 + (threadName.length()) + 1;
-                    Integer threadId = new Integer(threadHandle);
+                    Integer threadId = Integer.valueOf(threadHandle);
                     threadTable.put(threadName, threadId);
                     threadTable.put(threadId, threadName);
                     break;
@@ -732,7 +732,7 @@ class Journal {
             Hashtable exchangeTable) throws IOException {
         int treeHandle = is.readInt();
         Exchange exchange = (Exchange) exchangeTable
-                .get(new Integer(treeHandle));
+                .get(Integer.valueOf(treeHandle));
         if (exchange == null) {
             throw new RuntimeException("No exchange for handle " + treeHandle
                     + " at " + addr);

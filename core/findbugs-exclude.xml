@@ -38,6 +38,8 @@
   <Match>
     <Class name="com.persistit.Journal" />
     <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR" />
+    <Bug pattern="RR_NOT_CHECKED" />
+    <Bug pattern="REC_CATCH_EXCEPTION" />
   </Match>
   <Match>
     <Class name="com.persistit.JournalManager" />
@@ -47,6 +49,15 @@
     <Class name="com.persistit.Key" />
     <Bug pattern="EC_UNRELATED_TYPES" />
     <Bug pattern="SF_SWITCH_FALLTHROUGH" />
+    <Bug pattern="MS_PKGPROTECT" />
+    <Bug pattern="EI_EXPOSE_REP" />
+    <Bug pattern="DB_DUPLICATE_SWITCH_CLAUSES" />
+    <Bug pattern="ICAST_QUESTIONABLE_UNSIGNED_RIGHT_SHIFT" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.KeyFilter" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+    <Bug pattern="PZLA_PREFER_ZERO_LENGTH_ARRAYS" />
   </Match>
   <Match>
     <Class name="com.persistit.ManagementImpl" />
@@ -55,6 +66,8 @@
   <Match>
     <Class name="com.persistit.Persistit" />
     <Bug pattern="SIC_INNER_SHOULD_BE_STATIC_ANON" />
+    <Bug pattern="DE_MIGHT_IGNORE" />
+    <Bug pattern="OS_OPEN_STREAM" />
   </Match>
   <Match>
     <Class name="com.persistit.PersistitMap" />
@@ -68,9 +81,29 @@
     <Class name="com.persistit.Value" />
     <Bug pattern="SIC_INNER_SHOULD_BE_STATIC_ANON" />
     <Bug pattern="EC_UNRELATED_TYPES" />
+    <Bug pattern="RR_NOT_CHECKED" />
+    <Bug pattern="EI_EXPOSE_REP" />
+    <Bug pattern="SF_SWITCH_FALLTHROUGH" />
   </Match>
   <Match>
     <Class name="com.persistit.StreamSaver" />
     <Bug pattern="MF_CLASS_MASKS_FIELD" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.Volume" />
+    <Bug pattern="MS_PKGPROTECT" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.Transaction" />
+    <Bug pattern="NS_DANGEROUS_NON_SHORT_CIRCUIT" />
+    <Bug pattern="NS_NON_SHORT_CIRCUIT" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.ArgParser" />
+    <Bug pattern="EI_EXPOSE_REP2" />
+  </Match>
+  <Match>
+    <Class name="com.persistit.BufferPool" />
+    <Bug pattern="NS_DANGEROUS_NON_SHORT_CIRCUIT" />
   </Match>
 </FindBugsFilter>

@@ -1360,6 +1360,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
         @Override
         public boolean equals(final Object object) {
+            if (object == null || !(object instanceof VolumeDescriptor)) {
+                return false;
+            }
             final VolumeDescriptor vd = (VolumeDescriptor) object;
             return vd._name.equals(_name) && vd._id == _id;
         }
@@ -1396,6 +1399,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
 
         public boolean equals(final Object obj) {
+            if (obj == null || !(obj instanceof TreeDescriptor)) {
+                return false;
+            }
             final TreeDescriptor td = (TreeDescriptor) obj;
             return td._treeName.equals(_treeName)
                     && td._volumeHandle == _volumeHandle;
@@ -1499,6 +1505,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
         @Override
         public boolean equals(Object obj) {
+            if (obj == null || !(obj instanceof PageNode)) {
+                return false;
+            }
             final PageNode pn = (PageNode) obj;
             return _pageAddress == pn._pageAddress
                     && _volumeHandle == pn._volumeHandle;
