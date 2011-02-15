@@ -16,17 +16,22 @@
 package com.persistit;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import com.persistit.JournalManager.PageNode;
-import com.persistit.JournalManager.VolumeDescriptor;
 import com.persistit.JournalManager.TreeDescriptor;
+import com.persistit.JournalManager.VolumeDescriptor;
 import com.persistit.RecoveryManager.RecoveryListener;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.RollbackException;
+import com.persistit.exception.TransactionFailedException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
@@ -147,8 +152,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit.initialize(saveProperties);
         assertTrue(rman.getCommittedCount() > 0);
         rman.setRecoveryDisabledForTestMode(false);
-        rman.applyAllCommittedTransactions(rman
-                .getDefaultRecoveryListener());
+        rman.applyAllCommittedTransactions(rman.getDefaultRecoveryListener());
         fetch3();
     }
 
@@ -206,6 +210,74 @@ public class RecoveryTest extends PersistitUnitTestCase {
         fetch1b();
     }
 
+    // Verifies that a sequence of insert and remove transactions results
+    // in the correct state after recovery.  Tests fix for bug 719319.
+    public void testRecoveredTransactionsAreCorrect() throws Exception {
+        SortedSet<String> keys = new TreeSet<String>();
+        Exchange[] exchanges = new Exchange[5];
+        for (int index = 0; index < 5; index++) {
+            final Exchange ex = _persistit.getExchange("persistit",
+                    "RecoveryTest_" + index, true);
+            ex.removeAll();
+            exchanges[index] = ex;
+        }
+        for (int index = 0; index < exchanges.length; index++) {
+            Exchange ex = exchanges[index];
+            for (int a = 0; a < 5; a++) {
+                ex.clear().append(a);
+                ex.getValue().put(String.format("index=%d a=%d", index, a));
+                tStore(ex, keys);
+                for (int b = 0; b < 5; b++) {
+                    ex.clear().append(a).append(b);
+                    ex.getValue().put(
+                            String.format("index=%d a=%d b=%d", index, a, b));
+                    tStore(ex, keys);
+                }
+            }
+        }
+        for (int index = 0; index < exchanges.length; index++) {
+            Exchange ex = exchanges[index];
+            Key.Direction direction = index == 0 ? Key.EQ
+                    : index == 1 ? Key.GTEQ : Key.GT;
+            for (int a = 0; a < 5; a++) {
+                ex.clear().append(a);
+                if (a % 2 == 0) {
+                    tRemove(ex, keys, direction);
+                }
+                if (a % 3 == 0) {
+                    for (int b = 0; b < 5; b++) {
+                        ex.clear().append(a).append(b);
+                        tRemove(ex, keys, direction);
+                    }
+                }
+            }
+        }
+        tDeleteTree(exchanges[4], keys);
+
+        // Now crash Persistit
+        exchanges = null;
+        _persistit.getJournalManager().flush();
+        _persistit.crash();
+        final Properties saveProperties = _persistit.getProperties();
+        _persistit = new Persistit();
+        _persistit.initialize(saveProperties);
+        final Volume volume = _persistit.getVolume("persistit");
+
+        for (int index = 0; index < 5; index++) {
+            final Tree tree = volume.getTree("RecoveryTest_" + index, false);
+            assertEquals(index == 4, tree == null);
+            if (index != 4) {
+                final Exchange ex = new Exchange(tree);
+                ex.clear();
+                while (ex.next(true)) {
+                    final String ks = keyString(ex);
+                    assertTrue(keys.remove(ks));
+                }
+            }
+        }
+        assertTrue(keys.isEmpty());
+    }
+
     public void testLargePageMap() throws Exception {
         JournalManager jman = new JournalManager(_persistit);
         final String path = UnitTestProperties.DATA_PATH
@@ -248,31 +320,35 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
         assertEquals(1, count);
     }
-    
+
     public void testVolumeMetadataValid() throws Exception {
-    	// create a junk volume to make sure the internal handle count is bumped up
-    	VolumeDescriptor vd = new VolumeDescriptor("foo", 123);
-    	int volumeHandle = _persistit.getJournalManager().handleForVolume(vd);
-    	// retrieve the value of the handle counter before crashing
-    	int initialHandleValue = _persistit.getJournalManager().getHandleCount();
-    	_persistit.close();
+        // create a junk volume to make sure the internal handle count is bumped
+        // up
+        VolumeDescriptor vd = new VolumeDescriptor("foo", 123);
+        int volumeHandle = _persistit.getJournalManager().handleForVolume(vd);
+        // retrieve the value of the handle counter before crashing
+        int initialHandleValue = _persistit.getJournalManager()
+                .getHandleCount();
+        _persistit.close();
         Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
         // verify the value of the handle counter after recovery is
-        // still valid. 
+        // still valid.
         assertTrue(_persistit.getJournalManager().getHandleCount() > initialHandleValue);
-        
-    	// create a junk tree to make sure the internal handle count is bumped up
+
+        // create a junk tree to make sure the internal handle count is bumped
+        // up
         TreeDescriptor td = new TreeDescriptor(volumeHandle, "gray");
         _persistit.getJournalManager().handleForTree(td);
-        int updatedHandleValue = _persistit.getJournalManager().getHandleCount();
+        int updatedHandleValue = _persistit.getJournalManager()
+                .getHandleCount();
         _persistit.close();
         saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
         // verify the value of the handle counter after recovery is
-        // still valid. 
+        // still valid.
         assertTrue(_persistit.getJournalManager().getHandleCount() > updatedHandleValue);
     }
 
@@ -435,6 +511,95 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
         }
 
+    }
+
+    private String keyString(final Exchange ex) {
+        final String s = ex.getKey().toString();
+        return ex.getTree().getName() + "_" + s.substring(1, s.length() - 1);
+    }
+
+    private void tStore(final Exchange ex, final SortedSet<String> keys)
+            throws PersistitException {
+        final Transaction txn = ex.getTransaction();
+        int retries = 10;
+        for (;;) {
+            try {
+                txn.begin();
+                ex.store();
+                txn.commit();
+                String ks = keyString(ex);
+                assertTrue(keys.add(ks));
+                System.out.println("Added " + ks);
+                break;
+            } catch (RollbackException e) {
+                if (--retries < 0) {
+                    throw new TransactionFailedException();
+                }
+            } finally {
+                txn.end();
+            }
+        }
+    }
+
+    private void tRemove(final Exchange ex, final SortedSet<String> keys,
+            final Key.Direction direction) throws PersistitException {
+        final Transaction txn = ex.getTransaction();
+        int retries = 10;
+        for (;;) {
+            try {
+                txn.begin();
+                ex.remove(direction);
+                txn.commit();
+                final String ks = keyString(ex);
+                for (final Iterator<String> it = keys.iterator(); it.hasNext();) {
+                    final String candidate = it.next();
+                    if ((direction == Key.EQ || direction == Key.GTEQ)
+                            && candidate.equals(ks)) {
+                        it.remove();
+                        System.out.println("Removed EQ/GTEQ " + ks);
+                    } else if ((direction == Key.GTEQ || direction == Key.GT)
+                            && candidate.startsWith(ks) && !candidate.equals(ks)) {
+                        it.remove();
+                        System.out.println("Removed GTEQ/GT " + ks);
+                    }
+                }
+                break;
+            } catch (RollbackException e) {
+                if (--retries < 0) {
+                    throw new TransactionFailedException();
+                }
+            } finally {
+                txn.end();
+            }
+        }
+    }
+
+    private void tDeleteTree(final Exchange ex, final SortedSet<String> keys)
+            throws PersistitException {
+        final Transaction txn = ex.getTransaction();
+        int retries = 10;
+        for (;;) {
+            try {
+                txn.begin();
+                ex.removeTree();
+                ex.clear();
+                final String ks = keyString(ex);
+                for (final Iterator<String> it = keys.iterator(); it.hasNext();) {
+                    final String candidate = it.next();
+                    if (candidate.startsWith(ks)) {
+                        it.remove();
+                    }
+                }
+                txn.commit();
+                break;
+            } catch (RollbackException e) {
+                if (--retries < 0) {
+                    throw new TransactionFailedException();
+                }
+            } finally {
+                txn.end();
+            }
+        }
     }
 
     public static void main(final String[] args) throws Exception {
