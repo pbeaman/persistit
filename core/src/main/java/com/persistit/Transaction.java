@@ -1418,12 +1418,7 @@ public class Transaction {
     }
 
     boolean removeTree(Exchange exchange) throws PersistitException {
-        exchange.getAuxiliaryKey1().clear().append(Key.BEFORE);
-        exchange.getAuxiliaryKey2().clear().append(Key.AFTER);
-        boolean removed = remove(exchange, exchange.getAuxiliaryKey1(),
-                exchange.getAuxiliaryKey2(), false);
-        exchange.getValue().clear();
-        exchange.clear();
+        final boolean removed = exchange.hasChildren();
         prepareTxnExchange(exchange.getTree(), exchange.getKey(), 'D');
         _ex1.storeInternal(_ex1.getKey(), exchange.getValue(), 0, false, false);
         _pendingRemoveCount++;

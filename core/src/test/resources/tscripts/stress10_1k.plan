@@ -1,3 +1,5 @@
+logpath $logpath$/result_$timestamp$.log
+
 #Stress10 tests, multithread, large pool with 1K buffers
 
 delete $datapath$/persistit.v01 $datapath$/persistit_journal.*

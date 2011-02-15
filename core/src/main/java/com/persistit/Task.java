@@ -21,7 +21,6 @@ import java.util.Vector;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TaskEndedException;
 
-
 /**
  * Abstract superclass of classes that perform long-running utility operations,
  * such as export, import and integrity check. Concrete classes should
@@ -584,7 +583,8 @@ public abstract class Task implements Runnable {
         ts.startTime = _startTime;
         ts.finishTime = _finishTime;
         ts.expirationTime = _expirationTime;
-        ts.lastException = _lastException.toString();
+        ts.lastException = _lastException == null ? "none" : _lastException
+                .toString();
         ts.statusSummary = getStatus();
         if (details) {
             ts.newMessages = getMessages(0);

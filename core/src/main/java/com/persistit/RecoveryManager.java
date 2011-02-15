@@ -224,8 +224,8 @@ public class RecoveryManager implements RecoveryManagerMXBean,
         @Override
         public void removeKeyRange(final long address, final long timestamp,
                 Exchange exchange) throws PersistitException {
-            exchange.removeKeyRange(exchange.getAuxiliaryKey1(),
-                    exchange.getAuxiliaryKey2());
+            exchange.removeKeyRangeInternal(exchange.getAuxiliaryKey1(),
+                    exchange.getAuxiliaryKey2(), false);
         }
 
         @Override

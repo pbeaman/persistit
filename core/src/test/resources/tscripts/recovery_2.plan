@@ -1,3 +1,5 @@
+logpath $logpath$/result_$timestamp$.log
+
 
 // Runs the second half of the StressRecovery.  The first half wrote
 // a file containing a "ticket" for each completed transaction.

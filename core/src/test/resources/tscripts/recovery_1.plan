@@ -1,3 +1,5 @@
+logpath $logpath$/result_$timestamp$.log
+
 
 // Runs the StressRecovery test to perform transactions
 // This phase is intended to be stopped by kill -9 or power stop.
