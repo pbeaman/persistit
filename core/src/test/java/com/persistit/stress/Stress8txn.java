@@ -48,7 +48,7 @@ public class Stress8txn extends StressBase {
     }
 
     private final static String[] ARGS_TEMPLATE = {
-            "repeat|int:1:1:1000000000|Repetitions",
+            "repeat|int:1:0:1000000000|Repetitions",
             "count|int:100:0:100000|Number of iterations per cycle",
             "size|int:1000:1:100000000|Number of 'C' accounts",
             "seed|int:1:1:20000|Random seed", };
@@ -111,7 +111,9 @@ public class Stress8txn extends StressBase {
             if (!_consistencyCheckDone) {
                 _consistencyCheckDone = true;
                 try {
-                    totalConsistencyCheck();
+                    if (totalConsistencyCheck()) {
+                        println("Consistency check completed successfully");
+                    }
                 } catch (final PersistitException pe) {
                     _result = new TestResult(false, pe);
                     forceStop();

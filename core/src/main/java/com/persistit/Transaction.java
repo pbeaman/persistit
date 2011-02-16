@@ -261,7 +261,7 @@ import com.persistit.exception.RollbackException;
 public class Transaction {
     public final static int DEFAULT_PESSIMISTIC_RETRY_THRESHOLD = 3;
 
-    private final static CommitListener DEFAULT_COMMIT_LISTENER = new CommitListener();
+    private final static CommitListener DEFAULT_COMMIT_LISTENER = new DefaultCommitListener();
 
     private final static String TRANSACTION_TREE_NAME = "_txn_";
 
@@ -314,23 +314,29 @@ public class Transaction {
      * <p />
      * The default implementation of this class does nothing.
      */
-    public static class CommitListener {
+    public static interface CommitListener {
         /**
          * Called when a transaction is committed. The implementation may
          * perform actions consistent with the committed transaction.
          */
-        public void committed() {
-            // default implementation: do nothing
-        }
+        public void committed();
 
         /**
          * Called when a transaction is rolled back.
          */
+        public void rolledBack();
+    }
+    
+    private static class DefaultCommitListener implements CommitListener {
+        public void committed() {
+            // do nothing
+        }
+        
         public void rolledBack() {
-            // default implementation: do nothing
+            // do nothing
         }
     }
-
+    
     private static class TouchedPage extends InternalHashSet.Entry {
         final Volume _volume;
         final long _pageAddr;

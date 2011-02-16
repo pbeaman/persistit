@@ -1828,8 +1828,7 @@ public class Exchange {
                 //
                 // But if direction is leftward and the position is at the left
                 // edge of the buffer, re-do with a key search - there is no
-                // other
-                // way to find the left sibling page.
+                // other way to find the left sibling page.
                 //
                 if (reverse && buffer != null
                         && foundAt <= buffer.getKeyBlockStart()) {
@@ -1910,6 +1909,7 @@ public class Exchange {
                             && !deep
                             && _key.compareKeyFragment(_spareKey1, 0,
                                     _spareKey1.getEncodedSize()) == 0) {
+                        _key.setEncodedSize(_spareKey1.getEncodedSize());
                         lc._keyGeneration = -1;
                         buffer.release();
                         buffer = null;
