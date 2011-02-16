@@ -90,7 +90,7 @@ public class Persistit {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit JSA 2.2-20101201"
+    public final static String VERSION = "Persistit 2.1"
             + (Debug.ENABLED ? "-DEBUG" : "");
     /**
      * The internal version number
@@ -749,7 +749,6 @@ public class Persistit {
                         propertyValue = "";
                     text = text.substring(0, p - 2) + propertyValue
                             + text.substring(q + 1);
-                    q += propertyValue.length() - (propertyName.length() + 3);
                 } else
                     break;
             } else {
@@ -1576,7 +1575,7 @@ public class Persistit {
 
         Volume volume = getVolume(volumeName);
         if (volume == null) {
-            if ((_volumes.size() == 1) && (volumeName == dflt)) {
+            if ((_volumes.size() == 1) && (volumeName.equals(dflt))) {
                 volume = _volumes.get(0);
             } else {
                 throw new VolumeNotFoundException(volumeName);

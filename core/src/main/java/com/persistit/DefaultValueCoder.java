@@ -192,7 +192,6 @@ public class DefaultValueCoder implements ValueRenderer {
                             String name = osFields[index].getName();
                             try {
                                 field = clientClass.getDeclaredField(name);
-                                int modifier = field.getModifiers();
                                 list.add(field);
                             } catch (NoSuchFieldException nsfe) {
                                 throw new ConversionException(clientClass
@@ -516,6 +515,8 @@ public class DefaultValueCoder implements ValueRenderer {
                 accessor = new FloatFieldAccessor();
             } else if (field.getType() == double.class) {
                 accessor = new DoubleFieldAccessor();
+            } else {
+                accessor = new ObjectFieldAccessor();
             }
         } else {
             accessor = new ObjectFieldAccessor();

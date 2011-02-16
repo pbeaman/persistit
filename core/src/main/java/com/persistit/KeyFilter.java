@@ -373,10 +373,12 @@ public class KeyFilter {
      */
     public KeyFilter(Key key, int minDepth, int maxDepth) {
         checkLimits(minDepth, maxDepth);
-        int depth = key.getDepth();
-        _terms = new Term[depth];
-        int size = key.getEncodedSize();
+        int size = 0;
         int index = 0;
+        if (key != null) {
+            _terms = new Term[key.getDepth()];
+            size = key.getEncodedSize();
+        }
         if (key != null && size != 0) {
             for (int level = 0;; level++) {
                 int previous = index;
@@ -897,7 +899,6 @@ public class KeyFilter {
                 System.arraycopy(_itemToBytes, 0, keyBytes, offset,
                         _itemToBytes.length);
                 key.setEncodedSize(offset + _itemToBytes.length);
-                length = _itemToBytes.length;
                 return true;
             }
             return false;
@@ -1437,7 +1438,7 @@ public class KeyFilter {
                     nextIndex = key.getEncodedSize();
                 }
                 Term term = level < _terms.length ? _terms[level] : ALL;
-                if (!term.selected(keyBytes, index, nextIndex - index)) {
+                if (term == null || !term.selected(keyBytes, index, nextIndex - index)) {
                     return false;
                 }
                 index = nextIndex;
@@ -1535,6 +1536,10 @@ public class KeyFilter {
             Debug.$assert(level < _maxDepth);
             Debug.$assert(index <= size);
         }
+        
+        if (term == null) {
+            return false;
+        }
 
         /*
          * If at end of key and the key is deep enough to satisfy the KeyFilter,
@@ -1576,7 +1581,6 @@ public class KeyFilter {
                         // any children.
                         //
                         key.setEncodedSize(nextIndex);
-                        size = nextIndex;
                         isLastKeySegment = true;
 
                         if (forward && !key.isSpecial()) {
@@ -1646,7 +1650,7 @@ public class KeyFilter {
     }
 
     private static int compare(byte[] a, byte[] b) {
-        if (a == b)
+        if ((a == b) || (a == null && b == null))
             return 0;
         if (a == null && b != null)
             return Integer.MIN_VALUE;

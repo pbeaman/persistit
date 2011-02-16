@@ -607,7 +607,6 @@ public class IntegrityCheck extends Task {
             _edgeBuffers[level] = buffer;
             if (leftSibling != null)
                 releasePage(leftSibling);
-            leftSibling = null;
             _edgeKeys[level] = key;
 
             if (checkPageType(buffer, level, tree)

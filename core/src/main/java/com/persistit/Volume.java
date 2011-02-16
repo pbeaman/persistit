@@ -901,7 +901,7 @@ public class Volume extends SharedResource {
         return _highestPageUsed;
     }
 
-    long getInitialpages() {
+    long getInitialPages() {
         return _initialPages;
     }
 
@@ -1274,13 +1274,13 @@ public class Volume extends SharedResource {
                 deallocateGarbageChainDeferred(page, 0);
                 if (buffer.isIndexPage()) {
                     int p = buffer.toKeyBlock(0);
-                    if (p > 0)
+                    if (p > 0) {
                         page = buffer.getPointer(p);
-                    else
+                    } else {
                         page = -1;
+                    }
                     depth--;
                 } else if (buffer.isDataPage()) {
-                    page = -1;
                     break;
                 }
             } finally {

@@ -469,7 +469,7 @@ public class JournalRecord {
 
         public final static int TYPE = ('J' << 8) | 'E';
 
-        public static int OVERHEAD = 40;
+        public final static int OVERHEAD = 40;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -510,9 +510,9 @@ public class JournalRecord {
 
         public final static int TYPE = ('J' << 8) | 'H';
 
-        public static int OVERHEAD = 64;
+        public final static int OVERHEAD = 64;
 
-        public static int MAX_LENGTH = OVERHEAD + 2048;
+        public final static int MAX_LENGTH = OVERHEAD + 2048;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -591,9 +591,9 @@ public class JournalRecord {
 
         public final static int TYPE = ('P' << 8) | 'M';
 
-        public static int OVERHEAD = 16;
+        public final static int OVERHEAD = 16;
 
-        public static int ENTRY_SIZE = 28;
+        public final static int ENTRY_SIZE = 28;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -641,9 +641,9 @@ public class JournalRecord {
 
         public final static int TYPE = ('T' << 8) | 'M';
 
-        public static int OVERHEAD = 16;
+        public final static int OVERHEAD = 16;
 
-        public static int ENTRY_SIZE = 25;
+        public final static int ENTRY_SIZE = 25;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -692,9 +692,9 @@ public class JournalRecord {
 
         public final static int TYPE = ('I' << 8) | 'V';
 
-        public static int OVERHEAD = 28;
+        public final static int OVERHEAD = 28;
 
-        public static int MAX_LENGTH = OVERHEAD + 2048;
+        public final static int MAX_LENGTH = OVERHEAD + 2048;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -738,9 +738,9 @@ public class JournalRecord {
 
         public final static int TYPE = ('I' << 8) | 'T';
 
-        public static int OVERHEAD = 24;
+        public final static int OVERHEAD = 24;
 
-        public static int MAX_LENGTH = OVERHEAD + 1024;
+        public final static int MAX_LENGTH = OVERHEAD + 1024;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);

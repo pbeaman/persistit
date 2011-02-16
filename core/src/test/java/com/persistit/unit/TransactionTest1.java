@@ -416,7 +416,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         while (ex.traverse(Key.LT, kf, Integer.MAX_VALUE)) {
             checkTest7(remainingKeys, ex);
         }
-        assertEquals(3, remainingKeys.size()); // 10, 12, 14, 16
+        assertEquals(3, remainingKeys.size()); // 12, 14, 16
 
         remainingKeys.clear();
         for (int i = 5; i < 25; i++) {
