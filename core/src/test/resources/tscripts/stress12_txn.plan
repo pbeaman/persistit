@@ -1,0 +1,29 @@
+logpath $logpath$/result_$timestamp$.log
+
+#1 Stress12txn - "simple transactional counters" medium pool
+
+clearprops
+prop buffer.count.8192=20K
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop journalpath=$datapath$/persistit_journal
+prop logfile=$logpath$/persistit_$timestamp$.log
+prop rmiport=8081
+
+delete $datapath$/persistit.v01 $datapath$/persistit_journal*
+
+
+init
+
+icheck persistit
+
+multithread
+test com.persistit.stress.Stress12txn repeat=50 count=25000 size=1000 seed=1
+test com.persistit.stress.Stress12txn repeat=50 count=25000 size=1000 seed=2
+test com.persistit.stress.Stress12txn repeat=50 count=25000 size=1000 seed=3
+test com.persistit.stress.Stress12txn repeat=50 count=25000 size=1000 seed=4
+test com.persistit.stress.Stress12txn repeat=50 count=25000 size=1000 seed=5
+test com.persistit.stress.Stress12txn repeat=50 count=25000 size=1000 seed=6
+
+icheck persistit
+close
+
