@@ -16,6 +16,7 @@
 package com.persistit.unit;
 
 import java.math.BigDecimal;
+
 import java.math.BigInteger;
 
 import junit.framework.Assert;
@@ -23,6 +24,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import com.persistit.Key;
+import com.persistit.KeyState;
 import com.persistit.Util;
 
 public class KeyTest1 extends PersistitUnitTestCase {
@@ -600,6 +602,24 @@ public class KeyTest1 extends PersistitUnitTestCase {
         }
 
         System.out.println("- done");
+    }
+    
+    /*
+     * Test the equals methods in Key and KeyState
+     */
+    public void testKeyEquality() {
+        _key1.clear().to(5);
+        _key2.clear().to(5);
+        assertEquals(_key1, _key2);
+        KeyState ks = new KeyState(_key2);
+        assertEquals(_key1, ks);
+        assertEquals(_key2, ks);
+        _key1.clear().to("PADRAIG");
+        _key2.clear().to("PADRAIG");
+        assertEquals(_key1, _key2);
+        ks = new KeyState(_key2);
+        assertEquals(ks, _key2);
+        assertEquals(ks, _key1);
     }
 
     private static boolean doubleEquals(final double f1, final double f2) {

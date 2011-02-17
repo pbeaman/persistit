@@ -25,6 +25,9 @@ public class SessionId {
     
     @Override
     public boolean equals(final Object id) {
+        if (id == null || !(id instanceof SessionId)) {
+            return false;
+        }
         return this._id == ((SessionId)id)._id;
     }
     

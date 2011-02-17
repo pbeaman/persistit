@@ -125,7 +125,6 @@ public class PersistitMap implements SortedMap {
     private final static int VALUE = 2;
     private final static int ENTRY = 3;
 
-    PersistitMap _parentPersistitMap;
     private Exchange _ex;
     private long _sizeGeneration;
     private int _size;
@@ -620,9 +619,6 @@ public class PersistitMap implements SortedMap {
                 _sizeGeneration = -1;
             }
         }
-        if (_parentPersistitMap != null) {
-            _parentPersistitMap.adjustSize(changeCount, delta);
-        }
     }
 
     // Bulk Operations
@@ -674,10 +670,7 @@ public class PersistitMap implements SortedMap {
             } else {
                 _toKey.copyTo(key);
             }
-            boolean removed = _ex.removeKeyRange(_ex.getKey(), key);
-            if (_parentPersistitMap != null && removed) {
-                _parentPersistitMap._sizeGeneration = -1;
-            }
+            _ex.removeKeyRange(_ex.getKey(), key);
             _size = 0;
             _sizeGeneration = _ex.getChangeCount();
         } catch (PersistitException de) {

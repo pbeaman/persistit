@@ -191,7 +191,6 @@ class WaitingThreadManager {
     }
 
     protected static class WaitingThread {
-        private final Persistit _persistit;
         /**
          * The Thread that owns this WaitingThread
          */
@@ -226,7 +225,6 @@ class WaitingThreadManager {
          * WaitingThread.
          */
         private WaitingThread(final Persistit persistit) {
-            _persistit = persistit;
             _thread = Thread.currentThread();
         }
 

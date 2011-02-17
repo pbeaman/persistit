@@ -1995,37 +1995,37 @@ public final class Value {
 
         case TYPE_BYTE:
         case CLASS_BYTE:
-            object = new Byte(getByteInternal());
+            object = Byte.valueOf(getByteInternal());
             break;
 
         case TYPE_SHORT:
         case CLASS_SHORT:
-            object = new Short(getShortInternal());
+            object = Short.valueOf(getShortInternal());
             break;
 
         case TYPE_CHAR:
         case CLASS_CHAR:
-            object = new Character(getCharInternal());
+            object = Character.valueOf(getCharInternal());
             break;
 
         case TYPE_INT:
         case CLASS_INT:
-            object = new Integer(getIntInternal());
+            object = Integer.valueOf(getIntInternal());
             break;
 
         case TYPE_FLOAT:
         case CLASS_FLOAT:
-            object = new Float(getFloatInternal());
+            object = Float.valueOf(getFloatInternal());
             break;
 
         case TYPE_LONG:
         case CLASS_LONG:
-            object = new Long(getLongInternal());
+            object = Long.valueOf(getLongInternal());
             break;
 
         case TYPE_DOUBLE:
         case CLASS_DOUBLE:
-            object = new Double(getDoubleInternal());
+            object = Double.valueOf(getDoubleInternal());
             break;
 
         case CLASS_STRING: {

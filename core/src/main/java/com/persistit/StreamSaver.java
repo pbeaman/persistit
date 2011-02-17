@@ -378,7 +378,7 @@ public class StreamSaver extends Task {
     protected void writeVolumeInfo(Volume volume) throws IOException {
         _dos.writeChar(RECORD_TYPE_VOLUME_ID);
         _dos.writeLong(volume.getId());
-        _dos.writeLong(volume.getInitialpages());
+        _dos.writeLong(volume.getInitialPages());
         _dos.writeLong(volume.getExtensionPages());
         _dos.writeLong(volume.getMaximumPages());
         _dos.writeInt(volume.getPageSize());

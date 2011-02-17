@@ -26,8 +26,6 @@ import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
 
-import java.lang.ref.WeakReference;
-
 import com.persistit.Key.Direction;
 import com.persistit.LockManager.ResourceTracker;
 import com.persistit.exception.CorruptVolumeException;
@@ -172,10 +170,6 @@ public class Exchange {
     private boolean _ignoreTransactions;
 
     private long _longRecordPageAddress;
-
-    private WeakReference<Thread> _currentThread;
-
-    private boolean _secure;
 
     /**
      * <p>
@@ -871,7 +865,6 @@ public class Exchange {
         if (buffer.isBeforeLeftEdge(foundAt)
                 || buffer.isAfterRightEdge(foundAt)) {
             buffer.release(); // Don't make Most-Recently-Used
-            buffer = null;
             return searchTree(key, 0);
         }
         return foundAt;
@@ -1778,10 +1771,15 @@ public class Exchange {
                 // A pending STORE transaction record overrides
                 // the base record.
                 //
-                if (txnResult == Boolean.TRUE) {
+                if (txnResult == null) {
+                    /* 
+                     * if the transaction is null then the pending operations
+                     * do not affect the result
+                     */
+                }
+                else if (txnResult.equals(Boolean.TRUE)) {
                     return true;
-
-                } else if (txnResult == Boolean.FALSE) {
+                } else if (txnResult.equals(Boolean.FALSE)) {
                     //
                     // A pending DELETE transaction record overrides the
                     // base record.
@@ -1834,6 +1832,9 @@ public class Exchange {
                         && foundAt <= buffer.getKeyBlockStart()) {
                     // Going left from first record in the page requires a
                     // key search.
+                    if (inTxn) {
+                        _transaction.touchedPage(this, buffer);
+                    }
                     buffer.release();
                     buffer = null;
                 }
@@ -1911,6 +1912,9 @@ public class Exchange {
                                     _spareKey1.getEncodedSize()) == 0) {
                         _key.setEncodedSize(_spareKey1.getEncodedSize());
                         lc._keyGeneration = -1;
+                        if (inTxn) {
+                            _transaction.touchedPage(this, buffer);
+                        }
                         buffer.release();
                         buffer = null;
                         continue;
@@ -1936,7 +1940,7 @@ public class Exchange {
                         _pool.release(buffer);
                         buffer = null;
 
-                        if (txnResult == Boolean.TRUE) {
+                        if (txnResult.equals(Boolean.TRUE)) {
                             // There's a pending new record that
                             // yields a closer key. The key
                             // was updated to reflect its content, and
@@ -2049,8 +2053,9 @@ public class Exchange {
 
         } finally {
             if (buffer != null) {
-                if (inTxn)
+                if (inTxn) {
                     _transaction.touchedPage(this, buffer);
+                }
                 _pool.release(buffer);
                 buffer = null;
             }

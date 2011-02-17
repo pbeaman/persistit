@@ -120,5 +120,12 @@ public class JoinPolicy {
     protected boolean acceptJoin(Buffer buffer, int virtualSize) {
         return virtualSize < buffer.getBufferSize();
     }
-
+    
+    /**
+     * @return name of the policy
+     */
+    public String getName() {
+        return _name;
+    }
+    
 }

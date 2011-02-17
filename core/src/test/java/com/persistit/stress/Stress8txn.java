@@ -16,6 +16,7 @@
 package com.persistit.stress;
 
 import com.persistit.ArgParser;
+import com.persistit.Debug;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
@@ -146,9 +147,12 @@ public class Stress8txn extends StressBase {
                     if (passes > 10) {
                         verboseln("pass count=" + passes);
                     }
+                    Debug.debug3(passes > 90);
                     if (op._result != null) {
                         _result = op._result;
-                        // if (Debug.ENABLED) Debug.debug0(true);
+                        if (Debug.ENABLED) {
+                            Debug.debug0(true);
+                        }
                         forceStop();
                     }
                 } catch (final Exception pe) {
@@ -175,16 +179,16 @@ public class Stress8txn extends StressBase {
 
     private int select() {
         final int r = random(0, 1000);
-        if (r < 800) {
+        if (r < 500) {
             return 0;
         }
-        if (r < 900) {
+        if (r < 800) {
             return 1;
         }
-        if (r < 940) {
+        if (r < 900) {
             return 2;
         }
-        if (r < 980) {
+        if (r < 950) {
             return 3;
         }
         return 4;

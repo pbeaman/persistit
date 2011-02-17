@@ -379,9 +379,7 @@ public class KeyParser {
                 okay = parseKeyFilterRange(workKey, protoTerm);
                 if (okay) {
                     c = getNonWhiteChar();
-                    if (c != ')' && c != ']')
-                        okay = false;
-                    else {
+                    if (c == ')' || c == ']') {
                         protoTerm._rightInclusive = (c == ']');
                         term = protoTerm.term();
                     }
