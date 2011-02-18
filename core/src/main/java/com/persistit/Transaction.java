@@ -270,15 +270,12 @@ public class Transaction {
 
     private final static long COMMIT_CLAIM_TIMEOUT = 30000;
 
-    private final static int COMMIT_RETRY_COUNT = 10;
-
     private final static int NEUTERED_LONGREC = 254;
 
     private static long _idCounter = 100000000;
 
     private final Persistit _persistit;
     private final long _id;
-    private long _timestamp;
     private int _nestedDepth;
     private int _pendingStoreCount = 0;
     private int _pendingRemoveCount = 0;
@@ -526,7 +523,6 @@ public class Transaction {
             _persistit.getTransactionResourceA().claim(
                     _rollbacksSinceLastCommit >= _pessimisticRetryThreshold,
                     COMMIT_CLAIM_TIMEOUT);
-            assignTimestamp();
         }
         _nestedDepth++;
     }
@@ -1092,17 +1088,8 @@ public class Transaction {
                 //
                 // The timestamp at transaction start
                 //
-                long startTimestamp = _timestamp;
-                //
-                // The commit timestamp, used to order
-                // transactions during recovery. In addition, all pages
-                // modified by applying this transaction will also get
-                // this timestamp, meaning that transactions with a
-                // timestamp value below a checkpoint do not need to
-                // be recovered.
-                //
-                _timestamp = _persistit.getTimestampAllocator()
-                        .updateTimestamp();
+                long startTimestamp = _persistit.getTimestampAllocator()
+                .updateTimestamp();
 
                 if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
                     //
@@ -1589,7 +1576,8 @@ public class Transaction {
                 }
             }
         }
-        jman.writeTransactionCommitToJournal(startTimestamp, getTimestamp());
+        final long commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+        jman.writeTransactionCommitToJournal(startTimestamp, commitTimestamp);
     }
 
     private void applyUpdates() throws PersistitException {
@@ -1737,32 +1725,4 @@ public class Transaction {
             }
         }
     }
-
-    /**
-     * Allocate a new timestamp. Actions performed by this Transaction will be
-     * marked with this (or possibly a larger) timestamp.
-     */
-    void assignTimestamp() {
-        _timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-    }
-
-    /**
-     * Assign a specified timestamp to this transaction - to be used only during
-     * recovery.
-     * 
-     * @param timestamp
-     */
-    void assignTimestamp(final long timestamp) {
-        _timestamp = timestamp;
-    }
-
-    /**
-     * Return the timestamp most recently allocated to this Transaction.
-     * 
-     * @return The timestamp.
-     */
-    public long getTimestamp() {
-        return _timestamp;
-    }
-
 }

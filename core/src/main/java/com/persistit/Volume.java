@@ -314,7 +314,7 @@ public class Volume extends SharedResource {
             long initialPages, long extensionPages, long maximumPages,
             boolean tranzient, boolean loose) throws PersistitException {
         super(persistit);
-        persistit.getTransaction().assignTimestamp();
+
         boolean sizeOkay = false;
         for (int b = Buffer.MIN_BUFFER_SIZE; !sizeOkay
                 && b <= Buffer.MAX_BUFFER_SIZE; b *= 2) {
@@ -444,7 +444,6 @@ public class Volume extends SharedResource {
     private Volume(final Persistit persistit, String path, String name,
             long id, boolean readOnly) throws PersistitException {
         super(persistit);
-        persistit.getTransaction().assignTimestamp();
         try {
             initializePathAndName(path, name, false);
 
@@ -1413,8 +1412,6 @@ public class Volume extends SharedResource {
      */
     private Tree initTree(final Tree tree) throws PersistitException {
         _persistit.checkSuspended();
-        _persistit.getTransaction().assignTimestamp();
-
         Buffer rootPageBuffer = null;
 
         rootPageBuffer = allocPage();

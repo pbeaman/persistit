@@ -1122,7 +1122,6 @@ public class Exchange {
         _persistit.checkSuspended();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
-        _transaction.assignTimestamp();
         storeInternal(key, value, 0, false, false);
         _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
@@ -1740,7 +1739,6 @@ public class Exchange {
 
         resourceTracker.verifyLockedResourceCount(lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
         Buffer buffer = null;
 
         if (doFetch) {
@@ -2388,7 +2386,6 @@ public class Exchange {
         _key.testValidForStoreAndFetch(_volume.getPageSize());
         int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
-        _transaction.assignTimestamp();
         storeInternal(_key, _value, 0, true, false);
         _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
@@ -2485,7 +2482,6 @@ public class Exchange {
         _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
 
         if (inTxn && _transaction.fetch(this, value, minimumBytes) != null) {
             return this;
@@ -2634,7 +2630,6 @@ public class Exchange {
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
         clear();
         _value.clear();
         if (inTxn) {
@@ -2802,7 +2797,6 @@ public class Exchange {
             Debug.suspend();
         }
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
         boolean result = false;
@@ -3359,7 +3353,6 @@ public class Exchange {
 
         Buffer buffer = null;
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
 
         try {
             byte[] rawBytes = value.getEncodedBytes();
@@ -3844,7 +3837,6 @@ public class Exchange {
         }
         final KeyHistogram histogram = new KeyHistogram(getTree(), start, end,
                 sampleSize, keyDepth, treeDepth);
-        _transaction.assignTimestamp();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         Buffer previousBuffer = null;

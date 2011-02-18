@@ -424,7 +424,6 @@ public class Persistit {
      * @throws IOException
      */
     public void initialize(Properties properties) throws PersistitException {
-        getTransaction().assignTimestamp();
         initializeProperties(properties);
         initializeManagement();
         initializeOther();
