@@ -665,9 +665,7 @@ public class JournalTool {
         public void ts(final long address, final long timestamp,
                 final int recordSize) throws Exception {
             read(address, TS.OVERHEAD);
-            final long startTimestamp = TS.getStartTimestamp(_readBuffer);
             start(address, timestamp, "TS", recordSize);
-            appendf(" startTimestamp %,16d", startTimestamp);
             end();
         }
 
@@ -675,7 +673,9 @@ public class JournalTool {
         public void tc(final long address, final long timestamp,
                 final int recordSize) throws Exception {
             read(address, TC.OVERHEAD);
+            final long commitTimestamp = TC.getCommitTimestamp(_readBuffer);
             start(address, timestamp, "TC", recordSize);
+            appendf(" commitTimestamp %,16d", commitTimestamp);
             end();
         }
 

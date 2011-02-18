@@ -19,15 +19,18 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
+import com.persistit.exception.TimeoutException;
 
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit},
+ *  {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <tt>commit</tt> is performed. At that point,
  * all the updates are written atomically - that is, completely or not at all.
@@ -326,23 +329,23 @@ public class Transaction {
          */
         public void rolledBack();
     }
-    
+
     private static class DefaultCommitListener implements CommitListener {
         public void committed() {
             // do nothing
         }
-        
+
         public void rolledBack() {
             // do nothing
         }
     }
-    
+
     private static class TouchedPage extends InternalHashSet.Entry {
         final Volume _volume;
         final long _pageAddr;
         final long _timestamp;
 
-        TouchedPage(Buffer buffer) {
+        private TouchedPage(Buffer buffer) {
             _volume = buffer.getVolume();
             _pageAddr = buffer.getPageAddress();
             _timestamp = buffer.getTimestamp();
@@ -735,11 +738,9 @@ public class Transaction {
                 throw _rollbackException;
             if (_nestedDepth == 1) {
                 boolean done = false;
-                for (int retries = 0; !done && retries < COMMIT_RETRY_COUNT; retries++) {
-                    done = doCommit();
-                    if (!done && _rollbackPending) {
-                        rollback();
-                    }
+                done = doCommit();
+                if (!done && _rollbackPending) {
+                    rollback();
                 }
 
                 if (toDisk) {
@@ -1050,90 +1051,87 @@ public class Transaction {
     private boolean doCommit() throws PersistitException {
         boolean committed = false;
         try {
-            for (;;) {
-                //
-                // Step 1 - get a Writer claim on every Volume we are going to
-                // touch.
-                // For Version 1.0, we do brain-dead, totally single-threaded
-                // commits.
-                //
-                boolean exclusiveClaim = false;
-                try {
-                    exclusiveClaim = _persistit.getTransactionResourceB()
-                            .claim(true, COMMIT_CLAIM_TIMEOUT);
+            //
+            // Step 1 - get a Writer claim on every Volume we are going to
+            // touch.
+            // For Version 1.0, we do brain-dead, totally single-threaded
+            // commits.
+            //
+            boolean exclusiveClaim = false;
+            try {
+                exclusiveClaim = _persistit.getTransactionResourceB().claim(
+                        true, COMMIT_CLAIM_TIMEOUT);
 
-                    if (!exclusiveClaim) {
-                        // debugReportRollback(null, null);
+                if (!exclusiveClaim) {
+                    throw new TimeoutException("Unable to commit transaction "
+                            + this);
+                }
+                //
+                // Step 2
+                // Verify that no touched page has changed. If any have
+                // been changed then we need to roll back. Since
+                // transactionResourveB has been claimed, no other thread
+                // can further modify one of these pages.
+                //
+                TouchedPage tp = null;
+                while ((tp = (TouchedPage) _touchedPagesSet.next(tp)) != null) {
+                    BufferPool pool = tp._volume.getPool();
+                    Buffer buffer = pool.get(tp._volume, tp._pageAddr, false,
+                            true);
+                    boolean changed = buffer.getTimestamp() != tp._timestamp;
+                    buffer.release(); // Do not make Least-Recently-Used
+
+                    if (changed) {
+                        _rollbackPending = true;
+                        if (_rollbackException == null) {
+                            _rollbackException = new RollbackException();
+                        }
                         return false;
                     }
-                    //
-                    // Step 2
-                    // Verify that no touched page has changed. If any have
-                    // been changed then we need to roll back. Since all the
-                    // volumes we care about are now claimed, no other thread
-                    // can further modify one of these pages.
-                    //
-                    TouchedPage tp = null;
-                    while ((tp = (TouchedPage) _touchedPagesSet.next(tp)) != null) {
-                        BufferPool pool = tp._volume.getPool();
-                        Buffer buffer = pool.get(tp._volume, tp._pageAddr,
-                                false, true);
-                        boolean changed = buffer.getTimestamp() != tp._timestamp;
-                        buffer.release(); // Do not make Least-Recently-Used
+                }
+                //
+                // The timestamp at transaction start
+                //
+                long startTimestamp = _timestamp;
+                //
+                // The commit timestamp, used to order
+                // transactions during recovery. In addition, all pages
+                // modified by applying this transaction will also get
+                // this timestamp, meaning that transactions with a
+                // timestamp value below a checkpoint do not need to
+                // be recovered.
+                //
+                _timestamp = _persistit.getTimestampAllocator()
+                        .updateTimestamp();
 
-                        if (changed) {
-                            _rollbackPending = true;
-                            if (_rollbackException == null) {
-                                _rollbackException = new RollbackException();
-                            }
-                            return false;
-                        }
-                    }
+                if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
                     //
-                    // The timestamp at transaction start
+                    // Step 3
+                    // Journal the transaction.
                     //
-                    long startTimestamp = _timestamp;
+                    writeUpdatesToJournal(startTimestamp);
                     //
-                    // The commit timestamp, used to order
-                    // transactions during recovery. In addition, all pages
-                    // modified by applying this transaction will also get
-                    // this timestamp, meaning that transactions with a
-                    // timestamp value below a checkpoint do not need to
-                    // be recovered.
+                    // Step 4
+                    // Apply the updates
                     //
-                    _timestamp = _persistit.getTimestampAllocator()
-                            .updateTimestamp();
-
-                    if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
-                        //
-                        // Step 3
-                        // Journal the transaction.
-                        //
-                        writeUpdatesToJournal(startTimestamp);
-                        //
-                        // Step 4
-                        // Apply the updates
-                        //
-                        applyUpdates();
-                        //
-                        // Step 5
-                        // Remove the pending updates. Don't need them any more!
-                        //
-                        clear();
-                    }
-                    _longRecordDeallocationList.clear();
-                    committed = true;
-                    try {
-                        _commitListener.committed();
-                    } catch (RuntimeException e) {
-                        // ignore
-                    }
-                    // all done
-                    break;
-                } finally {
-                    if (exclusiveClaim) {
-                        _persistit.getTransactionResourceB().release();
-                    }
+                    applyUpdates();
+                    //
+                    // Step 5
+                    // Remove the pending updates. Don't need them any more!
+                    //
+                    clear();
+                }
+                _longRecordDeallocationList.clear();
+                committed = true;
+                try {
+                    _commitListener.committed();
+                } catch (RuntimeException e) {
+                    // ignore
+                }
+                // all done
+            } finally {
+                if (exclusiveClaim) {
+                    _persistit.getTransactionResourceB().release();
                 }
             }
             return committed;
@@ -1149,8 +1147,9 @@ public class Transaction {
 
     private void prepareTxnExchange(Tree tree, Key key, char type)
             throws PersistitException {
-        if (_ex1 == null)
+        if (_ex1 == null) {
             setupExchanges();
+        }
         int treeHandle = handleForTree(tree);
         _ex1.clear().append(treeHandle).append(type);
         _ex1.getKey().copyTo(_rootKey);
@@ -1232,8 +1231,9 @@ public class Transaction {
         if (_pendingRemoveCount == 0 && _pendingStoreCount == 0) {
             return null;
         }
-        if (_ex1 == null)
+        if (_ex1 == null) {
             setupExchanges();
+        }
         Tree tree = exchange.getTree();
         Key key = exchange.getKey();
         if (_pendingStoreCount > 0) {
@@ -1283,7 +1283,7 @@ public class Transaction {
         return null;
     }
 
-    /**
+/**
      * Tests whether a candidate key value that exists in the live database is
      * influenced by pending update operations. There are two cases in which the
      * pending update influences the result: (a) there is a close key in a
@@ -1546,7 +1546,7 @@ public class Transaction {
 
         final Set<Tree> removedTrees = new HashSet<Tree>();
 
-        jman.writeTransactionStartToJournal(startTimestamp, getTimestamp());
+        jman.writeTransactionStartToJournal(startTimestamp);
 
         for (Integer treeId : _visbilityOrder) {
             _ex1.clear().append(treeId.intValue());
@@ -1573,7 +1573,7 @@ public class Transaction {
                     key2.copyTo(_ex2.getAuxiliaryKey1());
                     txnValue.decodeAntiValue(_ex2);
 
-                    jman.writeDeleteRecordToJournal(getTimestamp(), treeHandle,
+                    jman.writeDeleteRecordToJournal(startTimestamp, treeHandle,
                             _ex2.getAuxiliaryKey1(), _ex2.getAuxiliaryKey2());
                 } else if (type == 'S') {
                     if (txnValue.isDefined()
@@ -1581,15 +1581,15 @@ public class Transaction {
                             && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
                         txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
                     }
-                    jman.writeStoreRecordToJournal(getTimestamp(), treeHandle,
+                    jman.writeStoreRecordToJournal(startTimestamp, treeHandle,
                             key2, txnValue);
                     removedTrees.remove(_ex2.getTree());
                 } else if (type == 'D') {
-                    jman.writeDeleteTreeToJournal(getTimestamp(), treeHandle);
+                    jman.writeDeleteTreeToJournal(startTimestamp, treeHandle);
                 }
             }
         }
-        jman.writeTransactionCommitToJournal(_timestamp);
+        jman.writeTransactionCommitToJournal(startTimestamp, getTimestamp());
     }
 
     private void applyUpdates() throws PersistitException {
@@ -1743,9 +1743,7 @@ public class Transaction {
      * marked with this (or possibly a larger) timestamp.
      */
     void assignTimestamp() {
-        if (_nestedDepth == 0) {
-            _timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-        }
+        _timestamp = _persistit.getTimestampAllocator().updateTimestamp();
     }
 
     /**
@@ -1766,4 +1764,5 @@ public class Transaction {
     public long getTimestamp() {
         return _timestamp;
     }
+
 }

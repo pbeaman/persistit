@@ -643,7 +643,7 @@ public class JournalRecord {
 
         public final static int OVERHEAD = 16;
 
-        public final static int ENTRY_SIZE = 25;
+        public final static int ENTRY_SIZE = 24;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -676,11 +676,10 @@ public class JournalRecord {
 
         public static void putEntry(final ByteBuffer bb, final int index,
                 final long startTimestamp, final long commitTimestamp,
-                final long journalAddress, final boolean committed) {
+                final long journalAddress) {
             putLong(bb, 0 + (index * ENTRY_SIZE), startTimestamp);
             putLong(bb, 8 + (index * ENTRY_SIZE), commitTimestamp);
             putLong(bb, 16 + (index * ENTRY_SIZE), journalAddress);
-            putByte(bb, 24 + (index * ENTRY_SIZE), committed ? 0xFF : 0);
         }
 
     }
@@ -867,19 +866,10 @@ public class JournalRecord {
 
         public final static int TYPE = ('T' << 8) | 'S';
 
-        public final static int OVERHEAD = 24;
+        public final static int OVERHEAD = 16;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
-        }
-
-        public static void putStartTimestamp(final ByteBuffer bb,
-                final long startTimestamp) {
-            putLong(bb, 16, startTimestamp);
-        }
-
-        public static long getStartTimestamp(final ByteBuffer bb) {
-            return getLong(bb, 16);
         }
     }
 
@@ -890,10 +880,19 @@ public class JournalRecord {
 
         public final static int TYPE = ('T' << 8) | 'C';
 
-        public final static int OVERHEAD = 16;
+        public final static int OVERHEAD = 24;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
+        }
+
+        public static void putCommitTimestamp(final ByteBuffer bb,
+                final long commitTimestamp) {
+            putLong(bb, 16, commitTimestamp);
+        }
+
+        public static long getCommitTimestamp(final ByteBuffer bb) {
+            return getLong(bb, 16);
         }
     }
 

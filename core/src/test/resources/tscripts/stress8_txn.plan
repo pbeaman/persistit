@@ -22,12 +22,12 @@ init
 icheck persistit
 
 multithread
-test com.persistit.stress.Stress8txn repeat=5 count=25000 size=200 seed=1
-//test com.persistit.stress.Stress8txn repeat=5 count=25000 size=200 seed=2
-//test com.persistit.stress.Stress8txn repeat=5 count=25000 size=200 seed=3
-//test com.persistit.stress.Stress8txn repeat=5 count=25000 size=200 seed=4
-//test com.persistit.stress.Stress8txn repeat=5 count=25000 size=200 seed=5
-//test com.persistit.stress.Stress8txn repeat=5 count=25000 size=200 seed=6
+test com.persistit.stress.Stress8txn repeat=50 count=25000 size=2000 seed=1
+test com.persistit.stress.Stress8txn repeat=50 count=25000 size=2000 seed=2
+test com.persistit.stress.Stress8txn repeat=50 count=25000 size=2000 seed=3
+test com.persistit.stress.Stress8txn repeat=50 count=25000 size=2000 seed=4
+test com.persistit.stress.Stress8txn repeat=50 count=25000 size=2000 seed=5
+test com.persistit.stress.Stress8txn repeat=50 count=25000 size=2000 seed=6
 
 icheck persistit
 close

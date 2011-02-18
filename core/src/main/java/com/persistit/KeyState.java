@@ -166,4 +166,8 @@ public class KeyState implements Comparable, Serializable {
         return _bytes;
     }
 
+    @Override
+    public String toString() {
+        return new Key(null, this).toString();
+    }
 }

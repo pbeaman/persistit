@@ -727,7 +727,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         for (final TransactionStatus ts : _liveTransactionMap.values()) {
             TM.putEntry(_writeBuffer, offset / TM.ENTRY_SIZE,
                     ts.getStartTimestamp(), ts.getCommitTimestamp(),
-                    ts.getStartAddress(), ts.isCommitted());
+                    ts.getStartAddress());
             offset += TM.ENTRY_SIZE;
             count--;
             if (count == 0
@@ -921,32 +921,30 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 _currentAddress - DT.OVERHEAD);
     }
 
-    synchronized void writeTransactionStartToJournal(final long startTimestamp,
-            final long commitTimestamp) throws PersistitIOException {
+    synchronized void writeTransactionStartToJournal(final long startTimestamp)
+            throws PersistitIOException {
 
-        final Long key = Long.valueOf(commitTimestamp);
+        final Long key = Long.valueOf(startTimestamp);
         TransactionStatus ts = _liveTransactionMap.get(key);
         if (ts != null) {
             throw new CorruptJournalException("TS Transaction timestamp "
-                    + commitTimestamp + " already started at "
+                    + startTimestamp + " already started at "
                     + ts.getStartAddress());
         }
-        ts = new TransactionStatus(startTimestamp, commitTimestamp,
-                _currentAddress);
+        ts = new TransactionStatus(startTimestamp, _currentAddress);
         _liveTransactionMap.put(key, ts);
 
         prepareWriteBuffer(TS.OVERHEAD);
         TS.putType(_writeBuffer);
-        TS.putTimestamp(_writeBuffer, commitTimestamp);
-        TS.putStartTimestamp(_writeBuffer, startTimestamp);
+        TS.putTimestamp(_writeBuffer, startTimestamp);
         TS.putLength(_writeBuffer, TS.OVERHEAD);
         advance(TS.OVERHEAD);
         _persistit.getIOMeter().chargeWriteTStoJournal(TS.OVERHEAD,
                 _currentAddress - TS.OVERHEAD);
     }
 
-    synchronized void writeTransactionCommitToJournal(final long timestamp)
-            throws PersistitIOException {
+    synchronized void writeTransactionCommitToJournal(final long timestamp,
+            final long commitTimestamp) throws PersistitIOException {
 
         final Long key = Long.valueOf(timestamp);
         TransactionStatus ts = _liveTransactionMap.get(key);
@@ -955,12 +953,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     + timestamp + " never started");
         }
         if (timestamp != _unitTestNeverCloseTransactionTimestamp) {
-            ts.setCommitted(true);
+            ts.setCommitTimestamp(commitTimestamp);
         }
 
         prepareWriteBuffer(TC.OVERHEAD);
         TC.putType(_writeBuffer);
         TC.putTimestamp(_writeBuffer, timestamp);
+        TC.putCommitTimestamp(_writeBuffer, commitTimestamp);
         TC.putLength(_writeBuffer, TC.OVERHEAD);
         advance(TC.OVERHEAD);
         _persistit.getIOMeter().chargeWriteTCtoJournal(TC.OVERHEAD,
@@ -1553,20 +1552,17 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
     }
 
-    static class TransactionStatus {
+    static class TransactionStatus implements Comparable<TransactionStatus> {
 
         private final long _startAddress;
 
         private final long _startTimestamp;
 
-        private final long _commitTimestamp;
+        private long _commitTimestamp;
 
-        private boolean _committed;
-
-        TransactionStatus(final long startTimestamp,
-                final long commitTimestamp, final long address) {
+        TransactionStatus(final long startTimestamp, final long address) {
             _startTimestamp = startTimestamp;
-            _commitTimestamp = commitTimestamp;
+            _commitTimestamp = startTimestamp;
             _startAddress = address;
         }
 
@@ -1582,18 +1578,24 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             return _commitTimestamp;
         }
 
-        void setCommitted(final boolean committed) {
-            _committed = committed;
+        void setCommitTimestamp(final long commitTimestamp) {
+            _commitTimestamp = commitTimestamp;
         }
 
         boolean isCommitted() {
-            return _committed;
+            return _commitTimestamp != _startTimestamp;
         }
 
         @Override
         public String toString() {
             return String.format("TStatus %,d{%,d}%s", _startAddress,
-                    _commitTimestamp, _committed ? "c" : "u");
+                    _commitTimestamp, isCommitted() ? "c" : "u");
+        }
+
+        @Override
+        public int compareTo(TransactionStatus ts) {
+            return ts.getCommitTimestamp() < _commitTimestamp ? 1 : ts
+                    .getCommitTimestamp() > _commitTimestamp ? -1 : 0;
         }
 
     }
@@ -1924,12 +1926,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private long rolloverThreshold() {
         return _closed.get() ? 0 : ROLLOVER_THRESHOLD;
     }
-    
+
     /**
      * @return number of internal handle values that have been assigned so far
      */
     public int getHandleCount() {
-    	return _handleCounter;
+        return _handleCounter;
     }
 
     /**

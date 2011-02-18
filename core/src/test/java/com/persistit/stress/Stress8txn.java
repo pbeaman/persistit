@@ -150,9 +150,9 @@ public class Stress8txn extends StressBase {
                     Debug.debug3(passes > 90);
                     if (op._result != null) {
                         _result = op._result;
-                        if (Debug.ENABLED) {
+//                        if (Debug.ENABLED) {
                             Debug.debug0(true);
-                        }
+//                        }
                         forceStop();
                     }
                 } catch (final Exception pe) {
@@ -198,13 +198,13 @@ public class Stress8txn extends StressBase {
         int _a1, _b1, _c1, _a2, _b2, _c2;
 
         void setup(final int acct1, final int acct2) {
-            _a1 = (acct1 / 10000);
-            _b1 = (acct1 / 100) % 100;
-            _c1 = (acct1 % 100);
+            _a1 = (acct1 / 25);
+            _b1 = (acct1 / 5) % 5;
+            _c1 = (acct1 % 5);
 
-            _a2 = (acct2 / 10000);
-            _b2 = (acct2 / 100) % 100;
-            _c2 = (acct2 % 100);
+            _a2 = (acct2 / 25);
+            _b2 = (acct2 / 5) % 5;
+            _c2 = (acct2 % 5);
         }
 
         TestResult _result = null;
@@ -324,7 +324,8 @@ public class Stress8txn extends StressBase {
         int total = 0;
         ex.append(Key.BEFORE);
         while (ex.next()) {
-            total += getAccountValue(ex);
+            long value = getAccountValue(ex);
+            total += value;
         }
         ex.cut();
         return total;
@@ -398,7 +399,7 @@ public class Stress8txn extends StressBase {
 
     private void putAccountValue(final Exchange ex, final int value,
             final boolean string) {
-        if ((value > 0) && (value < 100000)
+        if (false && (value > 0) && (value < 100000)
                 && ((random(0, 100) == 0) || string)) {
             _sb.setLength(0);
             int i = 0;

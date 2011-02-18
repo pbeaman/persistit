@@ -70,14 +70,14 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             final int treeHandle = jman.handleForTree(exchange.getTree());
             timestamps[i] = _persistit.getTimestampAllocator()
                     .updateTimestamp();
-            jman.writeTransactionStartToJournal(timestamps[i], timestamps[i]);
+            jman.writeTransactionStartToJournal(timestamps[i]);
             jman.writeStoreRecordToJournal(timestamps[i], treeHandle,
                     exchange.getKey(), exchange.getValue());
             if (i % 50 == 0) {
                 jman.rollover();
             }
             if (i % 4 == 1) {
-                jman.writeTransactionCommitToJournal(timestamps[i]);
+                jman.writeTransactionCommitToJournal(timestamps[i], timestamps[i] + 1);
             }
         }
         jman.rollover();
@@ -92,7 +92,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             final int treeHandle = jman.handleForTree(exchange.getTree());
             timestamps[i] = _persistit.getTimestampAllocator()
                     .updateTimestamp();
-            jman.writeTransactionStartToJournal(timestamps[i], timestamps[i]);
+            jman.writeTransactionStartToJournal(timestamps[i]);
             jman.writeDeleteRecordToJournal(timestamps[i], treeHandle,
                     exchange.getKey(), exchange.getKey());
             if (i == 66) {
@@ -106,7 +106,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 commitCount = 0;
             }
             if (i % 4 == 3) {
-                jman.writeTransactionCommitToJournal(timestamps[i]);
+                jman.writeTransactionCommitToJournal(timestamps[i], timestamps[i] + 1);
                 commitCount++;
             }
         }

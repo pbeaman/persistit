@@ -1443,8 +1443,9 @@ public class Exchange {
         // if (journalId != -1)
         // journal().completed(journalId);
         _volume.bumpStoreCounter();
-        if (fetchFirst)
+        if (fetchFirst) {
             _volume.bumpFetchCounter();
+        }
     }
 
     private void commitAllDeferredUpdates() throws PersistitException {
