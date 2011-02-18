@@ -5,6 +5,7 @@ import os
 import optparse
 import commands
 import shutil
+import time
 
 usage = """%prog [options]"""
 
@@ -67,6 +68,10 @@ if not os.path.isfile(jar_file):
     print "PersistIT JAR file does not exist! Did you run mvn install?"
     sys.exit(1)
 
+test_failures = 0
+
+print "starting test run at: %s\n\n" % time.asctime()
+
 for test in tests:
     full_test_path = options.test_dir + "/" + test
     test_data_path = options.test_run_dir + "/" + test
@@ -76,5 +81,13 @@ for test in tests:
     (retcode, output) = commands.getstatusoutput(run_cmd)
     if retcode:
         print "[FAIL]"
+        test_failures = test_failures + 1
     else:
         print "[PASS]"
+
+print "\n\nfinished test run at: %s\n" % time.asctime()
+print "tests run    : %d" % len(tests)
+print "test failures: %d" % test_failures
+
+if test_failures:
+    sys.exit(1)
