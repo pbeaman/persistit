@@ -81,7 +81,7 @@ public class Stress12txn extends StressBase {
                 _initializedOnce = true;
                 try {
                     _exs.removeAll();
-                    for (int index = 0; index < _total; index++) {
+                    for (int index = 0; index < _size; index++) {
                         _counters[index] = new AtomicLong();
                     }
                 } catch (Exception e) {
@@ -103,11 +103,10 @@ public class Stress12txn extends StressBase {
                     while (true) {
                         try {
                             txn.begin();
-                            final int keyInteger = _random.nextInt(_total);
+                            final int keyInteger = _random.nextInt(_size);
                             _exs.clear().append(keyInteger).fetch();
-                            final long currentValue = value.isDefined() ? value
-                                    .getLong() : 0;
-                            value.put(currentValue + 1);
+                            final long currentValue = getCount(_exs.getValue());
+                            putCount(_exs.getValue(), currentValue + 1);
                             _exs.store();
                             txn.commit(new CommitListener() {
 
@@ -148,6 +147,53 @@ public class Stress12txn extends StressBase {
 
         verboseln();
         verbose("done");
+    }
+    
+    private void putCount(final Value value, final long v) {
+        if ((v > 0) && (v < 100000)
+                && ((random(0, 10) == 0))) {
+            _sb.setLength(0);
+            int i = 0;
+            for (i = 100; i < v; i += 100) {
+                _sb.append("......... ......... ......... ......... ......... "
+                        + "......... ......... ......... .........           ");
+                int k = i;
+                for (int j = 1; (k != 0) && (j < 10); j++) {
+                    _sb.setCharAt(i - j, (char) ('0' + (k % 10)));
+                    k /= 10;
+                }
+            }
+            for (i = i - 100; i < v; i++) {
+                _sb.append(".");
+            }
+            if (_sb.length() != v) {
+                throw new RuntimeException("oops");
+            }
+            value.putString(_sb);
+        } else {
+            value.put(v);
+        }
+    }
+    
+    private long getCount(final Value value) {
+    	if (!value.isDefined()) {
+            return 0;
+        }
+        try {
+            if (value.getType() == String.class) {
+                value.getString(_sb);
+                return _sb.length();
+            } else {
+                return value.getLong();
+            }
+        } catch (final NullPointerException npe) {
+            printStackTrace(npe);
+            try {
+                Thread.sleep(10000);
+            } catch (final InterruptedException ie) {
+            }
+            throw npe;
+        }
     }
 
     public static void main(final String[] args) {
