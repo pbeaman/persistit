@@ -1325,14 +1325,14 @@ public class RecoveryManager implements RecoveryManagerMXBean,
      * @throws CorruptJournalException
      */
     void commitTransaction(final long address, final long startTimestamp,
-            final int recordSize) throws CorruptJournalException {
+            final int recordSize) throws PersistitIOException {
         if (recordSize != TC.OVERHEAD) {
             throw new CorruptJournalException(
                     "TC JournalRecord has incorrect length: " + recordSize
                             + " bytes at position "
                             + addressToString(address, startTimestamp));
         }
-
+        read(address, recordSize);
         final Long key = Long.valueOf(startTimestamp);
         final long commitTimestamp = TC.getCommitTimestamp(_readBuffer);
         final TransactionStatus ts = _recoveredTransactionMap.get(key);

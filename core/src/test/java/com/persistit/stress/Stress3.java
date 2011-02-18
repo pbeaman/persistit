@@ -16,11 +16,13 @@
 package com.persistit.stress;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.List;
 
 import com.persistit.ArgParser;
 import com.persistit.Exchange;
@@ -37,7 +39,7 @@ public class Stress3 extends StressBase {
             + "   incrementValue() method.  Tests integrity of resulting \r\n"
             + "   data structures.  Performs random and whole-tree deletes \r\n";
 
-    private final static String DEFAULT_DATA_FILE_NAME = "src/test/resources/testdata/test3_data.txt";
+    private final static String DEFAULT_PATH = "../../";
 
     private final static String[] ARGS_TEMPLATE = {
             "op|String:wrd|Operations to perform",
@@ -45,7 +47,7 @@ public class Stress3 extends StressBase {
             "count|int:10000:0:1000000000|Number of nodes to populate",
             "seed|int:1:1:20000|Random seed",
             "size|int:3000:1:20000|Maximum record size",
-            "datafile|String:" + DEFAULT_DATA_FILE_NAME, };
+            "path|String:" + DEFAULT_PATH, };
 
     static String[] _fileNames = null;
     static boolean _filesLoaded;
@@ -83,7 +85,7 @@ public class Stress3 extends StressBase {
             handleThrowable(ex);
         }
 
-        initialize(_ap.getStringValue("datafile"));
+        initialize(_ap.getStringValue("path"));
     }
 
     /**
@@ -93,22 +95,27 @@ public class Stress3 extends StressBase {
         if (_filesLoaded) {
             return;
         }
+        final List<String> list = new ArrayList<String>(50000);
         try {
-            final BufferedReader br = new BufferedReader(new FileReader(
-                    fileName));
-            final ArrayList list = new ArrayList(10000);
-            for (;;) {
-                final String line = br.readLine();
-                if (line == null) {
-                    break;
-                }
-                list.add(line);
-            }
+            initializeDir(new File(fileName), list);
             _fileNames = (String[]) list.toArray(new String[0]);
-        } catch (final IOException ioe) {
+        } catch (final Exception e) {
             _fileNames = new String[] { "foo", "bar" };
         }
         _filesLoaded = true;
+    }
+    
+    private static void initializeDir(final File file, final List<String>list) {
+        list.add(file.getPath());
+        if (file.isDirectory()) {
+            final File[] files = file.listFiles();
+            for (final File child : files) {
+                if (list.size() > 50000) {
+                    break;
+                }
+                initializeDir(child, list);
+            }
+        }
     }
 
     /**
