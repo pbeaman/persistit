@@ -74,5 +74,5 @@ for test in tests:
     (retcode, output) = commands.getstatusoutput(run_cmd)
     if retcode:
         print "[FAIL]"
-        sys.exit(1)
-    print "[PASS]"
+    else:
+        print "[PASS]"
