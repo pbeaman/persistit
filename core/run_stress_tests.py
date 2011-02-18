@@ -69,7 +69,7 @@ for test in tests:
     full_test_path = options.test_dir + "/" + test
     test_data_path = options.test_run_dir + "/" + test
     os.makedirs(test_data_path)
-    run_cmd = "java -cp %s com.persistit.test.TestRunner script=%s datapath=%s logpath=%s" % (jar_file, full_test_path, test_data_path, test_data_path)
+    run_cmd = "java -Xmx%s -cp %s com.persistit.test.TestRunner script=%s datapath=%s logpath=%s" % (options.xmx, jar_file, full_test_path, test_data_path, test_data_path)
     print "%s\t\t\t" % test,
     (retcode, output) = commands.getstatusoutput(run_cmd)
     if retcode:
