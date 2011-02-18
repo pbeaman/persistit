@@ -58,7 +58,9 @@ if options.tests != "":
 if not tests:
     for root, dirs, files in os.walk(options.test_dir):
         for filename in files:
-            tests.append(filename)
+            # ignore any of the stress tests with 10 in them for now
+            if filename.find("10") == -1:
+                tests.append(filename)
 
 jar_file = "target/akiban-persistit-core-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar"
 if not os.path.isfile(jar_file):
