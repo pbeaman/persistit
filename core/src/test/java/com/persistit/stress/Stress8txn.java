@@ -399,7 +399,7 @@ public class Stress8txn extends StressBase {
 
     private void putAccountValue(final Exchange ex, final int value,
             final boolean string) {
-        if (false && (value > 0) && (value < 100000)
+        if ((value > 0) && (value < 100000)
                 && ((random(0, 100) == 0) || string)) {
             _sb.setLength(0);
             int i = 0;
