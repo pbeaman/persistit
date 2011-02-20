@@ -1902,6 +1902,13 @@ public class Persistit {
         }
         return txn;
     }
+    
+    /**
+     * @return The current timestamp value
+     */
+    public long getCurrentTimestamp() {
+        return _timestampAllocator.getCurrentTimestamp();
+    }
 
     /**
      * Returns the <code>java.awt.Container</code> object that contains the

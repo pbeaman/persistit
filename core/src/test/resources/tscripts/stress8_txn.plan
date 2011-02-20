@@ -12,7 +12,6 @@ prop txnvolume=persistit_txn
 prop journalpath=$datapath$/persistit_journal
 prop logfile=$logpath$/persistit_$timestamp$.log
 prop rmiport=8081
-prop showgui=true
 
 delete $datapath$/persistit.v01 $datapath$/persistit_journal*
 

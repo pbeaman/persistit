@@ -19,7 +19,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
@@ -29,8 +28,7 @@ import com.persistit.exception.TimeoutException;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit},
- *  {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <tt>commit</tt> is performed. At that point,
  * all the updates are written atomically - that is, completely or not at all.
@@ -1089,7 +1087,7 @@ public class Transaction {
                 // The timestamp at transaction start
                 //
                 long startTimestamp = _persistit.getTimestampAllocator()
-                .updateTimestamp();
+                        .updateTimestamp();
 
                 if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
                     //
@@ -1576,7 +1574,8 @@ public class Transaction {
                 }
             }
         }
-        final long commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+        final long commitTimestamp = _persistit.getTimestampAllocator()
+                .updateTimestamp();
         jman.writeTransactionCommitToJournal(startTimestamp, commitTimestamp);
     }
 
@@ -1725,4 +1724,12 @@ public class Transaction {
             }
         }
     }
+
+    /**
+     * @return The current timestamp value.
+     */
+    public long getTimestamp() {
+        return _persistit.getCurrentTimestamp();
+    }
+
 }
