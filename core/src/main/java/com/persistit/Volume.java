@@ -111,6 +111,7 @@ public class Volume extends SharedResource {
     private long _garbageRoot;
     private int _bufferSize;
     private boolean _loose;
+    private Object _appCache;
 
     private AtomicLong _readCounter = new AtomicLong();
     private AtomicLong _writeCounter = new AtomicLong();
@@ -1879,6 +1880,21 @@ public class Volume extends SharedResource {
     public String toString() {
         return getName() + "(" + getPath()
                 + (isTransient() ? ":transient" : "") + ")";
+    }
+
+    /**
+     * Store an Object with this Volume for the convenience of an application.
+     * @param the object to be cached for application convenience.
+     */
+    public void setAppCache(Object appCache) {
+        _appCache = appCache;
+    }
+
+    /**
+     * @return the object cached for application convenience
+     */
+    public Object getAppCache() {
+        return _appCache;
     }
 
 }

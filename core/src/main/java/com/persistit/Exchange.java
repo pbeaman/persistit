@@ -171,6 +171,8 @@ public class Exchange {
 
     private long _longRecordPageAddress;
 
+    private Object _appCache;
+
     /**
      * <p>
      * Construct a new <tt>Exchange</tt> object to create and/or access the
@@ -1771,12 +1773,11 @@ public class Exchange {
                 // the base record.
                 //
                 if (txnResult == null) {
-                    /* 
-                     * if the transaction is null then the pending operations
-                     * do not affect the result
+                    /*
+                     * if the transaction is null then the pending operations do
+                     * not affect the result
                      */
-                }
-                else if (txnResult.equals(Boolean.TRUE)) {
+                } else if (txnResult.equals(Boolean.TRUE)) {
                     return true;
                 } else if (txnResult.equals(Boolean.FALSE)) {
                     //
@@ -2129,7 +2130,7 @@ public class Exchange {
 
         for (;;) {
             if (!keyFilter.next(_key, direction)) {
-                    _key.setEncodedSize(0);
+                _key.setEncodedSize(0);
                 if (direction == LT || direction == LTEQ) {
                     _key.appendAfter();
                 } else {
@@ -3907,5 +3908,22 @@ public class Exchange {
 
         histogram.cull();
         return histogram;
+    }
+
+    /**
+     * Store an Object with this Exchange for the convenience of an application.
+     * 
+     * @param the
+     *            object to be cached for application convenience.
+     */
+    public void setAppCache(Object appCache) {
+        _appCache = appCache;
+    }
+
+    /**
+     * @return the object cached for application convenience
+     */
+    public Object getAppCache() {
+        return _appCache;
     }
 }
