@@ -141,7 +141,7 @@ public final class Buffer extends SharedResource {
     public final static int HEADER_SIZE = 32;
 
     // TODO - allow larger pointer size
-    final static long MAX_VALID_PAGE_ADDR = Integer.MAX_VALUE - 1; 
+    final static long MAX_VALID_PAGE_ADDR = Integer.MAX_VALUE - 1;
     /**
      * A <code>Buffer</code> contains header information, a series of contiguous
      * key blocks, each of which contains a Elided Byte Count (EBC), one byte of
@@ -241,7 +241,7 @@ public final class Buffer extends SharedResource {
     private final static Stack REPACK_BUFFER_STACK = new Stack();
 
     private final static int FINDEX_DB_MASK = 0x000000FF;
-    
+
     // private final static int FINDEX_DB_SHIFT = 0;
 
     private final static int FINDEX_EBC_MASK = 0x000FFF00;
@@ -511,7 +511,7 @@ public final class Buffer extends SharedResource {
             final Checkpoint checkpoint = _persistit.getTimestampAllocator()
                     .getCurrentCheckpoint();
             if (getTimestamp() < checkpoint.getTimestamp()
-                    && _persistit.getTransaction().getTimestamp() >= checkpoint
+                    && _persistit.getTimestampAllocator().getCurrentTimestamp() >= checkpoint
                             .getTimestamp()) {
                 writePage();
             }
@@ -535,7 +535,8 @@ public final class Buffer extends SharedResource {
         synchronized (_lock) {
             bumpGeneration();
             super.setDirty();
-            final long timestamp = _persistit.getTransaction().getTimestamp();
+            final long timestamp = _persistit.getTimestampAllocator()
+                    .updateTimestamp();
             _timestamp = Math.max(_timestamp, timestamp);
         }
     }
@@ -544,7 +545,8 @@ public final class Buffer extends SharedResource {
         synchronized (_lock) {
             bumpGeneration();
             super.setDirtyStructure();
-            final long timestamp = _persistit.getTransaction().getTimestamp();
+            final long timestamp = _persistit.getTimestampAllocator()
+                    .updateTimestamp();
             _timestamp = Math.max(_timestamp, timestamp);
         }
     }
@@ -1597,7 +1599,6 @@ public final class Buffer extends SharedResource {
         return getInt(tail + 4); // TODO - allow larger pointer size
     }
 
-
     /**
      * Internal implementation of getKey using a previously computed result from
      * the findKey() method.
@@ -1661,7 +1662,10 @@ public final class Buffer extends SharedResource {
         // the unknown count becomes less than or equal to the knownGood count,
         // we are done.
         //
-        int unknown = decodeTailBlockKLength(getInt(tail)) + ebc + 1; // (+1 is for the discriminator byte)
+        int unknown = decodeTailBlockKLength(getInt(tail)) + ebc + 1; // (+1 is
+                                                                      // for the
+                                                                      // discriminator
+                                                                      // byte)
         key.setEncodedSize(unknown);
 
         int result = p | (unknown << DEPTH_SHIFT) | EXACT_MASK;

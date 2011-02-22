@@ -29,13 +29,14 @@ public class Tree extends SharedResource {
     private int _depth;
     private long _changeCount;
     int _hashCode = -1;
+    private Object _appCache;
 
     Tree(final Persistit persistit, Volume volume, String name) {
         super(persistit);
         _name = name;
         _volume = volume;
     }
-    
+
     public Volume getVolume() {
         return _volume;
     }
@@ -128,8 +129,8 @@ public class Tree extends SharedResource {
 
     /**
      * Sets the tree name to null. This is done only by Volume.getTree() which
-     * may create a Tree and then immediately discard it. Clearing the change count
-     * prevents removing the surviving tree having the same name from the
+     * may create a Tree and then immediately discard it. Clearing the change
+     * count prevents removing the surviving tree having the same name from the
      * tree map.
      */
     void destroy() {
@@ -144,6 +145,7 @@ public class Tree extends SharedResource {
 
     /**
      * Save a Tree in the directory
+     * 
      * @param value
      */
     void store(Value value) {
@@ -158,9 +160,10 @@ public class Tree extends SharedResource {
         Util.putBytes(encoded, 32, nameBytes);
         value.put(encoded);
     }
-    
+
     /**
      * Load an existing Tree from the directory
+     * 
      * @param value
      */
     void load(Value value) {
@@ -178,6 +181,7 @@ public class Tree extends SharedResource {
 
     /**
      * Initialize a Tree.
+     * 
      * @param rootPageAddr
      * @throws PersistitException
      */
@@ -187,7 +191,8 @@ public class Tree extends SharedResource {
         // Derive the index depth
         Buffer buffer = null;
         try {
-            buffer = getVolume().getPool().get(getVolume(), rootPageAddr, false, true);
+            buffer = getVolume().getPool().get(getVolume(), rootPageAddr,
+                    false, true);
             int type = buffer.getPageType();
             _depth = type - Buffer.PAGE_TYPE_DATA + 1;
         } finally {
@@ -219,4 +224,20 @@ public class Tree extends SharedResource {
                 + _depth + " status=" + getStatusDisplayString() + ">";
     }
 
+    /**
+     * Store an Object with this Tree for the convenience of an application.
+     * 
+     * @param the
+     *            object to be cached for application convenience.
+     */
+    public void setAppCache(Object appCache) {
+        _appCache = appCache;
+    }
+
+    /**
+     * @return the object cached for application convenience
+     */
+    public Object getAppCache() {
+        return _appCache;
+    }
 }

@@ -424,7 +424,6 @@ public class Persistit {
      * @throws IOException
      */
     public void initialize(Properties properties) throws PersistitException {
-        getTransaction().assignTimestamp();
         initializeProperties(properties);
         initializeManagement();
         initializeOther();
@@ -1882,7 +1881,7 @@ public class Persistit {
      * 
      * @param sessionId
      */
-    public void changeSessionId(final SessionId sessionId) {
+    public void setSessionId(final SessionId sessionId) {
         _sessionIdThreadLocal.set(sessionId);
     }
 
@@ -1902,6 +1901,13 @@ public class Persistit {
             _transactionSessionMap.put(sessionId, txn);
         }
         return txn;
+    }
+    
+    /**
+     * @return The current timestamp value
+     */
+    public long getCurrentTimestamp() {
+        return _timestampAllocator.getCurrentTimestamp();
     }
 
     /**

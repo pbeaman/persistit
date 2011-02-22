@@ -26,8 +26,6 @@ import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
 
-import java.lang.ref.WeakReference;
-
 import com.persistit.Key.Direction;
 import com.persistit.LockManager.ResourceTracker;
 import com.persistit.exception.CorruptVolumeException;
@@ -172,6 +170,8 @@ public class Exchange {
     private boolean _ignoreTransactions;
 
     private long _longRecordPageAddress;
+
+    private Object _appCache;
 
     /**
      * <p>
@@ -1124,7 +1124,6 @@ public class Exchange {
         _persistit.checkSuspended();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
-        _transaction.assignTimestamp();
         storeInternal(key, value, 0, false, false);
         _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
@@ -1445,8 +1444,9 @@ public class Exchange {
         // if (journalId != -1)
         // journal().completed(journalId);
         _volume.bumpStoreCounter();
-        if (fetchFirst)
+        if (fetchFirst) {
             _volume.bumpFetchCounter();
+        }
     }
 
     private void commitAllDeferredUpdates() throws PersistitException {
@@ -1741,7 +1741,6 @@ public class Exchange {
 
         resourceTracker.verifyLockedResourceCount(lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
         Buffer buffer = null;
 
         if (doFetch) {
@@ -1774,12 +1773,11 @@ public class Exchange {
                 // the base record.
                 //
                 if (txnResult == null) {
-                    /* 
-                     * if the transaction is null then the pending operations
-                     * do not affect the result
+                    /*
+                     * if the transaction is null then the pending operations do
+                     * not affect the result
                      */
-                }
-                else if (txnResult.equals(Boolean.TRUE)) {
+                } else if (txnResult.equals(Boolean.TRUE)) {
                     return true;
                 } else if (txnResult.equals(Boolean.FALSE)) {
                     //
@@ -1828,13 +1826,15 @@ public class Exchange {
                 //
                 // But if direction is leftward and the position is at the left
                 // edge of the buffer, re-do with a key search - there is no
-                // other
-                // way to find the left sibling page.
+                // other way to find the left sibling page.
                 //
                 if (reverse && buffer != null
                         && foundAt <= buffer.getKeyBlockStart()) {
                     // Going left from first record in the page requires a
                     // key search.
+                    if (inTxn) {
+                        _transaction.touchedPage(this, buffer);
+                    }
                     buffer.release();
                     buffer = null;
                 }
@@ -1910,7 +1910,11 @@ public class Exchange {
                             && !deep
                             && _key.compareKeyFragment(_spareKey1, 0,
                                     _spareKey1.getEncodedSize()) == 0) {
+                        _key.setEncodedSize(_spareKey1.getEncodedSize());
                         lc._keyGeneration = -1;
+                        if (inTxn) {
+                            _transaction.touchedPage(this, buffer);
+                        }
                         buffer.release();
                         buffer = null;
                         continue;
@@ -2049,8 +2053,9 @@ public class Exchange {
 
         } finally {
             if (buffer != null) {
-                if (inTxn)
+                if (inTxn) {
                     _transaction.touchedPage(this, buffer);
+                }
                 _pool.release(buffer);
                 buffer = null;
             }
@@ -2125,7 +2130,7 @@ public class Exchange {
 
         for (;;) {
             if (!keyFilter.next(_key, direction)) {
-                    _key.setEncodedSize(0);
+                _key.setEncodedSize(0);
                 if (direction == LT || direction == LTEQ) {
                     _key.appendAfter();
                 } else {
@@ -2382,7 +2387,6 @@ public class Exchange {
         _key.testValidForStoreAndFetch(_volume.getPageSize());
         int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
-        _transaction.assignTimestamp();
         storeInternal(_key, _value, 0, true, false);
         _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
@@ -2479,7 +2483,6 @@ public class Exchange {
         _persistit.getLockManager().verifyLockedResourceCount(
                 lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
 
         if (inTxn && _transaction.fetch(this, value, minimumBytes) != null) {
             return this;
@@ -2628,7 +2631,6 @@ public class Exchange {
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
         clear();
         _value.clear();
         if (inTxn) {
@@ -2796,7 +2798,6 @@ public class Exchange {
             Debug.suspend();
         }
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
         boolean result = false;
@@ -3353,7 +3354,6 @@ public class Exchange {
 
         Buffer buffer = null;
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        _transaction.assignTimestamp();
 
         try {
             byte[] rawBytes = value.getEncodedBytes();
@@ -3838,7 +3838,6 @@ public class Exchange {
         }
         final KeyHistogram histogram = new KeyHistogram(getTree(), start, end,
                 sampleSize, keyDepth, treeDepth);
-        _transaction.assignTimestamp();
         final int lockedResourceCount = _persistit.getLockManager()
                 .getLockedResourceCount();
         Buffer previousBuffer = null;
@@ -3909,5 +3908,22 @@ public class Exchange {
 
         histogram.cull();
         return histogram;
+    }
+
+    /**
+     * Store an Object with this Exchange for the convenience of an application.
+     * 
+     * @param the
+     *            object to be cached for application convenience.
+     */
+    public void setAppCache(Object appCache) {
+        _appCache = appCache;
+    }
+
+    /**
+     * @return the object cached for application convenience
+     */
+    public Object getAppCache() {
+        return _appCache;
     }
 }

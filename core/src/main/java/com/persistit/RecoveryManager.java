@@ -36,8 +36,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TransactionStatus;
@@ -133,7 +133,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
     // is complete, only some of the members of these maps will be donated to
     // JournalManager for ongoing processing.
     //
-    private final SortedMap<Long, TransactionStatus> _recoveredTransactionMap = new TreeMap<Long, TransactionStatus>();
+    private final Map<Long, TransactionStatus> _recoveredTransactionMap = new HashMap<Long, TransactionStatus>();
 
     private final Map<PageNode, PageNode> _pageMap = new HashMap<PageNode, PageNode>();
 
@@ -573,10 +573,10 @@ public class RecoveryManager implements RecoveryManagerMXBean,
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();
-        for (final Iterator<Map.Entry<Long, TransactionStatus>> iterator = _recoveredTransactionMap
-                .entrySet().iterator(); iterator.hasNext();) {
-            final Map.Entry<Long, TransactionStatus> entry = iterator.next();
-            sb.append(entry.getValue());
+        final SortedSet<TransactionStatus> sorted = new TreeSet<TransactionStatus>(
+                _recoveredTransactionMap.values());
+        for (final TransactionStatus ts : sorted) {
+            sb.append(ts);
             sb.append(Util.NEW_LINE);
         }
         return sb.toString();
@@ -1061,12 +1061,17 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                     _readBuffer, index);
             final long journalAddress = TM.getEntryJournalAddress(_readBuffer,
                     index);
-            final boolean isCommitted = TM
-                    .getEntryCommitted(_readBuffer, index);
             TransactionStatus ts = new TransactionStatus(startTimestamp,
-                    commitTimestamp, journalAddress);
-            ts.setCommitted(isCommitted);
-            _recoveredTransactionMap.put(Long.valueOf(commitTimestamp), ts);
+                    journalAddress);
+            final Long key = Long.valueOf(startTimestamp);
+            ts.setCommitTimestamp(commitTimestamp);
+            if (_recoveredTransactionMap.put(key, ts) != null) {
+                throw new CorruptJournalException(
+                        "Redundant record in TransactionMap record " + ts
+                                + " entry " + (count - remaining + 1) + " at "
+                                + addressToString(address, startTimestamp));
+
+            }
             index++;
         }
     }
@@ -1120,10 +1125,9 @@ public class RecoveryManager implements RecoveryManagerMXBean,
         for (final Iterator<Map.Entry<Long, TransactionStatus>> iterator = _recoveredTransactionMap
                 .entrySet().iterator(); iterator.hasNext();) {
             final Map.Entry<Long, TransactionStatus> entry = iterator.next();
-            if (entry.getValue().getCommitTimestamp() < timestamp) {
+            final TransactionStatus ts = entry.getValue();
+            if (ts.isCommitted() && ts.getCommitTimestamp() < timestamp) {
                 iterator.remove();
-            } else {
-                break;
             }
         }
 
@@ -1291,28 +1295,26 @@ public class RecoveryManager implements RecoveryManagerMXBean,
      * @param ja
      * @throws CorruptJournalException
      */
-    void startTransaction(final long address, final long timestamp,
+    void startTransaction(final long address, final long startTimestamp,
             final int recordSize) throws PersistitIOException {
 
         if (recordSize != TS.OVERHEAD) {
             throw new CorruptJournalException(
                     "TS JournalRecord has incorrect length: " + recordSize
                             + " bytes at position "
-                            + addressToString(address, timestamp));
+                            + addressToString(address, startTimestamp));
         }
         read(address, recordSize);
-        final Long key = Long.valueOf(timestamp);
-        final TransactionStatus previous = _recoveredTransactionMap.get(key);
+        final Long key = Long.valueOf(startTimestamp);
+        final TransactionStatus previous = _recoveredTransactionMap.put(key,
+                new TransactionStatus(startTimestamp, address));
         if (previous != null) {
             throw new CorruptJournalException(
                     "Duplicate transactions with same timestamp(" + key
                             + "): previous/current="
                             + previous.getStartAddress() + "/"
-                            + addressToString(address, timestamp));
+                            + addressToString(address, startTimestamp));
         }
-        final long startTimestamp = TS.getStartTimestamp(_readBuffer);
-        _recoveredTransactionMap.put(key, new TransactionStatus(startTimestamp,
-                timestamp, address));
     }
 
     /**
@@ -1322,27 +1324,29 @@ public class RecoveryManager implements RecoveryManagerMXBean,
      * @param ja
      * @throws CorruptJournalException
      */
-    void commitTransaction(final long address, final long timestamp,
-            final int recordSize) throws CorruptJournalException {
+    void commitTransaction(final long address, final long startTimestamp,
+            final int recordSize) throws PersistitIOException {
         if (recordSize != TC.OVERHEAD) {
             throw new CorruptJournalException(
                     "TC JournalRecord has incorrect length: " + recordSize
                             + " bytes at position "
-                            + addressToString(address, timestamp));
+                            + addressToString(address, startTimestamp));
         }
-
-        final Long key = Long.valueOf(timestamp);
-        final TransactionStatus previous = _recoveredTransactionMap.get(key);
-        if (previous == null) {
+        read(address, recordSize);
+        final Long key = Long.valueOf(startTimestamp);
+        final long commitTimestamp = TC.getCommitTimestamp(_readBuffer);
+        final TransactionStatus ts = _recoveredTransactionMap.get(key);
+        if (ts == null) {
             throw new CorruptJournalException(
                     "Missing Transaction Start record for timestamp(" + key
-                            + ") at " + addressToString(address, timestamp));
-        } else if (previous.isCommitted()) {
+                            + ") at "
+                            + addressToString(address, startTimestamp));
+        } else if (ts.isCommitted()) {
             throw new CorruptJournalException(
-                    "Redundant Transaction Commit Record for " + previous
-                            + " at " + addressToString(address, timestamp));
+                    "Redundant Transaction Commit Record for " + ts + " at "
+                            + addressToString(address, startTimestamp));
         }
-        previous.setCommitted(true);
+        ts.setCommitTimestamp(commitTimestamp);
     }
 
     // ---------------------------- Phase 3 ------------------------------------
@@ -1354,7 +1358,9 @@ public class RecoveryManager implements RecoveryManagerMXBean,
         }
 
         TransactionStatus previous = null;
-        for (final TransactionStatus ts : _recoveredTransactionMap.values()) {
+        final SortedSet<TransactionStatus> sorted = new TreeSet<TransactionStatus>(
+                _recoveredTransactionMap.values());
+        for (final TransactionStatus ts : sorted) {
             try {
                 if (previous == null) {
                     listener.startRecovery(ts.getStartAddress(),
@@ -1416,7 +1422,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
         final int type = getType(_readBuffer);
         final long timestamp = getTimestamp(_readBuffer);
 
-        if (timestamp == ts.getCommitTimestamp()) {
+        if (timestamp == ts.getStartTimestamp()) {
 
             switch (type) {
 

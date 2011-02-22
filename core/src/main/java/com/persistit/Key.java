@@ -998,6 +998,11 @@ public final class Key implements Comparable<Object> {
         _size = 0;
         _depth = 0;
     }
+    
+    Key(final Persistit persistit, final KeyState keyState) {
+        this(persistit, keyState.getBytes().length);
+        keyState.copyTo(this);
+    }
 
     /**
      * Constructs a <tt>Key</tt> which duplicates the state of the supplied

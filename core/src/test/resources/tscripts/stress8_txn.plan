@@ -5,6 +5,10 @@ logpath $logpath$/result_$timestamp$.log
 clearprops
 prop buffer.count.8192=20K
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop volume.2=$datapath$/persistit_txn.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop volume.3=$datapath$/persistit_sys.v01,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop sysvolume=persistit_sys
+prop txnvolume=persistit_txn
 prop journalpath=$datapath$/persistit_journal
 prop logfile=$logpath$/persistit_$timestamp$.log
 prop rmiport=8081
@@ -17,12 +21,12 @@ init
 icheck persistit
 
 multithread
-test com.persistit.stress.Stress8txn repeat=5 count=25000 size=10000 seed=1
-test com.persistit.stress.Stress8txn repeat=5 count=25000 size=10000 seed=2
-test com.persistit.stress.Stress8txn repeat=5 count=25000 size=10000 seed=3
-test com.persistit.stress.Stress8txn repeat=5 count=25000 size=10000 seed=4
-test com.persistit.stress.Stress8txn repeat=5 count=25000 size=10000 seed=5
-test com.persistit.stress.Stress8txn repeat=5 count=25000 size=10000 seed=6
+test com.persistit.stress.Stress8txn repeat=10 count=25000 size=10000 seed=1
+test com.persistit.stress.Stress8txn repeat=10 count=25000 size=10000 seed=2
+test com.persistit.stress.Stress8txn repeat=10 count=25000 size=10000 seed=3
+test com.persistit.stress.Stress8txn repeat=10 count=25000 size=10000 seed=4
+test com.persistit.stress.Stress8txn repeat=10 count=25000 size=10000 seed=5
+test com.persistit.stress.Stress8txn repeat=10 count=25000 size=10000 seed=6
 
 icheck persistit
 close
