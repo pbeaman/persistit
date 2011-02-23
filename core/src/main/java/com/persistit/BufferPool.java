@@ -998,11 +998,17 @@ public class BufferPool {
                     break;
                 }
                 buffer = buffer.getNextLru();
-                if (buffer == _lru[bucket])
+                if (buffer == _lru[bucket]) {
                     break;
+                }
             }
         }
         if (found) {
+            if (buffer.isValid()) {
+                _persistit.getIOMeter().chargeEvictPageFromPool(
+                        buffer.getVolume(), buffer.getPageAddress(),
+                        buffer.getBufferSize(), buffer.getIndex());
+            }
             return buffer;
         } else {
             return null;
