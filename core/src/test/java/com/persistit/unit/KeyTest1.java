@@ -604,6 +604,14 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
     
+    @Test
+    public void test14() {
+        _key1.clear().append("a").append("b").append(1).append(2);
+        _key2.clear().append("a").append("b").append(2).append(1);
+        assertEquals(7, _key1.firstUniqueByteIndex(_key2));
+        assertEquals(2, _key1.firstUniqueSegmentDepth(_key2));
+    }
+    
     /*
      * Test the equals methods in Key and KeyState
      */
@@ -650,6 +658,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         test11();
         test12();
         test13();
+        test14();
     }
 
     public void debugAssert(boolean condition) {
