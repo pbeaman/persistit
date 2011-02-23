@@ -201,7 +201,10 @@ public class IOMeter implements IOMeterMXBean {
         int counter = 0;
         while (true) {
             try {
-                final int type = is.read() & 0xFF;
+                final int type = is.read();
+                if (type == -1) {
+                    break;
+                }
                 final String opName = type >= 0 && type < OPERATIONS.length ? OPERATIONS[type]
                         : "??";
                 final long time = is.readLong() / NANOS_TO_MILLIS;
@@ -222,6 +225,7 @@ public class IOMeter implements IOMeterMXBean {
                         opName, volumeId, pageAddress, journalAddress, size, bufferIndex));
 
             } catch (EOFException e) {
+                break;
                 // normal end of processing
             }
         }
