@@ -1509,7 +1509,7 @@ public class Volume extends SharedResource {
         bb.position(0).limit(buffer.getBufferSize());
         writePage(bb, buffer.getPageAddress());
         _persistit.getIOMeter().chargeWritePageToVolume(this,
-                buffer.getPageAddress(), buffer.getBufferSize());
+                buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());
     }
 
     void writePage(final ByteBuffer bb, final long page) throws IOException,

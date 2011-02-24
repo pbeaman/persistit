@@ -521,7 +521,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
         long recordPageAddress = readPageBufferFromJournal(pn, bb);
         _persistit.getIOMeter().chargeReadPageFromJournal(volume, pageAddress,
-                bufferSize, pn.getJournalAddress());
+                bufferSize, pn.getJournalAddress(), buffer.getIndex());
 
         if (pageAddress != recordPageAddress) {
             throw new CorruptJournalException("Record at " + pn
@@ -833,7 +833,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
         _persistit.getIOMeter().chargeWritePageToJournal(volume,
                 buffer.getPageAddress(), buffer.getBufferSize(),
-                _currentAddress - recordSize, urgency());
+                _currentAddress - recordSize, urgency(), buffer.getIndex());
     }
 
     /**
