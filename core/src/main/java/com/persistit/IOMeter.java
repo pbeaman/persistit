@@ -30,17 +30,18 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 
- * Meter I/O operations so that background I/O-intensive processes
- * (e.g., the JournalManager's JOURNAL_COPIER thread) can voluntarily throttle
- * I/O consumption.
+ * Meter I/O operations so that background I/O-intensive processes (e.g., the
+ * JournalManager's JOURNAL_COPIER thread) can voluntarily throttle I/O
+ * consumption.
  * 
- * This class contains methods called by the JournalManager and BufferPool
- * to register various I/O operations performed there. The chargeXX methods
- * modify a various called _ioRate.  _ioRate is an indication of how many
- * I/O operations are being invoked by Persistit.
+ * This class contains methods called by the JournalManager and BufferPool to
+ * register various I/O operations performed there. The chargeXX methods modify
+ * a various called _ioRate. _ioRate is an indication of how many I/O operations
+ * are being invoked by Persistit.
  * 
  * The chargeXX method can also optionally write details for each I/O operation
- * an ancillary I/O log file. The file can be used to    
+ * an ancillary I/O log file. The file can be used to
+ * 
  * @author peter
  * 
  */
@@ -50,7 +51,7 @@ public class IOMeter implements IOMeterMXBean {
     final static int ALMOST_URGENT = 8;
     final static int HALF_URGENT = 5;
 
-    private static final String DUMP_FORMAT = "time=%,12d op=%2s vol=%4s page=%,16d addr=%,16d size=%,8d";
+    private static final String DUMP_FORMAT = "time=%,12d op=%2s vol=%4s page=%,16d addr=%,16d size=%,8d index=%,7d";
 
     private final static long NANOS_TO_MILLIS = 1000000l;
     private final static long DEFAULT_TICK_SIZE = 500 * NANOS_TO_MILLIS;
@@ -69,9 +70,10 @@ public class IOMeter implements IOMeterMXBean {
     private final static int WRITE_DR_TO_JOURNAL = 9;
     private final static int WRITE_DT_TO_JOURNAL = 10;
     private final static int WRITE_OTHER_TO_JOURNAL = 11;
+    private final static int EVICT_PAGE_FROM_POOL = 12;
 
     private final static String[] OPERATIONS = { "??", "CC", "RV", "WV", "RJ",
-            "WJ", "TS", "TC", "SR", "DR", "DT", "XX" };
+            "WJ", "TS", "TC", "SR", "DR", "DT", "XX", "EV" };
 
     private long _ioRate;
 
@@ -82,13 +84,13 @@ public class IOMeter implements IOMeterMXBean {
     private long _copyPageSleepInterval = DEFAULT_COPY_PAGE_SLEEP_INTERVAL;
 
     private long _writePageSleepInterval = DEFAULT_WRITE_PAGE_SLEEP_INTERVAL;
-    
+
     private long _quiescentIOthreshold = DEFAULT_QUIESCENT_IO_THRESHOLD;
 
     private AtomicReference<DataOutputStream> _logStream = new AtomicReference<DataOutputStream>();
 
     private String _logFileName;
-    
+
     /**
      * @return the writePageSleepInterval
      */
@@ -97,9 +99,11 @@ public class IOMeter implements IOMeterMXBean {
     }
 
     /**
-     * @param writePageSleepInterval the writePageSleepInterval to set
+     * @param writePageSleepInterval
+     *            the writePageSleepInterval to set
      */
-    public synchronized void setWritePageSleepInterval(long writePageSleepInterval) {
+    public synchronized void setWritePageSleepInterval(
+            long writePageSleepInterval) {
         _writePageSleepInterval = writePageSleepInterval;
     }
 
@@ -156,12 +160,11 @@ public class IOMeter implements IOMeterMXBean {
         }
         _logFileName = toFile;
     }
-    
+
     public String getLogFile() {
         return _logFileName;
     }
 
-    
     private synchronized void charge(final long time, final int size) {
         final long ticks = (time - _lastTick) / _tickSize;
         if (ticks > 10) {
@@ -174,7 +177,7 @@ public class IOMeter implements IOMeterMXBean {
     }
 
     private synchronized void log(int type, final long time,
-            final Volume volume, long pageAddress, int size, long journalAddress) {
+            final Volume volume, long pageAddress, int size, long journalAddress, int bufferIndex) {
         final DataOutputStream os = _logStream.get();
         if (os != null) {
             try {
@@ -185,6 +188,7 @@ public class IOMeter implements IOMeterMXBean {
                 os.writeLong(pageAddress);
                 os.writeInt(size);
                 os.writeLong(journalAddress);
+                os.writeInt(bufferIndex);
             } catch (IOException e) {
                 // ignore
             }
@@ -197,7 +201,10 @@ public class IOMeter implements IOMeterMXBean {
         int counter = 0;
         while (true) {
             try {
-                final int type = is.read() & 0xFF;
+                final int type = is.read();
+                if (type == -1) {
+                    break;
+                }
                 final String opName = type >= 0 && type < OPERATIONS.length ? OPERATIONS[type]
                         : "??";
                 final long time = is.readLong() / NANOS_TO_MILLIS;
@@ -205,6 +212,7 @@ public class IOMeter implements IOMeterMXBean {
                 final long pageAddress = is.readLong();
                 final int size = is.readInt();
                 final long journalAddress = is.readLong();
+                final int bufferIndex = is.readInt();
                 if (start == 0) {
                     start = time;
                 }
@@ -214,9 +222,10 @@ public class IOMeter implements IOMeterMXBean {
                     volMap.put(volumeHash, volumeId);
                 }
                 System.out.println(String.format(DUMP_FORMAT, time - start,
-                        opName, volumeId, pageAddress, journalAddress, size));
+                        opName, volumeId, pageAddress, journalAddress, size, bufferIndex));
 
             } catch (EOFException e) {
+                break;
                 // normal end of processing
             }
         }
@@ -227,7 +236,7 @@ public class IOMeter implements IOMeterMXBean {
             final int urgency) {
         final long time = System.nanoTime();
         log(COPY_PAGE_TO_VOLUME, time, volume, pageAddress, size,
-                journalAddress);
+                journalAddress, 0);
 
         // Determine how long to sleep. This logic attempts to slow down
         // page copy operations when there are a lot of other I/O operations
@@ -238,7 +247,8 @@ public class IOMeter implements IOMeterMXBean {
         long sleep = 0;
         if (urgency < URGENT - 2) {
             synchronized (this) {
-                sleep = _ioRate > _quiescentIOthreshold ? _copyPageSleepInterval : 0;
+                sleep = _ioRate > _quiescentIOthreshold ? _copyPageSleepInterval
+                        : 0;
             }
         }
         if (sleep > 0) {
@@ -251,33 +261,33 @@ public class IOMeter implements IOMeterMXBean {
     }
 
     public void chargeReadPageFromVolume(final Volume volume,
-            final long pageAddress, final int size) {
+            final long pageAddress, final int size, int bufferIndex) {
         final long time = System.nanoTime();
-        log(READ_PAGE_FROM_VOLUME, time, volume, pageAddress, size, -1);
+        log(READ_PAGE_FROM_VOLUME, time, volume, pageAddress, size, -1, bufferIndex);
         charge(time, size);
     }
 
     public void chargeWritePageToVolume(final Volume volume,
-            final long pageAddress, final int size) {
+            final long pageAddress, final int size, final int bufferIndex) {
         final long time = System.nanoTime();
-        log(WRITE_PAGE_TO_VOLUME, time, volume, pageAddress, size, -1);
+        log(WRITE_PAGE_TO_VOLUME, time, volume, pageAddress, size, -1, bufferIndex);
         charge(time, size);
     }
 
     public void chargeReadPageFromJournal(final Volume volume,
-            final long pageAddress, final int size, final long journalAddress) {
+            final long pageAddress, final int size, final long journalAddress, int bufferIndex) {
         final long time = System.nanoTime();
         log(READ_PAGE_FROM_JOURNAL, time, volume, pageAddress, size,
-                journalAddress);
+                journalAddress, bufferIndex);
         charge(time, size);
     }
 
     public void chargeWritePageToJournal(final Volume volume,
             final long pageAddress, final int size, final long journalAddress,
-            final int urgency) {
+            final int urgency, int bufferIndex) {
         final long time = System.nanoTime();
         log(WRITE_PAGE_TO_JOURNAL, time, volume, pageAddress, size,
-                journalAddress);
+                journalAddress, bufferIndex);
         charge(time, size);
 
         //
@@ -295,39 +305,45 @@ public class IOMeter implements IOMeterMXBean {
 
     public void chargeWriteTStoJournal(final int size, final long journalAddress) {
         final long time = System.nanoTime();
-        log(WRITE_TS_TO_JOURNAL, time, null, -1, size, journalAddress);
+        log(WRITE_TS_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
         charge(time, size);
     }
 
     public void chargeWriteTCtoJournal(final int size, final long journalAddress) {
         final long time = System.nanoTime();
-        log(WRITE_TC_TO_JOURNAL, time, null, -1, size, journalAddress);
+        log(WRITE_TC_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
         charge(time, size);
     }
 
     public void chargeWriteSRtoJournal(final int size, final long journalAddress) {
         final long time = System.nanoTime();
-        log(WRITE_SR_TO_JOURNAL, time, null, -1, size, journalAddress);
+        log(WRITE_SR_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
         charge(time, size);
     }
 
     public void chargeWriteDRtoJournal(final int size, final long journalAddress) {
         final long time = System.nanoTime();
-        log(WRITE_DR_TO_JOURNAL, time, null, -1, size, journalAddress);
+        log(WRITE_DR_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
         charge(time, size);
     }
 
     public void chargeWriteDTtoJournal(final int size, final long journalAddress) {
         final long time = System.nanoTime();
-        log(WRITE_DT_TO_JOURNAL, time, null, -1, size, journalAddress);
+        log(WRITE_DT_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
         charge(time, size);
     }
 
     public void chargeWriteOtherToJournal(final int size,
             final long journalAddress) {
         final long time = System.nanoTime();
-        log(WRITE_OTHER_TO_JOURNAL, time, null, -1, size, journalAddress);
+        log(WRITE_OTHER_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
         charge(time, size);
+    }
+
+    public void chargeEvictPageFromPool(final Volume volume,
+            final long pageAddress, final int size, int bufferIndex) {
+        final long time = System.nanoTime();
+        log(EVICT_PAGE_FROM_POOL, time, volume, pageAddress, size, 0, bufferIndex);
     }
 
     public static void main(final String[] args) throws Exception {
