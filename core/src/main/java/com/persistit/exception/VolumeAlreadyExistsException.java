@@ -16,7 +16,7 @@
 package com.persistit.exception;
 
 /**
- * Thrown when the Persistit configuration specifies the <tt>createOnly</tt>
+ * Thrown when the Persistit configuration specifies the <code>createOnly</code>
  * flag for a volume that already exists, or when a the configuration specifies
  * a page size for a volume that does not the page size of an existing volume.
  * 

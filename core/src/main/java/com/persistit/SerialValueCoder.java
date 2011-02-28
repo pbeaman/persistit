@@ -29,17 +29,17 @@ import com.persistit.exception.ConversionException;
  * A {@link ValueCoder} that uses standard Java serialization to store and
  * retrieve object values. This class is related to {@link DefaultValueCoder}.
  * When Persistit serializes or deserializes an object for which there is no
- * registered <tt>ValueCoder</tt>, it implictly constructs either a
- * <tt>DefaultValueCoder</tt> or a <tt>SerialValueCoder</tt>, depending on the
- * value of the <tt>serialOverride</tt> property. See <a
+ * registered <code>ValueCoder</code>, it implictly constructs either a
+ * <code>DefaultValueCoder</code> or a <code>SerialValueCoder</code>, depending
+ * on the value of the <code>serialOverride</code> property. See <a
  * href="../../../Object_Serialization_Notes.html"> Persistit JSA 1.1 Object
  * Serialization</a> for details.
  * </p>
  * <p>
- * This class creates a new <tt>java.io.ObjectInputStream</tt> each time it is
- * called upon to deserialize an instance of its client class, or a
- * <tt>java.io.ObjectOutputStream</tt> to serialize an instance. The format of
- * the stored data is specified by the <a href=
+ * This class creates a new <code>java.io.ObjectInputStream</code> each time it
+ * is called upon to deserialize an instance of its client class, or a
+ * <code>java.io.ObjectOutputStream</code> to serialize an instance. The format
+ * of the stored data is specified by the <a href=
  * "http://java.sun.com/j2se/1.4.2/docs/guide/serialization/spec/serialTOC.html"
  * > Java Object Serialization Specification</a> with one exception: the class
  * descriptor is replaced by a handle; an association between handles and class
@@ -65,18 +65,18 @@ public final class SerialValueCoder implements ValueCoder {
     /**
      * <p>
      * Creates an instance of the supplied class, populates its state by
-     * decoding the supplied <tt>Value</tt> using standard Java serialization,
-     * and returns it. This method will be called only if this
-     * <tt>ValueCoder</tt> has been registered with the current
-     * {@link CoderManager} to encode objects having supplied <tt>Class</tt>
+     * decoding the supplied <code>Value</code> using standard Java
+     * serialization, and returns it. This method will be called only if this
+     * <code>ValueCoder</code> has been registered with the current
+     * {@link CoderManager} to encode objects having supplied <code>Class</code>
      * value. Persistit will never call this method to decode a value that was
-     * <tt>null</tt> when written because null values are handled by built-in
-     * encoding logic.
+     * <code>null</code> when written because null values are handled by
+     * built-in encoding logic.
      * </p>
      * 
      * @param value
-     *            The <tt>Value</tt> from which interior fields of the object
-     *            are to be retrieved
+     *            The <code>Value</code> from which interior fields of the
+     *            object are to be retrieved
      * 
      * @param clazz
      *            The class of the object to be returned.
@@ -85,11 +85,11 @@ public final class SerialValueCoder implements ValueCoder {
      *            An arbitrary object that can optionally be supplied by the
      *            application to convey an application-specific context for the
      *            operation. (See {@link CoderContext}.) The default value is
-     *            <tt>null</tt>. For <tt>SerialValueCoder</tt> this parameter is
-     *            always ignored.
+     *            <code>null</code>. For <code>SerialValueCoder</code> this
+     *            parameter is always ignored.
      * 
-     * @return An <tt>Object</tt> having the same class as the suppled
-     *         <tt>clazz</tt> parameter.
+     * @return An <code>Object</code> having the same class as the suppled
+     *         <code>clazz</code> parameter.
      * 
      * @throws ConversionException
      */
@@ -107,37 +107,37 @@ public final class SerialValueCoder implements ValueCoder {
 
     /**
      * <p>
-     * Encodes the supplied <tt>Object</tt> into the supplied <tt>Value</tt>
-     * using standard Java serialization. This method will be called only if
-     * this <tt>ValueCoder</tt> has been registered with the current
-     * {@link CoderManager} to encode objects having the class of the supplied
-     * object.
+     * Encodes the supplied <code>Object</code> into the supplied
+     * <code>Value</code> using standard Java serialization. This method will be
+     * called only if this <code>ValueCoder</code> has been registered with the
+     * current {@link CoderManager} to encode objects having the class of the
+     * supplied object.
      * </p>
      * <p>
      * Upon completion of this method, the backing byte array of the
-     * <tt>Value</tt> and its size should be updated to reflect the appended key
-     * segment. Use the methods {@link Value#getEncodedBytes},
+     * <code>Value</code> and its size should be updated to reflect the appended
+     * key segment. Use the methods {@link Value#getEncodedBytes},
      * {@link Value#getEncodedSize} and {@link Value#setEncodedSize} to
      * manipulate the byte array directly. More commonly, the implementation of
-     * this method will simply call the appropriate <tt>put</tt> methods to
-     * write the interior field values into the <tt>Value</tt> object.
+     * this method will simply call the appropriate <code>put</code> methods to
+     * write the interior field values into the <code>Value</code> object.
      * </p>
      * 
      * @param value
-     *            The <tt>Value</tt> to which the interior data of the supplied
-     *            <tt>Object</tt> should be encoded
+     *            The <code>Value</code> to which the interior data of the
+     *            supplied <code>Object</code> should be encoded
      * 
      * @param object
      *            The object value to encode. This parameter will never be
-     *            <tt>null</tt> because Persistit encodes nulls with a built-in
-     *            encoding.
+     *            <code>null</code> because Persistit encodes nulls with a
+     *            built-in encoding.
      * 
      * @param context
      *            An arbitrary object that can optionally be supplied by the
      *            application to convey an application-specific context for the
      *            operation. (See {@link CoderContext}.) The default value is
-     *            <tt>null</tt>. For <tt>SerialValueCoder</tt> this parameter is
-     *            always ignored.
+     *            <code>null</code>. For <code>SerialValueCoder</code> this
+     *            parameter is always ignored.
      */
     public void put(Value value, Object object, CoderContext context) {
         try {

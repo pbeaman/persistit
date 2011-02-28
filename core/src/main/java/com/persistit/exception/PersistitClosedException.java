@@ -16,8 +16,8 @@
 package com.persistit.exception;
 
 /**
- * Thrown by {@link com.persistit.Exchange} when a <tt>Thread</tt> other than
- * the thread that created the Exchange attempts to perform an operation.
+ * Thrown by {@link com.persistit.Exchange} when a <code>Thread</code> other
+ * than the thread that created the Exchange attempts to perform an operation.
  * 
  * @version 1.0
  */

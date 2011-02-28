@@ -90,6 +90,7 @@ abstract class IOTaskRunnable implements Runnable {
             _thread.join(millis);
         }
     }
+
     @SuppressWarnings("deprecation")
     // Use only for tests.
     protected void crash() {

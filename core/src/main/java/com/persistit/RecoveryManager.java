@@ -450,9 +450,10 @@ public class RecoveryManager implements RecoveryManagerMXBean,
     /**
      * Copy PageNodes from the recovered page. This method distributes PageNodes
      * for updates that happened before the keystone checkpoint to
-     * <tt>pageMap</tt> and those that happened after the keystone checkpoint to
-     * <tt>branchMap</tt>. Updates in <tt>branchMap</tt> are used only in
-     * recovering certain transactions (insertions with LONG_RECORD values).
+     * <code>pageMap</code> and those that happened after the keystone
+     * checkpoint to <code>branchMap</code>. Updates in <code>branchMap</code>
+     * are used only in recovering certain transactions (insertions with
+     * LONG_RECORD values).
      * 
      * @param pageMap
      */
@@ -535,7 +536,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
     }
 
     /**
-     * @return <tt>true</tt> if the {@link #applyAllCommittedTransactions()}
+     * @return <code>true</code> if the {@link #applyAllCommittedTransactions()}
      *         method should do nothing. (Lets unit tests look at the plan
      *         before executing it.)
      */
@@ -545,7 +546,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
 
     /**
      * @param recoverDisabledForTestMode
-     *            Set this to <tt>true</tt> to disable the
+     *            Set this to <code>true</code> to disable the
      *            {@link #applyAllCommittedTransactions()} method. (Lets unit
      *            tests look at the plan before executing it.)
      */

@@ -28,9 +28,8 @@ public interface JournalManagerMXBean {
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=JournalManager";
 
     /**
-     * Version number for the journal file format defined in this
-     * edition.  Will change if the journal file format
-     * changes.
+     * Version number for the journal file format defined in this edition. Will
+     * change if the journal file format changes.
      */
     final static int VERSION = 1;
 
@@ -50,8 +49,7 @@ public interface JournalManagerMXBean {
     public final static long MAXIMUM_BLOCK_SIZE = 100000000000L;
 
     /**
-     * Size at which a completely obsolete journal file can be
-     * eliminated.
+     * Size at which a completely obsolete journal file can be eliminated.
      */
     public final static long ROLLOVER_THRESHOLD = 4 * 1024 * 1024;
 
@@ -72,7 +70,8 @@ public interface JournalManagerMXBean {
     public final static long DEFAULT_FLUSH_INTERVAL = 100;
 
     /**
-     * Default time interval (in milliseconds) between calls to the journal copier method.
+     * Default time interval (in milliseconds) between calls to the journal
+     * copier method.
      */
     public final static long DEFAULT_COPIER_INTERVAL = 10000;
 
@@ -97,14 +96,12 @@ public interface JournalManagerMXBean {
      * REGEX expression that recognizes the name of a journal file.
      */
     final static Pattern PATH_PATTERN = Pattern.compile(".+\\.(\\d{12})");
-    
+
     /**
      * Default setting for number of pages in the page map before the urgency of
      * copying starts to increase.
      */
     final static int DEFAULT_PAGE_MAP_SIZE_BASE = 250000;
-
-
 
     public int getPageMapSize();
 
@@ -145,7 +142,7 @@ public interface JournalManagerMXBean {
     public long getLastValidCheckpointTimestamp();
 
     public int urgency();
-    
+
     public void force() throws PersistitIOException;
 
     public void copyBack(final long toTimestamp) throws PersistitException;

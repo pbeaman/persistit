@@ -18,8 +18,6 @@ package com.persistit;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.persistit.KeyHistogram.KeyCount;
-
 /**
  * <p>
  * Accumulates and holds information about the distribution of {@link Key}
@@ -35,8 +33,8 @@ import com.persistit.KeyHistogram.KeyCount;
  * estimate the number of elements between any two keys in the Tree.
  * <p>
  * </p>
- * Application code can specify a <tt>keyDepth</tt> at which sibling keys are
- * grouped together. For example, suppose a Tree contains keys such as
+ * Application code can specify a <code>keyDepth</code> at which sibling keys
+ * are grouped together. For example, suppose a Tree contains keys such as
  * 
  * <pre>
  *   {"BLUE",1}
@@ -46,16 +44,16 @@ import com.persistit.KeyHistogram.KeyCount;
  *   {"RED",2}
  * </pre>
  * 
- * If <tt>keyDepth=2</tt> the resulting histogram will have 5 buckets, each with
- * a <tt>count<tt> value of 1.  But if <tt>keyDepth=1</tt> the result will have
- * two buckets, one each for "BLUE" and "RED". Specifying <tt>keyDepth=0</tt>
- * turns off aggregation by partial key depth.
+ * If <code>keyDepth=2</code> the resulting histogram will have 5 buckets, each
+ * with a <code>count<code> value of 1.  But if <code>keyDepth=1</code> the
+ * result will have two buckets, one each for "BLUE" and "RED". Specifying
+ * <code>keyDepth=0</code> turns off aggregation by partial key depth.
  * <p>
  * </p>
  * During the aggregation process the {@link Exchange#computeHistogram} method
  * invokes the {@link #addKeyCopy} method for each Key it traverses. Each key is
- * analyzed to determine whether the first <tt>keyDepth</tt> segments are the
- * same as the previously added Key. If so then the previous count is
+ * analyzed to determine whether the first <code>keyDepth</code> segments are
+ * the same as the previously added Key. If so then the previous count is
  * incremented; otherwise a new KeyCount entry is added to the sample list.
  * <p>
  * </p>

@@ -15,10 +15,7 @@
 
 package com.persistit;
 
-import java.beans.ConstructorProperties;
-import java.io.Serializable;
 import java.rmi.RemoteException;
-import java.util.Date;
 
 /**
  * <p>
@@ -34,7 +31,7 @@ import java.util.Date;
  *          </p>
  */
 public interface ManagementMXBean {
-    
+
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit";
 
     /**
@@ -79,9 +76,9 @@ public interface ManagementMXBean {
      * even when the application has requested it to close so that the final
      * state of the Persistit environment can be examined.
      * 
-     * @return <tt>true</tt> if Persistit will wait when attempting to close;
-     *         <tt>false</tt> if the <tt>close</tt> operation will not be
-     *         suspended.
+     * @return <code>true</code> if Persistit will wait when attempting to
+     *         close; <code>false</code> if the <code>close</code> operation
+     *         will not be suspended.
      */
     public boolean isShutdownSuspended() throws RemoteException;
 
@@ -93,8 +90,8 @@ public interface ManagementMXBean {
      * state of the Persistit environment can be examined.
      * 
      * @param suspended
-     *            <tt>true</tt> to specify that Persistit will wait when
-     *            attempting to close; otherwise <tt>false</tt>.
+     *            <code>true</code> to specify that Persistit will wait when
+     *            attempting to close; otherwise <code>false</code>.
      */
     public void setShutdownSuspended(boolean suspended) throws RemoteException;
 
@@ -103,8 +100,8 @@ public interface ManagementMXBean {
      * enabled, Persistit will indefinitely delay each Thread that attempts to
      * perform an update operation.
      * 
-     * @return <tt>true</tt> if Persistit will suspend any attempt to update a
-     *         <tt>Volume</tt>; otherwise <tt>false</tt>.
+     * @return <code>true</code> if Persistit will suspend any attempt to update
+     *         a <code>Volume</code>; otherwise <code>false</code>.
      * @throws RemoteException
      */
     public boolean isUpdateSuspended() throws RemoteException;
@@ -123,8 +120,8 @@ public interface ManagementMXBean {
      * Attempts to flush and sync all dirty data in Persistit by invoking
      * {@link Persistit#flush} and {@link Persistit#sync}.
      * 
-     * @return <tt>true</tt> if the attempt to close Persistit was successful;
-     *         otherwise <tt>false</tt>
+     * @return <code>true</code> if the attempt to close Persistit was
+     *         successful; otherwise <code>false</code>
      * @throws RemoteException
      */
     public boolean flushAndSync() throws RemoteException;

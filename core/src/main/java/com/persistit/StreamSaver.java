@@ -201,8 +201,8 @@ public class StreamSaver extends Task {
     /**
      * Indicates whether verbose progress messages posted to the message log.
      * 
-     * @return <tt>true</tt> if progress comments are enabled, otherwise
-     *         <tt>false</tt>.
+     * @return <code>true</code> if progress comments are enabled, otherwise
+     *         <code>false</code>.
      */
     public boolean isVerbose() {
         return _verbose;
@@ -213,7 +213,7 @@ public class StreamSaver extends Task {
      * logl
      * 
      * @param enabled
-     *            <tt>true</tt> to enable progress comments
+     *            <code>true</code> to enable progress comments
      */
     public void setVerbose(boolean enabled) {
         _verbose = enabled;
@@ -222,7 +222,7 @@ public class StreamSaver extends Task {
     /**
      * Returns the cycle count, which is the maximum number of records that will
      * be written with elided keys. When this number of records is reached,
-     * <tt>StreamSaver</tt> writes the next record with a full, unelided key
+     * <code>StreamSaver</code> writes the next record with a full, unelided key
      * value. This permits easier visual inspection of the save file.
      * 
      * @return The cycle count
@@ -263,14 +263,15 @@ public class StreamSaver extends Task {
 
     /**
      * Writes the key/value pair represented by the current state of an
-     * <tt>Exchange</tt> into a DATA record. If the supplied <tt>Exchange</tt>
-     * is based on different volume or tree than the previously written record,
-     * this method also writes VOLUME_ID and/or TREE_ID records before the DATA
-     * record. This allows the <tt>StreamLoader</tt> to apply the data record to
-     * the correct volume and tree.
+     * <code>Exchange</code> into a DATA record. If the supplied
+     * <code>Exchange</code> is based on different volume or tree than the
+     * previously written record, this method also writes VOLUME_ID and/or
+     * TREE_ID records before the DATA record. This allows the
+     * <code>StreamLoader</code> to apply the data record to the correct volume
+     * and tree.
      * 
      * @param exchange
-     *            The <tt>Exchange</tt>
+     *            The <code>Exchange</code>
      * @throws IOException
      */
     protected void writeData(Exchange exchange) throws IOException {
@@ -292,9 +293,9 @@ public class StreamSaver extends Task {
      * Writes a key/value pair into a DATA record.
      * 
      * @param key
-     *            The <tt>Key</tt>
+     *            The <code>Key</code>
      * @param value
-     *            The <tt>Value</tt>
+     *            The <code>Value</code>
      * @throws IOException
      */
     protected void writeData(Key key, Value value) throws IOException {
@@ -337,13 +338,14 @@ public class StreamSaver extends Task {
     }
 
     /**
-     * Writes a VOLUME_ID record for the <tt>Volume</tt> currently associated
-     * with the supplied <tt>Exchange</tt>. The information is sufficient to
-     * recreate a new, empty <tt>Volume</tt> having the same path name, original
-     * size and growth parameters as the <tt>Volume</tt> being saved.
+     * Writes a VOLUME_ID record for the <code>Volume</code> currently
+     * associated with the supplied <code>Exchange</code>. The information is
+     * sufficient to recreate a new, empty <code>Volume</code> having the same
+     * path name, original size and growth parameters as the <code>Volume</code>
+     * being saved.
      * 
      * @param exchange
-     *            The <tt>Exchange</tt>
+     *            The <code>Exchange</code>
      * @throws IOException
      */
     protected void writeVolumeInfo(Exchange exchange) throws IOException {
@@ -352,10 +354,10 @@ public class StreamSaver extends Task {
     }
 
     /**
-     * Writes a TREE_ID record for the <tt>Tree</tt> currently associated with
-     * the supplied <tt>Exchange</tt>. The information is sufficient to recreate
-     * a new, empty <tt>Tree</tt> having the same name as the <tt>Tree</tt>
-     * being saved.
+     * Writes a TREE_ID record for the <code>Tree</code> currently associated
+     * with the supplied <code>Exchange</code>. The information is sufficient to
+     * recreate a new, empty <code>Tree</code> having the same name as the
+     * <code>Tree</code> being saved.
      * 
      * @param exchange
      * @throws IOException
@@ -366,13 +368,13 @@ public class StreamSaver extends Task {
     }
 
     /**
-     * Writes a VOLUME_ID record for the supplied <tt>Volume</tt>. The saved
-     * information is sufficient to recreate a new, empty <tt>Volume</tt> having
-     * the same path name, original size and growth parameters as the
-     * <tt>Volume</tt> being saved.
+     * Writes a VOLUME_ID record for the supplied <code>Volume</code>. The saved
+     * information is sufficient to recreate a new, empty <code>Volume</code>
+     * having the same path name, original size and growth parameters as the
+     * <code>Volume</code> being saved.
      * 
      * @param volume
-     *            The <tt>Volume</tt>
+     *            The <code>Volume</code>
      * @throws IOException
      */
     protected void writeVolumeInfo(Volume volume) throws IOException {
@@ -389,12 +391,12 @@ public class StreamSaver extends Task {
     }
 
     /**
-     * Writes a TREE_ID record for the supplied <tt>Tree</tt>. The saved
-     * information is sufficient to recreate a new, empty <tt>Tree</tt> having
-     * the same name as the <tt>Tree</tt> being saved.
+     * Writes a TREE_ID record for the supplied <code>Tree</code>. The saved
+     * information is sufficient to recreate a new, empty <code>Tree</code>
+     * having the same name as the <code>Tree</code> being saved.
      * 
      * @param tree
-     *            The <tt>Tree</tt>
+     *            The <code>Tree</code>
      * @throws IOException
      */
     protected void writeTreeInfo(Tree tree) throws IOException {
@@ -431,7 +433,7 @@ public class StreamSaver extends Task {
      * the save process.
      * 
      * @param exception
-     *            The </tt>Exception</tt>
+     *            The </code>Exception</code>
      * @throws IOException
      */
     protected void writeException(Exception exception) throws IOException {
@@ -440,15 +442,15 @@ public class StreamSaver extends Task {
     }
 
     /**
-     * Save all key/value pairs in the <tt>Tree</tt> associated with the
-     * supplied <tt>Exchange</tt>, subject to selection by the supplied
-     * <tt>KeyFilter</tt>. If the <tt>filter</tt> is <tt>null</tt> then save all
-     * records.
+     * Save all key/value pairs in the <code>Tree</code> associated with the
+     * supplied <code>Exchange</code>, subject to selection by the supplied
+     * <code>KeyFilter</code>. If the <code>filter</code> is <code>null</code>
+     * then save all records.
      * 
      * @param exchange
-     *            The <tt>Exchange</tt>
+     *            The <code>Exchange</code>
      * @param filter
-     *            The <tt>KeyFilter</tt>
+     *            The <code>KeyFilter</code>
      * @throws PersistitException
      * @throws IOException
      */
@@ -482,8 +484,8 @@ public class StreamSaver extends Task {
 
     /**
      * Saves one or more trees in a named volume. The volume is specified by
-     * <tt>volumeName</tt>, which may either be the full path name of an open
-     * volume, or a substring that uniquely matches one open volume.
+     * <code>volumeName</code>, which may either be the full path name of an
+     * open volume, or a substring that uniquely matches one open volume.
      * 
      * @param volumeName
      *            The volume name, or a substring that matches only one volume.
@@ -500,10 +502,10 @@ public class StreamSaver extends Task {
     }
 
     /**
-     * Saves on or more trees in the specified <tt>Volume</tt>.
+     * Saves on or more trees in the specified <code>Volume</code>.
      * 
      * @param volume
-     *            The <tt>Volume</tt>
+     *            The <code>Volume</code>
      * @param selectedTreeNames
      *            An array names of the trees to be saved.
      * @throws PersistitException
@@ -543,7 +545,7 @@ public class StreamSaver extends Task {
      * Saves on or more trees.
      * 
      * @param trees
-     *            The <tt>Tree</tt>s to save
+     *            The <code>Tree</code>s to save
      * @throws PersistitException
      * @throws IOException
      */

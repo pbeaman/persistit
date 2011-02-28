@@ -16,7 +16,6 @@
 package com.persistit.unit;
 
 import java.math.BigDecimal;
-
 import java.math.BigInteger;
 
 import junit.framework.Assert;
@@ -603,7 +602,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
         System.out.println("- done");
     }
-    
+
     @Test
     public void test14() {
         _key1.clear().append("a").append("b").append(1).append(2);
@@ -611,7 +610,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertEquals(7, _key1.firstUniqueByteIndex(_key2));
         assertEquals(2, _key1.firstUniqueSegmentDepth(_key2));
     }
-    
+
     /*
      * Test the equals methods in Key and KeyState
      */

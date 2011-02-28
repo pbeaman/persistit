@@ -17,10 +17,6 @@ package com.persistit;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages locks by thread.
@@ -34,9 +30,10 @@ public class LockManager {
     private final ThreadLocal<ResourceTracker> _resourceThreadLocal = new ThreadLocal<ResourceTracker>();
 
     /*
-     * Reinstate this to enable the toString method.
-    private final Map<Thread, ResourceTracker> _resourceTrackerMap = new ConcurrentHashMap<Thread, ResourceTracker>();
-    */
+     * Reinstate this to enable the toString method. private final Map<Thread,
+     * ResourceTracker> _resourceTrackerMap = new ConcurrentHashMap<Thread,
+     * ResourceTracker>();
+     */
 
     static class ResourceTracker {
         private final List<SharedResource> _resources = new ArrayList<SharedResource>();
@@ -95,7 +92,7 @@ public class LockManager {
             }
             return true;
         }
-        
+
         void setOffset() {
             _offset = 1;
         }
@@ -119,7 +116,7 @@ public class LockManager {
             tracker = new ResourceTracker();
             /*
              * Reinstate this to enable the toString method.
-            _resourceTrackerMap.put(Thread.currentThread(), tracker);
+             * _resourceTrackerMap.put(Thread.currentThread(), tracker);
              */
             _resourceThreadLocal.set(tracker);
         }
@@ -163,19 +160,13 @@ public class LockManager {
     }
 
     /*
-    @Override
-    public synchronized String toString() {
-        final SortedMap<Thread, ResourceTracker> sorted = new TreeMap<Thread, ResourceTracker>(
-                _resourceTrackerMap);
-        final StringBuilder sb = new StringBuilder(500);
-        for (final Map.Entry<Thread, ResourceTracker> entry : sorted.entrySet()) {
-            sb.append(entry.getKey());
-            sb.append("-->");
-            sb.append(entry.getValue());
-            sb.append(Persistit.NEW_LINE);
-        }
-        return sb.toString();
-    }
-    */
+     * @Override public synchronized String toString() { final SortedMap<Thread,
+     * ResourceTracker> sorted = new TreeMap<Thread, ResourceTracker>(
+     * _resourceTrackerMap); final StringBuilder sb = new StringBuilder(500);
+     * for (final Map.Entry<Thread, ResourceTracker> entry : sorted.entrySet())
+     * { sb.append(entry.getKey()); sb.append("-->");
+     * sb.append(entry.getValue()); sb.append(Persistit.NEW_LINE); } return
+     * sb.toString(); }
+     */
 
 }

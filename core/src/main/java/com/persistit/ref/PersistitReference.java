@@ -23,9 +23,9 @@ import java.io.Serializable;
  * serialization.
  * </p>
  * <p>
- * Any subclass of <tt>java.lang.ref.Reference</tt> implements this interface;
- * thus applications can use this interface, but implement it using a subclasses
- * of <tt>java.lang.ref.WeakReference</tt> (for example).
+ * Any subclass of <code>java.lang.ref.Reference</code> implements this
+ * interface; thus applications can use this interface, but implement it using a
+ * subclasses of <code>java.lang.ref.WeakReference</code> (for example).
  * </p>
  * <p>
  * The general problem this interface is intended to solve is to control and
@@ -37,23 +37,23 @@ import java.io.Serializable;
  * of B with A because the state of B may change independently of A.
  * </p>
  * <p>
- * A <tt>PersistitReference</tt> may be used to break the serialization
+ * A <code>PersistitReference</code> may be used to break the serialization
  * relationship of B to A. Instead of having a field of A directly containing an
- * instance of B, the field in A would hold a <tt>PersistitReference</tt> that
- * in turn refers to B. Implementations of PersistitReference are intended to
- * implement it in such a way that only a persistent object identifier for B is
- * stored in the serialized form of the <tt>PersistitReference</tt> rather than
- * a fully serialization of B. The <tt>get</tt> method is intended to
- * deserialize (if necessary) and return the object referred to be that
- * persistent identifier. {@link AbstractReference} provides such an
+ * instance of B, the field in A would hold a <code>PersistitReference</code>
+ * that in turn refers to B. Implementations of PersistitReference are intended
+ * to implement it in such a way that only a persistent object identifier for B
+ * is stored in the serialized form of the <code>PersistitReference</code>
+ * rather than a fully serialization of B. The <code>get</code> method is
+ * intended to deserialize (if necessary) and return the object referred to be
+ * that persistent identifier. {@link AbstractReference} provides such an
  * implementation.
  * </p>
  * 
  */
 public interface PersistitReference extends Serializable {
     /**
-     * @return The <tt>Object</tt> this <tt>Reference</tt> refers to, known as
-     *         the <i>referent</i>.
+     * @return The <code>Object</code> this <code>Reference</code> refers to,
+     *         known as the <i>referent</i>.
      */
     public Object get();
 }

@@ -31,19 +31,19 @@ import com.persistit.KeyState;
  * Note: although many of the methods of this class take an argument of type
  * {@link com.persistit.Key}, the map is actually stored using immutable
  * {@link com.persistit.KeyState} objects. Therefore if you modify the state of
- * a <tt>Key</tt> after using it in a call to {@link #put}, the mapping will
- * remain intact. A new <tt>KeyState</tt> object is created only when a new
+ * a <code>Key</code> after using it in a call to {@link #put}, the mapping will
+ * remain intact. A new <code>KeyState</code> object is created only when a new
  * member is being added to the cache. Looking up, removing or replacing a value
- * by key does not require construction of a new <tt>KeyState</tt> because
- * <tt>Key</tt> and <tt>KeyState</tt> implement compatible <tt>equals</tt> and
- * <tt>hashCode</tt> methods.
+ * by key does not require construction of a new <code>KeyState</code> because
+ * <code>Key</code> and <code>KeyState</code> implement compatible
+ * <code>equals</code> and <code>hashCode</code> methods.
  * </p>
  * 
  */
 public class ObjectCache {
     /**
      * Constant used to indicate the value associated with a particular
-     * <tt>Key</tt> is known to be <tt>null</tt> rather than unknown.
+     * <code>Key</code> is known to be <code>null</code> rather than unknown.
      */
     public final static Object NULL = new Object();
     /**
@@ -75,8 +75,8 @@ public class ObjectCache {
 
     /**
      * Remove all dead entries from this cache. A dead reference is one for
-     * which the referent value of the <tt>WeakReference</tt> has been removed
-     * by the garbage collector.
+     * which the referent value of the <code>WeakReference</code> has been
+     * removed by the garbage collector.
      */
     public synchronized void clean() {
         processQueue(0);
@@ -88,20 +88,21 @@ public class ObjectCache {
      * Inserts a key/value pair in the cache and returns the formerly cached
      * value, if there is one. The object used to identify the value in the
      * cache is a {@link com.persistit.KeyState} constructed from the the
-     * supplied {@link com.persistit.Key}. <tt>Key</tt> and <tt>KeyState</tt>
-     * implement compatible <tt>equals</tt> and <tt>hashCode</tt> methods so
-     * that they can be used interchangeably to access values in maps.
+     * supplied {@link com.persistit.Key}. <code>Key</code> and
+     * <code>KeyState</code> implement compatible <code>equals</code> and
+     * <code>hashCode</code> methods so that they can be used interchangeably to
+     * access values in maps.
      * </p>
      * <p>
-     * The value is held within a <tt>WeakReference</tt>. This means that as
+     * The value is held within a <code>WeakReference</code>. This means that as
      * soon as no other object holds a strong reference to the value, the
      * garbage collector is permitted to remove it and to set the referent of
-     * the <tt>WeakReference</tt> to <tt>null</tt>. Therefore an application may
-     * <tt>put</tt> a value into this cache and then at some later time receive
-     * <tt>null</tt> from the <tt>get</tt> method.
+     * the <code>WeakReference</code> to <code>null</code>. Therefore an
+     * application may <code>put</code> a value into this cache and then at some
+     * later time receive <code>null</code> from the <code>get</code> method.
      * </p>
      * <p>
-     * This method handles <tt>null</tt> values in a special way. The code
+     * This method handles <code>null</code> values in a special way. The code
      * <blockquote>
      * 
      * <pre>
@@ -109,24 +110,25 @@ public class ObjectCache {
      * </pre>
      * 
      * </blockquote> stores the constant {@link #NULL} to represent the
-     * knowledge that the value associated with key is <tt>null</tt>, rather
-     * than unknown. The {@link #get} method returns <tt>null</tt> regardless of
-     * whether the value in the cache is NULL or is not present. Applications
-     * should use the {@link #isCached} method to determine whether the value is
-     * affirmatively <tt>null</tt>. Alternatively, applications may use the
-     * {@link #getWithNull} method and then test the result for equality with
-     * <tt>NULL</tt> as a distinct value.
+     * knowledge that the value associated with key is <code>null</code>, rather
+     * than unknown. The {@link #get} method returns <code>null</code>
+     * regardless of whether the value in the cache is NULL or is not present.
+     * Applications should use the {@link #isCached} method to determine whether
+     * the value is affirmatively <code>null</code>. Alternatively, applications
+     * may use the {@link #getWithNull} method and then test the result for
+     * equality with <code>NULL</code> as a distinct value.
      * </p>
      * 
      * @param key
-     *            The <tt>Key</tt> used to identify the value. When storing a
-     *            new key, this method constructs and stores an immutable
-     *            <tt>KeyState</tt> from the <tt>Key</tt> so that the mapping
-     *            remains valid even if the <tt>Key</tt> subsequently changes.
+     *            The <code>Key</code> used to identify the value. When storing
+     *            a new key, this method constructs and stores an immutable
+     *            <code>KeyState</code> from the <code>Key</code> so that the
+     *            mapping remains valid even if the <code>Key</code>
+     *            subsequently changes.
      * 
      * @param value
      *            An Object that is to be associated with key. The value may be
-     *            any class, and it may be <tt>null</tt>.
+     *            any class, and it may be <code>null</code>.
      * 
      * @return The former value.
      */
@@ -164,9 +166,9 @@ public class ObjectCache {
     /**
      * <p>
      * Return the Object value associated with the key if it is present in the
-     * cache; otherwise <tt>null</tt>. This method does not differentiate
-     * between a stored <tt>null</tt> value and a value missing from the cache.
-     * Applications should use the {@link #isCached} method or
+     * cache; otherwise <code>null</code>. This method does not differentiate
+     * between a stored <code>null</code> value and a value missing from the
+     * cache. Applications should use the {@link #isCached} method or
      * {@link #getWithNull} to determine whether the there is a value associated
      * with the key.
      * </p>
@@ -174,7 +176,7 @@ public class ObjectCache {
      * @param key
      *            The key to which the value is associated.
      * 
-     * @return The value, or <tt>null</tt> if there is none.
+     * @return The value, or <code>null</code> if there is none.
      */
     public synchronized Object get(Key key) {
         int offset = offset(key, _entries.length);
@@ -195,10 +197,10 @@ public class ObjectCache {
     /**
      * <p>
      * Return the Object value associated with the key if it is present in the
-     * cache; otherwise <tt>null</tt>. This method differentiates between
-     * between a stored <tt>null</tt> value and a value missing from the cache.
-     * In the former case, this method returns {@link #NULL}. Applications can
-     * test the result as follows: <blockquote>
+     * cache; otherwise <code>null</code>. This method differentiates between
+     * between a stored <code>null</code> value and a value missing from the
+     * cache. In the former case, this method returns {@link #NULL}.
+     * Applications can test the result as follows: <blockquote>
      * 
      * <pre>
      * Object o = cache.getWithNull(key);
@@ -214,7 +216,7 @@ public class ObjectCache {
      *            The key to which the value is associated.
      * 
      * @return The value, {@link #NULL} if the value associated with the key is
-     *         known to be null, or <tt>null</tt> if the there is no cached
+     *         known to be null, or <code>null</code> if the there is no cached
      *         value for this key.
      */
     public synchronized Object getWithNull(Key key) {
@@ -234,8 +236,8 @@ public class ObjectCache {
      * Indicates whether there is a value associated with the key.
      * 
      * @param key
-     * @return <tt>true</tt> if the cache contains a representation of the value
-     *         associated with the key; otherwise <tt>false</tt>
+     * @return <code>true</code> if the cache contains a representation of the
+     *         value associated with the key; otherwise <code>false</code>
      */
     public synchronized boolean isCached(Key key) {
         int offset = offset(key, _entries.length);
@@ -254,12 +256,12 @@ public class ObjectCache {
      * value.
      * 
      * @param key
-     *            The <tt>Key</tt>
+     *            The <code>Key</code>
      * 
      * @return The value formerly associated in the cache with the supplied
-     *         <tt>key</tt>. The behavior is the same as {@link #getWithNull};
-     *         that is, the returned value value is an object, {@link #NULL} or
-     *         <tt>null</tt>.
+     *         <code>key</code>. The behavior is the same as
+     *         {@link #getWithNull}; that is, the returned value value is an
+     *         object, {@link #NULL} or <code>null</code>.
      */
     public synchronized Object remove(Key key) {
         Object value = null;

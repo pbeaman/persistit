@@ -16,7 +16,6 @@
 package com.persistit;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Random;
 import java.util.StringTokenizer;
 
@@ -301,6 +300,5 @@ public class Debug {
         }
         return true;
     }
-
 
 }

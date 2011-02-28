@@ -50,7 +50,7 @@ public class KeyParser {
     }
 
     /**
-     * Constructs a <tt>KeyParser</tt> for the specified string.
+     * Constructs a <code>KeyParser</code> for the specified string.
      * 
      * @param source
      *            The string to be parsed.
@@ -63,7 +63,8 @@ public class KeyParser {
     }
 
     /**
-     * Constructs a <tt>KeyParser</tt> for a substring of the specified string.
+     * Constructs a <code>KeyParser</code> for a substring of the specified
+     * string.
      * 
      * @param source
      *            The string
@@ -86,13 +87,13 @@ public class KeyParser {
 
     /**
      * Parses a key value from the string or substring from which this
-     * <tt>KeyParser</tt> was constructed, modifying the supplied <tt>Key</tt>
-     * to contain the result.
+     * <code>KeyParser</code> was constructed, modifying the supplied
+     * <code>Key</code> to contain the result.
      * 
-     * @return <tt>true</tt> if the key value was parsed successfully.
-     *         <tt>false</tt> if the string or substring was invalid as a <a
+     * @return <code>true</code> if the key value was parsed successfully.
+     *         <code>false</code> if the string or substring was invalid as a <a
      *         href="Key.html#_stringRepresentation"> string representation</a>
-     *         of a <tt>Key</tt>.
+     *         of a <code>Key</code>.
      */
     public boolean parseKey(Key key) {
         int index = _index;
@@ -127,12 +128,13 @@ public class KeyParser {
     }
 
     /**
-     * Parses and returns a <tt>KeyFilter</tt> from the string or substring from
-     * which this <tt>KeyParser</tt> was constructed.
+     * Parses and returns a <code>KeyFilter</code> from the string or substring
+     * from which this <code>KeyParser</code> was constructed.
      * 
-     * @return A <tt>KeyFilter</tt> or <tt>null</tt> if the string or substring
-     *         was invalid as a <a href="KeyFilter.html#_stringRepresentation">
-     *         string representation</a> of a <tt>KeyFilter</tt>.
+     * @return A <code>KeyFilter</code> or <code>null</code> if the string or
+     *         substring was invalid as a <a
+     *         href="KeyFilter.html#_stringRepresentation"> string
+     *         representation</a> of a <code>KeyFilter</code>.
      */
     public KeyFilter parseKeyFilter() {
         int saveIndex = _index;

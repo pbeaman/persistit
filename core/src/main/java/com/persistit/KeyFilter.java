@@ -20,31 +20,31 @@ import com.persistit.exception.MissingKeySegmentException;
 
 /**
  * <p>
- * Specifies a subset of all possible keys values. A <tt>KeyFilter</tt> can be
- * used with the {@link Exchange#traverse(Key.Direction, KeyFilter, int)} method
- * to restrict the set of key values within a Persistit <tt>Tree</tt> that will
- * actually be traversed.
+ * Specifies a subset of all possible keys values. A <code>KeyFilter</code> can
+ * be used with the {@link Exchange#traverse(Key.Direction, KeyFilter, int)}
+ * method to restrict the set of key values within a Persistit <code>Tree</code>
+ * that will actually be traversed.
  * </p>
  * <p>
- * A <tt>KeyFilter</tt> provides two primary methods:
+ * A <code>KeyFilter</code> provides two primary methods:
  * <ul>
  * <li>
  * {@link #selected(Key)} indicates whether the value of the specified
- * <tt>Key</tt> is a member of the subset specified by this filter, and</li>
+ * <code>Key</code> is a member of the subset specified by this filter, and</li>
  * <li>
- * {@link #next(Key, Key.Direction)} modifies the <tt>Key</tt> to the next
+ * {@link #next(Key, Key.Direction)} modifies the <code>Key</code> to the next
  * larger or smaller key value that lies within the range specified by this
  * filter.</li>
  * </ul>
  * These methods permit efficient traversal of a filtered subset of keys within
- * a <tt>Tree</tt>.
+ * a <code>Tree</code>.
  * </p>
  * <p>
  * <h3>KeyFilter Terms</h3>
- * A <tt>KeyFilter</tt> consists of an array of one or more <i>terms</i>. Each
- * term corresponds to one segment in a key value that will be selected or
- * excluded by this <tt>KeyFilter</tt>. The <i>K</i>th term in the list applies
- * to the <i>K</i>th segment of a key.
+ * A <code>KeyFilter</code> consists of an array of one or more <i>terms</i>.
+ * Each term corresponds to one segment in a key value that will be selected or
+ * excluded by this <code>KeyFilter</code>. The <i>K</i>th term in the list
+ * applies to the <i>K</i>th segment of a key.
  * </p>
  * <p>
  * There are three kinds of term:
@@ -71,7 +71,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * {@link #rangeTerm(Object, Object, CoderContext)},
  * {@link #rangeTerm(Object, Object, boolean, boolean)},
  * {@link #rangeTerm(Object, Object, boolean, boolean, CoderContext)}, and
- * {@link #orTerm} produce these various kinds of <tt>Term</tt>s
+ * {@link #orTerm} produce these various kinds of <code>Term</code>s
  * <p>
  * For example, consider a key consisting of three segments: a last name, a
  * first name and a person ID number for a person. Such a key value might be
@@ -83,8 +83,8 @@ import com.persistit.exception.MissingKeySegmentException;
  * 
  * Suppose we now want to enumerate all members of a tree having keys of this
  * form with last names falling between "M" and "Q", and first names equal to
- * either "Alice" or "Bob". The following code constructs a <tt>KeyFilter</tt>
- * for this purpose:
+ * either "Alice" or "Bob". The following code constructs a
+ * <code>KeyFilter</code> for this purpose:
  * 
  * <code><pre>
  *     KeyFilter keyFilter = new KeyFilter();
@@ -110,9 +110,9 @@ import com.persistit.exception.MissingKeySegmentException;
  * </p>
  * <p>
  * <h3>Minimum and Maximum Depth</h3>
- * A <tt>KeyFilter</tt> may also specify <i>minimum depth</i>, <i>maximum
+ * A <code>KeyFilter</code> may also specify <i>minimum depth</i>, <i>maximum
  * depth</i>, or both. These values control the number of segments that must be
- * present in key value in order for it to be selected. A <tt>KeyFilter</tt>
+ * present in key value in order for it to be selected. A <code>KeyFilter</code>
  * will select a key only if the number of segments in the key lies between the
  * minimum depth and the maximum depth, inclusive.
  * </p>
@@ -120,16 +120,16 @@ import com.persistit.exception.MissingKeySegmentException;
  * <a name="_stringRepresentation" />
  * <h3>String Representation</h3>
  * The {@link #toString()} method returns a canonical String representation of
- * the current terms for this <tt>KeyFilter</tt>. For example, the string
+ * the current terms for this <code>KeyFilter</code>. For example, the string
  * representation of the filter constructed in above is
  * 
  * <code><pre>
  *     {"M":"Q",{"Alice","Bob"}}
  * </pre></code>
  * 
- * You can construct a <tt>KeyFilter</tt> from its string representation with
- * the {@link KeyParser#parseKeyFilter} method. For example, the following code
- * generates an equivalent <tt>KeyFilter</tt>:
+ * You can construct a <code>KeyFilter</code> from its string representation
+ * with the {@link KeyParser#parseKeyFilter} method. For example, the following
+ * code generates an equivalent <code>KeyFilter</code>:
  * 
  * <code><pre>
  *     KeyParser parser = new KeyParser("{\"M\":\"Q\",{\"Alice\",\"Bob\"}};
@@ -137,8 +137,8 @@ import com.persistit.exception.MissingKeySegmentException;
  * </pre></code>
  * 
  * As a convenience, the constructor {@link #KeyFilter(String)} automatically
- * creates and invokes a <tt>KeyParser</tt> to create a <tt>KeyFilter</tt> from
- * its string representation.
+ * creates and invokes a <code>KeyParser</code> to create a
+ * <code>KeyFilter</code> from its string representation.
  * </p>
  * <p>
  * Following is an informal grammar for the string representation of a key
@@ -199,14 +199,14 @@ import com.persistit.exception.MissingKeySegmentException;
  * 
  * </p>
  * <p>
- * Within the string representation of a <tt>KeyFilter</tt> at most one term
+ * Within the string representation of a <code>KeyFilter</code> at most one term
  * element may specify the prefix "&gt;" (greater-than sign), and at most one
  * term element may specify the suffix "&lt;" (less-than sign). These denote the
- * minimum and maximum depths of the <tt>KeyFilter</tt>, respectively. The
+ * minimum and maximum depths of the <code>KeyFilter</code>, respectively. The
  * minimum depth is the count of term elements up to and including the term
  * marked with a "&gt;" and the maximum depth is the count of terms up to and
  * including the term marked with a "&gt;". For example, in the
- * <tt>KeyFilter</tt> represented by the string
+ * <code>KeyFilter</code> represented by the string
  * 
  * <code><pre>
  *   {*,>100:200,*<}
@@ -216,14 +216,13 @@ import com.persistit.exception.MissingKeySegmentException;
  * </p>
  * <h3>Building KeyFilters by Appending Terms</h3>
  * <p>
- * A <tt>KeyFilter</tt> is immutable. The methods {@link #append(KeyFilter)},
- * {@link #append(KeyFilter.Term)}, {@link #append(KeyFilter.Term[])}, create
- * new <tt>KeyFilter</tt>s with additional terms supplied by the supplied
- * <tt>KeyFilter</tt>, <tt>Term</tt> or array of <tt>Term</tt>s. The
- * {@link #limit} method creates a new <tt>KeyFilter</tt> with modified minimum
- * and maximum depth values. Each of these methods returns a new
- * <tt>KeyFilter</tt> which results from combining the original
- * <tt>KeyFilter</tt> with the supplied information.
+ * A <code>KeyFilter</code> is immutable. The methods {@link #append(KeyFilter)}, {@link #append(KeyFilter.Term)}, {@link #append(KeyFilter.Term[])}, create
+ * new <code>KeyFilter</code>s with additional terms supplied by the supplied
+ * <code>KeyFilter</code>, <code>Term</code> or array of <code>Term</code>s. The
+ * {@link #limit} method creates a new <code>KeyFilter</code> with modified
+ * minimum and maximum depth values. Each of these methods returns a new
+ * <code>KeyFilter</code> which results from combining the original
+ * <code>KeyFilter</code> with the supplied information.
  * </p>
  * <h3>
  * Formal Specification of the {@link #next(Key, Key.Direction)} Method</h3>
@@ -257,14 +256,15 @@ import com.persistit.exception.MissingKeySegmentException;
  * <li>GTEQ: the result key must be greater than or equal to the supplied key.</li>
  * <li>GT: the result key must be strictly greater than the supplied key.</li>
  * </ul>
- * LT and GT are called <i>exclusive</i> because the result of <tt>traverse</tt>
- * excludes the supplied key. LTEQ and GTEQ are <i>inclusive</i>.
+ * LT and GT are called <i>exclusive</i> because the result of
+ * <code>traverse</code> excludes the supplied key. LTEQ and GTEQ are
+ * <i>inclusive</i>.
  * </dl>
  * </p>
  * <p>
  * A KeyFilter defines the range R as zero or more contiguous subsets of S. The
- * <tt>next</tt> method is used to assist the <tt>traverse</tt> method by
- * skipping efficiently over keys that are not in contained in R. Given a
+ * <code>next</code> method is used to assist the <code>traverse</code> method
+ * by skipping efficiently over keys that are not in contained in R. Given a
  * {@link Key} K and a {@link Key.Direction} D, the method behaves as follows:
  * </p>
  * <p>
@@ -272,13 +272,13 @@ import com.persistit.exception.MissingKeySegmentException;
  * <li>
  * If K is in R (i.e., is <i>selected</i>) and either D is inclusive, or there
  * exists a key value K' in R that is adjacent to K (where K' is larger than K
- * if D is GT, or smaller than K if D is LT), then return <tt>true</tt> without
- * modifying the K.</li>
+ * if D is GT, or smaller than K if D is LT), then return <code>true</code>
+ * without modifying the K.</li>
  * <li>
  * Otherwise attempt to modify K to a new value K' which is either adjacent to
- * or in the next contiguous subset of R, and return <tt>true</tt> to indicate
- * that more keys exist in the range. Specifically, for each Direction D, K' is
- * defined as follows:
+ * or in the next contiguous subset of R, and return <code>true</code> to
+ * indicate that more keys exist in the range. Specifically, for each Direction
+ * D, K' is defined as follows:
  * <ul>
  * <li>LT: find the largest key J in R where J &lt; K. Then K' is the key
  * right-adjacent to J.</li>
@@ -291,7 +291,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * </li>
  * <li>
  * Otherwise, if there is no key K' that satisfies the requirements of #2,
- * return <tt>false</tt> to indicate that the range has been exhausted.</li>
+ * return <code>false</code> to indicate that the range has been exhausted.</li>
  * </ol>
  * </p>
  * 
@@ -308,7 +308,7 @@ public class KeyFilter {
     private int _maxDepth = Integer.MAX_VALUE;
 
     /**
-     * Constructs an empty <tt>KeyFilter</tt>. This <tt>KeyFilter</tt>
+     * Constructs an empty <code>KeyFilter</code>. This <code>KeyFilter</code>
      * implicitly selects all key values.
      */
     public KeyFilter() {
@@ -316,7 +316,7 @@ public class KeyFilter {
     }
 
     /**
-     * Constructs a <tt>KeyFilter</tt> from its <a
+     * Constructs a <code>KeyFilter</code> from its <a
      * href="#_stringRepresentation"> string representation</a>.
      * 
      * @param string
@@ -338,31 +338,32 @@ public class KeyFilter {
     }
 
     /**
-     * Constructs a <tt>KeyFilter</tt> that selects the subset of all keys which
-     * are equal to, <a href="Key.html#_keyChildren">logical children</a> of, or
-     * logical ancestors of the supplied <tt>Key</tt>.
+     * Constructs a <code>KeyFilter</code> that selects the subset of all keys
+     * which are equal to, <a href="Key.html#_keyChildren">logical children</a>
+     * of, or logical ancestors of the supplied <code>Key</code>.
      * 
      * @param key
-     *            The <tt>Key</tt>
+     *            The <code>Key</code>
      */
     public KeyFilter(Key key) {
         this(key, 0, Integer.MAX_VALUE);
     }
 
     /**
-     * Constructs a <tt>KeyFilter</tt> that selects the subset of all key values
-     * that are equal to, <a href="Key.html#_keyChildren">logical children</a>
-     * of, or logical ancestors of the supplied <tt>Key</tt>, and whose depth is
-     * greater than or equal to the supplied minimum depth and less than or
-     * equal to the supplied maximum depth. Suppose the supplied <tt>key</tt>
-     * value has <i>M</i> segments and some other <tt>Key</tt> value <i>K</i>
-     * has <i>N</i> segments. Then <i>K</i> is a member of the subset selected
-     * by this <tt>KeyFilter</tt> if and only if <i>N</i>&gt;=<tt>minDepth</tt>
-     * and <i>N</i>&lt;=<tt>maxDepth</tt> and each of the first min(<i>M</i>,
-     * <i>N</i>) segments match.
+     * Constructs a <code>KeyFilter</code> that selects the subset of all key
+     * values that are equal to, <a href="Key.html#_keyChildren">logical
+     * children</a> of, or logical ancestors of the supplied <code>Key</code>,
+     * and whose depth is greater than or equal to the supplied minimum depth
+     * and less than or equal to the supplied maximum depth. Suppose the
+     * supplied <code>key</code> value has <i>M</i> segments and some other
+     * <code>Key</code> value <i>K</i> has <i>N</i> segments. Then <i>K</i> is a
+     * member of the subset selected by this <code>KeyFilter</code> if and only
+     * if <i>N</i>&gt;=<code>minDepth</code> and <i>N</i>&lt;=
+     * <code>maxDepth</code> and each of the first min(<i>M</i>, <i>N</i>)
+     * segments match.
      * 
      * @param key
-     *            The <tt>Key</tt>
+     *            The <code>Key</code>
      * 
      * @param minDepth
      *            The minimum depth
@@ -396,13 +397,14 @@ public class KeyFilter {
     }
 
     /**
-     * Constructs a <tt>KeyFilter</tt> that selects the subset of all keys whose
-     * segments are selected by the corresponding <tt>Term</tt>s of the supplied
-     * array. Suppose a Key <i>K</i> has <i>N</i> segments and the supplied
-     * array of <tt>terms</tt> has length <i>M</i>. Then <i>K</i> is a member of
-     * the key value subset selected by this <tt>KeyFilter</tt> if and only if
-     * each of the first min(<i>M</i>, <i>N</i>) segments of <i>K</i> is
-     * selected by the corresponding member of the <tt>terms</tt> array.
+     * Constructs a <code>KeyFilter</code> that selects the subset of all keys
+     * whose segments are selected by the corresponding <code>Term</code>s of
+     * the supplied array. Suppose a Key <i>K</i> has <i>N</i> segments and the
+     * supplied array of <code>terms</code> has length <i>M</i>. Then <i>K</i>
+     * is a member of the key value subset selected by this
+     * <code>KeyFilter</code> if and only if each of the first min(<i>M</i>,
+     * <i>N</i>) segments of <i>K</i> is selected by the corresponding member of
+     * the <code>terms</code> array.
      * 
      * @param terms
      */
@@ -411,19 +413,20 @@ public class KeyFilter {
     }
 
     /**
-     * Constructs a <tt>KeyFilter</tt> that selects the subset of all keys whose
-     * segments are selected by the corresponding <tt>Term</tt>s of the supplied
-     * array and whose depth is greater than or equal to the supplied minimum
-     * depth and less than or equal to the supplied maximum depth. Suppose some
-     * Key <i>K</i> has <i>N</i> segments and the supplied array of
-     * <tt>terms</tt> has length <i>M</i>. Then <i>K</i> is a member of the key
-     * value subset selected by this <tt>KeyFilter</tt> if and only if and only
-     * if <i>N</i>&gt;=<tt>minDepth</tt> and <i>N</i>&lt;=<tt>maxDepth</tt> and
-     * each of the first min(<i>M</i>, <i>N</i>) segments of <i>K</i> is
-     * selected by the corresponding member of the <tt>terms</tt> array.
+     * Constructs a <code>KeyFilter</code> that selects the subset of all keys
+     * whose segments are selected by the corresponding <code>Term</code>s of
+     * the supplied array and whose depth is greater than or equal to the
+     * supplied minimum depth and less than or equal to the supplied maximum
+     * depth. Suppose some Key <i>K</i> has <i>N</i> segments and the supplied
+     * array of <code>terms</code> has length <i>M</i>. Then <i>K</i> is a
+     * member of the key value subset selected by this <code>KeyFilter</code> if
+     * and only if and only if <i>N</i>&gt;=<code>minDepth</code> and
+     * <i>N</i>&lt;=<code>maxDepth</code> and each of the first min(<i>M</i>,
+     * <i>N</i>) segments of <i>K</i> is selected by the corresponding member of
+     * the <code>terms</code> array.
      * 
      * @param terms
-     *            The <tt>Term</tt> array
+     *            The <code>Term</code> array
      * 
      * @param minDepth
      *            The minimum depth
@@ -440,20 +443,20 @@ public class KeyFilter {
     }
 
     /**
-     * Constructs and returns a new <tt>KeyFilter</tt> in which the terms of the
-     * supplied <tt>filter</tt> are appended to the array of terms already
-     * present in this <tt>KeyFilter</tt>. In addition, the minimum and maximum
-     * depths of the newly created <tt>KeyFilter</tt> are computed from the
-     * supplied <tt>filter</tt> value. Let M be the number of terms in this
-     * <tt>KeyFilter</tt>. The the minimum and maximum depth parameters for the
-     * newly created <tt>KeyFilter</tt> will be
-     * <tt>filter.getMinimumDepth()+</tt>M and
-     * <tt>filter.getMaximumDepth()+</tt>M, respectively.
+     * Constructs and returns a new <code>KeyFilter</code> in which the terms of
+     * the supplied <code>filter</code> are appended to the array of terms
+     * already present in this <code>KeyFilter</code>. In addition, the minimum
+     * and maximum depths of the newly created <code>KeyFilter</code> are
+     * computed from the supplied <code>filter</code> value. Let M be the number
+     * of terms in this <code>KeyFilter</code>. The the minimum and maximum
+     * depth parameters for the newly created <code>KeyFilter</code> will be
+     * <code>filter.getMinimumDepth()+</code>M and
+     * <code>filter.getMaximumDepth()+</code>M, respectively.
      * 
      * @param filter
-     *            The <tt>KeyFilter</tt> to append
+     *            The <code>KeyFilter</code> to append
      * 
-     * @return The newly constructed <tt>KeyFilter</tt>.
+     * @return The newly constructed <code>KeyFilter</code>.
      */
     public KeyFilter append(KeyFilter filter) {
         KeyFilter newFilter = new KeyFilter(merge(_terms, filter._terms));
@@ -470,14 +473,14 @@ public class KeyFilter {
     }
 
     /**
-     * Constructs and returns a new <tt>KeyFilter</tt> in which the supplied
-     * <tt>term</tt> is appended to the end of the array of terms in the current
-     * <tt>KeyFilter</tt>.
+     * Constructs and returns a new <code>KeyFilter</code> in which the supplied
+     * <code>term</code> is appended to the end of the array of terms in the
+     * current <code>KeyFilter</code>.
      * 
      * @param term
-     *            The <tt>Term</tt> to append
+     *            The <code>Term</code> to append
      * 
-     * @return The newly constructed <tt>KeyFilter</tt>
+     * @return The newly constructed <code>KeyFilter</code>
      */
     public KeyFilter append(Term term) {
         Term[] newTerms = new Term[_terms.length + 1];
@@ -487,14 +490,14 @@ public class KeyFilter {
     }
 
     /**
-     * Constructs and returns a new <tt>KeyFilter</tt> in which the supplied
-     * <tt>terms</tt> are appended to the array of terms in the current
-     * <tt>KeyFilter</tt>.
+     * Constructs and returns a new <code>KeyFilter</code> in which the supplied
+     * <code>terms</code> are appended to the array of terms in the current
+     * <code>KeyFilter</code>.
      * 
      * @param terms
-     *            The array of <tt>Term</tt> to append
+     *            The array of <code>Term</code> to append
      * 
-     * @return The newly constructed <tt>KeyFilter</tt>
+     * @return The newly constructed <code>KeyFilter</code>
      */
     public KeyFilter append(Term[] terms) {
         Term[] newTerms = merge(_terms, terms);
@@ -502,8 +505,8 @@ public class KeyFilter {
     }
 
     /**
-     * Constructs and returns a new <tt>KeyFilter</tt> in which the minimum and
-     * maximum depth are set to the supplied values.
+     * Constructs and returns a new <code>KeyFilter</code> in which the minimum
+     * and maximum depth are set to the supplied values.
      * 
      * @param minDepth
      *            The minimum depth
@@ -511,7 +514,7 @@ public class KeyFilter {
      * @param maxDepth
      *            The maximum depth
      * 
-     * @return The newly constructed <tt>KeyFilter</tt>.
+     * @return The newly constructed <code>KeyFilter</code>.
      */
     public KeyFilter limit(int minDepth, int maxDepth) {
         checkLimits(minDepth, maxDepth);
@@ -549,10 +552,10 @@ public class KeyFilter {
 
     /**
      * <p>
-     * Specifies criteria for selecting one segment of a <tt>Key</tt> value.
-     * This abstract class has three concrete subclasses, <tt>SimpleTerm</tt>,
-     * <tt>RangeTerm</tt> and <tt>OrTerm</tt> as described for {@link KeyFilter}
-     * .
+     * Specifies criteria for selecting one segment of a <code>Key</code> value.
+     * This abstract class has three concrete subclasses,
+     * <code>SimpleTerm</code>, <code>RangeTerm</code> and <code>OrTerm</code>
+     * as described for {@link KeyFilter} .
      * </p>
      * <p>
      * Use the static factory methods {@link KeyFilter#simpleTerm(Object)},
@@ -560,14 +563,14 @@ public class KeyFilter {
      * {@link KeyFilter#rangeTerm(Object, Object, CoderContext)},
      * {@link KeyFilter#rangeTerm(Object, Object, boolean, boolean)},
      * {@link KeyFilter#rangeTerm(Object, Object, boolean, boolean, CoderContext)}
-     * , and {@link KeyFilter#orTerm} to create instances of <tt>Term</tt>.
+     * , and {@link KeyFilter#orTerm} to create instances of <code>Term</code>.
      */
     public static abstract class Term {
         protected int _hashCode = -1;
 
         /**
          * Returns a <a href="KeyFilter.html#_stringRepresentation"> string
-         * representation</a> of this <tt>Term</tt>.
+         * representation</a> of this <code>Term</code>.
          * 
          * @return A canonical String representation
          */
@@ -578,18 +581,18 @@ public class KeyFilter {
 
         /**
          * Returns a <a href="KeyFilter.html#_stringRepresentation"> string
-         * representation</a> of this <tt>Term</tt> using the supplied
-         * <tt>context</tt>. The <tt>context</tt> is used only if the segment
-         * value for a <tt>SimpleTerm</tt>, or values for a <tt>RangeTerm</tt>
-         * are members of a class with a registered
+         * representation</a> of this <code>Term</code> using the supplied
+         * <code>context</code>. The <code>context</code> is used only if the
+         * segment value for a <code>SimpleTerm</code>, or values for a
+         * <code>RangeTerm</code> are members of a class with a registered
          * {@link com.persistit.encoding.KeyCoder} the uses a
          * {@link com.persistit.encoding.CoderContext}.
          * 
          * @param context
-         *            A <tt>CoderContext</tt> that will be passed to any
+         *            A <code>CoderContext</code> that will be passed to any
          *            registered {@link com.persistit.encoding.KeyCoder} used in
          *            decoding the value or values representing end-points in
-         *            this <tt>Term</tt>. May be <tt>null</tt>.
+         *            this <code>Term</code>. May be <code>null</code>.
          * 
          * @return A canonical String representation
          */
@@ -641,14 +644,14 @@ public class KeyFilter {
 
         /**
          * Returns a <a href="KeyFilter.html#_stringRepresentation"> string
-         * representation</a> of this <tt>Term</tt>, using the supplied
+         * representation</a> of this <code>Term</code>, using the supplied
          * CoderContext when necessary.
          * 
          * @param context
-         *            A <tt>CoderContext</tt> that will be passed to any
+         *            A <code>CoderContext</code> that will be passed to any
          *            registered {@link com.persistit.encoding.KeyCoder} used in
          *            decoding the value or values representing end-points in
-         *            this <tt>Term</tt>. May be <tt>null</tt>.
+         *            this <code>Term</code>. May be <code>null</code>.
          * 
          * @return A canonical String representation
          */
@@ -727,8 +730,8 @@ public class KeyFilter {
 
             byte[] keyBytes = key.getEncodedBytes();
 
-            int compare =length == 0 ? 1 : compare(keyBytes, offset, length, _itemBytes, 0,
-                    _itemBytes.length);
+            int compare = length == 0 ? 1 : compare(keyBytes, offset, length,
+                    _itemBytes, 0, _itemBytes.length);
 
             if (compare > 0) {
                 System.arraycopy(_itemBytes, 0, keyBytes, offset,
@@ -760,7 +763,7 @@ public class KeyFilter {
      * {@link KeyFilter#rangeTerm(Object, Object)},
      * {@link KeyFilter#rangeTerm(Object, Object, boolean, boolean, CoderContext)}
      * , and {@link KeyFilter#rangeTerm(Object, Object, CoderContext)} to create
-     * appropriate <tt>Term</tt> instances.
+     * appropriate <code>Term</code> instances.
      */
     static class RangeTerm extends Term {
         private final byte[] _itemFromBytes;
@@ -777,15 +780,15 @@ public class KeyFilter {
         }
 
         /**
-         * Indicates whether two <tt>Term</tt> instances are equal. They are
+         * Indicates whether two <code>Term</code> instances are equal. They are
          * equal if the segment values delimiting their ranges and their start-
          * and end-point inclusion settings are the same.
          * 
          * @param object
          *            The Object to be compared
          * 
-         * @return <tt>true</tt> if the supplied object is equal to this
-         *         <tt>Term</tt>; otherwise <tt>false</tt>.
+         * @return <code>true</code> if the supplied object is equal to this
+         *         <code>Term</code>; otherwise <code>false</code>.
          */
         @Override
         public boolean equals(Object object) {
@@ -799,7 +802,7 @@ public class KeyFilter {
         }
 
         /**
-         * Computes a hash code for this <tt>Term</tt>.
+         * Computes a hash code for this <code>Term</code>.
          * 
          * @return The hash code
          */
@@ -813,14 +816,14 @@ public class KeyFilter {
 
         /**
          * Returns a <a href="KeyFilter.html#_stringRepresentation"> string
-         * representation</a> of this <tt>Term</tt>, using the supplied
+         * representation</a> of this <code>Term</code>, using the supplied
          * CoderContext when necessary.
          * 
          * @param context
-         *            A <tt>CoderContext</tt> that will be passed to any
+         *            A <code>CoderContext</code> that will be passed to any
          *            registered {@link com.persistit.encoding.KeyCoder} used in
          *            decoding the value or values representing end-points in
-         *            this <tt>Term</tt>. May be <tt>null</tt>.
+         *            this <code>Term</code>. May be <code>null</code>.
          * 
          * @return A canonical String representation
          */
@@ -981,14 +984,14 @@ public class KeyFilter {
 
         /**
          * Returns a <a href="KeyFilter.html#_stringRepresentation"> string
-         * representation</a> of this <tt>Term</tt>, using the supplied
+         * representation</a> of this <code>Term</code>, using the supplied
          * CoderContext when necessary.
          * 
          * @param context
-         *            A <tt>CoderContext</tt> that will be passed to any
+         *            A <code>CoderContext</code> that will be passed to any
          *            registered {@link com.persistit.encoding.KeyCoder} used in
          *            decoding the value or values representing end-points in
-         *            this <tt>Term</tt>. May be <tt>null</tt>.
+         *            this <code>Term</code>. May be <code>null</code>.
          * 
          * @return A canonical String representation
          */
@@ -1004,15 +1007,15 @@ public class KeyFilter {
         }
 
         /**
-         * Indicates whether two <tt>Term</tt> instances are equal. They are
+         * Indicates whether two <code>Term</code> instances are equal. They are
          * equal if the segment values delimiting their ranges and their start-
          * and end-point inclusion settings are the same.
          * 
          * @param object
          *            The Object to be compared
          * 
-         * @return <tt>true</tt> if the supplied object is equal to this
-         *         <tt>Term</tt>; otherwise <tt>false</tt>.
+         * @return <code>true</code> if the supplied object is equal to this
+         *         <code>Term</code>; otherwise <code>false</code>.
          */
         @Override
         public boolean equals(Object object) {
@@ -1030,7 +1033,7 @@ public class KeyFilter {
         }
 
         /**
-         * Computes a hash code for this <tt>Term</tt>.
+         * Computes a hash code for this <code>Term</code>.
          * 
          * @return The hash code
          */
@@ -1098,21 +1101,21 @@ public class KeyFilter {
     }
 
     /**
-     * Returns a <tt>Term</tt> that matches a single value. The value is
+     * Returns a <code>Term</code> that matches a single value. The value is
      * interpreted in the same manner and has the same restrictions as described
      * for the {@link Key} class.
      * 
      * @param value
      *            The value
      * 
-     * @return The <tt>Term</tt>.
+     * @return The <code>Term</code>.
      */
     public static Term simpleTerm(Object value) {
         return rangeTerm(value, null, true, true, null);
     }
 
     /**
-     * Returns a <tt>Term</tt> that matches a single value. The value is
+     * Returns a <code>Term</code> that matches a single value. The value is
      * interpreted in the same manner and has the same restrictions as described
      * for the {@link Key} class.
      * 
@@ -1120,18 +1123,19 @@ public class KeyFilter {
      *            The value
      * 
      * @param context
-     *            A <tt>CoderContext</tt> supplied to any registered
+     *            A <code>CoderContext</code> supplied to any registered
      *            {@link com.persistit.encoding.KeyCoder} used in encoding the
-     *            <tt>fromValue</tt> or <tt>toValue</tt>. May be <tt>null</tt>.
+     *            <code>fromValue</code> or <code>toValue</code>. May be
+     *            <code>null</code>.
      * 
-     * @return The <tt>Term</tt>.
+     * @return The <code>Term</code>.
      */
     public static Term simpleTerm(Object value, CoderContext context) {
         return rangeTerm(value, null, true, true, context);
     }
 
     /**
-     * Returns a <tt>Term</tt> that accepts a range of values. The range
+     * Returns a <code>Term</code> that accepts a range of values. The range
      * includes these two values and all values that lie between them according
      * to the <a href="Key.html#_keyOrdering">key ordering specification</a>.
      * 
@@ -1141,17 +1145,17 @@ public class KeyFilter {
      * @param toValue
      *            The last value that will be selected by this term
      * 
-     * @return The <tt>term</tt>
+     * @return The <code>term</code>
      * 
      * @throws IllegalArgumentException
-     *             if <tt>fromValue</tt> follows <tt>toValue</tt>.
+     *             if <code>fromValue</code> follows <code>toValue</code>.
      */
     public static Term rangeTerm(Object fromValue, Object toValue) {
         return rangeTerm(fromValue, toValue, true, true, null);
     }
 
     /**
-     * Returns a <tt>Term</tt> that accepts a range of values. The range
+     * Returns a <code>Term</code> that accepts a range of values. The range
      * includes these two values and all values that lie between them according
      * to the <a href="Key.html#_keyOrdering">key ordering specification</a>.
      * 
@@ -1162,14 +1166,15 @@ public class KeyFilter {
      *            The last value that will be selected by this term
      * 
      * @param context
-     *            A <tt>CoderContext</tt> supplied to any registered
+     *            A <code>CoderContext</code> supplied to any registered
      *            {@link com.persistit.encoding.KeyCoder} used in encoding the
-     *            <tt>fromValue</tt> or <tt>toValue</tt>. May be <tt>null</tt>.
+     *            <code>fromValue</code> or <code>toValue</code>. May be
+     *            <code>null</code>.
      * 
-     * @return The <tt>term</tt>
+     * @return The <code>term</code>
      * 
      * @throws IllegalArgumentException
-     *             if <tt>fromValue</tt> follows <tt>toValue</tt>.
+     *             if <code>fromValue</code> follows <code>toValue</code>.
      */
     public static Term rangeTerm(Object fromValue, Object toValue,
             CoderContext context) {
@@ -1177,7 +1182,7 @@ public class KeyFilter {
     }
 
     /**
-     * Returns a <tt>Term</tt> that accepts a range of values. The range
+     * Returns a <code>Term</code> that accepts a range of values. The range
      * optionally includes these two values and all values that lie between them
      * according to the <a href="Key.html#_keyOrdering">key ordering
      * specification</a>.
@@ -1189,17 +1194,19 @@ public class KeyFilter {
      *            The last value that will be selected by this term
      * 
      * @param leftInclusive
-     *            Indicates whether a value exactly matching <tt>fromValue</tt>
-     *            should be selected by this <tt>Term</tt>.
+     *            Indicates whether a value exactly matching
+     *            <code>fromValue</code> should be selected by this
+     *            <code>Term</code>.
      * 
      * @param rightInclusive
-     *            Indicates whether a value exactly matching <tt>toValue</tt>
-     *            should be selected by this <tt>Term</tt>.
+     *            Indicates whether a value exactly matching
+     *            <code>toValue</code> should be selected by this
+     *            <code>Term</code>.
      * 
-     * @return The <tt>term</tt>
+     * @return The <code>term</code>
      * 
      * @throws IllegalArgumentException
-     *             if <tt>fromValue</tt> follows <tt>toValue</tt>.
+     *             if <code>fromValue</code> follows <code>toValue</code>.
      */
 
     public static Term rangeTerm(Object fromValue, Object toValue,
@@ -1209,7 +1216,7 @@ public class KeyFilter {
     }
 
     /**
-     * Returns a <tt>Term</tt> that accepts a range of values. The range
+     * Returns a <code>Term</code> that accepts a range of values. The range
      * optionally includes these two values and all values that lie between them
      * according to the <a href="Key.html#_keyOrdering">key ordering
      * specification</a>.
@@ -1221,23 +1228,26 @@ public class KeyFilter {
      *            The last value that will be selected by this term
      * 
      * @param leftInclusive
-     *            Indicates whether a value exactly matching <tt>fromValue</tt>
-     *            should be selected by this <tt>Term</tt>.
+     *            Indicates whether a value exactly matching
+     *            <code>fromValue</code> should be selected by this
+     *            <code>Term</code>.
      * 
      * @param rightInclusive
-     *            Indicates whether a value exactly matching <tt>toValue</tt>
-     *            should be selected by this <tt>Term</tt>.
+     *            Indicates whether a value exactly matching
+     *            <code>toValue</code> should be selected by this
+     *            <code>Term</code>.
      * 
      * 
      * @param context
-     *            A <tt>CoderContext</tt> supplied to any registered
+     *            A <code>CoderContext</code> supplied to any registered
      *            {@link com.persistit.encoding.KeyCoder} used in encoding the
-     *            <tt>fromValue</tt> or <tt>toValue</tt>. May be <tt>null</tt>.
+     *            <code>fromValue</code> or <code>toValue</code>. May be
+     *            <code>null</code>.
      * 
-     * @return The <tt>term</tt>
+     * @return The <code>term</code>
      * 
      * @throws IllegalArgumentException
-     *             if <tt>fromValue</tt> follows <tt>toValue</tt>.
+     *             if <code>fromValue</code> follows <code>toValue</code>.
      */
     public static Term rangeTerm(Object fromValue, Object toValue,
             boolean leftInclusive, boolean rightInclusive, CoderContext context) {
@@ -1264,7 +1274,7 @@ public class KeyFilter {
     }
 
     /**
-     * Returns a <tt>Term</tt> that accepts a range of values. The range is
+     * Returns a <code>Term</code> that accepts a range of values. The range is
      * specified by values already encoded in two supplied {@link Key}s. The
      * index of each Key object should be set on entry to the segment to be used
      * in constructing the RangeTerm. As a side-effect, the index of each key is
@@ -1273,22 +1283,23 @@ public class KeyFilter {
      * SimpleTerm containing the segment.
      * 
      * @param fromKey
-     *            A <tt>Key</tt? from which the low value in the range is
+     *            A <code>Key</tt? from which the low value in the range is
      *            extracted
      * 
      * @param toKey
-     *            A <tt>Key</tt? from which the high value in the range is
+     *            A <code>Key</tt? from which the high value in the range is
      *            extracted
      * 
      * @param leftInclusive
-     *            Indicates whether a value exactly matching <tt>fromValue</tt>
-     *            should be selected by this <tt>Term</tt>.
+     *            Indicates whether a value exactly matching <code>fromValue
+     *            </code> should be selected by this <code>Term</code>.
      * 
      * @param rightInclusive
-     *            Indicates whether a value exactly matching <tt>toValue</tt>
-     *            should be selected by this <tt>Term</tt>.
+     *            Indicates whether a value exactly matching
+     *            <code>toValue</code> should be selected by this
+     *            <code>Term</code>.
      * 
-     * @return The <tt>term</tt>
+     * @return The <code>term</code>
      */
     public static Term termFromKeySegments(Key fromKey, Key toKey,
             boolean leftInclusive, boolean rightInclusive) {
@@ -1305,18 +1316,19 @@ public class KeyFilter {
     }
 
     /**
-     * Returns a <tt>Term</tt> that selects a key segment value if and only if
-     * one of the members of the supplied <tt>terms</tt> array selects it. The
-     * <tt>terms</tt> array may not include a nested <tt>OrTerm</tt>.
+     * Returns a <code>Term</code> that selects a key segment value if and only
+     * if one of the members of the supplied <code>terms</code> array selects
+     * it. The <code>terms</code> array may not include a nested
+     * <code>OrTerm</code>.
      * 
      * @param terms
-     *            Array of <tt>RangeTerm</tt>s or <tt>SimpleTerm</tt>s.
+     *            Array of <code>RangeTerm</code>s or <code>SimpleTerm</code>s.
      * 
-     * @return The <tt>term</tt>
+     * @return The <code>term</code>
      * 
      * @throws IllegalArgumentException
-     *             if any member of the <tt>terms</tt> array is itself an
-     *             <tt>OrTerm</tt> or if the end points of the terms in that
+     *             if any member of the <code>terms</code> array is itself an
+     *             <code>OrTerm</code> or if the end points of the terms in that
      *             array are not strictly increasing in <a
      *             href="Key.html#_keyOrdering">key order</a>.
      */
@@ -1337,7 +1349,7 @@ public class KeyFilter {
     }
 
     /**
-     * Returns the current size of this <tt>KeyFilter</tt>'s term array.
+     * Returns the current size of this <code>KeyFilter</code>'s term array.
      * 
      * @return The size.
      */
@@ -1347,7 +1359,7 @@ public class KeyFilter {
 
     /**
      * Returns the minimum {@link Key#getDepth() depth} of a key value that will
-     * be selected by this <tt>KeyFilter</tt>.
+     * be selected by this <code>KeyFilter</code>.
      * 
      * @return The minimum depth
      */
@@ -1357,7 +1369,7 @@ public class KeyFilter {
 
     /**
      * Returns the maximum {@link Key#getDepth() depth} of a key value that will
-     * be selected by this <tt>KeyFilter</tt>.
+     * be selected by this <code>KeyFilter</code>.
      * 
      * @return The maximum depth
      */
@@ -1371,11 +1383,11 @@ public class KeyFilter {
      * @param index
      *            The index of the term to be returned.
      * 
-     * @return The <tt>Term</tt>.
+     * @return The <code>Term</code>.
      * 
      * @throws ArrayIndexOutOfBoundsException
-     *             if <tt>index</tt> is less than zero or greater than or equal
-     *             to the number of terms in the term array.
+     *             if <code>index</code> is less than zero or greater than or
+     *             equal to the number of terms in the term array.
      */
     public Term getTerm(int index) {
         return _terms[index];
@@ -1383,7 +1395,7 @@ public class KeyFilter {
 
     /**
      * Returns a <a href="#_stringRepresentation">string representation</a> of
-     * this <tt>KeyFilter</tt>
+     * this <code>KeyFilter</code>
      * 
      * @return The canonical string representation
      */
@@ -1416,10 +1428,11 @@ public class KeyFilter {
      * Indicates whether the supplied key is selected by this filter.
      * 
      * @param key
-     *            The <tt>Key</tt> value to test.
+     *            The <code>Key</code> value to test.
      * 
-     * @return <tt>true</tt> if the supplied <tt>Key</tt> state satisfies the
-     *         constraints of this filter, otherwise <tt>false</tt>.
+     * @return <code>true</code> if the supplied <code>Key</code> state
+     *         satisfies the constraints of this filter, otherwise
+     *         <code>false</code>.
      */
     public boolean selected(Key key) {
 
@@ -1438,7 +1451,8 @@ public class KeyFilter {
                     nextIndex = key.getEncodedSize();
                 }
                 Term term = level < _terms.length ? _terms[level] : ALL;
-                if (term == null || !term.selected(keyBytes, index, nextIndex - index)) {
+                if (term == null
+                        || !term.selected(keyBytes, index, nextIndex - index)) {
                     return false;
                 }
                 index = nextIndex;
@@ -1484,7 +1498,7 @@ public class KeyFilter {
      * </p>
      * <p>
      * In most cases, if the supplied key is <i>selected</i> (in the range) then
-     * this method returns <tt>true</tt> and does not modify the key. The
+     * this method returns <code>true</code> and does not modify the key. The
      * exception is that if the current key is selected, the direction is LT or
      * GT, and there is no adjacent key in the range, this method w
      * <p>
@@ -1494,19 +1508,19 @@ public class KeyFilter {
      * <p>
      * The return value indicates whether there exist any remaining values in
      * the range. For example, if the value of key is {10} and the direction is
-     * GT, then this method returns <tt>false</tt>.
+     * GT, then this method returns <code>false</code>.
      * </p>
      * 
      * @param key
-     *            The <tt>Key</tt>
+     *            The <code>Key</code>
      * 
      * @param forward
-     *            <tt>true</tt> to advance to the next larger key, or
-     *            <tt>false</tt> to advance to the next smaller key within the
-     *            key ordering.
+     *            <code>true</code> to advance to the next larger key, or
+     *            <code>false</code> to advance to the next smaller key within
+     *            the key ordering.
      * 
-     * @return <tt>true</tt> if a successor (or predecessor) key exists,
-     *         otherwise <tt>false</tt>.
+     * @return <code>true</code> if a successor (or predecessor) key exists,
+     *         otherwise <code>false</code>.
      */
     public boolean next(Key key, Key.Direction direction) {
         return next(key, 0, 0, direction == Key.GT || direction == Key.GTEQ,
@@ -1536,7 +1550,7 @@ public class KeyFilter {
             Debug.$assert(level < _maxDepth);
             Debug.$assert(index <= size);
         }
-        
+
         if (term == null) {
             return false;
         }
@@ -1597,7 +1611,8 @@ public class KeyFilter {
                         return true;
                     }
                 } else if (isLastKeySegment) {
-                    if (eq || (forward && level + 1 < _maxDepth)
+                    if (eq
+                            || (forward && level + 1 < _maxDepth)
                             || !term.atEdge(bytes, index, nextIndex - index,
                                     forward)) {
                         return true;
@@ -1618,7 +1633,7 @@ public class KeyFilter {
             //
 
             key.setEncodedSize(nextIndex);
-            
+
             if (forward) {
                 if (!term.forward(key, index, nextIndex - index)) {
                     return false;

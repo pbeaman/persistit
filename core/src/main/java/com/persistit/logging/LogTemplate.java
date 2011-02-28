@@ -37,7 +37,7 @@ public class LogTemplate {
     /**
      * Indicates whether log messages of this type should be written
      * 
-     * @return <tt>true</tt> if messages based on this template should be
+     * @return <code>true</code> if messages based on this template should be
      *         written
      */
     public boolean isEnabled() {
@@ -48,7 +48,7 @@ public class LogTemplate {
      * Enables or disables whether log messages of this type should be written
      * 
      * @param b
-     *            <tt>true</tt> to enable, <tt>false</tt> to disable
+     *            <code>true</code> to enable, <code>false</code> to disable
      */
     public void setEnabled(boolean b) {
         _enabled = b;

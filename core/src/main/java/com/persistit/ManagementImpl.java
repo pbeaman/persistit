@@ -15,7 +15,6 @@
 
 package com.persistit;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.rmi.Naming;
@@ -136,9 +135,9 @@ class ManagementImpl implements Management {
      * requested it to close so that the final state of the Persistit
      * environment can be examined.
      * 
-     * @return <tt>true</tt> if Persistit will wait when attempting to close;
-     *         <tt>false</tt> if the <tt>close</tt> operation will not be
-     *         suspended.
+     * @return <code>true</code> if Persistit will wait when attempting to
+     *         close; <code>false</code> if the <code>close</code> operation
+     *         will not be suspended.
      */
     public boolean isShutdownSuspended() {
         return _persistit.isShutdownSuspended();
@@ -152,8 +151,8 @@ class ManagementImpl implements Management {
      * environment can be examined.
      * 
      * @param enabled
-     *            <tt>true</tt> to specify that Persistit will wait when
-     *            attempting to close; otherwise <tt>false</tt>.
+     *            <code>true</code> to specify that Persistit will wait when
+     *            attempting to close; otherwise <code>false</code>.
      */
     public void setShutdownSuspended(boolean suspended) {
         _persistit.setShutdownSuspended(suspended);
@@ -164,8 +163,8 @@ class ManagementImpl implements Management {
      * enabled, Persistit will indefinitely delay each Thread that attempts to
      * perform an update operation.
      * 
-     * @return <tt>true</tt> if Persistit will suspend any attempt to update a
-     *         <tt>Volume</tt>; otherwise <tt>false</tt>.
+     * @return <code>true</code> if Persistit will suspend any attempt to update
+     *         a <code>Volume</code>; otherwise <code>false</code>.
      * @throws RemoteException
      */
     public boolean isUpdateSuspended() {
@@ -205,8 +204,8 @@ class ManagementImpl implements Management {
      * that provide on-line backup.
      * 
      * @param suspended
-     *            <tt>true</tt> to specify that Persistit will suspend journal
-     *            copying; otherwise <tt>false</tt>.
+     *            <code>true</code> to specify that Persistit will suspend
+     *            journal copying; otherwise <code>false</code>.
      */
     public void setAppendOnly(boolean suspended) {
         _persistit.getJournalManager().setAppendOnly(suspended);
@@ -220,7 +219,7 @@ class ManagementImpl implements Management {
      * flag is automatically turned off.
      * 
      * @param fast
-     *            <tt>true</tt> to copy pages at maximum speed.
+     *            <code>true</code> to copy pages at maximum speed.
      * @throws RemoteException
      */
     public void setJournalCopyingFast(boolean fast) throws RemoteException {
@@ -230,8 +229,8 @@ class ManagementImpl implements Management {
     /**
      * Attempts to close Persistit by invoking {@link Persistit#close}.
      * 
-     * @return <tt>true</tt> if the attempt to close Persistit was successful;
-     *         otherwise <tt>false</tt>
+     * @return <code>true</code> if the attempt to close Persistit was
+     *         successful; otherwise <code>false</code>
      * @throws RemoteException
      */
     public boolean close() throws RemoteException {
@@ -247,8 +246,8 @@ class ManagementImpl implements Management {
      * Attempts to flush and sync all dirty data in Persistit by invoking
      * {@link Persistit#flush} and {@link Persistit#sync}.
      * 
-     * @return <tt>true</tt> if the attempt to close Persistit was successful;
-     *         otherwise <tt>false</tt>
+     * @return <code>true</code> if the attempt to close Persistit was
+     *         successful; otherwise <code>false</code>
      * @throws RemoteException
      */
     public boolean flushAndSync() throws RemoteException {
@@ -263,16 +262,16 @@ class ManagementImpl implements Management {
     }
 
     /**
-     * Returns an array containing a <tt>BufferPoolInfo</tt> element for each
-     * buffer pool. If Persistit is not initialized then this method returns an
-     * empty array.
+     * Returns an array containing a <code>BufferPoolInfo</code> element for
+     * each buffer pool. If Persistit is not initialized then this method
+     * returns an empty array.
      * 
      * @return The array
      */
     /**
-     * Returns an array containing a <tt>BufferPoolInfo</tt> element for each
-     * buffer pool. If Persistit is not initialized then this method returns an
-     * empty array.
+     * Returns an array containing a <code>BufferPoolInfo</code> element for
+     * each buffer pool. If Persistit is not initialized then this method
+     * returns an empty array.
      * 
      * @return The array
      */
@@ -393,13 +392,14 @@ class ManagementImpl implements Management {
     }
 
     /**
-     * Returns an array containing a <tt>RecordInfo</tt> element for each record
-     * in the page specified by <tt>volumeName</tt> and <tt>pageAddress</tt>. If
-     * Persistit is not initialized, or if there is no unique <tt>Volume</tt>
-     * for the specified <tt>volumeName</tt>, or if there is no page associated
-     * with the specified <tt>pageAddress</tt> or if there is any transient
-     * condition that causes the attempt to retrieve records to fail, then this
-     * method returns an empty array.
+     * Returns an array containing a <code>RecordInfo</code> element for each
+     * record in the page specified by <code>volumeName</code> and
+     * <code>pageAddress</code>. If Persistit is not initialized, or if there is
+     * no unique <code>Volume</code> for the specified <code>volumeName</code>,
+     * or if there is no page associated with the specified
+     * <code>pageAddress</code> or if there is any transient condition that
+     * causes the attempt to retrieve records to fail, then this method returns
+     * an empty array.
      * 
      * @param volumeName
      * 
@@ -423,17 +423,17 @@ class ManagementImpl implements Management {
     /**
      * <p>
      * Returns an array of {@link BufferInfo} objects reflecting the states of
-     * selected buffers from the <tt>BufferPool</tt> for the specified
-     * <tt>bufferSize</tt>. The selection criteria include the
-     * <tt>traversalType</tt>, <tt>includeMask</tt> and <tt>excludeMask</tt>.
-     * See {@link #populateBufferInfoArray} for a similar method that reuses a
-     * previously obtained result array.
+     * selected buffers from the <code>BufferPool</code> for the specified
+     * <code>bufferSize</code>. The selection criteria include the
+     * <code>traversalType</code>, <code>includeMask</code> and
+     * <code>excludeMask</code>. See {@link #populateBufferInfoArray} for a
+     * similar method that reuses a previously obtained result array.
      * </p>
      * <p>
-     * The <tt>traversalType</tt> must be one of the following:
+     * The <code>traversalType</code> must be one of the following:
      * <dl>
      * <dt>0</dt>
-     * <dd>all buffers in the buffer pool, in order by <tt>poolIndex</tt>.</dd>
+     * <dd>all buffers in the buffer pool, in order by <code>poolIndex</code>.</dd>
      * <dt>1</dt>
      * <dd>buffers on the least-recently-used queue, ordered from least- to
      * most-recently used.</dd>
@@ -443,14 +443,15 @@ class ManagementImpl implements Management {
      * </dl>
      * </p>
      * <p>
-     * The <tt>includeMask</tt> and <tt>excludeMask</tt> are applied to each
-     * buffer's state to determine whether that buffer should be included in the
-     * set returned by this method. If <tt>includeMask</tt> is <tt>null</tt>
-     * then all buffers are included. Otherwise, only those buffers whose state
-     * is selected by <tt>includeMask</tt> and is not selected by
-     * <tt>excludeMask</tt> are included. Mask values are Strings in which each
-     * character denotes an attribute of a <tt>Buffer</tt> to be included or
-     * excluded from the selection. These characters are as follows:
+     * The <code>includeMask</code> and <code>excludeMask</code> are applied to
+     * each buffer's state to determine whether that buffer should be included
+     * in the set returned by this method. If <code>includeMask</code> is
+     * <code>null</code> then all buffers are included. Otherwise, only those
+     * buffers whose state is selected by <code>includeMask</code> and is not
+     * selected by <code>excludeMask</code> are included. Mask values are
+     * Strings in which each character denotes an attribute of a
+     * <code>Buffer</code> to be included or excluded from the selection. These
+     * characters are as follows:
      * <dl>
      * <dt>v</dt>
      * <dd>Buffer must be VALID</dd>
@@ -500,10 +501,11 @@ class ManagementImpl implements Management {
     }
 
     /**
-     * Returns a <tt>BufferInfo</tt> reflecting the status of the buffer
-     * containing the page specified by the supplied <tt>volumeName</tt> and
-     * <tt>pageAddress</tt>. If Persisit is not initialized or of the attempt
-     * the find the specified page fails, this method returns <tt>null</tt>
+     * Returns a <code>BufferInfo</code> reflecting the status of the buffer
+     * containing the page specified by the supplied <code>volumeName</code> and
+     * <code>pageAddress</code>. If Persisit is not initialized or of the
+     * attempt the find the specified page fails, this method returns
+     * <code>null</code>
      * 
      * @param volumeName
      *            the name of the volume
@@ -512,7 +514,7 @@ class ManagementImpl implements Management {
      *            the page address
      * 
      * @return the BufferInfo for the buffer containing the designated page, of
-     *         <tt>null</tt> if there is none.
+     *         <code>null</code> if there is none.
      */
     public BufferInfo getBufferInfo(String volumeName, long pageAddress)
             throws RemoteException {
@@ -532,12 +534,13 @@ class ManagementImpl implements Management {
     /**
      * <p>
      * Populates a supplied array of {@link BufferInfo} objects to reflect the
-     * current states of selected buffers from the <tt>BufferPool</tt> for the
-     * specified <tt>bufferSize</tt>. The selection criteria include the
-     * <tt>traversalType</tt>, <tt>includeMask</tt> and <tt>excludeMask</tt>.
-     * See {@link #getBufferInfoArray} for a similar method that simply returns
-     * a fresh array on each invocation. This method is available for management
-     * applications that need to perform frequently refreshes.
+     * current states of selected buffers from the <code>BufferPool</code> for
+     * the specified <code>bufferSize</code>. The selection criteria include the
+     * <code>traversalType</code>, <code>includeMask</code> and
+     * <code>excludeMask</code>. See {@link #getBufferInfoArray} for a similar
+     * method that simply returns a fresh array on each invocation. This method
+     * is available for management applications that need to perform frequently
+     * refreshes.
      * </p>
      * <p>
      * This method returns the actual number of buffers selected by the supplied
@@ -545,13 +548,14 @@ class ManagementImpl implements Management {
      * in this case, information about the first N buffers in the set is
      * returned in the array, where N is the size of the array. An application
      * can use the {@link BufferPoolInfo#getBufferCount} method to determine the
-     * maximum number of <tt>BufferInfo</tt> objects that could be populated.
+     * maximum number of <code>BufferInfo</code> objects that could be
+     * populated.
      * </p>
      * <p>
-     * The <tt>traversalType</tt> must be one of the following:
+     * The <code>traversalType</code> must be one of the following:
      * <dl>
      * <dt>0</dt>
-     * <dd>all buffers in the buffer pool, in order by <tt>poolIndex</tt>.</dd>
+     * <dd>all buffers in the buffer pool, in order by <code>poolIndex</code>.</dd>
      * <dt>1</dt>
      * <dd>buffers on the least-recently-used queue, ordered from least- to
      * most-recently used.</dd>
@@ -561,14 +565,15 @@ class ManagementImpl implements Management {
      * </dl>
      * </p>
      * <p>
-     * The <tt>includeMask</tt> and <tt>excludeMask</tt> are applied to each
-     * buffer's state to determine whether that buffer should be included in the
-     * set returned by this method. If <tt>includeMask</tt> is <tt>null</tt>
-     * then all buffers are included. Otherwise, only those buffers whose state
-     * is selected by <tt>includeMask</tt> and is not selected by
-     * <tt>excludeMask</tt> are included. Mask values are Strings in which each
-     * character denotes an attribute of a <tt>Buffer</tt> to be included or
-     * excluded from the selection. These characters are as follows:
+     * The <code>includeMask</code> and <code>excludeMask</code> are applied to
+     * each buffer's state to determine whether that buffer should be included
+     * in the set returned by this method. If <code>includeMask</code> is
+     * <code>null</code> then all buffers are included. Otherwise, only those
+     * buffers whose state is selected by <code>includeMask</code> and is not
+     * selected by <code>excludeMask</code> are included. Mask values are
+     * Strings in which each character denotes an attribute of a
+     * <code>Buffer</code> to be included or excluded from the selection. These
+     * characters are as follows:
      * <dl>
      * <dt>v</dt>
      * <dd>Buffer must be VALID</dd>
@@ -643,9 +648,9 @@ class ManagementImpl implements Management {
     }
 
     /**
-     * Returns an array containing a <tt>VolumeInfo</tt> element for each open
-     * volume. If Persistit is not initialized then this method returns an empty
-     * array. </p>
+     * Returns an array containing a <code>VolumeInfo</code> element for each
+     * open volume. If Persistit is not initialized then this method returns an
+     * empty array. </p>
      * 
      * @return The array
      */
@@ -659,14 +664,14 @@ class ManagementImpl implements Management {
     }
 
     /**
-     * Returns the <tt>VolumeInfo</tt> for the volume specified by the supplied
-     * <tt>volumeName</tt>. If Persisit is not initialized or there is no unique
-     * volume corresponding with the supplied name, then this method returns
-     * <tt>null</tt>.
+     * Returns the <code>VolumeInfo</code> for the volume specified by the
+     * supplied <code>volumeName</code>. If Persisit is not initialized or there
+     * is no unique volume corresponding with the supplied name, then this
+     * method returns <code>null</code>.
      * 
      * @param volumeName
      * 
-     * @return the <tt>VolumeInfo</tt>
+     * @return the <code>VolumeInfo</code>
      */
     public VolumeInfo getVolumeInfo(String volumeName) {
         Volume volume = _persistit.getVolume(volumeName);
@@ -677,8 +682,8 @@ class ManagementImpl implements Management {
     }
 
     /**
-     * Returns an array containing a <tt>TreeInfo</tt> element for each
-     * <tt>Tree</tt> in the specified volume. If there is no volume with the
+     * Returns an array containing a <code>TreeInfo</code> element for each
+     * <code>Tree</code> in the specified volume. If there is no volume with the
      * specified name or if Persistit is not initialized then this method
      * returns an empty array.
      * 
@@ -716,10 +721,10 @@ class ManagementImpl implements Management {
     }
 
     /**
-     * Returns a <tt>TreeInfo</tt> for a specified <tt>Volume</tt> and
-     * </tt>Tree</tt>. If Persisit is not initialized, or if no no volume or
+     * Returns a <code>TreeInfo</code> for a specified <code>Volume</code> and
+     * </code>Tree</code>. If Persisit is not initialized, or if no no volume or
      * tree with corresponding names is found, or if there is a transient error
-     * in acquiring the information, this method returns <tt>null</tt>.
+     * in acquiring the information, this method returns <code>null</code>.
      * 
      * @param volumeName
      *            The name (or partial name) of the volume
@@ -727,7 +732,7 @@ class ManagementImpl implements Management {
      * @param treeName
      *            The name of the tree
      * 
-     * @return the <tt>TreeInfo</tt>
+     * @return the <code>TreeInfo</code>
      */
     public TreeInfo getTreeInfo(String volumeName, String treeName)
             throws RemoteException {
@@ -754,13 +759,13 @@ class ManagementImpl implements Management {
      * a remote UI instance connected through RMI to load classes that are
      * available within the running Persistit instance so that encoded objects
      * can be inspected within the UI. The implementation of this method should
-     * instantiate a new <tt>ClassLoader</tt> instance so that unreferenced
+     * instantiate a new <code>ClassLoader</code> instance so that unreferenced
      * loaded classes may subsequently be garbage collected.
      * 
      * @param className
      *            Fully qualified class name.
-     * @return The <tt>Class</tt>, or <tt>null</tt> if an exception occurred
-     *         while attempting to acquire the Class.
+     * @return The <code>Class</code>, or <code>null</code> if an exception
+     *         occurred while attempting to acquire the Class.
      * @throws RemoteException
      */
     public Class getRemoteClass(String className) throws RemoteException {
@@ -788,28 +793,28 @@ class ManagementImpl implements Management {
 
 /**
      * <p>
-     * Decodes the content of the supplied <tt>ValueState</tt> as an array
+     * Decodes the content of the supplied <code>ValueState</code> as an array
      * of Objects. Usually this array has one element containing the single
-     * Object value encoded in the <tt>ValueState</tt>.  However, if multiple
-     * items were written to the original <tt>Value</tt> from which the
-     * <tt>ValueState</tt> was derived in 
+     * Object value encoded in the <code>ValueState</code>.  However, if multiple
+     * items were written to the original <code>Value</code> from which the
+     * <code>ValueState</code> was derived in 
      * <a href="com.persistit.Value.html#_streamMode">Stream Mode</a>, this
      * method returns all of the encoded objects.
      * </p>
      * <p>
-     * If the <tt>valueState</tt> represents an undefined value, this method
-     * returns an array of length zero.  If the <tt>valueState</tt> encodes
-     * a value of <tt>null</tt>, then this method returns an array containing
-     * one element which is <tt>null</tt>.
+     * If the <code>valueState</code> represents an undefined value, this method
+     * returns an array of length zero.  If the <code>valueState</code> encodes
+     * a value of <code>null</code>, then this method returns an array containing
+     * one element which is <code>null</code>.
      * </p>
      * 
      * @param valueState    Representation of an encoded {@link Value).
      * 
      * @param context       Object passed to any {@link ValueCoder} used in
-     *                      decoding the value. May be <tt>null</tt>
+     *                      decoding the value. May be <code>null</code>
      * 
      * @return              Array of zero or more Objects encoded
-     *                      in the <tt>ValueState</tt>
+     *                      in the <code>ValueState</code>
      * @throws RemoteException
      */
     public Object[] decodeValueObjects(ValueState valueState,
@@ -833,7 +838,7 @@ class ManagementImpl implements Management {
     }
 
     /**
-     * Decodes the content of the supplied <tt>KeyState</tt> as an array of
+     * Decodes the content of the supplied <code>KeyState</code> as an array of
      * Objects, one object per <a href="com.persisit.Key.html#_keySegments> key
      * segment</a>.
      * 
@@ -875,7 +880,7 @@ class ManagementImpl implements Management {
      *            Hostname or username of the user who requested this task
      * @param className
      *            Class name of task to run, e.g.,
-     *            <tt>com.persistit.IntegrityCheck</tt>.
+     *            <code>com.persistit.IntegrityCheck</code>.
      * @param args
      *            Task-specific parameters
      * @param maximumTime
@@ -916,10 +921,12 @@ class ManagementImpl implements Management {
      * @param taskId
      *            Task ID for a selected Task, or -1 for all Tasks.
      * @param details
-     *            <tt>true</tt> to populate each returned <tt>TaskStatus</tt>
-     *            object with all new messages posted by the task.
+     *            <code>true</code> to populate each returned
+     *            <code>TaskStatus</code> object with all new messages posted by
+     *            the task.
      * @param clear
-     *            <tt>true</tt> to clear all received messages from the task.
+     *            <code>true</code> to clear all received messages from the
+     *            task.
      * @return
      * @throws RemoteException
      */
@@ -950,14 +957,14 @@ class ManagementImpl implements Management {
     }
 
     /**
-     * Suspend or resumes the task(s) identified by <tt>taskId</tt>. If
-     * <tt>taskId</tt> is -1, all tasks are modified.
+     * Suspend or resumes the task(s) identified by <code>taskId</code>. If
+     * <code>taskId</code> is -1, all tasks are modified.
      * 
      * @param taskId
      *            Task ID for a selected Task, or -1 for all Tasks.
      * @param suspend
-     *            <tt>true</tt> to suspend the task, <tt>false</tt> to allow it
-     *            to resume.
+     *            <code>true</code> to suspend the task, <code>false</code> to
+     *            allow it to resume.
      * @throws RemoteException
      */
     public void setTaskSuspended(long taskId, boolean suspend) {
@@ -983,9 +990,9 @@ class ManagementImpl implements Management {
 
     /**
      * Stops and optionally removes a task specified by its id value. If the
-     * task is currently running, this method stops it. If <tt>remove</tt> is
-     * <tt>true</tt> this method also removes the Task from the task list.
-     * Otherwise the task remains on the task list in the
+     * task is currently running, this method stops it. If <code>remove</code>
+     * is <code>true</code> this method also removes the Task from the task
+     * list. Otherwise the task remains on the task list in the
      * {@link Task#STATE_ENDED} state.
      * 
      * @param taskId

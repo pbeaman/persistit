@@ -91,6 +91,7 @@ import javax.swing.plaf.FontUIResource;
 
 import com.persistit.Management;
 import com.persistit.UtilControl;
+import com.persistit.ui.help.JavaHelpAdapterImpl;
 
 public class AdminUI implements UtilControl, Runnable, AdminCommand {
     final static String BUNDLE_NAME = "com.persistit.ui.AdminUI";
@@ -99,10 +100,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     final static boolean ENABLE_SPLASH = false;
     final static String DEFAULT_CONFIG_FILE = "adminui.properties";
     final static String CONFIG_FILE_PROPERTY = "com.persistit.ui.properties";
-    final static String JAVA_HELP_JAR = "jhbasic.jar";
-    final static String JAVA_HELP_ADAPTER_JAR = "jhadapter.jar";
-    final static String JAVA_HELP_ADAPTER_CLASS = "com.persistit.ui.help.JavaHelpAdapterImpl";
-    final static String HELP_SET_NAME = "PersistitHelp.hs";
+    final static String HELP_SET_NAME = "help/PersistitHelp.hs";
 
     private DecimalFormat _percentageFormat;
     private SimpleDateFormat _dateFormat;
@@ -1332,14 +1330,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     private synchronized void showHelp(ActionEvent ae) {
         if (_javaHelpAdapter == null) {
             try {
-                ClassLoader parent = getClass().getClassLoader();
-                InnerJarClassLoader classloader = new InnerJarClassLoader(
-                        parent);
-                classloader.addJar(JAVA_HELP_JAR);
-                classloader.addJar(JAVA_HELP_ADAPTER_JAR);
-                Class clazz = classloader.loadClass(JAVA_HELP_ADAPTER_CLASS);
-                _javaHelpAdapter = (JavaHelpAdapter) clazz.newInstance();
-                _javaHelpAdapter.create(HELP_SET_NAME, ae);
+                JavaHelpAdapter adapter = new JavaHelpAdapterImpl();
+                adapter.create(HELP_SET_NAME, ae);
             } catch (Exception e) {
                 showMessage(e, "Exception while launching Help",
                         JOptionPane.ERROR_MESSAGE);

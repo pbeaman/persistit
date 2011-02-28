@@ -29,14 +29,14 @@ import com.persistit.exception.PersistitException;
 
 /**
  * <p>
- * Implements a persistent <tt>java.util.SortedMap</tt> over a Persistit
+ * Implements a persistent <code>java.util.SortedMap</code> over a Persistit
  * database. Keys and values inserted into this map are serialized and stored
  * within Persistit using the encoding methods of {@link Key} and {@link Value}.
  * </p>
  * <p>
- * To construct a <tt>PersistitMap</tt> you supply a {@link Exchange}. The keys
- * inserted into this map are appended to the key within the {@link Tree}
- * originally supplied by the <tt>Exchange</tt>. For example, the code
+ * To construct a <code>PersistitMap</code> you supply a {@link Exchange}. The
+ * keys inserted into this map are appended to the key within the {@link Tree}
+ * originally supplied by the <code>Exchange</code>. For example, the code
  * <blockquote>
  * 
  * <pre>
@@ -61,57 +61,58 @@ import com.persistit.exception.PersistitException;
  * 
  * </p>
  * <p>
- * By default any <tt>Iterator</tt>s created by <tt>PersistitMap</tt>'s
+ * By default any <code>Iterator</code>s created by <code>PersistitMap</code>'s
  * collection views implement <i>fail-fast</i> behavior, meaning that methods of
- * the the <tt>Iterator</tt> will throw a
- * <tt>ConcurrentModificationException</tt> if the backing store has changed
- * after the <tt>Iterator</tt> was created. However, in a large persistent
+ * the the <code>Iterator</code> will throw a
+ * <code>ConcurrentModificationException</code> if the backing store has changed
+ * after the <code>Iterator</code> was created. However, in a large persistent
  * database designed for concurrent access, it is often preferrable to allow the
- * <tt>Iterator</tt> to function continuously even when the underlying database
- * is changing. The {@link #setAllowConcurrentModification} method provides
- * control over this behavior.
+ * <code>Iterator</code> to function continuously even when the underlying
+ * database is changing. The {@link #setAllowConcurrentModification} method
+ * provides control over this behavior.
  * </p>
  * <p>
- * PersistitMap departs from the general contract for <tt>SortedMap</tt> with
- * respect to the {@link Comparable} interface. The ordering of items within the
- * map is determined by the encoding of key values into their underlying
- * serialized byte array representation (see {@link Key Key Ordering}).
- * Generally this ordering corresponds to the default <tt>Comparable</tt>
- * implementation for each supported type. However, <tt>PersistitMap</tt>
+ * PersistitMap departs from the general contract for <code>SortedMap</code>
+ * with respect to the {@link Comparable} interface. The ordering of items
+ * within the map is determined by the encoding of key values into their
+ * underlying serialized byte array representation (see {@link Key Key Ordering}
+ * ). Generally this ordering corresponds to the default <code>Comparable</code>
+ * implementation for each supported type. However, <code>PersistitMap</code>
  * permits storage of key values that may not permit comparison under their
- * <tt>compareTo</tt> implementations, does not require key values to implement
- * <tt>Comparable</tt>, and ignores the ordering implemented by
- * <tt>Comparable</tt>. Similarly, <tt>PersistitMap</tt> does not allow
+ * <code>compareTo</code> implementations, does not require key values to
+ * implement <code>Comparable</code>, and ignores the ordering implemented by
+ * <code>Comparable</code>. Similarly, <code>PersistitMap</code> does not allow
  * installation of a custom {@link java.util.Comparator Comparator}. To
- * customize the ordering of key values in a <tt>PersistitMap</tt>, implement
- * and register a custom {@link com.persistit.encoding.KeyCoder KeyCoder} or
- * {@link com.persistit.encoding.KeyStringCoder KeyStringCoder}.
+ * customize the ordering of key values in a <code>PersistitMap</code>,
+ * implement and register a custom {@link com.persistit.encoding.KeyCoder
+ * KeyCoder} or {@link com.persistit.encoding.KeyStringCoder KeyStringCoder}.
  * </p>
  * <p>
- * Unlike other <tt>Map</tt> implementations, the methods of this class
- * <i>are</i> thread-safe. Each of the <tt>Map</tt> methods is synchronized on
- * this <tt>PersistitMap</tt> instance, and each of the methods of any
- * collection view <tt>Iterator</tt> created by this Map is synchronized on that
- * iterator. Thus this class enforces serialized access to its internal memory
- * structures. However, for maximum concurrency an application that shares data
- * among multiple threads should create a separate instance of PersistitMap for
- * each thread backed by the same tree rather than sharing a single PersistitMap
- * object. These <tt>PersistitMap</tt> instances can concurrently modify and
- * query the same collection of data.
+ * Unlike other <code>Map</code> implementations, the methods of this class
+ * <i>are</i> thread-safe. Each of the <code>Map</code> methods is synchronized
+ * on this <code>PersistitMap</code> instance, and each of the methods of any
+ * collection view <code>Iterator</code> created by this Map is synchronized on
+ * that iterator. Thus this class enforces serialized access to its internal
+ * memory structures. However, for maximum concurrency an application that
+ * shares data among multiple threads should create a separate instance of
+ * PersistitMap for each thread backed by the same tree rather than sharing a
+ * single PersistitMap object. These <code>PersistitMap</code> instances can
+ * concurrently modify and query the same collection of data.
  * </p>
  * <p>
- * Unlike an in-memory implementation of <tt>SortedMap</tt>, this implementation
- * serializes and deserializes object values into and from byte arrays stored as
- * Persistit key/value pairs. Thus the {@link #put} and {@link #remove} methods
- * not only read the former value from the database, but also incur the overhead
- * of deserializing it. In many cases applications do not use the former value,
- * and therefore this computation is often unnecessary. For maximum performance
- * an application can invoke the {@link #putFast} and {@link #removeFast}
- * methods. These methods are analogous to {@link #put} and {@link #remove} but
- * do not deserialize or return the former object value.
+ * Unlike an in-memory implementation of <code>SortedMap</code>, this
+ * implementation serializes and deserializes object values into and from byte
+ * arrays stored as Persistit key/value pairs. Thus the {@link #put} and
+ * {@link #remove} methods not only read the former value from the database, but
+ * also incur the overhead of deserializing it. In many cases applications do
+ * not use the former value, and therefore this computation is often
+ * unnecessary. For maximum performance an application can invoke the
+ * {@link #putFast} and {@link #removeFast} methods. These methods are analogous
+ * to {@link #put} and {@link #remove} but do not deserialize or return the
+ * former object value.
  * </p>
  * <p>
- * The <tt>Iterator</tt> implementation returned by the {@link #keySet},
+ * The <code>Iterator</code> implementation returned by the {@link #keySet},
  * {@link #values()} and {@link #entrySet()} provides methods to set and access
  * a {@link KeyFilter} for the iterator's traversal of keys in the map. With a
  * filter in place, the iterator only returns keys, values or entries for
@@ -147,10 +148,10 @@ public class PersistitMap implements SortedMap {
      * Constructs a PersistitMap over a particular Exchange.
      * 
      * @param ex
-     *            A <tt>Exchange</tt> that serves as the parent of the Map's
-     *            keys. This constructor makes a copy of the <tt>Exchange</tt>.
-     *            The original Exchange is unchanged, and may be reused by the
-     *            caller.
+     *            A <code>Exchange</code> that serves as the parent of the Map's
+     *            keys. This constructor makes a copy of the
+     *            <code>Exchange</code>. The original Exchange is unchanged, and
+     *            may be reused by the caller.
      */
     public PersistitMap(Exchange ex) {
         _ex = new Exchange(ex);
@@ -215,12 +216,12 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Indicates whether a new <tt>Iterator</tt>s should throw a
-     * <tt>ConcurrentModificationException</tt> in the event the Persistit Tree
-     * backing this Map changes.
+     * Indicates whether a new <code>Iterator</code>s should throw a
+     * <code>ConcurrentModificationException</code> in the event the Persistit
+     * Tree backing this Map changes.
      * 
-     * @return <tt>true</tt> if concurrent modifications are currently allowed,
-     *         otherwise <tt>false</tt>.
+     * @return <code>true</code> if concurrent modifications are currently
+     *         allowed, otherwise <code>false</code>.
      */
     public boolean isAllowConcurrentModification() {
         return _allowConcurrentModification;
@@ -228,18 +229,18 @@ public class PersistitMap implements SortedMap {
 
     /**
      * Controls whether iterators of the collection views of this Map will throw
-     * <tt>ConcurrentModificationException</tt> in the event the underlying
+     * <code>ConcurrentModificationException</code> in the event the underlying
      * physical database changes. This property is used in constructing an new
-     * <tt>Iterator</tt> on a collection view. Changing this property after an
-     * <tt>Iterator</tt> has been constructed does not change that
-     * <tt>Iterator</tt>'s behavior.
+     * <code>Iterator</code> on a collection view. Changing this property after
+     * an <code>Iterator</code> has been constructed does not change that
+     * <code>Iterator</code>'s behavior.
      * 
      * @param allow
      *            Specify <i>true</i> to allow changes in the backing Tree.
      *            Specify <i>false</i> to cause newly constructed
-     *            <tt>Iterator</tt>s to throw a
-     *            <tt>ConcurrentModificationException</tt> if the Persistit Tree
-     *            backing this Map changes.
+     *            <code>Iterator</code>s to throw a
+     *            <code>ConcurrentModificationException</code> if the Persistit
+     *            Tree backing this Map changes.
      */
     public void setAllowConcurrentModification(boolean allow) {
         _allowConcurrentModification = allow;
@@ -279,8 +280,8 @@ public class PersistitMap implements SortedMap {
 
     /**
      * Returns the number of key-value mappings in this map. If the map contains
-     * more than <tt>Integer.MAX_VALUE</tt> elements, returns
-     * <tt>Integer.MAX_VALUE</tt>.
+     * more than <code>Integer.MAX_VALUE</code> elements, returns
+     * <code>Integer.MAX_VALUE</code>.
      * <p>
      * This implementation enumerates all the members of the Map, which for a
      * large database could be time-consuming.
@@ -308,13 +309,13 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Returns <tt>true</tt> if this map contains no key-value mappings.
+     * Returns <code>true</code> if this map contains no key-value mappings.
      * <p>
      * This implementation is relatively efficient because it enumerates at most
      * one child node of the Exchange to determine whether there are any
      * children.
      * 
-     * @return <tt>true</tt> if this map contains no key-value mappings.
+     * @return <code>true</code> if this map contains no key-value mappings.
      */
     public synchronized boolean isEmpty() {
         if (_ex.getChangeCount() == _sizeGeneration) {
@@ -337,10 +338,11 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Returns <tt>true</tt> if this map maps one or more keys to this value.
-     * More formally, returns <tt>true</tt> if and only if this map contains at
-     * least one mapping to a value <tt>v</tt> such that <tt>(value==null ?
-     * v==null : value.equals(v))</tt>. This operation will probably require
+     * Returns <code>true</code> if this map maps one or more keys to this
+     * value. More formally, returns <code>true</code> if and only if this map
+     * contains at least one mapping to a value <code>v</code> such that
+     * <code>(value==null ?
+     * v==null : value.equals(v))</code>. This operation will probably require
      * time linear in the map size for most implementations of map.
      * <p>
      * This implementation implements a linear search across the child nodes of
@@ -350,7 +352,8 @@ public class PersistitMap implements SortedMap {
      * @param value
      *            value whose presence in this map is to be tested.
      * 
-     * @return <tt>true</tt> if this map maps one or more keys to this value.
+     * @return <code>true</code> if this map maps one or more keys to this
+     *         value.
      */
     public synchronized boolean containsValue(Object value) {
         Value lookupValue = new Value(_ex.getPersistitInstance());
@@ -371,20 +374,20 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Returns <tt>true</tt> if this map contains a mapping for the specified
-     * key.
+     * Returns <code>true</code> if this map contains a mapping for the
+     * specified key.
      * <p>
      * This implementation performs a direct B-Tree lookup and is designed to be
      * fast.
      * 
      * @param key
      *            key whose presence in this map is to be tested.
-     * @return <tt>true</tt> if this map contains a mapping for the specified
-     *         key.
+     * @return <code>true</code> if this map contains a mapping for the
+     *         specified key.
      * 
      * @throws NullPointerException
-     *             key is <tt>null</tt> and this map does not not permit
-     *             <tt>null</tt> keys.
+     *             key is <code>null</code> and this map does not not permit
+     *             <code>null</code> keys.
      */
     public synchronized boolean containsKey(Object key) {
         try {
@@ -399,27 +402,27 @@ public class PersistitMap implements SortedMap {
 
     /**
      * Returns the value to which this map maps the specified key. Returns
-     * <tt>null</tt> if the map contains no mapping for this key. A return value
-     * of <tt>null</tt> does not <i>necessarily</i> indicate that the map
-     * contains no mapping for the key; it's also possible that the map
-     * explicitly maps the key to <tt>null</tt>. The containsKey operation may
-     * be used to distinguish these two cases.
+     * <code>null</code> if the map contains no mapping for this key. A return
+     * value of <code>null</code> does not <i>necessarily</i> indicate that the
+     * map contains no mapping for the key; it's also possible that the map
+     * explicitly maps the key to <code>null</code>. The containsKey operation
+     * may be used to distinguish these two cases.
      * <p>
      * 
-     * This implementation iterates over <tt>entrySet()</tt> searching for an
-     * entry with the specified key. If such an entry is found, the entry's
+     * This implementation iterates over <code>entrySet()</code> searching for
+     * an entry with the specified key. If such an entry is found, the entry's
      * value is returned. If the iteration terminates without finding such an
-     * entry, <tt>null</tt> is returned. Note that this implementation requires
-     * linear time in the size of the map; many implementations will override
-     * this method.
+     * entry, <code>null</code> is returned. Note that this implementation
+     * requires linear time in the size of the map; many implementations will
+     * override this method.
      * 
      * @param key
      *            key whose associated value is to be returned.
      * @return the value to which this map maps the specified key.
      * 
      * @throws NullPointerException
-     *             if the key is <tt>null</tt> and this map does not not permit
-     *             <tt>null</tt> keys.
+     *             if the key is <code>null</code> and this map does not not
+     *             permit <code>null</code> keys.
      * 
      * @see #containsKey(Object)
      */
@@ -442,9 +445,9 @@ public class PersistitMap implements SortedMap {
      * <p>
      * Stores the specified value with the specified key in this map. If the map
      * previously contained a mapping for this key, the old value is replaced.
-     * This method returns the old value, if present, or <tt>null</tt> if there
-     * was no former value. An application that does not require the former
-     * value can use {@link #putFast} to avoid incurring the cost of
+     * This method returns the old value, if present, or <code>null</code> if
+     * there was no former value. An application that does not require the
+     * former value can use {@link #putFast} to avoid incurring the cost of
      * deserializing that value.
      * </p>
      * 
@@ -453,11 +456,11 @@ public class PersistitMap implements SortedMap {
      * @param value
      *            value to be associated with the specified key.
      * 
-     * @return previous value associated with specified key, or <tt>null</tt> if
-     *         there was no mapping for key. (A <tt>null</tt> return can also
-     *         indicate that the map previously associated <tt>null</tt> with
-     *         the specified key, if the implementation supports <tt>null</tt>
-     *         values.)
+     * @return previous value associated with specified key, or
+     *         <code>null</code> if there was no mapping for key. (A
+     *         <code>null</code> return can also indicate that the map
+     *         previously associated <code>null</code> with the specified key,
+     *         if the implementation supports <code>null</code> values.)
      * 
      * @throws ClassCastException
      *             if the class of the specified key or value prevents it from
@@ -499,10 +502,10 @@ public class PersistitMap implements SortedMap {
      * </p>
      * <p>
      * This method differs from {@link #put} by not returning the previous
-     * value. In order to return the previous value, <tt>put</tt> must
+     * value. In order to return the previous value, <code>put</code> must
      * deserialize it, which can be costly. Applications that don't need that
-     * value can benefit from calling <tt>putFast</tt> instead of <tt>put</tt>.
-     * </pp>
+     * value can benefit from calling <code>putFast</code> instead of
+     * <code>put</code>. </pp>
      * 
      * @param key
      *            key with which the specified value is to be associated.
@@ -544,10 +547,10 @@ public class PersistitMap implements SortedMap {
      * @param key
      *            key whose mapping is to be removed from the map.
      * 
-     * @return previous value associated with specified key, or <tt>null</tt> if
-     *         there was no entry for key. (A <tt>null</tt> return can also
-     *         indicate that the map previously associated <tt>null</tt> with
-     *         the specified key.)
+     * @return previous value associated with specified key, or
+     *         <code>null</code> if there was no entry for key. (A
+     *         <code>null</code> return can also indicate that the map
+     *         previously associated <code>null</code> with the specified key.)
      * 
      */
     public synchronized Object remove(Object key) {
@@ -629,9 +632,9 @@ public class PersistitMap implements SortedMap {
      * currently in the specified map.
      * <p>
      * 
-     * This implementation iterates over the specified map's <tt>entrySet()</tt>
-     * collection, and calls this map's <tt>put</tt> operation once for each
-     * entry returned by the iteration.
+     * This implementation iterates over the specified map's
+     * <code>entrySet()</code> collection, and calls this map's <code>put</code>
+     * operation once for each entry returned by the iteration.
      * <p>
      * 
      * @param t
@@ -646,7 +649,7 @@ public class PersistitMap implements SortedMap {
      *             prevents it from being stored in this map.
      * 
      * @throws NullPointerException
-     *             the specified map is <tt>null</tt>.
+     *             the specified map is <code>null</code>.
      */
     public synchronized void putAll(Map t) {
         for (Iterator iterator = t.entrySet().iterator(); iterator.hasNext();) {
@@ -659,7 +662,7 @@ public class PersistitMap implements SortedMap {
      * Removes all mappings from this map.
      * <p>
      * 
-     * This implementation calls <tt>entrySet().clear()</tt>.
+     * This implementation calls <code>entrySet().clear()</code>.
      */
     public synchronized void clear() {
         try {
@@ -694,7 +697,8 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Implementats <tt>java.util.Map.Entry</tt> using a backing Persistit tree.
+     * Implementats <code>java.util.Map.Entry</code> using a backing Persistit
+     * tree.
      */
     public class ExchangeEntry implements Map.Entry {
         private Object _key;
@@ -709,7 +713,7 @@ public class PersistitMap implements SortedMap {
         }
 
         /**
-         * Returns the key field of this <tt>ExchangeEntry</tt>.
+         * Returns the key field of this <code>ExchangeEntry</code>.
          * 
          * @return The key
          */
@@ -718,13 +722,13 @@ public class PersistitMap implements SortedMap {
         }
 
         /**
-         * Returns the value field of this <tt>ExchangeEntry</tt>. This is the
-         * value that was present in the database at the time an
-         * <tt>ExchangeIterator</tt> created this entry; because other threads
-         * may concurrently modify the database, the stored value may have
-         * changed.
+         * Returns the value field of this <code>ExchangeEntry</code>. This is
+         * the value that was present in the database at the time an
+         * <code>ExchangeIterator</code> created this entry; because other
+         * threads may concurrently modify the database, the stored value may
+         * have changed.
          * 
-         * @return The value associated with this <tt>ExchangeEntry</tt>
+         * @return The value associated with this <code>ExchangeEntry</code>
          */
         public Object getValue() {
             return _value;
@@ -735,15 +739,15 @@ public class PersistitMap implements SortedMap {
          * Persistit database record associated with the key for this Entry.
          * Returns the former value associated with this entry. This is the
          * value that was present in the database at the time an
-         * <tt>ExchangeIterator</tt> created this entry; because other threads
-         * may concurrently modify the database, the stored value may have
-         * changed.
+         * <code>ExchangeIterator</code> created this entry; because other
+         * threads may concurrently modify the database, the stored value may
+         * have changed.
          * 
          * @param value
          *            The new value.
          * 
          * @return The value formerly associated with this
-         *         <tt>ExchangeEntry</tt>.
+         *         <code>ExchangeEntry</code>.
          */
         public synchronized Object setValue(Object value) {
             Object result = null;
@@ -763,8 +767,8 @@ public class PersistitMap implements SortedMap {
         }
 
         /**
-         * Implements the contract for <tt>equals</tt>. Two
-         * <tt>ExchangeEntr</tt> instances are equal if their key and value
+         * Implements the contract for <code>equals</code>. Two
+         * <code>ExchangeEntr</code> instances are equal if their key and value
          * fields are equal.
          */
         @Override
@@ -780,8 +784,8 @@ public class PersistitMap implements SortedMap {
         }
 
         /**
-         * Implements the contract for <tt>hashCode</tt>. The hash code is the
-         * XOR of the hashCodes of the key and value fields.
+         * Implements the contract for <code>hashCode</code>. The hash code is
+         * the XOR of the hashCodes of the key and value fields.
          */
         @Override
         public int hashCode() {
@@ -791,9 +795,9 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Implements <tt>java.util.Iterator</tt> using an underlying Persistit tree
-     * as the source of keys and values to be traversed. In addition to the
-     * inherited methods of <tt>java.util.Iterator</tt>, this class also
+     * Implements <code>java.util.Iterator</code> using an underlying Persistit
+     * tree as the source of keys and values to be traversed. In addition to the
+     * inherited methods of <code>java.util.Iterator</code>, this class also
      * implements a facility to apply a {@link KeyFilter} to restrict the set of
      * keys over it will iterate. See
      * {@link PersistitMap.ExchangeIterator#setFilterTerm(KeyFilter.Term)} and
@@ -822,11 +826,11 @@ public class PersistitMap implements SortedMap {
         }
 
         /**
-         * Returns the <tt>KeyFilter</tt> for this iterator, or <tt>null</tt> if
-         * there is none.
+         * Returns the <code>KeyFilter</code> for this iterator, or
+         * <code>null</code> if there is none.
          * 
-         * @return A copy of the current <tt>KeyFilter</tt>, or <tt>null</tt> if
-         *         there is none.
+         * @return A copy of the current <code>KeyFilter</code>, or
+         *         <code>null</code> if there is none.
          */
         public KeyFilter getKeyFilter() {
             return _keyFilter;
@@ -834,21 +838,21 @@ public class PersistitMap implements SortedMap {
 
         /**
          * <p>
-         * Sets up a <tt>KeyFilter</tt> for this <tt>Iterator</tt>. When set,
-         * the {@link #hasNext} and {@link #next} operations return only those
-         * keys, values or entries for records having keys selected by the
+         * Sets up a <code>KeyFilter</code> for this <code>Iterator</code>. When
+         * set, the {@link #hasNext} and {@link #next} operations return only
+         * those keys, values or entries for records having keys selected by the
          * supplied {@link KeyFilter.Term}. Note that setting the filter affects
-         * subsequent <tt>hasNext</tt> or <tt>next</tt> operations, but does not
-         * modify the current key, nor does it affect the behavior of
+         * subsequent <code>hasNext</code> or <code>next</code> operations, but
+         * does not modify the current key, nor does it affect the behavior of
          * {@link #remove} or
          * {@link com.persistit.PersistitMap.ExchangeEntry#setValue} for the
          * current entry.
          * </p>
          * 
          * @param term
-         *            If <tt>null</tt>, clears the <tt>KeyFilter</tt> for this
-         *            iterator. Otherwise, sets up a filter based on the
-         *            supplied <tt>Term</tt>.
+         *            If <code>null</code>, clears the <code>KeyFilter</code>
+         *            for this iterator. Otherwise, sets up a filter based on
+         *            the supplied <code>Term</code>.
          */
         public void setFilterTerm(KeyFilter.Term term) {
             if (term == null) {
@@ -1003,16 +1007,17 @@ public class PersistitMap implements SortedMap {
      * iteration over the collection is in progress, the results of the
      * iteration are undefined.) The collection supports element removal, which
      * removes the corresponding entry from the map, via the
-     * <tt>Iterator.remove</tt>, <tt>Collection.remove</tt>, <tt>removeAll</tt>,
-     * <tt>retainAll</tt> and <tt>clear</tt> operations. It does not support the
-     * <tt>add</tt> or <tt>addAll</tt> operations.
+     * <code>Iterator.remove</code>, <code>Collection.remove</code>,
+     * <code>removeAll</code>, <code>retainAll</code> and <code>clear</code>
+     * operations. It does not support the <code>add</code> or
+     * <code>addAll</code> operations.
      * <p>
      * 
      * This implementation returns a collection that subclasses abstract
      * collection. The subclass's iterator method returns a "wrapper object"
-     * over this map's <tt>entrySet()</tt> iterator. The size method delegates
-     * to this map's size method and the contains method delegates to this map's
-     * containsValue method.
+     * over this map's <code>entrySet()</code> iterator. The size method
+     * delegates to this map's size method and the contains method delegates to
+     * this map's containsValue method.
      * <p>
      * 
      * The collection is created the first time this method is called, and
@@ -1051,10 +1056,11 @@ public class PersistitMap implements SortedMap {
      * map are reflected in the set, and vice-versa. (If the map is modified
      * while an iteration over the set is in progress, the results of the
      * iteration are undefined.) The set supports element removal, which removes
-     * the corresponding entry from the map, via the <tt>Iterator.remove</tt>,
-     * <tt>Set.remove</tt>, <tt>removeAll</tt>, <tt>retainAll</tt> and
-     * <tt>clear</tt> operations. It does not support the <tt>add</tt> or
-     * <tt>addAll</tt> operations.
+     * the corresponding entry from the map, via the
+     * <code>Iterator.remove</code>, <code>Set.remove</code>,
+     * <code>removeAll</code>, <code>retainAll</code> and <code>clear</code>
+     * operations. It does not support the <code>add</code> or
+     * <code>addAll</code> operations.
      * 
      * @return a set view of the mappings contained in this map.
      */
@@ -1092,11 +1098,11 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Returns a view of the portion of this <tt>PersistitMap</tt> whose keys
-     * range from <tt>fromKey</tt>, inclusive, to <tt>toKey</tt>, exclusive. The
-     * view is another <tt>PersistitMap</tt> instance backed by this one; any
-     * change to the collection made by either by either instance is reflected
-     * in the other.
+     * Returns a view of the portion of this <code>PersistitMap</code> whose
+     * keys range from <code>fromKey</code>, inclusive, to <code>toKey</code>,
+     * exclusive. The view is another <code>PersistitMap</code> instance backed
+     * by this one; any change to the collection made by either by either
+     * instance is reflected in the other.
      * 
      * @param fromKey
      *            low endpoint (inclusive) of the subMap.
@@ -1111,9 +1117,9 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Returns a view of the portion of this <tt>PersistitMap</tt> whose keys
-     * are strictly less than <tt>toKey</tt>. The view is another
-     * <tt>PersistitMap</tt> instance backed by this one; any change to the
+     * Returns a view of the portion of this <code>PersistitMap</code> whose
+     * keys are strictly less than <code>toKey</code>. The view is another
+     * <code>PersistitMap</code> instance backed by this one; any change to the
      * collection made by either by either instance is reflected in the other.
      * 
      * @param toKey
@@ -1126,10 +1132,11 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Returns a view of the portion of this <tt>PersistitMap</tt> whose keys
-     * are greater than or equal to than <tt>fromKey</tt>. The view is another
-     * <tt>PersistitMap</tt> instance backed by this one; any change to the
-     * collection made by either by either instance is reflected in the other.
+     * Returns a view of the portion of this <code>PersistitMap</code> whose
+     * keys are greater than or equal to than <code>fromKey</code>. The view is
+     * another <code>PersistitMap</code> instance backed by this one; any change
+     * to the collection made by either by either instance is reflected in the
+     * other.
      * 
      * @param fromKey
      *            low endpoint (inclusive) of the subMap.
@@ -1141,12 +1148,12 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Returns the first (lowest) key currently in this <tt>PersistitMap</tt>
-     * determined by the <a href="Key.html#_keyOrdering">key ordering
-     * specification</a>.
+     * Returns the first (lowest) key currently in this
+     * <code>PersistitMap</code> determined by the <a
+     * href="Key.html#_keyOrdering">key ordering specification</a>.
      * 
      * @return the first (lowest) key currently in the backing store for this
-     *         <tt>PersistitMap</tt>.
+     *         <code>PersistitMap</code>.
      * 
      * @throws NoSuchElementException
      *             if this map is empty.
@@ -1165,12 +1172,12 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Returns the last (highest) key currently in this <tt>PersistitMap</tt> as
-     * determined by the <a href="Key.html#_keyOrdering">key ordering
-     * specification</a>.
+     * Returns the last (highest) key currently in this
+     * <code>PersistitMap</code> as determined by the <a
+     * href="Key.html#_keyOrdering">key ordering specification</a>.
      * 
      * @return the last (highest) key currently in the backing store for this
-     *         <tt>PersistitMap</tt>.
+     *         <code>PersistitMap</code>.
      * 
      * @throws NoSuchElementException
      *             if this map is empty.
@@ -1192,19 +1199,20 @@ public class PersistitMap implements SortedMap {
 
     /**
      * Compares the specified object with this map for equality. Returns
-     * <tt>true</tt> if the given object is also a map and the two maps
-     * represent the same mappings. More formally, two maps <tt>t1</tt> and
-     * <tt>t2</tt> represent the same mappings if
-     * <tt>t1.keySet().equals(t2.keySet())</tt> and for every key <tt>k</tt> in
-     * <tt>t1.keySet()</tt>, <tt> (t1.get(k)==null ? t2.get(k)==null :
-     * t1.get(k).equals(t2.get(k))) </tt>. This ensures that the <tt>equals</tt>
-     * method works properly across different implementations of the map
-     * interface.
+     * <code>true</code> if the given object is also a map and the two maps
+     * represent the same mappings. More formally, two maps <code>t1</code> and
+     * <code>t2</code> represent the same mappings if
+     * <code>t1.keySet().equals(t2.keySet())</code> and for every key
+     * <code>k</code> in <code>t1.keySet()</code>,
+     * <code> (t1.get(k)==null ? t2.get(k)==null :
+     * t1.get(k).equals(t2.get(k))) </code>. This ensures that the
+     * <code>equals</code> method works properly across different
+     * implementations of the map interface.
      * <p>
      * 
      * @param o
      *            object to be compared for equality with this map.
-     * @return <tt>true</tt> if the specified object is equal to this map.
+     * @return <code>true</code> if the specified object is equal to this map.
      */
     @Override
     public boolean equals(Object o) {
@@ -1244,15 +1252,16 @@ public class PersistitMap implements SortedMap {
     /**
      * Returns the hash code value for this map. The hash code of a map is
      * defined to be the sum of the hash codes of each entry in the map's
-     * <tt>entrySet()</tt> view. This ensures that <tt>t1.equals(t2)</tt>
-     * implies that <tt>t1.hashCode()==t2.hashCode()</tt> for any two maps
-     * <tt>t1</tt> and <tt>t2</tt>, as required by the general contract of
-     * Object.hashCode.
+     * <code>entrySet()</code> view. This ensures that
+     * <code>t1.equals(t2)</code> implies that
+     * <code>t1.hashCode()==t2.hashCode()</code> for any two maps
+     * <code>t1</code> and <code>t2</code>, as required by the general contract
+     * of Object.hashCode.
      * <p>
      * 
-     * This implementation iterates over <tt>entrySet()</tt>, calling
-     * <tt>hashCode</tt> on each element (entry) in the Collection, and adding
-     * up the results.
+     * This implementation iterates over <code>entrySet()</code>, calling
+     * <code>hashCode</code> on each element (entry) in the Collection, and
+     * adding up the results.
      * 
      * @return the hash code value for this map.
      * @see java.util.Map.Entry#hashCode()
@@ -1273,12 +1282,12 @@ public class PersistitMap implements SortedMap {
     /**
      * Returns a string representation of this map. The string representation
      * consists of a list of key-value mappings in the order returned by the
-     * map's <tt>entrySet</tt> view's iterator, enclosed in braces (
-     * <tt>"{}"</tt>). Adjacent mappings are separated by the characters
-     * <tt>", "</tt> (comma and space). Each key-value mapping is rendered as
-     * the key followed by an equals sign (<tt>"="</tt>) followed by the
+     * map's <code>entrySet</code> view's iterator, enclosed in braces (
+     * <code>"{}"</code>). Adjacent mappings are separated by the characters
+     * <code>", "</code> (comma and space). Each key-value mapping is rendered
+     * as the key followed by an equals sign (<code>"="</code>) followed by the
      * associated value. Keys and values are converted to strings as by
-     * <tt>String.valueOf(Object)</tt>.
+     * <code>String.valueOf(Object)</code>.
      * <p>
      * 
      * @return a String representation of this map.
@@ -1289,8 +1298,8 @@ public class PersistitMap implements SortedMap {
     }
 
     /**
-     * Returns a shallow copy of this <tt>AbstractMap</tt> instance: the keys
-     * and values themselves are not cloned.
+     * Returns a shallow copy of this <code>AbstractMap</code> instance: the
+     * keys and values themselves are not cloned.
      * 
      * @return a shallow copy of this map.
      */

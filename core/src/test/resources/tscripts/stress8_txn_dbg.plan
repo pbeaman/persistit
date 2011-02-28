@@ -9,6 +9,7 @@ prop journalpath=$datapath$/persistit_journal
 prop logfile=$logpath$/persistit_$timestamp$.log
 prop rmiport=8081
 prop appendonly=true
+prop showgui=true
 
 init
 icheck persistit

@@ -20,11 +20,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
-public class GetVersion{
+public class GetVersion {
 
-    public static void main (String[] a) throws Exception
-    {
-        System.out.println (new GetVersion("version/persistit_version") );
+    public static void main(String[] a) throws Exception {
+        System.out.println(new GetVersion("version/persistit_version"));
     }
 
     String version;
@@ -33,13 +32,12 @@ public class GetVersion{
         InputStream in = null;
         BufferedReader reader = null;
         try {
-            in = ClassLoader.getSystemResourceAsStream( jarResource );
-            reader = new BufferedReader ( new InputStreamReader ( in ) );
+            in = ClassLoader.getSystemResourceAsStream(jarResource);
+            reader = new BufferedReader(new InputStreamReader(in));
             version = reader.readLine();
-        } catch(IOException e) {
+        } catch (IOException e) {
             throw e;
-        }
-        finally {
+        } finally {
             if (reader != null) {
                 reader.close();
             }
@@ -48,9 +46,9 @@ public class GetVersion{
             }
         }
     }
-    @Override
-        public String toString(){
-            return   version.toString();  
-        }
-}
 
+    @Override
+    public String toString() {
+        return version.toString();
+    }
+}

@@ -31,7 +31,7 @@ public interface TransactionRunnable {
      * <p>
      * Interface for application logic that is to be run within the scope of a
      * {@link Transaction}. The {@link Transaction#run} method accepts a
-     * <tt>TransactionRunnable</tt> and runs it in a transactional context.
+     * <code>TransactionRunnable</code> and runs it in a transactional context.
      * </p>
      * <p>
      * The implementation of this method generally should never invoke methods
@@ -40,11 +40,11 @@ public interface TransactionRunnable {
      * {@link RollbackException} if rollback is necessary due to conditions
      * detected by the application itself. Persistit operations such as
      * {@link Exchange#fetch} and {@link Exchange#store} may also throw
-     * <tt>RollbackException</tt>s when executed within a transaction; the
+     * <code>RollbackException</code>s when executed within a transaction; the
      * application logic implementing this method should generally not catch
-     * <tt>PersistitException<tt>s, including
-     * <tt>RollbackException<tt>s.  The the calling code in
-     * <tt>Transaction</tt> is designed to handle them.
+     * <code>PersistitException<code>s, including
+     * <code>RollbackException<code>s.  The the calling code in
+     * <code>Transaction</code> is designed to handle them.
      * </p>
      * 
      * @throws PersistitException

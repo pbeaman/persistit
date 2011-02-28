@@ -606,7 +606,7 @@ public final class Buffer extends SharedResource {
 
     /**
      * @return The {@link Volume} to which the page currently occupying this
-     *         <tt>Buffer</tt> belongs
+     *         <code>Buffer</code> belongs
      */
     public Volume getVolume() {
         return _vol;
@@ -3930,7 +3930,7 @@ public final class Buffer extends SharedResource {
 
     /**
      * @return A displyable summary of information about the page contained in
-     *         this <tt>Buffer</tt>.
+     *         this <code>Buffer</code>.
      */
     public String summarize() {
         return "page=" + _page + " type=" + getPageTypeName()
@@ -3996,7 +3996,7 @@ public final class Buffer extends SharedResource {
     }
 
     /**
-     * @return an array of <tt>Record</tt>s extracted from this buffer.
+     * @return an array of <code>Record</code>s extracted from this buffer.
      */
     public ManagementImpl.RecordInfo[] getRecords() {
         ManagementImpl.RecordInfo[] result = null;

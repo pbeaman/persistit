@@ -148,10 +148,9 @@ public class Stress12txn extends StressBase {
         verboseln();
         verbose("done");
     }
-    
+
     private void putCount(final Value value, final long v) {
-        if ((v > 0) && (v < 100000)
-                && ((random(0, 10) == 0))) {
+        if ((v > 0) && (v < 100000) && ((random(0, 10) == 0))) {
             _sb.setLength(0);
             int i = 0;
             for (i = 100; i < v; i += 100) {
@@ -174,9 +173,9 @@ public class Stress12txn extends StressBase {
             value.put(v);
         }
     }
-    
+
     private long getCount(final Value value) {
-    	if (!value.isDefined()) {
+        if (!value.isDefined()) {
             return 0;
         }
         try {

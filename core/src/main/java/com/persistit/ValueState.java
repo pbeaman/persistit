@@ -19,7 +19,7 @@ import java.io.Serializable;
 
 /**
  * Contains an immutable copy of the state from a {@link Value} object suitable
- * for use as the key of a <tt>Map</tt>.
+ * for use as the key of a <code>Map</code>.
  * 
  * @version 1.0
  */
@@ -31,14 +31,14 @@ public class ValueState implements Serializable {
     private int _hashCode = -1;
 
     /**
-     * Construct an immutable <tt>ValueState</tt> by copying the relevant state
-     * information from a <tt>Value</tt>. The <tt>hashCode</tt> and
-     * <tt>equals</tt> methods of <tt>Value</tt> and <tt>ValueState</tt> are
-     * compatible so that either a <tt>Value</tt> or a <tt>ValueState</tt> may
-     * be used as a map key.
+     * Construct an immutable <code>ValueState</code> by copying the relevant
+     * state information from a <code>Value</code>. The <code>hashCode</code>
+     * and <code>equals</code> methods of <code>Value</code> and
+     * <code>ValueState</code> are compatible so that either a
+     * <code>Value</code> or a <code>ValueState</code> may be used as a map key.
      * 
      * @param value
-     *            The <tt>Value</tt> from which the state is copied.
+     *            The <code>Value</code> from which the state is copied.
      */
     public ValueState(Value value) {
         _longRecordMode = value.isLongRecordMode();
@@ -48,16 +48,16 @@ public class ValueState implements Serializable {
     }
 
     /**
-     * Construct an immutable <tt>ValueState</tt> by copying the relevant state
-     * information from a <tt>Value</tt>. The <tt>hashCode</tt> and
-     * <tt>equals</tt> methods of <tt>Value</tt> and <tt>ValueState</tt> are
-     * compatible so that either a <tt>Value</tt> or a <tt>ValueState</tt> may
-     * be used as a map key. If the encoded size of the original <tt>value</tt>
-     * is larger than <tt>truncateSize</tt>, the result is truncated the that
-     * size.
+     * Construct an immutable <code>ValueState</code> by copying the relevant
+     * state information from a <code>Value</code>. The <code>hashCode</code>
+     * and <code>equals</code> methods of <code>Value</code> and
+     * <code>ValueState</code> are compatible so that either a
+     * <code>Value</code> or a <code>ValueState</code> may be used as a map key.
+     * If the encoded size of the original <code>value</code> is larger than
+     * <code>truncateSize</code>, the result is truncated the that size.
      * 
      * @param value
-     *            The <tt>Value</tt> from which the state is copied.
+     *            The <code>Value</code> from which the state is copied.
      * 
      * @param truncateSize
      *            Size at which the the copied encoded byte array is truncated.
@@ -72,11 +72,11 @@ public class ValueState implements Serializable {
     }
 
     /**
-     * Copies the content of this <tt>ValueState</tt> to the supplied
+     * Copies the content of this <code>ValueState</code> to the supplied
      * <code>Value</code>.
      * 
      * @param value
-     *            The <tt>Value</tt> to which content should be copied.
+     *            The <code>Value</code> to which content should be copied.
      */
     public void copyTo(Value value) {
         if (value.getMaximumSize() < _bytes.length) {
@@ -90,10 +90,10 @@ public class ValueState implements Serializable {
     }
 
     /**
-     * The hash code for this <tt>ValueState</tt>. The hashCode is the same as
-     * for the equivalent <tt>Value</tt>, that is the <tt>Value</tt> from which
-     * this <tt>ValueState</tt> was constructed prior to any subsequent
-     * modifications.
+     * The hash code for this <code>ValueState</code>. The hashCode is the same
+     * as for the equivalent <code>Value</code>, that is the <code>Value</code>
+     * from which this <code>ValueState</code> was constructed prior to any
+     * subsequent modifications.
      * 
      * @return The hashCode.
      */
@@ -110,12 +110,12 @@ public class ValueState implements Serializable {
     }
 
     /**
-     * Implements <tt>equals</tt> in such a way that <tt>Value</tt> and
-     * <tt>ValueState</tt> can be used interchangeably as map keys.
+     * Implements <code>equals</code> in such a way that <code>Value</code> and
+     * <code>ValueState</code> can be used interchangeably as map keys.
      * 
-     * @return <t>true</t> if the specified object is either a <tt>Value</tt> or
-     *         a <tt>ValueState</tt> whose state represents an identical object
-     *         or primitive value.
+     * @return <t>true</t> if the specified object is either a
+     *         <code>Value</code> or a <code>ValueState</code> whose state
+     *         represents an identical object or primitive value.
      */
     @Override
     public boolean equals(Object obj) {

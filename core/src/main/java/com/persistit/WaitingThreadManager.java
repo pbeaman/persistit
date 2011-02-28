@@ -64,7 +64,7 @@ class WaitingThreadManager {
     /**
      * Diagnostic routine to check queue integrity
      * 
-     * @return <tt>true</tt> if the wait queue is ok
+     * @return <code>true</code> if the wait queue is ok
      */
     protected boolean checkWaitQueue() {
         WaitingThread wt1 = _waitingHead;
@@ -96,7 +96,7 @@ class WaitingThreadManager {
     }
 
     /**
-     * Wakes up all of the enqueued <tt>WaitingThread</tt>s.
+     * Wakes up all of the enqueued <code>WaitingThread</code>s.
      */
     protected void wakeAll() {
         WaitingThread wt = dequeue(true);
@@ -114,7 +114,7 @@ class WaitingThreadManager {
     }
 
     /**
-     * @return <tt>True</tt> if there is a waiting writer thread
+     * @return <code>True</code> if there is a waiting writer thread
      */
     protected boolean isWriterWaiting() {
         WaitingThread wt = _waitingHead;
@@ -135,11 +135,11 @@ class WaitingThreadManager {
      * @param exclusive
      *            Determines whether this method will dequeue a Waiting Thread
      *            that requires exclusive (WRITER) access. If this parameter is
-     *            <i>false</i> then only <tt>WaitingThread</tt>s that are not
-     *            waiting for
+     *            <i>false</i> then only <code>WaitingThread</code>s that are
+     *            not waiting for
      * @return The next WaitingThread on the queue, or <i>null</i> if there is
      *         none, or if the next WaitingThread needs exclusivity and the
-     *         <tt>exclusive</tt> is false.
+     *         <code>exclusive</code> is false.
      */
     protected WaitingThread dequeue(boolean exclusive) {
         WaitingThread wt = _waitingHead;
@@ -244,7 +244,7 @@ class WaitingThreadManager {
         }
 
         /**
-         * @return The <tt>Thread</tt> that is waiting
+         * @return The <code>Thread</code> that is waiting
          */
         protected Thread getThread() {
             return _thread;

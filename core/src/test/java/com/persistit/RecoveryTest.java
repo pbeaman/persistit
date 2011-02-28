@@ -211,7 +211,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     // Verifies that a sequence of insert and remove transactions results
-    // in the correct state after recovery.  Tests fix for bug 719319.
+    // in the correct state after recovery. Tests fix for bug 719319.
     public void testRecoveredTransactionsAreCorrect() throws Exception {
         SortedSet<String> keys = new TreeSet<String>();
         Exchange[] exchanges = new Exchange[5];
@@ -529,7 +529,6 @@ public class RecoveryTest extends PersistitUnitTestCase {
                 txn.commit();
                 String ks = keyString(ex);
                 assertTrue(keys.add(ks));
-                System.out.println("Added " + ks);
                 break;
             } catch (RollbackException e) {
                 if (--retries < 0) {
@@ -556,11 +555,10 @@ public class RecoveryTest extends PersistitUnitTestCase {
                     if ((direction == Key.EQ || direction == Key.GTEQ)
                             && candidate.equals(ks)) {
                         it.remove();
-                        System.out.println("Removed EQ/GTEQ " + ks);
                     } else if ((direction == Key.GTEQ || direction == Key.GT)
-                            && candidate.startsWith(ks) && !candidate.equals(ks)) {
+                            && candidate.startsWith(ks)
+                            && !candidate.equals(ks)) {
                         it.remove();
-                        System.out.println("Removed GTEQ/GT " + ks);
                     }
                 }
                 break;
