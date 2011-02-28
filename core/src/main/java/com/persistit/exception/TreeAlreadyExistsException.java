@@ -19,7 +19,7 @@ import java.io.IOException;
 
 /**
  * Thrown when attempting to create new {@link com.persistit.Tree} if another
- * <tt>Tree</tt> having the same name already exists.
+ * <code>Tree</code> having the same name already exists.
  * 
  * @version 1.0
  */

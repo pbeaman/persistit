@@ -88,7 +88,8 @@ public class Stress6 extends StressBase {
                 }
                 verboseln();
                 verboseln();
-                verboseln("Starting test cycle " + _repeat + " at " + tsString());
+                verboseln("Starting test cycle " + _repeat + " at "
+                        + tsString());
                 describeTest("Deleting all records");
                 setPhase("@");
                 _exs.clear().append("stress6").append(_threadIndex)
@@ -165,7 +166,6 @@ public class Stress6 extends StressBase {
         fillLong(b, depth, 5, true);
         ex.clear().append(a).append(_sb1);
     }
-
 
     public static void main(final String[] args) {
         new Stress6().runStandalone(args);

@@ -23,15 +23,15 @@ import java.util.Stack;
  * Persistit uses an internal logging mechanism that is designed to be easily
  * adapted to products in which it is embedded. By default, Persistit uses a
  * {@link DefaultPersistitLogger} to format and write log messages to a file.
- * <tt>DefaultPersistitLogger</tt> also writes high-level log messages to the
- * system output device.
+ * <code>DefaultPersistitLogger</code> also writes high-level log messages to
+ * the system output device.
  * </p>
  * <p>
  * Two concrete subclasses make logging to the JDK 1.4 logging mechanism or to
  * Jakarta Log4J particularly easy. Simply add one of these two lines of code
  * before initializing Persistit to redirect log output either to either a
- * <tt>java.util.logging.Logger</tt> (available in JDK 1.4 and above) or to an
- * <tt>org.apache.log4j.Logger</tt>. <code><pre>
+ * <code>java.util.logging.Logger</code> (available in JDK 1.4 and above) or to
+ * an <code>org.apache.log4j.Logger</code>. <code><pre>
  *      Persistit.setPersistitLogger(new JDK14LoggingAdapter(jdk14Logger));
  * </pre></code> or <code><pre>
  *      Persistit.setPersistitLogger(new Log4JAdapter(log4jLogger));
@@ -48,8 +48,8 @@ import java.util.Stack;
  * This class defines several event severity levels, ranging from FINEST to
  * ALWAYS. The names of these levels correspond to the JDK 1.4 logging API, but
  * for backward compatibility do not rely on the presence of the
- * <tt>java.util.logging.Level</tt> class. The adapters described above map the
- * internal Persistit levels to appropriate values for JDK 1.4 logging and
+ * <code>java.util.logging.Level</code> class. The adapters described above map
+ * the internal Persistit levels to appropriate values for JDK 1.4 logging and
  * Log4J, respectively.
  * </p>
  * 

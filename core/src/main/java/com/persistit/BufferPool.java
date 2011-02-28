@@ -31,7 +31,7 @@ import com.persistit.exception.VolumeClosedException;
 
 /**
  * A pool of {@link Buffer} objects, maintained on various lists that permit
- * rapid lookup and replacement of pages images within <tt>Buffer</tt>s.
+ * rapid lookup and replacement of pages images within <code>Buffer</code>s.
  * 
  * @version 2.1
  */
@@ -151,8 +151,8 @@ public class BufferPool {
     private DirtyPageCollector _collector;
 
     /**
-     * Construct a BufferPool with the specified count of <tt>Buffer</tt>s of
-     * the specified size.
+     * Construct a BufferPool with the specified count of <code>Buffer</code>s
+     * of the specified size.
      * 
      * @param count
      *            The number of buffers in the pool
@@ -415,14 +415,15 @@ public class BufferPool {
     }
 
     // /**
-    // * Selects and collects <tt>Buffer</tt>s from this pool that conform to
+    // * Selects and collects <code>Buffer</code>s from this pool that conform
+    // to
     // the
     // * selection specifications. This method is intended for use only by
     // * the diagnostic utility package.
     // * @param type
     // * @param includeMask
     // * @param excludeMask
-    // * @return An array of <tt>Buffer</tt>s that conform to the selection
+    // * @return An array of <code>Buffer</code>s that conform to the selection
     // * criteria.
     // */
     // public Buffer[] selectBuffers(int type, int includeMask, int excludeMask)
@@ -491,14 +492,14 @@ public class BufferPool {
     }
 
     /**
-     * @return Size (in bytes) of each <tt>Buffer</tt> managed by this pool.
+     * @return Size (in bytes) of each <code>Buffer</code> managed by this pool.
      */
     public int getBufferSize() {
         return _bufferSize;
     }
 
     /**
-     * @return The count of <tt>Buffer</tt>s managed by this pool.
+     * @return The count of <code>Buffer</code>s managed by this pool.
      */
     public int getBufferCount() {
         return _bufferCount;
@@ -516,7 +517,7 @@ public class BufferPool {
     /**
      * @return The count of lookup operations for pages images in this pool for
      *         which the page image was already found in this
-     *         <tt>BufferPool</tt>. This number, in comparison with the get
+     *         <code>BufferPool</code>. This number, in comparison with the get
      *         counter, indicates how effective the cache is in reducing disk
      *         I/O.
      */
@@ -555,7 +556,7 @@ public class BufferPool {
     /**
      * Get the "hit ratio" - the number of hits divided by the number of overall
      * gets. A value close to 1.0 indicates that most attempts to find data in
-     * the <tt>BufferPool</tt> are successful - i.e., that the cache is
+     * the <code>BufferPool</code> are successful - i.e., that the cache is
      * effectively reducing the need for disk read operations.
      * 
      * @return The ratio

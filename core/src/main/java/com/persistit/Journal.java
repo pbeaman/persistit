@@ -731,8 +731,8 @@ class Journal {
     private static Exchange exchange(DataInputStream is, long addr,
             Hashtable exchangeTable) throws IOException {
         int treeHandle = is.readInt();
-        Exchange exchange = (Exchange) exchangeTable
-                .get(Integer.valueOf(treeHandle));
+        Exchange exchange = (Exchange) exchangeTable.get(Integer
+                .valueOf(treeHandle));
         if (exchange == null) {
             throw new RuntimeException("No exchange for handle " + treeHandle
                     + " at " + addr);

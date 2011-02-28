@@ -58,18 +58,18 @@ import com.persistit.logging.DefaultPersistitLogger;
 /**
  * <p>
  * Creates and manages the the runtime environment for a Persistit&trade;
- * database. To use <tt>Persistit</tt>, an application invokes one of the static
- * {@link #initialize} methods to load a set of properties that govern
+ * database. To use <code>Persistit</code>, an application invokes one of the
+ * static {@link #initialize} methods to load a set of properties that govern
  * Persistit's behavior, and to initialize its memory structures. When
  * terminating, the application should invoke the static {@link #close} method
  * to complete all database writes, close all files and relinquish all buffer
  * memory.
  * </p>
  * <p>
- * Once initialized, there is a single <tt>Persistit</tt> instance available
+ * Once initialized, there is a single <code>Persistit</code> instance available
  * from the {@link #getInstance} method. Various non-static methods are
  * available on this instance. The {@link #close} method releases the
- * <tt>Persistit</tt> instance, allowing its memory to be released.
+ * <code>Persistit</code> instance, allowing its memory to be released.
  * </p>
  * <p>
  * An application interacts with Persistit by creating {@link Exchange} objects
@@ -103,13 +103,15 @@ public class Persistit {
 
     /**
      * Determines whether multi-byte integers will be written in little- or
-     * big-endian format. This constant is <tt>true</tt> in all current builds.
+     * big-endian format. This constant is <code>true</code> in all current
+     * builds.
      */
     public final static boolean BIG_ENDIAN = true;
     /**
      * Prefix used to form the a system property name. For example, the property
-     * named <tt>journalpath=xyz</tt> can also be specified as a system property
-     * on the command line with the option -Dcom.persistit.journalpath=xyz.
+     * named <code>journalpath=xyz</code> can also be specified as a system
+     * property on the command line with the option
+     * -Dcom.persistit.journalpath=xyz.
      */
     public final static String SYSTEM_PROPERTY_PREFIX = "com.persistit.";
     /**
@@ -134,7 +136,7 @@ public class Persistit {
     /**
      * Upper bound maximum time (in milliseconds) to allow for successful
      * completion of an operation. This is the maximum timeout value you can
-     * specify for individual <tt>Exchange</tt>.
+     * specify for individual <code>Exchange</code>.
      */
     static final long MAXIMUM_TIMEOUT_VALUE = 86400000; // One day
     /**
@@ -215,7 +217,7 @@ public class Persistit {
     /**
      * Property name to specify whether DefaultValueCoder should use a declared
      * no-arg contructor within each class being deserialized. Unless specified
-     * as <tt>true</tt>, Serializable classes will be instantiated through
+     * as <code>true</code>, Serializable classes will be instantiated through
      * platform-specific API calls.
      */
     public final static String CONSTRUCTOR_OVERRIDE_PROPERTY = "constructorOverride";
@@ -323,7 +325,7 @@ public class Persistit {
     };
 
     private ThreadLocal<WaitingThread> _waitingThreadLocal = new ThreadLocal<WaitingThread>();
-    
+
     private final WeakHashMap<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
 
     private ManagementImpl _management;
@@ -358,12 +360,13 @@ public class Persistit {
      * <p>
      * Initialize Persistit using properties supplied by the default properties
      * file. The name of this file is supplied by the system property
-     * <tt>com.persistit.properties</tt>. If that property is not specified, the
-     * default file path is <tt>./persistit.properties</tt> in the current
-     * working directory. If Persistit has already been initialized, this method
-     * does nothing. This method is threadsafe; if multiple threads concurrently
-     * attempt to invoke this method, one of the threads will actually perform
-     * the initialization and the other threads will do nothing.
+     * <code>com.persistit.properties</code>. If that property is not specified,
+     * the default file path is <code>./persistit.properties</code> in the
+     * current working directory. If Persistit has already been initialized,
+     * this method does nothing. This method is threadsafe; if multiple threads
+     * concurrently attempt to invoke this method, one of the threads will
+     * actually perform the initialization and the other threads will do
+     * nothing.
      * </p>
      * <p>
      * Note that Persistit starts non-daemon threads that will keep a JVM from
@@ -764,8 +767,8 @@ public class Persistit {
 
     /**
      * <p>
-     * Returns a property value, or <tt>null</tt> if there is no such property.
-     * The property is taken from one of the following sources:
+     * Returns a property value, or <code>null</code> if there is no such
+     * property. The property is taken from one of the following sources:
      * <ol>
      * <li>A system property having a prefix of "com.persistit.". For example,
      * the property named "journalpath" can be supplied as the system property
@@ -774,18 +777,18 @@ public class Persistit {
      * <li>The supplied Properties object, which was either passed to the
      * {@link #initialize(Properties)} method, or was loaded from the file named
      * in the {@link #initialize(String)} method.</li>
-     * <li>The pseudo-property name <tt>timestamp</tt>. The value is the current
-     * time formated by <tt>SimpleDateFormat</tt> using the pattern
+     * <li>The pseudo-property name <code>timestamp</code>. The value is the
+     * current time formated by <code>SimpleDateFormat</code> using the pattern
      * yyyyMMddHHmm. (This pseudo-property makes it easy to specify a unique log
      * file name each time Persistit is initialized.</li>
      * </ol>
      * </p>
      * If a property value contains a substitution variable in the form
-     * <tt>${<i>pppp</i>}</tt>, then this method attempts perform a
+     * <code>${<i>pppp</i>}</code>, then this method attempts perform a
      * substitution. To do so it recursively gets the value of a property named
-     * <tt><i>pppp</i></tt>, replaces the substring delimited by <tt>${</tt> and
-     * <tt>}</tt>, and then scans the resulting string for further substitution
-     * variables.
+     * <code><i>pppp</i></code>, replaces the substring delimited by
+     * <code>${</code> and <code>}</code>, and then scans the resulting string
+     * for further substitution variables.
      * 
      * @param propertyName
      *            The property name
@@ -807,18 +810,18 @@ public class Persistit {
      * <li>The supplied Properties object, which was either passed to the
      * {@link #initialize(Properties)} method, or was loaded from the file named
      * in the {@link #initialize(String)} method.</li>
-     * <li>The pseudo-property name <tt>timestamp</tt>. The value is the current
-     * time formated by <tt>SimpleDateFormat</tt> using the pattern
+     * <li>The pseudo-property name <code>timestamp</code>. The value is the
+     * current time formated by <code>SimpleDateFormat</code> using the pattern
      * yyyyMMddHHmm. (This pseudo-property makes it easy to specify a unique log
      * file name each time Persistit is initialized.</li>
      * </ol>
      * </p>
      * If a property value contains a substitution variable in the form
-     * <tt>${<i>pppp</i>}</tt>, then this method attempts perform a
+     * <code>${<i>pppp</i>}</code>, then this method attempts perform a
      * substitution. To do so it recursively gets the value of a property named
-     * <tt><i>pppp</i></tt>, replaces the substring delimited by <tt>${</tt> and
-     * <tt>}</tt>, and then scans the resulting string for further substitution
-     * variables.
+     * <code><i>pppp</i></code>, replaces the substring delimited by
+     * <code>${</code> and <code>}</code>, and then scans the resulting string
+     * for further substitution variables.
      * 
      * @param propertyName
      *            The property name
@@ -856,7 +859,8 @@ public class Persistit {
      * @param propertyName
      *            The property name
      * @param value
-     *            Value to set, or <tt>null<tt> to remove an existing property
+     *            Value to set, or
+     *            <code>null<code> to remove an existing property
      */
     public void setProperty(final String propertyName, final String value) {
         if (value == null) {
@@ -876,17 +880,17 @@ public class Persistit {
 
     /**
      * <p>
-     * Returns an <tt>Exchange</tt> for the specified {@link Volume Volume} and
-     * the {@link Tree Tree} specified by the supplied name. This method
-     * optionally creates a new <tt>Tree</tt>. If the <tt>create</tt> parameter
-     * is false and a <tt>Tree</tt> by the specified name does not exist, this
-     * constructor throws a
+     * Returns an <code>Exchange</code> for the specified {@link Volume Volume}
+     * and the {@link Tree Tree} specified by the supplied name. This method
+     * optionally creates a new <code>Tree</code>. If the <code>create</code>
+     * parameter is false and a <code>Tree</code> by the specified name does not
+     * exist, this constructor throws a
      * {@link com.persistit.exception.TreeNotFoundException}.
      * </p>
      * <p>
-     * This method uses an <tt>Exchange</tt> from an internal pool if one is
-     * available; otherwise it creates a new <tt>Exchange</tt>. When the
-     * application no longer needs the <tt>Exchange</tt> returned by this
+     * This method uses an <code>Exchange</code> from an internal pool if one is
+     * available; otherwise it creates a new <code>Exchange</code>. When the
+     * application no longer needs the <code>Exchange</code> returned by this
      * method, it should return it to the pool by invoking
      * {@link #releaseExchange} so that it can be reused.
      * </p>
@@ -898,7 +902,7 @@ public class Persistit {
      *            The tree name
      * 
      * @param create
-     *            <tt>true</tt> to create a new Tree if one by the specified
+     *            <code>true</code> to create a new Tree if one by the specified
      *            name does not already exist.
      * 
      * @throws PersistitException
@@ -928,38 +932,39 @@ public class Persistit {
 
     /**
      * <p>
-     * Returns an <tt>Exchange</tt> for the {@link Tree} specified by treeName
-     * within the {@link Volume} specified by <tt>volumeName</tt>. This method
-     * optionally creates a new <tt>Tree</tt>. If the <tt>create</tt> parameter
-     * is false and a <tt>Tree</tt> by the specified name does not exist, this
-     * constructor throws a
+     * Returns an <code>Exchange</code> for the {@link Tree} specified by
+     * treeName within the {@link Volume} specified by <code>volumeName</code>.
+     * This method optionally creates a new <code>Tree</code>. If the
+     * <code>create</code> parameter is false and a <code>Tree</code> by the
+     * specified name does not exist, this constructor throws a
      * {@link com.persistit.exception.TreeNotFoundException}.
      * </p>
      * <p>
-     * The <tt>volumeName</tt< you supply must match exactly one open 
-     * <tt>Volume</tt>. The name matches if either (a) the <tt>Volume</tt> has
-     * an optional alias that is equal to the supplied name, or (b) if the
-     * supplied name matches a substring of the <tt>Volume</tt>'s pathname. If
-     * there is not unique match for the name you supply, this method throws a
+     * The <code>volumeName</tt< you supply must match exactly one open 
+     * <code>Volume</code>. The name matches if either (a) the
+     * <code>Volume</code> has an optional alias that is equal to the supplied
+     * name, or (b) if the supplied name matches a substring of the
+     * <code>Volume</code>'s pathname. If there is not unique match for the name
+     * you supply, this method throws a
      * {@link com.persistit.exception.VolumeNotFoundException}.
      * </p>
      * <p>
-     * This method uses an <tt>Exchange</tt> from an internal pool if one is
-     * available; otherwise it creates a new <tt>Exchange</tt>. When the
-     * application no longer needs the <tt>Exchange</tt> returned by this
+     * This method uses an <code>Exchange</code> from an internal pool if one is
+     * available; otherwise it creates a new <code>Exchange</code>. When the
+     * application no longer needs the <code>Exchange</code> returned by this
      * method, it should return it to the pool by invoking
      * {@link #releaseExchange} so that it can be reused.
      * </p>
      * 
      * @param volumeName
      *            The volume name that either matches the alias or a partially
-     *            matches the pathname of exactly one open <tt>Volume</tt>.
+     *            matches the pathname of exactly one open <code>Volume</code>.
      * 
      * @param treeName
      *            The tree name
      * 
      * @param create
-     *            <tt>true</tt> to create a new Tree if one by the specified
+     *            <code>true</code> to create a new Tree if one by the specified
      *            name does not already exist.
      * 
      * @throws PersistitException
@@ -974,23 +979,23 @@ public class Persistit {
 
     /**
      * <p>
-     * Releases an <tt>Exchange</tt> to the internal pool. A subsequent
-     * invocation of {@link #getExchange} may reuse this <tt>Exchange</tt>. An
-     * application that gets an <tt>Exchange</tt> through the
+     * Releases an <code>Exchange</code> to the internal pool. A subsequent
+     * invocation of {@link #getExchange} may reuse this <code>Exchange</code>.
+     * An application that gets an <code>Exchange</code> through the
      * {@link #getExchange} method <i>should</i> release it through this method.
-     * An attempt to release the <tt>Exchange</tt> if it is already in the pool
-     * results in an <tt>IllegalStateException</tt>.
+     * An attempt to release the <code>Exchange</code> if it is already in the
+     * pool results in an <code>IllegalStateException</code>.
      * </p>
      * <p>
      * This method clears the key and value fields. Use the
      * {@link #releaseExchange(Exchange, boolean)} method to clear all state
-     * information if this <tt>Exchange</tt> may subsequently be used by another
-     * untrusted thread.
+     * information if this <code>Exchange</code> may subsequently be used by
+     * another untrusted thread.
      * </p>
      * 
      * @param exchange
-     *            The <tt>Exchange</tt> to release to the pool. If <tt>null</tt>
-     *            , this method returns silently.
+     *            The <code>Exchange</code> to release to the pool. If
+     *            <code>null</code> , this method returns silently.
      * 
      * @throws IllegalStateException
      */
@@ -1000,29 +1005,29 @@ public class Persistit {
 
     /**
      * <p>
-     * Releases an <tt>Exchange</tt> to the internal pool. A subsequent
-     * invocation of {@link #getExchange} may reuse this <tt>Exchange</tt>. An
-     * application that gets an <tt>Exchange</tt> through the
+     * Releases an <code>Exchange</code> to the internal pool. A subsequent
+     * invocation of {@link #getExchange} may reuse this <code>Exchange</code>.
+     * An application that gets an <code>Exchange</code> through the
      * {@link #getExchange} method <i>should</i> release it through this method.
-     * An attempt to release the <tt>Exchange</tt> if it is already in the pool
-     * results in an <tt>IllegalStateException</tt>.
+     * An attempt to release the <code>Exchange</code> if it is already in the
+     * pool results in an <code>IllegalStateException</code>.
      * </p>
      * <p>
      * This method optionally clears all state information in the
-     * <tt>Exchange</tt> so that no residual information in the
-     * <tt>Exchange</tt> can be obtained by a different, untrusted thread. In a
-     * closed configuration in which there is only one application, it is faster
-     * to avoid clearing the byte arrays used in representing the state of this
-     * <tt>Exchange</tt> by passing <tt>false</tt> as the value of the
-     * <tt>secure</tt> flag.
+     * <code>Exchange</code> so that no residual information in the
+     * <code>Exchange</code> can be obtained by a different, untrusted thread.
+     * In a closed configuration in which there is only one application, it is
+     * faster to avoid clearing the byte arrays used in representing the state
+     * of this <code>Exchange</code> by passing <code>false</code> as the value
+     * of the <code>secure</code> flag.
      * </p>
      * 
      * @param exchange
-     *            The <tt>Exchange</tt> to release to the pool. If <tt>null</tt>
-     *            this method returns silently.
+     *            The <code>Exchange</code> to release to the pool. If
+     *            <code>null</code> this method returns silently.
      * @param secure
-     *            <tt>true</tt> to clear all state information; <tt>false</tt>
-     *            to leave the state unchanged.
+     *            <code>true</code> to clear all state information;
+     *            <code>false</code> to leave the state unchanged.
      * 
      * @throws IllegalStateException
      */
@@ -1067,7 +1072,7 @@ public class Persistit {
      * @param pathName
      *            The full pathname to the file containing the Volume.
      * @param ro
-     *            <tt>true</tt> if the Volume should be opened in read- only
+     *            <code>true</code> if the Volume should be opened in read- only
      *            mode so that no updates can be performed against it.
      * @return The Volume.
      * @throws PersistitException
@@ -1087,7 +1092,7 @@ public class Persistit {
      * @param alias
      *            A friendly name for this volume that may be used internally by
      *            applications. The alias need not be related to the
-     *            <tt>Volume</tt>'s pathname, and typically will denote its
+     *            <code>Volume</code>'s pathname, and typically will denote its
      *            function rather than physical location.
      * 
      * @param id
@@ -1095,10 +1100,10 @@ public class Persistit {
      *            match the id value stored in the Volume header.
      * 
      * @param ro
-     *            <tt>true</tt> if the Volume should be opened in read- only
+     *            <code>true</code> if the Volume should be opened in read- only
      *            mode so that no updates can be performed against it.
      * 
-     * @return The <tt>Volume</tt>.
+     * @return The <code>Volume</code>.
      * 
      * @throws PersistitException
      */
@@ -1117,51 +1122,53 @@ public class Persistit {
      * <i>pathname</i>[,<i>options</i>]... <br />
      * where options include: <br />
      * <dl>
-     * <dt><tt>alias</tt></dt>
+     * <dt><code>alias</code></dt>
      * <dd>An alias used in looking up the volume by name within Persistit
      * programs (see {@link com.persistit.Persistit#getVolume(String)}). If the
      * alias attribute is not specified, the the Volume's path name is used
      * instead.</dd>
-     * <dt><tt>drive<tt></dt>
+     * <dt><code>drive<code></dt>
      * <dd>Name of the drive on which the volume is located. Specifying the
      * drive on which each volume is physically located is optional. If
      * supplied, Persistit uses the information to improve I/O throughput in
      * multi-volume configurations by interleaving write operations to different
      * physical drives.</dd>
-     * <dt><tt>readOnly</tt></dt>
+     * <dt><code>readOnly</code></dt>
      * <dd>Open in Read-Only mode. (Incompatible with create mode.)</dd>
      * 
-     * <dt><tt>create</tt></dt>
-     * <dd>Creates the volume if it does not exist. Requires <tt>bufferSize</tt>, <tt>initialPagesM</tt>, <tt>extensionPages</tt> and
-     * <tt>maximumPages</tt> to be specified.</dd>
+     * <dt><code>create</code></dt>
+     * <dd>Creates the volume if it does not exist. Requires
+     * <code>bufferSize</code>, <code>initialPagesM</code>,
+     * <code>extensionPages</code> and <code>maximumPages</code> to be
+     * specified.</dd>
      * 
-     * <dt><tt>createOnly</tt></dt>
+     * <dt><code>createOnly</code></dt>
      * <dd>Creates the volume, or throw a {@link VolumeAlreadyExistsException}
      * if it already exists.</dd>
      * 
-     * <dt><tt>temporary</tt></dt>
+     * <dt><code>temporary</code></dt>
      * <dd>Creates the a new, empty volume regardless of whether an existing
      * volume file already exists.</dd>
      * 
-     * <dt><tt>id:<i>NNN</i></tt></dt>
+     * <dt><code>id:<i>NNN</i></code></dt>
      * <dd>Specifies an ID value for the volume. If the volume already exists,
      * this ID value must match the ID that was previously assigned to the
      * volume when it was created. If this volume is being newly created, this
      * becomes its ID number.</dd>
      * 
-     * <dt><tt>bufferSize:<i>NNN</i></tt></dt>
+     * <dt><code>bufferSize:<i>NNN</i></code></dt>
      * <dd>Specifies <i>NNN</i> as the volume's buffer size when creating a new
      * volume. <i>NNN</i> must be 1024, 2048, 4096, 8192 or 16384</dd>.
      * 
-     * <dt><tt>initialPages:<i>NNN</i></tt></dt>
+     * <dt><code>initialPages:<i>NNN</i></code></dt>
      * <dd><i>NNN</i> is the initial number of pages to be allocated when this
      * volume is first created.</dd>
      * 
-     * <dt><tt>extensionPages:<i>NNN</i></tt></dt>
+     * <dt><code>extensionPages:<i>NNN</i></code></dt>
      * <dd><i>NNN</i> is the number of pages by which to extend the volume when
      * more pages are required.</dd>
      * 
-     * <dt><tt>maximumPages:<i>NNN</i></tt></dt>
+     * <dt><code>maximumPages:<i>NNN</i></code></dt>
      * <dd><i>NNN</i> is the maximum number of pages to which this volume can
      * extend.</dd>
      * 
@@ -1174,7 +1181,7 @@ public class Persistit {
      * @param vstring
      *            Volume specification string
      * 
-     * @return The <tt>Volume</tt>
+     * @return The <code>Volume</code>
      * 
      * @throws PersistitException
      */
@@ -1194,7 +1201,7 @@ public class Persistit {
      * @param volumeSpec
      *            The VolumeSpecification
      * 
-     * @return The <tt>Volume</tt>
+     * @return The <code>Volume</code>
      * 
      * @throws PersistitException
      */
@@ -1223,12 +1230,12 @@ public class Persistit {
     }
 
     /**
-     * Returns an implementation of the <tt>Management</tt> interface. This
+     * Returns an implementation of the <code>Management</code> interface. This
      * implementation is a singleton; the first invocation of this method will
      * create an instance; subsequent invocations will return the same instance.
      * 
-     * @return the singleton implementation of a <tt>Management</tt> from which
-     *         system management services can be obtained.
+     * @return the singleton implementation of a <code>Management</code> from
+     *         which system management services can be obtained.
      */
     public synchronized Management getManagement() {
         if (_management == null) {
@@ -1274,12 +1281,12 @@ public class Persistit {
     }
 
     /**
-     * Looks up a {@link Volume} by id. At creation time, each <tt>Volume</tt>
-     * is assigned a unique long ID value.
+     * Looks up a {@link Volume} by id. At creation time, each
+     * <code>Volume</code> is assigned a unique long ID value.
      * 
      * @param id
-     * @return the <tt>Volume</tt>, or <i>null</i> if there is no open
-     *         <tt>Volume</tt> having the supplied ID value.
+     * @return the <code>Volume</code>, or <i>null</i> if there is no open
+     *         <code>Volume</code> having the supplied ID value.
      */
     public Volume getVolume(long id) {
         return _volumesById.get(new Long(id));
@@ -1290,7 +1297,7 @@ public class Persistit {
      * Looks up a {@link Volume} by name or path. The supplied name must match
      * only one of the open volumes. If it matches none of the volumes, or if
      * there are multiple volumes with matching names, then this method returns
-     * <tt>null</tt>.
+     * <code>null</code>.
      * </p>
      * <p>
      * The supplied name can match a volume in one of two ways:
@@ -1305,8 +1312,8 @@ public class Persistit {
      *            Name that identifies a volume by matching either its alias (if
      *            it has one) or a substring of its file name.
      * 
-     * @return the <tt>Volume</tt>, or <i>null</i> if there is no unique open
-     *         Volume that matches the supplied <tt>partialName</tt>.
+     * @return the <code>Volume</code>, or <i>null</i> if there is no unique
+     *         open Volume that matches the supplied <code>partialName</code>.
      */
     public Volume getVolume(String name) {
         if (name == null) {
@@ -1346,18 +1353,18 @@ public class Persistit {
      * <p>
      * Returns the designated system volume. The system volume contains the
      * class index and other structural information. It is specified by the
-     * <tt>sysvolume</tt> property with a default value of "_system".
+     * <code>sysvolume</code> property with a default value of "_system".
      * </p>
      * <p>
      * This method handles a configuration with exactly one volume in a special
-     * way. If the <tt>sysvolume</tt> property is unspecified and there is
+     * way. If the <code>sysvolume</code> property is unspecified and there is
      * exactly one volume, then this method returns that volume volume as the
      * system volume even if its name does not match the default
-     * <tt>sysvolume</tt> property. This eliminates the need to specify a system
-     * volume property for configurations having only one volume.
+     * <code>sysvolume</code> property. This eliminates the need to specify a
+     * system volume property for configurations having only one volume.
      * </p>
      * 
-     * @return the <tt>Volume</tt>
+     * @return the <code>Volume</code>
      * @throws VolumeNotFoundException
      *             if the volume was not found
      */
@@ -1370,19 +1377,19 @@ public class Persistit {
      * <p>
      * Returns the designated transaction volume. The transaction volume is used
      * to transiently hold pending updates prior to transaction commit. It is
-     * specified by the <tt>txnvolume</tt> property with a default value of
+     * specified by the <code>txnvolume</code> property with a default value of
      * "_txn".
      * </p>
      * <p>
      * This method handles a configuration with exactly one volume in a special
-     * way. If the <tt>txnvolume</tt> property is unspecified and there is
+     * way. If the <code>txnvolume</code> property is unspecified and there is
      * exactly one volume, then this method returns that volume as the
      * transaction volume even if its name does not match the default
-     * <tt>txnvolume</tt> property. This eliminates the need to specify a
+     * <code>txnvolume</code> property. This eliminates the need to specify a
      * transaction volume property for configurations having only one volume.
      * </p>
      * 
-     * @return the <tt>Volume</tt>
+     * @return the <code>Volume</code>
      * @throws VolumeNotFoundException
      *             if the volume was not found
      */
@@ -1391,11 +1398,11 @@ public class Persistit {
     }
 
     /**
-     * Returns the default timeout for operations on an <tt>Exchange</tt>. The
-     * application may override this default value for an instance of an
-     * <tt>Exchange</tt> through the {@link Exchange#setTimeout(long)} method.
-     * The default timeout may be specified through the
-     * <tt>com.persistit.defaultTimeout</tt> property.
+     * Returns the default timeout for operations on an <code>Exchange</code>.
+     * The application may override this default value for an instance of an
+     * <code>Exchange</code> through the {@link Exchange#setTimeout(long)}
+     * method. The default timeout may be specified through the
+     * <code>com.persistit.defaultTimeout</code> property.
      * 
      * @return The default timeout value, in milliseconds.
      */
@@ -1406,7 +1413,7 @@ public class Persistit {
     /**
      * Indicates whether this instance has been initialized.
      * 
-     * @return <tt>true</tt> if this Persistit has been initialized.
+     * @return <code>true</code> if this Persistit has been initialized.
      */
     public boolean isInitialized() {
         return _initialized.get();
@@ -1415,7 +1422,7 @@ public class Persistit {
     /**
      * Indicates whether this instance of Persistit has been closed.
      * 
-     * @return <tt>true</tt> if Persistit has been closed.
+     * @return <code>true</code> if Persistit has been closed.
      */
     public boolean isClosed() {
         return _closed.get();
@@ -1425,12 +1432,12 @@ public class Persistit {
      * Indicates whether Persistit will retry read any operation that fails due
      * to an IOException. In many cases, an IOException occurs due to transient
      * conditions, such as a file being locked by a backup program. When this
-     * property is <tt>true</tt>, Persistit will repeatedly retry the read
+     * property is <code>true</code>, Persistit will repeatedly retry the read
      * operation until the timeout value for the current operation expires. By
-     * default this property is <tt>true</tt>. Use the com.persistit.readretry
-     * property to disable it.
+     * default this property is <code>true</code>. Use the
+     * com.persistit.readretry property to disable it.
      * 
-     * @return <tt>true</tt> to retry a read operation that fails due to an
+     * @return <code>true</code> to retry a read operation that fails due to an
      *         IOException.
      */
     public boolean isReadRetryEnabled() {
@@ -1443,7 +1450,7 @@ public class Persistit {
 
     /**
      * Force a new Checkpoint and wait for it to be written. If Persistit is
-     * closed or not yet initialized, do nothing and return <tt>null</tt>.
+     * closed or not yet initialized, do nothing and return <code>null</code>.
      * 
      * @return the Checkpoint allocated by this process.
      */
@@ -1524,12 +1531,12 @@ public class Persistit {
     /**
      * Given a List of outstanding Checkpoints, find the latest one that is safe
      * to write and return it. If there is no safe Checkpoint, return
-     * <tt>null</tt>
+     * <code>null</code>
      * 
      * @param List
      *            of outstanding Checkpoint instances
      * @return The latest Checkpoint from the list that can be written, or
-     *         <tt>null</tt> if there are none.
+     *         <code>null</code> if there are none.
      */
     private Checkpoint findValidCheckpoint(
             final List<Checkpoint> outstandingCheckpoints) {
@@ -1586,15 +1593,15 @@ public class Persistit {
     /**
      * @param size
      *            the desired buffer size
-     * @return the <tt>BufferPool</tt> for the specific buffer size
+     * @return the <code>BufferPool</code> for the specific buffer size
      */
     BufferPool getBufferPool(int size) {
         return _bufferPoolTable.get(new Integer(size));
     }
 
     /**
-     * @return A HashMap containing all the <tt>BufferPool</tt>s keyed by their
-     *         size.
+     * @return A HashMap containing all the <code>BufferPool</code>s keyed by
+     *         their size.
      */
     HashMap<Integer, BufferPool> getBufferPoolHashMap() {
         return _bufferPoolTable;
@@ -1609,8 +1616,8 @@ public class Persistit {
      * @throws IOException
      * @throws PersistitException
      * @throws IOException
-     * @return <tt>true</tt> if Persistit was initialized and this invocation
-     *         closed it, otherwise false.
+     * @return <code>true</code> if Persistit was initialized and this
+     *         invocation closed it, otherwise false.
      */
     public void close() throws PersistitException {
         close(true, false);
@@ -1619,22 +1626,22 @@ public class Persistit {
     /**
      * <p>
      * Close the Persistit Log and all {@link Volume}s. This method does nothing
-     * and returns <tt>false</tt> if Persistit is currently not in the
+     * and returns <code>false</code> if Persistit is currently not in the
      * initialized state. This method is threadsafe; if multiple threads
      * concurrently attempt to close Persistit, only one close operation will
      * actually take effect.
      * </p>
      * <p>
-     * The <tt>flush</tt> determines whether this method will pause to flush all
-     * pending updates to disk before shutting down the system. If
-     * <tt>flush</tt> is <tt>true</tt> and many updated pages need to be
+     * The <code>flush</code> determines whether this method will pause to flush
+     * all pending updates to disk before shutting down the system. If
+     * <code>flush</code> is <code>true</code> and many updated pages need to be
      * written, the shutdown process may take a significant amount of time.
      * However, upon restarting the system, all updates initiated before the
      * call to this method will be reflected in the B-Tree database. This is the
      * normal mode of operation.
      * </p>
      * <p>
-     * When <tt>flush</tt> is false this method returns quickly, but without
+     * When <code>flush</code> is false this method returns quickly, but without
      * writing remaining dirty pages to disk. The result after restarting
      * Persistit will be valid, internally consistent B-Trees; however, recently
      * applied updates may be missing.
@@ -1661,16 +1668,16 @@ public class Persistit {
      * VolumeClosedException.
      * 
      * @param flush
-     *            <tt>true</tt> to ensure all dirty pages are written to disk
-     *            before shutdown completes; <tt>false</tt> to enable fast (but
-     *            incomplete) shutdown.
+     *            <code>true</code> to ensure all dirty pages are written to
+     *            disk before shutdown completes; <code>false</code> to enable
+     *            fast (but incomplete) shutdown.
      * 
      * @throws PersistitException
      * @throws IOException
      * @throws PersistitException
      * @throws IOException
-     * @return <tt>true</tt> if Persistit was initialized and this invocation
-     *         closed it, otherwise false.
+     * @return <code>true</code> if Persistit was initialized and this
+     *         invocation closed it, otherwise false.
      */
     public void close(final boolean flush) throws PersistitException {
         close(flush, false);
@@ -1886,12 +1893,12 @@ public class Persistit {
     }
 
     /**
-     * Gets the <tt>Transaction</tt> object for the current thread. The
-     * <tt>Transaction</tt> object lasts for the life of the thread. See
+     * Gets the <code>Transaction</code> object for the current thread. The
+     * <code>Transaction</code> object lasts for the life of the thread. See
      * {@link com.persistit.Transaction} for more information on how to use
      * Persistit's transaction facilities.
      * 
-     * @return This thread <tt>Transaction</tt> object.
+     * @return This thread <code>Transaction</code> object.
      */
     public Transaction getTransaction() {
         final SessionId sessionId = getSessionId();
@@ -1902,7 +1909,7 @@ public class Persistit {
         }
         return txn;
     }
-    
+
     /**
      * @return The current timestamp value
      */
@@ -2028,7 +2035,7 @@ public class Persistit {
 
     /**
      * Convenience method that performs an integrity check on all open
-     * <tt>Volume</tt>s and reports detailed results to
+     * <code>Volume</code>s and reports detailed results to
      * {@link java.lang.System#out}.
      * 
      * @throws PersistitException
@@ -2166,9 +2173,9 @@ public class Persistit {
      * method merely sets the shutdown suspend flag.
      * 
      * @param suspendShutdown
-     *            If <tt>true</tt>, sets the shutdown suspend flag. Setting this
-     *            flag suspends the {@link #close} method to permit continued
-     *            use of the diagnostic GUI.
+     *            If <code>true</code>, sets the shutdown suspend flag. Setting
+     *            this flag suspends the {@link #close} method to permit
+     *            continued use of the diagnostic GUI.
      * @throws ClassNotFoundException
      * @throws IllegalAccessException
      * @throws InstantiationException
@@ -2210,9 +2217,9 @@ public class Persistit {
      * requested it to close so that the final state of the Persistit
      * environment can be examined.
      * 
-     * @return <tt>true</tt> if Persistit will wait when attempting to close;
-     *         <tt>false</tt> if the <tt>close</tt> operation will not be
-     *         suspended.
+     * @return <code>true</code> if Persistit will wait when attempting to
+     *         close; <code>false</code> if the <code>close</code> operation
+     *         will not be suspended.
      */
     public boolean isShutdownSuspended() {
         return _suspendShutdown.get();
@@ -2226,8 +2233,8 @@ public class Persistit {
      * environment can be examined.
      * 
      * @param suspended
-     *            <tt>true</tt> to specify that Persistit will wait when
-     *            attempting to close; otherwise <tt>false</tt>.
+     *            <code>true</code> to specify that Persistit will wait when
+     *            attempting to close; otherwise <code>false</code>.
      */
     public void setShutdownSuspended(boolean suspended) {
         _suspendShutdown.set(suspended);
@@ -2239,8 +2246,8 @@ public class Persistit {
      * cleared. This capability is intended primarily for diagnostic and
      * management support.
      * 
-     * @return <tt>true</tt> if all updates are suspended; otherwise
-     *         <tt>false</tt>.
+     * @return <code>true</code> if all updates are suspended; otherwise
+     *         <code>false</code>.
      */
     public boolean isUpdateSuspended() {
         return _suspendUpdates.get();
@@ -2253,8 +2260,8 @@ public class Persistit {
      * primarily for diagnostic support and management support.
      * 
      * @param suspended
-     *            <tt>true</tt> to suspend all updates; <tt>false</tt> to enable
-     *            updates.
+     *            <code>true</code> to suspend all updates; <code>false</code>
+     *            to enable updates.
      */
     public synchronized void setUpdateSuspended(boolean suspended) {
         _suspendUpdates.set(suspended);
@@ -2263,9 +2270,9 @@ public class Persistit {
     /**
      * Initializes Persistit using a property file path supplied as the first
      * argument, or if no arguments are supplied, the default property file name
-     * (<tt>persistit.properties</tt> in the default directory). Command-line
-     * argument flags can invoke the integrity checker, start the AdminUI and
-     * suspend shutdown. See {@link #USAGE} for details.
+     * (<code>persistit.properties</code> in the default directory).
+     * Command-line argument flags can invoke the integrity checker, start the
+     * AdminUI and suspend shutdown. See {@link #USAGE} for details.
      * 
      * @param args
      * @throws Exception

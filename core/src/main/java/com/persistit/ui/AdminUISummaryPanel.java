@@ -167,9 +167,8 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 _journalPanel, gbc, new JTextField(),
                 "JournalPanel.journal_copy_count", false);
 
-        _journalReadPageCount = (JTextField) ui.addLabeledField(
-                _journalPanel, gbc, new JTextField(),
-                "JournalPanel.journal_read_count", true);
+        _journalReadPageCount = (JTextField) ui.addLabeledField(_journalPanel,
+                gbc, new JTextField(), "JournalPanel.journal_read_count", true);
 
         _journalValidCkptLocation = (JTextField) ui.addLabeledField(
                 _journalPanel, gbc, new JTextField(),
@@ -340,7 +339,7 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 _journalPageCount.setText("");
                 _journalCopiedPageCount.setText("");
                 _journalReadPageCount.setText("");
-                
+
                 _journalValidCkptTime.setText("");
                 _journalValidCkptAgo.setText("");
                 _journalValidCkptTimestamp.setText("");

@@ -18,7 +18,6 @@ package com.persistit;
 import java.util.ArrayList;
 import java.util.BitSet;
 
-import com.persistit.IntegrityCheck.Fault;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
@@ -31,16 +30,16 @@ import com.persistit.exception.TimeoutException;
  * {@link Fault}.
  * </p>
  * <p>
- * An application creates an <tt>IntegrityCheck</tt>, invokes its
+ * An application creates an <code>IntegrityCheck</code>, invokes its
  * {@link #checkVolume} or {@link #checkTree} method to peform the integrity
- * check, and then reviews the <tt>Fault</tt>s available through the
+ * check, and then reviews the <code>Fault</code>s available through the
  * {@link #getFaults} method.
  * </p>
  * <p>
- * In this version of Persistit, <tt>IntegrityCheck</tt> operates reliably only
- * on quiescent <tt>Tree</tt>s; if other threads are modifying a <tt>Tree</tt>
- * while <tt>IntegrityCheck</tt> is reviewing its structure, spurious faults are
- * likely to be detected.
+ * In this version of Persistit, <code>IntegrityCheck</code> operates reliably
+ * only on quiescent <code>Tree</code>s; if other threads are modifying a
+ * <code>Tree</code> while <code>IntegrityCheck</code> is reviewing its
+ * structure, spurious faults are likely to be detected.
  * </p>
  * 
  * @version 1.0
@@ -445,11 +444,11 @@ public class IntegrityCheck extends Task {
     }
 
     /**
-     * Resets this <tt>IntegrityCheck</tt> to its initial state by removing all
-     * <tt>Fault</tt>s and optional resetting all counters.
+     * Resets this <code>IntegrityCheck</code> to its initial state by removing
+     * all <code>Fault</code>s and optional resetting all counters.
      * 
      * @param initCounts
-     *            <tt>true</tt> to reset all counters to zero.
+     *            <code>true</code> to reset all counters to zero.
      */
     public void initialize(boolean initCounts) {
         _currentTree = null;
@@ -495,7 +494,7 @@ public class IntegrityCheck extends Task {
      * detected Faults for subsequent review.
      * 
      * @param tree
-     *            The <tt>Tree</tt> to check.
+     *            The <code>Tree</code> to check.
      * @return <i>true</i> if the volume is clean (has no Faults).
      * @throws PersistitException
      */

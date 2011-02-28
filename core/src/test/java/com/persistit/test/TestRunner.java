@@ -76,7 +76,6 @@ public class TestRunner {
     private static String _dataPath;
     private static String _timeStamp = SDF.format(new Date());
 
-
     private static PrintWriter _logWriter = null;
     private static PrintWriter _displayWriter = new PrintWriter(System.out);
     private static long _testLogTime = System.currentTimeMillis();
@@ -733,11 +732,11 @@ public class TestRunner {
     public TestRunnerGui getGui() {
         return _gui;
     }
-    
+
     public boolean isVerbose() {
         return _verbose;
     }
-    
+
     public void setVerbose(final boolean verbose) {
         _verbose = verbose;
     }

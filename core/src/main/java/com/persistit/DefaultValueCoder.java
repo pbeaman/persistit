@@ -50,41 +50,41 @@ import com.persistit.exception.ConversionException;
  * Serialization</a> for details.
  * </p>
  * <p>
- * <tt>DefaultValueCoder</tt> may only be used to serialize and deserialize
+ * <code>DefaultValueCoder</code> may only be used to serialize and deserialize
  * serializable objects (i.e., instances of classes that implement
- * <tt>java.io.Serializable</tt>). To the extent possible, the semantics of
- * serialization within this <tt>DefaultValueCoder</tt> match the <a href=
+ * <code>java.io.Serializable</code>). To the extent possible, the semantics of
+ * serialization within this <code>DefaultValueCoder</code> match the <a href=
  * "http://java.sun.com/j2se/1.5.0/docs/guide/serialization/spec/serial-arch.html"
  * > Java Object Serialization Specification</a>.
  * </p>
  * </p> In particular, for Serializable classes, objects are constructed using
  * the no-argument constructor of the nearest non-serializable superclass, as
  * required by the specification. (This behavior can be modified with the
- * <tt>constructorOverride</tt> system property.) To do so, this implementation
- * invokes a platform-specific, non-public API method of
- * <tt>java.io.ObjectStreamClass</tt> or </tt>java.io.ObjectInputStream</tt>.
- * </p>
+ * <code>constructorOverride</code> system property.) To do so, this
+ * implementation invokes a platform-specific, non-public API method of
+ * <code>java.io.ObjectStreamClass</code> or
+ * </code>java.io.ObjectInputStream</code>. </p>
  * <p>
  * For Java Runtime Environments 1.3 through 1.4.2, this class is unable to
- * deserialize fields marked <tt>final</tt> due to a bug in the JRE (see <a
+ * deserialize fields marked <code>final</code> due to a bug in the JRE (see <a
  * href="http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=5044412"> bug
  * 5044412</a>). This bug was fixed in Java SE 5.0.
  * </p>
  * <p>
- * This implementation invokes the <tt>readExternal</tt> and
- * <tt>writeExternal</tt> methods of <tt>Externalizable</tt> classes, and the
- * <tt>readObject</tt>, <tt>writeObject</tt>, <tt>readResolve</tt> and
- * <tt>writeReplace</tt> methods of <tt>Serializable</tt> classes as required by
- * the specification. A special extended <tt>ObjectInputStream</tt> or
- * <tt>ObjectOutputStream</tt> implementation is provided when necessary.
- * Although the semantics of the specification are followed, the format of
- * serialized data is optimized for Persistit and does not conform to the
- * specification.
+ * This implementation invokes the <code>readExternal</code> and
+ * <code>writeExternal</code> methods of <code>Externalizable</code> classes,
+ * and the <code>readObject</code>, <code>writeObject</code>,
+ * <code>readResolve</code> and <code>writeReplace</code> methods of
+ * <code>Serializable</code> classes as required by the specification. A special
+ * extended <code>ObjectInputStream</code> or <code>ObjectOutputStream</code>
+ * implementation is provided when necessary. Although the semantics of the
+ * specification are followed, the format of serialized data is optimized for
+ * Persistit and does not conform to the specification.
  * </p>
  * <p>
- * Currently the <tt>readObjectNoData</tt> method, the <tt>readLine</tt> method,
- * and the <tt>PutField</tt>/<tt>GetField</tt> API elements are not implemented
- * by <tt>DefaultValueCoder</tt>.
+ * Currently the <code>readObjectNoData</code> method, the <code>readLine</code>
+ * method, and the <code>PutField</code>/<code>GetField</code> API elements are
+ * not implemented by <code>DefaultValueCoder</code>.
  * </p>
  * 
  * @since 1.1
@@ -137,33 +137,33 @@ public class DefaultValueCoder implements ValueRenderer {
 
     /**
      * <p>
-     * Contructs a DefaultValueCoder for the specified <tt>clientClass</tt>. The
-     * resulting coder is capable of efficiently serializing and deserializing
-     * instances of the class in Persistit records.
+     * Contructs a DefaultValueCoder for the specified <code>clientClass</code>.
+     * The resulting coder is capable of efficiently serializing and
+     * deserializing instances of the class in Persistit records.
      * </p>
      * <p>
-     * The resulting <tt>DefaultValueCoder</tt> serializes and deserializes the
-     * fields defined by standard Java serialization (see the <a href=
+     * The resulting <code>DefaultValueCoder</code> serializes and deserializes
+     * the fields defined by standard Java serialization (see the <a href=
      * "http://java.sun.com/j2se/1.5.0/docs/guide/serialization/spec/serial-arch.html"
      * > Java Object Serialization Specification</a>. If there is a final static
-     * field <tt>serialPersistitFields</tt> then it defines the fields to be
+     * field <code>serialPersistitFields</code> then it defines the fields to be
      * serialized. Otherwise all non-static, non-transient fields, including
      * those defined in superclasses, are included.
      * </p>
      * 
      * @param clientClass
-     *            A (<tt>java.io.Serializable</tt>) <tt>Class</tt> of objects to
-     *            be serialized and deserialized by this
-     *            <tt>DefaultValueCoder</tt>
+     *            A (<code>java.io.Serializable</code>) <code>Class</code> of
+     *            objects to be serialized and deserialized by this
+     *            <code>DefaultValueCoder</code>
      * 
      * @throws SecurityException
      *             if permission to make a non-public field accessible is not
      *             granted by the current security policy
      * 
      * @throws ConversionException
-     *             if the <tt>clientClass</tt> does not implement
-     *             <tt>java.io.Serializable</tt>, or if the attempt to find an
-     *             appropriate method for constructing deserialized objects
+     *             if the <code>clientClass</code> does not implement
+     *             <code>java.io.Serializable</code>, or if the attempt to find
+     *             an appropriate method for constructing deserialized objects
      *             fails.
      */
     public DefaultValueCoder(final Persistit persistit, final Class clientClass)
@@ -229,17 +229,17 @@ public class DefaultValueCoder implements ValueRenderer {
 
     /**
      * <p>
-     * Contructs a DefaultValueCoder for the specified <tt>clientClass</tt>. The
-     * resulting coder is capable of efficiently serializing and deserializing
-     * instances of the class in Persistit records. The resulting
-     * <tt>DefaultValueCoder</tt> serializes and deserializes only the specified
-     * <tt>fields</tt>.
+     * Contructs a DefaultValueCoder for the specified <code>clientClass</code>.
+     * The resulting coder is capable of efficiently serializing and
+     * deserializing instances of the class in Persistit records. The resulting
+     * <code>DefaultValueCoder</code> serializes and deserializes only the
+     * specified <code>fields</code>.
      * </p>
      * 
      * @param clientClass
-     *            A (<tt>java.io.Serializable</tt>) <tt>Class</tt> of objects to
-     *            be serialized and deserialized by this
-     *            <tt>DefaultValueCoder</tt>
+     *            A (<code>java.io.Serializable</code>) <code>Class</code> of
+     *            objects to be serialized and deserialized by this
+     *            <code>DefaultValueCoder</code>
      * 
      * @param fields
      *            An array of Fields of this class to serialize and deserialize.
@@ -249,9 +249,9 @@ public class DefaultValueCoder implements ValueRenderer {
      *             granted by the current security policy
      * 
      * @throws ConversionException
-     *             if the <tt>clientClass</tt> does not implement
-     *             <tt>java.io.Serializable</tt>, or if the attempt to find an
-     *             appropriate method for constructing deserialized objects
+     *             if the <code>clientClass</code> does not implement
+     *             <code>java.io.Serializable</code>, or if the attempt to find
+     *             an appropriate method for constructing deserialized objects
      *             fails.
      */
     public DefaultValueCoder(final Persistit persistit,
@@ -391,9 +391,9 @@ public class DefaultValueCoder implements ValueRenderer {
     }
 
     /**
-     * Return the <tt>class</tt> that this <tt>ObjectCoder</tt> serves.
+     * Return the <code>class</code> that this <code>ObjectCoder</code> serves.
      * 
-     * @return The <tt>class</tt>
+     * @return The <code>class</code>
      */
     public Class getClientClass() {
         return _clazz;
@@ -716,12 +716,12 @@ public class DefaultValueCoder implements ValueRenderer {
 
     /**
      * <p>
-     * A component of a <tt>DefaultValueCoder</tt> that reads and writes data
-     * values to and from properties or fields of a client object.
+     * A component of a <code>DefaultValueCoder</code> that reads and writes
+     * data values to and from properties or fields of a client object.
      * </p>
      * <p>
-     * Instances of this class implement <tt>CoderContext</tt> and therefore may
-     * be supplied to the {@link Key#append(Object, CoderContext)} and
+     * Instances of this class implement <code>CoderContext</code> and therefore
+     * may be supplied to the {@link Key#append(Object, CoderContext)} and
      * {@link Key#decode(Object, CoderContext)} methods.
      * 
      */
@@ -929,33 +929,34 @@ public class DefaultValueCoder implements ValueRenderer {
 
     /**
      * <p>
-     * Encodes the supplied <tt>Object</tt> into the supplied <tt>Value</tt>.
-     * This method will be called only if this <tt>ValueCoder</tt> has been
-     * registered with the current {@link CoderManager} to encode objects having
-     * the class of the supplied object.
+     * Encodes the supplied <code>Object</code> into the supplied
+     * <code>Value</code>. This method will be called only if this
+     * <code>ValueCoder</code> has been registered with the current
+     * {@link CoderManager} to encode objects having the class of the supplied
+     * object.
      * </p>
      * <p>
      * Upon completion of this method, the backing byte array of the
-     * <tt>Value</tt> and its size should be updated to reflect the serialized
-     * object. Use the methods {@link Value#getEncodedBytes},
+     * <code>Value</code> and its size should be updated to reflect the
+     * serialized object. Use the methods {@link Value#getEncodedBytes},
      * {@link Value#getEncodedSize} and {@link Value#setEncodedSize} to
      * manipulate the byte array directly. More commonly, the implementation of
-     * this method will simply call the appropriate <tt>put</tt> methods to
-     * write the interior field values into the <tt>Value</tt> object.
+     * this method will simply call the appropriate <code>put</code> methods to
+     * write the interior field values into the <code>Value</code> object.
      * </p>
      * 
      * @param value
-     *            The <tt>Value</tt> to which the interior data of the supplied
-     *            <tt>Object</tt> should be encoded
+     *            The <code>Value</code> to which the interior data of the
+     *            supplied <code>Object</code> should be encoded
      * @param object
      *            The object value to encode. This parameter will never be
-     *            <tt>null</tt> because Persistit encodes nulls with a built-in
-     *            encoding.
+     *            <code>null</code> because Persistit encodes nulls with a
+     *            built-in encoding.
      * @param context
      *            An arbitrary object that can optionally be supplied by the
      *            application to convey an application-specific context for the
      *            operation. (See {@link CoderContext}.) The default value is
-     *            <tt>null</tt>.
+     *            <code>null</code>.
      */
     public void put(Value value, Object object, CoderContext context)
             throws ConversionException {
@@ -982,13 +983,15 @@ public class DefaultValueCoder implements ValueRenderer {
      * Invoke the object's writeReplace method, if there is one.
      * 
      * @param value
-     *            The <tt>Value</tt> into which the object is being serialized
+     *            The <code>Value</code> into which the object is being
+     *            serialized
      * 
      * @param object
      *            The object being serialized
      * 
-     * @return The replacement determined by the object's <tt>writeReplace</tt>,
-     *         if present, or otherwise the object itself.
+     * @return The replacement determined by the object's
+     *         <code>writeReplace</code>, if present, or otherwise the object
+     *         itself.
      */
     Object writeReplace(Value value, Object object) {
         if (_writeReplaceMethod != null) {
@@ -1052,16 +1055,17 @@ public class DefaultValueCoder implements ValueRenderer {
     }
 
     /**
-     * Writes the fields of the supplied object to the supplied <tt>Value</tt>.
-     * This method is called directly by {@link #put} unless the class defines a
-     * <tt>writeObject</tt> method for custom serialization. This method is also
-     * called indirectly by the <tt>defaultWriteObject</tt> method of the
-     * <tt>ObjectOutputStream</tt> passed to <tt>writeObject</tt> is called. The
-     * collection and ordering of fields to be written is determined by the Java
-     * Serialization Specification.
+     * Writes the fields of the supplied object to the supplied
+     * <code>Value</code>. This method is called directly by {@link #put} unless
+     * the class defines a <code>writeObject</code> method for custom
+     * serialization. This method is also called indirectly by the
+     * <code>defaultWriteObject</code> method of the
+     * <code>ObjectOutputStream</code> passed to <code>writeObject</code> is
+     * called. The collection and ordering of fields to be written is determined
+     * by the Java Serialization Specification.
      * 
      * @param value
-     *            The <tt>Value</tt> into which fields should be put
+     *            The <code>Value</code> into which fields should be put
      * @param object
      *            The object whose fields are to be serialized
      * 
@@ -1085,17 +1089,17 @@ public class DefaultValueCoder implements ValueRenderer {
     /**
      * <p>
      * Creates an instance of the supplied class, populates its state by
-     * decoding the supplied <tt>Value</tt>, and returns it. This method will be
-     * called only if this <tt>ValueCoder</tt> has been registered with the
-     * current {@link CoderManager} to encode objects having supplied
-     * <tt>Class</tt> value. Persistit will never call this method to decode a
-     * value that was <tt>null</tt> when written because null values are handled
-     * by built-in encoding logic.
+     * decoding the supplied <code>Value</code>, and returns it. This method
+     * will be called only if this <code>ValueCoder</code> has been registered
+     * with the current {@link CoderManager} to encode objects having supplied
+     * <code>Class</code> value. Persistit will never call this method to decode
+     * a value that was <code>null</code> when written because null values are
+     * handled by built-in encoding logic.
      * </p>
      * 
      * @param value
-     *            The <tt>Value</tt> from which interior fields of the object
-     *            are to be retrieved
+     *            The <code>Value</code> from which interior fields of the
+     *            object are to be retrieved
      * 
      * @param clazz
      *            The class of the object to be returned.
@@ -1104,10 +1108,10 @@ public class DefaultValueCoder implements ValueRenderer {
      *            An arbitrary object that can optionally be supplied by the
      *            application to convey an application-specific context for the
      *            operation. (See {@link CoderContext}.) The default value is
-     *            <tt>null</tt>.
+     *            <code>null</code>.
      * 
-     * @return An <tt>Object</tt> having the same class as the suppled
-     *         <tt>clazz</tt> parameter.
+     * @return An <code>Object</code> having the same class as the suppled
+     *         <code>clazz</code> parameter.
      * 
      * @throws ConversionException
      */
@@ -1141,18 +1145,18 @@ public class DefaultValueCoder implements ValueRenderer {
 
     /**
      * <p>
-     * Populates the state of the supplied (mutable) target <tt>Object</tt> by
-     * decoding the supplied <tt>Value</tt>. This method will be called only if
-     * this <tt>ValueRenderer</tt> has been registered with the current
-     * {@link CoderManager} to encode objects having the supplied <tt>Class</tt>
-     * value. Persistit will never call this method to decode a value that was
-     * <tt>null</tt> when written because null values are handled by built-in
-     * encoding logic.
+     * Populates the state of the supplied (mutable) target <code>Object</code>
+     * by decoding the supplied <code>Value</code>. This method will be called
+     * only if this <code>ValueRenderer</code> has been registered with the
+     * current {@link CoderManager} to encode objects having the supplied
+     * <code>Class</code> value. Persistit will never call this method to decode
+     * a value that was <code>null</code> when written because null values are
+     * handled by built-in encoding logic.
      * </p>
      * 
      * @param value
-     *            The <tt>Value</tt> from which interior fields of the object
-     *            are to be retrieved
+     *            The <code>Value</code> from which interior fields of the
+     *            object are to be retrieved
      * 
      * @param target
      *            The object into which the decoded value is to be written
@@ -1165,7 +1169,7 @@ public class DefaultValueCoder implements ValueRenderer {
      *            An arbitrary object that can optionally be supplied by the
      *            application to convey an application-specific context for the
      *            operation. (See {@link CoderContext}.) The default value is
-     *            <tt>null</tt>.
+     *            <code>null</code>.
      * 
      * @throws ConversionException
      */
@@ -1223,8 +1227,8 @@ public class DefaultValueCoder implements ValueRenderer {
     }
 
     /**
-     * Return the <tt>Builder</tt> that copies data values between a
-     * <tt>Value</tt> and a client object.
+     * Return the <code>Builder</code> that copies data values between a
+     * <code>Value</code> and a client object.
      * 
      * @return The Builder
      */
@@ -1233,7 +1237,7 @@ public class DefaultValueCoder implements ValueRenderer {
     }
 
     /**
-     * Return a String description of this <tt>DefaultValueCoder</tt>. The
+     * Return a String description of this <code>DefaultValueCoder</code>. The
      * String includes the client class name, and the property or field names
      * identifying the properties and/or fields this coder accesses and
      * modifies.

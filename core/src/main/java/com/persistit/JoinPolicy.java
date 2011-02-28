@@ -54,9 +54,9 @@ public class JoinPolicy {
      * value of this method.
      * 
      * @param leftBuffer
-     *            The left <tt>Buffer></tt>
+     *            The left <code>Buffer></code>
      * @param rightBuffer
-     *            The right <tt>Buffer</tt>
+     *            The right <code>Buffer</code>
      * @param kbOffset
      *            The key block proposed as the new split point
      * @param foundAt1
@@ -114,18 +114,18 @@ public class JoinPolicy {
      * 
      * @param buffer
      * @param virtualSize
-     * @return <tt>true</tt> if the buffer will accept content of the specified
-     *         size
+     * @return <code>true</code> if the buffer will accept content of the
+     *         specified size
      */
     protected boolean acceptJoin(Buffer buffer, int virtualSize) {
         return virtualSize < buffer.getBufferSize();
     }
-    
+
     /**
      * @return name of the policy
      */
     public String getName() {
         return _name;
     }
-    
+
 }

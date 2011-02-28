@@ -20,7 +20,6 @@ import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -177,7 +176,8 @@ public class IOMeter implements IOMeterMXBean {
     }
 
     private synchronized void log(int type, final long time,
-            final Volume volume, long pageAddress, int size, long journalAddress, int bufferIndex) {
+            final Volume volume, long pageAddress, int size,
+            long journalAddress, int bufferIndex) {
         final DataOutputStream os = _logStream.get();
         if (os != null) {
             try {
@@ -222,7 +222,8 @@ public class IOMeter implements IOMeterMXBean {
                     volMap.put(volumeHash, volumeId);
                 }
                 System.out.println(String.format(DUMP_FORMAT, time - start,
-                        opName, volumeId, pageAddress, journalAddress, size, bufferIndex));
+                        opName, volumeId, pageAddress, journalAddress, size,
+                        bufferIndex));
 
             } catch (EOFException e) {
                 break;
@@ -263,19 +264,22 @@ public class IOMeter implements IOMeterMXBean {
     public void chargeReadPageFromVolume(final Volume volume,
             final long pageAddress, final int size, int bufferIndex) {
         final long time = System.nanoTime();
-        log(READ_PAGE_FROM_VOLUME, time, volume, pageAddress, size, -1, bufferIndex);
+        log(READ_PAGE_FROM_VOLUME, time, volume, pageAddress, size, -1,
+                bufferIndex);
         charge(time, size);
     }
 
     public void chargeWritePageToVolume(final Volume volume,
             final long pageAddress, final int size, final int bufferIndex) {
         final long time = System.nanoTime();
-        log(WRITE_PAGE_TO_VOLUME, time, volume, pageAddress, size, -1, bufferIndex);
+        log(WRITE_PAGE_TO_VOLUME, time, volume, pageAddress, size, -1,
+                bufferIndex);
         charge(time, size);
     }
 
     public void chargeReadPageFromJournal(final Volume volume,
-            final long pageAddress, final int size, final long journalAddress, int bufferIndex) {
+            final long pageAddress, final int size, final long journalAddress,
+            int bufferIndex) {
         final long time = System.nanoTime();
         log(READ_PAGE_FROM_JOURNAL, time, volume, pageAddress, size,
                 journalAddress, bufferIndex);
@@ -343,7 +347,8 @@ public class IOMeter implements IOMeterMXBean {
     public void chargeEvictPageFromPool(final Volume volume,
             final long pageAddress, final int size, int bufferIndex) {
         final long time = System.nanoTime();
-        log(EVICT_PAGE_FROM_POOL, time, volume, pageAddress, size, 0, bufferIndex);
+        log(EVICT_PAGE_FROM_POOL, time, volume, pageAddress, size, 0,
+                bufferIndex);
     }
 
     public static void main(final String[] args) throws Exception {

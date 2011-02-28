@@ -43,8 +43,8 @@ public interface Management extends Remote, ManagementMXBean {
      * provide on-line backup.
      * 
      * @param suspended
-     *            <tt>true</tt> to specify that Persistit will suspend journal
-     *            copying; otherwise <tt>false</tt>.
+     *            <code>true</code> to specify that Persistit will suspend
+     *            journal copying; otherwise <code>false</code>.
      */
     public void setAppendOnly(boolean suspended) throws RemoteException;
 
@@ -56,7 +56,7 @@ public interface Management extends Remote, ManagementMXBean {
      * flag is automatically turned off.
      * 
      * @param fast
-     *            <tt>true</tt> to copy pages at maximum speed.
+     *            <code>true</code> to copy pages at maximum speed.
      * @throws RemoteException
      */
     public void setJournalCopyingFast(boolean fast) throws RemoteException;
@@ -64,14 +64,14 @@ public interface Management extends Remote, ManagementMXBean {
     /**
      * Attempts to close Persistit by invoking {@link Persistit#close}.
      * 
-     * @return <tt>true</tt> if the attempt to close Persistit was successful;
-     *         otherwise <tt>false</tt>
+     * @return <code>true</code> if the attempt to close Persistit was
+     *         successful; otherwise <code>false</code>
      * @throws RemoteException
      */
     public boolean close() throws RemoteException;
 
     /**
-     * Return an array containing a <tt>BufferPoolInfo</tt> element for each
+     * Return an array containing a <code>BufferPoolInfo</code> element for each
      * buffer pool. If Persistit is not initialized then this method returns an
      * empty array.
      * 
@@ -80,13 +80,14 @@ public interface Management extends Remote, ManagementMXBean {
     public BufferPoolInfo[] getBufferPoolInfoArray() throws RemoteException;
 
     /**
-     * Return an array containing a <tt>RecordInfo</tt> element for each record
-     * in the page specified by <tt>volumeName</tt> and <tt>pageAddress</tt>. If
-     * Persistit is not initialized, or if there is no unique <tt>Volume</tt>
-     * for the specified <tt>volumeName</tt>, or if there is no page associated
-     * with the specified <tt>pageAddress</tt> or if there is any transient
-     * condition that causes the attempt to retrieve records to fail, then this
-     * method returns an empty array.
+     * Return an array containing a <code>RecordInfo</code> element for each
+     * record in the page specified by <code>volumeName</code> and
+     * <code>pageAddress</code>. If Persistit is not initialized, or if there is
+     * no unique <code>Volume</code> for the specified <code>volumeName</code>,
+     * or if there is no page associated with the specified
+     * <code>pageAddress</code> or if there is any transient condition that
+     * causes the attempt to retrieve records to fail, then this method returns
+     * an empty array.
      * 
      * @param volumeName
      *            The volume name
@@ -94,7 +95,7 @@ public interface Management extends Remote, ManagementMXBean {
      * @param pageAddress
      *            The page addres
      * 
-     * @return the array Array of <tt>RecordInfo</tt> objects containing
+     * @return the array Array of <code>RecordInfo</code> objects containing
      *         detailed information about the records on the specified page.
      */
     public RecordInfo[] getRecordInfoArray(String volumeName, long pageAddress)
@@ -102,28 +103,30 @@ public interface Management extends Remote, ManagementMXBean {
 
     /**
      * <p>
-     * Return an array of <tt>LogicalRecord</tt> elements from a <tt>Tree</tt>.
-     * The tree is specified by the provided <tt>volumeName</tt> and
-     * <tt>treeName</tt> values. The size of the the returned array is bounded
-     * by <tt>maxRecordCount</tt>. Records whose <tt>Value</tt> fields exceed
-     * <tt>maxValueBytes</tt> in length are truncated to that size. This allows
-     * a client program to limit the maximum number of bytes to be transmitted
-     * in one RMI request. If non-<tt>null</tt>, <tt>keyFilterString</tt>
-     * specifies a <tt>KeyFilter</tt> to be applied when taversing records. The
-     * supplied <tt>fromKey</tt> specifies a starting key value, and is non-
+     * Return an array of <code>LogicalRecord</code> elements from a
+     * <code>Tree</code>. The tree is specified by the provided
+     * <code>volumeName</code> and <code>treeName</code> values. The size of the
+     * the returned array is bounded by <code>maxRecordCount</code>. Records
+     * whose <code>Value</code> fields exceed <code>maxValueBytes</code> in
+     * length are truncated to that size. This allows a client program to limit
+     * the maximum number of bytes to be transmitted in one RMI request. If non-
+     * <code>null</code>, <code>keyFilterString</code> specifies a
+     * <code>KeyFilter</code> to be applied when taversing records. The supplied
+     * <code>fromKey</code> specifies a starting key value, and is non-
      * inclusive.
      * </p>
      * <p>
-     * Each <tt>LogicalRecord</tt> object returned by this method optionally
+     * Each <code>LogicalRecord</code> object returned by this method optionally
      * contain decoded String representations of the record's key and value. If
-     * <tt>decodeString</tt> is <tt>true</tt> then each <tt>LogicalRecord</tt>'s
-     * <tt>KeyState</tt>, <tt>KeyString</tt> and <tt>ValueString</tt> properties
-     * are set to String values resulting from decoding the underlying key and
-     * value in the context of the running Persistit instance. Otherwise,
-     * <tt>KeyString</tt> and <tt>ValueString</tt> are <tt>null</tt>.
-     * Applications that display String-valued representations of a record's key
-     * and value should typically enable <tt>decodeString</tt> so that any
-     * required {@link com.persistit.encoding.KeyCoder} or
+     * <code>decodeString</code> is <code>true</code> then each
+     * <code>LogicalRecord</code>'s <code>KeyState</code>,
+     * <code>KeyString</code> and <code>ValueString</code> properties are set to
+     * String values resulting from decoding the underlying key and value in the
+     * context of the running Persistit instance. Otherwise,
+     * <code>KeyString</code> and <code>ValueString</code> are <code>null</code>
+     * . Applications that display String-valued representations of a record's
+     * key and value should typically enable <code>decodeString</code> so that
+     * any required {@link com.persistit.encoding.KeyCoder} or
      * {@link com.persistit.encoding.ValueCoder} objects are referenced in the
      * context of the running Persistit instance, not an RMI client.
      * </p>
@@ -135,9 +138,9 @@ public interface Management extends Remote, ManagementMXBean {
      *            The tree name
      * 
      * @param keyFilterString
-     *            If non-<tt>null</tt>, specifies the String representation of a
-     *            {@link KeyFilter}. Only records having key values selected by
-     *            this filter are returned.
+     *            If non-<code>null</code>, specifies the String representation
+     *            of a {@link KeyFilter}. Only records having key values
+     *            selected by this filter are returned.
      * 
      * @param fromKey
      *            Starting key value.
@@ -152,8 +155,8 @@ public interface Management extends Remote, ManagementMXBean {
      *            Maximum encoded size of each Value object.
      * 
      * @param decodeStrings
-     *            If <tt>true</tt>, decode each <tt>LogicalRecord</tt>'s
-     *            <tt>Key</tt> and <tt>Value</tt> as Strings.
+     *            If <code>true</code>, decode each <code>LogicalRecord</code>'s
+     *            <code>Key</code> and <code>Value</code> as Strings.
      * 
      * @return Array of LogicalRecord objects
      * 
@@ -185,19 +188,20 @@ public interface Management extends Remote, ManagementMXBean {
     /**
      * <p>
      * Counts the the number of records that could be traversed given a starting
-     * key value in a tree specified by <tt>volumeName</tt>, <tt>treeName</tt>,
-     * using an optional {@link KeyFilter} specified by <tt>keyFilterString</tt>
-     * . Records are counted by traversing forward or backward according to the
-     * Persistit <a href="Key.html#_keyOrdering">key order specification</a>.
-     * The direction of traversal is specified by <tt>direction</tt>.
+     * key value in a tree specified by <code>volumeName</code>,
+     * <code>treeName</code>, using an optional {@link KeyFilter} specified by
+     * <code>keyFilterString</code> . Records are counted by traversing forward
+     * or backward according to the Persistit <a
+     * href="Key.html#_keyOrdering">key order specification</a>. The direction
+     * of traversal is specified by <code>direction</code>.
      * </p>
      * <p>
-     * The returned <tt>LogicalRecordCount</tt> contains the count of records
-     * actually traversed by this method, which will never exceed
-     * <tt>maximumCount</tt>. It also contains a <tt>KeyState</tt> representing
-     * the value of the <tt>Key</tt> of the final record traversed by this
-     * method. If the returned count is N then the returned <tt>KeyState</tt>
-     * corresponds with the Nth record counted.
+     * The returned <code>LogicalRecordCount</code> contains the count of
+     * records actually traversed by this method, which will never exceed
+     * <code>maximumCount</code>. It also contains a <code>KeyState</code>
+     * representing the value of the <code>Key</code> of the final record
+     * traversed by this method. If the returned count is N then the returned
+     * <code>KeyState</code> corresponds with the Nth record counted.
      * </p>
      * 
      * @param volumeName
@@ -207,9 +211,9 @@ public interface Management extends Remote, ManagementMXBean {
      *            The tree name
      * 
      * @param keyFilterString
-     *            If non-<tt>null</tt>, specifies the String representation of a
-     *            {@link KeyFilter}. Only records having key values selected by
-     *            this filter are returned.
+     *            If non-<code>null</code>, specifies the String representation
+     *            of a {@link KeyFilter}. Only records having key values
+     *            selected by this filter are returned.
      * 
      * @param fromKey
      *            Starting key value.
@@ -233,17 +237,17 @@ public interface Management extends Remote, ManagementMXBean {
     /**
      * <p>
      * Return an array of {@link BufferInfo} objects reflecting the states of
-     * selected buffers from the <tt>BufferPool</tt> for the specified
-     * <tt>bufferSize</tt>. The selection criteria include the
-     * <tt>traversalType</tt>, <tt>includeMask</tt> and <tt>excludeMask</tt>.
-     * See {@link #populateBufferInfoArray} for a similar method that reuses a
-     * previously obtained result array.
+     * selected buffers from the <code>BufferPool</code> for the specified
+     * <code>bufferSize</code>. The selection criteria include the
+     * <code>traversalType</code>, <code>includeMask</code> and
+     * <code>excludeMask</code>. See {@link #populateBufferInfoArray} for a
+     * similar method that reuses a previously obtained result array.
      * </p>
      * <p>
-     * The <tt>traversalType</tt> must be one of the following:
+     * The <code>traversalType</code> must be one of the following:
      * <dl>
      * <dt>0</dt>
-     * <dd>all buffers in the buffer pool, in order by <tt>poolIndex</tt>.</dd>
+     * <dd>all buffers in the buffer pool, in order by <code>poolIndex</code>.</dd>
      * <dt>1</dt>
      * <dd>buffers on the least-recently-used queue, ordered from least- to
      * most-recently used.</dd>
@@ -253,14 +257,15 @@ public interface Management extends Remote, ManagementMXBean {
      * </dl>
      * </p>
      * <p>
-     * The <tt>includeMask</tt> and <tt>excludeMask</tt> are applied to each
-     * buffer's state to determine whether that buffer should be included in the
-     * set returned by this method. If <tt>includeMask</tt> is <tt>null</tt>
-     * then all buffers are included. Otherwise, only those buffers whose state
-     * is selected by <tt>includeMask</tt> and is not selected by
-     * <tt>excludeMask</tt> are included. Mask values are Strings in which each
-     * character denotes an attribute of a <tt>Buffer</tt> to be included or
-     * excluded from the selection. These characters are as follows:
+     * The <code>includeMask</code> and <code>excludeMask</code> are applied to
+     * each buffer's state to determine whether that buffer should be included
+     * in the set returned by this method. If <code>includeMask</code> is
+     * <code>null</code> then all buffers are included. Otherwise, only those
+     * buffers whose state is selected by <code>includeMask</code> and is not
+     * selected by <code>excludeMask</code> are included. Mask values are
+     * Strings in which each character denotes an attribute of a
+     * <code>Buffer</code> to be included or excluded from the selection. These
+     * characters are as follows:
      * <dl>
      * <dt>v</dt>
      * <dd>Buffer must be VALID</dd>
@@ -296,10 +301,11 @@ public interface Management extends Remote, ManagementMXBean {
             String includeMask, String excludeMask) throws RemoteException;
 
     /**
-     * Return a <tt>BufferInfo</tt> reflecting the status of the buffer
-     * containing the page specified by the supplied <tt>volumeName</tt> and
-     * <tt>pageAddress</tt>. If Persisit is not initialized or of the attempt
-     * the find the specified page fails, this method returns <tt>null</tt>
+     * Return a <code>BufferInfo</code> reflecting the status of the buffer
+     * containing the page specified by the supplied <code>volumeName</code> and
+     * <code>pageAddress</code>. If Persisit is not initialized or of the
+     * attempt the find the specified page fails, this method returns
+     * <code>null</code>
      * 
      * @param volumeName
      *            the name of the volume
@@ -308,7 +314,7 @@ public interface Management extends Remote, ManagementMXBean {
      *            the page address
      * 
      * @return the BufferInfo for the buffer containing the designated page, of
-     *         <tt>null</tt> if there is none.
+     *         <code>null</code> if there is none.
      */
     public BufferInfo getBufferInfo(String volumeName, long pageAddress)
             throws RemoteException;
@@ -316,12 +322,13 @@ public interface Management extends Remote, ManagementMXBean {
     /**
      * <p>
      * Populates a supplied array of {@link BufferInfo} objects to reflect the
-     * current states of selected buffers from the <tt>BufferPool</tt> for the
-     * specified <tt>bufferSize</tt>. The selection criteria include the
-     * <tt>traversalType</tt>, <tt>includeMask</tt> and <tt>excludeMask</tt>.
-     * See {@link #getBufferInfoArray} for a similar method that simply returns
-     * a fresh array on each invocation. This method is available for management
-     * applications that need to perform frequently refreshes.
+     * current states of selected buffers from the <code>BufferPool</code> for
+     * the specified <code>bufferSize</code>. The selection criteria include the
+     * <code>traversalType</code>, <code>includeMask</code> and
+     * <code>excludeMask</code>. See {@link #getBufferInfoArray} for a similar
+     * method that simply returns a fresh array on each invocation. This method
+     * is available for management applications that need to perform frequently
+     * refreshes.
      * </p>
      * <p>
      * This method returns the actual number of buffers selected by the supplied
@@ -329,13 +336,14 @@ public interface Management extends Remote, ManagementMXBean {
      * in this case, information about the first N buffers in the set is
      * returned in the array, where N is the size of the array. An application
      * can use the {@link BufferPoolInfo#getBufferCount} method to determine the
-     * maximum number of <tt>BufferInfo</tt> objects that could be populated.
+     * maximum number of <code>BufferInfo</code> objects that could be
+     * populated.
      * </p>
      * <p>
-     * The <tt>traversalType</tt> must be one of the following:
+     * The <code>traversalType</code> must be one of the following:
      * <dl>
      * <dt>0</dt>
-     * <dd>all buffers in the buffer pool, in order by <tt>poolIndex</tt>.</dd>
+     * <dd>all buffers in the buffer pool, in order by <code>poolIndex</code>.</dd>
      * <dt>1</dt>
      * <dd>buffers on the least-recently-used queue, ordered from least- to
      * most-recently used.</dd>
@@ -345,14 +353,15 @@ public interface Management extends Remote, ManagementMXBean {
      * </dl>
      * </p>
      * <p>
-     * The <tt>includeMask</tt> and <tt>excludeMask</tt> are applied to each
-     * buffer's state to determine whether that buffer should be included in the
-     * set returned by this method. If <tt>includeMask</tt> is <tt>null</tt>
-     * then all buffers are included. Otherwise, only those buffers whose state
-     * is selected by <tt>includeMask</tt> and is not selected by
-     * <tt>excludeMask</tt> are included. Mask values are Strings in which each
-     * character denotes an attribute of a <tt>Buffer</tt> to be included or
-     * excluded from the selection. These characters are as follows:
+     * The <code>includeMask</code> and <code>excludeMask</code> are applied to
+     * each buffer's state to determine whether that buffer should be included
+     * in the set returned by this method. If <code>includeMask</code> is
+     * <code>null</code> then all buffers are included. Otherwise, only those
+     * buffers whose state is selected by <code>includeMask</code> and is not
+     * selected by <code>excludeMask</code> are included. Mask values are
+     * Strings in which each character denotes an attribute of a
+     * <code>Buffer</code> to be included or excluded from the selection. These
+     * characters are as follows:
      * <dl>
      * <dt>v</dt>
      * <dd>Buffer must be VALID</dd>
@@ -389,9 +398,9 @@ public interface Management extends Remote, ManagementMXBean {
             throws RemoteException;
 
     /**
-     * Return an array containing a <tt>VolumeInfo</tt> element for each open
-     * volume. If Persistit is not initialized then this method returns an empty
-     * array. </p>
+     * Return an array containing a <code>VolumeInfo</code> element for each
+     * open volume. If Persistit is not initialized then this method returns an
+     * empty array. </p>
      * 
      * @return The array
      */
@@ -402,32 +411,32 @@ public interface Management extends Remote, ManagementMXBean {
      * a remote UI instance connected through RMI to load classes that are
      * available within the running Persistit instance so that encoded objects
      * can be inspected within the UI. The implementation of this method should
-     * instantiate a new <tt>ClassLoader</tt> instance so that unreferenced
+     * instantiate a new <code>ClassLoader</code> instance so that unreferenced
      * loaded classes may subsequently be garbage collected.
      * 
      * @param className
      *            Fully qualified class name.
-     * @return The <tt>Class</tt>, or <tt>null</tt> if an exception occurred
-     *         while attempting to acquire the Class.
+     * @return The <code>Class</code>, or <code>null</code> if an exception
+     *         occurred while attempting to acquire the Class.
      * @throws RemoteException
      */
     public Class getRemoteClass(String className) throws RemoteException;
 
     /**
-     * Return the <tt>VolumeInfo</tt> for the volume specified by the supplied
-     * <tt>volumeName</tt>. If Persisit is not initialized or there is no unique
-     * volume corresponding with the supplied name, then this method returns
-     * <tt>null</tt>.
+     * Return the <code>VolumeInfo</code> for the volume specified by the
+     * supplied <code>volumeName</code>. If Persisit is not initialized or there
+     * is no unique volume corresponding with the supplied name, then this
+     * method returns <code>null</code>.
      * 
      * @param volumeName
      * 
-     * @return the <tt>VolumeInfo</tt>
+     * @return the <code>VolumeInfo</code>
      */
     public VolumeInfo getVolumeInfo(String volumeName) throws RemoteException;
 
     /**
-     * Return an array containing a <tt>TreeInfo</tt> element for each
-     * <tt>Tree</tt> in the specified volume. If there is no volume with the
+     * Return an array containing a <code>TreeInfo</code> element for each
+     * <code>Tree</code> in the specified volume. If there is no volume with the
      * specified name or if Persistit is not initialized then this method
      * returns an empty array.
      * 
@@ -441,10 +450,10 @@ public interface Management extends Remote, ManagementMXBean {
             throws RemoteException;
 
     /**
-     * Return a <tt>TreeInfo</tt> for a specified <tt>Volume</tt> and
-     * </tt>Tree</tt>. If Persisit is not initialized, or if no no volume or
+     * Return a <code>TreeInfo</code> for a specified <code>Volume</code> and
+     * </code>Tree</code>. If Persisit is not initialized, or if no no volume or
      * tree with corresponding names is found, or if there is a transient error
-     * in acquiring the information, this method returns <tt>null</tt>.
+     * in acquiring the information, this method returns <code>null</code>.
      * 
      * @param volumeName
      *            The name (or partial name) of the volume
@@ -452,21 +461,21 @@ public interface Management extends Remote, ManagementMXBean {
      * @param treeName
      *            The name of the tree
      * 
-     * @return the <tt>TreeInfo</tt>
+     * @return the <code>TreeInfo</code>
      */
     public TreeInfo getTreeInfo(String volumeName, String treeName)
             throws RemoteException;
 
     /**
      * Parse the supply String to determine whether it is a valid
-     * <tt>KeyFilter</tt> and return the index of the first incorrect character in
-     * the supplied String, or -1 if the string is a valid String representation
-     * of a KeyFilter.
+     * <code>KeyFilter</code> and return the index of the first incorrect
+     * character in the supplied String, or -1 if the string is a valid String
+     * representation of a KeyFilter.
      * 
      * @param keyFilterString
      * 
      * @return index of first invalid character in the supplied
-     *         <tt>keyFilterString</tt>, or -1 if the string is valid.
+     *         <code>keyFilterString</code>, or -1 if the string is valid.
      * 
      * @throws RemoteException
      */
@@ -475,18 +484,19 @@ public interface Management extends Remote, ManagementMXBean {
 
     /**
      * <p>
-     * Decodes the content of the supplied <tt>ValueState</tt> as an array of
-     * Objects. Usually this array has one element containing the single object
-     * value encoded in the <tt>ValueState</tt>. However, if multiple items were
-     * written to the original <tt>Value</tt> from which the <tt>ValueState</tt>
-     * was derived in <a href="Value.html#_streamMode">Stream Mode</a>, this
-     * method returns all of the encoded objects.
+     * Decodes the content of the supplied <code>ValueState</code> as an array
+     * of Objects. Usually this array has one element containing the single
+     * object value encoded in the <code>ValueState</code>. However, if multiple
+     * items were written to the original <code>Value</code> from which the
+     * <code>ValueState</code> was derived in <a
+     * href="Value.html#_streamMode">Stream Mode</a>, this method returns all of
+     * the encoded objects.
      * </p>
      * <p>
-     * If the <tt>valueState</tt> represents an undefined value, this method
-     * returns an array of length zero. If the <tt>valueState</tt> encodes a
-     * value of <tt>null</tt>, then this method returns an array containing one
-     * element which is <tt>null</tt>.
+     * If the <code>valueState</code> represents an undefined value, this method
+     * returns an array of length zero. If the <code>valueState</code> encodes a
+     * value of <code>null</code>, then this method returns an array containing
+     * one element which is <code>null</code>.
      * </p>
      * 
      * @param valueState
@@ -494,7 +504,7 @@ public interface Management extends Remote, ManagementMXBean {
      * 
      * @param context
      *            Object passed to any {@link com.persistit.encoding.ValueCoder}
-     *            used in decoding the value. May be <tt>null</tt>.
+     *            used in decoding the value. May be <code>null</code>.
      * 
      * @return Array of zero or more decoded objects
      * @throws RemoteException
@@ -503,7 +513,7 @@ public interface Management extends Remote, ManagementMXBean {
             CoderContext context) throws RemoteException;
 
     /**
-     * Decodes the content of the supplied <tt>KeyState</tt> as an array of
+     * Decodes the content of the supplied <code>KeyState</code> as an array of
      * Objects, one object per <a href="Key.html#_keySegments"> key segment</a>.
      * 
      * @param keyState
@@ -511,7 +521,7 @@ public interface Management extends Remote, ManagementMXBean {
      * 
      * @param context
      *            Object passed to any {@link com.persistit.encoding.KeyCoder}
-     *            used in decoding the value. May be <tt>null</tt>
+     *            used in decoding the value. May be <code>null</code>
      * 
      * @return Array of decoded key segments
      * 
@@ -533,7 +543,7 @@ public interface Management extends Remote, ManagementMXBean {
      *            Hostname or username of the user who requested this task
      * @param className
      *            Class name of task to run, e.g.,
-     *            <tt>com.persistit.IntegrityCheck</tt>.
+     *            <code>com.persistit.IntegrityCheck</code>.
      * @param args
      *            Task-specific parameters
      * @param maximumTime
@@ -557,11 +567,13 @@ public interface Management extends Remote, ManagementMXBean {
      * @param taskId
      *            Task ID for a selected Task, or -1 for all Tasks.
      * @param details
-     *            <tt>true</tt> to populate each returned <tt>TaskStatus</tt>
-     *            object with all new messages posted by the task.
+     *            <code>true</code> to populate each returned
+     *            <code>TaskStatus</code> object with all new messages posted by
+     *            the task.
      * @param clear
-     *            <tt>true</tt> to clear all received messages from the task.
-     * @return Array of <tt>TaskStatus</tt> objects indicating status of
+     *            <code>true</code> to clear all received messages from the
+     *            task.
+     * @return Array of <code>TaskStatus</code> objects indicating status of
      *         selected task(s).
      * @throws RemoteException
      */
@@ -569,14 +581,14 @@ public interface Management extends Remote, ManagementMXBean {
             boolean clear) throws RemoteException;
 
     /**
-     * Suspend or resume the task(s) identified by <tt>taskId</tt>. If
-     * <tt>taskId</tt> is -1, all tasks are modified.
+     * Suspend or resume the task(s) identified by <code>taskId</code>. If
+     * <code>taskId</code> is -1, all tasks are modified.
      * 
      * @param taskId
      *            Task ID for a selected Task, or -1 for all Tasks.
      * @param suspend
-     *            <tt>true</tt> to suspend the task, <tt>false</tt> to allow it
-     *            to resume.
+     *            <code>true</code> to suspend the task, <code>false</code> to
+     *            allow it to resume.
      * @throws RemoteException
      */
     public void setTaskSuspended(long taskId, boolean suspend)
@@ -584,10 +596,10 @@ public interface Management extends Remote, ManagementMXBean {
 
     /**
      * Stops and optionally removes a task specified by its id value. If the
-     * task is currently running, this method stops it. If <tt>remove</tt> is
-     * <tt>true</tt> this method also removes the Task from the task list.
-     * Otherwise the task remains on the task list in the
-     * {@link Task#STATE_ENDED} state. If <tt>taskId</tt> is -1 then these
+     * task is currently running, this method stops it. If <code>remove</code>
+     * is <code>true</code> this method also removes the Task from the task
+     * list. Otherwise the task remains on the task list in the
+     * {@link Task#STATE_ENDED} state. If <code>taskId</code> is -1 then these
      * actions are applied to all tasks.
      * 
      * @param taskId
@@ -621,7 +633,7 @@ public interface Management extends Remote, ManagementMXBean {
      * A structure that contains data about a single logical record within a
      * page. Used by display tools to display the contents of a tree. The method
      * {@link #getLogicalRecordArray} method returns an array of
-     * <tt>LogicalRecordInfo</tt> elements for a specified page.
+     * <code>LogicalRecordInfo</code> elements for a specified page.
      */
     public static class LogicalRecord extends AcquisitionTimeBase implements
             Serializable {
@@ -684,9 +696,9 @@ public interface Management extends Remote, ManagementMXBean {
      * A structure that contains data about a single physical record within a
      * page. Overloaded with information from garbage records. Various
      * diagnostic display tools use this class to hold information extracted
-     * from the underlying <tt>Buffer</tt>'s current page. The method
+     * from the underlying <code>Buffer</code>'s current page. The method
      * {@link #getRecordInfoArray} method returns an array of
-     * <tt>RecordInfo</tt> elements for a specified page.
+     * <code>RecordInfo</code> elements for a specified page.
      */
     public static class RecordInfo extends AcquisitionTimeBase implements
             Serializable {
@@ -843,7 +855,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the size of <tt>Buffer</tt>s managed by this pool.
+         * Return the size of <code>Buffer</code>s managed by this pool.
          * 
          * @return The size in bytes of each buffer in this pool
          */
@@ -852,7 +864,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the count of <tt>Buffer</tt>s managed by this pool.
+         * Return the count of <code>Buffer</code>s managed by this pool.
          * 
          * @return The count
          */
@@ -874,17 +886,18 @@ public interface Management extends Remote, ManagementMXBean {
         /**
          * Return the count of lookup operations for pages images in this pool
          * for which the page image was already found in this
-         * <tt>BufferPool</tt>. This number, in comparison with the get counter,
-         * indicates how effective the cache is in reducing disk I/O.
+         * <code>BufferPool</code>. This number, in comparison with the get
+         * counter, indicates how effective the cache is in reducing disk I/O.
          * 
          * @return The hit count
          */
         public long getHitCounter() {
             return hitCounter;
         }
-        
+
         /**
-         * @return count of pages read back into the buffer pool from the journal
+         * @return count of pages read back into the buffer pool from the
+         *         journal
          */
         public long getReadCounter() {
             return readCounter;
@@ -893,8 +906,8 @@ public interface Management extends Remote, ManagementMXBean {
         /**
          * Get the "hit ratio" - the number of hits divided by the number of
          * overall gets. A value close to 1.0 indicates that most attempts to
-         * find data in the <tt>BufferPool</tt> are successful - i.e., that the
-         * cache is effectively reducing the need for disk read operations.
+         * find data in the <code>BufferPool</code> are successful - i.e., that
+         * the cache is effectively reducing the need for disk read operations.
          * 
          * @return The ratio
          */
@@ -948,15 +961,15 @@ public interface Management extends Remote, ManagementMXBean {
 
     /**
      * <p>
-     * Exposes information about one <tt>Buffer</tt>. Use the
-     * {@link #getBufferInfoArray} method to get an array of <tt>BufferInfo</tt>
-     * s for <tt>Buffers</tt> in various states.
+     * Exposes information about one <code>Buffer</code>. Use the
+     * {@link #getBufferInfoArray} method to get an array of
+     * <code>BufferInfo</code> s for <code>Buffers</code> in various states.
      * </p>
      * <p>
-     * Note that the content of a <tt>BufferPool</tt> and the status of
-     * individual <tt>Buffer</tt>s changes extremely rapidly when Persistit is
-     * active. A <tt>BufferInfo</tt> represents a snapshot of this state at the
-     * acquisition time.
+     * Note that the content of a <code>BufferPool</code> and the status of
+     * individual <code>Buffer</code>s changes extremely rapidly when Persistit
+     * is active. A <code>BufferInfo</code> represents a snapshot of this state
+     * at the acquisition time.
      * </p>
      */
     public static class BufferInfo extends AcquisitionTimeBase implements
@@ -1018,8 +1031,8 @@ public interface Management extends Remote, ManagementMXBean {
         /**
          * Indicates whether the page occupying this buffer is a Garbage page.
          * 
-         * @return <tt>true</tt> if this is a Garbage page, otherwise
-         *         <tt>false</tt>.
+         * @return <code>true</code> if this is a Garbage page, otherwise
+         *         <code>false</code>.
          */
         public boolean isGarbagePage() {
             return type == Buffer.PAGE_TYPE_GARBAGE;
@@ -1028,8 +1041,8 @@ public interface Management extends Remote, ManagementMXBean {
         /**
          * Indicates whether the page occupying this buffer is a Data page.
          * 
-         * @return <tt>true</tt> if this is a Data page, otherwise
-         *         <tt>false</tt>.
+         * @return <code>true</code> if this is a Data page, otherwise
+         *         <code>false</code>.
          */
         public boolean isDataPage() {
             return type == Buffer.PAGE_TYPE_DATA;
@@ -1038,8 +1051,8 @@ public interface Management extends Remote, ManagementMXBean {
         /**
          * Indicates whether the page occupying this buffer is an Index page.
          * 
-         * @return <tt>true</tt> if this is an Index page, otherwise
-         *         <tt>false</tt>.
+         * @return <code>true</code> if this is an Index page, otherwise
+         *         <code>false</code>.
          */
         public boolean isIndexPage() {
             return type >= Buffer.PAGE_TYPE_INDEX_MIN
@@ -1050,8 +1063,8 @@ public interface Management extends Remote, ManagementMXBean {
          * Indicates whether the page occupying this buffer is a LongRecord
          * page.
          * 
-         * @return <tt>true</tt> if this is a LongRecord page, otherwise
-         *         <tt>false</tt>.
+         * @return <code>true</code> if this is a LongRecord page, otherwise
+         *         <code>false</code>.
          */
         public boolean isLongRecordPage() {
             return type == Buffer.PAGE_TYPE_LONG_RECORD;
@@ -1061,16 +1074,16 @@ public interface Management extends Remote, ManagementMXBean {
          * Indicates whether the page occupying this buffer is an Unallocated
          * page.
          * 
-         * @return <tt>true</tt> if this is an Unallocated page, otherwise
-         *         <tt>false</tt>.
+         * @return <code>true</code> if this is an Unallocated page, otherwise
+         *         <code>false</code>.
          */
         public boolean isUnallocatedPage() {
             return type == Buffer.PAGE_TYPE_UNALLOCATED;
         }
 
         /**
-         * Return the position of this <tt>Buffer</tt> within the
-         * <tt>BufferPool</tt>.
+         * Return the position of this <code>Buffer</code> within the
+         * <code>BufferPool</code>.
          * 
          * @return The index
          */
@@ -1079,7 +1092,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the type of page occupying this <tt>Buffer</tt> as an
+         * Return the type of page occupying this <code>Buffer</code> as an
          * integer. See {@link #getTypeName} for a displayable form.
          * 
          * @return The type.
@@ -1089,7 +1102,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the type of page occupying this <tt>Buffer</tt> in
+         * Return the type of page occupying this <code>Buffer</code> in
          * displayable name form. Values include
          * 
          * <pre>
@@ -1112,7 +1125,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the status integer for this <tt>Buffer</tt>. See
+         * Return the status integer for this <code>Buffer</code>. See
          * {@link #getStatusName} for a displayable form.
          * 
          * @return The status integer.
@@ -1122,7 +1135,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the status of this <tt>Buffer</tt> in displayable form.
+         * Return the status of this <code>Buffer</code> in displayable form.
          * Character flags in the string value include:
          * 
          * <pre>
@@ -1140,11 +1153,11 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the name of the <tt>Thread</tt> that currently holds a writer
-         * (exclusive) claim on the <tt>Buffer</tt> if there is one, otherwise
-         * returns <tt>null</tt>.
+         * Return the name of the <code>Thread</code> that currently holds a
+         * writer (exclusive) claim on the <code>Buffer</code> if there is one,
+         * otherwise returns <code>null</code>.
          * 
-         * @return The thread name, or <tt>null</tt> if there is none
+         * @return The thread name, or <code>null</code> if there is none
          */
         public String getWriterThreadName() {
             return writerThreadName;
@@ -1152,8 +1165,8 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * Return the page address of the page currently occupying the
-         * <tt>Buffer</tt>. The address is an ordinal number that indicates the
-         * page's position within a volume file.In a standard Volume, page
+         * <code>Buffer</code>. The address is an ordinal number that indicates
+         * the page's position within a volume file.In a standard Volume, page
          * address <code>P</code> is located at file address
          * <code>P * pageSize</code>. Page address 0 denotes the head page of
          * the Volume.
@@ -1175,7 +1188,7 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * Return the full pathname of the Volume of the page occupying this
-         * buffer if there is one, otherwise returns <tt>null</tt>.
+         * buffer if there is one, otherwise returns <code>null</code>.
          * 
          * @return the Volume Name
          */
@@ -1184,8 +1197,8 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the internal ID value of the Volume of the page occupying
-         * this buffer if there is one, otherwise returns 0.
+         * Return the internal ID value of the Volume of the page occupying this
+         * buffer if there is one, otherwise returns 0.
          * 
          * @return the volume ID
          */
@@ -1194,8 +1207,8 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the count of times the state of the page occupying this
-         * buffer has changed.
+         * Return the count of times the state of the page occupying this buffer
+         * has changed.
          * 
          * @return The change count
          */
@@ -1216,14 +1229,14 @@ public interface Management extends Remote, ManagementMXBean {
          * Return the number of unused bytes available to hold additional
          * key/value pairs.
          * 
-         * @return The number of avaiable bytes in the <tt>Buffer</tt>.
+         * @return The number of avaiable bytes in the <code>Buffer</code>.
          */
         public int getAvailableBytes() {
             return availableBytes;
         }
 
         /**
-         * Return an offset within the <tt>Buffer</tt> used internally in
+         * Return an offset within the <code>Buffer</code> used internally in
          * allocating space for key/value pairs.
          * 
          * @return The alloc offset
@@ -1243,7 +1256,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return an offset within the <tt>Buffer</tt> used internally in
+         * Return an offset within the <code>Buffer</code> used internally in
          * allocating space for key/value pairs.
          * 
          * @return The keyBlockStart offset
@@ -1253,7 +1266,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return an offset within the <tt>Buffer</tt> used internally in
+         * Return an offset within the <code>Buffer</code> used internally in
          * allocating space for key/value pairs.
          * 
          * @return The keyBlockEnd offset
@@ -1264,7 +1277,7 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * Return a human-readable summary of information about the page
-         * contained in this <tt>Buffer</tt>.
+         * contained in this <code>Buffer</code>.
          * 
          * @return a one-line displayable summary
          */
@@ -1281,7 +1294,7 @@ public interface Management extends Remote, ManagementMXBean {
     /**
      * Exposes information about a Volume. The {@link #getVolumeInfoArray}
      * returns information about all open Volumes in an array of
-     * <tt>VolumeInfo</tt> elements.
+     * <code>VolumeInfo</code> elements.
      */
     public static class VolumeInfo extends AcquisitionTimeBase implements
             Serializable {
@@ -1377,9 +1390,9 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the page size for this <tt>Volume</tt>.
+         * Return the page size for this <code>Volume</code>.
          * 
-         * @return the size of each page in this <tt>Volume</tt>
+         * @return the size of each page in this <code>Volume</code>
          */
         public int getPageSize() {
             return pageSize;
@@ -1397,14 +1410,15 @@ public interface Management extends Remote, ManagementMXBean {
         /**
          * Return the alias if one was assigned in the system configuration.
          * 
-         * @return the alias for this volume, or <tt>null<tt> if there is none
+         * @return the alias for this volume, or
+         *         <code>null<code> if there is none
          */
         public String getName() {
             return name;
         }
 
         /**
-         * Return the internal identifier value for this <tt>Volume</tt>
+         * Return the internal identifier value for this <code>Volume</code>
          * 
          * @return the id
          */
@@ -1413,7 +1427,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the time and date when this <tt>Volume</tt> was created.
+         * Return the time and date when this <code>Volume</code> was created.
          * 
          * @return The creation date
          */
@@ -1422,9 +1436,9 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the time and date when this <tt>Volume</tt> was opened.
+         * Return the time and date when this <code>Volume</code> was opened.
          * 
-         * @return The date when this <tt>Volume</tt> was opened.
+         * @return The date when this <code>Volume</code> was opened.
          */
         public Date getOpenTime() {
             return new Date(openTime);
@@ -1459,7 +1473,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the generation number for this <tt>Volume</tt>. The
+         * Return the generation number for this <code>Volume</code>. The
          * generation number increases as the state of the volume changes.
          * 
          * @return The current generation
@@ -1469,10 +1483,10 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the number of get operations on this <tt>Volume</tt>. A get
-         * operation occurs when a thread attempts to find or update information
-         * on the page, regardless of whether the page had previously been
-         * copied into the <tt>BufferPool</tt>.
+         * Return the number of get operations on this <code>Volume</code>. A
+         * get operation occurs when a thread attempts to find or update
+         * information on the page, regardless of whether the page had
+         * previously been copied into the <code>BufferPool</code>.
          * 
          * @return the get counter
          */
@@ -1481,10 +1495,10 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the number of physical read operations performed against
-         * pages in this <tt>Volume</tt>. The read occurs only when Persistit
+         * Return the number of physical read operations performed against pages
+         * in this <code>Volume</code>. The read occurs only when Persistit
          * requires the content of a page that has not already been copied into
-         * the </tt>BufferPool</tt> or which has become invalid.
+         * the </code>BufferPool</code> or which has become invalid.
          * 
          * @return the read counter
          */
@@ -1494,7 +1508,7 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * Return the number of physical write operations performed against
-         * pages in this <tt>Volume</tt>.
+         * pages in this <code>Volume</code>.
          * 
          * @return the write counter
          */
@@ -1554,7 +1568,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the current size in bytes of this <tt>Volume</tt>.
+         * Return the current size in bytes of this <code>Volume</code>.
          * 
          * @return current size
          */
@@ -1564,7 +1578,7 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * Return the largest page address currently in use within the
-         * <tt>Volume</tt>.
+         * <code>Volume</code>.
          * 
          * @return the largest page address
          */
@@ -1573,8 +1587,8 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the maximum size in bytes to which this <tt>Volume</tt> may
-         * grow.
+         * Return the maximum size in bytes to which this <code>Volume</code>
+         * may grow.
          * 
          * @return the maximum size
          */
@@ -1584,7 +1598,7 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * Return the size in bytes by which Persistit will extend this
-         * <tt>Volume</tt> when additional file space is required.
+         * <code>Volume</code> when additional file space is required.
          * 
          * @return The extension size
          */
@@ -1603,10 +1617,10 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Tests whether the supplied object is a <tt>VolumeInfo</tt> with the
-         * same volume name and id as this one.
+         * Tests whether the supplied object is a <code>VolumeInfo</code> with
+         * the same volume name and id as this one.
          * 
-         * @return <tt>true</tt> if equal, otherwise <tt>false</tt>
+         * @return <code>true</code> if equal, otherwise <code>false</code>
          */
         @Override
         public boolean equals(Object object) {
@@ -1617,7 +1631,7 @@ public interface Management extends Remote, ManagementMXBean {
     }
 
     /**
-     * Exposes information about a Persistit <tt>Tree</tt>.
+     * Exposes information about a Persistit <code>Tree</code>.
      */
     public static class TreeInfo extends AcquisitionTimeBase implements
             Serializable {
@@ -1655,7 +1669,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the name of the <tt>Tree</tt>
+         * Return the name of the <code>Tree</code>
          * 
          * @return the name
          */
@@ -1673,7 +1687,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the count of levels in the <tt>Tree</tt>.
+         * Return the count of levels in the <code>Tree</code>.
          * 
          * @return the depth
          */
@@ -1700,11 +1714,11 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the name of the <tt>Thread</tt> that currently holds a writer
-         * (exclusive) claim on the <tt>Buffer</tt> if there is one, otherwise
-         * returns <tt>null</tt>.
+         * Return the name of the <code>Thread</code> that currently holds a
+         * writer (exclusive) claim on the <code>Buffer</code> if there is one,
+         * otherwise returns <code>null</code>.
          * 
-         * @return The thread name, or <tt>null</tt> if there is none
+         * @return The thread name, or <code>null</code> if there is none
          */
         public String getWriterThreadName() {
             return writerThreadName;
@@ -1721,10 +1735,10 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Tests whether the supplied object is a <tt>TreeInfo</tt> with the
+         * Tests whether the supplied object is a <code>TreeInfo</code> with the
          * same index and name is this one.
          * 
-         * @return <tt>true</tt> if equal, otherwise <tt>false</tt>
+         * @return <code>true</code> if equal, otherwise <code>false</code>
          */
         @Override
         public boolean equals(Object object) {
@@ -1894,19 +1908,19 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * The most recent <tt>Exception</tt> thrown by this task.
+         * The most recent <code>Exception</code> thrown by this task.
          * 
-         * @return Most recently thrown <tt>Exception</tt> by this task
+         * @return Most recently thrown <code>Exception</code> by this task
          */
         public String getLastException() {
             return lastException;
         }
 
         /**
-         * Tests whether the supplied object is a <tt>TaskStatus</tt> with the
-         * same taskId is this one.
+         * Tests whether the supplied object is a <code>TaskStatus</code> with
+         * the same taskId is this one.
          * 
-         * @return <tt>true</tt> if equal, otherwise <tt>false</tt>
+         * @return <code>true</code> if equal, otherwise <code>false</code>
          */
         @Override
         public boolean equals(Object object) {
@@ -2166,22 +2180,22 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * @return <tt>true</tt> iff the journal has been closed
+         * @return <code>true</code> iff the journal has been closed
          */
         public boolean isClosed() {
             return closed;
         }
 
         /**
-         * @return <tt>true</tt> iff the JOURNALCOPIER task is currently copying
-         *         pages to their Volume files.
+         * @return <code>true</code> iff the JOURNALCOPIER task is currently
+         *         copying pages to their Volume files.
          */
         public boolean isCopying() {
             return copying;
         }
 
         /**
-         * @return <tt>true</tt> iff the JOURNALFLUSHER task is currently
+         * @return <code>true</code> iff the JOURNALFLUSHER task is currently
          *         forcing file modifications to disk.
          */
         public boolean isFlushing() {
@@ -2192,16 +2206,16 @@ public interface Management extends Remote, ManagementMXBean {
          * The suspendCopying flag suspends copying of pages to their Volume
          * files.
          * 
-         * @return <tt>true</tt> if the suspendCopying flag is set.
+         * @return <code>true</code> if the suspendCopying flag is set.
          */
         public boolean isAppendOnly() {
             return appendOnly;
         }
 
         /**
-         * @return <tt>true</tt> if fast page copying is enabled. Fast copying
-         *         copies pages as fast as possible without regard to disk
-         *         utilization.
+         * @return <code>true</code> if fast page copying is enabled. Fast
+         *         copying copies pages as fast as possible without regard to
+         *         disk utilization.
          */
         public boolean isFastCopying() {
             return fastCopying;
@@ -2435,8 +2449,8 @@ public interface Management extends Remote, ManagementMXBean {
     }
 
     /**
-     * A subclass of <tt>RemoteException</tt> that wraps a <tt>Throwable</tt> so
-     * that it can be returned to the remote client.
+     * A subclass of <code>RemoteException</code> that wraps a
+     * <code>Throwable</code> so that it can be returned to the remote client.
      */
     public static class WrappedRemoteException extends RemoteException {
 

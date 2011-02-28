@@ -15,10 +15,7 @@
 
 package com.persistit.stress;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -104,8 +101,8 @@ public class Stress3 extends StressBase {
         }
         _filesLoaded = true;
     }
-    
-    private static void initializeDir(final File file, final List<String>list) {
+
+    private static void initializeDir(final File file, final List<String> list) {
         list.add(file.getPath());
         if (file.isDirectory()) {
             final File[] files = file.listFiles();

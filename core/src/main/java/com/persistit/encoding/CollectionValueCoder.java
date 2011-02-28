@@ -46,30 +46,32 @@ import com.persistit.exception.ConversionException;
  * </p>
  * <p>
  * The stored data consist only of items accessible through the
- * <tt>Collection</tt> or <tt>Map</tt> interfaces. For example, implementation
- * details such as the current loadFactor for a <tt>HashMap</tt> are not stored.
- * For any <tt>Collection</tt> (including <tt>List</tt> and <tt>Set</tt>), the
- * stored format is simply a list of all the values in the order returned by an
- * <tt>Iterator</tt>. For a <tt>Map</tt> the stored format is simply a key/value
- * pair for each entry in the order returned by the <tt>Iterator</tt> returned
- * by the <tt>entrySet()</tt> method of the <tt>Map</tt>.
+ * <code>Collection</code> or <code>Map</code> interfaces. For example,
+ * implementation details such as the current loadFactor for a
+ * <code>HashMap</code> are not stored. For any <code>Collection</code>
+ * (including <code>List</code> and <code>Set</code>), the stored format is
+ * simply a list of all the values in the order returned by an
+ * <code>Iterator</code>. For a <code>Map</code> the stored format is simply a
+ * key/value pair for each entry in the order returned by the
+ * <code>Iterator</code> returned by the <code>entrySet()</code> method of the
+ * <code>Map</code>.
  * </p>
  * <p>
- * Because customer-written <tt>Collection</tt> and <tt>Map</tt> implementations
- * may contain additional internal state that may also need to be stored when
- * they are serialized, this coder is registered only for specific
- * implementations provided by the JRE. You may register and use this ValueCoder
- * for any custom <tt>Collection</tt> or <tt>Map</tt> that does not need to
- * serialize additional data.
+ * Because customer-written <code>Collection</code> and <code>Map</code>
+ * implementations may contain additional internal state that may also need to
+ * be stored when they are serialized, this coder is registered only for
+ * specific implementations provided by the JRE. You may register and use this
+ * ValueCoder for any custom <code>Collection</code> or <code>Map</code> that
+ * does not need to serialize additional data.
  * </p>
  * <p>
- * Note that for <tt>ArrayList</tt>, <tt>Vector</tt>, <tt>Stack</tt>, and other
- * <tt>List</tt> implementations that do not extend
- * <tt>AbstractSequentialList</tt>, the serialization logic uses the
- * <tt>get(index)</tt> method of <tt>List</tt> to acquire each member rather
- * than constructing an <tt>Interator</tt>. Subclasses of
- * <tt>AbstractSequentialList</tt> are serialized by using an <tt>Iterator</tt>
- * because access by index may be inefficient.
+ * Note that for <code>ArrayList</code>, <code>Vector</code>, <code>Stack</code>
+ * , and other <code>List</code> implementations that do not extend
+ * <code>AbstractSequentialList</code>, the serialization logic uses the
+ * <code>get(index)</code> method of <code>List</code> to acquire each member
+ * rather than constructing an <code>Interator</code>. Subclasses of
+ * <code>AbstractSequentialList</code> are serialized by using an
+ * <code>Iterator</code> because access by index may be inefficient.
  * </p>
  * 
  * @since 1.1
@@ -79,33 +81,34 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
 
     /**
      * <p>
-     * Encodes the supplied <tt>Object</tt> into the supplied <tt>Value</tt>.
-     * This method will be called only if this <tt>ValueCoder</tt> has been
-     * registered with the current {@link CoderManager} to encode objects having
-     * the class of the supplied object.
+     * Encodes the supplied <code>Object</code> into the supplied
+     * <code>Value</code>. This method will be called only if this
+     * <code>ValueCoder</code> has been registered with the current
+     * {@link CoderManager} to encode objects having the class of the supplied
+     * object.
      * </p>
      * <p>
      * Upon completion of this method, the backing byte array of the
-     * <tt>Value</tt> and its size should be updated to reflect the serialized
-     * collection. Use the methods {@link Value#getEncodedBytes},
+     * <code>Value</code> and its size should be updated to reflect the
+     * serialized collection. Use the methods {@link Value#getEncodedBytes},
      * {@link Value#getEncodedSize} and {@link Value#setEncodedSize} to
      * manipulate the byte array directly. More commonly, the implementation of
-     * this method will simply call the appropriate <tt>put</tt> methods to
-     * write the interior field values into the <tt>Value</tt> object.
+     * this method will simply call the appropriate <code>put</code> methods to
+     * write the interior field values into the <code>Value</code> object.
      * </p>
      * 
      * @param value
-     *            The <tt>Value</tt> to which the interior data of the supplied
-     *            <tt>Object</tt> should be encoded
+     *            The <code>Value</code> to which the interior data of the
+     *            supplied <code>Object</code> should be encoded
      * @param object
      *            The object value to encode. This parameter will never be
-     *            <tt>null</tt> because Persistit encodes nulls with a built-in
-     *            encoding.
+     *            <code>null</code> because Persistit encodes nulls with a
+     *            built-in encoding.
      * @param context
      *            An arbitrary object that can optionally be supplied by the
      *            application to convey an application-specific context for the
      *            operation. (See {@link CoderContext}.) The default value is
-     *            <tt>null</tt>.
+     *            <code>null</code>.
      */
     public void put(Value value, Object object, CoderContext context)
             throws ConversionException {
@@ -138,26 +141,26 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
     /**
      * <p>
      * Creates an instance of the supplied class, populates its state by
-     * decoding the supplied <tt>Value</tt>, and returns it. This method will be
-     * called only if this <tt>ValueCoder</tt> has been registered with the
-     * current {@link CoderManager} to encode objects having supplied
-     * <tt>Class</tt> value. Persistit will never call this method to decode a
-     * value that was <tt>null</tt> when written because null values are handled
-     * by built-in encoding logic.
+     * decoding the supplied <code>Value</code>, and returns it. This method
+     * will be called only if this <code>ValueCoder</code> has been registered
+     * with the current {@link CoderManager} to encode objects having supplied
+     * <code>Class</code> value. Persistit will never call this method to decode
+     * a value that was <code>null</code> when written because null values are
+     * handled by built-in encoding logic.
      * </p>
      * 
      * @param value
-     *            The <tt>Value</tt> from which interior fields of the object
-     *            are to be retrieved
+     *            The <code>Value</code> from which interior fields of the
+     *            object are to be retrieved
      * @param clazz
      *            The class of the object to be returned.
      * @param context
      *            An arbitrary object that can optionally be supplied by the
      *            application to convey an application-specific context for the
      *            operation. (See {@link CoderContext}.) The default value is
-     *            <tt>null</tt>.
-     * @return An <tt>Object</tt> having the same class as the suppled
-     *         <tt>clazz</tt> parameter.
+     *            <code>null</code>.
+     * @return An <code>Object</code> having the same class as the suppled
+     *         <code>clazz</code> parameter.
      * @throws ConversionException
      */
     public Object get(Value value, Class clazz, CoderContext context)
@@ -178,18 +181,18 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
 
     /**
      * <p>
-     * Populates the state of the supplied (mutable) target <tt>Object</tt> by
-     * decoding the supplied <tt>Value</tt>. This method will be called only if
-     * this <tt>ValueRenderer</tt> has been registered with the current
-     * {@link CoderManager} to encode objects having the supplied <tt>Class</tt>
-     * value. Persistit will never call this method to decode a value that was
-     * <tt>null</tt> when written because null values are handled by built-in
-     * encoding logic.
+     * Populates the state of the supplied (mutable) target <code>Object</code>
+     * by decoding the supplied <code>Value</code>. This method will be called
+     * only if this <code>ValueRenderer</code> has been registered with the
+     * current {@link CoderManager} to encode objects having the supplied
+     * <code>Class</code> value. Persistit will never call this method to decode
+     * a value that was <code>null</code> when written because null values are
+     * handled by built-in encoding logic.
      * </p>
      * 
      * @param value
-     *            The <tt>Value</tt> from which interior fields of the object
-     *            are to be retrieved
+     *            The <code>Value</code> from which interior fields of the
+     *            object are to be retrieved
      * 
      * @param target
      *            The object into which the decoded value is to be written
@@ -202,7 +205,7 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      *            An arbitrary object that can optionally be supplied by the
      *            application to convey an application-specific context for the
      *            operation. (See {@link CoderContext}.) The default value is
-     *            <tt>null</tt>.
+     *            <code>null</code>.
      * 
      * @throws ConversionException
      */
@@ -249,25 +252,25 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
     /**
      * <p>
      * Writes a String representation of the value into a supplied
-     * <tt>StringBuilder</tt>. This is used in utility programs to display
+     * <code>StringBuilder</code>. This is used in utility programs to display
      * stored content without actually deserialized Objects represented by the
      * value.
      * </p>
      * <p>
-     * This method will be called only if this <tt>ValueDisplayer</tt> has been
-     * registered with the current {@link CoderManager} to encode objects having
-     * the supplied <tt>Class</tt> value. Persistit will never call this method
-     * to decode a value that was <tt>null</tt> when written because null values
-     * are handled by built-in encoding logic.
+     * This method will be called only if this <code>ValueDisplayer</code> has
+     * been registered with the current {@link CoderManager} to encode objects
+     * having the supplied <code>Class</code> value. Persistit will never call
+     * this method to decode a value that was <code>null</code> when written
+     * because null values are handled by built-in encoding logic.
      * </p>
      * 
      * @param value
-     *            The <tt>Value</tt> from which interior fields of the object
-     *            are to be retrieved
+     *            The <code>Value</code> from which interior fields of the
+     *            object are to be retrieved
      * 
      * @param target
-     *            The <tt>StringBuilder</tt> into which the decoded value is to
-     *            be written
+     *            The <code>StringBuilder</code> into which the decoded value is
+     *            to be written
      * 
      * @param clazz
      *            The class of the object that was originally encoded into
@@ -277,7 +280,7 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      *            An arbitrary object that can optionally be supplied by the
      *            application to convey an application-specific context for the
      *            operation. (See {@link CoderContext}.) The default value is
-     *            <tt>null</tt>.
+     *            <code>null</code>.
      * 
      * @throws ConversionException
      */

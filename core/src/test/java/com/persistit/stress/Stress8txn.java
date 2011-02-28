@@ -150,9 +150,9 @@ public class Stress8txn extends StressBase {
                     Debug.debug3(passes > 90);
                     if (op._result != null) {
                         _result = op._result;
-//                        if (Debug.ENABLED) {
-                            Debug.debug0(true);
-//                        }
+                        // if (Debug.ENABLED) {
+                        Debug.debug0(true);
+                        // }
                         forceStop();
                     }
                 } catch (final Exception pe) {

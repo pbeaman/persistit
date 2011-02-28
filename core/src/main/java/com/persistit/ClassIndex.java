@@ -16,24 +16,23 @@
 package com.persistit;
 
 import java.io.ObjectStreamClass;
-import java.util.Stack;
 
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.PersistitException;
 
 /**
  * <p>
- * A singleton that associates <tt>Class</tt>es with persistent handles used to
- * refer to them in Persistit&trade; {@link Value}'s and {@link Key}s. When
- * <tt>Value</tt> encodes an <tt>Object</tt>, rather than recording the object's
- * full class name, it stores an integer-valued handle. The handle is associated
- * by the <tt>ClassIndex</tt> to the class name. This mechanism minimizes the
- * storage of redudant information in the potentially numerous stored instances
- * of the same class.
+ * A singleton that associates <code>Class</code>es with persistent handles used
+ * to refer to them in Persistit&trade; {@link Value}'s and {@link Key}s. When
+ * <code>Value</code> encodes an <code>Object</code>, rather than recording the
+ * object's full class name, it stores an integer-valued handle. The handle is
+ * associated by the <code>ClassIndex</code> to the class name. This mechanism
+ * minimizes the storage of redudant information in the potentially numerous
+ * stored instances of the same class.
  * </p>
  * <p>
  * By default, the persistent storage for this association is located in a tree
- * called <tt>"_classIndex"</tt> of the
+ * called <code>"_classIndex"</code> of the
  * {@link com.persistit.Persistit#getSystemVolume system volume}.
  * </p>
  * <p>
@@ -60,7 +59,7 @@ public class ClassIndex {
 
     /**
      * A structure holding a ClassInfo, plus links to other related
-     * <tt>ClassInfoEntry</tt>s.
+     * <code>ClassInfoEntry</code>s.
      */
     private static class ClassInfoEntry {
         ClassInfoEntry _nextByIdHash;
@@ -83,8 +82,9 @@ public class ClassIndex {
 
     /**
      * Looks up and returns the ClassInfo for an integer handle. This is used
-     * when decoding an <tt>Object</tt> from a <tt>com.persistit.Value</tt> to
-     * associate the encoded integer handle value with the corresponding class.
+     * when decoding an <code>Object</code> from a
+     * <code>com.persistit.Value</code> to associate the encoded integer handle
+     * value with the corresponding class.
      * 
      * @param handle
      *            The handle
@@ -153,10 +153,10 @@ public class ClassIndex {
 
     /**
      * Looks up and returns a ClassInfo for a class. This is used when encoding
-     * an <tt>Object</tt> into a <tt>com.persistit.Value</tt>.
+     * an <code>Object</code> into a <code>com.persistit.Value</code>.
      * 
      * @param clazz
-     *            The <tt>Class</tt>
+     *            The <code>Class</code>
      * @return The ClassInfo for the specified Class.
      */
     public synchronized ClassInfo lookupByClass(Class clazz) {
@@ -242,10 +242,11 @@ public class ClassIndex {
     }
 
     /**
-     * Registers a <tt>Class</tt>, which binds it permanently with a handle. The
-     * order in which classes are first registered governs the order in which
-     * <tt>Key</tt> values containing objects of the classes are sorted. See
-     * {@link com.persistit.encoding.CoderManager} for further information.
+     * Registers a <code>Class</code>, which binds it permanently with a handle.
+     * The order in which classes are first registered governs the order in
+     * which <code>Key</code> values containing objects of the classes are
+     * sorted. See {@link com.persistit.encoding.CoderManager} for further
+     * information.
      * 
      * @param clazz
      */
@@ -284,8 +285,7 @@ public class ClassIndex {
     private synchronized Exchange getExchange() throws PersistitException {
         try {
             Volume volume = _persistit.getSystemVolume();
-            return _persistit.getExchange(volume,
-                    CLASS_INDEX_TREE_NAME, true);
+            return _persistit.getExchange(volume, CLASS_INDEX_TREE_NAME, true);
         } catch (PersistitException pe) {
             throw new ConversionException(pe);
         }

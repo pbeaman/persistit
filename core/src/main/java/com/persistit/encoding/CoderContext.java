@@ -24,7 +24,7 @@ import com.persistit.Value;
  * A marker interface for an application-specific object that may be passed to a
  * {@link KeyCoder} or {@link ValueCoder}. This object may be used to pass
  * application context information from the application to the coder instance.
- * The following methods accept a <tt>CoderContext</tt>:
+ * The following methods accept a <code>CoderContext</code>:
  * <ul>
  * <li>{@link Key#append(Object, CoderContext)}</li>
  * <li>{@link Key#decode(Object, CoderContext)}</li>
@@ -35,9 +35,10 @@ import com.persistit.Value;
  * <li>{@link Value#get(Object, CoderContext)}</li>
  * </ul>
  * This interface has no behavior; it simply marks classes that are intended for
- * this purpose to enhance type safety. Note that <tt>CoderContext</tt> extends
- * <tt>java.io.Serializable</tt>, meaning that any object you provide as a
- * CoderContext must behave correctly when serialized and deserialized.
+ * this purpose to enhance type safety. Note that <code>CoderContext</code>
+ * extends <code>java.io.Serializable</code>, meaning that any object you
+ * provide as a CoderContext must behave correctly when serialized and
+ * deserialized.
  * 
  * @version 1.0
  */

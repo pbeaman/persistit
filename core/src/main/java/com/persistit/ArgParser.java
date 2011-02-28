@@ -21,14 +21,15 @@ package com.persistit;
  * and value checking. An application passes a template and the command line
  * argument array to the constructor of this class. The constructor validates
  * the argument list. Subsequently the application can access specific fields
- * from the command line using the <tt>ArgParser</tt>'s accessor methods.
+ * from the command line using the <code>ArgParser</code>'s accessor methods.
  * </p>
  * <p>
- * If the command line includes the argument <tt>-?</tt> then <tt>ArgParser</tt>
- * displays a summary of permissible arguments and sets its UsageOnly property
- * to true. The calling application should simply exit if <tt>isUsageonly</tt>
- * is true for the constructed ArgParser. The display text output is in English.
- * Applications needing localization should use a different mechanism.
+ * If the command line includes the argument <code>-?</code> then
+ * <code>ArgParser</code> displays a summary of permissible arguments and sets
+ * its UsageOnly property to true. The calling application should simply exit if
+ * <code>isUsageonly</code> is true for the constructed ArgParser. The display
+ * text output is in English. Applications needing localization should use a
+ * different mechanism.
  * </p>
  * 
  * @author peter
@@ -51,18 +52,18 @@ public class ArgParser {
      * </p>
      * <p>
      * Command line arguments are specified by name, not by position. Each
-     * argument must either be a flag in the form <tt>-<i>X</i></tt> (where
+     * argument must either be a flag in the form <code>-<i>X</i></code> (where
      * <i>X</i> is letter) or a name/value pair in the form
-     * <tt><i>argname</i>=</i>value</i></tt>. The permissible flags and argument
-     * names are specified by the array of template strings, each of which must
-     * have the form:
+     * <code><i>argname</i>=</i>value</i></code>. The permissible flags and
+     * argument names are specified by the array of template strings, each of
+     * which must have the form:
      * </p>
      * </p> <blockquote>
      * 
      * <pre>
-     * <tt>  _flags|<i>flchar</i>|<i>description</i></tt>
+     * <code>  _flags|<i>flchar</i>|<i>description</i></code>
      *         or
-     * <tt>  <i>argname</i>|<i>argtype</i>|<i>description</i></tt>
+     * <code>  <i>argname</i>|<i>argtype</i>|<i>description</i></code>
      * </pre>
      * 
      * </blockquote> </p>
@@ -70,20 +71,20 @@ public class ArgParser {
      * where
      * </p>
      * <dl>
-     * <dt><tt><i>flchar</i></tt></dt>
+     * <dt><code><i>flchar</i></code></dt>
      * <dd>is a single letter that can be used as a flag on the command line.
      * For example, to allow a the flag "-x", use a template string of the form
-     * <tt>_flags|x|Enable the x option</tt>.</dd>
-     * <dt><tt><i>argname</i></tt></dt>
+     * <code>_flags|x|Enable the x option</code>.</dd>
+     * <dt><code><i>argname</i></code></dt>
      * <dd>Parameter name.</dd>
      * </dd>
-     * <dt><tt><i>argtype</i></tt></dt>
+     * <dt><code><i>argtype</i></code></dt>
      * <dd>
      * 
      * <pre>
-     * <tt>int:<i>defaultvalue</i>:<i>lowbound</i>:<i>highbound</i></tt>
+     * <code>int:<i>defaultvalue</i>:<i>lowbound</i>:<i>highbound</i></code>
      *        or
-     * <tt>String:<i>default</i></tt>
+     * <code>String:<i>default</i></code>
      * </pre>
      * 
      * </dd>
@@ -168,7 +169,7 @@ public class ArgParser {
 
     /**
      * @return <i>true</i> if the command line arguments contain a help flag,
-     *         <tt>-?</tt>.
+     *         <code>-?</code>.
      */
     public boolean isUsageOnly() {
         return _usageOnly;
@@ -187,8 +188,8 @@ public class ArgParser {
     /**
      * @return A String containing all the flag characters specified in the
      *         command line arguments. For example, if the command line
-     *         specifies value flags <tt>-a -b -c</tt> then this method returns
-     *         <tt>"abc"</tt>.
+     *         specifies value flags <code>-a -b -c</code> then this method
+     *         returns <code>"abc"</code>.
      */
     public String getFlags() {
         return _flags;

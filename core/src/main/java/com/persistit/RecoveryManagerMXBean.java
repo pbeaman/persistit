@@ -19,7 +19,7 @@ import javax.management.MXBean;
 
 @MXBean
 public interface RecoveryManagerMXBean {
-    
+
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=RecoveryManager";
 
     public final static int DEFAULT_BUFFER_SIZE = 1 * 1024 * 1024;

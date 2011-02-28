@@ -152,7 +152,7 @@ public class Volume extends SharedResource {
      * @param pathName
      *            The full pathname to the file containing the Volume.
      * @param ro
-     *            <tt>true</tt> if the Volume should be opened in read- only
+     *            <code>true</code> if the Volume should be opened in read- only
      *            mode so that no updates can be performed against it.
      * @return The Volume.
      * @throws PersistitException
@@ -172,7 +172,7 @@ public class Volume extends SharedResource {
      * @param alias
      *            A friendly name for this volume that may be used internally by
      *            applications. The alias need not be related to the
-     *            <tt>Volume</tt>'s pathname, and typically will denote its
+     *            <code>Volume</code>'s pathname, and typically will denote its
      *            function rather than physical location.
      * 
      * @param id
@@ -180,10 +180,10 @@ public class Volume extends SharedResource {
      *            match the id value stored in the Volume header.
      * 
      * @param ro
-     *            <tt>true</tt> if the Volume should be opened in read- only
+     *            <code>true</code> if the Volume should be opened in read- only
      *            mode so that no updates can be performed against it.
      * 
-     * @return The <tt>Volume</tt>.
+     * @return The <code>Volume</code>.
      * 
      * @throws PersistitException
      */
@@ -203,50 +203,52 @@ public class Volume extends SharedResource {
      * <i>pathname</i>[,<i>options</i>]... <br />
      * where options include: <br />
      * <dl>
-     * <dt><tt>alias</tt></dt>
+     * <dt><code>alias</code></dt>
      * <dd>An alias used in looking up the volume by name within Persistit
      * programs (see {@link com.persistit.Persistit#getVolume(String)}). If the
      * alias attribute is not specified, the the Volume's path name is used
      * instead.</dd>
-     * <dt><tt>drive<tt></dt>
+     * <dt><code>drive<code></dt>
      * <dd>Name of the drive on which the volume is located. Specifying the
      * drive on which each volume is physically located is optional. If
      * supplied, Persistit uses the information to improve I/O throughput in
      * multi-volume configurations by interleaving write operations to different
      * physical drives.</dd>
-     * <dt><tt>readOnly</tt></dt>
+     * <dt><code>readOnly</code></dt>
      * <dd>Open in Read-Only mode. (Incompatible with create mode.)</dd>
      * 
-     * <dt><tt>create</tt></dt>
-     * <dd>Creates the volume if it does not exist. Requires <tt>bufferSize</tt>, <tt>initialPagesM</tt>, <tt>extensionPages</tt> and
-     * <tt>maximumPages</tt> to be specified.</dd>
+     * <dt><code>create</code></dt>
+     * <dd>Creates the volume if it does not exist. Requires
+     * <code>bufferSize</code>, <code>initialPagesM</code>,
+     * <code>extensionPages</code> and <code>maximumPages</code> to be
+     * specified.</dd>
      * 
-     * <dt><tt>createOnly</tt></dt>
+     * <dt><code>createOnly</code></dt>
      * <dd>Creates the volume, or throw a {@link VolumeAlreadyExistsException}
      * if it already exists.</dd>
      * 
-     * <dt><tt>transient</tt></dt>
+     * <dt><code>transient</code></dt>
      * <dd>Specify that updates to Volume should not be persistent.</dd>
      * 
-     * <dt><tt>id:<i>NNN</i></tt></dt>
+     * <dt><code>id:<i>NNN</i></code></dt>
      * <dd>Specifies an ID value for the volume. If the volume already exists,
      * this ID value must match the ID that was previously assigned to the
      * volume when it was created. If this volume is being newly created, this
      * becomes its ID number.</dd>
      * 
-     * <dt><tt>bufferSize:<i>NNN</i></tt></dt>
+     * <dt><code>bufferSize:<i>NNN</i></code></dt>
      * <dd>Specifies <i>NNN</i> as the volume's buffer size when creating a new
      * volume. <i>NNN</i> must be 1024, 2048, 4096, 8192 or 16384</dd>.
      * 
-     * <dt><tt>initialPages:<i>NNN</i></tt></dt>
+     * <dt><code>initialPages:<i>NNN</i></code></dt>
      * <dd><i>NNN</i> is the initial number of pages to be allocated when this
      * volume is first created.</dd>
      * 
-     * <dt><tt>extensionPages:<i>NNN</i></tt></dt>
+     * <dt><code>extensionPages:<i>NNN</i></code></dt>
      * <dd><i>NNN</i> is the number of pages by which to extend the volume when
      * more pages are required.</dd>
      * 
-     * <dt><tt>maximumPages:<i>NNN</i></tt></dt>
+     * <dt><code>maximumPages:<i>NNN</i></code></dt>
      * <dd><i>NNN</i> is the maximum number of pages to which this volume can
      * extend.</dd>
      * 
@@ -256,7 +258,7 @@ public class Volume extends SharedResource {
      * @param volumeSpec
      *            Volume specification
      * 
-     * @return The <tt>Volume</tt>
+     * @return The <code>Volume</code>
      * 
      * @throws PersistitException
      */
@@ -557,12 +559,12 @@ public class Volume extends SharedResource {
 
     /**
      * Creates a new Volume or open an existing Volume. If a volume having the
-     * specified <tt>id</tt> and <tt>pathname</tt> already exists, and if the
-     * mustCreate parameter is false, then this method opens and returns a
-     * previously existing <tt>Volume</tt>. If <tt>mustCreate</tt> is true and a
-     * file of the specified name already exists, then this method throws a
-     * <tt>VolumeAlreadyExistsException</tt>. Otherwise this method creates a
-     * new empty volume.
+     * specified <code>id</code> and <code>pathname</code> already exists, and
+     * if the mustCreate parameter is false, then this method opens and returns
+     * a previously existing <code>Volume</code>. If <code>mustCreate</code> is
+     * true and a file of the specified name already exists, then this method
+     * throws a <code>VolumeAlreadyExistsException</code>. Otherwise this method
+     * creates a new empty volume.
      * 
      * @param persistit
      *            The Persistit instance in which the Volume will be opened
@@ -573,7 +575,7 @@ public class Volume extends SharedResource {
      * @param name
      *            A friendly name for this volume that may be used internally by
      *            applications. The name need not be related to the
-     *            <tt>Volume</tt>'s pathname, and typically will denote its
+     *            <code>Volume</code>'s pathname, and typically will denote its
      *            function rather than physical location.
      * 
      * @param id
@@ -595,20 +597,20 @@ public class Volume extends SharedResource {
      *            within this volume.
      * 
      * @param mustCreate
-     *            <tt>true</tt> ensure that there is previously no matching
+     *            <code>true</code> ensure that there is previously no matching
      *            Volume, and that the Volume returned by this method is newly
      *            created.
      * 
      * @param tranzient
-     *            <tt>true</tt> if any updates to this volume should not be made
-     *            persistent. When <tt>true</tt> the Volume has no backing
-     *            store.
+     *            <code>true</code> if any updates to this volume should not be
+     *            made persistent. When <code>true</code> the Volume has no
+     *            backing store.
      * 
      * @param loose
-     *            <tt>true</tt> if updates may be written in "loose" (other than
-     *            execution order) to this Volume. Setting this flag may reduce
-     *            the overall I/O cost of updating the Volume, but at the cost
-     *            of possible application-level inconsistencies following
+     *            <code>true</code> if updates may be written in "loose" (other
+     *            than execution order) to this Volume. Setting this flag may
+     *            reduce the overall I/O cost of updating the Volume, but at the
+     *            cost of possible application-level inconsistencies following
      *            recovery from an abrupt termination.
      * 
      * @return the Volume
@@ -662,8 +664,8 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Returns the <tt>id</tt> of this <tt>Volume</tt>. The <tt>id</tt> is a
-     * 64-bit long that uniquely identifies this volume.
+     * Returns the <code>id</code> of this <code>Volume</code>. The
+     * <code>id</code> is a 64-bit long that uniquely identifies this volume.
      * 
      * @return The id value
      */
@@ -683,7 +685,7 @@ public class Volume extends SharedResource {
     /**
      * Returns the name specified for the Volume.
      * 
-     * @return The alias, or <tt>null</tt> if there is none.
+     * @return The alias, or <code>null</code> if there is none.
      */
     public String getName() {
         return _name;
@@ -720,9 +722,9 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Returns the directory <tt>Tree</tt> for this volume
+     * Returns the directory <code>Tree</code> for this volume
      * 
-     * @return The directory <tt>Tree</tt>
+     * @return The directory <code>Tree</code>
      */
     public Tree getDirectoryTree() {
         synchronized (_lock) {
@@ -732,7 +734,7 @@ public class Volume extends SharedResource {
 
     /**
      * Returns the count of physical disk read requests performed on this
-     * <tt>Volume</tt>.
+     * <code>Volume</code>.
      * 
      * @return The count
      */
@@ -742,7 +744,7 @@ public class Volume extends SharedResource {
 
     /**
      * Returns the count of physical disk write requests performed on this
-     * <tt>Volume</tt>.
+     * <code>Volume</code>.
      * 
      * @return The count
      */
@@ -752,7 +754,7 @@ public class Volume extends SharedResource {
 
     /**
      * Returns the count of logical buffer fetches performed against this
-     * <tt>Volume</tt>. The ratio of get to read operations indicates how
+     * <code>Volume</code>. The ratio of get to read operations indicates how
      * effectively the buffer pool is reducing disk I/O.
      * 
      * @return The count
@@ -814,7 +816,7 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Returns the time at which this <tt>Volume</tt> was created.
+     * Returns the time at which this <code>Volume</code> was created.
      * 
      * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
      */
@@ -825,7 +827,7 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Returns the time at which this <tt>Volume</tt> was last opened.
+     * Returns the time at which this <code>Volume</code> was last opened.
      * 
      * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
      */
@@ -837,7 +839,7 @@ public class Volume extends SharedResource {
 
     /**
      * Returns the time at which the last physical read operation was performed
-     * on <tt>Volume</tt>.
+     * on <code>Volume</code>.
      * 
      * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
      */
@@ -849,7 +851,7 @@ public class Volume extends SharedResource {
 
     /**
      * Returns the time at which the last physical write operation was performed
-     * on <tt>Volume</tt>.
+     * on <code>Volume</code>.
      * 
      * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
      */
@@ -860,7 +862,7 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Returns the time at which this <tt>Volume</tt> was last extended
+     * Returns the time at which this <code>Volume</code> was last extended
      * (increased in physical size).
      * 
      * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
@@ -872,19 +874,20 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Returns the last <tt>IOException</tt> that was encountered while reading,
-     * writing, extending or closing the underlying volume file. Returns
-     * <tt>null</tt> if there have been no <tt>IOException</tt>s since the
-     * volume was opened. If <tt>reset</tt> is <tt>true</tt>, the lastException
-     * field is cleared so that a subsequent call to this method will return
-     * <tt>null</tt> unless another <tt>IOException</tt> has occurred.
+     * Returns the last <code>IOException</code> that was encountered while
+     * reading, writing, extending or closing the underlying volume file.
+     * Returns <code>null</code> if there have been no <code>IOException</code>s
+     * since the volume was opened. If <code>reset</code> is <code>true</code>,
+     * the lastException field is cleared so that a subsequent call to this
+     * method will return <code>null</code> unless another
+     * <code>IOException</code> has occurred.
      * 
      * @param reset
-     *            If <tt>true</tt> then this method clears the last exception
-     *            field
+     *            If <code>true</code> then this method clears the last
+     *            exception field
      * 
-     * @return The most recently encountered <tt>IOException</tt>, or
-     *         <tt>null</tt> if there has been none.
+     * @return The most recently encountered <code>IOException</code>, or
+     *         <code>null</code> if there has been none.
      */
     public IOException lastException(boolean reset) {
         IOException ioe = _lastIOException;
@@ -1146,10 +1149,10 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Looks up by name and returns a <tt>Tree</tt> within this <tt>Volume</tt>.
-     * If no such tree exists, this method either creates a new tree or returns
-     * null depending on whether the <tt>createIfNecessary</tt> parameter is
-     * <tt>true</tt>.
+     * Looks up by name and returns a <code>Tree</code> within this
+     * <code>Volume</code>. If no such tree exists, this method either creates a
+     * new tree or returns null depending on whether the
+     * <code>createIfNecessary</code> parameter is <code>true</code>.
      * 
      * @param name
      *            The tree name
@@ -1158,8 +1161,9 @@ public class Volume extends SharedResource {
      *            Determines whether this method will create a new tree if there
      *            is no tree having the specified name.
      * 
-     * @return The <tt>Tree</tt>, or <tt>null</tt> if <tt>createIfNecessary</tt>
-     *         is false and there is no such tree in this <tt>Volume</tt>.
+     * @return The <code>Tree</code>, or <code>null</code> if
+     *         <code>createIfNecessary</code> is false and there is no such tree
+     *         in this <code>Volume</code>.
      * 
      * @throws PersistitException
      */
@@ -1205,13 +1209,13 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Removes a <tt>Tree</tt> and makes all the index and data pages formerly
-     * associated with that <tt>Tree</tt> available for reuse.
+     * Removes a <code>Tree</code> and makes all the index and data pages
+     * formerly associated with that <code>Tree</code> available for reuse.
      * 
      * @param treeName
-     *            The name of the <tt>Tree</tt> to remove.
-     * @return <tt>true</tt> if a there was a <tt>Tree</tt> of the specified
-     *         name and it was removed, otherwise <tt>false</tt>.
+     *            The name of the <code>Tree</code> to remove.
+     * @return <code>true</code> if a there was a <code>Tree</code> of the
+     *         specified name and it was removed, otherwise <code>false</code>.
      * @throws PersistitException
      */
     boolean removeTree(String treeName) throws PersistitException {
@@ -1296,7 +1300,7 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Returns an array of all currently defined <tt>Tree</tt> names.
+     * Returns an array of all currently defined <code>Tree</code> names.
      * 
      * @return The array
      * 
@@ -1321,7 +1325,7 @@ public class Volume extends SharedResource {
      *            The starting tree name
      * 
      * @return The name of the first tree in alphabetical order that is larger
-     *         than <tt>treeName</tt>.
+     *         than <code>treeName</code>.
      * 
      * @throws PersistitException
      */
@@ -1373,7 +1377,7 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Indicates whether this <tt>Volume</tt> has been closed.
+     * Indicates whether this <code>Volume</code> has been closed.
      * 
      * @return <i>true</i> if this Volume is closed.
      */
@@ -1382,7 +1386,7 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Indicates whether this <tt>Volume</tt> prohibits updates.
+     * Indicates whether this <code>Volume</code> prohibits updates.
      * 
      * @return <i>true</i> if this Volume prohibits updates.
      */
@@ -1391,8 +1395,8 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Indicates whether all updates to this <tt>Volume</tt> will be written in
-     * execution order (such that update anomalies are not visible upon
+     * Indicates whether all updates to this <code>Volume</code> will be written
+     * in execution order (such that update anomalies are not visible upon
      * recovering after an abrupt termination) or whether updates may be written
      * out-of-order. The latter method, called "loose" causes fewer pages to be
      * written to the journal for each checkpoint, but may lead to application-
@@ -1438,9 +1442,10 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Returns the <tt>BufferPool</tt> in which this volume's pages are cached.
+     * Returns the <code>BufferPool</code> in which this volume's pages are
+     * cached.
      * 
-     * @return This volume's </tt>BufferPool</tt>
+     * @return This volume's </code>BufferPool</code>
      */
     BufferPool getPool() {
         return _pool;
@@ -1509,7 +1514,8 @@ public class Volume extends SharedResource {
         bb.position(0).limit(buffer.getBufferSize());
         writePage(bb, buffer.getPageAddress());
         _persistit.getIOMeter().chargeWritePageToVolume(this,
-                buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());
+                buffer.getPageAddress(), buffer.getBufferSize(),
+                buffer.getIndex());
     }
 
     void writePage(final ByteBuffer bb, final long page) throws IOException,
@@ -1872,7 +1878,7 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Returns a displayable string describing this <tt>Volume</tt>.
+     * Returns a displayable string describing this <code>Volume</code>.
      * 
      * @return The description
      */
@@ -1884,7 +1890,9 @@ public class Volume extends SharedResource {
 
     /**
      * Store an Object with this Volume for the convenience of an application.
-     * @param the object to be cached for application convenience.
+     * 
+     * @param the
+     *            object to be cached for application convenience.
      */
     public void setAppCache(Object appCache) {
         _appCache = appCache;

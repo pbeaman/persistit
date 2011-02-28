@@ -33,20 +33,20 @@ import com.persistit.exception.MissingKeySegmentException;
 /**
  * <p>
  * Encapsulates the key used in storing, fetching or deleting a key/value pair
- * from a Persistit&trade; database. A <tt>Key</tt>'s state is represented by an
- * array of bytes that are used to physically locate records in a <tt>Tree</tt>.
- * The architectural maximum length of this byte array is 2,047 bytes. Thus a
- * <tt>Key</tt> may be used to represent a significant, but not unlimited amount
- * of information. Applications may use the <a href="#_lowLevelAPI">Low-Level
- * API</a> methods to access and modify the key's backing byte array directly.
- * However, <tt>Key</tt> provides a recommended higher-level API that simplifies
- * encoding and decoding Java values.
+ * from a Persistit&trade; database. A <code>Key</code>'s state is represented
+ * by an array of bytes that are used to physically locate records in a
+ * <code>Tree</code>. The architectural maximum length of this byte array is
+ * 2,047 bytes. Thus a <code>Key</code> may be used to represent a significant,
+ * but not unlimited amount of information. Applications may use the <a
+ * href="#_lowLevelAPI">Low-Level API</a> methods to access and modify the key's
+ * backing byte array directly. However, <code>Key</code> provides a recommended
+ * higher-level API that simplifies encoding and decoding Java values.
  * </p>
  * <a name="_keyOrdering"> <h3>Key Ordering</h3> </a>
  * <p>
- * Within a <tt>Tree</tt>, keys are ordered in lexicographic order, by unsigned
- * byte value. Thus keys encoded physically as shown will be stored in the
- * following order:
+ * Within a <code>Tree</code>, keys are ordered in lexicographic order, by
+ * unsigned byte value. Thus keys encoded physically as shown will be stored in
+ * the following order:
  * 
  * <pre>
  *   1st: {0x01, 0x01}
@@ -64,19 +64,19 @@ import com.persistit.exception.MissingKeySegmentException;
  * {@link Exchange#traverse} operations visit records, and the set of keys/value
  * pairs that will be removed by the range {@link Exchange#remove} operations.
  * Key ordering also affects the physical proxmitity of items in the
- * <tt>Tree</tt>'s on-disk representation, which can affect performance.
+ * <code>Tree</code>'s on-disk representation, which can affect performance.
  * </p>
  * <p>
- * <tt>Key</tt> provides methods to <i>encode</i> and <i>decode</i> logical
+ * <code>Key</code> provides methods to <i>encode</i> and <i>decode</i> logical
  * values into and from the backing byte array. For example, the
  * {@link #append(int)} method encodes an int into the key in such a way that
  * the natural ordering of integer values is preserved; that is, for integers u
  * and v if u &gt; v then the key encoded from u always follows that encoded
- * from v in lexicographic order. The <tt>append</tt> method is overloaded to
- * support each primitive Java type and <tt>Object</tt>. The ordering of key
- * values within each primitive type follows the natural ordering for that type
- * (see <a href="#_keyStringEncoding">String Encoding</a> for information on
- * collation of Strings).
+ * from v in lexicographic order. The <code>append</code> method is overloaded
+ * to support each primitive Java type and <code>Object</code>. The ordering of
+ * key values within each primitive type follows the natural ordering for that
+ * type (see <a href="#_keyStringEncoding">String Encoding</a> for information
+ * on collation of Strings).
  * </p>
  * <p>
  * There is also an implicit ordering between different encoded types. The
@@ -95,12 +95,13 @@ import com.persistit.exception.MissingKeySegmentException;
  * </p>
  * <h4>Equivalence of Wrapped and Primitive Types</h3>
  * <p>
- * By default <tt>Key</tt> encodes objects of type <tt>Boolean</tt>,
- * <tt>Byte</tt>, <tt>Short</tt>, <tt>Character</tt>, <tt>Integer</tt>,
- * <tt>Long</tt>, <tt>Float</tt> and <tt>Double</tt> exactly the same as their
- * primitive counterparts. Thus the {@link #decode} method, which returns an
- * Object, can be used uniformly to decode values that were appended as either
- * primitives or their wrapped equivalents.
+ * By default <code>Key</code> encodes objects of type <code>Boolean</code>,
+ * <code>Byte</code>, <code>Short</code>, <code>Character</code>,
+ * <code>Integer</code>, <code>Long</code>, <code>Float</code> and
+ * <code>Double</code> exactly the same as their primitive counterparts. Thus
+ * the {@link #decode} method, which returns an Object, can be used uniformly to
+ * decode values that were appended as either primitives or their wrapped
+ * equivalents.
  * </p>
  * <a name="_keyStringEncoding">
  * <h3>String Encoding</h3>
@@ -119,11 +120,11 @@ import com.persistit.exception.MissingKeySegmentException;
  * The default string-encoding algorithm does not support localized collation.
  * Specialized collation can be added through a custom
  * {@link com.persistit.encoding.KeyStringCoder}. To use a
- * <tt>KeyStringEncoder</tt>, attach it to the <tt>Key</tt> with the
+ * <code>KeyStringEncoder</code>, attach it to the <code>Key</code> with the
  * {@link #setKeyStringCoder setKeyStringCoder} method. Note that once
  * custom-coded Strings have been inserted as keys into the Persistit database,
- * the same <tt>KeyStringCoder</tt> must be attached to the <tt>Key</tt> for
- * proper decoding.
+ * the same <code>KeyStringCoder</code> must be attached to the <code>Key</code>
+ * for proper decoding.
  * </p>
  * <a name="_ObjectEncoding">
  * <h3>Object Encoding</h3>
@@ -147,7 +148,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * The default encoding for these types, plus any additional Object types that
  * are required to be used as key values, can be overridden by a custom
  * {@link com.persistit.encoding.KeyCoder}. For consistency, the application
- * should register all custom <tt>KeyCoder</tt> objects immediately after
+ * should register all custom <code>KeyCoder</code> objects immediately after
  * initializing Persistit, for example:
  * 
  * <code><pre>
@@ -163,37 +164,37 @@ import com.persistit.exception.MissingKeySegmentException;
  * </p>
  * <p>
  * While it is technically possible to override default String encoding using a
- * <tt>KeyCoder</tt>, <tt>KeyStringCoder</tt> should be used for this purpose. A
- * <tt>KeyCoder</tt> is concerned with application logic, whereas
- * <tt>KeyStringCoder</tt> supports localization. It is preferable to separate
- * these concerns.
+ * <code>KeyCoder</code>, <code>KeyStringCoder</code> should be used for this
+ * purpose. A <code>KeyCoder</code> is concerned with application logic, whereas
+ * <code>KeyStringCoder</code> supports localization. It is preferable to
+ * separate these concerns.
  * </p>
  * <a name="_keySegments">
  * <h3>Key Segments</h3>
  * </a>
  * <p>
- * An application may append multiple values to a <tt>Key</tt>, each of which is
- * called a key <i>segment</i>. Applications use multiple segments to form
- * concatenated keys. A concatenated key uniquely identifies a particular record
- * by a combination of data values rather than one simple value. The number of
- * segments in a Persistit concatenated key is bounded only by the architectural
- * limitation on the length of the underlying byte array.
+ * An application may append multiple values to a <code>Key</code>, each of
+ * which is called a key <i>segment</i>. Applications use multiple segments to
+ * form concatenated keys. A concatenated key uniquely identifies a particular
+ * record by a combination of data values rather than one simple value. The
+ * number of segments in a Persistit concatenated key is bounded only by the
+ * architectural limitation on the length of the underlying byte array.
  * </p>
  * Each key segment is encoded as a sequence of non-zero bytes. Segments are
- * separated by zero-valued bytes. A <tt>Key</tt> encodes strings, byte arrays,
- * and all other data types that might naturally contain a zero- valued byte by
- * inserting escape sequences in place of the zero values. Specifically, NUL
- * (character code 0) in a string, or a zero in a byte array element is replaced
- * by the two-byte sequence (0x01, 0x20). An SOH (character code 1) or a one in
- * a byte array element is replaced by the two-byte sequence (0x01, 0x021). This
- * scheme is handled automatically, and only those applications that manipulate
- * the raw byte buffer using the low-level API need to be aware of it. This
- * encoding ensures that the key orderering preserves the natural ordering of
- * the underlying values. For example, the encoded forms of the two string "AB"
- * and "ABC" are (0x80, 0x41, 0x42, 0x00) and (0x80, 0x41, 0x42, 0x43, 0x00),
- * respectively. The two encodings differ in the third byte (the zero that
- * terminates the shorter string) which correctly causes the shorter string to
- * collate before the longer one.
+ * separated by zero-valued bytes. A <code>Key</code> encodes strings, byte
+ * arrays, and all other data types that might naturally contain a zero- valued
+ * byte by inserting escape sequences in place of the zero values. Specifically,
+ * NUL (character code 0) in a string, or a zero in a byte array element is
+ * replaced by the two-byte sequence (0x01, 0x20). An SOH (character code 1) or
+ * a one in a byte array element is replaced by the two-byte sequence (0x01,
+ * 0x021). This scheme is handled automatically, and only those applications
+ * that manipulate the raw byte buffer using the low-level API need to be aware
+ * of it. This encoding ensures that the key orderering preserves the natural
+ * ordering of the underlying values. For example, the encoded forms of the two
+ * string "AB" and "ABC" are (0x80, 0x41, 0x42, 0x00) and (0x80, 0x41, 0x42,
+ * 0x43, 0x00), respectively. The two encodings differ in the third byte (the
+ * zero that terminates the shorter string) which correctly causes the shorter
+ * string to collate before the longer one.
  * <p>
  * Segments fall naturally into the ordering scheme. If two keys are different,
  * then the first segment that differs between the two keys controls their
@@ -207,13 +208,13 @@ import com.persistit.exception.MissingKeySegmentException;
  * </pre></code>
  * 
  * sets the four keys so that their ordering sequence is
- * <tt>key1 &lt; key2 &lt; key3 &lt; key4.</tt>
+ * <code>key1 &lt; key2 &lt; key3 &lt; key4.</code>
  * </p>
  * <a name="_keyChildren">
  * <h3>Logical Key Children and Siblings</h3>
  * </a>
  * <p>
- * The ability to append multiple key segments to a <tt>Key</tt> supports a
+ * The ability to append multiple key segments to a <code>Key</code> supports a
  * method of grouping records logically by hierarchical key values. Much as a
  * paper filing system uses cabinets, drawers, and folders to organize
  * documents, segmented keys can be used to impose a hierarchical organization
@@ -262,7 +263,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * Logical child relationships between keys are represented solely by the way in
  * which keys are encoded and ordered within the physical tree; there is no
  * direct physical representation of the logical hierarchy. However, because of
- * the way keys are physically ordered within a <tt>Tree</tt>, logical child
+ * the way keys are physically ordered within a <code>Tree</code>, logical child
  * keys fall closer to their parents in key sort order than other keys, and are
  * therefore more likely to be located on physical database pages that have
  * already been read into the buffer pool.
@@ -276,16 +277,16 @@ import com.persistit.exception.MissingKeySegmentException;
  * variants {@link Exchange#next(boolean)} and
  * {@link Exchange#previous(boolean)} are capable of either <i>deep</i> or
  * <i>shallow</i> traversal. If deep traversal is requested then the result is
- * the next (or previous) physical key in the <tt>Tree</tt>, regardless of
+ * the next (or previous) physical key in the <code>Tree</code>, regardless of
  * whether it is a logical child key. However, if shallow traversal is
  * requested, all logical children are skipped and the result is the next (or
  * previous) logical sibling key value.</li>
  * <li>
  * The {@link Exchange#remove(Key.Direction)} method optionally removes the
  * key/value pair specified by the current key value and/or the logical children
- * of that key value. Continuing the purchase order example, the <tt>remove</tt>
- * method can remove just the line items, just the purchase order summary, or
- * both.</li>
+ * of that key value. Continuing the purchase order example, the
+ * <code>remove</code> method can remove just the line items, just the purchase
+ * order summary, or both.</li>
  * </ul>
  * </p>
  * <a name="_stringRepresentation">
@@ -308,11 +309,11 @@ import com.persistit.exception.MissingKeySegmentException;
  * where each segment value is one of the following:
  * <ul>
  * <li>
- * <tt>null</tt></li>
+ * <code>null</code></li>
  * <li>
- * <tt>false</tt></li>
+ * <code>false</code></li>
  * <li>
- * <tt>true</tt></li>
+ * <code>true</code></li>
  * <li>
  * a String literal, enclosed in quotes as in Java</li>
  * <li>
@@ -336,9 +337,9 @@ import com.persistit.exception.MissingKeySegmentException;
  * { &quot;xyz&quot;, 1.23, (long) 456, (java.util.Date) 20040901114722.563 + 0500 }
  * </pre>
  * 
- * All numeric types other than <tt>double</tt> and <tt>int</tt> use a cast
- * segment representation so to permit exact translation to and from the String
- * representation and the underlying internal key value. The canonical
+ * All numeric types other than <code>double</code> and <code>int</code> use a
+ * cast segment representation so to permit exact translation to and from the
+ * String representation and the underlying internal key value. The canonical
  * representation of a Date is designed to allow exact translation to and from
  * the internal segment value while being somewhat legible.
  * </p>
@@ -346,7 +347,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * <h3>Putting It All Together - How to Use the Key API</h3>
  * </a>
  * <p>
- * Applications do two fundamental things with <tt>Key</tt>s:
+ * Applications do two fundamental things with <code>Key</code>s:
  * <ol>
  * <li>
  * Applications <i>construct</i> key values when fetching, storing or removing
@@ -361,16 +362,16 @@ import com.persistit.exception.MissingKeySegmentException;
  * {@link #append(short)} ... {@link #append(Object)}, {@link #to(boolean)},
  * {@link #to(byte)} {@link #to(short)} ... {@link #to(Object)}. These methods
  * all modify the current state of the key. As a convenience, these methods all
- * return the <tt>Key</tt> so support method call chaining.
+ * return the <code>Key</code> so support method call chaining.
  * </p>
  * <p>
  * Methods used to decode key values are {@link #reset}, {@link #indexTo},
  * {@link #decodeBoolean}, {@link #decodeByte}, {@link #decodeShort} ...
  * {@link #decode}. These methods do not modify the value represented by the
- * key. Each <tt>decode<i>TTTT</i></tt> method returns a value of type
+ * key. Each <code>decode<i>TTTT</i></code> method returns a value of type
  * <i>TTTT</i>. The {@link #decode} method returns a value of type
- * <tt>Object</tt>. The <tt>reset</tt> and <tt>indexTo</tt> control which
- * segment the next value will be decoded from.
+ * <code>Object</code>. The <code>reset</code> and <code>indexTo</code> control
+ * which segment the next value will be decoded from.
  * </p>
  * <a name="_lowLevelAPI">
  * <h3>Low-Level API</h3>
@@ -433,11 +434,11 @@ public final class Key implements Comparable<Object> {
      */
     public static final Direction LT = new Direction("LT", 1);
     /**
-     * Key that always occupies the left edge of any <tt>Tree</tt>
+     * Key that always occupies the left edge of any <code>Tree</code>
      */
     public final static Key LEFT_GUARD_KEY = new Key(null, 1);
     /**
-     * Key that always occupies the right edge of any <tt>Tree</tt>
+     * Key that always occupies the right edge of any <code>Tree</code>
      */
     public final static Key RIGHT_GUARD_KEY = new Key(null, 1);
 
@@ -447,12 +448,12 @@ public final class Key implements Comparable<Object> {
     public final static int MAX_KEY_LENGTH = 2047;
 
     /**
-     * A <tt>Key</tt> segment value that collates before any actual key in a
-     * <tt>Tree</tt>. A <tt>Key</tt> may include an instance of this value as
-     * its final segment, but the {@link Exchange#store store} and
+     * A <code>Key</code> segment value that collates before any actual key in a
+     * <code>Tree</code>. A <code>Key</code> may include an instance of this
+     * value as its final segment, but the {@link Exchange#store store} and
      * {@link Exchange#fetch fetch} methods will not permit such a key as
-     * inputs. Use <tt>BEFORE</tt> to seed a {@link Exchange#traverse traverse}
-     * loop, as shown in this code fragment:
+     * inputs. Use <code>BEFORE</code> to seed a {@link Exchange#traverse
+     * traverse} loop, as shown in this code fragment:
      * 
      * <pre>
      *      key.to(BEFORE);
@@ -466,12 +467,12 @@ public final class Key implements Comparable<Object> {
      */
     public final static EdgeValue BEFORE = new EdgeValue(false);
     /**
-     * A <tt>Key</tt> segment value that collates after any actual key in a
-     * <tt>Tree</tt>. A <tt>Key</tt> may include an instance of this value as
-     * its final segment, but the {@link Exchange#store store} and
+     * A <code>Key</code> segment value that collates after any actual key in a
+     * <code>Tree</code>. A <code>Key</code> may include an instance of this
+     * value as its final segment, but the {@link Exchange#store store} and
      * {@link Exchange#fetch fetch} methods will not permit such a key as
-     * inputs. Use <tt>AFTER</tt> to seed a {@link Exchange#traverse traverse}
-     * loop, as shown in this code fragment:
+     * inputs. Use <code>AFTER</code> to seed a {@link Exchange#traverse
+     * traverse} loop, as shown in this code fragment:
      * 
      * <pre>
      *      key.to(AFTER);
@@ -486,12 +487,12 @@ public final class Key implements Comparable<Object> {
     public final static EdgeValue AFTER = new EdgeValue(true);
 
     /**
-     * The <tt>java.text.SimpleDateFormat</tt> used in formatting <tt>Date</tt>-
-     * valued keys in the {@link #decodeDisplayable} methods. This format also
-     * governs the conversion of dates for the <tt>toString</tt> method. This
-     * format provides millisecond resolution so that the precise stored
-     * representation of a date used as a key can be represented exactly, but
-     * readably, in the displayable version.
+     * The <code>java.text.SimpleDateFormat</code> used in formatting
+     * <code>Date</code>- valued keys in the {@link #decodeDisplayable} methods.
+     * This format also governs the conversion of dates for the
+     * <code>toString</code> method. This format provides millisecond resolution
+     * so that the precise stored representation of a date used as a key can be
+     * represented exactly, but readably, in the displayable version.
      */
     public final static SimpleDateFormat SDF = new SimpleDateFormat(
             "yyyyMMddHHmmss.SSSZ");
@@ -917,10 +918,10 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Enumeration of special key segment values used to traverse from the first
-     * or last key. At most one <tt>EdgeValue</tt> may be appended to a key, but
-     * a key so constructed is not valid for the {@link Exchange#store store} or
-     * {@link Exchange#fetch fetch} operations. See {@link #BEFORE} and
-     * {@link #AFTER}.
+     * or last key. At most one <code>EdgeValue</code> may be appended to a key,
+     * but a key so constructed is not valid for the {@link Exchange#store
+     * store} or {@link Exchange#fetch fetch} operations. See {@link #BEFORE}
+     * and {@link #AFTER}.
      */
     public static class EdgeValue implements Serializable {
         public static final long serialVersionUID = -502106634184636556L;
@@ -953,7 +954,7 @@ public final class Key implements Comparable<Object> {
      * 
      * 
      * @param key
-     *            The <tt>Key</tt> to copy.
+     *            The <code>Key</code> to copy.
      */
     public void copyTo(Key key) {
         if (key == this)
@@ -979,7 +980,7 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Constructs a <tt>Key</tt> with the specified maximum length.
+     * Constructs a <code>Key</code> with the specified maximum length.
      * 
      * @param maxLength
      *            The maximum length
@@ -1005,11 +1006,11 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Constructs a <tt>Key</tt> which duplicates the state of the supplied
-     * <tt>Key</tt>.
+     * Constructs a <code>Key</code> which duplicates the state of the supplied
+     * <code>Key</code>.
      * 
      * @param source
-     *            The <tt>Key</tt> to copy
+     *            The <code>Key</code> to copy
      */
     public Key(Key source) {
         source.copyTo(this);
@@ -1017,7 +1018,7 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Returns the maximum number of bytes permitting in the backing byte array
-     * for this <tt>Key</tt>.
+     * for this <code>Key</code>.
      * 
      * @return The maximum physical size
      */
@@ -1026,8 +1027,8 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Returns the byte array that backs this <tt>Key</tt>. This method is part
-     * of the <a href="#_lowLevelAPI">Low-Level API</a>.
+     * Returns the byte array that backs this <code>Key</code>. This method is
+     * part of the <a href="#_lowLevelAPI">Low-Level API</a>.
      * 
      * @return The backing byte array
      */
@@ -1047,7 +1048,7 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Sets the count of valid encoded bytes in the backing array for this
-     * <tt>Key</tt>. This method is part of the <a
+     * <code>Key</code>. This method is part of the <a
      * href="#_lowLevelAPI">Low-Level API</a>.
      */
     public void setEncodedSize(int size) {
@@ -1062,7 +1063,8 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * The number of key segments in this <tt>Key</tt>. For example, the code
+     * The number of key segments in this <code>Key</code>. For example, the
+     * code
      * 
      * 
      * <code><pre>
@@ -1085,7 +1087,7 @@ public final class Key implements Comparable<Object> {
      * {@link #indexTo} method to set the index to a valid location.
      * 
      * @param index
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key setIndex(int index) {
         notLeftOrRightGuard();
@@ -1098,19 +1100,19 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Returns the current <tt>KeyStringCoder</tt>.
+     * Returns the current <code>KeyStringCoder</code>.
      * 
-     * @return The <tt>KeyStringCoder</tt>
+     * @return The <code>KeyStringCoder</code>
      */
     public KeyStringCoder getKeyStringCoder() {
         return _stringCoder;
     }
 
     /**
-     * Replaces the current <tt>KeyStringCoder</tt>.
+     * Replaces the current <code>KeyStringCoder</code>.
      * 
      * @param coder
-     *            The new <tt>KeyStringCoder</tt>
+     *            The new <code>KeyStringCoder</code>
      */
     public void setKeyStringCoder(KeyStringCoder coder) {
         _stringCoder = coder;
@@ -1118,12 +1120,12 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Computes a hash code for key value currently represented by this
-     * <tt>Key</tt>. Changing the key will result in a different hashCode value.
-     * A {@link KeyState} holds an immutable copy of the state of a <tt>Key</tt>
-     * for use in maps. The <tt>hashCode</tt> and <tt>equals</tt> methods of
-     * <tt>Key</tt> and <tt>KeyState</tt> are compatible so that an application
-     * can perform a map lookup using a <tt>Key</tt> when the map's key is
-     * actually a <tt>KeyState</tt>.
+     * <code>Key</code>. Changing the key will result in a different hashCode
+     * value. A {@link KeyState} holds an immutable copy of the state of a
+     * <code>Key</code> for use in maps. The <code>hashCode</code> and
+     * <code>equals</code> methods of <code>Key</code> and <code>KeyState</code>
+     * are compatible so that an application can perform a map lookup using a
+     * <code>Key</code> when the map's key is actually a <code>KeyState</code>.
      * 
      * @return The hash code
      */
@@ -1136,15 +1138,16 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Compares this <tt>Key</tt> to another <tt>Key</tt> or {@link KeyState}. A
-     * <tt>KeyState</tt> holds an immutable copy of the state of a <tt>Key</tt>
-     * for use in maps. The <tt>hashCode</tt> and <tt>equals</tt> methods of
-     * <tt>Key</tt> and <tt>KeyState</tt> are compatible so that an application
-     * can perform a map lookup using a <tt>Key</tt> when the map's key is
-     * actually a <tt>KeyState</tt>.
+     * Compares this <code>Key</code> to another <code>Key</code> or
+     * {@link KeyState}. A <code>KeyState</code> holds an immutable copy of the
+     * state of a <code>Key</code> for use in maps. The <code>hashCode</code>
+     * and <code>equals</code> methods of <code>Key</code> and
+     * <code>KeyState</code> are compatible so that an application can perform a
+     * map lookup using a <code>Key</code> when the map's key is actually a
+     * <code>KeyState</code>.
      * 
-     * @return <tt>true</tt> if the target represents the same <tt>Key</tt>
-     *         value
+     * @return <code>true</code> if the target represents the same
+     *         <code>Key</code> value
      */
     public boolean equals(Object target) {
         if (target instanceof Key)
@@ -1156,9 +1159,9 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Returns a positive integer if this <tt>Key</tt> is larger than the
-     * supplied <tt>Key</tt>, a negative integer if it is smaller, or zero if
-     * they are equal.
+     * Returns a positive integer if this <code>Key</code> is larger than the
+     * supplied <code>Key</code>, a negative integer if it is smaller, or zero
+     * if they are equal.
      * 
      * @return The comparison result
      */
@@ -1189,19 +1192,19 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Compares a bounded subarray of the backing byte array for this
-     * <tt>Key</tt> with another <tt>Key</tt>. This method is intended for use
-     * within the library and is generally not useful for applications.
+     * <code>Key</code> with another <code>Key</code>. This method is intended
+     * for use within the library and is generally not useful for applications.
      * 
      * @param key
-     *            The <tt>Key</tt> to compare.
+     *            The <code>Key</code> to compare.
      * @param fragmentStart
      *            Index of first byte to compare
      * @param fragmentSize
      *            The number of bytes to compare.
-     * @return A positive value if this <tt>Key</tt>'s fragment is larger than,
-     *         a negative value if this <tt>Key</tt>'s fragment is smaller than,
-     *         or 0 if this <tt>Key</tt>'s fragment is equal to the
-     *         corresponding fragment of the supplied <tt>Key</tt>.
+     * @return A positive value if this <code>Key</code>'s fragment is larger
+     *         than, a negative value if this <code>Key</code>'s fragment is
+     *         smaller than, or 0 if this <code>Key</code>'s fragment is equal
+     *         to the corresponding fragment of the supplied <code>Key</code>.
      */
     public int compareKeyFragment(Key key, int fragmentStart, int fragmentSize) {
         if (key == this)
@@ -1234,14 +1237,15 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Returns the index of the first encoded byte of this key that is different
-     * than the corresponding byte of the supplied <tt>Key</tt>. If all bytes
-     * match, then returns the encoded length of the shorter key.
+     * than the corresponding byte of the supplied <code>Key</code>. If all
+     * bytes match, then returns the encoded length of the shorter key.
      * 
      * @param key
      *            The code on which to count matching bytes
      * 
      * @return The index of the first byte of this key that is unequal to the
-     *         byte in the corresponding position of the supplied <tt>Key</tt>.
+     *         byte in the corresponding position of the supplied
+     *         <code>Key</code>.
      */
     public int firstUniqueByteIndex(Key key) {
         int end = _size;
@@ -1258,14 +1262,14 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Returns the depth of the first segment of this key that is different than
-     * the corresponding byte of the supplied <tt>Key</tt>. If all bytes match,
-     * then returns the depth of the shorter key.
+     * the corresponding byte of the supplied <code>Key</code>. If all bytes
+     * match, then returns the depth of the shorter key.
      * 
      * @param key
      *            The code on which to count matching bytes
      * 
      * @return The depth of the first segment of this key that differs from that
-     *         of the supplied <tt>Key</tt>.
+     *         of the supplied <code>Key</code>.
      */
     public int firstUniqueSegmentDepth(Key key) {
         int depth = 0;
@@ -1285,10 +1289,10 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Sets the current location and size of this <tt>Key</tt> to zero,
+     * Sets the current location and size of this <code>Key</code> to zero,
      * effectively removing any previously appended key segments.
      * 
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key clear() {
         _size = 0;
@@ -1305,12 +1309,12 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Truncates this <tt>Key</tt> to the specified <tt>depth</tt>. If
-     * <tt>depth</tt> is 0 then this method is equivalent to {@link #clear}. If
-     * <tt>depth</tt> is positive, then this <tt>Key</tt> is truncated so that
-     * it has no more than <tt>depth</tt> key segments. If <tt>depth</tt> is
-     * negative, then up to <tt>-depth</tt> segments are removed from the end.
-     * For example,
+     * Truncates this <code>Key</code> to the specified <code>depth</code>. If
+     * <code>depth</code> is 0 then this method is equivalent to {@link #clear}.
+     * If <code>depth</code> is positive, then this <code>Key</code> is
+     * truncated so that it has no more than <code>depth</code> key segments. If
+     * <code>depth</code> is negative, then up to <code>-depth</code> segments
+     * are removed from the end. For example,
      * 
      * <code><pre>
      *     key.clear().append(&quot;a&quot;).append(&quot;b&quot;).append(&quot;c&quot;).setDepth(-1);
@@ -1320,7 +1324,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param depth
      *            The depth, as defined above.
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key setDepth(int depth) {
         if (depth == 0)
@@ -1339,7 +1343,7 @@ public final class Key implements Comparable<Object> {
      * segment value.) This method is equivalent to {@link #indexTo(int)
      * indexTo(0)}.
      * 
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key reset() {
         _index = 0;
@@ -1347,13 +1351,14 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Sets the index to a specified <tt>depth</tt>. (The <i>index</i> is the
-     * location within the backing byte array from which the next
-     * {@link #decode} operation will decode a segment value.) If <tt>depth</tt>
-     * is 0 then this method is equivalent to {@link #reset}. If <tt>depth</tt>
-     * is positive, then the index is set to point to the <tt>depth</tt>th key
-     * segment. If <tt>depth</tt> is negative, then the index is set to point to
-     * a key segment <tt>-depth</tt> segments from the end. For example,
+     * Sets the index to a specified <code>depth</code>. (The <i>index</i> is
+     * the location within the backing byte array from which the next
+     * {@link #decode} operation will decode a segment value.) If
+     * <code>depth</code> is 0 then this method is equivalent to {@link #reset}.
+     * If <code>depth</code> is positive, then the index is set to point to the
+     * <code>depth</code>th key segment. If <code>depth</code> is negative, then
+     * the index is set to point to a key segment <code>-depth</code> segments
+     * from the end. For example,
      * 
      * 
      * <code><pre>
@@ -1365,7 +1370,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param depth
      *            The depth, as defined above.
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key indexTo(int depth) {
         int index = 0;
@@ -1403,18 +1408,18 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Remove one key segment value from the end of this <tt>Key</tt>. If the
-     * key is empty this method does nothing.
+     * Remove one key segment value from the end of this <code>Key</code>. If
+     * the key is empty this method does nothing.
      * 
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key cut() {
         return cut(1);
     }
 
     /**
-     * Remove up to <tt>count</tt> key segment values from the end of this
-     * <tt>Key</tt>. For example, the code fragment
+     * Remove up to <code>count</code> key segment values from the end of this
+     * <code>Key</code>. For example, the code fragment
      * 
      * <code><pre>
      *     key.clear();
@@ -1426,7 +1431,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param count
      *            The number of key segments to cut.
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key cut(int count) {
         int index = _size;
@@ -1456,7 +1461,7 @@ public final class Key implements Comparable<Object> {
 
     /**
      * Returns a displayable String representation of the content of this
-     * <tt>Key</tt>
+     * <code>Key</code>
      * 
      * @return A displayable String
      */
@@ -1532,7 +1537,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The boolean value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key append(boolean v) {
         testValidForAppend();
@@ -1623,7 +1628,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The byte value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key append(byte v) {
         testValidForAppend();
@@ -1648,7 +1653,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The short value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key append(short v) {
         testValidForAppend();
@@ -1698,7 +1703,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The char value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key append(char v) {
         testValidForAppend();
@@ -1729,7 +1734,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The int value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key append(int v) {
         testValidForAppend();
@@ -1815,7 +1820,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The long value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key append(long v) {
         testValidForAppend();
@@ -1915,7 +1920,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The float value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key append(float v) {
         testValidForAppend();
@@ -1940,7 +1945,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The double value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key append(double v) {
         testValidForAppend();
@@ -1961,15 +1966,15 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Encodes and appends an <tt>Object</tt> value to the key. Only objects of
-     * certain classes can be encoded in a <tt>Key</tt> (see <a
+     * Encodes and appends an <code>Object</code> value to the key. Only objects
+     * of certain classes can be encoded in a <code>Key</code> (see <a
      * href="#_ObjectEncoding">Object Encoding</a> for details). This method
-     * throws a <tt>ConversionException</tt> for unsupported types.
+     * throws a <code>ConversionException</code> for unsupported types.
      * 
      * @param object
      *            The object to append
      * 
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      * 
      * @throws ConversionException
      *             if the supplied object is not an implicitly supported type
@@ -1980,10 +1985,10 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Encodes and appends an <tt>Object</tt> value to the key. Only objects of
-     * certain classes can be encoded in a <tt>Key</tt> (see <a
+     * Encodes and appends an <code>Object</code> value to the key. Only objects
+     * of certain classes can be encoded in a <code>Key</code> (see <a
      * href="#_ObjectEncoding">Object Encoding</a> for details). This method
-     * throws a <tt>ConversionException</tt> for unsupported types.
+     * throws a <code>ConversionException</code> for unsupported types.
      * 
      * @param object
      *            The object to append
@@ -1993,7 +1998,7 @@ public final class Key implements Comparable<Object> {
      *            {@link KeyCoder}. The context is passed to the
      *            {@link KeyCoder#appendKeySegment} method.
      * 
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      * 
      * @throws ConversionException
      *             if the supplied object is not an implicitly supported type
@@ -2085,7 +2090,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The boolean value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key to(boolean v) {
         cut();
@@ -2099,7 +2104,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The byte value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key to(byte v) {
         cut();
@@ -2113,7 +2118,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The short value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key to(short v) {
         cut();
@@ -2127,7 +2132,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The char value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key to(char v) {
         cut();
@@ -2141,7 +2146,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The int value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key to(int v) {
         cut();
@@ -2155,7 +2160,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The long value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key to(long v) {
         cut();
@@ -2169,7 +2174,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The float value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key to(float v) {
         cut();
@@ -2183,7 +2188,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param v
      *            The double value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key to(double v) {
         cut();
@@ -2191,15 +2196,15 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Replaces the final key segment with the supplied <tt>Object</tt> value.
-     * If the key is currently empty, this method simply appends the value. This
-     * method is equivalent to invoking {@link #cut} and then
+     * Replaces the final key segment with the supplied <code>Object</code>
+     * value. If the key is currently empty, this method simply appends the
+     * value. This method is equivalent to invoking {@link #cut} and then
      * {@link #append(Object)}. See {@link #append(Object)} for restrictions on
      * permissible Object values.
      * 
      * @param v
      *            The Object value to append
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key to(Object v) {
         cut();
@@ -2595,8 +2600,8 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Decodes the next key segment as a <tt>String</tt>, advances the index to
-     * the next key segment and returns the result. This method uses the
+     * Decodes the next key segment as a <code>String</code>, advances the index
+     * to the next key segment and returns the result. This method uses the
      * {@link KeyStringCoder} if there is one.
      * 
      * @return The String value
@@ -2610,8 +2615,8 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Decodes the next key segment as a <tt>String</tt>, advances the index to
-     * the next key segment and returns the result. This method uses the
+     * Decodes the next key segment as a <code>String</code>, advances the index
+     * to the next key segment and returns the result. This method uses the
      * {@link KeyStringCoder} if there is one.
      * 
      * @param context
@@ -2629,13 +2634,13 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Decodes the next key segment as a <tt>String</tt>, appends the result to
-     * the supplied <tt>StringBuilder</tt> and advance the index to the next key
-     * segment. This method uses the <tt>Key</tt>'s {@link KeyStringCoder} if
-     * there is one.
+     * Decodes the next key segment as a <code>String</code>, appends the result
+     * to the supplied <code>StringBuilder</code> and advance the index to the
+     * next key segment. This method uses the <code>Key</code>'s
+     * {@link KeyStringCoder} if there is one.
      * 
      * @param sb
-     *            The <tt>StringBuilder</tt>
+     *            The <code>StringBuilder</code>
      * 
      * @throws ConversionException
      *             if the next key segment value is not a String.
@@ -2645,13 +2650,13 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Decodes the next key segment as a <tt>String</tt>, appends the result to
-     * the supplied <tt>StringBuilder</tt> and advances the index to the next
-     * key segment. This method uses the <tt>Key</tt>'s {@link KeyStringCoder}
-     * if there is one.
+     * Decodes the next key segment as a <code>String</code>, appends the result
+     * to the supplied <code>StringBuilder</code> and advances the index to the
+     * next key segment. This method uses the <code>Key</code>'s
+     * {@link KeyStringCoder} if there is one.
      * 
      * @param sb
-     *            The <tt>StringBuilder</tt>
+     *            The <code>StringBuilder</code>
      * 
      * @param context
      *            An application-specified value that may assist a
@@ -2666,8 +2671,8 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Decodes the next key segment as a <tt>java.util.Date</tt>, advances the
-     * index to the next key segment and returns the result.
+     * Decodes the next key segment as a <code>java.util.Date</code>, advances
+     * the index to the next key segment and returns the result.
      * 
      * @return The Date value
      * @throws ConversionException
@@ -2691,8 +2696,8 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Decodes the next key segment as a <tt>java.math.BigInteger</tt>, advances
-     * the index to the next key segment and returns the result.
+     * Decodes the next key segment as a <code>java.math.BigInteger</code>,
+     * advances the index to the next key segment and returns the result.
      * 
      * @return The BigInteger value
      * @throws ConversionException
@@ -2717,8 +2722,8 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Decodes the next key segment as a <tt>java.math.BigDecimal</tt>, advances
-     * the index to the next key segment and returns the result.
+     * Decodes the next key segment as a <code>java.math.BigDecimal</code>,
+     * advances the index to the next key segment and returns the result.
      * 
      * @return The BigDecimal value
      * @throws ConversionException
@@ -2774,10 +2779,11 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Decodes the next key segment as an <tt>Object</tt>, advances the index to
-     * the next key segment and returns the result.
+     * Decodes the next key segment as an <code>Object</code>, advances the
+     * index to the next key segment and returns the result.
      * 
-     * @return The Object value, or <tt>null</tt> if the encoded value is null.
+     * @return The Object value, or <code>null</code> if the encoded value is
+     *         null.
      * @throws ConversionException
      *             if the next key segment value is not a boolean.
      */
@@ -2787,23 +2793,24 @@ public final class Key implements Comparable<Object> {
 
     /**
      * <p>
-     * Decodes the next key segment as an <tt>Object</tt>, advances the index to
-     * the next key segment and returns the result.
+     * Decodes the next key segment as an <code>Object</code>, advances the
+     * index to the next key segment and returns the result.
      * </p>
-     * If the value encoded in this <tt>Value</tt> is null then this method
-     * returns <tt>null</tt>. Otherwise this method returns either (a) a new
+     * If the value encoded in this <code>Value</code> is null then this method
+     * returns <code>null</code>. Otherwise this method returns either (a) a new
      * object instance, or (b) the target object. Specifically, if the supplied
      * target is non-null, and if the class of the object encoded in the
-     * <tt>Value</tt> is supported by a registered {@link KeyRenderer}, then the
-     * target object will be returned after the <tt>KeyRenderer</tt> has
+     * <code>Value</code> is supported by a registered {@link KeyRenderer}, then
+     * the target object will be returned after the <code>KeyRenderer</code> has
      * populated its state. Otherwise the target object will be ignored and this
      * method will return a newly created object instance. </p>
      * 
      * @param target
      *            A mutable object into which this method may attempt to decode
      *            the value
-     * @return An <tt>Object</tt> representing the key segment encoded in the
-     *         <tt>Key</tt>, or <tt>null</tt> if the encoded value is null.
+     * @return An <code>Object</code> representing the key segment encoded in
+     *         the <code>Key</code>, or <code>null</code> if the encoded value
+     *         is null.
      */
     public Object decode(Object target) {
         return decode(target, null);
@@ -2811,15 +2818,15 @@ public final class Key implements Comparable<Object> {
 
     /**
      * <p>
-     * Decodes the next key segment as an <tt>Object</tt>, advances the index to
-     * the next key segment and returns the result.
+     * Decodes the next key segment as an <code>Object</code>, advances the
+     * index to the next key segment and returns the result.
      * </p>
-     * If the value encoded in this <tt>Value</tt> is null then this method
-     * returns <tt>null</tt>. Otherwise this method returns either (a) a new
+     * If the value encoded in this <code>Value</code> is null then this method
+     * returns <code>null</code>. Otherwise this method returns either (a) a new
      * object instance, or (b) the target object. Specifically, if the supplied
      * target is non-null, and if the class of the object encoded in the
-     * <tt>Value</tt> is supported by a registered {@link KeyRenderer}, then the
-     * target object will be returned after the <tt>KeyRenderer</tt> has
+     * <code>Value</code> is supported by a registered {@link KeyRenderer}, then
+     * the target object will be returned after the <code>KeyRenderer</code> has
      * populated its state. Otherwise the target object will be ignored and this
      * method will return a newly created object instance. </p>
      * 
@@ -2832,8 +2839,9 @@ public final class Key implements Comparable<Object> {
      *            {@link KeyCoder}. The context is passed to the
      *            {@link KeyCoder#decodeKeySegment} method.
      * 
-     * @return An <tt>Object</tt> representing the key segment encoded in the
-     *         <tt>Key</tt>, or <tt>null</tt> if the encoded value is null.
+     * @return An <code>Object</code> representing the key segment encoded in
+     *         the <code>Key</code>, or <code>null</code> if the encoded value
+     *         is null.
      */
     public Object decode(Object target, CoderContext context) {
         int index = _index;
@@ -2908,9 +2916,9 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Decodes the <tt>Class</tt> of the next key segment.
+     * Decodes the <code>Class</code> of the next key segment.
      * 
-     * @return The <tt>Class</tt> of the next key segment
+     * @return The <code>Class</code> of the next key segment
      * @throws ConversionException
      *             if the encoded value is malformed.
      */
@@ -2950,18 +2958,18 @@ public final class Key implements Comparable<Object> {
     /**
      * Decodes the next key segment as a displayable String and advances the
      * index to the next key segment. This method appends the decoded String
-     * value to the supplied StringBuilder. If <tt>quoted</tt> is true, and if
-     * the segment value is a String, then the String value is surrounded by
+     * value to the supplied StringBuilder. If <code>quoted</code> is true, and
+     * if the segment value is a String, then the String value is surrounded by
      * quote (") characters, and backslashes are inserted into the display
      * string to quote any embedded any backslash or quote characters. This
      * method is intended to generate a human-readable, canonical String
      * representation for any type of key segment value.
      * 
      * @param quoted
-     *            <tt>true</tt> if the resulting string is to be quoted.
+     *            <code>true</code> if the resulting string is to be quoted.
      * @param sb
-     *            The <tt>StringBuilder</tt> to which the displayable String is
-     *            to be appended.
+     *            The <code>StringBuilder</code> to which the displayable String
+     *            is to be appended.
      * @throws ConversionException
      *             if the next key segment value is not a boolean.
      */
@@ -2972,18 +2980,18 @@ public final class Key implements Comparable<Object> {
     /**
      * Decodes the next key segment as a displayable String and advances the
      * index to the next key segment. This method appends the decoded String
-     * value to the supplied StringBuilder. If <tt>quoted</tt> is true, and if
-     * the segment value is a String, then the String value is surrounded by
+     * value to the supplied StringBuilder. If <code>quoted</code> is true, and
+     * if the segment value is a String, then the String value is surrounded by
      * quote (") characters, and backslashes are inserted into the display
      * string to quote any embedded any backslash or quote characters. This
      * method is intended to generate a human-readable, canonical String
      * representation for any type of key segment value.
      * 
      * @param quoted
-     *            <tt>true</tt> if the resulting string is to be quoted.
+     *            <code>true</code> if the resulting string is to be quoted.
      * @param sb
-     *            The <tt>StringBuilder</tt> to which the displayable string is
-     *            to be appended.
+     *            The <code>StringBuilder</code> to which the displayable string
+     *            is to be appended.
      * @param context
      *            An application-specified value that may assist a
      *            {@link KeyStringCoder}. The context is passed to the
@@ -3122,7 +3130,7 @@ public final class Key implements Comparable<Object> {
     /**
      * An integer that is incremented every time the content of this Key
      * changes. If the generation number is unchanged after an operation this is
-     * a reliable indication that the <tt>Key</tt>'s value did not change.
+     * a reliable indication that the <code>Key</code>'s value did not change.
      * 
      * @return The generation
      */
@@ -3131,24 +3139,24 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Determine if this is the special <tt>Key</tt> value that is stored at the
-     * left edge of a <tt>Tree</tt>. If so then there is no other <tt>Key</tt>
-     * before this one in the <tt>Tree</tt>.
+     * Determine if this is the special <code>Key</code> value that is stored at
+     * the left edge of a <code>Tree</code>. If so then there is no other
+     * <code>Key</code> before this one in the <code>Tree</code>.
      * 
-     * @return <tt>true</tt> if the content of this <tt>Key</tt> represents the
-     *         special left edge key of a <tt>Tree</tt>
+     * @return <code>true</code> if the content of this <code>Key</code>
+     *         represents the special left edge key of a <code>Tree</code>
      */
     public boolean isLeftEdge() {
         return _size == 1 && _bytes[0] == 0;
     }
 
     /**
-     * Determine if this is the special <tt>Key</tt> value that is stored at the
-     * right edge of a <tt>Tree</tt>. If so then there is no other <tt>Key</tt>
-     * after this one in the <tt>Tree</tt>.
+     * Determine if this is the special <code>Key</code> value that is stored at
+     * the right edge of a <code>Tree</code>. If so then there is no other
+     * <code>Key</code> after this one in the <code>Tree</code>.
      * 
-     * @return <tt>true</tt> if the content of this <tt>Key</tt> represents the
-     *         special right edge key of a <tt>Tree</tt>
+     * @return <code>true</code> if the content of this <code>Key</code>
+     *         represents the special right edge key of a <code>Tree</code>
      */
     public boolean isRightEdge() {
         return _size == 1 && _bytes[0] == (byte) 255;
@@ -3349,7 +3357,7 @@ public final class Key implements Comparable<Object> {
      * 
      * @param s
      *            the String to encode and append to the key.
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     private Key appendString(String s, CoderContext context) {
         notLeftOrRightGuard();
@@ -3408,7 +3416,7 @@ public final class Key implements Comparable<Object> {
      * @param s
      *            a StringBuilder containing the String to encode and append to
      *            the key.
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     private Key appendString(StringBuilder s, CoderContext context) {
         notLeftOrRightGuard();
@@ -3449,7 +3457,7 @@ public final class Key implements Comparable<Object> {
     /**
      * Encodes and appends the value <i>null</i> to the key.
      * 
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     private Key appendNull() {
         int size = _size;
@@ -3635,7 +3643,7 @@ public final class Key implements Comparable<Object> {
      *            Offset of first byte of subarray
      * @param size
      *            Size of subarray
-     * @return This <tt>Key</tt>, to permit method call chaining
+     * @return This <code>Key</code>, to permit method call chaining
      */
     public Key appendByteArray(byte[] bytes, int offset, int size) {
         _bytes[_size++] = TYPE_BYTE_ARRAY;
@@ -3923,7 +3931,7 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Recomputes the number of segments in this <tt>Key</tt>
+     * Recomputes the number of segments in this <code>Key</code>
      */
     private void recomputeCurrentDepth() {
         int depth = 0;

@@ -18,11 +18,11 @@ package com.persistit.unit;
 import java.util.Random;
 
 import com.persistit.Exchange;
+import com.persistit.Key;
 import com.persistit.KeyFilter;
 import com.persistit.Volume;
-import com.persistit.Key;
-import com.persistit.exception.PersistitException;
 import com.persistit.exception.ConversionException;
+import com.persistit.exception.PersistitException;
 
 public class ExchangeTest extends PersistitUnitTestCase {
 
@@ -131,25 +131,31 @@ public class ExchangeTest extends PersistitUnitTestCase {
             assertEquals(randomString, ex.getValue().getString());
         }
 
-        /* set key length to value larger than max and make sure exception is thrown */
+        /*
+         * set key length to value larger than max and make sure exception is
+         * thrown
+         */
         initialLength = 2048; // 2047 is max key length
         randomKey = generateASCIIString(initialLength);
         try {
             ex.clear().append(randomKey);
             fail("ConversionException should have been thrown");
-        } catch (ConversionException expected) {}
+        } catch (ConversionException expected) {
+        }
     }
 
     public void testConstructors() throws PersistitException {
         try {
             Exchange exchange = new Exchange(_persistit, "volume", "tree", true);
             fail("NullPointerException should have been thrown for unknown Volume");
-        } catch (NullPointerException expected) {}
+        } catch (NullPointerException expected) {
+        }
         try {
             Volume nullVol = null;
             Exchange ex = new Exchange(_persistit, nullVol, "whatever", true);
             fail("NullPointerException should have been thrown for null Volume");
-        } catch (NullPointerException expected) {}
+        } catch (NullPointerException expected) {
+        }
     }
 
     public void testTraversal() throws PersistitException {
@@ -199,11 +205,11 @@ public class ExchangeTest extends PersistitUnitTestCase {
     }
 
     /*
-     * This function is "borrowed" from the YCSB benchmark framework
-     * developed by Yahoo Research.
+     * This function is "borrowed" from the YCSB benchmark framework developed
+     * by Yahoo Research.
      */
     private String generateASCIIString(int length) {
-        int interval = '~'-' '+1;
+        int interval = '~' - ' ' + 1;
         byte[] buf = new byte[length];
         Random random = new Random();
         random.nextBytes(buf);

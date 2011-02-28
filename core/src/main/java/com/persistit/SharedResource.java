@@ -15,7 +15,6 @@
 
 package com.persistit;
 
-import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 
 /**

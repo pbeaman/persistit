@@ -30,29 +30,31 @@ import com.persistit.exception.TimeoutException;
  * Represents the transaction context for atomic units of work performed by
  * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
- * written to the database until <tt>commit</tt> is performed. At that point,
- * all the updates are written atomically - that is, completely or not at all.
- * If the application is abruptly terminated while <tt>commit</tt> is writing
- * updates to the database, they will be completed during recovery processing
- * when the Persistit is next initialized.
+ * written to the database until <code>commit</code> is performed. At that
+ * point, all the updates are written atomically - that is, completely or not at
+ * all. If the application is abruptly terminated while <code>commit</code> is
+ * writing updates to the database, they will be completed during recovery
+ * processing when the Persistit is next initialized.
  * </p>
  * <p>
  * All Persistit database operations are performed in the context of a
- * <tt>Transaction</tt>. If the <tt>begin</tt> operation has not explicitly been
- * called then Persistit behaves as if each database update operation is
- * implicitly preceded by invocation of <tt>begin</tt> and concluded by
- * invocation of <tt>commit</tt> and <tt>end</tt> to perform a memory commit.
+ * <code>Transaction</code>. If the <code>begin</code> operation has not
+ * explicitly been called then Persistit behaves as if each database update
+ * operation is implicitly preceded by invocation of <code>begin</code> and
+ * concluded by invocation of <code>commit</code> and <code>end</code> to
+ * perform a memory commit.
  * </p>
  * <h2>Lexical Scoping</h2>
  * <p>
  * Applications using Persistit transactions must terminate the scope of any
  * transaction. To do this, applications must ensure that whenever the
- * <tt>begin</tt> method is called, there is a concluding invocation of the
- * <tt>end</tt> method. The <tt>commit</tt> and <tt>rollback</tt> methods do not
- * end the scope of a transaction; they merely signify the transaction's outcome
- * when <tt>end</tt> is invoked. Applications should follow either the <a
- * href="#_pattern1"><tt>try/finally</tt></a> or the <a href="#_pattern2">
- * <tt>TransactionRunnable</tt></a> pattern to ensure correctness.
+ * <code>begin</code> method is called, there is a concluding invocation of the
+ * <code>end</code> method. The <code>commit</code> and <code>rollback</code>
+ * methods do not end the scope of a transaction; they merely signify the
+ * transaction's outcome when <code>end</code> is invoked. Applications should
+ * follow either the <a href="#_pattern1"><code>try/finally</code></a> or the <a
+ * href="#_pattern2"> <code>TransactionRunnable</code></a> pattern to ensure
+ * correctness.
  * </p>
  * <p>
  * <a name="diskVsMemoryCommit">
@@ -91,19 +93,20 @@ import com.persistit.exception.TimeoutException;
  * has changed data that the transaction has relied upon before it commits. If
  * conflicting changes are found, then Persistit rolls back all changes
  * performed within the scope of the transaction and throws a
- * <tt>RollbackException</tt>. In most database applications, such a collision
- * is relatively rare, and the application can simply retry the transaction with
- * a high likelihood of success after a small number of retries. To minimize the
- * likelihood of collisions, applications should favor short transactions with
- * small numbers of database operations when possible and practical.
+ * <code>RollbackException</code>. In most database applications, such a
+ * collision is relatively rare, and the application can simply retry the
+ * transaction with a high likelihood of success after a small number of
+ * retries. To minimize the likelihood of collisions, applications should favor
+ * short transactions with small numbers of database operations when possible
+ * and practical.
  * </p>
  * <a name="_pattern1" /> <h3>The try/finally Pattern</h3>
  * <p>
  * The following code fragment illustrates a transaction executed with up to to
- * RETRY_COUNT retries. If the <tt>commit</tt> method succeeds, the whole
+ * RETRY_COUNT retries. If the <code>commit</code> method succeeds, the whole
  * transaction is completed and the retry loop terminates. If after RETRY_COUNT
- * retries, <tt>commit</tt> has not been successfully completed, the application
- * throws a <tt>TransactionFailedException</tt>.
+ * retries, <code>commit</code> has not been successfully completed, the
+ * application throws a <code>TransactionFailedException</code>.
  * </p>
  * <blockquote><code><pre>
  *     Transaction txn = Persistit.getTransaction();
@@ -140,8 +143,8 @@ import com.persistit.exception.TimeoutException;
  * As an alternative, the application can embed the actual database operations
  * within an implementation of the {@link TransactionRunnable} interface and
  * invoke the {@link #run} method to execute it. The retry logic detailed in the
- * fragment shown above is handled automatically by <tt>run</tt>; it could be
- * rewritten as follows: <blockquote><code><pre>
+ * fragment shown above is handled automatically by <code>run</code>; it could
+ * be rewritten as follows: <blockquote><code><pre>
  *     Transaction txn = Persistit.getTransaction();
  *     txn.run(new TransactionRunnable()
  *     {
@@ -177,7 +180,7 @@ import com.persistit.exception.TimeoutException;
  * {@link #setPessimisticRetryThreshold(int)}, determines the maximum number of
  * retries allowed for a transaction using optimistic scheduling. Once the
  * number of times a transaction has been rolled back since the last successful
- * <tt>commit</tt> operation reaches this threshold, Persistit switches to
+ * <code>commit</code> operation reaches this threshold, Persistit switches to
  * <i>pessimistic scheduling mode</i> in which the failing transaction is given
  * exclusive access to the Persistit database. To force a transaction to execute
  * in pessimistic mode on the first attempt, an application can set the
@@ -192,12 +195,12 @@ import com.persistit.exception.TimeoutException;
  * <a name="#_scopedCodePattern"/> <h2>Nested Transaction Scope</h2>
  * <p>
  * Persistit supports nested transactions by counting the number of nested
- * {@link #begin} and {@link #end} operations. Each invocation of <tt>begin</tt>
- * increments this count and each invocation of <tt>end</tt> decrements the
- * count. These methods are intended to be used in a standard essential pattern,
- * shown here, to ensure that the scope of of the transaction is reliably
- * determined by the lexical the structure of the code rather than conditional
- * logic: <blockquote>
+ * {@link #begin} and {@link #end} operations. Each invocation of
+ * <code>begin</code> increments this count and each invocation of
+ * <code>end</code> decrements the count. These methods are intended to be used
+ * in a standard essential pattern, shown here, to ensure that the scope of of
+ * the transaction is reliably determined by the lexical the structure of the
+ * code rather than conditional logic: <blockquote>
  * 
  * <pre>
  * <code>
@@ -220,41 +223,42 @@ import com.persistit.exception.TimeoutException;
  * </p>
  * <p>
  * The {@link #commit} method performs the actual commit operation only when the
- * current nested level count is 1. That is, if <tt>begin</tt> has been invoked
- * N times, then <tt>commit</tt> will actually commit the data only if
- * <tt>end</tt> has been invoked N-1 times. Thus data updated by an inner
+ * current nested level count is 1. That is, if <code>begin</code> has been
+ * invoked N times, then <code>commit</code> will actually commit the data only
+ * if <code>end</code> has been invoked N-1 times. Thus data updated by an inner
  * (nested) transaction is never actually committed until the outermost
- * <tt>commit</tt> is called. This permits transactional code to invoke other
- * code (possibly an opaque library supplied by a third party) that may itself
- * <tt>begin</tt> and <tt>commit</tt> transactions.
+ * <code>commit</code> is called. This permits transactional code to invoke
+ * other code (possibly an opaque library supplied by a third party) that may
+ * itself <code>begin</code> and <code>commit</code> transactions.
  * </p>
  * <p>
  * Invoking {@link #rollback} removes all pending but uncomitted updates, marks
  * the current transaction scope as <i>rollback pending</i> and throws a
- * <tt>RollbackException</tt>. Any subsequent attempt to perform any Persistit
- * operation, including <tt>commit</tt> in the current transaction scope, will
- * fail with a <tt>RollbackException</tt>. The <tt>commit</tt> method throws a
- * <tt>RollbackException</tt> (and therefore does not commit the pending
- * updates) if either the transaction scope is marked <i>rollback pending</i> by
- * a prior call to <tt>rollback</tt> or if the attempt to commit the updates
- * would generate an inconsistent database state.
+ * <code>RollbackException</code>. Any subsequent attempt to perform any
+ * Persistit operation, including <code>commit</code> in the current transaction
+ * scope, will fail with a <code>RollbackException</code>. The
+ * <code>commit</code> method throws a <code>RollbackException</code> (and
+ * therefore does not commit the pending updates) if either the transaction
+ * scope is marked <i>rollback pending</i> by a prior call to
+ * <code>rollback</code> or if the attempt to commit the updates would generate
+ * an inconsistent database state.
  * </p>
  * <p>
- * Application developers should beware that the <tt>end</tt> method performs an
- * implicit rollback if <tt>commit</tt> has not completed. If an application
- * fails to call <tt>commit</tt>, the transaction will silently fail. The
- * <tt>end</tt> method sends a warning message to the log subsystem when this
- * happens, but does not throw an exception. The <tt>end</tt> method is designed
- * this way to allow an exception thrown within the application code to be
- * caught and handled without being obscured by a RollbackException thrown by
- * <tt>end</tt>. But as a consequence, developers must carefully verify that the
- * <tt>commit</tt> method is always invoked when the transaction completes
- * normally. Upon completion of the <tt>end</tt> method, an application can
- * query whether a rollback occurred with the {@link #getRollbackException()}
- * method. This method returns <tt>null</tt> if the transaction committed and
- * ended normal; otherwise it contains a
- * {@link com.persistit.exception.RollbackException} whose stack trace indicates
- * the location of the implicit rollback.
+ * Application developers should beware that the <code>end</code> method
+ * performs an implicit rollback if <code>commit</code> has not completed. If an
+ * application fails to call <code>commit</code>, the transaction will silently
+ * fail. The <code>end</code> method sends a warning message to the log
+ * subsystem when this happens, but does not throw an exception. The
+ * <code>end</code> method is designed this way to allow an exception thrown
+ * within the application code to be caught and handled without being obscured
+ * by a RollbackException thrown by <code>end</code>. But as a consequence,
+ * developers must carefully verify that the <code>commit</code> method is
+ * always invoked when the transaction completes normally. Upon completion of
+ * the <code>end</code> method, an application can query whether a rollback
+ * occurred with the {@link #getRollbackException()} method. This method returns
+ * <code>null</code> if the transaction committed and ended normal; otherwise it
+ * contains a {@link com.persistit.exception.RollbackException} whose stack
+ * trace indicates the location of the implicit rollback.
  * 
  * @author pbeaman
  * @version 1.1
@@ -453,8 +457,8 @@ public class Transaction {
      * Indicates whether the application has invoked {@link #begin} but has not
      * yet invoked a matching {@link #commit} or {@link #rollback}.
      * 
-     * @return <tt>true</tt> if a transaction has begun, but is not yet either
-     *         committed or rolled back
+     * @return <code>true</code> if a transaction has begun, but is not yet
+     *         either committed or rolled back
      */
     public boolean isActive() {
         return _nestedDepth > 0;
@@ -463,13 +467,13 @@ public class Transaction {
     /**
      * Indicates whether the {@link #commit} method has run to successful
      * completion at the current nested level. If that level is 1, then
-     * successful completion of <tt>commit</tt> means that the transaction has
-     * actually been committed to the database. Within the scope of inner
+     * successful completion of <code>commit</code> means that the transaction
+     * has actually been committed to the database. Within the scope of inner
      * (nested) transactions, data is not actually committed until the outermost
      * transaction scope commits.
      * 
-     * @return <tt>true</tt> if the current transaction scope has completed its
-     *         <tt>commit</tt> operation; otherwise <tt>false</tt>.
+     * @return <code>true</code> if the current transaction scope has completed
+     *         its <code>commit</code> operation; otherwise <code>false</code>.
      */
     public boolean isCommitted() {
         return _commitCompleted;
@@ -480,8 +484,8 @@ public class Transaction {
      * rollback. If so, and if this is an inner (nested) transaction scope, all
      * updates performed by the containing scope will also be rolled back.
      * 
-     * @return <tt>true</tt> if the current transaction is marked for rollback;
-     *         otherwise <tt>false</tt>.
+     * @return <code>true</code> if the current transaction is marked for
+     *         rollback; otherwise <code>false</code>.
      */
     public boolean isRollbackPending() {
         return _rollbackPending;
@@ -490,10 +494,10 @@ public class Transaction {
     /**
      * Start a transaction. If there already is an active transaction then this
      * method merely increments a counter that indicates how many times
-     * <tt>begin</tt> has been called. Application code should ensure that every
-     * method that calls <tt>begin</tt> also invokes <tt>end</tt> using a
-     * <tt>try/finally</tt> pattern described <a
-     * href="#_scopedCodePattern">above</a></tt>.
+     * <code>begin</code> has been called. Application code should ensure that
+     * every method that calls <code>begin</code> also invokes <code>end</code>
+     * using a <code>try/finally</code> pattern described <a
+     * href="#_scopedCodePattern">above</a></code>.
      * 
      * @throws IllegalStateException
      *             if the current transaction scope has already been committed.
@@ -528,13 +532,13 @@ public class Transaction {
     /**
      * <p>
      * Ends the current transaction scope. Application code should ensure that
-     * every method that calls <tt>begin</tt> also invokes <tt>end</tt> using a
-     * <tt>try/finally</tt> pattern described <a
-     * href="#_scopedCodePattern">above</a></tt>.
+     * every method that calls <code>begin</code> also invokes <code>end</code>
+     * using a <code>try/finally</code> pattern described <a
+     * href="#_scopedCodePattern">above</a></code>.
      * </p>
      * <p>
      * This method implicitly rolls back any pending, uncommitted updates.
-     * Updates are committed only if the <tt>commit</tt> method completes
+     * Updates are committed only if the <code>commit</code> method completes
      * successfully.
      * </p>
      * 
@@ -668,11 +672,11 @@ public class Transaction {
      * scope is responsible for actually committing the changes.
      * </p>
      * <p>
-     * Once an application thread has called <tt>commit</tt>, no subsequent
+     * Once an application thread has called <code>commit</code>, no subsequent
      * Persistit database operations are permitted until the corresponding
-     * <tt>end</tt> method has been called. An attempt to store, fetch or remove
-     * data after <tt>commit</tt> has been called throws an
-     * <tt>IllegalStateException</tt>.
+     * <code>end</code> method has been called. An attempt to store, fetch or
+     * remove data after <code>commit</code> has been called throws an
+     * <code>IllegalStateException</code>.
      * </p>
      * 
      * @throws PersistitException
@@ -698,16 +702,16 @@ public class Transaction {
      * scope is responsible for actually committing the changes.
      * </p>
      * <p>
-     * Once an application thread has called <tt>commit</tt>, no subsequent
+     * Once an application thread has called <code>commit</code>, no subsequent
      * Persistit database operations are permitted until the corresponding
-     * <tt>end</tt> method has been called. An attempt to store, fetch or remove
-     * data after <tt>commit</tt> has been called throws an
-     * <tt>IllegalStateException</tt>.
+     * <code>end</code> method has been called. An attempt to store, fetch or
+     * remove data after <code>commit</code> has been called throws an
+     * <code>IllegalStateException</code>.
      * </p>
      * 
      * @param toDisk
-     *            <tt>true</tt> to commit to disk, or <tt>false</tt> to commit
-     *            to memory.
+     *            <code>true</code> to commit to disk, or <code>false</code> to
+     *            commit to memory.
      * 
      * @throws PersistitException
      * 
@@ -715,7 +719,7 @@ public class Transaction {
      * 
      * @throws IllegalStateException
      *             if no transaction scope is active or this transaction scope
-     *             has already called <tt>commit</tt>.
+     *             has already called <code>commit</code>.
      */
     public void commit(boolean toDisk) throws PersistitException,
             RollbackException {
@@ -763,11 +767,11 @@ public class Transaction {
      * scope is responsible for actually committing the changes.
      * </p>
      * <p>
-     * Once an application thread has called <tt>commit</tt>, no subsequent
+     * Once an application thread has called <code>commit</code>, no subsequent
      * Persistit database operations are permitted until the corresponding
-     * <tt>end</tt> method has been called. An attempt to store, fetch or remove
-     * data after <tt>commit</tt> has been called throws an
-     * <tt>IllegalStateException</tt>.
+     * <code>end</code> method has been called. An attempt to store, fetch or
+     * remove data after <code>commit</code> has been called throws an
+     * <code>IllegalStateException</code>.
      * </p>
      * 
      * @param commitListener
@@ -775,8 +779,8 @@ public class Transaction {
      *            Transaction is committed or rolled back
      * 
      * @param toDisk
-     *            <tt>true</tt> to commit to disk, or <tt>false</tt> to commit
-     *            to memory.
+     *            <code>true</code> to commit to disk, or <code>false</code> to
+     *            commit to memory.
      * 
      * @throws PersistitException
      * 
@@ -784,7 +788,7 @@ public class Transaction {
      * 
      * @throws IllegalStateException
      *             if no transaction scope is active or this transaction scope
-     *             has already called <tt>commit</tt>.
+     *             has already called <code>commit</code>.
      */
     public void commit(final CommitListener commitListener, final boolean toDisk)
             throws PersistitException, RollbackException {
@@ -813,16 +817,17 @@ public class Transaction {
      * <p>
      * Invokes the {@link TransactionRunnable#runTransaction} method of an
      * object that implements {@link TransactionRunnable} within the scope of a
-     * transaction. The <tt>TransactionRunnable</tt> should neither
-     * <tt>begin</tt> nor <tt>commit</tt> the transaction; these operations are
-     * performed by this method. The <tt>TransactionRunnable</tt> <i>may</i>
-     * explicitly throw a <tt>RollbackException</tt> in which case the current
-     * transaction will be rolled back.
+     * transaction. The <code>TransactionRunnable</code> should neither
+     * <code>begin</code> nor <code>commit</code> the transaction; these
+     * operations are performed by this method. The
+     * <code>TransactionRunnable</code> <i>may</i> explicitly throw a
+     * <code>RollbackException</code> in which case the current transaction will
+     * be rolled back.
      * </p>
      * <p>
      * This method does not perform retries, so upon the first failed attempt to
      * commit the transaction this method will throw a
-     * <tt>RollbackException</tt>. See
+     * <code>RollbackException</code>. See
      * {@link #run(TransactionRunnable, int, long, boolean)} for retry handling.
      * This method commits the transaction to <a
      * href="#diskVsMemoryCommit">memory</a>, which means that the update is not
@@ -844,41 +849,42 @@ public class Transaction {
      * <p>
      * Invokes the {@link TransactionRunnable#runTransaction} method of an
      * object that implements {@link TransactionRunnable} within the scope of a
-     * transaction. The <tt>TransactionRunnable</tt> should neither
-     * <tt>begin</tt> nor <tt>commit</tt> the transaction; these operations are
-     * performed by this method. The <tt>TransactionRunnable</tt> <i>may</i>
-     * explicitly or implicitly throw a <tt>RollbackException</tt> in which case
-     * the current transaction will be rolled back.
+     * transaction. The <code>TransactionRunnable</code> should neither
+     * <code>begin</code> nor <code>commit</code> the transaction; these
+     * operations are performed by this method. The
+     * <code>TransactionRunnable</code> <i>may</i> explicitly or implicitly
+     * throw a <code>RollbackException</code> in which case the current
+     * transaction will be rolled back.
      * </p>
      * <p>
-     * If <tt>retryCount</tt> is greater than zero, this method will make up to
-     * <tt>retryCount</tt> additional of attempts to complete and commit
+     * If <code>retryCount</code> is greater than zero, this method will make up
+     * to <code>retryCount</code> additional of attempts to complete and commit
      * thetransaction. Once the retry count is exhausted, this method throws a
-     * <tt>RollbackException</tt>.
+     * <code>RollbackException</code>.
      * </p>
      * 
      * @param runnable
      *            An application specific implementation of
-     *            <tt>TransactionRunnable</tt> containing logic to access and
-     *            update Persistit data.
+     *            <code>TransactionRunnable</code> containing logic to access
+     *            and update Persistit data.
      * 
      * @param retryCount
      *            Number of attempts (not including the first attempt) to make
-     *            before throwing a <tt>RollbackException</tt>
+     *            before throwing a <code>RollbackException</code>
      * 
      * @param retryDelay
      *            Time, in milliseconds, to wait before the next retry attempt.
      * 
      * @param toDisk
-     *            <tt>true</tt> to commit the transaction to <a
-     *            href="#diskVsMemoryCommit">disk</a>, or <tt>false</tt> to
+     *            <code>true</code> to commit the transaction to <a
+     *            href="#diskVsMemoryCommit">disk</a>, or <code>false</code> to
      *            commit to <a href="#diskVsMemoryCommit">memory</a>
      * 
      * @return Count of attempts needed to complete the transaction
      * 
      * @throws PersistitException
      * @throws RollbackException
-     *             If after <tt>retryCount+1</tt> attempts the transaction
+     *             If after <code>retryCount+1</code> attempts the transaction
      *             cannot be completed or committed due to concurrent updated
      *             performed by other threads.
      */
@@ -952,8 +958,8 @@ public class Transaction {
     }
 
     /**
-     * Return the number of times a transaction in this <tt>Transaction</tt>
-     * context has rolled back since the last successful <tt>commit</tt>
+     * Return the number of times a transaction in this <code>Transaction</code>
+     * context has rolled back since the last successful <code>commit</code>
      * operations. When this count reaches the <i>pessimistic retry
      * threshold</i>, Persistit switches to pessimistic mode on the next attempt
      * to execute a transaction in this context. See <a
@@ -992,13 +998,14 @@ public class Transaction {
     }
 
     /**
-     * Returns the most recent occurrence of a <tt>RollbackException</tt> within
-     * this transaction context. This method can be used to detect and diagnose
-     * implicit rollback from the {@link #end} method.
+     * Returns the most recent occurrence of a <code>RollbackException</code>
+     * within this transaction context. This method can be used to detect and
+     * diagnose implicit rollback from the {@link #end} method.
      * 
-     * @return The <tt>RollbackException</tt>, if <tt>end</tt> generated an
-     *         implicit rollback due to a missing call to <tt>commit</tt>, or
-     *         <tt>null</tt> if the transaction committed and ended normally.
+     * @return The <code>RollbackException</code>, if <code>end</code> generated
+     *         an implicit rollback due to a missing call to <code>commit</code>
+     *         , or <code>null</code> if the transaction committed and ended
+     *         normally.
      */
     public RollbackException getRollbackException() {
         return _rollbackException;
@@ -1035,10 +1042,10 @@ public class Transaction {
     /**
      * Attempt to perform the actual work of commitment.
      * 
-     * @return <tt>true</tt> if completed. If not completed, it is due either to
-     *         a transient problem, such as failure to claim a volume within the
-     *         timeout, or it is due to a rollback condition. Caller should
-     *         check _rollbackPending flag.
+     * @return <code>true</code> if completed. If not completed, it is due
+     *         either to a transient problem, such as failure to claim a volume
+     *         within the timeout, or it is due to a rollback condition. Caller
+     *         should check _rollbackPending flag.
      * 
      * @throws PersistitException
      */
@@ -1194,20 +1201,20 @@ public class Transaction {
      * Tests whether a previously posted, but as yet uncommitted update, affects
      * the value to be returned by a fetch() operation on an Exchange. If so,
      * then this method modifies the Exchange's Value according to the
-     * uncommitted update, and returns <tt>true</tt>. Otherwise, this method
-     * return <tt>false</tt>.
+     * uncommitted update, and returns <code>true</code>. Otherwise, this method
+     * return <code>false</code>.
      * 
      * @param exchange
-     *            The <tt>Exchange</tt> on which a fetch() operation is being
-     *            performed.
+     *            The <code>Exchange</code> on which a fetch() operation is
+     *            being performed.
      * 
      * @param value
-     *            The <tt>Value</tt> to receive stored state.
+     *            The <code>Value</code> to receive stored state.
      * 
-     * @return <tt>TRUE</tt> if the result is determined by a pending but
-     *         uncommitted store operation, <tt>FALSE</tt> if the result is
-     *         determined by a pending remove operation, or <tt>null</tt> if the
-     *         pending operations do not influence the result.
+     * @return <code>TRUE</code> if the result is determined by a pending but
+     *         uncommitted store operation, <code>FALSE</code> if the result is
+     *         determined by a pending remove operation, or <code>null</code> if
+     *         the pending operations do not influence the result.
      */
     Boolean fetch(Exchange exchange, Value value, int minimumBytes)
             throws PersistitException {
@@ -1284,9 +1291,9 @@ public class Transaction {
      *            The candidate Key value.
      * @param direction
      *            Key.LT, Key.LTEQ, Key.GT or Key.GTEQ
-     * @return <tt>TRUE</tt> if there is a pending store operation that modifies
-     *         the result, <tt>FALSE</tt> if there is a pending remove operation
-     *         that modifies the result, or <tt>null</tt> if the pending updates
+     * @return <code>TRUE</code> if there is a pending store operation that modifies
+     *         the result, <code>FALSE</code> if there is a pending remove operation
+     *         that modifies the result, or <code>null</code> if the pending updates
      *         do not modify the result.
      * 
      * @throws PersistitException

@@ -33,33 +33,34 @@ import com.persistit.exception.TaskEndedException;
  */
 public abstract class Task implements Runnable {
     /**
-     * Status value indicates this <tt>Task</tt> has been set up but not yet
+     * Status value indicates this <code>Task</code> has been set up but not yet
      * started.
      */
     public final static int STATE_NOT_STARTED = 0;
     /**
-     * Status value indicates this <tt>Task</tt> is running.
+     * Status value indicates this <code>Task</code> is running.
      */
     public final static int STATE_RUNNING = 1;
     /**
-     * Status value indicates this <tt>Task</tt> is suspended.
+     * Status value indicates this <code>Task</code> is suspended.
      */
     public final static int STATE_SUSPENDED = 2;
     /**
-     * Status value indicates this <tt>Task</tt> finished normally.
+     * Status value indicates this <code>Task</code> finished normally.
      */
     public final static int STATE_DONE = 3;
     /**
-     * Status value indicates this <tt>Task</tt> failed with an Exception.
+     * Status value indicates this <code>Task</code> failed with an Exception.
      */
     public final static int STATE_FAILED = 4;
     /**
-     * Status value indicates this <tt>Task</tt> was stopped by user
+     * Status value indicates this <code>Task</code> was stopped by user
      * intervention.
      */
     public final static int STATE_ENDED = 5;
     /**
-     * Status value indicates this <tt>Task</tt>'s maximum elapsed time expired.
+     * Status value indicates this <code>Task</code>'s maximum elapsed time
+     * expired.
      */
     public final static int STATE_EXPIRED = 6;
 
@@ -180,15 +181,15 @@ public abstract class Task implements Runnable {
     protected abstract void setupTask(String[] args) throws Exception;
 
     /**
-     * Called by a newly created <tt>Thread</tt> to perform the task.
+     * Called by a newly created <code>Thread</code> to perform the task.
      * 
      * @throws Exception
      */
     protected abstract void runTask() throws Exception;
 
     /**
-     * Tests whether this <tt>Task</tt> should stop or suspend. The concrete
-     * task implementation should call <tt>poll</tt> frequently. The default
+     * Tests whether this <code>Task</code> should stop or suspend. The concrete
+     * task implementation should call <code>poll</code> frequently. The default
      * mechanism for stopping a task does not use the deprecated
      * {@link Thread#stop()} method because it is unsafe. Instead, the task
      * should call poll().
@@ -275,7 +276,7 @@ public abstract class Task implements Runnable {
     }
 
     /**
-     * Abbreviation for <tt>System.currentTimeMillis()</tt>.
+     * Abbreviation for <code>System.currentTimeMillis()</code>.
      * 
      * @return Current system time
      */
@@ -284,7 +285,7 @@ public abstract class Task implements Runnable {
     }
 
     /**
-     * Sets up a <tt>Task</tt>. This method calls the task-specific
+     * Sets up a <code>Task</code>. This method calls the task-specific
      * {@link #setupTask} method to finish setup.
      * 
      * @param description
@@ -327,7 +328,7 @@ public abstract class Task implements Runnable {
 
     /**
      * Request this task to stop. Note: a subclass could reimplement this using
-     * <tt>_thread.stop()</tt> if necessary.
+     * <code>_thread.stop()</code> if necessary.
      * 
      */
     public void stop() {
@@ -336,7 +337,7 @@ public abstract class Task implements Runnable {
 
     /**
      * Request this task to suspend. Note: a subclass could reimplement this
-     * using <tt>_thread.suspend()</tt> if necessary.
+     * using <code>_thread.suspend()</code> if necessary.
      * 
      */
     public void suspend() {
@@ -345,7 +346,7 @@ public abstract class Task implements Runnable {
 
     /**
      * Request this task to resume. Note: a subclass could reimplement this
-     * using <tt>_thread.resume()</tt> if necessary.
+     * using <code>_thread.resume()</code> if necessary.
      * 
      */
     public void resume() {
@@ -353,9 +354,9 @@ public abstract class Task implements Runnable {
     }
 
     /**
-     * Set the maximum amount of wall-clock time this <tt>Task</tt> will be
-     * permitted to run. If the <tt>Task</tt> is suspended, the amount of time
-     * spend in the suspended state is not counted toward this maximum.
+     * Set the maximum amount of wall-clock time this <code>Task</code> will be
+     * permitted to run. If the <code>Task</code> is suspended, the amount of
+     * time spend in the suspended state is not counted toward this maximum.
      * 
      * @param maxTime
      *            The time, in milliseconds
@@ -388,20 +389,20 @@ public abstract class Task implements Runnable {
     }
 
     /**
-     * Sets a <tt>PrintStream</tt> to receive posted messages.
+     * Sets a <code>PrintStream</code> to receive posted messages.
      * 
      * @param ps
-     *            The <tt>PrintStream</tt>
+     *            The <code>PrintStream</code>
      */
     public void setMessageStream(PrintStream ps) {
         _messageStream = ps;
     }
 
     /**
-     * Returns the current <tt>PrintStream</tt>, or <tt>null</tt> if there is
-     * none.
+     * Returns the current <code>PrintStream</code>, or <code>null</code> if
+     * there is none.
      * 
-     * @return Current <tt>PrintStream</tt>
+     * @return Current <code>PrintStream</code>
      */
     public PrintStream getMessageStream() {
         return _messageStream;
@@ -409,20 +410,20 @@ public abstract class Task implements Runnable {
 
     /**
      * Returns a short String message describing the current state of this
-     * <tt>Task</tt>. It should convey a measurement of progress to the
+     * <code>Task</code>. It should convey a measurement of progress to the
      * end-user.
      * 
-     * @return A description of this <tt>Task</tt>'s current state
+     * @return A description of this <code>Task</code>'s current state
      */
     public abstract String getStatus();
 
     /**
      * Returns a String message describing the current state of this
-     * <tt>Task<tt>, possibly in greater detail than {@link #getStatus}. The
-     * default implementation returns the same description as <tt>getStatus</tt>
+     * <code>Task<code>, possibly in greater detail than {@link #getStatus}. The
+     * default implementation returns the same description as <code>getStatus</code>
      * .
      * 
-     * @return A detailed description of this <tt>Task</tt>'s current state.
+     * @return A detailed description of this <code>Task</code>'s current state.
      */
     public String getStatusDetail() {
         return getStatus();
@@ -430,7 +431,7 @@ public abstract class Task implements Runnable {
 
     /**
      * Indicates how much time remains (in milliseconds) until this
-     * <tt>Task</tt>'s maximum time has expired.
+     * <code>Task</code>'s maximum time has expired.
      */
     public long getRemainingTime() {
         if (_expirationTime == 0 || _expirationTime == Long.MAX_VALUE) {
@@ -545,7 +546,7 @@ public abstract class Task implements Runnable {
     }
 
     /**
-     * Implementation of <tt>Runnable</tt>.
+     * Implementation of <code>Runnable</code>.
      */
     public void run() {
         _startTime = now();
@@ -565,14 +566,14 @@ public abstract class Task implements Runnable {
     }
 
     /**
-     * Copy status of this <tt>Task</tt> to a {@link Management.TaskStatus}.
+     * Copy status of this <code>Task</code> to a {@link Management.TaskStatus}.
      * 
      * @param ts
-     *            The <tt>TaskStatus</tt>
+     *            The <code>TaskStatus</code>
      * @param details
-     *            <tt>true</tt> to include messages and status detail
+     *            <code>true</code> to include messages and status detail
      * @param clearMessages
-     *            <tt>true</tt> to cull the messages being returned
+     *            <code>true</code> to cull the messages being returned
      */
     public void populateTaskStatus(Management.TaskStatus ts, boolean details,
             boolean clearMessages) {
