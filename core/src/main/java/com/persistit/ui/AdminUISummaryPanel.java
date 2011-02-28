@@ -67,6 +67,7 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
     JTextField _journalPageMapSize;
     JTextField _journalPageCount;
     JTextField _journalCopiedPageCount;
+    JTextField _journalReadPageCount;
 
     JTextField _journalValidCkptTime;
     JTextField _journalValidCkptAgo;
@@ -164,7 +165,11 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
 
         _journalCopiedPageCount = (JTextField) ui.addLabeledField(
                 _journalPanel, gbc, new JTextField(),
-                "JournalPanel.journal_copy_count", true);
+                "JournalPanel.journal_copy_count", false);
+
+        _journalReadPageCount = (JTextField) ui.addLabeledField(
+                _journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_read_count", true);
 
         _journalValidCkptLocation = (JTextField) ui.addLabeledField(
                 _journalPanel, gbc, new JTextField(),
@@ -334,7 +339,8 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 _journalPageMapSize.setText("");
                 _journalPageCount.setText("");
                 _journalCopiedPageCount.setText("");
-
+                _journalReadPageCount.setText("");
+                
                 _journalValidCkptTime.setText("");
                 _journalValidCkptAgo.setText("");
                 _journalValidCkptTimestamp.setText("");
@@ -398,6 +404,8 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                         .getJournaledPageCount()));
                 _journalCopiedPageCount.setText(_adminUI.formatLong(jinfo
                         .getCopiedPageCount()));
+                _journalReadPageCount.setText(_adminUI.formatLong(jinfo
+                        .getReadPageCount()));
 
                 if (jinfo.getLastValidCheckpointSystemTime() != 0) {
                     _journalValidCkptTime.setText(_adminUI.formatDate(jinfo

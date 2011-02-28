@@ -329,6 +329,7 @@ public class BufferPool {
         info.bufferSize = _bufferSize;
         info.getCounter = _getCounter.get();
         info.hitCounter = _hitCounter.get();
+        info.readCounter = info.getCounter - info.hitCounter;
         int validPages = 0;
         int dirtyPages = 0;
         int readerClaimedPages = 0;
@@ -834,22 +835,22 @@ public class BufferPool {
                     if (wantRead) {
                         boolean loaded = false;
                         try {
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(buffer.getPageAddress() == page
                                         && buffer.getVolume() == vol
                                         && hashIndex(buffer.getVolume(),
                                                 buffer.getPageAddress()) == hash);
-
+                            }
                             buffer.load(vol, page);
                             loaded = true;
+                            vol.bumpGetCounter();
+                            bumpGetCounter();
                         } finally {
                             if (!loaded) {
                                 invalidate(buffer);
                                 buffer.release();
                             }
                         }
-                        vol.bumpGetCounter();
-                        bumpGetCounter();
                     } else {
                         buffer.clear();
                         buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);

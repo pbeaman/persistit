@@ -138,6 +138,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private long _deleteBoundaryAddress = 0;
 
     private volatile long _writePageCount = 0;
+    
+    private volatile long _readPageCount = 0;
 
     private volatile long _copiedPageCount = 0;
 
@@ -252,6 +254,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         info.currentJournalFile = addressToFile(_currentAddress).getPath();
         info.flushing = _flushing.get();
         info.journaledPageCount = _writePageCount;
+        info.readPageCount = _readPageCount;
         if (_lastValidCheckpointJournalAddress != 0) {
             info.lastValidCheckpointSystemTime = _lastValidCheckpoint
                     .getSystemTimeMillis();
@@ -335,6 +338,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     public long getJournaledPageCount() {
         return _writePageCount;
+    }
+    
+    public long getReadPageCount() {
+        return _readPageCount;
     }
 
     public long getCopiedPageCount() {
@@ -533,6 +540,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     + " is wrong size: expected/actual=" + bufferSize + "/"
                     + bb.limit());
         }
+        _readPageCount++;
         return true;
     }
 

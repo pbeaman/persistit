@@ -71,7 +71,7 @@ public interface Management extends Remote, ManagementMXBean {
     public boolean close() throws RemoteException;
 
     /**
-     * Returns an array containing a <tt>BufferPoolInfo</tt> element for each
+     * Return an array containing a <tt>BufferPoolInfo</tt> element for each
      * buffer pool. If Persistit is not initialized then this method returns an
      * empty array.
      * 
@@ -80,7 +80,7 @@ public interface Management extends Remote, ManagementMXBean {
     public BufferPoolInfo[] getBufferPoolInfoArray() throws RemoteException;
 
     /**
-     * Returns an array containing a <tt>RecordInfo</tt> element for each record
+     * Return an array containing a <tt>RecordInfo</tt> element for each record
      * in the page specified by <tt>volumeName</tt> and <tt>pageAddress</tt>. If
      * Persistit is not initialized, or if there is no unique <tt>Volume</tt>
      * for the specified <tt>volumeName</tt>, or if there is no page associated
@@ -102,7 +102,7 @@ public interface Management extends Remote, ManagementMXBean {
 
     /**
      * <p>
-     * Returns an array of <tt>LogicalRecord</tt> elements from a <tt>Tree</tt>.
+     * Return an array of <tt>LogicalRecord</tt> elements from a <tt>Tree</tt>.
      * The tree is specified by the provided <tt>volumeName</tt> and
      * <tt>treeName</tt> values. The size of the the returned array is bounded
      * by <tt>maxRecordCount</tt>. Records whose <tt>Value</tt> fields exceed
@@ -165,7 +165,7 @@ public interface Management extends Remote, ManagementMXBean {
             boolean decodeStrings) throws RemoteException;
 
     /**
-     * Returns a {@link JournalInfo} structure describing the current state of
+     * Return a {@link JournalInfo} structure describing the current state of
      * the Journal.
      * 
      * @return the JournalInfo
@@ -174,7 +174,7 @@ public interface Management extends Remote, ManagementMXBean {
     public JournalInfo getJournalInfo() throws RemoteException;
 
     /**
-     * Returns a {@link RecoveryInfo} structure describing the current state of
+     * Return a {@link RecoveryInfo} structure describing the current state of
      * the recovery process.
      * 
      * @return
@@ -232,7 +232,7 @@ public interface Management extends Remote, ManagementMXBean {
 
     /**
      * <p>
-     * Returns an array of {@link BufferInfo} objects reflecting the states of
+     * Return an array of {@link BufferInfo} objects reflecting the states of
      * selected buffers from the <tt>BufferPool</tt> for the specified
      * <tt>bufferSize</tt>. The selection criteria include the
      * <tt>traversalType</tt>, <tt>includeMask</tt> and <tt>excludeMask</tt>.
@@ -296,7 +296,7 @@ public interface Management extends Remote, ManagementMXBean {
             String includeMask, String excludeMask) throws RemoteException;
 
     /**
-     * Returns a <tt>BufferInfo</tt> reflecting the status of the buffer
+     * Return a <tt>BufferInfo</tt> reflecting the status of the buffer
      * containing the page specified by the supplied <tt>volumeName</tt> and
      * <tt>pageAddress</tt>. If Persisit is not initialized or of the attempt
      * the find the specified page fails, this method returns <tt>null</tt>
@@ -389,7 +389,7 @@ public interface Management extends Remote, ManagementMXBean {
             throws RemoteException;
 
     /**
-     * Returns an array containing a <tt>VolumeInfo</tt> element for each open
+     * Return an array containing a <tt>VolumeInfo</tt> element for each open
      * volume. If Persistit is not initialized then this method returns an empty
      * array. </p>
      * 
@@ -398,7 +398,7 @@ public interface Management extends Remote, ManagementMXBean {
     public VolumeInfo[] getVolumeInfoArray() throws RemoteException;
 
     /**
-     * Returns a Class definition for a class specified by its name. This allows
+     * Return a Class definition for a class specified by its name. This allows
      * a remote UI instance connected through RMI to load classes that are
      * available within the running Persistit instance so that encoded objects
      * can be inspected within the UI. The implementation of this method should
@@ -414,7 +414,7 @@ public interface Management extends Remote, ManagementMXBean {
     public Class getRemoteClass(String className) throws RemoteException;
 
     /**
-     * Returns the <tt>VolumeInfo</tt> for the volume specified by the supplied
+     * Return the <tt>VolumeInfo</tt> for the volume specified by the supplied
      * <tt>volumeName</tt>. If Persisit is not initialized or there is no unique
      * volume corresponding with the supplied name, then this method returns
      * <tt>null</tt>.
@@ -426,7 +426,7 @@ public interface Management extends Remote, ManagementMXBean {
     public VolumeInfo getVolumeInfo(String volumeName) throws RemoteException;
 
     /**
-     * Returns an array containing a <tt>TreeInfo</tt> element for each
+     * Return an array containing a <tt>TreeInfo</tt> element for each
      * <tt>Tree</tt> in the specified volume. If there is no volume with the
      * specified name or if Persistit is not initialized then this method
      * returns an empty array.
@@ -441,7 +441,7 @@ public interface Management extends Remote, ManagementMXBean {
             throws RemoteException;
 
     /**
-     * Returns a <tt>TreeInfo</tt> for a specified <tt>Volume</tt> and
+     * Return a <tt>TreeInfo</tt> for a specified <tt>Volume</tt> and
      * </tt>Tree</tt>. If Persisit is not initialized, or if no no volume or
      * tree with corresponding names is found, or if there is a transient error
      * in acquiring the information, this method returns <tt>null</tt>.
@@ -458,8 +458,8 @@ public interface Management extends Remote, ManagementMXBean {
             throws RemoteException;
 
     /**
-     * Parses the supply String to determine whether it is a valid
-     * <tt>KeyFilter</tt>. Returns the index of the first incorrect character in
+     * Parse the supply String to determine whether it is a valid
+     * <tt>KeyFilter</tt> and return the index of the first incorrect character in
      * the supplied String, or -1 if the string is a valid String representation
      * of a KeyFilter.
      * 
@@ -767,7 +767,6 @@ public interface Management extends Remote, ManagementMXBean {
         }
     }
 
-
     /**
      * Base class for all management data structures that retain the time at
      * which the information was recorded.
@@ -783,7 +782,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the time (in milliseconds since January 1, 1970 00:00:00 GMT)
+         * Return the time (in milliseconds since January 1, 1970 00:00:00 GMT)
          * at which the information represented by this object was acquired.
          * 
          * @return the information acquisition time
@@ -815,6 +814,7 @@ public interface Management extends Remote, ManagementMXBean {
         int bufferCount;
         long getCounter;
         long hitCounter;
+        long readCounter;
         int validPageCount;
         int dirtyPageCount;
         int readerClaimedPageCount;
@@ -835,6 +835,7 @@ public interface Management extends Remote, ManagementMXBean {
             this.bufferCount = bufferCount;
             this.getCounter = getCounter;
             this.hitCounter = hitCounter;
+            this.readCounter = getCounter - hitCounter;
             this.validPageCount = validPageCount;
             this.dirtyPageCount = dirtyPageCount;
             this.readerClaimedPageCount = readerClaimedPageCount;
@@ -842,7 +843,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the size of <tt>Buffer</tt>s managed by this pool.
+         * Return the size of <tt>Buffer</tt>s managed by this pool.
          * 
          * @return The size in bytes of each buffer in this pool
          */
@@ -851,7 +852,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the count of <tt>Buffer</tt>s managed by this pool.
+         * Return the count of <tt>Buffer</tt>s managed by this pool.
          * 
          * @return The count
          */
@@ -860,7 +861,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the count of lookup operations for pages images in this pool.
+         * Return the count of lookup operations for pages images in this pool.
          * This number, in comparison with the hit counter, indicates how
          * effective the cache is in reducing disk I/O.
          * 
@@ -871,7 +872,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the count of lookup operations for pages images in this pool
+         * Return the count of lookup operations for pages images in this pool
          * for which the page image was already found in this
          * <tt>BufferPool</tt>. This number, in comparison with the get counter,
          * indicates how effective the cache is in reducing disk I/O.
@@ -880,6 +881,13 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public long getHitCounter() {
             return hitCounter;
+        }
+        
+        /**
+         * @return count of pages read back into the buffer pool from the journal
+         */
+        public long getReadCounter() {
+            return readCounter;
         }
 
         /**
@@ -1061,7 +1069,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the position of this <tt>Buffer</tt> within the
+         * Return the position of this <tt>Buffer</tt> within the
          * <tt>BufferPool</tt>.
          * 
          * @return The index
@@ -1071,7 +1079,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the type of page occupying this <tt>Buffer</tt> as an
+         * Return the type of page occupying this <tt>Buffer</tt> as an
          * integer. See {@link #getTypeName} for a displayable form.
          * 
          * @return The type.
@@ -1081,7 +1089,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the type of page occupying this <tt>Buffer</tt> in
+         * Return the type of page occupying this <tt>Buffer</tt> in
          * displayable name form. Values include
          * 
          * <pre>
@@ -1104,7 +1112,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the status integer for this <tt>Buffer</tt>. See
+         * Return the status integer for this <tt>Buffer</tt>. See
          * {@link #getStatusName} for a displayable form.
          * 
          * @return The status integer.
@@ -1114,7 +1122,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the status of this <tt>Buffer</tt> in displayable form.
+         * Return the status of this <tt>Buffer</tt> in displayable form.
          * Character flags in the string value include:
          * 
          * <pre>
@@ -1132,7 +1140,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the name of the <tt>Thread</tt> that currently holds a writer
+         * Return the name of the <tt>Thread</tt> that currently holds a writer
          * (exclusive) claim on the <tt>Buffer</tt> if there is one, otherwise
          * returns <tt>null</tt>.
          * 
@@ -1143,7 +1151,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the page address of the page currently occupying the
+         * Return the page address of the page currently occupying the
          * <tt>Buffer</tt>. The address is an ordinal number that indicates the
          * page's position within a volume file.In a standard Volume, page
          * address <code>P</code> is located at file address
@@ -1157,7 +1165,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the page address of the next page in key order on this level.
+         * Return the page address of the next page in key order on this level.
          * 
          * @return The page address of the right sibling page.
          */
@@ -1166,7 +1174,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the full pathname of the Volume of the page occupying this
+         * Return the full pathname of the Volume of the page occupying this
          * buffer if there is one, otherwise returns <tt>null</tt>.
          * 
          * @return the Volume Name
@@ -1176,7 +1184,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the internal ID value of the Volume of the page occupying
+         * Return the internal ID value of the Volume of the page occupying
          * this buffer if there is one, otherwise returns 0.
          * 
          * @return the volume ID
@@ -1186,7 +1194,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the count of times the state of the page occupying this
+         * Return the count of times the state of the page occupying this
          * buffer has changed.
          * 
          * @return The change count
@@ -1196,7 +1204,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the buffer size, in bytes
+         * Return the buffer size, in bytes
          * 
          * @return the size
          */
@@ -1205,7 +1213,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the number of unused bytes available to hold additional
+         * Return the number of unused bytes available to hold additional
          * key/value pairs.
          * 
          * @return The number of avaiable bytes in the <tt>Buffer</tt>.
@@ -1215,7 +1223,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns an offset within the <tt>Buffer</tt> used internally in
+         * Return an offset within the <tt>Buffer</tt> used internally in
          * allocating space for key/value pairs.
          * 
          * @return The alloc offset
@@ -1225,7 +1233,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns a size used internally in allocating space for key/value
+         * Return a size used internally in allocating space for key/value
          * pairs.
          * 
          * @return The slack size
@@ -1235,7 +1243,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns an offset within the <tt>Buffer</tt> used internally in
+         * Return an offset within the <tt>Buffer</tt> used internally in
          * allocating space for key/value pairs.
          * 
          * @return The keyBlockStart offset
@@ -1245,7 +1253,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns an offset within the <tt>Buffer</tt> used internally in
+         * Return an offset within the <tt>Buffer</tt> used internally in
          * allocating space for key/value pairs.
          * 
          * @return The keyBlockEnd offset
@@ -1255,7 +1263,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns a human-readable summary of information about the page
+         * Return a human-readable summary of information about the page
          * contained in this <tt>Buffer</tt>.
          * 
          * @return a one-line displayable summary
@@ -1369,7 +1377,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the page size for this <tt>Volume</tt>.
+         * Return the page size for this <tt>Volume</tt>.
          * 
          * @return the size of each page in this <tt>Volume</tt>
          */
@@ -1378,7 +1386,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the full path name.
+         * Return the full path name.
          * 
          * @return the path name.
          */
@@ -1387,7 +1395,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the alias if one was assigned in the system configuration.
+         * Return the alias if one was assigned in the system configuration.
          * 
          * @return the alias for this volume, or <tt>null<tt> if there is none
          */
@@ -1396,7 +1404,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the internal identifier value for this <tt>Volume</tt>
+         * Return the internal identifier value for this <tt>Volume</tt>
          * 
          * @return the id
          */
@@ -1405,7 +1413,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the time and date when this <tt>Volume</tt> was created.
+         * Return the time and date when this <tt>Volume</tt> was created.
          * 
          * @return The creation date
          */
@@ -1414,7 +1422,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the time and date when this <tt>Volume</tt> was opened.
+         * Return the time and date when this <tt>Volume</tt> was opened.
          * 
          * @return The date when this <tt>Volume</tt> was opened.
          */
@@ -1423,7 +1431,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the time and date when the most recent file read occurred.
+         * Return the time and date when the most recent file read occurred.
          * 
          * @return The date when the most recent file read occurred
          */
@@ -1432,7 +1440,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the time and date when the most recent file write occurred.
+         * Return the time and date when the most recent file write occurred.
          * 
          * @return The date when the most recent file write occurred
          */
@@ -1441,7 +1449,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the time and date when the most recent file extension
+         * Return the time and date when the most recent file extension
          * occurred.
          * 
          * @return The date when the most recent file extension occurred
@@ -1451,7 +1459,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the generation number for this <tt>Volume</tt>. The
+         * Return the generation number for this <tt>Volume</tt>. The
          * generation number increases as the state of the volume changes.
          * 
          * @return The current generation
@@ -1461,7 +1469,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the number of get operations on this <tt>Volume</tt>. A get
+         * Return the number of get operations on this <tt>Volume</tt>. A get
          * operation occurs when a thread attempts to find or update information
          * on the page, regardless of whether the page had previously been
          * copied into the <tt>BufferPool</tt>.
@@ -1473,7 +1481,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the number of physical read operations performed against
+         * Return the number of physical read operations performed against
          * pages in this <tt>Volume</tt>. The read occurs only when Persistit
          * requires the content of a page that has not already been copied into
          * the </tt>BufferPool</tt> or which has become invalid.
@@ -1485,7 +1493,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the number of physical write operations performed against
+         * Return the number of physical write operations performed against
          * pages in this <tt>Volume</tt>.
          * 
          * @return the write counter
@@ -1495,7 +1503,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the count of {@link Exchange#fetch} operations. These include
+         * Return the count of {@link Exchange#fetch} operations. These include
          * {@link Exchange#fetchAndStore} and {@link Exchange#fetchAndRemove}
          * operations. This count is maintained within the stored Volume and is
          * not reset when Persistit closes. It is provided to assist in
@@ -1508,7 +1516,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the count of {@link Exchange#traverse} operations. These
+         * Return the count of {@link Exchange#traverse} operations. These
          * include {@link Exchange#next}, {@link Exchange#previous} and other
          * derivative operations. This count is maintained within the stored
          * Volume and is not reset when Persistit closes. It is provided to
@@ -1522,7 +1530,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the count of {@link Exchange#store} operations, including
+         * Return the count of {@link Exchange#store} operations, including
          * {@link Exchange#fetchAndStore} operations. This count is maintained
          * within the stored Volume and is not reset when Persistit closes. It
          * is provided to assist in application performance tuning.
@@ -1534,7 +1542,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the count of {@link Exchange#remove} operations, including
+         * Return the count of {@link Exchange#remove} operations, including
          * {@link Exchange#fetchAndRemove} operations. This count is maintained
          * within the stored Volume and is not reset when Persistit closes. It
          * is provided to assist in application performance tuning.
@@ -1546,7 +1554,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the current size in bytes of this <tt>Volume</tt>.
+         * Return the current size in bytes of this <tt>Volume</tt>.
          * 
          * @return current size
          */
@@ -1555,7 +1563,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the largest page address currently in use within the
+         * Return the largest page address currently in use within the
          * <tt>Volume</tt>.
          * 
          * @return the largest page address
@@ -1565,7 +1573,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the maximum size in bytes to which this <tt>Volume</tt> may
+         * Return the maximum size in bytes to which this <tt>Volume</tt> may
          * grow.
          * 
          * @return the maximum size
@@ -1575,7 +1583,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the size in bytes by which Persistit will extend this
+         * Return the size in bytes by which Persistit will extend this
          * <tt>Volume</tt> when additional file space is required.
          * 
          * @return The extension size
@@ -1585,7 +1593,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the path name of this Volume
+         * Return the path name of this Volume
          * 
          * @return The path name
          */
@@ -1635,9 +1643,8 @@ public interface Management extends Remote, ManagementMXBean {
 
         @ConstructorProperties({ "name", "index", "rootPageAddress", "depth",
                 "volumePathName", "status", "writerThreadName" })
-        public TreeInfo(String name, long rootPageAddress,
-                int depth, String volumePathName, String status,
-                String writerThreadName) {
+        public TreeInfo(String name, long rootPageAddress, int depth,
+                String volumePathName, String status, String writerThreadName) {
             super();
             this.name = name;
             this.rootPageAddress = rootPageAddress;
@@ -1648,7 +1655,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the name of the <tt>Tree</tt>
+         * Return the name of the <tt>Tree</tt>
          * 
          * @return the name
          */
@@ -1657,7 +1664,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the page address of the root page.
+         * Return the page address of the root page.
          * 
          * @return the root page address
          */
@@ -1666,7 +1673,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the count of levels in the <tt>Tree</tt>.
+         * Return the count of levels in the <tt>Tree</tt>.
          * 
          * @return the depth
          */
@@ -1675,7 +1682,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the path name of the volume to which this tree belongs.
+         * Return the path name of the volume to which this tree belongs.
          * 
          * @return the path name
          */
@@ -1684,7 +1691,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the status code for this Tree.
+         * Return the status code for this Tree.
          * 
          * @return the status code
          */
@@ -1693,7 +1700,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the name of the <tt>Thread</tt> that currently holds a writer
+         * Return the name of the <tt>Thread</tt> that currently holds a writer
          * (exclusive) claim on the <tt>Buffer</tt> if there is one, otherwise
          * returns <tt>null</tt>.
          * 
@@ -1704,7 +1711,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the name of the tree.
+         * Return the name of the tree.
          * 
          * @return The name of the tree
          */
@@ -1774,7 +1781,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the unique taskID for this task
+         * Return the unique taskID for this task
          * 
          * @return the unique taskID
          */
@@ -1783,7 +1790,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns a description of this task
+         * Return a description of this task
          * 
          * @return the description
          */
@@ -1792,7 +1799,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the owner (hostname and/or username) of the initiator of this
+         * Return the owner (hostname and/or username) of the initiator of this
          * task
          * 
          * @return the owner
@@ -1802,7 +1809,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the state code for this task. This is one of
+         * Return the state code for this task. This is one of
          * <ul>
          * <li>{@link Task#STATENOTSTARTED}</li>
          * <li>{@link Task#STATERUNNING}</li>
@@ -1820,7 +1827,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Returns the name of the state this task is in. One of "notStarted",
+         * Return the name of the state this task is in. One of "notStarted",
          * "running", "done", "suspended", "failed", "ended", or "expired".
          * 
          * @return A readable name of the task's current state
@@ -1925,6 +1932,7 @@ public interface Management extends Remote, ManagementMXBean {
         long recoveryJournalAddress;
         long recoveryStatus;
         long journaledPageCount;
+        long readPageCount;
         long copiedPageCount;
         int recoveredCommittedTransactions;
         int recoveredAppliedTransactions;
@@ -1945,7 +1953,7 @@ public interface Management extends Remote, ManagementMXBean {
                 "lastValidCheckpointJournalFile",
                 "lastValidCheckpointJournalAddress", "recoveryJournalFile",
                 "recoveryJournalAddress", "recoveryStatus",
-                "journaledPageCount", "copiedPageCount",
+                "journaledPageCount", "readPageCount", "copiedPageCount",
                 "recoveredCommittedTransactions",
                 "recoveredAppliedTransactions", "closed", "copying",
                 "flushing", "appendOnly", "fastCopying" })
@@ -1958,7 +1966,8 @@ public interface Management extends Remote, ManagementMXBean {
                 long lastValidCheckpointJournalAddress,
                 String recoveryJournalFile, long recoveryJournalAddress,
                 long recoveryStatus, long journaledPageCount,
-                long copiedPageCount, int recoveredCommittedTransactions,
+                long readPageCount, long copiedPageCount,
+                int recoveredCommittedTransactions,
                 int recoveredAppliedTransactions, boolean closed,
                 boolean copying, boolean flushing, boolean appendOnly,
                 boolean fastCopying) {
@@ -1977,6 +1986,7 @@ public interface Management extends Remote, ManagementMXBean {
             this.recoveryJournalAddress = recoveryJournalAddress;
             this.recoveryStatus = recoveryStatus;
             this.journaledPageCount = journaledPageCount;
+            this.readPageCount = readPageCount;
             this.copiedPageCount = copiedPageCount;
             this.recoveredCommittedTransactions = recoveredCommittedTransactions;
             this.recoveredAppliedTransactions = recoveredAppliedTransactions;
@@ -2131,6 +2141,14 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public long getCopiedPageCount() {
             return copiedPageCount;
+        }
+
+        /**
+         * @return the total number of pages read from the journal back into
+         *         buffer pool.
+         */
+        public long getReadPageCount() {
+            return readPageCount;
         }
 
         /**
@@ -2435,6 +2453,5 @@ public interface Management extends Remote, ManagementMXBean {
             return cause;
         }
     }
-
 
 }
