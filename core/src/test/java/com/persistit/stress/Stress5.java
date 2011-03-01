@@ -90,7 +90,8 @@ public class Stress5 extends StressBase {
             try {
                 verboseln();
                 verboseln();
-                verboseln("Starting test cycle " + _repeat + " at " + tsString());
+                verboseln("Starting test cycle " + _repeat + " at "
+                        + tsString());
                 describeTest("Deleting all records");
                 setPhase("@");
                 _ex.clear().remove(Key.GTEQ);
@@ -218,7 +219,6 @@ public class Stress5 extends StressBase {
         fillLong(b, depth, 5, true);
         ex.clear().append(a).append(_sb1);
     }
-
 
     public static void main(final String[] args) {
         new Stress5().runStandalone(args);

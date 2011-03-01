@@ -57,9 +57,9 @@ public class ManagementTableModel extends AbstractTableModel {
     /**
      * Construct a TableModel to display one of the management info array
      * structures such as BufferInfo[]. Each column is described by a property
-     * defined in the <tt>ResourceBundle</tt> associated with this class. The
-     * property name is constructed from the last "." piece of the name of the
-     * supplied class and the column index as follows: <code><pre>
+     * defined in the <code>ResourceBundle</code> associated with this class.
+     * The property name is constructed from the last "." piece of the name of
+     * the supplied class and the column index as follows: <code><pre>
      * property Name ::= 
      *      <i>classNameTail</i>.column.<i>columnIndex</i>
      * </pre></code> For example, the specification for the first column of the
@@ -71,7 +71,7 @@ public class ManagementTableModel extends AbstractTableModel {
      *      <i>accessorMethodName</i>:<i>width</i>:<i>flags</i>:<i>header</i>
      * </code></pre> For example <code><pre>
      *      getRightSiblingAddress:10:A:Right Pointer
-     * </code></pre> where the <i>accessorMethodName</tt> is simply a method
+     * </code></pre> where the <i>accessorMethodName</code> is simply a method
      * name in the supplied class (the method must take no arguments), the
      * <i>width</i> is a percentage of the total table width, and
      * <i>justification</i> is L, C or R.

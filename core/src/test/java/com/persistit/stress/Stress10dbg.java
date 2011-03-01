@@ -118,8 +118,7 @@ public class Stress10dbg extends StressBase {
                     setupTestValue(_exs, keyInteger, random(20, _size));
 
                     _ex.clear().append(keyInteger);
-                    _ex.getValue().put(
-                            _exs.getValue().getEncodedSize() + "@");
+                    _ex.getValue().put(_exs.getValue().getEncodedSize() + "@");
 
                     try {
                         _exs.store();

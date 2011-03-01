@@ -42,73 +42,75 @@ import com.persistit.exception.TreeNotFoundException;
  * </p>
  * <p>
  * Applications interact with Persistit through instances of this class. A
- * <tt>Exchange</tt> has two important associated member objects, a
- * {@link com.persistit.Key} and a {@link com.persistit.Value}. A <tt>Key</tt>
- * is a mutable representation of a key, and a <tt>Value</tt> is a mutable
- * representation of a value. Applications manipulate these objects and interact
- * with the database through one of the following four general patterns:
+ * <code>Exchange</code> has two important associated member objects, a
+ * {@link com.persistit.Key} and a {@link com.persistit.Value}. A
+ * <code>Key</code> is a mutable representation of a key, and a
+ * <code>Value</code> is a mutable representation of a value. Applications
+ * manipulate these objects and interact with the database through one of the
+ * following four general patterns:
  * <ol>
  * <li>
- * Modify the <tt>Key</tt>, perform a {@link com.persistit.Exchange#fetch fetch}
- * operation, and query the <tt>Value</tt>.</li>
+ * Modify the <code>Key</code>, perform a {@link com.persistit.Exchange#fetch
+ * fetch} operation, and query the <code>Value</code>.</li>
  * <li>
- * Modify the <tt>Key</tt>, modify the <tt>Value</tt>, and then perform a
- * {@link com.persistit.Exchange#store store} operation to insert or replace
+ * Modify the <code>Key</code>, modify the <code>Value</code>, and then perform
+ * a {@link com.persistit.Exchange#store store} operation to insert or replace
  * data in the database.</li>
  * <li>
- * Modify the <tt>Key</tt>, and then perform a
+ * Modify the <code>Key</code>, and then perform a
  * {@link com.persistit.Exchange#remove remove} to remove one or more key/value
  * pairs.</li>
  * <li>
- * Optionally modify the <tt>Key</tt>, perform a
+ * Optionally modify the <code>Key</code>, perform a
  * {@link com.persistit.Exchange#traverse traverse} operation, then query the
- * resulting state of <tt>Key</tt> and/or <tt>Value</tt> to enumerate key/value
- * pairs currently stored in the database.</li>
+ * resulting state of <code>Key</code> and/or <code>Value</code> to enumerate
+ * key/value pairs currently stored in the database.</li>
  * </ol>
  * <p>
- * Additional methods of <tt>Exchange</tt> include {@link #fetchAndStore
+ * Additional methods of <code>Exchange</code> include {@link #fetchAndStore
  * fetchAndStore} and {@link #fetchAndRemove fetchAndRemove} which atomically
  * modify the database and return the former value associated with the current
- * <tt>Key</tt>, and {@link #incrementValue} which atomically increments an
- * integer value associated with the current <tt>Key</tt>.
+ * <code>Key</code>, and {@link #incrementValue} which atomically increments an
+ * integer value associated with the current <code>Key</code>.
  * </p>
  * <p>
  * <h3>Exchange is Not Threadsafe</h3>
- * <em>Important:</em> an <tt>Exchange</tt> and its associated <tt>Key</tt> and
- * <tt>Value</tt> instances are <i>not</i> thread-safe. Generally each
- * <tt>Thread</tt> should allocate and use its own <tt>Exchange</tt> instances.
- * Were it to occur, modification of the <tt>Key</tt> or <tt>Value</tt> objects
- * associated with an <tt>Exchange</tt> by another thread could cause severe and
- * unpredictable errors, including possible corruption of the underlying data
- * storage. For this reason, each <tt>Exchange</tt> instance is associated with
- * the first <tt>Thread</tt> that performs any method accessing or modifying
- * either its key or value. Any subsequent attempt to access or modify either of
- * these fields by a different <tt>Thread</tt> results in a
+ * <em>Important:</em> an <code>Exchange</code> and its associated
+ * <code>Key</code> and <code>Value</code> instances are <i>not</i> thread-safe.
+ * Generally each <code>Thread</code> should allocate and use its own
+ * <code>Exchange</code> instances. Were it to occur, modification of the
+ * <code>Key</code> or <code>Value</code> objects associated with an
+ * <code>Exchange</code> by another thread could cause severe and unpredictable
+ * errors, including possible corruption of the underlying data storage. For
+ * this reason, each <code>Exchange</code> instance is associated with the first
+ * <code>Thread</code> that performs any method accessing or modifying either
+ * its key or value. Any subsequent attempt to access or modify either of these
+ * fields by a different <code>Thread</code> results in a
  * {@link com.persistit.exception.WrongThreadException WrongThreadException}.
  * Also see {@link #clearOwnerThread} and {@link #getOwner()}.
  * </p>
  * <p>
- * Despite the fact that the methods of <tt>Exchange</tt> are not threadsafe,
- * Persistit is designed to allow multiple threads, using <em>multiple</em>
- * <tt>Exchange</tt> instances, to access and update the underlying database in
- * a highly concurrent fashion.
+ * Despite the fact that the methods of <code>Exchange</code> are not
+ * threadsafe, Persistit is designed to allow multiple threads, using
+ * <em>multiple</em> <code>Exchange</code> instances, to access and update the
+ * underlying database in a highly concurrent fashion.
  * </p>
  * <p>
  * <h3>Exchange Pools</h3>
- * Normally each thread should allocate its own <tt>Exchange</tt> instances.
+ * Normally each thread should allocate its own <code>Exchange</code> instances.
  * However, depending on the garbage collection performance characteristics of a
- * particular JVM it may be desirable to maintain a pool of <tt>Exchange</tt>'s
- * available for reuse, thereby reducing the frequency with which
- * <tt>Exchange</tt>s need to be constructed and then garbage collected. An
- * application may get an Exchange using
+ * particular JVM it may be desirable to maintain a pool of
+ * <code>Exchange</code>'s available for reuse, thereby reducing the frequency
+ * with which <code>Exchange</code>s need to be constructed and then garbage
+ * collected. An application may get an Exchange using
  * {@link Persistit#getExchange(String, String, boolean)} or
  * {@link Persistit#getExchange(Volume, String, boolean)}. These methods reuse a
- * previously constructed <tt>Exchange</tt> if one is available in a pool;
+ * previously constructed <code>Exchange</code> if one is available in a pool;
  * otherwise they construct methods construct a new one. Applications using the
  * Exchange pool should call
  * {@link Persistit#releaseExchange(Exchange, boolean)} to relinquish an
- * <tt>Exchange</tt> once it is no longer needed, thereby placing it in the pool
- * for subsequent reuse.
+ * <code>Exchange</code> once it is no longer needed, thereby placing it in the
+ * pool for subsequent reuse.
  * </p>
  * 
  * @version 1.0
@@ -175,31 +177,32 @@ public class Exchange {
 
     /**
      * <p>
-     * Construct a new <tt>Exchange</tt> object to create and/or access the
+     * Construct a new <code>Exchange</code> object to create and/or access the
      * {@link Tree} specified by treeName within the {@link Volume} specified by
-     * <tt>volumeName</tt>. This constructor optionally creates a new
-     * <tt>Tree</tt>. If the <tt>create</tt> parameter is false and a
-     * <tt>Tree</tt> by the specified name does not exist, this constructor
+     * <code>volumeName</code>. This constructor optionally creates a new
+     * <code>Tree</code>. If the <code>create</code> parameter is false and a
+     * <code>Tree</code> by the specified name does not exist, this constructor
      * throws a {@link com.persistit.exception.TreeNotFoundException}.
      * </p>
      * <p>
-     * The <tt>volumeName</tt< you supply must match exactly one open 
-     * <tt>Volume</tt>. The name matches if either (a) the <tt>Volume</tt> has
-     * an optional alias that is equal to the supplied name, or (b) if the
-     * supplied name matches a substring of the <tt>Volume</tt>'s pathname. If
-     * there is not unique match for the name you supply, this method throws a
+     * The <code>volumeName</tt< you supply must match exactly one open 
+     * <code>Volume</code>. The name matches if either (a) the
+     * <code>Volume</code> has an optional alias that is equal to the supplied
+     * name, or (b) if the supplied name matches a substring of the
+     * <code>Volume</code>'s pathname. If there is not unique match for the name
+     * you supply, this method throws a
      * {@link com.persistit.exception.VolumeNotFoundException}.
      * </p>
      * 
      * @param volumeName
      *            The volume name that either matches the alias or a partially
-     *            matches the pathname of exactly one open <tt>Volume</tt>.
+     *            matches the pathname of exactly one open <code>Volume</code>.
      * 
      * @param treeName
      *            The tree name
      * 
      * @param create
-     *            <tt>true</tt> to create a new Tree if one by the specified
+     *            <code>true</code> to create a new Tree if one by the specified
      *            name does not already exist.
      * 
      * @throws PersistitException
@@ -211,11 +214,11 @@ public class Exchange {
 
     /**
      * <p>
-     * Construct a new <tt>Exchange</tt> object to create and/or access the
+     * Construct a new <code>Exchange</code> object to create and/or access the
      * {@link Tree} specified by treeName within the specified {@link Volume}.
-     * This constructor optionally creates a new <tt>Tree</tt>. If the
-     * <tt>create</tt> parameter is false and a <tt>Tree</tt> by the specified
-     * name does not exist, this constructor throws a
+     * This constructor optionally creates a new <code>Tree</code>. If the
+     * <code>create</code> parameter is false and a <code>Tree</code> by the
+     * specified name does not exist, this constructor throws a
      * {@link com.persistit.exception.TreeNotFoundException}.
      * </p>
      * 
@@ -224,7 +227,7 @@ public class Exchange {
      * @param treeName
      *            The tree name
      * @param create
-     *            <tt>true</tt> to create a new Tree if one by the specified
+     *            <code>true</code> to create a new Tree if one by the specified
      *            name does not already exist.
      * @throws PersistitException
      */
@@ -243,15 +246,15 @@ public class Exchange {
     }
 
     /**
-     * Construct a new <tt>Exchange</tt> to access the same {@link Volume} and
-     * {@link Tree} as the supplied <tt>Exchange</tt>. The states of the
-     * supplied <tt>Exchange</tt>'s {@link Key} and {@link Value} objects are
-     * copied to new the <tt>Key</tt> and new <tt>Value</tt> associated with
-     * this <tt>Exchange</tt> so that operations on the two <tt>Exchange</tt>s
-     * initially behave identically.
+     * Construct a new <code>Exchange</code> to access the same {@link Volume}
+     * and {@link Tree} as the supplied <code>Exchange</code>. The states of the
+     * supplied <code>Exchange</code>'s {@link Key} and {@link Value} objects
+     * are copied to new the <code>Key</code> and new <code>Value</code>
+     * associated with this <code>Exchange</code> so that operations on the two
+     * <code>Exchange</code>s initially behave identically.
      * 
      * @param exchange
-     *            The <tt>Exchange</tt> to copy from.
+     *            The <code>Exchange</code> to copy from.
      */
     public Exchange(Exchange exchange) {
         _persistit = exchange._persistit;
@@ -264,10 +267,11 @@ public class Exchange {
     }
 
     /**
-     * Construct a new <tt>Exchange</tt> to access the specified {@link Tree}.
+     * Construct a new <code>Exchange</code> to access the specified
+     * {@link Tree}.
      * 
      * @param tree
-     *            The <tt>Tree</tt> to access.
+     *            The <code>Tree</code> to access.
      */
     public Exchange(Tree tree) {
         _persistit = tree._persistit;
@@ -455,9 +459,9 @@ public class Exchange {
 
     // -----------------------------------------------------------------
     /**
-     * Delegates to {@link Key#reset} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#reset} on the associated <code>Key</code> object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange reset() {
         getKey().reset();
@@ -465,9 +469,9 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#clear} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#clear} on the associated <code>Key</code> object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange clear() {
         getKey().clear();
@@ -475,9 +479,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#setDepth} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#setDepth} on the associated <code>Key</code>
+     * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange setDepth(int depth) {
         getKey().setDepth(depth);
@@ -485,9 +490,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#cut(int)} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#cut(int)} on the associated <code>Key</code>
+     * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange cut(int level) {
         getKey().cut(level);
@@ -495,9 +501,9 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#cut()} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#cut()} on the associated <code>Key</code> object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange cut() {
         getKey().cut();
@@ -505,10 +511,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#append(boolean)} on the associated <tt>Key</tt>
-     * object.
+     * Delegate to {@link Key#append(boolean)} on the associated
+     * <code>Key</code> object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange append(boolean item) {
         getKey().append(item);
@@ -516,10 +522,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#append(byte)} on the associated <tt>Key</tt>
+     * Delegate to {@link Key#append(byte)} on the associated <code>Key</code>
      * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange append(byte item) {
         getKey().append(item);
@@ -527,10 +533,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#append(short)} on the associated <tt>Key</tt>
+     * Delegate to {@link Key#append(short)} on the associated <code>Key</code>
      * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange append(short item) {
         getKey().append(item);
@@ -538,10 +544,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#append(char)} on the associated <tt>Key</tt>
+     * Delegate to {@link Key#append(char)} on the associated <code>Key</code>
      * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange append(char item) {
         getKey().append(item);
@@ -549,10 +555,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#append(int)} on the associated <tt>Key</tt>
+     * Delegate to {@link Key#append(int)} on the associated <code>Key</code>
      * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange append(int item) {
         getKey().append(item);
@@ -560,10 +566,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#append(long)} on the associated <tt>Key</tt>
+     * Delegate to {@link Key#append(long)} on the associated <code>Key</code>
      * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange append(long item) {
         getKey().append(item);
@@ -571,10 +577,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#append(float)} on the associated <tt>Key</tt>
+     * Delegate to {@link Key#append(float)} on the associated <code>Key</code>
      * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange append(float item) {
         getKey().append(item);
@@ -582,10 +588,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#append(double)} on the associated <tt>Key</tt>
-     * object.
+     * Delegate to {@link Key#append(double)} on the associated
+     * <code>Key</code> object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange append(double item) {
         getKey().append(item);
@@ -593,10 +599,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#append(Object)} on the associated <tt>Key</tt>
-     * object.
+     * Delegate to {@link Key#append(Object)} on the associated
+     * <code>Key</code> object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange append(Object item) {
         getKey().append(item);
@@ -604,10 +610,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#to(boolean)} on the associated <tt>Key</tt>
+     * Delegate to {@link Key#to(boolean)} on the associated <code>Key</code>
      * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange to(boolean item) {
         getKey().to(item);
@@ -615,9 +621,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#to(byte)} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#to(byte)} on the associated <code>Key</code>
+     * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange to(byte item) {
         getKey().to(item);
@@ -625,9 +632,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#to(short)} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#to(short)} on the associated <code>Key</code>
+     * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange to(short item) {
         getKey().to(item);
@@ -635,9 +643,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#to(char)} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#to(char)} on the associated <code>Key</code>
+     * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange to(char item) {
         getKey().to(item);
@@ -645,9 +654,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#to(int)} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#to(int)} on the associated <code>Key</code>
+     * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange to(int item) {
         getKey().to(item);
@@ -655,9 +665,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#to(long)} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#to(long)} on the associated <code>Key</code>
+     * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange to(long item) {
         getKey().to(item);
@@ -665,9 +676,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#to(float)} on the associated <tt>Key</tt> object.
+     * Delegate to {@link Key#to(float)} on the associated <code>Key</code>
+     * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange to(float item) {
         getKey().to(item);
@@ -675,10 +687,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#to(double)} on the associated <tt>Key</tt>
+     * Delegate to {@link Key#to(double)} on the associated <code>Key</code>
      * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange to(double item) {
         getKey().to(item);
@@ -686,10 +698,10 @@ public class Exchange {
     }
 
     /**
-     * Delegates to {@link Key#to(Object)} on the associated <tt>Key</tt>
+     * Delegate to {@link Key#to(Object)} on the associated <code>Key</code>
      * object.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining.
+     * @return This <code>Exchange</code> to permit method call chaining.
      */
     public Exchange to(Object item) {
         getKey().to(item);
@@ -697,18 +709,18 @@ public class Exchange {
     }
 
     /**
-     * Returns the {@link Key} associated with this <tt>Exchange</tt>.
+     * Return the {@link Key} associated with this <code>Exchange</code>.
      * 
-     * @return This <tt>Key</tt>.
+     * @return This <code>Key</code>.
      */
     public Key getKey() {
         return _key;
     }
 
     /**
-     * Returns the {@link Value} associated with this <tt>Exchange</tt>.
+     * Return the {@link Value} associated with this <code>Exchange</code>.
      * 
-     * @return The <tt>Value</tt>.
+     * @return The <code>Value</code>.
      */
     public Value getValue() {
         return _value;
@@ -719,36 +731,36 @@ public class Exchange {
     }
 
     /**
-     * Returns the {@link Volume} containing the data accessed by this
-     * <tt>Exchange</tt>.
+     * Return the {@link Volume} containing the data accessed by this
+     * <code>Exchange</code>.
      * 
-     * @return The <tt>Volume</tt>.
+     * @return The <code>Volume</code>.
      */
     public Volume getVolume() {
         return _volume;
     }
 
     /**
-     * Returns the {@link Tree} on which this <tt>Exchange</tt> operates.
+     * Return the {@link Tree} on which this <code>Exchange</code> operates.
      * 
-     * @return The <tt>Tree</tt>
+     * @return The <code>Tree</code>
      */
     public Tree getTree() {
         return _tree;
     }
 
     /**
-     * Returns the Persistit instance from which this Exchange was created.
+     * Return the Persistit instance from which this Exchange was created.
      * 
-     * @return The <tt>Persistit<tt> instance.
+     * @return The <code>Persistit<code> instance.
      */
     public Persistit getPersistitInstance() {
         return _persistit;
     }
 
     /**
-     * Returns the count of structural changes committed to the {@link Tree} on
-     * which this <tt>Exchange</tt> operates. This count includes changes
+     * Return the count of structural changes committed to the {@link Tree} on
+     * which this <code>Exchange</code> operates. This count includes changes
      * committed by all Threads, including the current one. A structural change
      * is one in which at least one key is inserted or deleted. Replacement of
      * an existing value is not counted.
@@ -760,10 +772,10 @@ public class Exchange {
     }
 
     /**
-     * Returns the maximum time, in milliseconds, that operations on this
-     * <tt>Exchange</tt> will wait for completion. In particular, if there is
-     * heavy disk I/O an operation may require a significant amount of time to
-     * complete. This is the approximate upper bound on that time.
+     * Return the maximum time, in milliseconds, that operations on this
+     * <code>Exchange</code> will wait for completion. In particular, if there
+     * is heavy disk I/O an operation may require a significant amount of time
+     * to complete. This is the approximate upper bound on that time.
      * 
      * @return The current timeout, in milliseconds.
      */
@@ -773,9 +785,9 @@ public class Exchange {
 
     /**
      * Change the maximum time (in milliseconds) that operations on this
-     * <tt>Exchange</tt> will wait for completion. In particular, if there is
-     * heavy disk I/O an operation may require a significant amount of time to
-     * complete. This sets the approximate upper bound on that time.
+     * <code>Exchange</code> will wait for completion. In particular, if there
+     * is heavy disk I/O an operation may require a significant amount of time
+     * to complete. This sets the approximate upper bound on that time.
      * 
      * @param timeout
      *            Maximum time, in milliseconds
@@ -826,8 +838,8 @@ public class Exchange {
     }
 
     /**
-     * Returns a displayable String containing the volume name, tree name and
-     * current key state for this <tt>Exchange</tt>.
+     * Return a displayable String containing the volume name, tree name and
+     * current key state for this <code>Exchange</code>.
      * 
      * @return The displayable String
      */
@@ -1529,8 +1541,8 @@ public class Exchange {
      *            have a writer claim on it, and must be reserved.
      * @param foundAt
      *            The encoded insert location.
-     * @return <tt>true</tt> if it necessary to insert a key into the ancestor
-     *         index page.
+     * @return <code>true</code> if it necessary to insert a key into the
+     *         ancestor index page.
      * @throws PMapException
      */
     private boolean putLevel(LevelCache lc, Key key, Value value,
@@ -1652,8 +1664,8 @@ public class Exchange {
      * <dd>If the supplied key exists in the database, return that key;
      * otherwise find the next greater key and return it.</dd>
      * <dt>Key.EQ:</dt>
-     * <dd>Return <tt>true</tt> iff the specified key exists in the database.
-     * Does not update the Key.</dd>
+     * <dd>Return <code>true</code> iff the specified key exists in the
+     * database. Does not update the Key.</dd>
      * <dt>Key.LT:</dt>
      * <dd>Find the next key that is strictly less than the supplied key. If
      * there is none, return false.</dd>
@@ -1668,11 +1680,11 @@ public class Exchange {
      * 
      * @param deep
      *            Determines whether the result should represent the next (or
-     *            previous) physical key in the <tt>Tree</tt> or should be
+     *            previous) physical key in the <code>Tree</code> or should be
      *            restricted to just the logical siblings of the current key.
      *            (See <a href="Key.html#_keyChildren">Logical Key Children and
      *            Siblings</a>).
-     * @return <tt>true</tt> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else null.
      * @throws PersistitException
      */
     public boolean traverse(Direction direction, boolean deep)
@@ -1697,8 +1709,8 @@ public class Exchange {
      * <dd>If the supplied key exists in the database, return that key;
      * otherwise find the next greater key and return it.</dd>
      * <dt>Key.EQ:</dt>
-     * <dd>Return <tt>true</tt> iff the specified key exists in the database.
-     * Does not update the Key.</dd>
+     * <dd>Return <code>true</code> iff the specified key exists in the
+     * database. Does not update the Key.</dd>
      * <dt>Key.LT:</dt>
      * <dd>Find the next key that is strictly less than the supplied key. If
      * there is none, return false.</dd>
@@ -1713,7 +1725,7 @@ public class Exchange {
      * 
      * @param deep
      *            Determines whether the result should represent the next (or
-     *            previous) physical key in the <tt>Tree</tt> or should be
+     *            previous) physical key in the <code>Tree</code> or should be
      *            restricted to just the logical siblings of the current key.
      *            (See <a href="Key.html#_keyChildren">Logical Key Children and
      *            Siblings</a>).
@@ -1723,7 +1735,7 @@ public class Exchange {
      *            If minBytes is less than or equal to 0 then this method does
      *            not update the Key and Value fields of the Exchange.
      * 
-     * @return <tt>true</tt> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else null.
      * 
      * @throws PersistitException
      */
@@ -2082,8 +2094,8 @@ public class Exchange {
      * <dd>If the supplied key exists in the database, return that key;
      * otherwise find the next greater key and return it.</dd>
      * <dt>Key.EQ:</dt>
-     * <dd>Return <tt>true</tt> iff the specified key exists in the database.
-     * Does not update the Key.</dd>
+     * <dd>Return <code>true</code> iff the specified key exists in the
+     * database. Does not update the Key.</dd>
      * <dt>Key.LT:</dt>
      * <dd>Find the next key that is strictly less than the supplied key. If
      * there is none, return false.</dd>
@@ -2105,7 +2117,7 @@ public class Exchange {
      *            If minBytes is less than or equal to 0 then this method does
      *            not update the Key and Value fields of the Exchange.
      * 
-     * @return <tt>true</tt> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else null.
      * 
      * @throws PersistitException
      */
@@ -2149,9 +2161,9 @@ public class Exchange {
 
     /**
      * Traverses to the next logical sibling key value. Equivalent to
-     * <tt>traverse(Key.GT, false)</tt>.
+     * <code>traverse(Key.GT, false)</code>.
      * 
-     * @return <tt>true</tt> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else null.
      * @throws PersistitException
      */
     public boolean next() throws PersistitException {
@@ -2160,9 +2172,9 @@ public class Exchange {
 
     /**
      * Traverses to the previous logical sibling key value. Equivalent to
-     * <tt>traverse(Key.LT, false)</tt>.
+     * <code>traverse(Key.LT, false)</code>.
      * 
-     * @return <tt>true</tt> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else null.
      * @throws PersistitException
      */
     public boolean previous() throws PersistitException {
@@ -2171,16 +2183,16 @@ public class Exchange {
 
     /**
      * Traverses to the next key with control over depth. Equivalent to
-     * <tt>traverse(Key.GT, deep)</tt>.
+     * <code>traverse(Key.GT, deep)</code>.
      * 
      * @param deep
      *            Determines whether the result should represent the next (or
-     *            previous) physical key in the <tt>Tree</tt> or should be
+     *            previous) physical key in the <code>Tree</code> or should be
      *            restricted to just the logical siblings of the current key.
      *            (See <a href="Key.html#_keyChildren">Logical Key Children and
      *            Siblings</a>).
      * 
-     * @return <tt>true</tt> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else null.
      * @throws PersistitException
      */
     public boolean next(boolean deep) throws PersistitException {
@@ -2189,16 +2201,16 @@ public class Exchange {
 
     /**
      * Traverses to the previous key with control over depth. Equivalent to
-     * <tt>traverse(Key.LT, deep)</tt>.
+     * <code>traverse(Key.LT, deep)</code>.
      * 
      * @param deep
      *            Determines whether the result should represent the next (or
-     *            previous) physical key in the <tt>Tree</tt> or should be
+     *            previous) physical key in the <code>Tree</code> or should be
      *            restricted to just the logical siblings of the current key.
      *            (See <a href="Key.html#_keyChildren">Logical Key Children and
      *            Siblings</a>).
      * 
-     * @return <tt>true</tt> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else null.
      * 
      * @throws PersistitException
      */
@@ -2209,9 +2221,9 @@ public class Exchange {
     /**
      * Traverses to the next key value within the subset of all keys defined by
      * the supplied KeyFilter. Whether logical children of the current key value
-     * are included in the result is determined by the <tt>KeyFilter</tt>.
+     * are included in the result is determined by the <code>KeyFilter</code>.
      * 
-     * @return <tt>true</tt> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else null.
      * @throws PersistitException
      */
     public boolean next(KeyFilter filter) throws PersistitException {
@@ -2221,9 +2233,10 @@ public class Exchange {
     /**
      * Traverses to the previous key value within the subset of all keys defined
      * by the supplied KeyFilter. Whether logical children of the current key
-     * value are included in the result is determined by the <tt>KeyFilter</tt>.
+     * value are included in the result is determined by the
+     * <code>KeyFilter</code>.
      * 
-     * @return <tt>true</tt> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else null.
      * @throws PersistitException
      */
     public boolean previous(KeyFilter filter) throws PersistitException {
@@ -2232,10 +2245,11 @@ public class Exchange {
 
     /**
      * Determines whether the current key has a logical sibling successor,
-     * without changing the state of <tt>Key</tt> or <tt>Value</tt>. This method
-     * is equivalent to {@link #next()} except that no state is changed.
+     * without changing the state of <code>Key</code> or <code>Value</code>.
+     * This method is equivalent to {@link #next()} except that no state is
+     * changed.
      * 
-     * @return <tt>true</tt> if the key has a successor
+     * @return <code>true</code> if the key has a successor
      * 
      * @throws PersistitException
      */
@@ -2245,10 +2259,10 @@ public class Exchange {
 
     /**
      * Determines whether the current key has a successor within the subset of
-     * all keys defined by a <tt>KeyFilter</tt>. This method does not change the
-     * state of <tt>Key</tt> or <tt>Value</tt>.
+     * all keys defined by a <code>KeyFilter</code>. This method does not change
+     * the state of <code>Key</code> or <code>Value</code>.
      * 
-     * @return <tt>true</tt> if the key has a successor
+     * @return <code>true</code> if the key has a successor
      * 
      * @throws PersistitException
      */
@@ -2263,17 +2277,18 @@ public class Exchange {
 
     /**
      * Determines whether the current key has a logical sibling successor,
-     * without changing the state of <tt>Key</tt> or <tt>Value</tt>. This method
-     * is equivalent to {@link #next(boolean)} except that no state is changed.
+     * without changing the state of <code>Key</code> or <code>Value</code>.
+     * This method is equivalent to {@link #next(boolean)} except that no state
+     * is changed.
      * 
      * @param deep
      *            Determines whether the predecessor may be of any logical depth
-     *            (<tt>true</tt>, or must be a restricted logical siblings (
-     *            <tt>false</tt>) of the current key. (See <a
+     *            (<code>true</code>, or must be a restricted logical siblings (
+     *            <code>false</code>) of the current key. (See <a
      *            href="Key.html#_keyChildren">Logical Key Children and
      *            Siblings</a>).
      * 
-     * @return <tt>true</tt> if the key has a successor
+     * @return <code>true</code> if the key has a successor
      * 
      * @throws PersistitException
      */
@@ -2283,10 +2298,11 @@ public class Exchange {
 
     /**
      * Determines whether the current key has a logical sibling predecessor,
-     * without changing the state of <tt>Key</tt> or <tt>Value</tt>. This method
-     * is equivalent to {@link #previous()} except that no state is changed.
+     * without changing the state of <code>Key</code> or <code>Value</code>.
+     * This method is equivalent to {@link #previous()} except that no state is
+     * changed.
      * 
-     * @return <tt>true</tt> if the key has a predecessor
+     * @return <code>true</code> if the key has a predecessor
      * @throws PersistitException
      */
     public boolean hasPrevious() throws PersistitException {
@@ -2295,18 +2311,18 @@ public class Exchange {
 
     /**
      * Determines whether the current key has a logical sibling predecessor,
-     * without changing the state of <tt>Key</tt> or <tt>Value</tt>. This method
-     * is equivalent to {@link #previous(boolean)} except that no state is
-     * changed.
+     * without changing the state of <code>Key</code> or <code>Value</code>.
+     * This method is equivalent to {@link #previous(boolean)} except that no
+     * state is changed.
      * 
      * @param deep
      *            Determines whether the predecessor may be of any logical depth
-     *            (<tt>true</tt>, or must be a restricted logical siblings (
-     *            <tt>false</tt>) of the current key. (See <a
+     *            (<code>true</code>, or must be a restricted logical siblings (
+     *            <code>false</code>) of the current key. (See <a
      *            href="Key.html#_keyChildren">Logical Key Children and
      *            Siblings</a>).
      * 
-     * @return <tt>true</tt> if the key has a predecessor
+     * @return <code>true</code> if the key has a predecessor
      * 
      * @throws PersistitException
      */
@@ -2316,10 +2332,10 @@ public class Exchange {
 
     /**
      * Determines whether the current key has a predecessor within the subset of
-     * all keys defined by a <tt>KeyFilter</tt>. This method does not change the
-     * state of <tt>Key</tt> or <tt>Value</tt>.
+     * all keys defined by a <code>KeyFilter</code>. This method does not change
+     * the state of <code>Key</code> or <code>Value</code>.
      * 
-     * @return <tt>true</tt> if the key has a successor
+     * @return <code>true</code> if the key has a successor
      * 
      * @throws PersistitException
      */
@@ -2335,10 +2351,10 @@ public class Exchange {
     /**
      * Determines whether the current key has an associated value - that is,
      * whether a {@link #fetch} operation would return a defined value - without
-     * actually changing the state of either the <tt>Key</tt> or the
-     * <tt>Value</tt>.
+     * actually changing the state of either the <code>Key</code> or the
+     * <code>Value</code>.
      * 
-     * @return <tt>true</tt> if the key has an associated value
+     * @return <code>true</code> if the key has an associated value
      * 
      * @throws PersistitException
      */
@@ -2347,11 +2363,11 @@ public class Exchange {
     }
 
     /**
-     * Insert the current <tt>Key</tt> and <tt>Value</tt> pair into this
-     * <tt>Exchange</tt>'s <tt>Tree</tt>. If there already is a value associated
-     * with the current key, then replace it.
+     * Insert the current <code>Key</code> and <code>Value</code> pair into this
+     * <code>Exchange</code>'s <code>Tree</code>. If there already is a value
+     * associated with the current key, then replace it.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining
+     * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
     public Exchange store() throws PersistitException {
@@ -2359,10 +2375,10 @@ public class Exchange {
     }
 
     /**
-     * Fetches the value associated with the <tt>Key</tt>, then inserts or
-     * updates the value. Effectively this swaps the content of <tt>Value</tt>
-     * with the database record associated with the current <tt>key</tt>. It is
-     * equivalent to the code: <blockquote>
+     * Fetches the value associated with the <code>Key</code>, then inserts or
+     * updates the value. Effectively this swaps the content of
+     * <code>Value</code> with the database record associated with the current
+     * <code>key</code>. It is equivalent to the code: <blockquote>
      * 
      * <pre>
      *  Value tempValue = new Value();
@@ -2375,7 +2391,7 @@ public class Exchange {
      * </blockquote> except that this operation is performed atomically, without
      * need for external synchronization.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining
+     * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
     public Exchange fetchAndStore() throws PersistitException {
@@ -2395,13 +2411,14 @@ public class Exchange {
     }
 
     /**
-     * Fetches the value associated with the current <tt>Key</tt> into the
-     * <tt>Exchange</tt>'s <tt>Value</tt>. The <tt>Value</tt> object reflects
-     * the fetched state. If there is no value associated with the key then
-     * {@link Value#isDefined} is false. Otherwise the value may be retrieved
-     * using {@link Value#get} and other methods of <tt>Value</tt>.
+     * Fetches the value associated with the current <code>Key</code> into the
+     * <code>Exchange</code>'s <code>Value</code>. The <code>Value</code> object
+     * reflects the fetched state. If there is no value associated with the key
+     * then {@link Value#isDefined} is false. Otherwise the value may be
+     * retrieved using {@link Value#get} and other methods of <code>Value</code>
+     * .
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining
+     * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
     public Exchange fetch() throws PersistitException {
@@ -2411,23 +2428,23 @@ public class Exchange {
     /**
      * <p>
      * Fetches or partially fetches the value associated with the current
-     * <tt>Key</tt> into the <tt>Exchange</tt>'s <tt>Value</tt>. The
-     * <tt>Value</tt> object reflects the fetched state. If there is no value
-     * associated with the key then {@link Value#isDefined} is false. Otherwise
-     * the value may be retrieved using {@link Value#get} and other methods of
-     * <tt>Value</tt>.
+     * <code>Key</code> into the <code>Exchange</code>'s <code>Value</code>. The
+     * <code>Value</code> object reflects the fetched state. If there is no
+     * value associated with the key then {@link Value#isDefined} is false.
+     * Otherwise the value may be retrieved using {@link Value#get} and other
+     * methods of <code>Value</code>.
      * </p>
      * <p>
      * This method sets a lower bound on the number of bytes to be fetched. In
      * particular, it may be useful to retrieve only a small fraction of a very
      * long record such as the serialization of an image. Upon successful
-     * completion of this method, at least <tt>minimumBytes</tt> of the
-     * <tt>Value</tt> object will accurately reflect the value stored in the
+     * completion of this method, at least <code>minimumBytes</code> of the
+     * <code>Value</code> object will accurately reflect the value stored in the
      * database. This might allow an application to determine whether to
      * retrieve the rest of the value.
      * </p>
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining
+     * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
     public Exchange fetch(int minimumBytes) throws PersistitException {
@@ -2435,14 +2452,14 @@ public class Exchange {
     }
 
     /**
-     * Fetches the value associated with the current <tt>Key</tt> into the
-     * supplied <tt>Value</tt> object (instead of the <tt>Exchange</tt>'s
-     * assigned <tt>Value</tt>). The <tt>Value</tt> object reflects the fetched
-     * state. If there is no value associated with the key then
+     * Fetches the value associated with the current <code>Key</code> into the
+     * supplied <code>Value</code> object (instead of the <code>Exchange</code>
+     * 's assigned <code>Value</code>). The <code>Value</code> object reflects
+     * the fetched state. If there is no value associated with the key then
      * {@link Value#isDefined} is false. Otherwise the value may be retrieved
-     * using {@link Value#get} and other methods of <tt>Value</tt>.
+     * using {@link Value#get} and other methods of <code>Value</code>.
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining
+     * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
     public Exchange fetch(Value value) throws PersistitException {
@@ -2452,23 +2469,24 @@ public class Exchange {
     /**
      * <p>
      * Fetches or partially fetches the value associated with the current
-     * <tt>Key</tt> into the supplied <tt>Value</tt> object (instead of the
-     * <tt>Exchange</tt>'s assigned <tt>Value</tt>). The <tt>Value</tt> object
-     * reflects the fetched state. If there is no value associated with the key
-     * then {@link Value#isDefined} is false. Otherwise the value may be
-     * retrieved using {@link Value#get} and other methods of <tt>Value</tt>.
+     * <code>Key</code> into the supplied <code>Value</code> object (instead of
+     * the <code>Exchange</code>'s assigned <code>Value</code>). The
+     * <code>Value</code> object reflects the fetched state. If there is no
+     * value associated with the key then {@link Value#isDefined} is false.
+     * Otherwise the value may be retrieved using {@link Value#get} and other
+     * methods of <code>Value</code>.
      * </p>
      * <p>
      * This method sets a lower bound on the number of bytes to be fetched. In
      * particular, it may be useful to retrieve only a small fraction of a very
      * long record such as the serialization of an image. Upon successful
-     * completion of this method, at least <tt>minimumBytes</tt> of the
-     * <tt>Value</tt> object will accurately reflect the value stored in the
+     * completion of this method, at least <code>minimumBytes</code> of the
+     * <code>Value</code> object will accurately reflect the value stored in the
      * database. This might allow an application to determine whether to
      * retrieve the rest of the value.
      * </p>
      * 
-     * @return This <tt>Exchange</tt> to permit method call chaining
+     * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
     public Exchange fetch(Value value, int minimumBytes)
@@ -2538,8 +2556,8 @@ public class Exchange {
     /**
      * Atomically increment a stored integer value and return the result. If the
      * key currently has no associated value, then initialize the value to zero.
-     * Otherwise add <tt>by</tt> to whatever value is stored, store the result
-     * and return it.
+     * Otherwise add <code>by</code> to whatever value is stored, store the
+     * result and return it.
      * 
      * @param by
      *            The amount by which to increment the stored value
@@ -2553,8 +2571,8 @@ public class Exchange {
     /**
      * Atomically increment a stored integer value and return the result. If the
      * key currently has no associated value, then initialize the value to
-     * <tt>from</tt>. Otherwise add <tt>by</tt> to whatever value is stored,
-     * store the result and return it.
+     * <code>from</code>. Otherwise add <code>by</code> to whatever value is
+     * stored, store the result and return it.
      * 
      * @param by
      *            The amount by which to increment the stored value
@@ -2573,13 +2591,14 @@ public class Exchange {
     }
 
     /**
-     * Return true if there is at least one key stored in this <tt>Exchange</tt>
-     * 's <tt>Tree</tt> that is a logical child of the current <tt>Key</tt>. A
-     * logical child is a key that can be formed by appending a value to the
-     * parent. (See <a href="Key.html#_keyChildren">Logical Key Children and
-     * Siblings</a>).
+     * Return true if there is at least one key stored in this
+     * <code>Exchange</code> 's <code>Tree</code> that is a logical child of the
+     * current <code>Key</code>. A logical child is a key that can be formed by
+     * appending a value to the parent. (See <a
+     * href="Key.html#_keyChildren">Logical Key Children and Siblings</a>).
      * 
-     * @return <tt>true</tt> if the current <tt>Key</tt> has logical children
+     * @return <code>true</code> if the current <code>Key</code> has logical
+     *         children
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
@@ -2595,14 +2614,14 @@ public class Exchange {
     }
 
     /**
-     * Remove a single key/value pair from this <tt>Exchange</tt>'s
-     * <tt>Tree</tt> and return the removed value in the <tt>Exchange</tt>'s
-     * <tt>Value</tt>. This method atomically fetches the former value then
-     * deletes it. If there was no value formerly associated with the key then
-     * <tt>Value</tt> becomes undefined - that is, the value of
-     * {@link Value#isDefined} becomes <tt>false</tt>.
+     * Remove a single key/value pair from this <code>Exchange</code>'s
+     * <code>Tree</code> and return the removed value in the
+     * <code>Exchange</code>'s <code>Value</code>. This method atomically
+     * fetches the former value then deletes it. If there was no value formerly
+     * associated with the key then <code>Value</code> becomes undefined - that
+     * is, the value of {@link Value#isDefined} becomes <code>false</code>.
      * 
-     * @return <tt>true</tt> if there was a key/value pair to remove
+     * @return <code>true</code> if there was a key/value pair to remove
      * @throws PersistitException
      */
     public boolean fetchAndRemove() throws PersistitException {
@@ -2618,10 +2637,10 @@ public class Exchange {
     }
 
     /**
-     * Remove the entire <tt>Tree</tt> that this <tt>Exchange</tt> is based on.
-     * Subsequent to successful completion of this method, the <tt>Exchange</tt>
-     * will no longer be usable. Attempts to perform operations on it will
-     * result in an <tt>IllegalStateException</tt>.
+     * Remove the entire <code>Tree</code> that this <code>Exchange</code> is
+     * based on. Subsequent to successful completion of this method, the
+     * <code>Exchange</code> will no longer be usable. Attempts to perform
+     * operations on it will result in an <code>IllegalStateException</code>.
      * 
      * @throws PersistitException
      */
@@ -2644,10 +2663,10 @@ public class Exchange {
     }
 
     /**
-     * Remove a single key/value pair from the this <tt>Exchange</tt>'s
-     * <tt>Tree</tt>.
+     * Remove a single key/value pair from the this <code>Exchange</code>'s
+     * <code>Tree</code>.
      * 
-     * @return <tt>true</tt> if there was a key/value pair to remove
+     * @return <code>true</code> if there was a key/value pair to remove
      * @throws PersistitException
      */
     public boolean remove() throws PersistitException {
@@ -2655,9 +2674,9 @@ public class Exchange {
     }
 
     /**
-     * Remove all keys in this <tt>Exchange</tt>'s <tt>Tree</tt>.
+     * Remove all keys in this <code>Exchange</code>'s <code>Tree</code>.
      * 
-     * @return <tt>true</tt> if there were key/value pairs removed
+     * @return <code>true</code> if there were key/value pairs removed
      * @throws PersistitException
      */
     public boolean removeAll() throws PersistitException {
@@ -2685,8 +2704,8 @@ public class Exchange {
      * 
      * @param direction
      *            One of Key.EQ, Key.GT, Key.GTEQ
-     * @return <tt>true</tt> if one or more records were actually removed, else
-     *         </i>false</i>.
+     * @return <code>true</code> if one or more records were actually removed,
+     *         else </i>false</i>.
      * @throws PersistitException
      */
     public boolean remove(Direction direction) throws PersistitException {
@@ -2744,8 +2763,8 @@ public class Exchange {
      *            case all records having keys equal to or greater than key1
      *            will be removed.
      * 
-     * @return <tt>true</tt> if one or more records were actually removed, else
-     *         </i>false</i>.
+     * @return <code>true</code> if one or more records were actually removed,
+     *         else </i>false</i>.
      * 
      * @throws PersistitException
      * @throws IllegalArgymentException
@@ -2783,7 +2802,7 @@ public class Exchange {
      *            Key that is less than the leftmost to be removed
      * @param key2
      *            Key that is greater than the rightmost to be removed
-     * @return <tt>true</tt> if any records were removed.
+     * @return <code>true</code> if any records were removed.
      * @throws PersistitException
      */
     boolean removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst)
@@ -3763,10 +3782,10 @@ public class Exchange {
     /**
      * The transaction context for this Exchange. By default, this is the
      * transaction context of the current thread, and by default, all
-     * <tt>Exchange</tt>s created by a thread share the same transaction
+     * <code>Exchange</code>s created by a thread share the same transaction
      * context.
      * 
-     * @return The <tt>Transaction</tt> context for this thread.
+     * @return The <code>Transaction</code> context for this thread.
      */
     public Transaction getTransaction() {
         return _transaction;
@@ -3796,11 +3815,11 @@ public class Exchange {
     }
 
     /**
-     * Package-private method indicates whether this <tt>Exchange</tt> refers to
-     * the directory tree.
+     * Package-private method indicates whether this <code>Exchange</code>
+     * refers to the directory tree.
      * 
-     * @return <tt>true</tt> if this is a directory exchange, else
-     *         <tt>false</tt>.
+     * @return <code>true</code> if this is a directory exchange, else
+     *         <code>false</code>.
      */
     boolean isDirectoryExchange() {
         return _isDirectoryExchange;

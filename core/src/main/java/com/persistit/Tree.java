@@ -63,9 +63,9 @@ public class Tree extends SharedResource {
     }
 
     /**
-     * Returns the page address of the root page of this <tt>Tree</tt>. The root
-     * page will be a data page if the <tt>Tree</tt> has only one page, or will
-     * be the top index page of the B-Tree.
+     * Returns the page address of the root page of this <code>Tree</code>. The
+     * root page will be a data page if the <code>Tree</code> has only one page,
+     * or will be the top index page of the B-Tree.
      * 
      * @return The page address
      */
@@ -76,7 +76,7 @@ public class Tree extends SharedResource {
     }
 
     /**
-     * Returns the number of levels of the <tt>Tree</tt>.
+     * Returns the number of levels of the <code>Tree</code>.
      * 
      * @return The depth
      */
@@ -202,8 +202,9 @@ public class Tree extends SharedResource {
     }
 
     /**
-     * Invoked when this <tt>Tree</tt> is being deleted. This causes subsequent
-     * operations by any <tt>Exchange</tt>s on this <tt>Tree</tt> to fail.
+     * Invoked when this <code>Tree</code> is being deleted. This causes
+     * subsequent operations by any <code>Exchange</code>s on this
+     * <code>Tree</code> to fail.
      */
     void invalidate() {
         synchronized (_lock) {
@@ -213,7 +214,7 @@ public class Tree extends SharedResource {
     }
 
     /**
-     * Returns a displayable description of the <tt>Tree</tt>, including its
+     * Returns a displayable description of the <code>Tree</code>, including its
      * name, its internal tree index, its root page address, and its depth.
      * 
      * @return A displayable summary

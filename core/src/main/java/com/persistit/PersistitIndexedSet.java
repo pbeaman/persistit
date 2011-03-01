@@ -22,12 +22,12 @@ import com.persistit.exception.TransactionFailedException;
 /**
  * <p>
  * Manages objects in a canonical indexed object collection. A
- * <tt>PersistitIndexedSet</tt> is based on an {@link Exchange}, supplied to the
- * constructor, that denotes the <tt>Volume</tt>, <tt>Tree</tt> and parent
- * logical key under which all of its data will be stored. An index stores
- * objects under a key containing a unique OID value. The OID is a Java long
- * integer (64 bits). The OID serves as the object's internal, absolute,
- * permanent identifier within the <tt>PersistitIndexedSet</tt>.
+ * <code>PersistitIndexedSet</code> is based on an {@link Exchange}, supplied to
+ * the constructor, that denotes the <code>Volume</code>, <code>Tree</code> and
+ * parent logical key under which all of its data will be stored. An index
+ * stores objects under a key containing a unique OID value. The OID is a Java
+ * long integer (64 bits). The OID serves as the object's internal, absolute,
+ * permanent identifier within the <code>PersistitIndexedSet</code>.
  * </p>
  * Objects stored in a PersistitIndex have the following key structure:
  * <blockquote>
@@ -42,7 +42,7 @@ import com.persistit.exception.TransactionFailedException;
  * </p>
  * <p>
  * Persistit uses the object itself as a secondary key by which to look up the
- * OID. This means that an object stored in a <tt>PersistitIndex</tt> must
+ * OID. This means that an object stored in a <code>PersistitIndex</code> must
  * either have a registered {@link com.persistit.encoding.KeyCoder} or it must
  * be one of the types having built-in encoding. See {@link Key} for information
  * on how objects are translated to persistent key values.
@@ -61,9 +61,9 @@ public class PersistitIndexedSet {
     protected final Persistit _persistit;
 
     /**
-     * Constructs a <tt>PersistitIndexedSet</tt> over the specified exchange.
-     * The <tt>Exchange</tt> may be changed by the caller after being used in
-     * this constructor.
+     * Constructs a <code>PersistitIndexedSet</code> over the specified
+     * exchange. The <code>Exchange</code> may be changed by the caller after
+     * being used in this constructor.
      * 
      * @param exchange
      */
@@ -74,10 +74,10 @@ public class PersistitIndexedSet {
     }
 
     /**
-     * Allocates an <tt>Exchange</tt> from the Exchange pool. Be sure to release
-     * this for reuse.
+     * Allocates an <code>Exchange</code> from the Exchange pool. Be sure to
+     * release this for reuse.
      * 
-     * @return An <tt>Exchange</tt> set up for this thread's use
+     * @return An <code>Exchange</code> set up for this thread's use
      * 
      * @throws PersistitException
      */
@@ -107,8 +107,8 @@ public class PersistitIndexedSet {
      * @param id
      *            The OID
      * 
-     * @return <tt>true</tt> if there is an object associated with this ID;
-     *         otherwise <tt>false</tt>.
+     * @return <code>true</code> if there is an object associated with this ID;
+     *         otherwise <code>false</code>.
      * 
      * @throws PersistitException
      */
@@ -128,8 +128,8 @@ public class PersistitIndexedSet {
      * @param object
      *            The object
      * 
-     * @return <tt>true</tt> if there is an equivalent object; otherwise
-     *         <tt>false</tt>.
+     * @return <code>true</code> if there is an equivalent object; otherwise
+     *         <code>false</code>.
      * 
      * @throws PersistitException
      */
@@ -147,7 +147,7 @@ public class PersistitIndexedSet {
      * @param id
      *            The OID
      * 
-     * @return The associated Object, or <tt>null</tt> if there is none.
+     * @return The associated Object, or <code>null</code> if there is none.
      * @throws PersistitException
      */
     public Object lookup(long id) throws PersistitException {
@@ -186,14 +186,14 @@ public class PersistitIndexedSet {
     }
 
     /**
-     * Puts an <tt>Object</tt> into the index. If there already is an equivalent
-     * object, the stored copy is updated to reflect the state of the supplied
-     * object. Otherwise the object is associated with a newly allocated object
-     * ID. The equivalence of stored objects is determined by whether the
-     * {@link Key} values they generate are the same.
+     * Puts an <code>Object</code> into the index. If there already is an
+     * equivalent object, the stored copy is updated to reflect the state of the
+     * supplied object. Otherwise the object is associated with a newly
+     * allocated object ID. The equivalence of stored objects is determined by
+     * whether the {@link Key} values they generate are the same.
      * 
      * @param object
-     *            The <tt>Object</tt> to store or update
+     *            The <code>Object</code> to store or update
      * 
      * @return The OID
      * 
@@ -244,8 +244,8 @@ public class PersistitIndexedSet {
      * Replaces the object value associated with an OID. The OID must already
      * exist in the indexed set. This method permits changing an object in such
      * a way its encoded {@link Key} value changes. If the new object value
-     * results in a different <tt>Key</tt> value, this method removes the prior
-     * entry and inserts the new one.
+     * results in a different <code>Key</code> value, this method removes the
+     * prior entry and inserts the new one.
      * 
      * @param id
      *            The OID
@@ -253,8 +253,8 @@ public class PersistitIndexedSet {
      * @param newValue
      *            The new value to be associated with this OID
      * 
-     * @return <tt>true</tt> if the new object is indexed under a different key
-     *         value then the old one; otherwise <tt>false</tt>
+     * @return <code>true</code> if the new object is indexed under a different
+     *         key value then the old one; otherwise <code>false</code>
      * 
      * @throws PersistitException
      */

@@ -19,9 +19,9 @@ package com.persistit.exception;
  * This is a wrapper for any {@link Exception} that occurs while initializing
  * the logging subsystem. It is frequently convenient for the caller of a
  * Persistit method to catch {@link PersistitException}s without also needing to
- * catch <tt>IOException</tt>s or other <tt>Exception</tt> subclasses. For
- * compatibility with earlier J2SE releases this is implemented without using
- * JDK 1.4 Exception chaining.
+ * catch <code>IOException</code>s or other <code>Exception</code> subclasses.
+ * For compatibility with earlier J2SE releases this is implemented without
+ * using JDK 1.4 Exception chaining.
  * 
  * @version 1.0
  */

@@ -23,13 +23,15 @@ import javax.management.MXBean;
 public interface IOMeterMXBean {
 
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=IOMeter";
+
     /**
      * @return the writePageSleepInterval
      */
     public long getWritePageSleepInterval();
 
     /**
-     * @param writePageSleepInterval the writePageSleepInterval to set
+     * @param writePageSleepInterval
+     *            the writePageSleepInterval to set
      */
     public void setWritePageSleepInterval(long writePageSleepInterval);
 
@@ -39,7 +41,7 @@ public interface IOMeterMXBean {
      * @return the CopySleepInterval
      */
     public long getCopyPageSleepInterval();
-    
+
     /**
      * @param copyPageSleepInterval
      *            the copySleepInterval to set
@@ -56,22 +58,25 @@ public interface IOMeterMXBean {
      *            the quiescentIOthreshold to set
      */
     public void setQuiescentIOthreshold(long quiescentIO);
+
     /**
      * @return the ioRate
      */
     public long getIoRate();
-    
+
     /**
-     * Path for file into which IO events should be logged, or <tt>null</tt>
+     * Path for file into which IO events should be logged, or <code>null</code>
      * to disable IO logging.
+     * 
      * @param toFile
      * @throws IOException
      */
     public void setLogFile(final String toFile) throws IOException;
-    
+
     /**
-     * Path for file into which IO events should be logged, or <tt>null</tt>
+     * Path for file into which IO events should be logged, or <code>null</code>
      * if IO logging is disabled.
+     * 
      * @return
      */
     public String getLogFile();

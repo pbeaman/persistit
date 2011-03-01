@@ -165,7 +165,7 @@ public abstract class AbstractTestRunnerItem {
             }
         } finally {
             try {
-            tearDown();
+                tearDown();
             } catch (final Throwable t) {
                 if ((_result == null) || _result._passed) {
                     _result = new TestResult(false, t);
@@ -365,7 +365,6 @@ public abstract class AbstractTestRunnerItem {
             _out.flush();
         }
     }
-    
 
     protected void describeTest(final String m) {
         if (isVerbose()) {

@@ -37,37 +37,37 @@ public class ClassInfo {
     }
 
     /**
-     * @return The <tt>Class</tt>
+     * @return The <code>Class</code>
      */
     public Class getDescribedClass() {
         return _class;
     }
 
     /**
-     * @return The <tt>Class</tt>'s name
+     * @return The <code>Class</code>'s name
      */
     public String getName() {
         return _class.getName();
     }
 
     /**
-     * @return The serial version UID of the <tt>Class</tt>
+     * @return The serial version UID of the <code>Class</code>
      */
     public long getSUID() {
         return _suid;
     }
 
     /**
-     * @return The handle used to identify the <tt>Class</tt> in values stored
-     *         by Persistit.
+     * @return The handle used to identify the <code>Class</code> in values
+     *         stored by Persistit.
      */
     public int getHandle() {
         return _handle;
     }
 
     /**
-     * @return The ObjectStreamClass for the described class, or <tt>null</tt>
-     *         if there is none.
+     * @return The ObjectStreamClass for the described class, or
+     *         <code>null</code> if there is none.
      */
     public ObjectStreamClass getClassDescriptor() {
         return _osc;

@@ -19,7 +19,7 @@ import java.io.Serializable;
 
 /**
  * Contains an immutable copy of the state from a {@link Key} object suitable
- * for use as the key of a <tt>Map</tt>.
+ * for use as the key of a <code>Map</code>.
  * 
  * @version 1.0
  */
@@ -36,14 +36,14 @@ public class KeyState implements Comparable, Serializable {
     private int _hashCode = -1;
 
     /**
-     * Construct an immutable <tt>KeyState</tt> by copying the relevant state
-     * information from a <tt>Key</tt>. The <tt>hashCode</tt> and
-     * <tt>equals</tt> methods of <tt>Key</tt> and <tt>KeyState</tt> are
-     * compatible so that either a <tt>Key</tt> or a <tt>KeyState</tt> may be
-     * used as a map key.
+     * Construct an immutable <code>KeyState</code> by copying the relevant
+     * state information from a <code>Key</code>. The <code>hashCode</code> and
+     * <code>equals</code> methods of <code>Key</code> and <code>KeyState</code>
+     * are compatible so that either a <code>Key</code> or a
+     * <code>KeyState</code> may be used as a map key.
      * 
      * @param key
-     *            The <tt>Key</tt> from which the state is copied.
+     *            The <code>Key</code> from which the state is copied.
      */
     public KeyState(Key key) {
         int length = key.getEncodedSize();
@@ -56,11 +56,11 @@ public class KeyState implements Comparable, Serializable {
     }
 
     /**
-     * Copies the content of this <tt>KeyState</tt> to the supplied
+     * Copies the content of this <code>KeyState</code> to the supplied
      * <code>Key</code>.
      * 
      * @param key
-     *            The <tt>key</tt> to which content should be copied.
+     *            The <code>key</code> to which content should be copied.
      */
     public void copyTo(Key key) {
         if (key.getMaximumSize() < _bytes.length) {
@@ -72,9 +72,10 @@ public class KeyState implements Comparable, Serializable {
     }
 
     /**
-     * The hash code for this <tt>KeyState</tt>. The hashCode is the same as for
-     * the equivalent <tt>Key</tt>, that is the <tt>Key</tt> from which this
-     * <tt>KeyState</tt> was constructed prior to any subsequent modificiations.
+     * The hash code for this <code>KeyState</code>. The hashCode is the same as
+     * for the equivalent <code>Key</code>, that is the <code>Key</code> from
+     * which this <code>KeyState</code> was constructed prior to any subsequent
+     * modificiations.
      * 
      * @return The hashCode.
      */
@@ -91,12 +92,12 @@ public class KeyState implements Comparable, Serializable {
     }
 
     /**
-     * Implements <tt>equals</tt> in such a way that <tt>Key</tt> and
-     * <tt>KeyState</tt> can be used interchangeably as map keys.
+     * Implements <code>equals</code> in such a way that <code>Key</code> and
+     * <code>KeyState</code> can be used interchangeably as map keys.
      * 
-     * @return <tt>true</tt> if the specified object is either a <tt>Key</tt> or
-     *         a <tt>KeyState</tt> whose state represents an identical object or
-     *         primitive value.
+     * @return <code>true</code> if the specified object is either a
+     *         <code>Key</code> or a <code>KeyState</code> whose state
+     *         represents an identical object or primitive value.
      */
     @Override
     public boolean equals(Object obj) {
@@ -124,18 +125,18 @@ public class KeyState implements Comparable, Serializable {
     }
 
     /**
-     * Implements <tt>Comparable</tt> in such a way that <tt>Key</tt> and
-     * <tt>KeyState</tt> can be used interchangeably as map keys.
+     * Implements <code>Comparable</code> in such a way that <code>Key</code>
+     * and <code>KeyState</code> can be used interchangeably as map keys.
      * 
      * @return results of comparing the key value represented by this
-     *         <tt>KeyState</tt> with a supplied <tt>KeyState</tt> or
-     *         <tt>Key</tt>. The result is negative if this key value preceeds,
-     *         positive if this key value follows, or zero if this key value is
-     *         equal to the supplied key value.
+     *         <code>KeyState</code> with a supplied <code>KeyState</code> or
+     *         <code>Key</code>. The result is negative if this key value
+     *         preceeds, positive if this key value follows, or zero if this key
+     *         value is equal to the supplied key value.
      * 
      * @throws ClassCastException
-     *             if the supplied object is neither a <tt>Key</tt> nor a
-     *             <tt>KeyState</tt>
+     *             if the supplied object is neither a <code>Key</code> nor a
+     *             <code>KeyState</code>
      */
     public int compareTo(Object obj) {
         int size;

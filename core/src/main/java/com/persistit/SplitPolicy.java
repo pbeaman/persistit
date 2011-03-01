@@ -71,7 +71,8 @@ public abstract class SplitPolicy {
                 boolean replace, int leftSize, int rightSize, int currentSize,
                 int virtualSize, int capacity, int splitInfo) {
             //
-            // This implementation maximizes the number of bytes in the left sibling.
+            // This implementation maximizes the number of bytes in the left
+            // sibling.
             //
             if (leftSize > capacity || rightSize > capacity)
                 return 0;

@@ -23,12 +23,13 @@ package com.persistit.encoding;
  * byte-code enhancement, without incurring the space or time overhead of Java
  * serialization, or the need to modify the class to perform custom
  * serialization. During initialization, an application typically associates an
- * <tt>ObjectCoder</tt> with each the <tt>Class</tt> of each object that will be
- * stored in or fetched from the Persistit database. The <tt>ObjectCoder</tt>
- * implements all of the logic necessary to encode and decode the state of
- * objects of that class to and from Persistit storage structures. Although
- * Persistit is not designed to provide transparent persistence, the
- * <tt>ObjectCoder</tt> interface simplifies object persistence code.
+ * <code>ObjectCoder</code> with each the <code>Class</code> of each object that
+ * will be stored in or fetched from the Persistit database. The
+ * <code>ObjectCoder</code> implements all of the logic necessary to encode and
+ * decode the state of objects of that class to and from Persistit storage
+ * structures. Although Persistit is not designed to provide transparent
+ * persistence, the <code>ObjectCoder</code> interface simplifies object
+ * persistence code.
  * </p>
  * 
  * 

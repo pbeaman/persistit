@@ -17,7 +17,8 @@ package com.persistit.exception;
 
 /**
  * Thrown when the Persistit configuration species a volume file that does not
- * exist, and does not specify the <tt>create</tt> or <tt>createOnly</tt> flag.
+ * exist, and does not specify the <code>create</code> or
+ * <code>createOnly</code> flag.
  * 
  * @version 1.0
  */

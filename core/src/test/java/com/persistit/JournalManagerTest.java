@@ -77,7 +77,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 jman.rollover();
             }
             if (i % 4 == 1) {
-                jman.writeTransactionCommitToJournal(timestamps[i], timestamps[i] + 1);
+                jman.writeTransactionCommitToJournal(timestamps[i],
+                        timestamps[i] + 1);
             }
         }
         jman.rollover();
@@ -106,7 +107,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 commitCount = 0;
             }
             if (i % 4 == 3) {
-                jman.writeTransactionCommitToJournal(timestamps[i], timestamps[i] + 1);
+                jman.writeTransactionCommitToJournal(timestamps[i],
+                        timestamps[i] + 1);
                 commitCount++;
             }
         }

@@ -38,18 +38,19 @@ import com.persistit.encoding.ValueCoder;
 
 /**
  * <p>
- * A simple <tt>CoderManager</tt> implementation that associates each registered
- * <tt>Class</tt> with its corresponding {@link KeyCoder} or {@link ValueCoder}.
- * See {@link CoderManager} for more information.
+ * A simple <code>CoderManager</code> implementation that associates each
+ * registered <code>Class</code> with its corresponding {@link KeyCoder} or
+ * {@link ValueCoder}. See {@link CoderManager} for more information.
  * </p>
  * <p>
- * This implementation builds a <tt>HashMap</tt> to associate each registered
- * <tt>Class</tt> with its <tt>KeyCoder</tt> or <tt>ValueCoder</tt>. Registering
- * a class <tt>MyClass</tt> has no effect on the encoding or decoding of
- * subclasses of <tt>MyClass</tt>. Each subclass needs to be registered
- * separately, even if the <tt>ValueCoder</tt> or <tt>KeyCoder</tt> is the same
- * for each subclass. A custom <tt>CoderManager</tt> implementation could modify
- * this behavior.
+ * This implementation builds a <code>HashMap</code> to associate each
+ * registered <code>Class</code> with its <code>KeyCoder</code> or
+ * <code>ValueCoder</code>. Registering a class <code>MyClass</code> has no
+ * effect on the encoding or decoding of subclasses of <code>MyClass</code>.
+ * Each subclass needs to be registered separately, even if the
+ * <code>ValueCoder</code> or <code>KeyCoder</code> is the same for each
+ * subclass. A custom <code>CoderManager</code> implementation could modify this
+ * behavior.
  * </p>
  * 
  * @version 1.0
@@ -89,13 +90,13 @@ public final class DefaultCoderManager implements CoderManager {
     private ClassSelector[] _serialOverrides = new ClassSelector[0];
 
     /**
-     * Construct a new <tt>DefaultCoderManager</tt>, using the
-     * <tt>serialOverride</tt> system configuration property to determine which
-     * classes, if any, must employ standard Java serialization.
+     * Construct a new <code>DefaultCoderManager</code>, using the
+     * <code>serialOverride</code> system configuration property to determine
+     * which classes, if any, must employ standard Java serialization.
      * 
      * @see #DefaultCoderManager(String)
      * @throws IllegalArgumentException
-     *             if the format of the <tt>serialOverride</tt> property is
+     *             if the format of the <code>serialOverride</code> property is
      *             invalid
      */
     public DefaultCoderManager(Persistit persistit) {
@@ -104,18 +105,18 @@ public final class DefaultCoderManager implements CoderManager {
     }
 
     /**
-     * Construct a new <tt>DefaultCoderManager</tt> that uses standard Java
+     * Construct a new <code>DefaultCoderManager</code> that uses standard Java
      * serialization for any class whose name conforms to the supplied
-     * <tt>patterns</tt> string. See {@link #getSerialOverridePatterns()} for
-     * details.
+     * <code>patterns</code> string. See {@link #getSerialOverridePatterns()}
+     * for details.
      * 
      * @param patterns
      *            Specifies class names of classes that always use standard Java
-     *            serialization rather a custom <tt>ValueCoder</tt>
+     *            serialization rather a custom <code>ValueCoder</code>
      *            implementation.
      * 
      * @throws IllegalArgumentException
-     *             if the format of the supplied <tt>patterns</tt> string is
+     *             if the format of the supplied <code>patterns</code> string is
      *             invalid
      */
     public DefaultCoderManager(Persistit persistit, String patterns) {
@@ -153,7 +154,7 @@ public final class DefaultCoderManager implements CoderManager {
     }
 
     /**
-     * Returns the parent <tt>CoderManager</tt>.
+     * Returns the parent <code>CoderManager</code>.
      * 
      * @return The parent
      */
@@ -162,38 +163,40 @@ public final class DefaultCoderManager implements CoderManager {
     }
 
     /**
-     * Associates a {@link KeyCoder} with a <tt>Class</tt> that it will encode.
+     * Associates a {@link KeyCoder} with a <code>Class</code> that it will
+     * encode.
      * 
      * @param clazz
-     *            The <tt>Class</tt>
+     *            The <code>Class</code>
      * @param coder
-     *            The <tt>KeyCoder</tt>
+     *            The <code>KeyCoder</code>
      */
     public synchronized KeyCoder registerKeyCoder(Class clazz, KeyCoder coder) {
         return (KeyCoder) _keyCodersByClass.put(clazz, coder);
     }
 
     /**
-     * Removes any <tt>KeyCoder</tt> registered for the supplied <tt>Class</tt>
+     * Removes any <code>KeyCoder</code> registered for the supplied
+     * <code>Class</code>
      * 
      * @param clazz
-     *            The <tt>Class</tt> that will no longer have a
-     *            <tt>KeyCoder</tt>
-     * @return The removed <tt>KeyCoder</tt>, or <tt>null</tt> if there was
-     *         none.
+     *            The <code>Class</code> that will no longer have a
+     *            <code>KeyCoder</code>
+     * @return The removed <code>KeyCoder</code>, or <code>null</code> if there
+     *         was none.
      */
     public synchronized KeyCoder unregisterKeyCoder(Class clazz) {
         return (KeyCoder) _keyCodersByClass.remove(clazz);
     }
 
     /**
-     * Unregisters the supplied <tt>KeyCoder</tt> from all <tt>Class</tt>es it
-     * was previously registered to handle.
+     * Unregisters the supplied <code>KeyCoder</code> from all
+     * <code>Class</code>es it was previously registered to handle.
      * 
      * @param coder
-     *            The <tt>KeyCoder</tt>
-     * @return The count of <tt>Class</tt>es for which this <tt>KeyCoder</tt>
-     *         was previously registered.
+     *            The <code>KeyCoder</code>
+     * @return The count of <code>Class</code>es for which this
+     *         <code>KeyCoder</code> was previously registered.
      */
     public synchronized int unregisterKeyCoder(KeyCoder coder) {
         int count = 0;
@@ -221,12 +224,13 @@ public final class DefaultCoderManager implements CoderManager {
     }
 
     /**
-     * Create a <tt>Map</tt> of <tt>Class</tt>es to registered
-     * <tt>ValueCoder</tt>s. The map is an unmodifiable, is sorted by class
+     * Create a <code>Map</code> of <code>Class</code>es to registered
+     * <code>ValueCoder</code>s. The map is an unmodifiable, is sorted by class
      * name, and does not change with subsequent registrations or
-     * unregistrations of <tt>ValueCoder</tt>s.
+     * unregistrations of <code>ValueCoder</code>s.
      * 
-     * @return <tt>Map</tt> of <tt>Class</tt>es to <tt>ValueCoder</tt>s.
+     * @return <code>Map</code> of <code>Class</code>es to
+     *         <code>ValueCoder</code>s.
      */
     public Map getRegisteredValueCoders() {
         Map newMap = new TreeMap(new ClassComparator());
@@ -235,12 +239,13 @@ public final class DefaultCoderManager implements CoderManager {
     }
 
     /**
-     * Create a <tt>Map</tt> of <tt>Class</tt>es to registered <tt>KeyCoder</tt>
-     * s. The map is an unmodifiable, and is sorted by class name, and does not
-     * change with subsequent registrations or unregistrations of
-     * <tt>KeyCoder</tt>s.
+     * Create a <code>Map</code> of <code>Class</code>es to registered
+     * <code>KeyCoder</code> s. The map is an unmodifiable, and is sorted by
+     * class name, and does not change with subsequent registrations or
+     * unregistrations of <code>KeyCoder</code>s.
      * 
-     * @return <tt>Map</tt> of <tt>Class</tt>es to <tt>KeyCoder</tt>s.
+     * @return <code>Map</code> of <code>Class</code>es to <code>KeyCoder</code>
+     *         s.
      */
     public Map getRegisteredKeyCoders() {
         Map newMap = new TreeMap(new ClassComparator());
@@ -249,33 +254,34 @@ public final class DefaultCoderManager implements CoderManager {
     }
 
     /**
-     * Returns the <tt>KeyCoder</tt> registered for the supplied <tt>Class</tt>,
-     * or <tt>null</tt> if no <tt>KeyCoder</tt> is registered.
+     * Returns the <code>KeyCoder</code> registered for the supplied
+     * <code>Class</code>, or <code>null</code> if no <code>KeyCoder</code> is
+     * registered.
      * 
      * @param clazz
-     *            The <tt>Class</tt>
-     * @return The <tt>KeyCoder</tt> or <tt>null</tt> if there is none.
+     *            The <code>Class</code>
+     * @return The <code>KeyCoder</code> or <code>null</code> if there is none.
      */
     public synchronized KeyCoder lookupKeyCoder(Class clazz) {
         return (KeyCoder) _keyCodersByClass.get(clazz);
     }
 
     /**
-     * Attempt to register the provided <tt>ValueCoder</tt> to encode and decode
-     * instances of supplied <tt>Class</tt>. If the class is included in the
-     * serial override set (see {@link #getSerialOverridePatterns()} and if the
-     * <tt>ValueCoder</tt> is not an instance of {@link SerialValueCoder}, the
-     * request is ignored.
+     * Attempt to register the provided <code>ValueCoder</code> to encode and
+     * decode instances of supplied <code>Class</code>. If the class is included
+     * in the serial override set (see {@link #getSerialOverridePatterns()} and
+     * if the <code>ValueCoder</code> is not an instance of
+     * {@link SerialValueCoder}, the request is ignored.
      * 
      * @param clazz
-     *            The Class for which this <tt>ValueCoder</tt> will provide
+     *            The Class for which this <code>ValueCoder</code> will provide
      *            encoding and decoding services
      * 
      * @param coder
      *            The ValueCoder to register
      * 
-     * @return The <tt>ValueCoder</tt> that was removed, or <tt>null</tt> if
-     *         there was none.
+     * @return The <code>ValueCoder</code> that was removed, or
+     *         <code>null</code> if there was none.
      */
     public synchronized ValueCoder registerValueCoder(Class clazz,
             ValueCoder coder) {
@@ -283,27 +289,27 @@ public final class DefaultCoderManager implements CoderManager {
     }
 
     /**
-     * Removes any <tt>ValueCoder</tt> registered for the supplied
-     * <tt>Class</tt>
+     * Removes any <code>ValueCoder</code> registered for the supplied
+     * <code>Class</code>
      * 
      * @param clazz
-     *            The <tt>Class</tt> that will no longer have a
-     *            <tt>ValueCoder</tt>
-     * @return The removed <tt>ValueCoder</tt>, or <tt>null</tt> if there was
-     *         none.
+     *            The <code>Class</code> that will no longer have a
+     *            <code>ValueCoder</code>
+     * @return The removed <code>ValueCoder</code>, or <code>null</code> if
+     *         there was none.
      */
     public synchronized ValueCoder unregisterValueCoder(Class clazz) {
         return (ValueCoder) _valueCodersByClass.remove(clazz);
     }
 
     /**
-     * Unregisters the supplied <tt>ValueCoder</tt> from all <tt>Class</tt>es it
-     * was previously registered to handle.
+     * Unregisters the supplied <code>ValueCoder</code> from all
+     * <code>Class</code>es it was previously registered to handle.
      * 
      * @param coder
-     *            The <tt>ValueCoder</tt>
-     * @return The count of <tt>Class</tt>es for which this <tt>ValueCoder</tt>
-     *         was previously registered.
+     *            The <code>ValueCoder</code>
+     * @return The count of <code>Class</code>es for which this
+     *         <code>ValueCoder</code> was previously registered.
      */
     public synchronized int unregisterValueCoder(ValueCoder coder) {
         int count = 0;
@@ -319,25 +325,27 @@ public final class DefaultCoderManager implements CoderManager {
     }
 
     /**
-     * Return the <tt>ValueCoder</tt> registered for the supplied <tt>Class</tt>
-     * , or <tt>null</tt> if no <tt>ValueCoder</tt> is registered.
+     * Return the <code>ValueCoder</code> registered for the supplied
+     * <code>Class</code> , or <code>null</code> if no <code>ValueCoder</code>
+     * is registered.
      * 
      * @param clazz
-     *            The <tt>Class</tt>
-     * @return The <tt>ValueCoder</tt> or <tt>null</tt> if there is none.
+     *            The <code>Class</code>
+     * @return The <code>ValueCoder</code> or <code>null</code> if there is
+     *         none.
      */
     public synchronized ValueCoder lookupValueCoder(Class clazz) {
         return (ValueCoder) _valueCodersByClass.get(clazz);
     }
 
     /**
-     * Return a <tt>ValueCoder</tt> for the supplied <tt>Class</tt>. If there is
-     * none registered, implicitly create either a {@link DefaultValueCoder} or
-     * a {@link SerialValueCoder} and register it.
+     * Return a <code>ValueCoder</code> for the supplied <code>Class</code>. If
+     * there is none registered, implicitly create either a
+     * {@link DefaultValueCoder} or a {@link SerialValueCoder} and register it.
      * 
      * @param clazz
-     *            The class for which a <tt>ValueCoder</tt> is needed
-     * @return The <tt>ValueCoder</tt>
+     *            The class for which a <code>ValueCoder</code> is needed
+     * @return The <code>ValueCoder</code>
      */
     public synchronized ValueCoder getValueCoder(Class clazz) {
         ValueCoder coder = lookupValueCoder(clazz);
@@ -359,9 +367,9 @@ public final class DefaultCoderManager implements CoderManager {
     /**
      * <p>
      * Returns the serialization override pattern specified by the
-     * <tt>serialOverride</tt> property. The pattern specifies a collection of
-     * names of classes that are required to be serialized by standard Java
-     * serialization rather than by a default or custom <tt>ValueCoder</tt>.
+     * <code>serialOverride</code> property. The pattern specifies a collection
+     * of names of classes that are required to be serialized by standard Java
+     * serialization rather than by a default or custom <code>ValueCoder</code>.
      * </p>
      * <p>
      * The result is a comma-delimited sequence of explicit class names and/or
@@ -375,11 +383,11 @@ public final class DefaultCoderManager implements CoderManager {
      * </code>
      * </pre>
      * 
-     * includes <tt>java.util.ArrayList</tt>, <tt>java.util.AbstractMap</tt>,
-     * <tt>java.util.HashMap</tt>, etc., all the classs in the
-     * <tt>java.lang</tt> package (but not <tt>java.lang.ref</tt> or
-     * <tt>java.lang.reflect</tt>), and all classes in <tt>javax.swing</tt> and
-     * all its subpackages.
+     * includes <code>java.util.ArrayList</code>,
+     * <code>java.util.AbstractMap</code>, <code>java.util.HashMap</code>, etc.,
+     * all the classs in the <code>java.lang</code> package (but not
+     * <code>java.lang.ref</code> or <code>java.lang.reflect</code>), and all
+     * classes in <code>javax.swing</code> and all its subpackages.
      * </p>
      * 
      * @return The serialization override pattern
@@ -396,18 +404,18 @@ public final class DefaultCoderManager implements CoderManager {
 
     /**
      * Tests whether the supplied class is included in the serial override set.
-     * This is a set of classes specified by the <tt>serialOverride</tt>
+     * This is a set of classes specified by the <code>serialOverride</code>
      * property that are always serialized by standard Java serialization. Any
-     * attempt to register a custom <tt>ValueCoder</tt> or a
-     * <tt>DefaultObjectCoder</tt> for such a class will be ignored.
+     * attempt to register a custom <code>ValueCoder</code> or a
+     * <code>DefaultObjectCoder</code> for such a class will be ignored.
      * 
      * @see #getSerialOverridePatterns()
      * 
      * @param clazz
      *            The class to test
      * 
-     * @return <tt>true</tt> if and only if the specified class is selected by
-     *         the <tt>serialOverride</tt> property
+     * @return <code>true</code> if and only if the specified class is selected
+     *         by the <code>serialOverride</code> property
      */
     public boolean isSerialOverride(Class clazz) {
         while (Serializable.class.isAssignableFrom(clazz)) {
@@ -422,8 +430,8 @@ public final class DefaultCoderManager implements CoderManager {
     }
 
     /**
-     * Registers <tt>ValueCoder</tt> implementations for selected collections
-     * classes in the Java API. These are somewhat faster and more
+     * Registers <code>ValueCoder</code> implementations for selected
+     * collections classes in the Java API. These are somewhat faster and more
      * space-efficient than default java serialization of the same classes. This
      * method is called by Persistit during initialization.
      */

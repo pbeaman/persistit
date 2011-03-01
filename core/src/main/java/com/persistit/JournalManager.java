@@ -139,6 +139,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private volatile long _writePageCount = 0;
 
+    private volatile long _readPageCount = 0;
+
     private volatile long _copiedPageCount = 0;
 
     private long _unitTestNeverCloseTransactionTimestamp = 0;
@@ -179,9 +181,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * file, and the new file is given the same journal create date as the
      * recovered journal. New journal files are also required to have the same
      * maximumSize and path name (not including generation suffix) as the
-     * existing journal, so in the event <tt>rman</tt> is non-null and contains
-     * a valid keystone, the <tt>path</tt> and <tt>maximumSize</tt> parameters
-     * are ignored.
+     * existing journal, so in the event <code>rman</code> is non-null and
+     * contains a valid keystone, the <code>path</code> and
+     * <code>maximumSize</code> parameters are ignored.
      * </p>
      * <p>
      * Otherwise, this method creates a new journal starting at journal address
@@ -252,6 +254,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         info.currentJournalFile = addressToFile(_currentAddress).getPath();
         info.flushing = _flushing.get();
         info.journaledPageCount = _writePageCount;
+        info.readPageCount = _readPageCount;
         if (_lastValidCheckpointJournalAddress != 0) {
             info.lastValidCheckpointSystemTime = _lastValidCheckpoint
                     .getSystemTimeMillis();
@@ -335,6 +338,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     public long getJournaledPageCount() {
         return _writePageCount;
+    }
+
+    public long getReadPageCount() {
+        return _readPageCount;
     }
 
     public long getCopiedPageCount() {
@@ -533,6 +540,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     + " is wrong size: expected/actual=" + bufferSize + "/"
                     + bb.limit());
         }
+        _readPageCount++;
         return true;
     }
 
@@ -1104,7 +1112,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * 
      * @param size
      *            Size of record to be written
-     * @return <tt>true</tt> iff a new journal file was started
+     * @return <code>true</code> iff a new journal file was started
      * @throws PersistitIOException
      */
     private synchronized boolean prepareWriteBuffer(final int size)

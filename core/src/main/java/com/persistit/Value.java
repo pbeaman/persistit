@@ -44,16 +44,16 @@ import com.persistit.exception.MalformedValueException;
 
 /**
  * <p>
- * Encapsulates the serialized form of an <tt>Object</tt> or a primitive value.
- * To store data, the application modifies the <tt>Exchange</tt>'s
- * <tt>Value</tt> object and then invokes the {@link Exchange#store()} operation
- * to write the encoded value into the database. To fetch data, the application
- * modifies the <tt>Exchange</tt>'s <tt>Key</tt> object, invokes the
- * {@link Exchange#fetch()} operation and then reads the resulting state from
- * the <tt>Value</tt>.
+ * Encapsulates the serialized form of an <code>Object</code> or a primitive
+ * value. To store data, the application modifies the <code>Exchange</code>'s
+ * <code>Value</code> object and then invokes the {@link Exchange#store()}
+ * operation to write the encoded value into the database. To fetch data, the
+ * application modifies the <code>Exchange</code>'s <code>Key</code> object,
+ * invokes the {@link Exchange#fetch()} operation and then reads the resulting
+ * state from the <code>Value</code>.
  * </p>
  * <p>
- * A <tt>Value</tt>'s state is represented internally by an array of bytes.
+ * A <code>Value</code>'s state is represented internally by an array of bytes.
  * Methods of this class encode primitive or object values into the byte array,
  * and decode bytes in the array into values equivalent to their original
  * values. For primitive-valued values, the decoded value is identical to the
@@ -65,10 +65,10 @@ import com.persistit.exception.MalformedValueException;
  * int b = value.get();
  * </pre>
  * 
- * </blockquote> <tt>a == b</tt> is true. For object-valued items, the result
- * will be an object that, subject to the accuracy of serialization code, is
- * equal to the original object, but generally with different identity. That is,
- * after: <blockquote>
+ * </blockquote> <code>a == b</code> is true. For object-valued items, the
+ * result will be an object that, subject to the accuracy of serialization code,
+ * is equal to the original object, but generally with different identity. That
+ * is, after: <blockquote>
  * 
  * <pre>
  * Object a = new Fricostat();
@@ -76,35 +76,36 @@ import com.persistit.exception.MalformedValueException;
  * int b = value.get();
  * </pre>
  * 
- * </blockquote> usually <tt>a == b</tt> is false, but <tt>a.equals(b)</tt> is
- * true.
+ * </blockquote> usually <code>a == b</code> is false, but
+ * <code>a.equals(b)</code> is true.
  * </p>
  * <p>
- * <tt>Value</tt> uses three strategies for these conversions:
+ * <code>Value</code> uses three strategies for these conversions:
  * <ul>
  * <li>For primitive types, their wrapper classes and certain other classes,
- * <tt>Value</tt> uses built-in logic to perform these conversions. Objects of
- * class <tt>java.lang.String</tt>, <tt>java.util.Date</tt>,
- * <tt>java.math.BigInteger</tt>, <tt>java.math.BigDecimal</tt> and all arrays
- * are encoded and decoded by built-in methods.</li>
+ * <code>Value</code> uses built-in logic to perform these conversions. Objects
+ * of class <code>java.lang.String</code>, <code>java.util.Date</code>,
+ * <code>java.math.BigInteger</code>, <code>java.math.BigDecimal</code> and all
+ * arrays are encoded and decoded by built-in methods.</li>
  * <li>For an object of any other class, the encoding and decoding methods of
- * <tt>Value</tt> attempt to find an associated
+ * <code>Value</code> attempt to find an associated
  * {@link com.persistit.encoding.ValueCoder} to perform custom encoding and
  * decoding of the object.</li>
- * <li>If there is no <tt>ValueCoder</tt> then if the class implements
- * <tt>java.io.Serializable</tt> or <tt>java.io.Externalizable</tt>, encoding
- * and decoding is performed through serialization logic using extended
- * <tt>java.io.ObjectOutputStream</tt> and <tt>java.io.ObjectInputStream</tt>
- * classes implemented by <tt>Value</tt>.</li>
+ * <li>If there is no <code>ValueCoder</code> then if the class implements
+ * <code>java.io.Serializable</code> or <code>java.io.Externalizable</code>,
+ * encoding and decoding is performed through serialization logic using extended
+ * <code>java.io.ObjectOutputStream</code> and
+ * <code>java.io.ObjectInputStream</code> classes implemented by
+ * <code>Value</code>.</li>
  * </ul>
- * Note that <tt>Value</tt> can only encode an object if it has a
- * <tt>ValueCoder</tt> or implements either <tt>java.io.Serializable</tt> or
- * <tt>java.io.Externalizable</tt>.
+ * Note that <code>Value</code> can only encode an object if it has a
+ * <code>ValueCoder</code> or implements either
+ * <code>java.io.Serializable</code> or <code>java.io.Externalizable</code>.
  * </p>
  * <p>
  * Persistit JSA 1.1 introduces a faster, more compact internal storage format
  * for serialization. Objects encoded in 1.1 without the assistance of a
- * registered <tt>ValueCoder</tt> are normally stored in this new format and
+ * registered <code>ValueCoder</code> are normally stored in this new format and
  * cannot be decoded by earlier versions of Persistit. However, the converse is
  * not true: objects serialized by earlier versions of Persistit can be
  * deserialized properly by 1.1. Thus you may upgrade an installed application
@@ -116,8 +117,8 @@ import com.persistit.exception.MalformedValueException;
  * serialization format defined by the <a href=
  * "http://java.sun.com/j2se/1.4.2/docs/guide/serialization/spec/serialTOC.html"
  * > Java Object Serialization Specification</a>. You may set the
- * <tt>serialOverride</tt> configuration property to specify classes that are to
- * be serialized in standard form.
+ * <code>serialOverride</code> configuration property to specify classes that
+ * are to be serialized in standard form.
  * </p>
  * <p>
  * See <a href="../../../Object_Serialization_Notes.html"> Persistit JSA 1.1
@@ -127,13 +128,13 @@ import com.persistit.exception.MalformedValueException;
  * <h3>Value as the key of a HashMap or WeakHashMap</h3>
  * <p>
  * It may be useful to build a WeakHashMap associating the serialized content of
- * a <tt>Value</tt> with an associated deserialized object to avoid object
+ * a <code>Value</code> with an associated deserialized object to avoid object
  * deserialization overhead or to implement correct identity semantics. Since
- * <tt>Value</tt> is mutable it is a poor choice for use as a map key. Instead,
- * an immutable {@link ValueState} should be used to hold an immutable copy of
- * this state. <tt>Value</tt> and <tt>ValueState</tt> implement
- * <tt>hashCode</tt> and <tt>equals</tt> in a compatible fashion so that code
- * similar to the following works as expected: <blockquote>
+ * <code>Value</code> is mutable it is a poor choice for use as a map key.
+ * Instead, an immutable {@link ValueState} should be used to hold an immutable
+ * copy of this state. <code>Value</code> and <code>ValueState</code> implement
+ * <code>hashCode</code> and <code>equals</code> in a compatible fashion so that
+ * code similar to the following works as expected: <blockquote>
  * 
  * <pre>
  *      ...
@@ -154,34 +155,35 @@ import com.persistit.exception.MalformedValueException;
  * of the AdminUI utility uses this capability to summarize the contents of
  * values stored in a tree. The string representation is constructed as follows:
  * <ol>
- * <li>If the state represented by this <tt>Value</tt> is undefined, then return
- * "undefined".</li>
- * <li>If the state is <tt>null</tt> or a <tt>boolean</tt>, return "null"
- * "false", or "true".</li>
+ * <li>If the state represented by this <code>Value</code> is undefined, then
+ * return "undefined".</li>
+ * <li>If the state is <code>null</code> or a <code>boolean</code>, return
+ * "null" "false", or "true".</li>
  * <li>If the value represents a primitive type, return the string
  * representation of the value, prefixed by "(byte)", "(short)", "(char)",
  * "(long)", or "(float)" for the corresponding types. Values of type
- * <tt>int</tt> and <tt>double</tt> are presented without prefix to reduce
- * clutter.</li>
+ * <code>int</code> and <code>double</code> are presented without prefix to
+ * reduce clutter.</li>
  * <li>If the value represents a String, return a modified form of the string
  * enclosed in double quotes. For each character of the string, if it is a
  * double quote replace it by "\"", otherwise if it is outside of the printable
  * ASCII character set replace the character in the modified string by "\b",
  * "\t", "\n", "\r" or "\u0000" such that the modified string would be a valid
  * Java string constant.</li>
- * <li>If the value represents a <tt>java.util.Date</tt>, return a formatted
+ * <li>If the value represents a <code>java.util.Date</code>, return a formatted
  * representation of the date using the format specified by {@link Key#SDF}.
  * This is a readable format the displays the date with full precision,
  * including milliseconds.</li>
  * <li>If the value represents an array, return a list of comma-separated
  * element values surrounded by square brackets.</li>
- * <li>If the value represents one of the standard <tt>Collection</tt>
- * implementations in the <tt>java.util</tt> package, then return a
+ * <li>If the value represents one of the standard <code>Collection</code>
+ * implementations in the <code>java.util</code> package, then return a
  * comma-separated list of values surrounded by square brackets.</li>
- * <li>If the value represents one of the standard <tt>Map</tt> implementations
- * in the <tt>java.util</tt> package, then return a comma-separated list of
- * key/value pairs surrounded by square brackets. Each key/value pair is
- * represented by a string in the form <i>key</i>-&gt;<i>value</i>.</li>
+ * <li>If the value represents one of the standard <code>Map</code>
+ * implementations in the <code>java.util</code> package, then return a
+ * comma-separated list of key/value pairs surrounded by square brackets. Each
+ * key/value pair is represented by a string in the form
+ * <i>key</i>-&gt;<i>value</i>.</li>
  * <li>If the value represents an object of a class for which there is a
  * registered {@link com.persistit.encoding.ValueDisplayer}, invoke the
  * displayer's {@link com.persistit.encoding.ValueDisplayer#display display}
@@ -196,17 +198,17 @@ import com.persistit.exception.MalformedValueException;
  * not attempt to deserialize the object, which might have unintended
  * consequences.</li>
  * <li>If the value represents an object that has already been represented
- * within the formatted result - for example, if a <tt>Collection</tt> contain
- * two references to the same object - then instead of creating an additional
- * string representing the second or subsequent instance, emit a back reference
- * pointer in the form @NNN where NNN is the character offset within the
- * displayable string where the first instance was found. (Note: does not apply
- * to strings and the primitive wrapper classes.)</li>
+ * within the formatted result - for example, if a <code>Collection</code>
+ * contain two references to the same object - then instead of creating an
+ * additional string representing the second or subsequent instance, emit a back
+ * reference pointer in the form @NNN where NNN is the character offset within
+ * the displayable string where the first instance was found. (Note: does not
+ * apply to strings and the primitive wrapper classes.)</li>
  * </ol>
  * <p>
  * For example, consider a Person class with fields for date of birth, first
  * name, last name, salary and friends, an array of other Person objects. The
- * result returned by {@link #toString} on a <tt>Value</tt> representing two
+ * result returned by {@link #toString} on a <code>Value</code> representing two
  * Person instances, each with just the other as a friend, might appear as
  * follows: (Note, space added for legibility.)
  * 
@@ -217,29 +219,29 @@ import com.persistit.exception.MalformedValueException;
  * </code>
  * </pre>
  * 
- * In this example, John Smith's <tt>friends</tt> array contains a back
+ * In this example, John Smith's <code>friends</code> array contains a back
  * reference to Mary Jones in the form "@0" because Mary's displayable reference
  * starts at the beginning of the string.
  * </p>
  * <a name="_streamMode" /> <h3>Stream mode</h3>
  * <p>
- * A <tt>Value</tt> normally contains just one object or primitive value. In its
- * normal mode of operation, the <tt>put</tt> operation overwrites any
- * previously held state, and the <tt>get</tt> operation retrieves the one
+ * A <code>Value</code> normally contains just one object or primitive value. In
+ * its normal mode of operation, the <code>put</code> operation overwrites any
+ * previously held state, and the <code>get</code> operation retrieves the one
  * object or primitive value represented by the current state of the
- * <tt>Value</tt>. A subsequent invocation of <tt>get</tt> returns the same
- * value.
+ * <code>Value</code>. A subsequent invocation of <code>get</code> returns the
+ * same value.
  * </p>
  * <p>
  * However, at certain times it is useful to store multiple items (fields)
- * together in one <tt>Value</tt> object. To allow this, <tt>Value</tt>
+ * together in one <code>Value</code> object. To allow this, <code>Value</code>
  * implements an alternative mode of operation called <i>stream</i> mode in
- * which each <tt>put</tt> invocation appends a new field to the state rather
- * than replacing the previous state. Similarly, <tt>get</tt> operations
- * retrieve sequentially written fields rather than rereading the same field.
- * Stream allows {@link com.persistit.encoding.ValueCoder ValueCoder}
- * implementations to aggregate the multiple fields encapsulated within an
- * encoded value.
+ * which each <code>put</code> invocation appends a new field to the state
+ * rather than replacing the previous state. Similarly, <code>get</code>
+ * operations retrieve sequentially written fields rather than rereading the
+ * same field. Stream allows {@link com.persistit.encoding.ValueCoder
+ * ValueCoder} implementations to aggregate the multiple fields encapsulated
+ * within an encoded value.
  * </p>
  * <a name="_lowLevelAPI" /> <h3>Low-Level API</h3>
  * <p>
@@ -271,12 +273,13 @@ import com.persistit.exception.MalformedValueException;
  */
 public final class Value {
     /**
-     * A Value that is always EMPTY - i.e., for which <tt>isDefined()</tt> is
-     * always false.
+     * A Value that is always EMPTY - i.e., for which <code>isDefined()</code>
+     * is always false.
      */
     public final static Value EMPTY_VALUE = new Value(null, 0, 0);
     /**
-     * Default initial size of the byte array that backs this <tt>Value</tt>.
+     * Default initial size of the byte array that backs this <code>Value</code>
+     * .
      */
     public final static int INITIAL_SIZE = 256;
     /**
@@ -562,7 +565,7 @@ public final class Value {
     private WeakReference _stringAssemblyBufferWeakRef;
 
     /**
-     * Construct a <tt>Value</tt> object with default initial and maximum
+     * Construct a <code>Value</code> object with default initial and maximum
      * encoded sizes.
      */
     public Value(final Persistit persistit) {
@@ -570,8 +573,8 @@ public final class Value {
     }
 
     /**
-     * Construct a </tt>Value</tt> object with specified initial encoded size
-     * and default maximum size.
+     * Construct a </code>Value</code> object with specified initial encoded
+     * size and default maximum size.
      * 
      * @param initialSize
      *            Initial size of the encoded value buffer.
@@ -581,8 +584,8 @@ public final class Value {
     }
 
     /**
-     * Construct a <tt>Value</tt> object with specific initial encoded size and
-     * specified maximum size.
+     * Construct a <code>Value</code> object with specific initial encoded size
+     * and specified maximum size.
      * 
      * @param initialSize
      *            Initial size of the encoded value buffer.
@@ -597,12 +600,12 @@ public final class Value {
     }
 
     /**
-     * Construct a new <tt>Value</tt> that represents the same data as the
+     * Construct a new <code>Value</code> that represents the same data as the
      * source.
      * 
      * @param source
-     *            A <tt>Value</tt> whose state should be copied as the initial
-     *            state of this <tt>Value</tt>.
+     *            A <code>Value</code> whose state should be copied as the
+     *            initial state of this <code>Value</code>.
      */
     public Value(Value source) {
         this(source._persistit, source._bytes.length, source._maximumSize);
@@ -610,8 +613,8 @@ public final class Value {
     }
 
     /**
-     * Remove all content from this <tt>Value</tt>. This method also disables
-     * stream mode.
+     * Remove all content from this <code>Value</code>. This method also
+     * disables stream mode.
      * 
      */
     public void clear() {
@@ -654,10 +657,10 @@ public final class Value {
     }
 
     /**
-     * Copy the state of this <tt>Value</tt> to another <tt>Value</tt>.
+     * Copy the state of this <code>Value</code> to another <code>Value</code>.
      * 
      * @param target
-     *            The <tt>Value</tt> to which state should be copied.
+     *            The <code>Value</code> to which state should be copied.
      */
     public void copyTo(Value target) {
         if (target == this)
@@ -673,10 +676,10 @@ public final class Value {
     }
 
     /**
-     * Hash code for the current state of this <tt>Value</tt>. Note that if the
-     * underlying state changes, <tt>hashCode</tt> will produce a different
-     * result. Construct a {@link ValueState} instance to hold an immutable copy
-     * of the current state of a <tt>Value</tt>.
+     * Hash code for the current state of this <code>Value</code>. Note that if
+     * the underlying state changes, <code>hashCode</code> will produce a
+     * different result. Construct a {@link ValueState} instance to hold an
+     * immutable copy of the current state of a <code>Value</code>.
      */
     public int hashCode() {
         int hashCode = 0;
@@ -687,8 +690,8 @@ public final class Value {
     }
 
     /**
-     * Implements the <tt>equals</tt> method such that <tt>Value</tt> and
-     * {@link ValueState} objects may be used interchangeably as map keys.
+     * Implements the <code>equals</code> method such that <code>Value</code>
+     * and {@link ValueState} objects may be used interchangeably as map keys.
      */
     public boolean equals(Object obj) {
         if (obj instanceof Value) {
@@ -710,7 +713,7 @@ public final class Value {
      * Reduce the backing byte buffer to the minimal length needed to represent
      * the current state.
      * 
-     * @return <tt>true</tt> if the size was actually reduced.
+     * @return <code>true</code> if the size was actually reduced.
      */
     public boolean trim() {
         return trim(0);
@@ -722,7 +725,7 @@ public final class Value {
      * 
      * @param newSize
      *            the minimum size of the backing buffer.
-     * @return <tt>true</tt> if the size was actually reduced.
+     * @return <code>true</code> if the size was actually reduced.
      */
     public boolean trim(int newSize) {
         if (_bytes.length > _size && _bytes.length > newSize) {
@@ -739,7 +742,7 @@ public final class Value {
      * <p>
      * Ensures that the specified number of bytes can be appended to the backing
      * byte array. If the available space is too small, this method replaces the
-     * array with a new one having at least <tt>length</tt> available bytes.
+     * array with a new one having at least <code>length</code> available bytes.
      * Applications using the low-level API must call {@link #getEncodedBytes}
      * to get a reference to the new array after this replacement has occurred.
      * </p>
@@ -748,8 +751,8 @@ public final class Value {
      * </p>
      * 
      * @param length
-     * @return <tt>true</tt> if the backing byte array was replaced by a larger
-     *         array.
+     * @return <code>true</code> if the backing byte array was replaced by a
+     *         larger array.
      */
     public boolean ensureFit(int length) {
         if (length > 0 && length * SIZE_GROWTH_DENOMINATOR < _size) {
@@ -827,7 +830,7 @@ public final class Value {
 
     /**
      * Returns the backing byte array used to hold the state of this
-     * <tt>Value</tt>. This method is part of the <a
+     * <code>Value</code>. This method is part of the <a
      * href="#_lowLevelAPI">Low-Level API</a>.
      * 
      * @return The byte array
@@ -839,8 +842,8 @@ public final class Value {
     /**
      * Sets the length of the encoded data in the backing byte array. This
      * length governs the number of bytes from the backing byte array that will
-     * be stored in the database during the next <tt>store</tt> operation. This
-     * method is part of the <a href="#_lowLevelAPI">Low-Level API</a>.
+     * be stored in the database during the next <code>store</code> operation.
+     * This method is part of the <a href="#_lowLevelAPI">Low-Level API</a>.
      */
     public void setEncodedSize(int size) {
         if (size < 0 || size > _bytes.length) {
@@ -868,8 +871,8 @@ public final class Value {
      *            The maximum size
      * 
      * @throws IllegalArgumentException
-     *             If the backing buffer is already larger than <tt>size</tt>,
-     *             this method
+     *             If the backing buffer is already larger than
+     *             <code>size</code>, this method
      * 
      */
     public void setMaximumSize(int size) {
@@ -890,8 +893,8 @@ public final class Value {
      * Mode</a> for further information.
      * 
      * @param b
-     *            <tt>true</tt> to enable stream mode, <tt>false</tt> to disable
-     *            it.
+     *            <code>true</code> to enable stream mode, <code>false</code> to
+     *            disable it.
      */
     public void setStreamMode(boolean b) {
         reset();
@@ -902,30 +905,30 @@ public final class Value {
      * Indicates whether stream mode is enabled. See <a
      * href="#_streamMode">Stream Mode</a> for further information.
      * 
-     * @return <tt>true</tt> if stream mode is enabled.
+     * @return <code>true</code> if stream mode is enabled.
      */
     public boolean isStreamMode() {
         return _depth > 0;
     }
 
     /**
-     * Indicates whether there is data associated with this <tt>Value</tt>. The
-     * result of fetching a <tt>Key</tt> that has no associated record in the
-     * database leaves the corresponding <tt>Value</tt> in an undefined state.
-     * Note that a Value containing <tt>null</tt> is defined. Persistit
-     * distinguishes between null and undefined states.
+     * Indicates whether there is data associated with this <code>Value</code>.
+     * The result of fetching a <code>Key</code> that has no associated record
+     * in the database leaves the corresponding <code>Value</code> in an
+     * undefined state. Note that a Value containing <code>null</code> is
+     * defined. Persistit distinguishes between null and undefined states.
      * 
-     * @return <tt>true</tt> if there is data represented by this <tt>Value</tt>
-     *         .
+     * @return <code>true</code> if there is data represented by this
+     *         <code>Value</code> .
      */
     public boolean isDefined() {
         return _size != 0;
     }
 
     /**
-     * Tests whether the data held by this <tt>Value</tt> is null.
+     * Tests whether the data held by this <code>Value</code> is null.
      * 
-     * @return <tt>true</tt> if the current state of this <tt>Value</tt>
+     * @return <code>true</code> if the current state of this <code>Value</code>
      *         represents <i>null</i>.
      */
     public boolean isNull() {
@@ -937,22 +940,22 @@ public final class Value {
     }
 
     /**
-     * Provides a String representation of the state of this <tt>Value</tt>.
+     * Provides a String representation of the state of this <code>Value</code>.
      * 
      * @see #decodeDisplayable(boolean, StringBuilder)
      * 
      * @return A String value. If this Value is undefined, returns the word
      *         "undefined". Note that this value is indistinguishable from the
-     *         result of <tt>toString</tt> on a <tt>Value</tt> whose state
-     *         represents the string "undefined". Invoke the
+     *         result of <code>toString</code> on a <code>Value</code> whose
+     *         state represents the string "undefined". Invoke the
      *         {@link #isDefined()} method to determine reliably whether the
-     *         <tt>Value</tt> is defined.
+     *         <code>Value</code> is defined.
      */
     public String toString() {
         if (_size == 0) {
             return "undefined";
         }
-        
+
         if (_longMode && (_bytes[0] & 0xFF) == Buffer.LONGREC_TYPE
                 && (_size >= Buffer.LONGREC_SIZE)) {
             return toStringLongMode();
@@ -1002,18 +1005,18 @@ public final class Value {
 
     /**
      * Appends a displayable, printable String version of a value into the
-     * supplied StringBuilder. If <tt>quoted</tt> is <tt>true</tt>, then the all
-     * String values in the result will be enclosed and converted to a printable
-     * format.
+     * supplied StringBuilder. If <code>quoted</code> is <code>true</code>, then
+     * the all String values in the result will be enclosed and converted to a
+     * printable format.
      * 
      * @see #decodeDisplayable(boolean, StringBuilder, CoderContext)
      * 
      * @param quoted
-     *            <tt>true</tt> to quote and convert all strings to printable
-     *            form.
+     *            <code>true</code> to quote and convert all strings to
+     *            printable form.
      * @param sb
-     *            A <tt>StringBuilder</tt> to which the displayable value will
-     *            be appended.
+     *            A <code>StringBuilder</code> to which the displayable value
+     *            will be appended.
      */
     public void decodeDisplayable(boolean quoted, StringBuilder sb) {
         decodeDisplayable(quoted, sb, null);
@@ -1021,18 +1024,18 @@ public final class Value {
 
     /**
      * Appends a displayable String version of a value into the supplied
-     * StringBuilder. If <tt>quoted</tt> is <tt>true</tt>, then the all String
-     * values in the result will be enclosed and converted to a printable
+     * StringBuilder. If <code>quoted</code> is <code>true</code>, then the all
+     * String values in the result will be enclosed and converted to a printable
      * format.
      * 
      * @param quoted
-     *            <tt>true</tt> to quote and convert all strings to printable
-     *            form.
+     *            <code>true</code> to quote and convert all strings to
+     *            printable form.
      * @param sb
-     *            A <tt>StringBuilder</tt> to which the displayable value will
-     *            be appended.
+     *            A <code>StringBuilder</code> to which the displayable value
+     *            will be appended.
      * @param context
-     *            A <tt>CoderContext</tt> to be passed to any underlying
+     *            A <code>CoderContext</code> to be passed to any underlying
      *            {@link ValueDisplayer}.
      */
     public void decodeDisplayable(boolean quoted, StringBuilder sb,
@@ -1501,7 +1504,7 @@ public final class Value {
 
     /**
      * Returns the type of the object represented by the current state of this
-     * <tt>Value</tt>.
+     * <code>Value</code>.
      * 
      * @return The type
      */
@@ -1570,12 +1573,12 @@ public final class Value {
 
     /**
      * Decodes the object value represented by the current state of this
-     * <tt>Value</tt> and verifies that it is <tt>null</tt>.
+     * <code>Value</code> and verifies that it is <code>null</code>.
      * 
-     * @return <tt>null</tt>
+     * @return <code>null</code>
      * @throws ConverisonException
-     *             if this <tt>Value</tt> does not currently represent
-     *             <tt>null</tt>.
+     *             if this <code>Value</code> does not currently represent
+     *             <code>null</code>.
      */
     public Object getNull() {
         int start = _next;
@@ -1593,12 +1596,12 @@ public final class Value {
 
     /**
      * Decodes the boolean value represented by the current state of this
-     * <tt>Value</tt>.
+     * <code>Value</code>.
      * 
      * @return The value as a boolean.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of
-     *             this type.
+     *             if this <code>Value</code> does not currently represent data
+     *             of this type.
      */
     public boolean getBoolean() {
         int start = _next;
@@ -1619,12 +1622,12 @@ public final class Value {
 
     /**
      * Decodes the byte value represented by the current state of this
-     * <tt>Value</tt>.
+     * <code>Value</code>.
      * 
      * @return The value as a byte.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of
-     *             this type.
+     *             if this <code>Value</code> does not currently represent data
+     *             of this type.
      */
     public byte getByte() {
         int start = _next;
@@ -1644,12 +1647,12 @@ public final class Value {
 
     /**
      * Decodes the short value represented by the current state of this
-     * <tt>Value</tt>.
+     * <code>Value</code>.
      * 
      * @return The value as a short.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of
-     *             this type.
+     *             if this <code>Value</code> does not currently represent data
+     *             of this type.
      */
     public short getShort() {
         int start = _next;
@@ -1670,12 +1673,12 @@ public final class Value {
 
     /**
      * Decodes the char value represented by the current state of this
-     * <tt>Value</tt>.
+     * <code>Value</code>.
      * 
      * @return The value as a char.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of
-     *             this type.
+     *             if this <code>Value</code> does not currently represent data
+     *             of this type.
      */
     public char getChar() {
         int start = _next;
@@ -1696,12 +1699,12 @@ public final class Value {
 
     /**
      * Decodes the int value represented by the current state of this
-     * <tt>Value</tt>.
+     * <code>Value</code>.
      * 
      * @return The value as a int.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of
-     *             this type.
+     *             if this <code>Value</code> does not currently represent data
+     *             of this type.
      */
     public int getInt() {
         int start = _next;
@@ -1722,12 +1725,12 @@ public final class Value {
 
     /**
      * Decodes the long value represented by the current state of this
-     * <tt>Value</tt>.
+     * <code>Value</code>.
      * 
      * @return The value as a long.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of
-     *             this type.
+     *             if this <code>Value</code> does not currently represent data
+     *             of this type.
      */
     public long getLong() {
         int start = _next;
@@ -1748,12 +1751,12 @@ public final class Value {
 
     /**
      * Decodes the float value represented by the current state of this
-     * <tt>Value</tt>.
+     * <code>Value</code>.
      * 
      * @return The value as a float.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of
-     *             this type.
+     *             if this <code>Value</code> does not currently represent data
+     *             of this type.
      */
     public float getFloat() {
         int start = _next;
@@ -1774,12 +1777,12 @@ public final class Value {
 
     /**
      * Decodes the double value represented by the current state of this
-     * <tt>Value</tt>.
+     * <code>Value</code>.
      * 
      * @return The value as a double.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of
-     *             this type.
+     *             if this <code>Value</code> does not currently represent data
+     *             of this type.
      */
     public double getDouble() {
         int start = _next;
@@ -1800,18 +1803,18 @@ public final class Value {
 
     /**
      * Decodes the object value represented by the current state of this
-     * <tt>Value</tt>. This method is identical to {@link #get()} except that in
-     * <a href="#_streamMode">Stream Mode</a> the pointer to the next retrieved
-     * value is not advanced.
+     * <code>Value</code>. This method is identical to {@link #get()} except
+     * that in <a href="#_streamMode">Stream Mode</a> the pointer to the next
+     * retrieved value is not advanced.
      * 
      * @return The value as a Object.
      * 
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of a
-     *             recognizable class.
+     *             if this <code>Value</code> does not currently represent data
+     *             of a recognizable class.
      * 
      * @throws MalformedValueException
-     *             if this <tt>Value</tt> is structurally corrupt.
+     *             if this <code>Value</code> is structurally corrupt.
      */
     public Object peek() {
         return peek(null, null);
@@ -1820,30 +1823,30 @@ public final class Value {
     /**
      * <p>
      * Decodes the object value represented by the current state of this
-     * <tt>Value</tt>. This method is identical to {@link #get(Object)} except
-     * that in <a href="#_streamMode">Stream Mode</a> the pointer to the next
-     * retrieved value is not advanced.
+     * <code>Value</code>. This method is identical to {@link #get(Object)}
+     * except that in <a href="#_streamMode">Stream Mode</a> the pointer to the
+     * next retrieved value is not advanced.
      * </p>
      * <p>
-     * This variant of <tt>get</tt> <i>may</i> modify and return the target
+     * This variant of <code>get</code> <i>may</i> modify and return the target
      * object supplied as a parameter, rather than creating a new object. This
      * behavior will occur only if the encoded value has a registered
-     * {@link ValueRenderer}. See the documentation for <tt>ValueRenderer</tt>
-     * for more information.
+     * {@link ValueRenderer}. See the documentation for
+     * <code>ValueRenderer</code> for more information.
      * </p>
      * 
      * @param target
      *            A mutable object into which a {@link ValueRenderer} <i>may</i>
-     *            decode this <tt>Value</tt>.
+     *            decode this <code>Value</code>.
      * 
      * @return The value as a Object.
      * 
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of a
-     *             recognizable class.
+     *             if this <code>Value</code> does not currently represent data
+     *             of a recognizable class.
      * 
      * @throws MalformedValueException
-     *             if this <tt>Value</tt> is structurally corrupt.
+     *             if this <code>Value</code> is structurally corrupt.
      */
     public Object peek(Object target) {
         return peek(target, null);
@@ -1852,7 +1855,7 @@ public final class Value {
     /**
      * <p>
      * Decodes the object value represented by the current state of this
-     * <tt>Value</tt>. This method is identical to
+     * <code>Value</code>. This method is identical to
      * {@link #get(Object, CoderContext)} except that in <a
      * href="#_streamMode">Stream Mode</a> the pointer to the next retrieved
      * value is not advanced.
@@ -1860,16 +1863,16 @@ public final class Value {
      * 
      * @param target
      *            A mutable object into which a {@link ValueRenderer} <i>may</i>
-     *            decode this <tt>Value</tt>.
+     *            decode this <code>Value</code>.
      * 
      * @return The value as a Object.
      * 
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of a
-     *             recognizable class.
+     *             if this <code>Value</code> does not currently represent data
+     *             of a recognizable class.
      * 
      * @throws MalformedValueException
-     *             if this <tt>Value</tt> is structurally corrupt.
+     *             if this <code>Value</code> is structurally corrupt.
      */
     public Object peek(Object target, CoderContext context) {
         final Object object;
@@ -1892,19 +1895,19 @@ public final class Value {
 
     /**
      * Decodes the object value represented by the current state of this
-     * <tt>Value</tt>. If the represented value is primitive, this method
+     * <code>Value</code>. If the represented value is primitive, this method
      * returns the wrapped object of the corresponding class. For example, if
-     * the value represents an <tt>int</tt>, this method returns a
-     * <tt>java.lang.Integer</tt>.
+     * the value represents an <code>int</code>, this method returns a
+     * <code>java.lang.Integer</code>.
      * 
      * @return The value as a Object.
      * 
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of a
-     *             recognizable class.
+     *             if this <code>Value</code> does not currently represent data
+     *             of a recognizable class.
      * 
      * @throws MalformedValueException
-     *             if this <tt>Value</tt> is structurally corrupt.
+     *             if this <code>Value</code> is structurally corrupt.
      */
     public Object get() {
         return get(null, null);
@@ -1913,31 +1916,31 @@ public final class Value {
     /**
      * <p>
      * Decodes the object value represented by the current state of this
-     * <tt>Value</tt>. If the represented value is primitive, this method
+     * <code>Value</code>. If the represented value is primitive, this method
      * returns the wrapped object of the corresponding class. For example, if
-     * the value represents an <tt>int</tt>, this method returns a
-     * <tt>java.lang.Integer</tt>.
+     * the value represents an <code>int</code>, this method returns a
+     * <code>java.lang.Integer</code>.
      * </p>
      * <p>
-     * This variant of <tt>get</tt> <i>may</i> modify and return the target
+     * This variant of <code>get</code> <i>may</i> modify and return the target
      * object supplied as a parameter, rather than creating a new object. This
      * behavior will occur only if the encoded value has a registered
-     * {@link ValueRenderer}. See the documentation for <tt>ValueRenderer</tt>
-     * for more information.
+     * {@link ValueRenderer}. See the documentation for
+     * <code>ValueRenderer</code> for more information.
      * </p>
      * 
      * @param target
      *            A mutable object into which a {@link ValueRenderer} <i>may</i>
-     *            decode this <tt>Value</tt>.
+     *            decode this <code>Value</code>.
      * 
      * @return The value as a Object.
      * 
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of a
-     *             recognizable class.
+     *             if this <code>Value</code> does not currently represent data
+     *             of a recognizable class.
      * 
      * @throws MalformedValueException
-     *             if this <tt>Value</tt> is structurally corrupt.
+     *             if this <code>Value</code> is structurally corrupt.
      */
     public Object get(Object target) {
         return get(target, null);
@@ -1946,13 +1949,13 @@ public final class Value {
     /**
      * <p>
      * Decodes the object value represented by the current state of this
-     * <tt>Value</tt>. If the represented value is primitive, this method
+     * <code>Value</code>. If the represented value is primitive, this method
      * returns the wrapped object of the corresponding class. For example, if
-     * the value represents an <tt>int</tt>, this method returns a
-     * <tt>java.lang.Integer</tt>.
+     * the value represents an <code>int</code>, this method returns a
+     * <code>java.lang.Integer</code>.
      * </p>
      * <p>
-     * This variant of <tt>get</tt> <i>may</i> modify and return the target
+     * This variant of <code>get</code> <i>may</i> modify and return the target
      * object supplied as a parameter, rather than creating a new object. This
      * behavior will occur only if the encoded value has an associated
      * {@link ValueRenderer} registered by {@link CoderManager}. See the
@@ -1962,7 +1965,7 @@ public final class Value {
      * 
      * @param target
      *            A mutable object into which a {@link ValueRenderer} <i>may</i>
-     *            decode this <tt>Value</tt>.
+     *            decode this <code>Value</code>.
      * 
      * @param context
      *            An application-specified value that may assist a
@@ -1972,11 +1975,11 @@ public final class Value {
      * @return The value as a Object.
      * 
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent data of a
-     *             recognizable class.
+     *             if this <code>Value</code> does not currently represent data
+     *             of a recognizable class.
      * 
      * @throws MalformedValueException
-     *             if this <tt>Value</tt> is structurally corrupt.
+     *             if this <code>Value</code> is structurally corrupt.
      */
     public Object get(Object target, CoderContext context) {
         Object object = null;
@@ -2331,7 +2334,7 @@ public final class Value {
      * in y to x will be represented in the serialization stream by a back
      * reference handle. This method should be called from the
      * {@link ValueCoder#get(Value, Class, CoderContext)} method of custom
-     * <tt>ValueCoder</tt>s. See <a
+     * <code>ValueCoder</code>s. See <a
      * href="../../../Object_Serialization_Notes.html>Persistit 1.1 Object
      * Serialization</a> for further details.
      * 
@@ -2359,26 +2362,28 @@ public final class Value {
     }
 
     /**
-     * Decodes the <tt>java.lang.String</tt> value represented by the current
-     * state of this <tt>Value</tt>.
+     * Decodes the <code>java.lang.String</code> value represented by the
+     * current state of this <code>Value</code>.
      * 
      * @return The value as a String.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent a String.
+     *             if this <code>Value</code> does not currently represent a
+     *             String.
      */
     public String getString() {
         return (String) getExpectedType(String.class);
     }
 
     /**
-     * Decodes the <tt>java.lang.String</tt> value represented by the current
-     * state of this <tt>Value</tt> into a supplied
-     * <tt>java.lang.StringBuilder</tt>.
+     * Decodes the <code>java.lang.String</code> value represented by the
+     * current state of this <code>Value</code> into a supplied
+     * <code>java.lang.StringBuilder</code>.
      * 
      * @return The supplied StringBuilder, modified to contain the decoded
      *         String
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent a String.
+     *             if this <code>Value</code> does not currently represent a
+     *             String.
      */
     public StringBuilder getString(StringBuilder sb) {
         _serializedItemCount++;
@@ -2393,24 +2398,25 @@ public final class Value {
     }
 
     /**
-     * Decodes the <tt>java.util.Date</tt> value represented by the current
-     * state of this <tt>Value</tt>.
+     * Decodes the <code>java.util.Date</code> value represented by the current
+     * state of this <code>Value</code>.
      * 
      * @return The value as a Date.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent a Date.
+     *             if this <code>Value</code> does not currently represent a
+     *             Date.
      */
     public Date getDate() {
         return (Date) getExpectedType(Date.class);
     }
 
     /**
-     * Decodes the <tt>java.math.BigInteger</tt> value represented by the
-     * current state of this <tt>Value</tt>.
+     * Decodes the <code>java.math.BigInteger</code> value represented by the
+     * current state of this <code>Value</code>.
      * 
      * @return The value as a BigInteger.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent a
+     *             if this <code>Value</code> does not currently represent a
      *             BigInteger.
      */
     public BigInteger getBigInteger() {
@@ -2418,12 +2424,12 @@ public final class Value {
     }
 
     /**
-     * Decodes the <tt>java.math.BigDecimal</tt> value represented by the
-     * current state of this <tt>Value</tt>.
+     * Decodes the <code>java.math.BigDecimal</code> value represented by the
+     * current state of this <code>Value</code>.
      * 
      * @return The value as a BigDecimal.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent a
+     *             if this <code>Value</code> does not currently represent a
      *             BigDecimal.
      */
     public BigDecimal getBigDecimal() {
@@ -2432,12 +2438,13 @@ public final class Value {
 
     /**
      * Returns the element count for the array represented by the current state
-     * of this <tt>Value</tt>.
+     * of this <code>Value</code>.
      * 
-     * @return The element count, or -1 if the Value represents <tt>null</tt>
-     *         rather than an array.
+     * @return The element count, or -1 if the Value represents
+     *         <code>null</code> rather than an array.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent an array.
+     *             if this <code>Value</code> does not currently represent an
+     *             array.
      */
     public int getArrayLength() {
         int start = _next;
@@ -2469,11 +2476,12 @@ public final class Value {
 
     /**
      * Decodes the array value represented by the current state of this
-     * <tt>Value</tt>.
+     * <code>Value</code>.
      * 
      * @return The value as an Object that can be cast to an array.
      * @throws ConversionException
-     *             if this <tt>Value</tt> does not currently represent an array.
+     *             if this <code>Value</code> does not currently represent an
+     *             array.
      */
     public Object getArray() {
         Object object = get(null, null);
@@ -2485,8 +2493,8 @@ public final class Value {
     }
 
     /**
-     * Returns a <tt>boolean</tt> array representing the state of this
-     * <tt>Value</tt>. Equivalent to </tt>(boolean)[])get()</tt>.
+     * Returns a <code>boolean</code> array representing the state of this
+     * <code>Value</code>. Equivalent to </code>(boolean)[])get()</code>.
      * 
      * @return The array.
      */
@@ -2495,10 +2503,10 @@ public final class Value {
     }
 
     /**
-     * Copies a subarray of the <tt>boolean</tt> array represented by the state
-     * of this <tt>Value</tt> into the supplied target array. The subarray is
-     * bounded by <tt>fromOffset</tt> and <tt>length</tt>, and truncated to fit
-     * within the target array.
+     * Copies a subarray of the <code>boolean</code> array represented by the
+     * state of this <code>Value</code> into the supplied target array. The
+     * subarray is bounded by <code>fromOffset</code> and <code>length</code>,
+     * and truncated to fit within the target array.
      * 
      * @param array
      *            The target array
@@ -2511,7 +2519,7 @@ public final class Value {
      *            The maximum number of elements to copy.
      * 
      * @return The number of elements actually copied, or -1 if the
-     *         <tt>Value</tt> object represents <tt>null</tt>.
+     *         <code>Value</code> object represents <code>null</code>.
      */
     public int getBooleanArray(boolean[] array, int fromOffset, int toOffset,
             int length) {
@@ -2537,8 +2545,8 @@ public final class Value {
     }
 
     /**
-     * Returns a <tt>byte</tt> array representing the state of this
-     * <tt>Value</tt>. Equivalent to </tt>(byte[])get()</tt>.
+     * Returns a <code>byte</code> array representing the state of this
+     * <code>Value</code>. Equivalent to </code>(byte[])get()</code>.
      * 
      * @return The array.
      */
@@ -2547,10 +2555,10 @@ public final class Value {
     }
 
     /**
-     * Copies a subarray of the <tt>byte</tt> array represented by the state of
-     * this <tt>Value</tt> into the supplied target array. The subarray is
-     * bounded by <tt>fromOffset</tt> and <tt>length</tt>, and truncated to fit
-     * within the target array.
+     * Copies a subarray of the <code>byte</code> array represented by the state
+     * of this <code>Value</code> into the supplied target array. The subarray
+     * is bounded by <code>fromOffset</code> and <code>length</code>, and
+     * truncated to fit within the target array.
      * 
      * @param array
      *            The target array
@@ -2563,7 +2571,7 @@ public final class Value {
      *            The maximum number of elements to copy.
      * 
      * @return The number of elements actually copied, or -1 if the
-     *         <tt>Value</tt> object represents <tt>null</tt>.
+     *         <code>Value</code> object represents <code>null</code>.
      */
     public int getByteArray(byte[] array, int fromOffset, int toOffset,
             int length) {
@@ -2592,8 +2600,8 @@ public final class Value {
     }
 
     /**
-     * Returns a <tt>short</tt> array representing the state of this
-     * <tt>Value</tt>. Equivalent to </tt>(short[])get()</tt>.
+     * Returns a <code>short</code> array representing the state of this
+     * <code>Value</code>. Equivalent to </code>(short[])get()</code>.
      * 
      * @return The array.
      */
@@ -2602,10 +2610,10 @@ public final class Value {
     }
 
     /**
-     * Copies a subarray of the <tt>short</tt> array represented by the state of
-     * this <tt>Value</tt> into the supplied target array. The subarray is
-     * bounded by <tt>fromOffset</tt> and <tt>length</tt>, and truncated to fit
-     * within the target array.
+     * Copies a subarray of the <code>short</code> array represented by the
+     * state of this <code>Value</code> into the supplied target array. The
+     * subarray is bounded by <code>fromOffset</code> and <code>length</code>,
+     * and truncated to fit within the target array.
      * 
      * @param array
      *            The target array
@@ -2618,7 +2626,7 @@ public final class Value {
      *            The maximum number of elements to copy.
      * 
      * @return The number of elements actually copied, or -1 if the
-     *         <tt>Value</tt> object represents <tt>null</tt>.
+     *         <code>Value</code> object represents <code>null</code>.
      */
     public int getShortArray(short[] array, int fromOffset, int toOffset,
             int length) {
@@ -2645,8 +2653,8 @@ public final class Value {
     }
 
     /**
-     * Returns a <tt>char</tt> array representing the state of this
-     * <tt>Value</tt>. Equivalent to </tt>(char[])get()</tt>.
+     * Returns a <code>char</code> array representing the state of this
+     * <code>Value</code>. Equivalent to </code>(char[])get()</code>.
      * 
      * @return The array.
      */
@@ -2655,10 +2663,10 @@ public final class Value {
     }
 
     /**
-     * Copies a subarray of the <tt>char</tt> array represented by the state of
-     * this <tt>Value</tt> into the supplied target array. The subarray is
-     * bounded by <tt>fromOffset</tt> and <tt>length</tt>, and truncated to fit
-     * within the target array.
+     * Copies a subarray of the <code>char</code> array represented by the state
+     * of this <code>Value</code> into the supplied target array. The subarray
+     * is bounded by <code>fromOffset</code> and <code>length</code>, and
+     * truncated to fit within the target array.
      * 
      * @param array
      *            The target array
@@ -2671,7 +2679,7 @@ public final class Value {
      *            The maximum number of elements to copy.
      * 
      * @return The number of elements actually copied, or -1 if the
-     *         <tt>Value</tt> object represents <tt>null</tt>.
+     *         <code>Value</code> object represents <code>null</code>.
      */
     public int getCharArray(char[] array, int fromOffset, int toOffset,
             int length) {
@@ -2698,8 +2706,8 @@ public final class Value {
     }
 
     /**
-     * Returns a <tt>int</tt> array representing the state of this
-     * <tt>Value</tt>. Equivalent to </tt>(int[])get()</tt>.
+     * Returns a <code>int</code> array representing the state of this
+     * <code>Value</code>. Equivalent to </code>(int[])get()</code>.
      * 
      * @return The array.
      */
@@ -2708,10 +2716,10 @@ public final class Value {
     }
 
     /**
-     * Copies a subarray of the <tt>int</tt> array represented by the state of
-     * this <tt>Value</tt> into the supplied target array. The subarray is
-     * bounded by <tt>fromOffset</tt> and <tt>length</tt>, and truncated to fit
-     * within the target array.
+     * Copies a subarray of the <code>int</code> array represented by the state
+     * of this <code>Value</code> into the supplied target array. The subarray
+     * is bounded by <code>fromOffset</code> and <code>length</code>, and
+     * truncated to fit within the target array.
      * 
      * @param array
      *            The target array
@@ -2724,7 +2732,7 @@ public final class Value {
      *            The maximum number of elements to copy.
      * 
      * @return The number of elements actually copied, or -1 if the
-     *         <tt>Value</tt> object represents <tt>null</tt>.
+     *         <code>Value</code> object represents <code>null</code>.
      */
     public int getIntArray(int[] array, int fromOffset, int toOffset, int length) {
         _serializedItemCount++;
@@ -2750,8 +2758,8 @@ public final class Value {
     }
 
     /**
-     * Returns a <tt>long</tt> array representing the state of this
-     * <tt>Value</tt>. Equivalent to </tt>(long[])get()</tt>.
+     * Returns a <code>long</code> array representing the state of this
+     * <code>Value</code>. Equivalent to </code>(long[])get()</code>.
      * 
      * @return The array.
      */
@@ -2760,10 +2768,10 @@ public final class Value {
     }
 
     /**
-     * Copies a subarray of the <tt>long</tt> array represented by the state of
-     * this <tt>Value</tt> into the supplied target array. The subarray is
-     * bounded by <tt>fromOffset</tt> and <tt>length</tt>, and truncated to fit
-     * within the target array.
+     * Copies a subarray of the <code>long</code> array represented by the state
+     * of this <code>Value</code> into the supplied target array. The subarray
+     * is bounded by <code>fromOffset</code> and <code>length</code>, and
+     * truncated to fit within the target array.
      * 
      * @param array
      *            The target array
@@ -2776,7 +2784,7 @@ public final class Value {
      *            The maximum number of elements to copy.
      * 
      * @return The number of elements actually copied, or -1 if the
-     *         <tt>Value</tt> object represents <tt>null</tt>.
+     *         <code>Value</code> object represents <code>null</code>.
      */
     public int getLongArray(long[] array, int fromOffset, int toOffset,
             int length) {
@@ -2804,8 +2812,8 @@ public final class Value {
     }
 
     /**
-     * Returns a <tt>float</tt> array representing the state of this
-     * <tt>Value</tt>. Equivalent to </tt>(float[])get()</tt>.
+     * Returns a <code>float</code> array representing the state of this
+     * <code>Value</code>. Equivalent to </code>(float[])get()</code>.
      * 
      * @return The array.
      */
@@ -2814,10 +2822,10 @@ public final class Value {
     }
 
     /**
-     * Copies a subarray of the <tt>float</tt> array represented by the state of
-     * this <tt>Value</tt> into the supplied target array. The subarray is
-     * bounded by <tt>fromOffset</tt> and <tt>length</tt>, and truncated to fit
-     * within the target array.
+     * Copies a subarray of the <code>float</code> array represented by the
+     * state of this <code>Value</code> into the supplied target array. The
+     * subarray is bounded by <code>fromOffset</code> and <code>length</code>,
+     * and truncated to fit within the target array.
      * 
      * @param array
      *            The target array
@@ -2830,7 +2838,7 @@ public final class Value {
      *            The maximum number of elements to copy.
      * 
      * @return The number of elements actually copied, or -1 if the
-     *         <tt>Value</tt> object represents <tt>null</tt>.
+     *         <code>Value</code> object represents <code>null</code>.
      */
     public int getFloatArray(float[] array, int fromOffset, int toOffset,
             int length) {
@@ -2857,8 +2865,8 @@ public final class Value {
     }
 
     /**
-     * Returns a <tt>double</tt> array representing the state of this
-     * <tt>Value</tt>. Equivalent to </tt>(double[])get()</tt>.
+     * Returns a <code>double</code> array representing the state of this
+     * <code>Value</code>. Equivalent to </code>(double[])get()</code>.
      * 
      * @return The array.
      */
@@ -2867,10 +2875,10 @@ public final class Value {
     }
 
     /**
-     * Copies a subarray of the <tt>double</tt> array represented by the state
-     * of this <tt>Value</tt> into the supplied target array. The subarray is
-     * bounded by <tt>fromOffset</tt> and <tt>length</tt>, and truncated to fit
-     * within the target array.
+     * Copies a subarray of the <code>double</code> array represented by the
+     * state of this <code>Value</code> into the supplied target array. The
+     * subarray is bounded by <code>fromOffset</code> and <code>length</code>,
+     * and truncated to fit within the target array.
      * 
      * @param array
      *            The target array
@@ -2883,7 +2891,7 @@ public final class Value {
      *            The maximum number of elements to copy.
      * 
      * @return The number of elements actually copied, or -1 if the
-     *         <tt>Value</tt> object represents <tt>null</tt>.
+     *         <code>Value</code> object represents <code>null</code>.
      */
     public int getDoubleArray(double[] array, int fromOffset, int toOffset,
             int length) {
@@ -2910,8 +2918,9 @@ public final class Value {
     }
 
     /**
-     * Returns a <tt>Object</tt> array representing the state of this
-     * <tt>Value</tt>. This is equivalent to </tt>(Object[])getArray()</tt>.
+     * Returns a <code>Object</code> array representing the state of this
+     * <code>Value</code>. This is equivalent to
+     * </code>(Object[])getArray()</code>.
      * 
      * @return The array.
      */
@@ -2920,8 +2929,9 @@ public final class Value {
     }
 
     /**
-     * Returns a <tt>Object</tt> array representing the state of this
-     * <tt>Value</tt>. This is equivalent to </tt>(Object[])getArray()</tt>.
+     * Returns a <code>Object</code> array representing the state of this
+     * <code>Value</code>. This is equivalent to
+     * </code>(Object[])getArray()</code>.
      * 
      * @return The array.
      */
@@ -2930,21 +2940,21 @@ public final class Value {
     }
 
     /**
-     * Indicates whether there is at least one more item in this <tt>Value</tt>.
-     * This method is valid only if the Value is in <a
+     * Indicates whether there is at least one more item in this
+     * <code>Value</code>. This method is valid only if the Value is in <a
      * href="#_streamMode">Stream Mode</a>. (See {@link #isStreamMode}.)
      * 
-     * @return <tt>true</tt> if another item can be decoded from this
-     *         <tt>Value</tt>.
+     * @return <code>true</code> if another item can be decoded from this
+     *         <code>Value</code>.
      */
     public boolean hasMoreItems() {
         return _next < _end;
     }
 
     /**
-     * Replaces the current state with the supplied <tt>boolean</tt> value (or
-     * in <a href="#_streamMode">stream mode</a>, appends a new field containing
-     * this value to the state).
+     * Replaces the current state with the supplied <code>boolean</code> value
+     * (or in <a href="#_streamMode">stream mode</a>, appends a new field
+     * containing this value to the state).
      * 
      * @param booleanValue
      *            The new value
@@ -2958,8 +2968,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>byte</tt> value (or in
-     * <a href="#_streamMode">stream mode</a>, appends a new field containing
+     * Replaces the current state with the supplied <code>byte</code> value (or
+     * in <a href="#_streamMode">stream mode</a>, appends a new field containing
      * this value to the state).
      * 
      * @param byteValue
@@ -2974,8 +2984,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>short</tt> value (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>short</code> value (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this value to the state).
      * 
      * @param shortValue
@@ -2991,8 +3001,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>char</tt> value (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>char</code> value (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this value to the state).
      * 
      * @param charValue
@@ -3008,8 +3018,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>int</tt> value (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>int</code> value (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this value to the state).
      * 
      * @param intValue
@@ -3025,8 +3035,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>long</tt> value (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>long</code> value (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this value to the state).
      * 
      * @param longValue
@@ -3042,8 +3052,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>float</tt> value (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>float</code> value (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this value to the state).
      * 
      * @param floatValue
@@ -3059,8 +3069,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>double</tt> value (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>double</code> value
+     * (or in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this value to the state).
      * 
      * @param doubleValue
@@ -3076,15 +3086,15 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>Object</tt> (or in <i><a
-     * href="#_streamMode">stream mode</a></i>, appends a new field containing
-     * this value to the state).
+     * Replaces the current state with the supplied <code>Object</code> (or in
+     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * containing this value to the state).
      * 
      * @param object
      *            The new value. The supplied Object must be <i>null</i>, or it
-     *            must implement <tt>java.io.Serializable</tt> or
-     *            <tt>java.io.Externalizable</tt>, or it must be handled by a
-     *            registered {@link com.persistit.encoding.ValueCoder}.
+     *            must implement <code>java.io.Serializable</code> or
+     *            <code>java.io.Externalizable</code>, or it must be handled by
+     *            a registered {@link com.persistit.encoding.ValueCoder}.
      * 
      * @throws ConversionException
      *             if the Object cannot be encoded as a sequence of bytes.
@@ -3094,15 +3104,15 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>Object</tt> (or in <i><a
-     * href="#_streamMode">stream mode</a></i>, appends a new field containing
-     * this value to the state).
+     * Replaces the current state with the supplied <code>Object</code> (or in
+     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * containing this value to the state).
      * 
      * @param object
      *            The new value. The supplied Object must be <i>null</i>, or it
-     *            must implement <tt>java.io.Serializable</tt> or
-     *            <tt>java.io.Externalizable</tt>, or it must be handled by a
-     *            registered {@link com.persistit.encoding.ValueCoder}.
+     *            must implement <code>java.io.Serializable</code> or
+     *            <code>java.io.Externalizable</code>, or it must be handled by
+     *            a registered {@link com.persistit.encoding.ValueCoder}.
      * 
      * @param context
      *            An application-specified value that may assist a
@@ -3319,9 +3329,9 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>java.lang.String</tt>
-     * (or in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
-     * containing this value to the state).
+     * Replaces the current state with the supplied
+     * <code>java.lang.String</code> (or in <i><a href="#_streamMode">stream
+     * mode</a></i>, appends a new field containing this value to the state).
      * 
      * @param string
      *            The new value
@@ -3331,13 +3341,13 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>java.lang.String</tt>
-     * (or in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
-     * containing this value to the state). Unlike <tt>putString</tt>, this
-     * method always writes a new copy of the String rather than a reference to
-     * a previously written value. Thus on deserialization, two copies of the
-     * same string written by this method will result in two unique String
-     * objects.
+     * Replaces the current state with the supplied
+     * <code>java.lang.String</code> (or in <i><a href="#_streamMode">stream
+     * mode</a></i>, appends a new field containing this value to the state).
+     * Unlike <code>putString</code>, this method always writes a new copy of
+     * the String rather than a reference to a previously written value. Thus on
+     * deserialization, two copies of the same string written by this method
+     * will result in two unique String objects.
      * 
      * @param string
      *            The new value
@@ -3385,8 +3395,8 @@ public final class Value {
      * Replaces the current state with the String represented by the supplied
      * (or in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this value to the state). This is equivalent to
-     * <tt>putString(sb.toString())</tt> but its implementation is somewhat more
-     * efficient.
+     * <code>putString(sb.toString())</code> but its implementation is somewhat
+     * more efficient.
      * 
      * @param sb
      *            The new value
@@ -3436,8 +3446,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>java.util.Date</tt> (or
-     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>java.util.Date</code>
+     * (or in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this value to the state).
      * 
      * @param dateValue
@@ -3449,7 +3459,7 @@ public final class Value {
 
     /**
      * Replaces the current state with the supplied
-     * <tt>java.math.BigInteger</tt> (or in <i><a href="#_streamMode">stream
+     * <code>java.math.BigInteger</code> (or in <i><a href="#_streamMode">stream
      * mode</a></i>, appends a new field containing this value to the state).
      * 
      * @param bigIntValue
@@ -3461,7 +3471,7 @@ public final class Value {
 
     /**
      * Replaces the current state with the supplied
-     * <tt>java.math.BigDecimal</tt> (or in <i><a href="#_streamMode">stream
+     * <code>java.math.BigDecimal</code> (or in <i><a href="#_streamMode">stream
      * mode</a></i>, appends a new field containing this value to the state).
      * 
      * @param bigDecimalValue
@@ -3472,7 +3482,7 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>boolean</tt> (or in
+     * Replaces the current state with the supplied <code>boolean</code> (or in
      * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this array to the state).
      * 
@@ -3485,13 +3495,14 @@ public final class Value {
 
     /**
      * Replaces the current state with a subarray of the supplied array of
-     * <tt>boolean</tt>-valued elements (or in <i><a href="#_streamMode">stream
-     * mode</a></i>, appends a new field containing this subarray to the state).
+     * <code>boolean</code>-valued elements (or in <i><a
+     * href="#_streamMode">stream mode</a></i>, appends a new field containing
+     * this subarray to the state).
      * 
      * @param array
      *            The array
      * @param offset
-     *            Offset of the subarray in <tt>array</tt>
+     *            Offset of the subarray in <code>array</code>
      * @param length
      *            Length of the subarray
      */
@@ -3514,8 +3525,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>byte</tt> array, (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>byte</code> array, (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this array to the state).
      * 
      * @param array
@@ -3527,13 +3538,13 @@ public final class Value {
 
     /**
      * Replaces the current state with a subarray of the supplied array of
-     * <tt>byte</tt>-valued elements (or in <i><a href="#_streamMode">stream
+     * <code>byte</code>-valued elements (or in <i><a href="#_streamMode">stream
      * mode</a></i>, appends a new field containing this subarray to the state).
      * 
      * @param array
      *            The array
      * @param offset
-     *            Offset of the subarray in <tt>array</tt>
+     *            Offset of the subarray in <code>array</code>
      * @param length
      *            Length of the subarray
      */
@@ -3554,8 +3565,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>short</tt> array (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>short</code> array (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this array to the state).
      * 
      * @param array
@@ -3567,13 +3578,14 @@ public final class Value {
 
     /**
      * Replaces the current state with a subarray of the supplied array of
-     * <tt>short</tt>-valued elements (or in <i><a href="#_streamMode">stream
-     * mode</a></i>, appends a new field containing this subarray to the state).
+     * <code>short</code>-valued elements (or in <i><a
+     * href="#_streamMode">stream mode</a></i>, appends a new field containing
+     * this subarray to the state).
      * 
      * @param array
      *            The array
      * @param offset
-     *            Offset of the subarray in <tt>array</tt>
+     *            Offset of the subarray in <code>array</code>
      * @param length
      *            Length of the subarray
      */
@@ -3595,8 +3607,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>char</tt> array (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>char</code> array (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this array to the state).
      * 
      * @param array
@@ -3608,13 +3620,13 @@ public final class Value {
 
     /**
      * Replaces the current state with a subarray of the supplied array of
-     * <tt>char</tt>-valued elements (or in <i><a href="#_streamMode">stream
+     * <code>char</code>-valued elements (or in <i><a href="#_streamMode">stream
      * mode</a></i>, appends a new field containing this subarray to the state).
      * 
      * @param array
      *            The array
      * @param offset
-     *            Offset of the subarray in <tt>array</tt>
+     *            Offset of the subarray in <code>array</code>
      * @param length
      *            Length of the subarray
      */
@@ -3636,8 +3648,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>int</tt> array (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>int</code> array (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this array to the state).
      * 
      * @param array
@@ -3649,13 +3661,13 @@ public final class Value {
 
     /**
      * Replaces the current state with a subarray of the supplied array of
-     * <tt>int</tt>-valued elements (or in <i><a href="#_streamMode">stream
+     * <code>int</code>-valued elements (or in <i><a href="#_streamMode">stream
      * mode</a></i>, appends a new field containing this subarray to the state).
      * 
      * @param array
      *            The array
      * @param offset
-     *            Offset of the subarray in <tt>array</tt>
+     *            Offset of the subarray in <code>array</code>
      * @param length
      *            Length of the subarray
      */
@@ -3677,8 +3689,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>long</tt> array (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>long</code> array (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this array to the state).
      * 
      * @param array
@@ -3690,13 +3702,13 @@ public final class Value {
 
     /**
      * Replaces the current state with a subarray of the supplied array of
-     * <tt>long</tt>-valued elements (or in <i><a href="#_streamMode">stream
+     * <code>long</code>-valued elements (or in <i><a href="#_streamMode">stream
      * mode</a></i>, appends a new field containing this subarray to the state).
      * 
      * @param array
      *            The array
      * @param offset
-     *            Offset of the subarray in <tt>array</tt>
+     *            Offset of the subarray in <code>array</code>
      * @param length
      *            Length of the subarray
      */
@@ -3718,8 +3730,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>float</tt> array (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>float</code> array (or
+     * in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this array to the state).
      * 
      * @param array
@@ -3731,13 +3743,14 @@ public final class Value {
 
     /**
      * Replaces the current state with a subarray of the supplied array of
-     * <tt>float</tt>-valued elements (or in <i><a href="#_streamMode">stream
-     * mode</a></i>, appends a new field containing this subarray to the state).
+     * <code>float</code>-valued elements (or in <i><a
+     * href="#_streamMode">stream mode</a></i>, appends a new field containing
+     * this subarray to the state).
      * 
      * @param array
      *            The array
      * @param offset
-     *            Offset of the subarray in <tt>array</tt>
+     *            Offset of the subarray in <code>array</code>
      * @param length
      *            Length of the subarray
      */
@@ -3760,8 +3773,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>double</tt> array (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>double</code> array
+     * (or in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this array to the state).
      * 
      * @param array
@@ -3773,13 +3786,14 @@ public final class Value {
 
     /**
      * Replaces the current state with a subarray of the supplied array of
-     * <tt>double</tt>-valued elements (or in <i><a href="#_streamMode">stream
-     * mode</a></i>, appends a new field containing this subarray to the state).
+     * <code>double</code>-valued elements (or in <i><a
+     * href="#_streamMode">stream mode</a></i>, appends a new field containing
+     * this subarray to the state).
      * 
      * @param array
      *            The array
      * @param offset
-     *            Offset of the subarray in <tt>array</tt>
+     *            Offset of the subarray in <code>array</code>
      * @param length
      *            Length of the subarray
      */
@@ -3802,8 +3816,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>String</tt> array (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>String</code> array
+     * (or in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this array to the state).
      * 
      * @param array
@@ -3815,13 +3829,14 @@ public final class Value {
 
     /**
      * Replaces the current state with a subarray of the supplied array of
-     * <tt>String</tt>-valued elements (or in <i><a href="#_streamMode">stream
-     * mode</a></i>, appends a new field containing this subarray to the state).
+     * <code>String</code>-valued elements (or in <i><a
+     * href="#_streamMode">stream mode</a></i>, appends a new field containing
+     * this subarray to the state).
      * 
      * @param array
      *            The array
      * @param offset
-     *            Offset of the subarray in <tt>array</tt>
+     *            Offset of the subarray in <code>array</code>
      * @param length
      *            Length of the subarray
      */
@@ -3845,8 +3860,8 @@ public final class Value {
     }
 
     /**
-     * Replaces the current state with the supplied <tt>Object</tt> array (or in
-     * <i><a href="#_streamMode">stream mode</a></i>, appends a new field
+     * Replaces the current state with the supplied <code>Object</code> array
+     * (or in <i><a href="#_streamMode">stream mode</a></i>, appends a new field
      * containing this array to the state).
      * 
      * @param array
@@ -3858,13 +3873,14 @@ public final class Value {
 
     /**
      * Replaces the current state with a subarray of the supplied array of
-     * <tt>Object</tt>-valued elements (or in <i><a href="#_streamMode">stream
-     * mode</a></i>, appends a new field containing this subarray to the state).
+     * <code>Object</code>-valued elements (or in <i><a
+     * href="#_streamMode">stream mode</a></i>, appends a new field containing
+     * this subarray to the state).
      * 
      * @param array
      *            The array
      * @param offset
-     *            Offset of the subarray in <tt>array</tt>
+     *            Offset of the subarray in <code>array</code>
      * @param length
      *            Length of the subarray
      */
@@ -3874,11 +3890,11 @@ public final class Value {
     }
 
     /**
-     * Does nothing except when this <tt>Value</tt> is in <i>stream mode</i>. In
-     * stream mode, this method skips a field. It is generally faster to
-     * <tt>skip</tt> a field rather than to <tt>get</tt> and discard it because
-     * the value and its interior state do not actually need to be decoded and
-     * constructed.
+     * Does nothing except when this <code>Value</code> is in <i>stream
+     * mode</i>. In stream mode, this method skips a field. It is generally
+     * faster to <code>skip</code> a field rather than to <code>get</code> and
+     * discard it because the value and its interior state do not actually need
+     * to be decoded and constructed.
      */
     public void skip() {
         if (_depth == 0)
@@ -4410,13 +4426,14 @@ public final class Value {
     }
 
     /**
-     * Return a <tt>java.io.ObjectOutputStream</tt> that writes bytes directly
-     * into this Value. The implementation returned by this method overrides the
-     * standard implementation to work correctly within the Persistit context.
-     * See <a href="../../../Object_Serialization_Notes.html"> Notes on Object
+     * Return a <code>java.io.ObjectOutputStream</code> that writes bytes
+     * directly into this Value. The implementation returned by this method
+     * overrides the standard implementation to work correctly within the
+     * Persistit context. See <a
+     * href="../../../Object_Serialization_Notes.html"> Notes on Object
      * Serialization</a> for details.
      * 
-     * @return The <tt>ObjectOutputStream</tt>
+     * @return The <code>ObjectOutputStream</code>
      */
     public ObjectOutputStream getObjectOutputStream()
             throws ConversionException {
@@ -4427,13 +4444,13 @@ public final class Value {
     }
 
     /**
-     * Return a <tt>java.io.ObjectInputStream</tt> that reads bytes from this
-     * Value. The implementation returned by this method overrides the standard
-     * implementation to work correctly within the Persistit context. See <a
-     * href="../../../Object_Serialization_Notes.html"> Notes on Object
+     * Return a <code>java.io.ObjectInputStream</code> that reads bytes from
+     * this Value. The implementation returned by this method overrides the
+     * standard implementation to work correctly within the Persistit context.
+     * See <a href="../../../Object_Serialization_Notes.html"> Notes on Object
      * Serialization</a> for details.
      * 
-     * @return The <tt>ObjectInputStream</tt>
+     * @return The <code>ObjectInputStream</code>
      */
     public ObjectInputStream getObjectInputStream() throws ConversionException {
         if (_vis == null) {
