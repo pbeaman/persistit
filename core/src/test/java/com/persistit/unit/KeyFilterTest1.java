@@ -393,7 +393,7 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
         key.append(Key.AFTER);
         assertFalse(filter.selected(key));
         assertTrue(filter.next(key, Key.LT));
-        assertEquals("{1}+", key.toString());
+        assertEquals("{1,{after}}", key.toString());
     }
 
     @Test
@@ -412,6 +412,11 @@ public class KeyFilterTest1 extends PersistitUnitTestCase {
 
     @Test
     public void test10() throws PersistitException {
+        final KeyFilter filter = new KeyFilter("{1,*<}");
+        final Key key = new Key((Persistit)null);
+        key.append(Key.AFTER);
+        filter.next(key, Key.LTEQ);
+        assertEquals("{1,{after}}", key.toString());
         // final KeyFilter filter = new KeyFilter("{[3:8]<}");
         // final Key key = new Key((Persistit) null);
         // assertTrue(filter.traverse(key, true));
