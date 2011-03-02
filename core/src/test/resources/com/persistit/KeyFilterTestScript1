@@ -1,0 +1,143 @@
+#
+# Copyright (C) 2011 Akiban Technologies Inc.
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License, version 3,
+# as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see http://www.gnu.org/licenses.
+#
+#
+# ==============================================================
+# Script for comprehensive KeyFilter testing. This text file is
+# read by com.persistit.ScriptedKeyFilterTest
+#
+# kf defines a KeyFilter
+# key defines a Key value
+# lteq, lt, gteq, gt specify directions for the KeyFilter.next() method, followed by the expected value of the Key.
+# nudge invokes Key.nudgeRight, Key.nudgeLeft, Key.nudgeDeeper, Key.appendBefore or Key.appendAfer
+# ==============================================================
+
+KF {1,*}
+KEY {}
+GTEQ {}
+GTEQ {}
+GT {}
+GT {}
+KEY {1}
+GTEQ {1}
+KEY {2}
+GT <false>
+
+KF {1,*}
+KEY {}
+LTEQ {1,{after}}
+LTEQ {1,{after}}
+LT {1,{after}}
+KEY {1,1}
+LTEQ {1,1}
+LT {1,1}
+KEY {1}
+LT <false>
+
+KF {1,>*}
+KEY {}
+GTEQ {1,{before}}
+KEY {}
+GT {1,{before}}
+KEY {1,2}
+GTEQ {1,2}
+GT {1,2}
+KEY {2}
+GT <false>
+
+KEY {}
+NUDGE AFTER
+LTEQ {1,{after}}
+LT {1,{after}}
+KEY {1,2}
+LTEQ {1,2}
+LT {1,2}
+KEY {1}
+LTEQ <false>
+KEY {1}
+LT <false>
+
+KF {1,>*<}
+KEY {}
+GTEQ {1,{before}}
+GT {1,{before}}
+LT {1,{before}}
+KEY {1}
+NUDGE AFTER
+GT {1,{after}}
+LT {1,{after}}
+KEY {1,2}
+LT {1,2}
+GT {1,2}
+NUDGE AFTER
+LT {1,2}*
+KEY {1,2}
+LTEQ {1,2}
+NUDGE AFTER
+GT {1,2}+
+
+KF {>{(10:20),[50:60],(80:)}<}
+KEY {}
+GT {10}+
+KEY {}
+GTEQ {10}+
+GT {10}+
+KEY {15}
+LT {15}
+LTEQ {15}
+GT {15}
+GTEQ {15}
+KEY {20}
+GT {50}-
+KEY {20}
+LT {20}-
+KEY {20}
+LT {20}-
+GT {50}-
+GTEQ {50}
+GT {50}
+GTEQ {50}
+KEY {70}
+LT {60}+
+LTEQ {60}
+GT {80}+
+LT {60}+
+
+KF {10:,>:10<}
+KEY {}
+GT {10,{before}}
+KEY {9,11}
+GT {10,{before}}
+KEY {10,9}
+GT {10,9}
+KEY {10,10}
+NUDGE LEFT
+GT {10,10}-
+GTEQ {10,10}-
+KEY {10,10}
+GTEQ {10,10}
+KEY {10,10,1}
+GT <false>
+KEY {10,10,1}
+GTEQ <false>
+KEY {10,10,1}
+LTEQ {10,10}
+KEY {10,10,1}
+LT {10,10}*
+
+KF {"atlantic",>(float)1.3,"x":"z",{[100:150),[200:250),[300:350)},*<}
+KEY {"atlantic",(float)1.3,"x",200,"tom","ZZZ"}
+LT {"atlantic",(float)1.3,"x",200,"tom"}*
+LT {"atlantic",(float)1.3,"x",200,"tom"}*
+
