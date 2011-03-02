@@ -1559,7 +1559,7 @@ public class KeyFilter {
          * If at end of key and the key is deep enough to satisfy the KeyFilter,
          * then
          */
-        if (size == index && level >= _minDepth) {
+        if (forward && size == index && level >= _minDepth) {
             return true;
         }
 
@@ -1652,14 +1652,17 @@ public class KeyFilter {
             }
 
             if (level + 1 >= _minDepth) {
-                if (!eq) {
-                    if (forward) {
+                if (forward) {
+                    if (!eq) {
                         key.nudgeLeft();
-                    } else {
-                        key.nudgeRight();
                     }
+                    return true;
+                } else if (level + 1 < _maxDepth) {
+                    key.appendAfter();
+                    return next(key, nextIndex, level + 1, forward, eq);
+                } else {
+                    return true;
                 }
-                return true;
             }
         }
     }
