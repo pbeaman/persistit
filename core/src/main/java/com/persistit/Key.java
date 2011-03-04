@@ -1480,10 +1480,10 @@ public final class Key implements Comparable<Object> {
             if (z0 == 0 && z1 == 0) {
                 nudged = Nudged.DOWN;
                 _size--;
-            } else if (z1 == (byte) 1) {
+            } else if (z0 != 0 && z1 == (byte) 1) {
                 nudged = Nudged.RIGHT;
                 _bytes[_size - 1] = 0;
-            } else if (z1 == (byte) 0xFF) {
+            } else if (z0 != 0 && z1 == (byte) 0xFF) {
                 nudged = Nudged.LEFT;
                 _bytes[_size - 2]++;
                 _bytes[_size - 1] = (byte) 0;
@@ -3295,7 +3295,7 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Modifies this key to become "slightly" larger. If the original value of
+     * Modifies this key to become "slightly" smaller. If the original value of
      * the key is K, then this key changes it to a new value K' such that the
      * only valid keys between K and K' are children of K. Note the resulting K'
      * is not a valid encoding of key segments. This method is used in defining
@@ -3310,7 +3310,7 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Modifies this key to become "slightly" smaller. If the original value of
+     * Modifies this key to become "slightly" larger. If the original value of
      * the key is K, then this key changes it to a new value K' such that there
      * are no valid keys between K and K'. Note the resulting K' is not a valid
      * encoding of key segments. This method is used in defining ranges of keys
@@ -3331,13 +3331,17 @@ public final class Key implements Comparable<Object> {
     }
 
     boolean isSpecial() {
-        if (_size < 2) {
+        return isSegmentSpecial(_size);
+    }
+    
+    boolean isSegmentSpecial(final int size) {
+        if (size < 2) {
             return true;
         }
-        if (_bytes[_size - 1] != 0) {
+        if (_bytes[size - 1] != 0) {
             return true;
         }
-        if (_bytes[_size - 2] == 0) {
+        if (_bytes[size - 2] == 0) {
             return true;
         }
         return false;
