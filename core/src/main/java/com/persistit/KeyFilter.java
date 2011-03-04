@@ -886,6 +886,7 @@ public class KeyFilter {
                 System.arraycopy(_itemFromBytes, 0, keyBytes, offset,
                         _itemFromBytes.length);
                 key.setEncodedSize(offset + _itemFromBytes.length);
+                keyBytes[offset + _itemFromBytes.length] = 0;
                 return true;
             }
             return false;
@@ -902,6 +903,7 @@ public class KeyFilter {
                 System.arraycopy(_itemToBytes, 0, keyBytes, offset,
                         _itemToBytes.length);
                 key.setEncodedSize(offset + _itemToBytes.length);
+                keyBytes[offset + _itemFromBytes.length] = 0;
                 return true;
             }
             return false;
@@ -1596,18 +1598,24 @@ public class KeyFilter {
                         //
                         key.setEncodedSize(nextIndex);
                         isLastKeySegment = true;
-
-                        if (forward && !key.isSpecial()) {
+                        
+                        if (key.isSpecial()) {
+                            return true;
+                        }
+                        
+                        if (forward) {
                             key.nudgeRight();
                             continue;
-                        } else if (!forward && !key.isSpecial()) {
-                            key.nudgeDeeper();
-                            continue;
+                        } else {
+                            if (!eq) {
+                                key.nudgeDeeper();
+                            }
+                            return true;
                         }
                     }
-                } else if (level < _minDepth) {
-                    if (key.isSpecial()
-                            || next(key, nextIndex, level + 1, forward, eq)) {
+                } else if (level + 1 < _minDepth) {
+                    if (key.isSegmentSpecial(nextIndex)
+                            || (forward || !isLastKeySegment) && next(key, nextIndex, level + 1, forward, eq)) {
                         return true;
                     }
                 } else if (isLastKeySegment) {
@@ -1618,7 +1626,7 @@ public class KeyFilter {
                         return true;
                     }
                 } else {
-                    if (key.isSpecial()
+                    if (key.isSegmentSpecial(nextIndex)
                             || next(key, nextIndex, level + 1, forward, eq)) {
                         return true;
                     }
@@ -1650,17 +1658,23 @@ public class KeyFilter {
             if (key.isSpecial()) {
                 return true;
             }
-
-            if (level + 1 >= _minDepth) {
-                if (forward) {
+            
+            if (forward) {
+                if (level + 1 >= _minDepth) {
                     if (!eq) {
+                        // For the GT case, choose the left-adjacent key.
                         key.nudgeLeft();
                     }
                     return true;
-                } else if (level + 1 < _maxDepth) {
+                }
+            } else {
+                if (level + 1 < _maxDepth) {
                     key.appendAfter();
                     return next(key, nextIndex, level + 1, forward, eq);
                 } else {
+                    if (!eq) {
+                        key.nudgeRight();
+                    }
                     return true;
                 }
             }
