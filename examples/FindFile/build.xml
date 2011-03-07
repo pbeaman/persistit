@@ -22,8 +22,8 @@
 
   <target name="compile" description="compile the source " >
     <javac debug="true"
-           source="1.4" 
-           target="1.4"
+           source="1.5" 
+           target="1.5"
            srcdir="."
     	   destdir="."
     	   classpath="../../core/target/akiban-persistit-core-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar" />

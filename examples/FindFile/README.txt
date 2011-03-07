@@ -26,6 +26,9 @@ names. To to this, use one of these commands:
 After launching FindFile, specify this file as the source file to load and 
 click the "Load" button.
 
+Or you can specify the full path name of a directory, press the "Load" button
+and crawl the file system directory.
+
 This demo loads the file names from a text file rather than 
 enumerating all the files on the disk through Java file operations
 for simplicity, and also because we want you to see that Persistit 
