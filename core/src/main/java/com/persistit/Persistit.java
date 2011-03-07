@@ -1609,7 +1609,7 @@ public class Persistit {
 
     /**
      * <p>
-     * Close the Persistit Log and all {@link Volume}s. This method is
+     * Close the Persistit Journal and all {@link Volume}s. This method is
      * equivalent to {@link #close(boolean) close(true)}.
      * 
      * @throws PersistitException
@@ -1625,7 +1625,7 @@ public class Persistit {
 
     /**
      * <p>
-     * Close the Persistit Log and all {@link Volume}s. This method does nothing
+     * Close the Persistit Journal and all {@link Volume}s. This method does nothing
      * and returns <code>false</code> if Persistit is currently not in the
      * initialized state. This method is threadsafe; if multiple threads
      * concurrently attempt to close Persistit, only one close operation will

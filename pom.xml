@@ -35,6 +35,14 @@
                 <configuration>
                     <header>LICENSE.txt</header>
                     <aggregate>true</aggregate>
+                    <excludes>
+                        <exclude>doc/**</exclude>
+                        <exclude>src/test/resources/**</exclude>
+                        <exclude>.idea/**</exclude>
+                        <exclude>.settings/**</exclude>
+                        <exclude>.project</exclude>
+                        <exclude>.classpath</exclude>
+                    </excludes>
                     <properties>
                         <year>2011</year>
                     </properties>
