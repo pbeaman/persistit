@@ -1,0 +1,110 @@
+<!--
+
+    Copyright (C) 2011 Akiban Technologies Inc.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License, version 3,
+    as published by the Free Software Foundation.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see http://www.gnu.org/licenses.
+
+-->
+
+<body>
+<p>
+Provides an interface and abstract superclasses for classes used to break object
+reference graphs for serialization.
+</p>
+<p>
+The general problem this interface is intended to solve is to reduce or
+control the scope of serialization of an object.  In a typical application
+some object A may need to refer to some other object B that has a large
+graph of connected objects.  Using Java's standard serialization mechanism,
+serializing A also serializes B and all the objects it references.
+This set may be very large, and further, it may be semantically incorrect
+to serialize the state of B with A because the state of B may change
+independently of A, so in many cases B's state should not be serialized
+concurrently with A's state.
+</p>
+<p>
+For example, consider a <tt>PurchaseOrder</tt> class that identifies a 
+<tt>Supplier</tt> in one of its fields.  Assume further that the Supplier 
+refers to a large, mostly static, catalog of Products.  A naive implementation
+might be written as follows:
+<blockquote><pre>
+class PurchaseOrder
+{
+	...
+	private Date date;
+	private Supplier supplier;
+	...
+	
+	public Supplier getSupplier()
+	{
+		return supplier;
+	}
+	
+	public void setSuppler(Object suppler)
+	{
+		this.supplier = supplier;
+	}
+}
+</pre></blockquote>
+In this implementation, standard Java serialization would serialize not only
+the state of a <tt>PurchaseOrder</tt>, but also the entire state of the referenced
+<tt>Supplier</tt>.
+</p>
+<p>
+To break this connection, the <tt>PurchaseOrder</tt> class could be
+rewritten as follows:
+<blockquote><pre>
+class PurchaseOrder
+{
+	...
+	private Date date;
+	private SupplierReference supplier;
+	...
+	
+	public Supplier getSupplier()
+	{
+		return (Supplier)supplier.get();
+	}
+	
+	public void setSuppler(Object supplier)
+	{
+		Object id = &lt;code to derive the supplier's permanent id&gt;;
+		this.supplier = new SupplierReference(id, supplier);
+	}
+}
+
+class SupplierReference extends AbstractReference
+{
+	public Object lookup(object supplierId)
+	{
+		Supplier supplier = &lt;code to retrieve the Supplier given its identity&gt;;
+		return supplier;
+	}
+}
+</pre></blockquote>
+</p>
+<p>
+Two abstract implementation classes are provided: 
+{@link com.persistit.ref.AbstractReference} and 
+{@link com.persistit.ref.AbstractWeakReference}.  For both of these the 
+{@link com.persistit.ref.AbstractReference#lookup} method must be implemented to 
+peform the application-specific actions necessary to recover and instantiate a 
+persistent object given its persistent identifier.  The difference between the two
+classes is that once the referent object has been instantiated, the 
+<tt>AbstractReference</tt> implementation holds a strong reference 
+to it, while the <tt>AbstractWeakReference</tt> holds a weak reference.
+A weak reference allows the garbage collector to remove and reclaim
+the memory occupied by the referent object.  A subsequent call to the
+<tt>AbstractWeakReference</tt>'s <tt>get</tt> method simply instantiates 
+a new copy of the referent object.
+</p>
+</body>

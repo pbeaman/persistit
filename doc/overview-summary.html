@@ -1,0 +1,1211 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="generator" content="AsciiDoc 8.5.2" />
+<title>Persistit 2.2</title>
+<style type="text/css">
+/* Debug borders */
+p, li, dt, dd, div, pre, h1, h2, h3, h4, h5, h6 {
+/*
+  border: 1px solid red;
+*/
+}
+
+body {
+  margin: 1em 5% 1em 5%;
+}
+
+a {
+  color: blue;
+  text-decoration: underline;
+}
+a:visited {
+  color: fuchsia;
+}
+
+em {
+  font-style: italic;
+  color: navy;
+}
+
+strong {
+  font-weight: bold;
+  color: #083194;
+}
+
+tt {
+  color: navy;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #527bbd;
+  font-family: sans-serif;
+  margin-top: 1.2em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+h1, h2, h3 {
+  border-bottom: 2px solid silver;
+}
+h2 {
+  padding-top: 0.5em;
+}
+h3 {
+  float: left;
+}
+h3 + * {
+  clear: left;
+}
+
+div.sectionbody {
+  font-family: serif;
+  margin-left: 0;
+}
+
+hr {
+  border: 1px solid silver;
+}
+
+p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+ul, ol, li > p {
+  margin-top: 0;
+}
+
+pre {
+  padding: 0;
+  margin: 0;
+}
+
+span#author {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+span#email {
+}
+span#revnumber, span#revdate, span#revremark {
+  font-family: sans-serif;
+}
+
+div#footer {
+  font-family: sans-serif;
+  font-size: small;
+  border-top: 2px solid silver;
+  padding-top: 0.5em;
+  margin-top: 4.0em;
+}
+div#footer-text {
+  float: left;
+  padding-bottom: 0.5em;
+}
+div#footer-badges {
+  float: right;
+  padding-bottom: 0.5em;
+}
+
+div#preamble {
+  margin-top: 1.5em;
+  margin-bottom: 1.5em;
+}
+div.tableblock, div.imageblock, div.exampleblock, div.verseblock,
+div.quoteblock, div.literalblock, div.listingblock, div.sidebarblock,
+div.admonitionblock {
+  margin-top: 1.0em;
+  margin-bottom: 1.5em;
+}
+div.admonitionblock {
+  margin-top: 2.0em;
+  margin-bottom: 2.0em;
+  margin-right: 10%;
+  color: #606060;
+}
+
+div.content { /* Block element content. */
+  padding: 0;
+}
+
+/* Block element titles. */
+div.title, caption.title {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  text-align: left;
+  margin-top: 1.0em;
+  margin-bottom: 0.5em;
+}
+div.title + * {
+  margin-top: 0;
+}
+
+td div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content div.title:first-child {
+  margin-top: 0.0em;
+}
+div.content + div.title {
+  margin-top: 0.0em;
+}
+
+div.sidebarblock > div.content {
+  background: #ffffee;
+  border: 1px solid silver;
+  padding: 0.5em;
+}
+
+div.listingblock > div.content {
+  border: 1px solid silver;
+  background: #f4f4f4;
+  padding: 0.5em;
+}
+
+div.quoteblock, div.verseblock {
+  padding-left: 1.0em;
+  margin-left: 1.0em;
+  margin-right: 10%;
+  border-left: 5px solid #dddddd;
+  color: #777777;
+}
+
+div.quoteblock > div.attribution {
+  padding-top: 0.5em;
+  text-align: right;
+}
+
+div.verseblock > div.content {
+  white-space: pre;
+}
+div.verseblock > div.attribution {
+  padding-top: 0.75em;
+  text-align: left;
+}
+/* DEPRECATED: Pre version 8.2.7 verse style literal block. */
+div.verseblock + div.attribution {
+  text-align: left;
+}
+
+div.admonitionblock .icon {
+  vertical-align: top;
+  font-size: 1.1em;
+  font-weight: bold;
+  text-decoration: underline;
+  color: #527bbd;
+  padding-right: 0.5em;
+}
+div.admonitionblock td.content {
+  padding-left: 0.5em;
+  border-left: 3px solid #dddddd;
+}
+
+div.exampleblock > div.content {
+  border-left: 3px solid #dddddd;
+  padding-left: 0.5em;
+}
+
+div.imageblock div.content { padding-left: 0; }
+span.image img { border-style: none; }
+a.image:visited { color: white; }
+
+dl {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+dt {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+  font-style: normal;
+  color: navy;
+}
+dd > *:first-child {
+  margin-top: 0.1em;
+}
+
+ul, ol {
+    list-style-position: outside;
+}
+ol.arabic {
+  list-style-type: decimal;
+}
+ol.loweralpha {
+  list-style-type: lower-alpha;
+}
+ol.upperalpha {
+  list-style-type: upper-alpha;
+}
+ol.lowerroman {
+  list-style-type: lower-roman;
+}
+ol.upperroman {
+  list-style-type: upper-roman;
+}
+
+div.compact ul, div.compact ol,
+div.compact p, div.compact p,
+div.compact div, div.compact div {
+  margin-top: 0.1em;
+  margin-bottom: 0.1em;
+}
+
+div.tableblock > table {
+  border: 3px solid #527bbd;
+}
+thead, p.table.header {
+  font-family: sans-serif;
+  font-weight: bold;
+}
+tfoot {
+  font-weight: bold;
+}
+td > div.verse {
+  white-space: pre;
+}
+p.table {
+  margin-top: 0;
+}
+/* Because the table frame attribute is overriden by CSS in most browsers. */
+div.tableblock > table[frame="void"] {
+  border-style: none;
+}
+div.tableblock > table[frame="hsides"] {
+  border-left-style: none;
+  border-right-style: none;
+}
+div.tableblock > table[frame="vsides"] {
+  border-top-style: none;
+  border-bottom-style: none;
+}
+
+
+div.hdlist {
+  margin-top: 0.8em;
+  margin-bottom: 0.8em;
+}
+div.hdlist tr {
+  padding-bottom: 15px;
+}
+dt.hdlist1.strong, td.hdlist1.strong {
+  font-weight: bold;
+}
+td.hdlist1 {
+  vertical-align: top;
+  font-style: normal;
+  padding-right: 0.8em;
+  color: navy;
+}
+td.hdlist2 {
+  vertical-align: top;
+}
+div.hdlist.compact tr {
+  margin: 0;
+  padding-bottom: 0;
+}
+
+.comment {
+  background: yellow;
+}
+
+.footnote, .footnoteref {
+  font-size: 0.8em;
+}
+
+span.footnote, span.footnoteref {
+  vertical-align: super;
+}
+
+#footnotes {
+  margin: 20px 0 20px 0;
+  padding: 7px 0 0 0;
+}
+
+#footnotes div.footnote {
+  margin: 0 0 5px 0;
+}
+
+#footnotes hr {
+  border: none;
+  border-top: 1px solid silver;
+  height: 1px;
+  text-align: left;
+  margin-left: 0;
+  width: 20%;
+  min-width: 100px;
+}
+
+
+@media print {
+  div#footer-badges { display: none; }
+}
+
+div#toc {
+  margin-bottom: 2.5em;
+}
+
+div#toctitle {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-size: 1.1em;
+  font-weight: bold;
+  margin-top: 1.0em;
+  margin-bottom: 0.1em;
+}
+
+div.toclevel1, div.toclevel2, div.toclevel3, div.toclevel4 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+div.toclevel2 {
+  margin-left: 2em;
+  font-size: 0.9em;
+}
+div.toclevel3 {
+  margin-left: 4em;
+  font-size: 0.9em;
+}
+div.toclevel4 {
+  margin-left: 6em;
+  font-size: 0.9em;
+}
+/* Workarounds for IE6's broken and incomplete CSS2. */
+
+div.sidebar-content {
+  background: #ffffee;
+  border: 1px solid silver;
+  padding: 0.5em;
+}
+div.sidebar-title, div.image-title {
+  color: #527bbd;
+  font-family: sans-serif;
+  font-weight: bold;
+  margin-top: 0.0em;
+  margin-bottom: 0.5em;
+}
+
+div.listingblock div.content {
+  border: 1px solid silver;
+  background: #f4f4f4;
+  padding: 0.5em;
+}
+
+div.quoteblock-attribution {
+  padding-top: 0.5em;
+  text-align: right;
+}
+
+div.verseblock-content {
+  white-space: pre;
+}
+div.verseblock-attribution {
+  padding-top: 0.75em;
+  text-align: left;
+}
+
+div.exampleblock-content {
+  border-left: 3px solid #dddddd;
+  padding-left: 0.5em;
+}
+
+/* IE6 sets dynamically generated links as visited. */
+div#toc a:visited { color: blue; }
+</style>
+<script type="text/javascript">
+/*<![CDATA[*/
+window.onload = function(){asciidoc.footnotes();}
+var asciidoc = {  // Namespace.
+
+/////////////////////////////////////////////////////////////////////
+// Table Of Contents generator
+/////////////////////////////////////////////////////////////////////
+
+/* Author: Mihai Bazon, September 2002
+ * http://students.infoiasi.ro/~mishoo
+ *
+ * Table Of Content generator
+ * Version: 0.4
+ *
+ * Feel free to use this script under the terms of the GNU General Public
+ * License, as long as you do not remove or alter this notice.
+ */
+
+ /* modified by Troy D. Hanson, September 2006. License: GPL */
+ /* modified by Stuart Rackham, 2006, 2009. License: GPL */
+
+// toclevels = 1..4.
+toc: function (toclevels) {
+
+  function getText(el) {
+    var text = "";
+    for (var i = el.firstChild; i != null; i = i.nextSibling) {
+      if (i.nodeType == 3 /* Node.TEXT_NODE */) // IE doesn't speak constants.
+        text += i.data;
+      else if (i.firstChild != null)
+        text += getText(i);
+    }
+    return text;
+  }
+
+  function TocEntry(el, text, toclevel) {
+    this.element = el;
+    this.text = text;
+    this.toclevel = toclevel;
+  }
+
+  function tocEntries(el, toclevels) {
+    var result = new Array;
+    var re = new RegExp('[hH]([2-'+(toclevels+1)+'])');
+    // Function that scans the DOM tree for header elements (the DOM2
+    // nodeIterator API would be a better technique but not supported by all
+    // browsers).
+    var iterate = function (el) {
+      for (var i = el.firstChild; i != null; i = i.nextSibling) {
+        if (i.nodeType == 1 /* Node.ELEMENT_NODE */) {
+          var mo = re.exec(i.tagName);
+          if (mo && (i.getAttribute("class") || i.getAttribute("className")) != "float") {
+            result[result.length] = new TocEntry(i, getText(i), mo[1]-1);
+          }
+          iterate(i);
+        }
+      }
+    }
+    iterate(el);
+    return result;
+  }
+
+  var toc = document.getElementById("toc");
+  var entries = tocEntries(document.getElementById("content"), toclevels);
+  for (var i = 0; i < entries.length; ++i) {
+    var entry = entries[i];
+    if (entry.element.id == "")
+      entry.element.id = "_toc_" + i;
+    var a = document.createElement("a");
+    a.href = "#" + entry.element.id;
+    a.appendChild(document.createTextNode(entry.text));
+    var div = document.createElement("div");
+    div.appendChild(a);
+    div.className = "toclevel" + entry.toclevel;
+    toc.appendChild(div);
+  }
+  if (entries.length == 0)
+    toc.parentNode.removeChild(toc);
+},
+
+
+/////////////////////////////////////////////////////////////////////
+// Footnotes generator
+/////////////////////////////////////////////////////////////////////
+
+/* Based on footnote generation code from:
+ * http://www.brandspankingnew.net/archive/2005/07/format_footnote.html
+ */
+
+footnotes: function () {
+  var cont = document.getElementById("content");
+  var noteholder = document.getElementById("footnotes");
+  var spans = cont.getElementsByTagName("span");
+  var refs = {};
+  var n = 0;
+  for (i=0; i<spans.length; i++) {
+    if (spans[i].className == "footnote") {
+      n++;
+      // Use [\s\S] in place of . so multi-line matches work.
+      // Because JavaScript has no s (dotall) regex flag.
+      note = spans[i].innerHTML.match(/\s*\[([\s\S]*)]\s*/)[1];
+      noteholder.innerHTML +=
+        "<div class='footnote' id='_footnote_" + n + "'>" +
+        "<a href='#_footnoteref_" + n + "' title='Return to text'>" +
+        n + "</a>. " + note + "</div>";
+      spans[i].innerHTML =
+        "[<a id='_footnoteref_" + n + "' href='#_footnote_" + n +
+        "' title='View footnote' class='footnote'>" + n + "</a>]";
+      var id =spans[i].getAttribute("id");
+      if (id != null) refs["#"+id] = n;
+    }
+  }
+  if (n == 0)
+    noteholder.parentNode.removeChild(noteholder);
+  else {
+    // Process footnoterefs.
+    for (i=0; i<spans.length; i++) {
+      if (spans[i].className == "footnoteref") {
+        var href = spans[i].getElementsByTagName("a")[0].getAttribute("href");
+        href = href.match(/#.*/)[0];  // Because IE return full URL.
+        n = refs[href];
+        spans[i].innerHTML =
+          "[<a href='#_footnote_" + n +
+          "' title='View footnote' class='footnote'>" + n + "</a>]";
+      }
+    }
+  }
+}
+
+}
+/*]]>*/
+</script>
+</head>
+<body>
+<div id="header">
+<h1>Persistit 2.2</h1>
+</div>
+<div id="content">
+<div id="preamble">
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre><tt>This document generates HTML added to the com.persistit JavaDoc package. It can also stand alone in the doc set if desired.  The intent is to touch on much of the functionality in Persistit without too much detail; links in the text to API documentation should be completed (preferably by a script) so that any reference to a com.persistit.XXX object has a link to the API doc set.  Method names should also be linked when possible.
+
+(Remove this block before publication.)</tt></pre>
+</div></div>
+<div class="paragraph"><p>Persistit&#8482; is a small, lightweight Java&#8482; library that provides simple, fast and reliable data persistence for Java applications. It is designed to be embedded in Java application programs and to operate free of administration by the end-user.</p></div>
+<div class="paragraph"><p>This document provides a brief overview.</p></div>
+</div>
+</div>
+<h2 id="_api_overview">API Overview</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>Persistit stores data as key-value pairs in highly optimized B-Tree structures. Much like a Java Map implementation, Persistit associates at most one value with each unique instance of a key.</p></div>
+<div class="paragraph"><p>Persistit provides interfaces to access and modify keys and their associated values. The developer writes code to construct key and value instances and to store, fetch, traverse and remove keys and records to and from the database. Persistit permits efficient multi-threaded concurrent access to database volumes. It is designed to minimize contention for critical resources and to maximize throughput on multi-processor machines.</p></div>
+<div class="paragraph"><p>In addition to low-level access methods on keys and values, Persistit provides com.persistit.PersistitMap, which implements the java.util.SortedMap interface. PersistitMap uses the Persistit database as a backing store so that key/value pairs are persistent, potentially shared with all threads, and limited in number only by disk storage. (See PersistitMap.)</p></div>
+<div class="paragraph"><p>Within Persistit, key values are <em>segmented</em> and <em>ordered</em>. Segmented means that you can append multiple primitive values or Strings to construct a concatenated key. Ordered means that the methods that enumerate key values within a Persistit database do so in a specified natural order. (See Keys).</p></div>
+<div class="paragraph"><p>A Persistit value may be any primitive value, any Serializable Java object, or an object of any class supported by a custom serialization helper class. When stored in the B-Tree, keys and values are represented by sequences of bytes. The byte sequence that represents a value may be of arbitrary length, bounded only by available heap memory. (See Values.)</p></div>
+<h3 id="KEYS">Keys</h3><div style="clear:left"></div>
+<div class="paragraph"><p>A key, represented by an instance of <tt>com.persistit.Key</tt>, is the identifier for a key/value pair within a tree. Internally a Key represents an array of bytes that constitutes the physical identity of the key/value pair within a tree. Logically, a key consists of a sequence of zero or more Java values, each of which is called a segment. Currently the following value types are implicitly supported in keys:</p></div>
+<div class="listingblock">
+<div class="title">Types Supported in <tt>com.persistit.Key</tt></div>
+<div class="content">
+<pre><tt>null
+boolean and Boolean
+byte (and Byte)
+short (and Short)
+char (and Character)
+int (and Integer)
+long (and Long)
+float (and Float)
+double (and Double)
+java.lang.String
+java.math.BigInteger
+java.math.BigDecimal
+java.util.Date
+byte[]</tt></pre>
+</div></div>
+<div class="paragraph"><p>In addition, you may register custom implementations of the com.persistit.encoding.KeyCoder interface to support encoding of other object classes. By default, String values are encoded in UTF-8 format. An application can register an implementation of the com.persistit.encoding.KeyStringCoder interface to perform custom encoding of Strings.</p></div>
+<h3 id="_appending_and_decoding_key_segments">Appending and Decoding Key Segments</h3><div style="clear:left"></div>
+<div class="paragraph"><p>The com.persistit.Key class provides methods to append and decode each of these types to and from a key segment. For each type listed above, there is an append method and a decode method. For example, for the long type, there are methods</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="font-weight: bold"><span style="color: #0000FF">public</span></span> <span style="color: #009900">void</span> <span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span> v<span style="color: #990000">)</span>
+<span style="font-weight: bold"><span style="color: #0000FF">public</span></span> <span style="color: #009900">long</span> <span style="font-weight: bold"><span style="color: #000000">decodeLong</span></span><span style="color: #990000">()</span></tt></pre></div></div>
+<div class="paragraph"><p>The Key class also provides methods to append and decode Object values to and from a key. Strings, Dates, objects of the corresponding wrapper classes for the primitive types listed above, and objects supported by registered KeyCoders are permitted. Primitive values are automatically boxed and unboxed as needed. The following code fragment demonstrates key manipulation with automatic conversion of primitive types and their wrappers.</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">clear</span></span><span style="color: #990000">();</span>                  <span style="font-style: italic"><span style="color: #9A1900">// clear any previous key segments</span></span>
+key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">new</span></span> <span style="font-weight: bold"><span style="color: #000000">Integer</span></span><span style="color: #990000">(</span><span style="color: #993399">1234</span><span style="color: #990000">));</span>
+key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Atlantic"</span><span style="color: #990000">);</span>
+key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #993399">1</span><span style="color: #990000">.</span>23d<span style="color: #990000">);</span>
+key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">reset</span></span><span style="color: #990000">();</span>                  <span style="font-style: italic"><span style="color: #9A1900">// reset index to beginning for decoding</span></span>
+<span style="color: #009900">int</span> v <span style="color: #990000">=</span> key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">decodeInt</span></span><span style="color: #990000">();</span>      <span style="font-style: italic"><span style="color: #9A1900">// v will be 1234</span></span>
+<span style="color: #008080">StringBuffer</span> sb <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #0000FF">new</span></span> <span style="font-weight: bold"><span style="color: #000000">StringBuffer</span></span><span style="color: #990000">();</span>
+key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">decodeString</span></span><span style="color: #990000">(</span>sb<span style="color: #990000">);</span>         <span style="font-style: italic"><span style="color: #9A1900">// sb will contain "Atlantic"</span></span>
+<span style="color: #008080">Double</span> d <span style="color: #990000">=</span> <span style="color: #990000">(</span>Double<span style="color: #990000">)</span><span style="font-weight: bold"><span style="color: #000000">decode</span></span><span style="color: #990000">();</span>  <span style="font-style: italic"><span style="color: #9A1900">// decode will return a Double</span></span></tt></pre></div></div>
+<div class="paragraph"><p>In this code segment, an object of type Integer is appended to the key’s value sequence, and then the same value is later decoded as a primitive int value. A String is appended and then decoded into a StringBuffer. Finally, a primitive double value is appended and then decoded as an object of class Double. (See the com.persistit.Key API documentation for details on these operations.)</p></div>
+<div class="paragraph"><p>As a convenience, each of the append methods has a corresponding method called to that replaces the final segment of the key with the supplied value rather than appending an additional segment. For example:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">clear</span></span><span style="color: #990000">();</span>             <span style="font-style: italic"><span style="color: #9A1900">// clear any previous key segments</span></span>
+key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Atlantic"</span><span style="color: #990000">);</span>  <span style="font-style: italic"><span style="color: #9A1900">// append segment "Atlantic"</span></span>
+key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">to</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Pacific"</span><span style="color: #990000">);</span>       <span style="font-style: italic"><span style="color: #9A1900">// replace "Atlantic" with "Pacific"</span></span>
+key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">reset</span></span><span style="color: #990000">();</span>             <span style="font-style: italic"><span style="color: #9A1900">// reset index to beginning</span></span>
+<span style="color: #008080">String</span> s <span style="color: #990000">=</span> key<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">decode</span></span><span style="color: #990000">();</span> <span style="font-style: italic"><span style="color: #9A1900">// s contains "Pacific"</span></span></tt></pre></div></div>
+<div class="paragraph"><p>For further information, see the API documentation for com.persistit.Key.</p></div>
+<h3 id="VALUES">Values</h3><div style="clear:left"></div>
+<div class="paragraph"><p>A <tt>com.persistit.Value</tt> object holds a value. Unlike keys, Value objects have no restriction on the types of data they can represent. In particular, a Value may contain null, any of the primitive types, or any object. Value provides optimized representations for the following types:</p></div>
+<div class="listingblock">
+<div class="title">Types Implicitly Supported by <tt>com.persistit.Value</tt></div>
+<div class="content">
+<pre><tt>null
+all primitive types
+all arrays
+java.math.BigInteger
+java.math.BigDecimal
+java.lang.String
+java.util.Date</tt></pre>
+</div></div>
+<div class="paragraph"><p>A value of any other type is serialized into and and deserialized from a Value by a helper class that implements com.persistit.encoding.ValueCoder. You may register custom ValueCoders to provide specialized or optimized encoding for any class not listed above. When there is no explicitly registered ValueCoder, Persistit creates an appropriate default ValueCoder that uses either reflection or standard Java serialization to transfer information between the object and the Value&#8217;s backing byte array. See Persistit 2.1 Object Serialization for additional information.</p></div>
+<div class="paragraph"><p>A Value may also be in the undefined state, which results from performing a fetch operation on a key for which no value is present in the database. The undefined state is distinct from the value <tt>null</tt> and can be queried with the <tt>isDefined()</tt> method.</p></div>
+<div class="paragraph"><p>For further information, see the API documentation for <tt>com.persistit.Value</tt>.</p></div>
+<h3 id="_access_methods">Access Methods</h3><div style="clear:left"></div>
+<div class="paragraph"><p>The primary low-level interface for interacting with Persistit is <tt>com.persistit.Exchange</tt>. The Exchange class provides all methods for storing, deleting, fetching and traversing key/value pairs. These methods are summarized here and described in detail in the API documentation.</p></div>
+<div class="paragraph"><p>Although the underlying Persistit database is designed for highly concurrent multi-threaded operation, the Exchange object itself is not thread-safe. Each thread should create and use its own Exchange object(s) when accessing the database.</p></div>
+<div class="paragraph"><p>To create an Exchange you provide a Volume name (or alias) and a tree name in its constructor. The constructor will optionally create a new tree in that Volume if a tree having the specified name is not found. An application may construct an arbitrary number of Exchange objects. Creating a new Exchange has no effect on the database if the specified tree already exists. Tree creation is thread-safe: multiple threads concurrently constructing Exchanges using the same Tree name will safely result in the creation of only one new tree.</p></div>
+<div class="paragraph"><p>An Exchange is a moderately complex object that requires several thousand bytes of heap space. Memory-constrained applications should construct Exchanges in moderate numbers. An Exchange internally maintains some optimization information such that references to nearby Keys within a tree are accelerated. Performance may benefit from using a different Exchange for each area of the Tree being accessed.</p></div>
+<div class="paragraph"><p>Persistit offers Exchange pooling to avoid rapidly creating and destroying Exchange objects in multi-threaded applications.  In particular, web applications may benefit from using the Exchange pool.</p></div>
+<div class="paragraph"><p>An Exchange is always associated with a com.persistit.Key and a com.persistit.Value. Typically you work with an Exchange in one of the following patterns:
+. Modify the Key, perform a <tt>fetch</tt> operation, and extract the Value.
+. Modify the Key, modify the Value, and then perform a <tt>store</tt> operation.
+. Modify the Key, and then perform a <tt>remove</tt> operation.
+. Optionally modify the Key, perform a <tt>traverse</tt> operation, then read the resulting Key and/or Value.</p></div>
+<div class="paragraph"><p>These four methods, plus a few other methods listed here, are the primary low-level interface to the database. Semantics are as follows:</p></div>
+<div class="hdlist"><table>
+<tr>
+<td class="hdlist1">
+<tt>fetch</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Reads the stored value associated with this Exchange&#8217;s Key and modifies the Exchange’s Value to reflect that value.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>store</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Inserts or replaces the key/value pair for the specified key in the Tree either by replacing the former value, if there was one, or inserting a new value.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>fetchAndStore</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Fetches and then replaces the stored value. Upon completion, Value reflects the formerly stored value for the current Key. This operation is atomic, as opposed to sequential calls to fetch and store.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>remove</tt>, <tt>removeAll</tt>, <tt>removeKeyRange</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Removes key/value pairs from the Tree. Versions of this method specify either a single key or a range of keys to be removed.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>fetchAndRemove</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Fetches and then removes the stored value. Upon completion, Value reflects the formerly stored value for the current Key. This operation is atomic, as opposed to sequential calls to fetch and remove.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>traverse</tt>, <tt>next</tt>, <tt>previous</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Modifies the Exchange’s Key and Value to reflect a successor or predecessor key within the tree. (See API documentation for com.persistit.Key for information on the order of traversal.)
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>incrementValue</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Atomically increments or decrements a long (64-bit integer) value associated with the current Key, and returns the modified value. If there is currently no value associated with the key then incrementValue creates one and assigns an initial value to it. This operation provides a convenient way for concurrent threads to safely allocate unique long integers without an explicit transaction scope.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>hasNext</tt>, <tt>hasPrevious</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Indicates, without modifying the Exchange’s Value or Key objects, whether there is a successor or predecessor key in the Tree.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>getChangeCount</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Number of times the Tree for this Exchange has changed. This count may be used as a reliable indicator of whether the Tree has changed since some earlier instant in time. For example, it is used to detect concurrent modifications by PersistitMap.
+</p>
+</td>
+</tr>
+</table></div>
+<div class="paragraph"><p>Because Persistit permits concurrent operations by multiple threads, there is no guarantee that the underlying database will remain unchanged after any of these operations is completed. However, each of these methods operates atomically. That is, the inputs and outputs of each method are consistent with some valid state of the underlying Persistit backing store at some instant in time. The Value and Key objects for the Exchange represent that consistent state even if some other thread subsequently modifies the underlying database.</p></div>
+<div class="paragraph"><p>For convenience, Exchange delegates <tt>append</tt> and <tt>to</tt> methods to <tt>com.persistit.Key</tt>. For example, Exchange provides the following methods that delegate to the identically named methods of Key :</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="font-weight: bold"><span style="color: #0000FF">public</span></span> <span style="color: #008080">Exchange</span> <span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #009900">long</span> v<span style="color: #990000">)</span>
+<span style="font-weight: bold"><span style="color: #0000FF">public</span></span> <span style="color: #008080">Exchange</span> <span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #008080">String</span> v<span style="color: #990000">)</span></tt></pre></div></div>
+<div class="paragraph"><p>To allow code chaining these methods of Exchange return the same Exchange. For example, it is valid to write code such as</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt>exchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">clear</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #FF0000">" Pacific"</span><span style="color: #990000">).</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Ocean"</span><span style="color: #990000">).</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #993399">123</span><span style="color: #990000">).</span><span style="font-weight: bold"><span style="color: #000000">fetch</span></span><span style="color: #990000">();</span></tt></pre></div></div>
+<div class="paragraph"><p>This example fetches the value associated with the concatenated key
+<tt>{“Pacific”, ”Ocean”, 123}</tt>.</p></div>
+<div class="paragraph"><p>Exchange also delegates other key manipulation methods. See the com.persistit.Exchange API documentation for details.</p></div>
+<h4 id="_large_values">Large Values</h4>
+<div class="paragraph"><p>Persistit stores arbitrarily large values. For example, it is possible to store an image as a single value in the database. The size of the value to be stored is constrained by available heap memory; the entire value must be able to be serialized into an in-memory byte array in order for Persistit to store or retrieve it. Large values are broken up across multiple data pages and are not necessarily stored in contiguous file areas.</p></div>
+<div class="paragraph"><p>On occasion it may be desirable to fetch only part of a large value. For example, a developer may wish only to extract summary information from the beginning of a the backing byte array for an Image. Special versions of the fetch and traverse accept a minimum byte count; these methods guarantee that at least the byte positions of the resulting Value object up to that count are valid. Using this technique can prevent Persistit from reading large numbers of pages from the disk in order to examine only a small portion of the record.</p></div>
+<h3 id="PERSISTIT_MAP">PersistitMap</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Persistit provides an implementation of the java.util.SortedMap interface called com.persistit.PersistitMap. PersistitMap uses Persistit as its backing store, permitting large maps to be stored efficiently on disk using constant heap memory space.</p></div>
+<div class="paragraph"><p>Keys for PersistitMap must conform to the constraints described above under Keys. Values must conform to the constraints described for Values.</p></div>
+<div class="paragraph"><p>The constructor for PersistitMap takes an Exchange as its sole parameter. All key/value pairs of the Map are stored within the tree identified by this Exchange. The Key supplied by the Exchange becomes the root of a logical tree. For example:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="color: #008080">Exchange</span> ex <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #0000FF">new</span></span> <span style="font-weight: bold"><span style="color: #000000">Exchange</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"myVolume"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"myTree"</span><span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #0000FF">true</span></span><span style="color: #990000">);</span>
+ex<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"USA"</span><span style="color: #990000">).</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"MA"</span><span style="color: #990000">);</span>
+<span style="color: #008080">PersistitMap&lt;String, String&gt;</span> map <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #0000FF">new</span></span> PersistitMap<span style="color: #990000">&lt;</span>String<span style="color: #990000">,</span> String<span style="color: #990000">&gt;(</span>ex<span style="color: #990000">);</span>
+map<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">put</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Boston"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"Hub"</span><span style="color: #990000">);</span></tt></pre></div></div>
+<div class="paragraph"><p>places a key/value pair into the myTree with the concatenated key <tt>{"USA ","MA","Boston"}</tt> and a value of <tt>"Hub"</tt>.</p></div>
+<div class="paragraph"><p>Because Persistit is designed for concurrent operation it is possible (and often intended) for the backing store of PersistitMap to be changed by other threads while a java.util.Iterator is in use. Generally the expected behavior for an Iterator on a Map collection view is to throw a ConcurrentModificationException if the underlying collection changes. This is known as fail-fast behavior. PersistitMap implements this behavior by throwing a ConcurrentModificationException in the event the Tree containing the map changes. An application can detect that the map may have changed due to a programming error in case the design contract calls for it to remain unchanged by catching this exception.</p></div>
+<div class="paragraph"><p>However, sometimes it may be desirable to use PersistitMap and its collections view interfaces to iterate across changing data. Internally, Persistit uses the traverse method to retrieve the next highest key in the key sort order in order to implement the Iterator’s hasNext and next methods. The result will depend on the content of the database at the instant these operations are performed. PersistitMap provides the method setAllowConcurrentModification to enable this behavior. By default, concurrent modifications are not allowed.</p></div>
+<h4 id="_exceptions_in_persistitmap">Exceptions in PersistitMap</h4>
+<div class="paragraph"><p>Persistit operations throw a variety of exceptions that are subclasses of com.persistit.exception.PersistitException. However, the methods of the SortedMap interface do not permit arbitrary checked exceptions to be thrown. Therfore, PersistitMap wraps any PersistitException generated by the underlying database within a com.persistit.PersistitMap.PersistitMapException. This exception is unchecked and can therefore be thrown by methods of the Map interface. Applications using PersistitMap should catch and handle PersistitMap.PersistitMapException. The original PersistitException is available through the getCause method.</p></div>
+<h3 id="KEY_FILTER">KeyFilter</h3><div style="clear:left"></div>
+<div class="paragraph"><p>A <tt>com.persistit.KeyFilter</tt> defines a subset of all possible key values. You can supply a KeyFilter to the traverse methods of an Exchange.  You can also specify a KeyFilter for any Iterator returned by the collection views of a PersistitMap.  In either case, the key/value pairs covered by traversing the database or iterating over the collection view are restricted to those selected by the KeyFilter.</p></div>
+<div class="paragraph"><p>Use of a KeyFilter is illustrated by the following code fragment:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="color: #008080">Exchange</span> ex <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #0000FF">new</span></span> <span style="font-weight: bold"><span style="color: #000000">Exchange</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"myVolume"</span><span style="color: #990000">,</span> <span style="color: #FF0000">"myTree"</span><span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #0000FF">true</span></span><span style="color: #990000">);</span>
+<span style="color: #008080">KeyFilter</span> kf <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #0000FF">new</span></span> <span style="font-weight: bold"><span style="color: #000000">KeyFilter</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"{</span><span style="color: #CC33CC">\"</span><span style="color: #FF0000">Bellini</span><span style="color: #CC33CC">\"</span><span style="color: #FF0000">:</span><span style="color: #CC33CC">\"</span><span style="color: #FF0000">Busoni</span><span style="color: #CC33CC">\"</span><span style="color: #FF0000">}"</span><span style="color: #990000">);</span>
+ex<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span>Key<span style="color: #990000">.</span>BEFORE<span style="color: #990000">);</span>
+<span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(</span>ex<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">next</span></span><span style="color: #990000">(</span>kf<span style="color: #990000">))</span>
+<span style="color: #FF0000">{</span>
+ System<span style="color: #990000">.</span>out<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">println</span></span><span style="color: #990000">(</span>ex<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">getKey</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">reset</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">decodeString</span></span><span style="color: #990000">());</span>
+<span style="color: #FF0000">}</span></tt></pre></div></div>
+<div class="paragraph"><p>This simple example emits the string-valued keys within myTree whose values fall alphabetically between “Bellini” and “Busoni”, inclusive.</p></div>
+</div>
+<h2 id="_physical_b_tree_representation">Physical B-Tree Representation</h2>
+<div class="sectionbody">
+<h3 id="_pages">Pages</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Persistit stores its data in one or more files called Volumes. Each volume may contain an arbitrary number of named B-Trees. Persistit manages volume files internally in sections called pages. Each page is the same size within a volume. The page size is configurable and may be 1K, 2K, 4K, 8K (the default size) or 16K bytes long. Once the page size for a volume has been established, it cannot be changed. To tell Persistit what volume file(s) to use and various other parameters that govern its allocation of memory resources, the developer provides either a java.util.Properties object or a file containing properties.
+(See <a href="#CONFIGURATION">Configuration</a>.)</p></div>
+<h3 id="_volumes">Volumes</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Within a Volume there may be an arbitrary number B-Trees. (B-Trees are also known as balanced trees or simply Trees in this document.) In Persistit, a tree is a data structure comprising a root page and subordinate index and data pages. A data page contains a representation of an arbitrary number of key/value pairs. An index page contains a representation of an arbitrary number of keys, each associated with a subordinate index or data page having related information. Data pages are leaf pages because they have no children while index pages are non-leaf pages because they must have children.</p></div>
+<div class="paragraph"><p>The defining characteristic of a B-Tree is that it is height-balanced: the length of the path from the root page to any leaf page is the same. Persistit trees typically range from 1 to 5 levels in depth; the upper bound on tree depth is 20. Each Volume contains a special directory Tree used to identify all other Trees in the Volume. The directory Tree is implicitly used whenever Persistit creates, removes or enumerates the Trees in a volume.</p></div>
+<h3 id="_the_journal">The Journal</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Persistit writes all updated pages to the <em>journal</em>. The journal is append-only; new records are written only at the end. The journal consists of a numbered series of files having a configurable maximum size. When a journal file becomes full Persistit closes it and begins a new file with the next counter value. In normal operation an independent Copier thread copies pages from the journal back into their home Volume files, allowing old files to be deleted.</p></div>
+<div class="paragraph"><p>The journal is critical to ensuring Persistit can recover structurally intact B-Trees and apply any committed transactions after a system failure. (For more details on the journal, checkpoints and transactions, see Integrity and Recovery.)</p></div>
+<h3 id="_the_buffer_pool">The Buffer Pool</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Persistit maintains a cache of page copies in memory called the buffer pool. The buffer pool is a critical resource in reducing disk I/O and providing good runtime performance. Specifically, after performing a relatively expensive disk operation to read a copy of a page into the buffer pool, Persistit retains that copy to allow potentially many fetch and update operations to be performed against keys and values stored in that page.</p></div>
+<div class="paragraph"><p>Persistit optimizes update operations by writing updated database pages lazily, generally a few seconds to minutes after the update has been performed on the in-memory copy of the page cached in the buffer pool. By performing its writes lazily, Persistit allows many update operations to be completed on each page before invoking a relatively expensive disk operation to write the updated version of the page to the Volume.</p></div>
+<div class="paragraph"><p>A Buffer Pool is a collection of buffers allocated from the heap for the duration of Persistit’s operation. In Persistit 2.1 all buffers are allocated when the embedding application invokes one of the initialize methods of com.persistit.Persistit and are released when the application invokes close. There is one buffer pool for each buffer size specified in the configuration properties.</p></div>
+<div class="paragraph"><p>Persistit allocated buffers from but buffer pool on a least-recently-used (LRU)  basis. Most applications exhibit behavior in which data, having been accessed once, is read or updated several more times before the application moves to a different area of the database (locality of reference). LRU is an allocation strategy the yields reasonably good overall throughput by maintaining pages that are likely to be used again in the buffer pool in preference to pages that have not been used for a relatively long time.</p></div>
+<div class="paragraph"><p>Generally, allocating more buffers in the buffer pool increases the likelihood that a page will be found in the pool rather than having to be reloaded from disk. Since disk I/O is relatively expensive, this means that enlarging the buffer pool is a good strategy for reducing disk I/O and thereby increasing throughput. Persistit is designed to manage extremely large buffer pools very efficiently, so if memory is available, it is generally a good strategy to maximum buffer pool size.</p></div>
+</div>
+<h2 id="_transactions">Transactions</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>Persistit supports transactions with full isolation and optimistic concurrency control. An application may begin, commit or roll back the current transaction scope explicitly, executing multiple database operations in an atomic, consistent, isolated and (optionally) durable (ACID) manner. If the application does not explicitly define the scope of a transaction, each database operation implicitly runs within the scope of a separate transaction. Each Persistit transaction may optionally be committed to either memory or disk. Transactions committed to memory are much faster, but are not immediately durable. (See Transactions.)</p></div>
+<h3 id="_optimistic_transaction_scheduling">Optimistic transaction Scheduling</h3><div style="clear:left"></div>
+<div class="paragraph"><p>To achieve high performance and scalability, Persistit supports optimistic transaction scheduling. Multiple threads, each concurrently running a transaction, are permitted to continue without blocking until a potentially inconsistent state is recognized. At this point the suspected transaction is implicitly rolled back.</p></div>
+<div class="paragraph"><p>Optimistic scheduling works because transactions usually do not collide – especially when individual database operations are fast – and so in practice transactions are seldom rolled back. But because any transaction may be automatically rolled back at any point, applications must be designed carefully to avoid unintended side-effects. For example, no transaction should perform non-repeatable or externally visible operations within the scope of a transaction.</p></div>
+<h3 id="_using_transactions">Using Transactions</h3><div style="clear:left"></div>
+<div class="paragraph"><p>The following code fragment performs two store operations within the scope of a transaction:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="font-style: italic"><span style="color: #9A1900">//</span></span>
+<span style="font-style: italic"><span style="color: #9A1900">// Get the transaction context for the current thread.</span></span>
+<span style="font-style: italic"><span style="color: #9A1900">//</span></span>
+<span style="color: #008080">Transaction</span> txn <span style="color: #990000">=</span> myExchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">getTransaction</span></span><span style="color: #990000">();</span>
+<span style="color: #009900">int</span> remainingRetries <span style="color: #990000">=</span> RETRY_COUNT<span style="color: #990000">;</span>
+<span style="color: #008080">Boolean</span> done <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #0000FF">false</span></span><span style="color: #990000">;</span>
+<span style="font-weight: bold"><span style="color: #0000FF">while</span></span> <span style="color: #990000">(!</span>done<span style="color: #990000">)</span>
+<span style="color: #FF0000">{</span>
+ txn<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">begin</span></span><span style="color: #990000">();</span>
+ <span style="font-weight: bold"><span style="color: #0000FF">try</span></span>
+ <span style="color: #FF0000">{</span>
+     myExchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">getValue</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">put</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"First value"</span><span style="color: #990000">);</span>
+     myExchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">clear</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #993399">1</span><span style="color: #990000">).</span><span style="font-weight: bold"><span style="color: #000000">store</span></span><span style="color: #990000">();</span>
+     myExchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">getValue</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">put</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Second value"</span><span style="color: #990000">);</span>
+     myExchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">clear</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #993399">2</span><span style="color: #990000">).</span><span style="font-weight: bold"><span style="color: #000000">store</span></span><span style="color: #990000">();</span>
+     <span style="font-style: italic"><span style="color: #9A1900">// Required to commit the transaction</span></span>
+     txn<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">commit</span></span><span style="color: #990000">();</span>
+     done <span style="color: #990000">=</span> <span style="font-weight: bold"><span style="color: #0000FF">true</span></span><span style="color: #990000">;</span>
+ <span style="color: #FF0000">}</span>
+ <span style="font-weight: bold"><span style="color: #0000FF">catch</span></span> <span style="color: #990000">(</span><span style="color: #008080">RollbackException</span> re<span style="color: #990000">)</span>
+ <span style="color: #FF0000">{</span>
+     <span style="font-style: italic"><span style="color: #9A1900">// any special rollback handling</span></span>
+     <span style="font-style: italic"><span style="color: #9A1900">// allow loop to repeat until commit succeeds or retries</span></span>
+     <span style="font-style: italic"><span style="color: #9A1900">// too many times.</span></span>
+     <span style="font-weight: bold"><span style="color: #000000">If</span></span> <span style="color: #990000">(--</span>remainingRetries <span style="color: #990000">&lt;</span> <span style="color: #993399">0</span><span style="color: #990000">)</span>
+     <span style="color: #FF0000">{</span>
+         <span style="font-weight: bold"><span style="color: #0000FF">throw</span></span> <span style="font-weight: bold"><span style="color: #0000FF">new</span></span> <span style="font-weight: bold"><span style="color: #000000">TransactionFailedException</span></span><span style="color: #990000">();</span>
+     <span style="color: #FF0000">}</span>
+ <span style="color: #FF0000">}</span>
+ <span style="font-weight: bold"><span style="color: #0000FF">catch</span></span> <span style="color: #990000">(</span><span style="color: #008080">PersistitException</span> pe<span style="color: #990000">)</span>
+ <span style="color: #FF0000">{</span>
+     <span style="font-style: italic"><span style="color: #9A1900">// handle other Persistit exception</span></span>
+ <span style="color: #FF0000">}</span>
+ <span style="font-weight: bold"><span style="color: #0000FF">finally</span></span>
+ <span style="color: #FF0000">{</span>
+     <span style="font-style: italic"><span style="color: #9A1900">// Required to end the scope of a transaction.</span></span>
+     txn<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">end</span></span><span style="color: #990000">();</span>
+ <span style="color: #FF0000">}</span>
+<span style="color: #FF0000">}</span></tt></pre></div></div>
+<div class="paragraph"><p>This example catches <tt>com.persistit.exception.RollbackException</tt>, which can be thrown by any Persistit operation within the scope of a transaction, including commit. Any code explicitly running within the scope of a transaction should be designed to handle rollbacks.</p></div>
+<div class="paragraph"><p>This example also uses a finally block to ensure every call to <tt>begin()</tt> has a matching call to <tt>end()</tt>.  This code pattern is mandatory: it is critical to correct transaction nesting behavior.</p></div>
+<div class="paragraph"><p>One convenient way to do this is to encapsulate the logic of a transaction in an implementation of <tt>com.persisitit.TransactionRunnable</tt> interface. The run method of <tt>com.persistit.Transaction</tt> automatically provides logic to begin the transaction, execute the TransactionRunnable and commit the transaction, repeating the process until no rollback is thrown or a maximum retry count is reached. For example, the code fragment shown above can be rewritten as:</p></div>
+<div class="listingblock">
+<div class="content"><!-- Generator: GNU source-highlight 3.1.3
+by Lorenzo Bettini
+http://www.lorenzobettini.it
+http://www.gnu.org/software/src-highlite -->
+<pre><tt><span style="font-style: italic"><span style="color: #9A1900">//</span></span>
+<span style="font-style: italic"><span style="color: #9A1900">// Get the transaction context for the current thread.</span></span>
+<span style="font-style: italic"><span style="color: #9A1900">//</span></span>
+<span style="color: #008080">Transaction</span> txn <span style="color: #990000">=</span> myExchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">getTransaction</span></span><span style="color: #990000">();</span>
+<span style="font-style: italic"><span style="color: #9A1900">//</span></span>
+<span style="font-style: italic"><span style="color: #9A1900">// Perform the transaction with the following parameters:</span></span>
+<span style="font-style: italic"><span style="color: #9A1900">// - try to commit it up to 10 times</span></span>
+<span style="font-style: italic"><span style="color: #9A1900">// - delay 2 milliseconds before each retry</span></span>
+<span style="font-style: italic"><span style="color: #9A1900">// - commit to memory</span></span>
+<span style="font-style: italic"><span style="color: #9A1900">//</span></span>
+txn<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">run</span></span><span style="color: #990000">(</span><span style="font-weight: bold"><span style="color: #0000FF">new</span></span> <span style="font-weight: bold"><span style="color: #000000">TransactionRunnable</span></span><span style="color: #990000">()</span>
+<span style="color: #FF0000">{</span>
+ <span style="font-weight: bold"><span style="color: #0000FF">public</span></span> <span style="color: #009900">void</span> <span style="font-weight: bold"><span style="color: #000000">run</span></span><span style="color: #990000">()</span>
+ <span style="font-weight: bold"><span style="color: #0000FF">throws</span></span> PersistitException
+ <span style="color: #FF0000">{</span>
+     myExchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">getValue</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">put</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"First value"</span><span style="color: #990000">);</span>
+     myExchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">clear</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #993399">1</span><span style="color: #990000">).</span><span style="font-weight: bold"><span style="color: #000000">store</span></span><span style="color: #990000">();</span>
+     myExchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">getValue</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">put</span></span><span style="color: #990000">(</span><span style="color: #FF0000">"Second value"</span><span style="color: #990000">);</span>
+     myExchange<span style="color: #990000">.</span><span style="font-weight: bold"><span style="color: #000000">clear</span></span><span style="color: #990000">().</span><span style="font-weight: bold"><span style="color: #000000">append</span></span><span style="color: #990000">(</span><span style="color: #993399">2</span><span style="color: #990000">).</span><span style="font-weight: bold"><span style="color: #000000">store</span></span><span style="color: #990000">();</span>
+ <span style="color: #FF0000">}</span>
+<span style="color: #FF0000">}</span><span style="color: #990000">,</span> <span style="color: #993399">10</span><span style="color: #990000">,</span> <span style="color: #993399">2</span><span style="color: #990000">,</span> <span style="font-weight: bold"><span style="color: #0000FF">false</span></span><span style="color: #990000">);</span>
+<span style="color: #FF0000">}</span></tt></pre></div></div>
+<div class="paragraph"><p>Database operations running outside the scope of an explicitly defined transaction, (i.e., between begin and commit) are never subject to rollback and therefore do not require retry logic. However, such operations are also not guaranteed to be durable after recovery.</p></div>
+<div class="paragraph"><p>Note that com.persistit.exception.RollbackException is an unchecked Exception.</p></div>
+<h3 id="_disk_vs_memory_commits">Disk vs. Memory Commits</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Persistit transactions may be committed either to disk or to memory. Committing  to disk causes the commit operation to synchronously write the transaction to  the journal and limits the rate of transaction commits to the physical disk’s  random I/O rate. (Allocating the journal to an SSD volume can dramatically  improve throughput.)</p></div>
+<div class="paragraph"><p>Committing to memory is much faster (by several orders of magnitude) because no  synchronous disk I/O operation is required. Instead, Persistit flushes all memory-committed  transactions to disk within a fraction of a second after they committed.   Because one disk write operation may flush many transactions, this results in  much greater throughput. However, a memory-committed transaction is not durable in the event of a power failure or system interruption. In many applications  this may be a legitimate and useful compromise. Should a system fail, the recovered database will be consistent with some set of committed transactions, but will simply not include memory-committed transactions that were completed in the last few  milliseconds before failure.</p></div>
+<div class="paragraph"><p>Whether committed to disk or memory, whether implicit or explicit, if any transaction T is present in the recovered state of a database after an abnormal termination, Persistit guarantees that all other transactions that T depended on are also present. If transaction T2 has read a data value that was written by transaction T1, and if T2 is visible in the durable state of the database, then so is T1.</p></div>
+<h3 id="_nested_transactions">Nested Transactions</h3><div style="clear:left"></div>
+<div class="paragraph"><p>A nested transaction occurs when code that is already executing within the scope of a transaction executes the begin method to start a new transaction scope. This might happen, for example, if an application’s transaction logic calls a method in an external library that also uses transactions. In this case, the commit processing of the inner transaction scope is deferred until the outermost transaction commits. At that point, all the updates performed within the scope of the outer transaction are committed to the database unless an inconsistency has occurred because of updates committed by other threads. Similarly, a rollback initiated by the inner transaction causes the outermost transaction to roll back.</p></div>
+<div class="paragraph"><p>See the <tt>com.persistit.Transaction</tt> API documentation for further details.</p></div>
+</div>
+<h2 id="_integrity_and_recovery">Integrity and Recovery</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>Persistit is designed, implemented and tested to ensure that in the event the application stops abruptly without cleanly closing the database, the database remains structurally intact and in an internally consistent state after restart.</p></div>
+<div class="paragraph"><p>To do this, Persistit writes modified pages to the journal before writing them to the actual Volume structures. Upon restart after an abrupt termination, Persistit examines the journal, finds a valid checkpoint and restores B-tree contents accordingly, and then applies any transactions that committed after the checkpoint. This process is called <em>recovery</em>.</p></div>
+<div class="paragraph"><p>The journal consists of sequentially numbered files containing a variety of different record types. The journal is append-only, which allows updates to be streamed to disk very efficiently. Periodically a background Copier thread copies modified pages from the journal to their home Volumes, allowing Persistit to delete obsolete journal files. This process is efficient because often multiple versions of a page will be written to subsequent journal files; the Copier need only copy the most recent version.</p></div>
+<div class="paragraph"><p>Recovery depends on the availability of the volume and journal files as they existed prior to abrupt termination. If either of these is modified or destroyed outside of Persistit, successful recovery is unlikely.</p></div>
+<h3 id="_checkpoints">Checkpoints</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Persistit maintains a universal counter called the timestamp counter. Every  update operation assigns a new, larger timestamp, and every record in the journal includes the timestamp assigned to the operation writing the record.</p></div>
+<div class="paragraph"><p>A checkpoint is simply a timestamp for which a valid recovery is possible.   Periodically Persistit chooses a timestamp to be a new checkpoint, ensures that all pages updated before the checkpoint have been written to the journal, and then writes a checkpoint record to the journal.</p></div>
+<div class="paragraph"><p>During recovery Persistit recovers only those page images that were  writtenprior to the last valid checkpoint record. The results is that all B-Trees are internally consistent and contain all the updates that were applied before the checkpoint timestamp.</p></div>
+<div class="paragraph"><p>During recovery Persistit also locates all transaction records for transactions that committed after the checkpoint timestamp.  These transactions are reapplied to the B-Trees, with the result that
+. The B-Tree index and data structures are intact. All store, fetch, remove and traverse operations will complete without throwing CorruptVolumeExceptions. Persistit provides the utility class com.persistit.IntegrityCheck to verify the integrity of a Volume.
+. All committed transactions are present in the recovered database.  (See <a href="#TRANSACTONS">Transactions</a> for durability of disk- vs. memory-committed  transactions.)
+. When update operations are applied outside of transactions, Although the precise state of the database is not defined, the resulting state is identical to some consistent, reasonably recent state prior to the termination. (Reasonably recent means within about a minute of the abrupt termination.)</p></div>
+<h3 id="_the_tt_flush_tt_and_tt_sync_tt_operations">The <tt>flush()</tt> and <tt>sync()</tt> Operations</h3><div style="clear:left"></div>
+<div class="paragraph"><p>An application may require certainty at various points that all pending updates have been fully written to disk. The com.persistit.Persistit class provides two methods to ensure that updates have been written:</p></div>
+<div class="ulist"><ul>
+<li>
+<p>
+<em>flush</em> causes Persistit to write all pending updates to the journal. Upon successful completion of flush any pages that needed writing prior to the call to flush are guaranteed to have been written to their respective volume files.
+</p>
+</li>
+<li>
+<p>
+<em>sync</em> forces the underlying operating system to write pending updates from the operating system’s write-behind cache to the actual disk. (This operation relies on the underlying java.io.FileDescriptor.sync method.)
+</p>
+</li>
+</ul></div>
+<h3 id="_disk_i_o_retries">Disk I/O Retries</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Persistit is designed to retry any disk read or write operation that fails due to an IOException. Often the cause of an I/O failure is transient, and will resolve in time. For example, some backup programs lock files while backing them up, resulting in read and write failures in Persistit. Persistit handles read and write failures somewhat differently:</p></div>
+<div class="paragraph"><p>Read operations are always performed by the client thread – that is, the thread actually fetching data from an Exchange. You can specify via the system configuration whether a failure while trying to read data from a Persistit volume file should result in an immediate com.persistit.PersistitIOException by setting the readretry configuration  property to false.  Otherwise, Persistit periodically retries the read operation, ultimately throwing a com.persistit.TimeoutException if the read operation does not succeed within the timeout interval.  You can specify a default timeout interval for all operations by setting the timeout configuration property.</p></div>
+<div class="paragraph"><p>Write operations are usually performed by a background thread.  In the event a write operation fails, the background thread will periodically retry the operation at short intervals until it either succeeds or Persistit is shut down.</p></div>
+</div>
+<h2 id="CONFIGURATION">Configuration</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>To initialize Persistit the embedding application invokes one of the initialize methods of <tt>com.persistit.Persistit</tt>, passing either a <tt>java.util.Properties</tt> object or the name of a properties file from which the Properties object derives its content. The following properties are defined for Persistit. Other properties may also reside in the Properties object or its backing file; Persistit simply ignores any property not listed here.</p></div>
+<div class="hdlist"><table>
+<tr>
+<td class="hdlist1">
+<tt>Buffer.count.<em>SSSS</em></tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+where SSSS is 1024, 2048, 4096, 8192, or 16384. This property specifies the number of buffers of the corresponding size that Persistit will allocate for its buffer pool. For example, <tt>buffer.count.8192=100</tt> allocates 100 8Kb buffers. The value must be an integer greater than 7. The maximum count is limited by available memory. Each buffer consumes SSSS bytes plus approximately 15% overhead.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>Volume.<em>N</em></tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+where <em>N</em> is an ordinal number 1, 2, etc. Specifies a Volume that Persistit is to manage. The value of this property is a specification string defined below. The ordinal number has no significance other than to provide a unique property name for each volume.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>sysvolume</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Identifies the system volume. The system volume holds class meta data for serialized objects.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>txnvolume</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Identifies the transaction log volume.  Uncommitted transactions are written first to this volume before being committed.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>journalpath</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Path specification for the journal files. Each journal file name is constructed from this path plus a numeric suffix. These files are written to frequently and for maximum overall performance should be located on the fastest available physical disk drive. These files must also be available after a system failure for recovery.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>syncio</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+True or false. If true then every time Persistit performs a file write operation, it subsequently also invokes the underlying operating system’s mechanism for flush all pending I/O to physical disk storage. Otherwise, the operating system may hold pending updates in its own write-behind cache. The default value is true.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>verbose</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+True or false. If true, Persistit emits additional diagnostic log messages during its initialization. The default value is false.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>rmiport</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Specifies a port number on which Persistit will create a temporary Remote Method Invocation registry.  If this property is specified, Persistit creates a registry and register a com.persistit.Management server on it. This allows remote access to management facilities within Persistit and permits the Swing-based administrative utility to attach to and manage a Persistit instance running on a headless server. The rmihost and rmiport properties are mutually exclusive.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>rmihost</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Specifies the URL of an Remote Method Invocation registry.  If present, Persistit registers its a server for its com.persistit.Management interface at the specified external registry. The <tt>rmihost</tt> and <tt>rmiport</tt> properties are mutually exclusive.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>readretry</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+True or false. If true, Persistit retries file read operations that fail due to IOExceptions.  Retries are performed periodically until the requested read operation either succeeds or the Timeout interval is exceeded. If false, Persistit immediately throws any IOException on a read operation back to the application, wrapped in a com.persistit.PersistitIOException. The default value is true.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>timeout</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+The default timeout. Note that the timeout for a particular com.persistit.Exchange can be individually modified.  The specified time, in milliseconds, is the maximum time any Persistit operation will wait for completion of disk I/O before.  If the I/O operation cannot be completed within that interval, Persistit throws a com.persistit.TimeoutException. The default value is 60000, or one minute.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>serialOverride</tt>, <tt>constructorOverride</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+Control aspects of object serialization. See Persistit 1.1 Object Serialization.
+</p>
+</td>
+</tr>
+<tr>
+<td class="hdlist1">
+<tt>showgui</tt>
+<br />
+</td>
+<td class="hdlist2">
+<p style="margin-top: 0;">
+True of False.  If true, Persistit attempts to create and display an instance of the AdminUI utility panel on the local machine.
+</p>
+</td>
+</tr>
+</table></div>
+<div class="paragraph"><p>For all integer-valued properties, the suffix “K” may be used to represent kilo, “M” for mega, “G” for giga and “T” for tera. For example,
+“2M” represents the value 2,097,152.</p></div>
+<h3 id="_volume_specification">Volume Specification</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Each volume specification in the configuration has the following form:</p></div>
+<div class="dlist" id="HORIZONTAL"><dl>
+<dt class="hdlist1">
+<tt>volume.<em>N</em> = <em>path</em>[,<em>attrname</em>[:_attrvalue_]]&#8230;</tt>
+</dt>
+<dd>
+<p>
+where <em>N</em> is an arbitrary integer, <em>path</em> is the path specification of the volume file, and <em>attrnames</em> include:
+</p>
+<div class="ulist"><ul>
+<li>
+<p>
+<tt>create</tt>: Persistit attempts to open an existing volume file with the specified <em>path</em>, or create a new one if the file does not exist.
+</p>
+</li>
+<li>
+<p>
+<tt>createOnly</tt>: Persistit throw a VolumeAlreadyExistsException if the file specified by path already exists. Otherwise it creates a new file with the specified path.
+</p>
+</li>
+<li>
+<p>
+<tt>readOnly</tt>: Opens a volume in read-only mode. An attempt to modify the volume results in a ReadOnlyVolumeException.
+</p>
+</li>
+<li>
+<p>
+<tt>initialPages</tt> or <tt>initialSize</tt>: Specifies the initial size of the newly created volume file, either as the count of pages or as the size in bytes.
+</p>
+</li>
+<li>
+<p>
+<tt>extensionPages</tt> or <tt>extensionSize</tt>: Specifies the extension size of the newly created volume, either as the count of pages or as the size in bytes. This is the size by which the volume file will expand when the volume needs to be enlarged.
+</p>
+</li>
+<li>
+<p>
+<tt>maximumPages</tt> or <tt>maximumSize</tt>: An upper limit on the number of pages this Volume may hold, either as the count of pages or as the size in bytes. An attempt to further enlarge the Volume will generate a VolumeFullException.
+</p>
+</li>
+<li>
+<p>
+<tt>alias</tt>: The name of this Volume used in constructing <tt>Exchange</tt> instances.  If unspecified, the name is the file name given in the <em>path</em>, not including its dotted suffix.
+</p>
+</li>
+</ul></div>
+</dd>
+</dl></div>
+<h3 id="_system_volume">System Volume</h3><div style="clear:left"></div>
+<div class="paragraph"><p>One volume in a Persistit configuration must be designated as the system volume. It contains class meta data for objects stored serialized in Persistit Values. When a configuration specifies only one volume, that volume implicitly becomes the system volume. However, when a configuration specifies multiple volumes, you must specify which volume should be designated as the system volume. There are two ways to do this. By default, Persistit looks for a unique volume whose name contains the string “_system”. You can simply create a volume whose path name contains “_system”.</p></div>
+<div class="paragraph"><p>Alternatively, you can specify a different volume name with the <tt>sysvolume</tt> property. The value specified for this name may either be the alias of a volume chosen to be the system volume, or a unique partial match on the path name of this volume.  The configuration example shown below illustrates a configuration using an alias.</p></div>
+<h3 id="_transaction_volume">Transaction Volume</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Analogous to the System Volume, Persistit uses a designated volume called the Transaction Volume to store a log of transaction data prior to transaction commit. A configuration with only one volume implicitly uses that one volume for this purpose.  However, in a multi-volume configuration you must specify which volume is to serve in this role.  By default Persistit looks for a volume whose path name contains “_txn” or whose alias exactly matches “_txn”, or a volume named by the <tt>txnvolume</tt> property.</p></div>
+<h3 id="_a_configuration_example">A Configuration Example</h3><div style="clear:left"></div>
+<div class="paragraph"><p>Following is an example of a Persistit configuration properties file:</p></div>
+<div class="listingblock">
+<div class="content">
+<pre><tt>datapath = /var/opt/persistit/data
+
+logpath = /var/log/persistit
+
+verbose = true
+
+logfile = ${logpath}/${timestamp}.log
+
+buffer.count.8192 = 5000
+
+volume.1 = ${datapath}/demo_data.v01, create, pageSize:8192, \
+    initialSize:1M, extensionSize:1M, maximumSize:10G, alias:data
+
+volume.2 = ${datapath}/demo_txn.v01, create, pageSize:8192, \
+    initialSize:100K, extensionSize:100K, maximumSize:1G
+
+sysvolume = persistit
+
+journalpath = /data/persistit_journal</tt></pre>
+</div></div>
+<div class="paragraph"><p>With this configuration there will be 5,000 8Kb buffers in the buffer pool (consuming heap space of approximately 46MB including overhead). Persistit will open or create volume files named <tt>/data/demo_data.v01</tt> and <tt>/data/demo_txn.v01</tt> and a journal file named <tt>/data/persistit_journal.0000000000000001</tt>.</p></div>
+<div class="paragraph"><p>The <tt>demo_data.v01</tt> volume has the alias <tt>data</tt>. This means that application code uses the name "data" to refer to that volume. The <tt>sysvolume</tt> property specifies that this volume is also designated to hold class meta data for serialized objects.</p></div>
+<div class="paragraph"><p>The <tt>demo_txn.v01</tt> volume serves as the transaction volume for this configuration. Persistit recognizes it as such because its path name contains the string “_txn”. The configuration could instead specify a different name using the <tt>txnvolume</tt> system property.</p></div>
+<h3 id="_property_value_substitution">Property Value Substitution</h3><div style="clear:left"></div>
+<div class="paragraph"><p></p></div>
+<div class="paragraph"><p>You may also specify any configuration property as a Java system property with the prefix <tt>com.persisit.</tt> System properties override values specified in the configuration file.  For example, you can override the value of <tt>buffer.count.8192</tt> specifying <tt>-Dcom.persistit.buffer.count.8192=10K</tt> as a command-line switch when starting Java. This is also true for substitution property values. For example, <tt>-Dcom.persistit.logpath=/tmp/</tt> will place the log files in the <tt>/tmp</tt> directory rather than <tt>/var/log/persistit</tt> as specified by the configuration file.</p></div>
+</div>
+<h2 id="_logging_api">Logging API</h2>
+<div class="sectionbody">
+<div class="paragraph"><p>Persistit is writes various diagnostic and informational messages to a log. By default, the log is written as text to the file <tt>persistit.log</tt> in the current working directory. However, a container application will usually have a logging architecture already in place, and Persistit provides a simple way to redirect its log output to the container application’s log. Adapters for Log4J and the Java Logging API are included; other logging systems are easy to adapt.</p></div>
+<div class="paragraph"><p>See the API documentation for com.persistit.logging.AbstractPersistitLogger for details.</p></div>
+</div>
+</div>
+<div id="footnotes"><hr /></div>
+<div id="footer">
+<div id="footer-text">
+Last updated 2011-03-07 12:28:29 EDT
+</div>
+</div>
+</body>
+</html>
