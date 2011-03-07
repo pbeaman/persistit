@@ -32,7 +32,7 @@ import com.persistit.exception.ConversionException;
  * registered <code>ValueCoder</code>, it implictly constructs either a
  * <code>DefaultValueCoder</code> or a <code>SerialValueCoder</code>, depending
  * on the value of the <code>serialOverride</code> property. See <a
- * href="../../../Object_Serialization_Notes.html"> Persistit JSA 1.1 Object
+ * href="../../../Object_Serialization_Notes.html"> Persistit Object
  * Serialization</a> for details.
  * </p>
  * <p>
