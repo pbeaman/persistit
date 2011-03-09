@@ -822,6 +822,11 @@ public class Persistit {
      * <code><i>pppp</i></code>, replaces the substring delimited by
      * <code>${</code> and <code>}</code>, and then scans the resulting string
      * for further substitution variables.
+     * </p>
+     * <p>
+     * For all properties, the value "-" (a single hyphen) explicitly
+     * specifies the <i>default</i> value.
+     * </p>
      * 
      * @param propertyName
      *            The property name
@@ -842,6 +847,9 @@ public class Persistit {
 
         if (value == null && properties != null) {
             value = properties.getProperty(propertyName);
+        }
+        if (value.equals("-")) {
+        	value = null;
         }
         if (value == null && TIMESTAMP_PROPERTY.equals(propertyName)) {
             value = (new SimpleDateFormat("yyyyMMddHHmm")).format(new Date());
