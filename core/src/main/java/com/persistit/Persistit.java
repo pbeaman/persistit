@@ -848,7 +848,7 @@ public class Persistit {
         if (value == null && properties != null) {
             value = properties.getProperty(propertyName);
         }
-        if (value.equals("-")) {
+        if ("-".equals(value)) {
         	value = null;
         }
         if (value == null && TIMESTAMP_PROPERTY.equals(propertyName)) {
