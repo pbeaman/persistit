@@ -308,7 +308,7 @@ public abstract class Task implements Runnable {
         _description = description;
         _owner = owner;
         _messageLogVerbosity = verbosity;
-        _expirationTime = now() + maxTime;
+        _expirationTime = maxTime > 0 ? now() + maxTime : Long.MAX_VALUE;
         setupTask(args);
     }
 

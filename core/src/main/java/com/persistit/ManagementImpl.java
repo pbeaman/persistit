@@ -885,7 +885,7 @@ class ManagementImpl implements Management {
      *            Task-specific parameters
      * @param maximumTime
      *            Maximum wall-clock time (in milliseconds) this Task will be
-     *            allowed to run
+     *            allowed to run, or 0 for unbounded time
      * @param verbosity
      *            Verbosity level, one of {@link Task#LOG_NORMAL} or
      *            {@link Task#LOG_NORMAL}.
