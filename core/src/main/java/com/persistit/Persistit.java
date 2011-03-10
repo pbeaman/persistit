@@ -543,6 +543,7 @@ public class Persistit {
                 }
                 BufferPool pool = new BufferPool(count, bufferSize, this);
                 _bufferPoolTable.put(new Integer(bufferSize), pool);
+                registerBufferPoolMXBean(bufferSize);
             }
             bufferSize <<= 1;
         }
@@ -658,6 +659,20 @@ public class Persistit {
         }
     }
 
+    private void registerBufferPoolMXBean(final int bufferSize) {
+        MBeanServer server = java.lang.management.ManagementFactory
+                .getPlatformMBeanServer();
+        try {
+            BufferPoolMXBean bean = new BufferPoolMXBeanImpl(this, bufferSize);
+            server.registerMBean(bean,
+                    new ObjectName(BufferPoolMXBeanImpl.mbeanName(bufferSize)));
+        } catch (Exception exception) {
+            if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
+                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
+            }
+        }
+    }
+
     private void unregisterMXBeans() {
         MBeanServer server = java.lang.management.ManagementFactory
                 .getPlatformMBeanServer();
@@ -668,6 +683,21 @@ public class Persistit {
                     JournalManagerMXBean.MXBEAN_NAME));
             server.unregisterMBean(new ObjectName(IOMeterMXBean.MXBEAN_NAME));
             server.unregisterMBean(new ObjectName(ManagementMXBean.MXBEAN_NAME));
+        } catch (InstanceNotFoundException exception) {
+            // ignore
+        } catch (Exception exception) {
+            if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
+                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
+            }
+        }
+    }
+
+    private void unregisterBufferPoolMXBean(final int bufferSize) {
+        MBeanServer server = java.lang.management.ManagementFactory
+                .getPlatformMBeanServer();
+        try {
+            server.unregisterMBean(new ObjectName(
+                    BufferPoolMXBeanImpl.mbeanName(bufferSize)));
         } catch (InstanceNotFoundException exception) {
             // ignore
         } catch (Exception exception) {
@@ -821,7 +851,11 @@ public class Persistit {
      * substitution. To do so it recursively gets the value of a property named
      * <code><i>pppp</i></code>, replaces the substring delimited by
      * <code>${</code> and <code>}</code>, and then scans the resulting string
-     * for further substitution variables.
+     * for further substitution variables. </p>
+     * <p>
+     * For all properties, the value "-" (a single hyphen) explicitly specifies
+     * the <i>default</i> value.
+     * </p>
      * 
      * @param propertyName
      *            The property name
@@ -842,6 +876,9 @@ public class Persistit {
 
         if (value == null && properties != null) {
             value = properties.getProperty(propertyName);
+        }
+        if ("-".equals(value)) {
+            value = null;
         }
         if (value == null && TIMESTAMP_PROPERTY.equals(propertyName)) {
             value = (new SimpleDateFormat("yyyyMMddHHmm")).format(new Date());
@@ -1609,7 +1646,7 @@ public class Persistit {
 
     /**
      * <p>
-     * Close the Persistit Log and all {@link Volume}s. This method is
+     * Close the Persistit Journal and all {@link Volume}s. This method is
      * equivalent to {@link #close(boolean) close(true)}.
      * 
      * @throws PersistitException
@@ -1625,9 +1662,9 @@ public class Persistit {
 
     /**
      * <p>
-     * Close the Persistit Log and all {@link Volume}s. This method does nothing
-     * and returns <code>false</code> if Persistit is currently not in the
-     * initialized state. This method is threadsafe; if multiple threads
+     * Close the Persistit Journal and all {@link Volume}s. This method does
+     * nothing and returns <code>false</code> if Persistit is currently not in
+     * the initialized state. This method is threadsafe; if multiple threads
      * concurrently attempt to close Persistit, only one close operation will
      * actually take effect.
      * </p>
@@ -1721,6 +1758,7 @@ public class Persistit {
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close(flush);
+            unregisterBufferPoolMXBean(pool.getBufferSize());
         }
 
         _journalManager.close();

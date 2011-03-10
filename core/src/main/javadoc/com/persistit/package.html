@@ -21,77 +21,82 @@
 Implements Persistit&trade;'s core functionality.
 </p>
 <p>
-Applications initialize and close Persistit using the static 
-{@link com.persistit.Persistit#initialize initialize} and 
-{@link com.persistit.Persistit#close close} methods of
-{@link com.persistit.Persistit}.
+Applications initialize and close Persistit through an instance of the
+{@link com.persistit.Persistit} class. A Persistit instance must be
+initialized through one of the 
+{@link com.persistit.Persistit#initialize initialize} methods, and
+must be closed by the  
+{@link com.persistit.Persistit#close close} to ensure all updates
+are written to disk.
 </p>
 <p>
 Applications interact with Persistit through instances of {@link com.persistit.Exchange}.
-An <tt>Exchange</tt> has two important associated member objects, a {@link com.persistit.Key}
-and a {@link com.persistit.Value}. A <tt>Key</tt> is a mutable representation of a
-key, and a <tt>Value</tt> is a mutable representation of a value.  Applications
+An <code>Exchange</code> has two important associated member objects, a {@link com.persistit.Key}
+and a {@link com.persistit.Value}. A <code>Key</code> is a mutable representation of a
+key, and a <code>Value</code> is a mutable representation of a value.  Applications
 manipulate these objects and interact with the database through one of the following
 four general patterns:
 </p>
 <ol>
 <li> 
-Modify the <tt>Key</tt>, perform a {@link com.persistit.Exchange#fetch fetch} 
-operation, and query the <tt>Value</tt>.
+Modify the <code>Key</code>, perform a {@link com.persistit.Exchange#fetch fetch} 
+operation, and query the <code>Value</code>.
 </li>
 <li>
-Modify the <tt>Key</tt>, modify the <tt>Value</tt>, and then perform a
+Modify the <code>Key</code>, modify the <code>Value</code>, and then perform a
 {@link com.persistit.Exchange#store store} operation to insert or replace data
 in the database.
 </li>
 <li>
-Modify the <tt>Key</tt>, and then perform a 
+Modify the <code>Key</code>, and then perform a 
 {@link com.persistit.Exchange#remove remove} to remove one or more key/value pairs.
 </li>
 <li>
-Optionally modify the <tt>Key</tt>, perform a 
-{@link com.persistit.Exchange#traverse traverse} operation, then query the 
-resulting state of <tt>Key</tt> and/or <tt>Value</tt> to enumerate key/value pairs
+Optionally modify the <code>Key</code>, perform a 
+{@link com.persistit.Exchange#traverse traverse},
+{@link com.persistit.Exchange#traverse next} or
+{@link com.persistit.Exchange#traverse previous}, then query the 
+resulting state of <code>Key</code> and/or <code>Value</code> to enumerate key/value pairs
 currently stored in the database.
 </li>
 </ol>
 <p>
-Additional methods of <tt>Exchange</tt> include 
+Additional methods of <code>Exchange</code> include 
 {@link com.persistit.Exchange#fetchAndStore fetchAndStore}
 and {@link com.persistit.Exchange#fetchAndRemove fetchAndRemove}.  
 These atomically modify the database
-and return the former value associated with the <tt>Key</tt>.
+and return the former value associated with the <code>Key</code>.
 </p>
 <p>
-Every <tt>Exchange</tt> has an associated {@link com.persistit.Transaction
+Every <code>Exchange</code> has an associated {@link com.persistit.Transaction
 Transaction} object that represents its current transactional state.  Every 
 operation performed by any of the access or update methods of the 
-<tt>Exchange</tt> is performed within the context of this <tt>Transaction</tt>, 
+<code>Exchange</code> is performed within the context of this <code>Transaction</code>, 
 meaning that its result is atomic, consistent, isolated and durable (the ACID properties).  
-By default these mthods behave as if the bounded by {@link com.persistit.Transaction#begin begin}
+By default these methods behave as if the bounded by {@link com.persistit.Transaction#begin begin}
 {@link com.persistit.Transaction#commit commit} and
-{@link com.persistit.Transaction#end end} calls on the <tt>Transaction</tt>.
+{@link com.persistit.Transaction#end end} calls on the <code>Transaction</code>.
 An application can group multiple operations together by explicitly invoking
-<tt>begin</tt>, <tt>commit</tt> and <tt>end</tt> calls.  See 
+<code>begin</code>, <code>commit</code> and <code>end</code> calls.  See 
 {@link com.persistit.Transaction} for further information.
 </p>
 <p>
 The Persistit database is stored in physical files managed by {@link com.persistit.Volume Volume}s.
-A <tt>Volume</tt> contains an unbounded number of logical {@link com.persistit.Tree Tree}s, each
+A <code>Volume</code> contains an unbounded number of logical {@link com.persistit.Tree Tree}s, each
 of which constitutes a physical balanced tree.
 </p>
 <p>
 {@link com.persistit.IntegrityCheck IntegrityCheck} provides a simple mechanism to verify
-the internal integrity of <tt>Volume</tt>s and/or individual <tt>Tree</tt>s.
+the internal integrity of <code>Volume</code>s and/or individual <code>Tree</code>s.
 </p>
 <p>
 This package also includes {@link com.persistit.PersistitMap PersistitMap} and
-{@link com.persistit.PersistitIndexedSet}.  <tt>PersistitMap</tt>
-provides a persistent, fast implementation of <tt>java.util.SortedMap</tt>.
-<tt>PersistitIndexedSet</tt> associates objects with unique persistent object identitifiers.
-To be useful in a <tt>PersistitIndexedSet</tt>, an object must be encodable as a key, meaning
+{@link com.persistit.PersistitIndexedSet}.  <code>PersistitMap</code>
+provides a persistent, fast implementation of <code>java.util.SortedMap</code>.
+<code>PersistitIndexedSet</code> associates objects with unique persistent object identifiers.
+To be useful in a <code>PersistitIndexedSet</code>, an object must be encodable as a key, meaning
 either that it is one of the classes for which built-in key encoding is supported (such as
-<tt>java.lang.String</tt>) or it has a registered {@link com.persistit.encoding.KeyCoder}.
+<code>java.lang.String</code>) or it has a registered {@link com.persistit.encoding.KeyCoder}.
 </p>
 <p>
 Finally, an application can obtain an instance of a 

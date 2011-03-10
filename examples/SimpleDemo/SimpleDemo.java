@@ -48,7 +48,7 @@ public class SimpleDemo
     {
         //
         // Initializes buffer pool, loads Volume(s)
-        // and sets up PrewriteJournal.
+        // and sets up the journal.
         //
         System.out.println("Initializing Persistit");
         Persistit persistit = new Persistit();
@@ -59,7 +59,7 @@ public class SimpleDemo
         // volume "SimpleDemo" and either opens or creates
         // within that volume a Tree called "my_first_tree".
         //
-        Exchange exchange = new Exchange(persistit, "SimpleDemo", "my_first_tree", true);
+        Exchange exchange = new Exchange(persistit, "sdemo", "my_first_tree", true);
         
         if (args.length > 0 && "-d".equals(args[0]))
         {

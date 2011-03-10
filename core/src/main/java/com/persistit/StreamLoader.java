@@ -22,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.regex.Pattern;
 
 import com.persistit.exception.CorruptImportStreamException;
 import com.persistit.exception.PersistitException;
@@ -50,8 +51,8 @@ public class StreamLoader extends Task {
     protected Exception _lastException;
     protected boolean _verbose;
 
-    protected String _taskSelectedVolumeName;
-    protected String _taskSelectedTreeName;
+    protected String _taskSelectedVolumePattern;
+    protected String _taskSelectedTreePattern;
     protected String _taskKeyFilterString;
     protected boolean _taskCreateMissingVolumes;
     protected boolean _taskCreateMissingTrees;
@@ -106,22 +107,22 @@ public class StreamLoader extends Task {
         load(null, null, null, true, true);
     }
 
-    public void load(String selectedVolumeName) throws IOException,
+    public void load(String volumeNamePattern) throws IOException,
             PersistitException {
-        load(selectedVolumeName, null, null, true, true);
+        load(volumeNamePattern, null, null, true, true);
     }
 
-    public void load(String selectedVolumeName, String selectedTreeName)
+    public void load(String volumeNamePattern, String treeNamePattern)
             throws IOException, PersistitException {
-        load(selectedVolumeName, selectedTreeName, null, true, true);
+        load(volumeNamePattern, treeNamePattern, null, true, true);
     }
 
-    public void load(String selectedVolumeName, String selectedTreeName,
+    public void load(String volumeNamePattern, String treeNamePattern,
             String keyFilterString) throws IOException, PersistitException {
-        load(selectedVolumeName, selectedTreeName, keyFilterString, true, true);
+        load(volumeNamePattern, treeNamePattern, keyFilterString, true, true);
     }
 
-    public void load(String selectedVolumeName, String selectedTreeName,
+    public void load(String volumeNamePattern, String treeNamePattern,
             String keyFilterString, boolean createMissingVolumes,
             boolean createMissingTrees) throws IOException, PersistitException {
         KeyFilter filter = null;
@@ -129,8 +130,8 @@ public class StreamLoader extends Task {
         if (keyFilterString != null && keyFilterString.length() > 0) {
             filter = new KeyFilter(keyFilterString);
         }
-        _handler = new ImportHandler(_persistit, selectedVolumeName,
-                selectedTreeName, createMissingVolumes, createMissingTrees,
+        _handler = new ImportHandler(_persistit, volumeNamePattern,
+                treeNamePattern, createMissingVolumes, createMissingTrees,
                 filter);
         load(_handler);
         close();
@@ -183,9 +184,10 @@ public class StreamLoader extends Task {
             long extensionPages = _dis.readLong();
             long maximumPages = _dis.readLong();
             int bufferSize = _dis.readInt();
-            String volumeName = _dis.readUTF();
+            String path = _dis.readUTF();
+            String name = _dis.readUTF();
             handler.handleVolumeIdRecord(id, initialPages, extensionPages,
-                    maximumPages, bufferSize, volumeName);
+                    maximumPages, bufferSize, path, name);
             _otherRecordCount++;
             break;
         }
@@ -264,8 +266,8 @@ public class StreamLoader extends Task {
 
     public static class ImportHandler {
         protected Persistit _persistit;
-        protected String _selectedVolumeName;
-        protected String _selectedTreeName;
+        protected Pattern _selectedVolumePattern;
+        protected Pattern _selectedTreePattern;
         protected KeyFilter _keyFilter;
         protected Exchange _exchange;
         protected Volume _volume;
@@ -277,12 +279,14 @@ public class StreamLoader extends Task {
             this(persistit, null, null, true, true, null);
         }
 
-        public ImportHandler(Persistit persistit, String selectedVolumeName,
-                String selectedTreeName, boolean createMissingVolumes,
+        public ImportHandler(Persistit persistit, String selectedVolumePattern,
+                String selectedTreePattern, boolean createMissingVolumes,
                 boolean createMissingTrees, KeyFilter keyFilter) {
             _persistit = persistit;
-            _selectedTreeName = selectedTreeName;
-            _selectedVolumeName = selectedVolumeName;
+            _selectedTreePattern = selectedTreePattern != null ? Pattern
+                    .compile(selectedTreePattern) : null;
+            _selectedVolumePattern = selectedVolumePattern != null ? Pattern
+                    .compile(selectedVolumePattern) : null;
             _createMissingTrees = createMissingTrees;
             _createMissingVolumes = createMissingVolumes;
             _keyFilter = keyFilter;
@@ -313,34 +317,37 @@ public class StreamLoader extends Task {
 
         public void handleVolumeIdRecord(long volumeId, long initialPages,
                 long extensionPages, long maximumPages, int bufferSize,
-                String volumeName) throws PersistitException {
+                String path, String name) throws PersistitException {
             Exchange oldExchange = _exchange;
             _exchange = null;
             _volume = null;
             _tree = null;
 
-            _volume = _persistit.getVolume(volumeId);
-
-            if (_selectedVolumeName != null) {
-                if (_volume != null
-                        && _volume.getPath().indexOf(_selectedVolumeName) < 0) {
-                    _volume = null;
-                }
-                if (_volume == null
-                        && volumeName.indexOf(_selectedVolumeName) < 0) {
-                    return;
-                }
+            if (_selectedVolumePattern != null
+                    && !_selectedVolumePattern.matcher(name).matches()) {
+                return;
             }
 
-            if (_volume == null) {
-                _volume = _persistit.getVolume(volumeName);
+            final Volume v1 = _persistit.getVolume(volumeId);
+            final Volume v2 = _persistit.getVolume(name);
+
+            if (v1 == null) {
+                _volume = v2;
+            } else if (v2 == null) {
+                _volume = v1;
+            } else if (v1 == v2) {
+                _volume = v1;
+            } else {
+                // handle mismatched volume name/id
+                return;
             }
+
             if (_volume == null && _createMissingVolumes) {
-                _volume = Volume.create(_persistit, volumeName, volumeId,
+                _volume = Volume.create(_persistit, path, name, volumeId,
                         bufferSize, initialPages, extensionPages, maximumPages,
-                        false);
+                        false, false, false);
             }
-            if (oldExchange != null && oldExchange.getVolume() == _volume) {
+            if (oldExchange != null && oldExchange.getVolume().equals(_volume)) {
                 _exchange = oldExchange;
             }
         }
@@ -350,8 +357,7 @@ public class StreamLoader extends Task {
             Exchange oldExchange = _exchange;
             _exchange = null;
             _tree = null;
-            if (_selectedTreeName != null
-                    && treeName.indexOf(_selectedTreeName) == -1) {
+            if (_selectedTreePattern != null && !_selectedTreePattern.matcher(treeName).matches()) {
                 return;
             }
 
@@ -402,8 +408,8 @@ public class StreamLoader extends Task {
     protected void setupTask(String[] args) throws Exception {
         _dis = new DataInputStream(new BufferedInputStream(new FileInputStream(
                 args[0]), DEFAULT_BUFFER_SIZE));
-        _taskSelectedVolumeName = args.length > 1 ? args[1] : null;
-        _taskSelectedTreeName = args.length > 2 ? args[2] : null;
+        _taskSelectedVolumePattern = args.length > 1 ? args[1] : null;
+        _taskSelectedTreePattern = args.length > 2 ? args[2] : null;
         _taskKeyFilterString = args.length > 3 ? args[3] : null;
         _taskCreateMissingVolumes = args.length > 4 && "true".equals(args[4]);
         _taskCreateMissingTrees = args.length > 5 && "true".equals(args[5]);
@@ -411,7 +417,7 @@ public class StreamLoader extends Task {
 
     @Override
     public void runTask() throws Exception {
-        load(_taskSelectedVolumeName, _taskSelectedTreeName,
+        load(_taskSelectedVolumePattern, _taskSelectedTreePattern,
                 _taskKeyFilterString, _taskCreateMissingVolumes,
                 _taskCreateMissingTrees);
     }

@@ -28,8 +28,8 @@ public class SaveLoadTest1 extends PersistitUnitTestCase {
 
     public void test1() throws PersistitException, IOException {
         System.out.print("test1 ");
-        final TreeMap tmap = new TreeMap();
-        final PersistitMap pmap = new PersistitMap(_persistit.getExchange(
+        final TreeMap<Integer, String> tmap = new TreeMap<Integer, String>();
+        final PersistitMap<Integer, String> pmap = new PersistitMap<Integer, String>(_persistit.getExchange(
                 "persistit", "SaveLoadTest1", true));
         for (int index = 0; index < 500; index++) {
             tmap.put(new Integer(index), "This is the record for index="
