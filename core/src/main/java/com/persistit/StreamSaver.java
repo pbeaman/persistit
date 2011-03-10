@@ -385,6 +385,7 @@ public class StreamSaver extends Task {
         _dos.writeLong(volume.getMaximumPages());
         _dos.writeInt(volume.getPageSize());
         _dos.writeUTF(volume.getPath());
+        _dos.writeUTF(volume.getName());
         _lastVolume = volume;
         _lastTree = null;
         _otherRecordCount++;
