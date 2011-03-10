@@ -62,15 +62,22 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 
 /**
+ * <p>
  * Manages the recovery process during Persistit startup. This method is called
  * every time Persistit starts up, even if the previous shutdown was normal.
+ * </p>
  * 
- * Phase 1:
+ * <dl>
+ * <dt>Phase 1:</dt>
  * 
+ * <dd>
+ * <p>
  * Find the most recent valid journal file. This is the "keystone" journal file
  * because everything will be based on its content. Read its JH (JournalHeader)
  * record. Validate all fields in the JH.
+ * </p>
  * 
+ * <p>
  * Read remaining records in the keystone journal file. Included are IV, PM and
  * TM records that provide an initial load of the pageMap, liveTransactionMap
  * and volume/handle maps for JournalManager. Included also is a keystone CP
@@ -80,38 +87,48 @@ import com.persistit.exception.PersistitIOException;
  * that the journal file is not a complete snapshot, and therefore the chosen
  * keystone journal file is not valid. In this event, restart Phase 1 using the
  * immediate predecessor file.
- * 
+ * </p>
+ * <p>
+ * During this phase, build a transaction map containing the timestamp and file
+ * address of every transaction that committed after the last valid checkpoint.
  * The scan stops when recovery finds a JE "journal end" record, end-of-file or
  * an invalid record. The presence of a valid JE record indicates a clean
  * shutdown.
+ * </p>
+ * </dd>
  * 
  * 
- * Phase 2:
+ * <dt>Phase 2:</dt>
  * 
+ * <dd>
+ * <p>
  * For all journal files from base address to current address, read their JH
  * records and verify contiguity (same creation timestamp).
+ * </p>
+ * </dd>
  * 
- * Phase 3:
+ * <dt>Phase 3:</dt>
  * 
+ * <dd>
+ * <p>
  * Executed after the buffer pools have been loaded and the journal manager has
- * been instantiated: For each transaction in the transaction map, apply it if
- * its TransistionStatus is been comitted.
+ * been instantiated: apply every committed transaction in the transaction map.
+ * </p>
+ * </dd>
  * 
- * TRecords hold pointers to Transactions that must be applied during recovery,
- * providing a map of timestamp->FileAddress of transaction records that must be
- * processed to finish recovery.
- * 
+ * </dl>
+ * <p>
  * Transactions are applied in their commit timestamp ordering so that their
  * affect on the recovered database is consistent with their original serial
- * order.
- * 
- * A checkpoint at timestamp T indicates that all pages made dirty prior to T
- * have been written to the journal; therefore any transaction with a commit
- * timestamp before T does not need to be reapplied because its effects are
- * already present in the recovered B-Trees.
- * 
+ * order. A checkpoint at timestamp T indicates that all pages made dirty prior
+ * to T have been written to the journal; therefore any transaction with a
+ * commit timestamp before T does not need to be reapplied because its effects
+ * are already present in the recovered B-Trees.
+ * </p>
+ * <p>
  * This class is not threadsafe; it is intended to be called only during the
  * single-threaded recovery process.
+ * </p>
  * 
  * @author peter
  * 

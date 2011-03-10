@@ -822,6 +822,11 @@ public class Persistit {
      * <code><i>pppp</i></code>, replaces the substring delimited by
      * <code>${</code> and <code>}</code>, and then scans the resulting string
      * for further substitution variables.
+     * </p>
+     * <p>
+     * For all properties, the value "-" (a single hyphen) explicitly
+     * specifies the <i>default</i> value.
+     * </p>
      * 
      * @param propertyName
      *            The property name
@@ -842,6 +847,9 @@ public class Persistit {
 
         if (value == null && properties != null) {
             value = properties.getProperty(propertyName);
+        }
+        if ("-".equals(value)) {
+        	value = null;
         }
         if (value == null && TIMESTAMP_PROPERTY.equals(propertyName)) {
             value = (new SimpleDateFormat("yyyyMMddHHmm")).format(new Date());
@@ -1609,7 +1617,7 @@ public class Persistit {
 
     /**
      * <p>
-     * Close the Persistit Log and all {@link Volume}s. This method is
+     * Close the Persistit Journal and all {@link Volume}s. This method is
      * equivalent to {@link #close(boolean) close(true)}.
      * 
      * @throws PersistitException
@@ -1625,7 +1633,7 @@ public class Persistit {
 
     /**
      * <p>
-     * Close the Persistit Log and all {@link Volume}s. This method does nothing
+     * Close the Persistit Journal and all {@link Volume}s. This method does nothing
      * and returns <code>false</code> if Persistit is currently not in the
      * initialized state. This method is threadsafe; if multiple threads
      * concurrently attempt to close Persistit, only one close operation will

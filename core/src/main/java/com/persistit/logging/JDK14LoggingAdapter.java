@@ -20,7 +20,7 @@ import java.util.logging.Logger;
 
 /**
  * Wraps a JDK 1.4 <code>java.util.logging.Logger</code> for Persistit logging.
- * Code to enable default logging through the JDK 1.4 Loggin API is shown here:
+ * Code to enable default logging through the JDK 1.4 Logging API is shown here:
  * <code><pre>
  *    // refer to any appropriate java.util.logging.Logger, for example
  *    Logger logger = Logger.getLogger("com.persistit");    //(for example)

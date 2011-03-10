@@ -95,15 +95,12 @@ public class SimpleBench
         Properties props = new Properties();
         props.setProperty("datapath", ".");
         props.setProperty("logpath", ".");
-        props.setProperty("logfile", "${logpath}/persistit_${timestamp}.log");
+        props.setProperty("logfile", "${logpath}/sbdemo_${timestamp}.log");
         props.setProperty("buffer.count.8192", "4K");
         props.setProperty("volume.1",
-            "${datapath}/SimpleBench.v01,create,pageSize:8K," +
+            "${datapath}/sbdemo.v01,create,pageSize:8K," +
             "initialSize:16M,extensionSize:1M,maximumSize:10G");
-        props.setProperty("pwjpath", "${datapath}/SimpleBench.pwj");
-        props.setProperty("pwjsize", "16M");
-        props.setProperty("pwjdelete", "true");
-        props.setProperty("pwjcount", "1");
+        props.setProperty("journalpath", "${datapath}/sbdemo_journal");
         
         Persistit persistit = new Persistit();
         persistit.initialize(props);
@@ -133,10 +130,10 @@ public class SimpleBench
         Random random = new Random(1);
         //
         // An Exchange provides all the methods you use to manipulate data.
-        // This constructs a Exchange in volume "SimpleBench" and either opens
+        // This constructs a Exchange in volume "sbdemo" and either opens
         // or creates within that volume a Tree called "BenchTree".
         //
-        Exchange exchange = new Exchange(persistit, "SimpleBench", "BenchTree", true);
+        Exchange exchange = new Exchange(persistit, "sbdemo", "BenchTree", true);
         long time;
         
         int iterations = 250000;
