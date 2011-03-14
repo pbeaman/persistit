@@ -1112,13 +1112,13 @@ public class Transaction {
                         .updateTimestamp();
 
                 if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
-                    try {
-                        _persistit.getJournalManager()
-                                .enqueueTransactionToWrite(this);
+//                    try {
+//                        _persistit.getJournalManager()
+//                                .enqueueTransactionToWrite(this);
                         enqueued=true;
-                    } catch (InterruptedException e) {
-                        throw new TransactionFailedException(e);
-                    }
+//                    } catch (InterruptedException e) {
+//                        throw new TransactionFailedException(e);
+//                    }
                     applyUpdates();
                 }
                 _longRecordDeallocationList.clear();
@@ -1136,8 +1136,9 @@ public class Transaction {
             }
             if (enqueued) {
                 try {
-                    _semaphore.acquire();
-                } catch (InterruptedException e) {
+//                    _semaphore.acquire();
+                    writeUpdatesToJournal();
+                } catch (Exception e) {
                     throw new TransactionFailedException(e);
                 } finally {
                     clear();

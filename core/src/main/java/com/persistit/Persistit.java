@@ -24,6 +24,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -326,7 +327,8 @@ public class Persistit {
 
     private ThreadLocal<WaitingThread> _waitingThreadLocal = new ThreadLocal<WaitingThread>();
 
-    private final WeakHashMap<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
+    private final Map<SessionId, Transaction> _transactionSessionMap = Collections
+            .synchronizedMap(new WeakHashMap<SessionId, Transaction>());
 
     private ManagementImpl _management;
 
@@ -696,8 +698,8 @@ public class Persistit {
         MBeanServer server = java.lang.management.ManagementFactory
                 .getPlatformMBeanServer();
         try {
-            server.unregisterMBean(new ObjectName(
-                    BufferPoolMXBeanImpl.mbeanName(bufferSize)));
+            server.unregisterMBean(new ObjectName(BufferPoolMXBeanImpl
+                    .mbeanName(bufferSize)));
         } catch (InstanceNotFoundException exception) {
             // ignore
         } catch (Exception exception) {

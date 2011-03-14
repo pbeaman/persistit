@@ -1692,7 +1692,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                         txn.writeUpdatesToJournal();
                         txn.releaseSemaphore();
                     }
-                    force();
+//                    force();
                 } catch (Exception e) {
                     if (e instanceof InterruptedException) {
                         interrupted = true;
