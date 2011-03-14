@@ -19,11 +19,13 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
 
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.exception.TransactionFailedException;
 
 /**
  * <p>
@@ -297,6 +299,8 @@ public class Transaction {
 
     private Exchange _ex1;
     private Exchange _ex2;
+    private Exchange _ex1j;
+    private Exchange _ex2j;
 
     private final Key _rootKey;
 
@@ -305,6 +309,11 @@ public class Transaction {
     private final List<Integer> _visbilityOrder = new ArrayList<Integer>();
 
     private long _rollbackDelay = 50;
+
+    // Valid only after the commit() method
+    private long _startTimestamp;
+
+    private Semaphore _semaphore = new Semaphore(0);
 
     private CommitListener _commitListener = DEFAULT_COMMIT_LISTENER;
 
@@ -424,8 +433,12 @@ public class Transaction {
             _ex1 = _persistit.getExchange(txnVolume, TRANSACTION_TREE_NAME
                     + _id, true);
             _ex2 = new Exchange(_ex1);
+            _ex1j = new Exchange(_ex1);
+            _ex2j = new Exchange(_ex1);
             _ex1.ignoreTransactions();
             _ex2.ignoreTransactions();
+            _ex1j.ignoreTransactions();
+            _ex2j.ignoreTransactions();
             _ex1.removeAll();
         } finally {
             _nestedDepth = saveDepth;
@@ -1051,6 +1064,7 @@ public class Transaction {
      */
     private boolean doCommit() throws PersistitException {
         boolean committed = false;
+        boolean enqueued = false;
         try {
             //
             // Step 1 - get a Writer claim on every Volume we are going to
@@ -1059,6 +1073,7 @@ public class Transaction {
             // commits.
             //
             boolean exclusiveClaim = false;
+
             try {
                 exclusiveClaim = _persistit.getTransactionResourceB().claim(
                         true, COMMIT_CLAIM_TIMEOUT);
@@ -1093,25 +1108,18 @@ public class Transaction {
                 //
                 // The timestamp at transaction start
                 //
-                long startTimestamp = _persistit.getTimestampAllocator()
+                _startTimestamp = _persistit.getTimestampAllocator()
                         .updateTimestamp();
 
                 if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
-                    //
-                    // Step 3
-                    // Journal the transaction.
-                    //
-                    writeUpdatesToJournal(startTimestamp);
-                    //
-                    // Step 4
-                    // Apply the updates
-                    //
+                    try {
+                        _persistit.getJournalManager()
+                                .enqueueTransactionToWrite(this);
+                        enqueued=true;
+                    } catch (InterruptedException e) {
+                        throw new TransactionFailedException(e);
+                    }
                     applyUpdates();
-                    //
-                    // Step 5
-                    // Remove the pending updates. Don't need them any more!
-                    //
-                    clear();
                 }
                 _longRecordDeallocationList.clear();
                 committed = true;
@@ -1126,13 +1134,17 @@ public class Transaction {
                     _persistit.getTransactionResourceB().release();
                 }
             }
+            if (enqueued) {
+                try {
+                    _semaphore.acquire();
+                } catch (InterruptedException e) {
+                    throw new TransactionFailedException(e);
+                } finally {
+                    clear();
+                }
+            }
             return committed;
         } finally {
-            //
-            // Finally, release all the pages we claimed above.
-            // PDB 20050808 - moved this outside of RetryExcepion loop because
-            // touched pages needed to be rechecked after relinquishing and
-            // then reclaiming exclusive lock.
             _touchedPagesSet.clear();
         }
     }
@@ -1527,23 +1539,22 @@ public class Transaction {
         return result1 || result2;
     }
 
-    private void writeUpdatesToJournal(final long startTimestamp)
-            throws PersistitException {
+    void writeUpdatesToJournal() throws PersistitException {
         final JournalManager jman = _persistit.getJournalManager();
-        if (_ex1 == null)
+        if (_ex1j == null)
             setupExchanges();
 
-        _ex1.clear();
-        Value txnValue = _ex1.getValue();
+        _ex1j.clear();
+        Value txnValue = _ex1j.getValue();
 
         final Set<Tree> removedTrees = new HashSet<Tree>();
 
-        jman.writeTransactionStartToJournal(startTimestamp);
+        jman.writeTransactionStartToJournal(_startTimestamp);
 
         for (Integer treeId : _visbilityOrder) {
-            _ex1.clear().append(treeId.intValue());
-            while (_ex1.traverse(Key.GT, true)) {
-                Key key1 = _ex1.getKey();
+            _ex1j.clear().append(treeId.intValue());
+            while (_ex1j.traverse(Key.GT, true)) {
+                Key key1 = _ex1j.getKey();
                 key1.reset();
                 int treeHandle = key1.decodeInt();
                 if (treeHandle != treeId.intValue()) {
@@ -1556,34 +1567,35 @@ public class Transaction {
                 int offset = key1.getIndex();
                 int size = key1.getEncodedSize() - offset;
 
-                Key key2 = _ex2.getKey();
+                Key key2 = _ex2j.getKey();
                 System.arraycopy(key1.getEncodedBytes(), offset,
                         key2.getEncodedBytes(), 0, size);
                 key2.setEncodedSize(size);
 
                 if (type == 'R') {
-                    key2.copyTo(_ex2.getAuxiliaryKey1());
-                    txnValue.decodeAntiValue(_ex2);
+                    key2.copyTo(_ex2j.getAuxiliaryKey1());
+                    txnValue.decodeAntiValue(_ex2j);
 
-                    jman.writeDeleteRecordToJournal(startTimestamp, treeHandle,
-                            _ex2.getAuxiliaryKey1(), _ex2.getAuxiliaryKey2());
+                    jman.writeDeleteRecordToJournal(_startTimestamp,
+                            treeHandle, _ex2j.getAuxiliaryKey1(),
+                            _ex2j.getAuxiliaryKey2());
                 } else if (type == 'S') {
                     if (txnValue.isDefined()
                             && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
                             && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
                         txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
                     }
-                    jman.writeStoreRecordToJournal(startTimestamp, treeHandle,
+                    jman.writeStoreRecordToJournal(_startTimestamp, treeHandle,
                             key2, txnValue);
-                    removedTrees.remove(_ex2.getTree());
+                    removedTrees.remove(_ex2j.getTree());
                 } else if (type == 'D') {
-                    jman.writeDeleteTreeToJournal(startTimestamp, treeHandle);
+                    jman.writeDeleteTreeToJournal(_startTimestamp, treeHandle);
                 }
             }
         }
         final long commitTimestamp = _persistit.getTimestampAllocator()
                 .updateTimestamp();
-        jman.writeTransactionCommitToJournal(startTimestamp, commitTimestamp);
+        jman.writeTransactionCommitToJournal(_startTimestamp, commitTimestamp);
     }
 
     private void applyUpdates() throws PersistitException {
@@ -1739,4 +1751,7 @@ public class Transaction {
         return _persistit.getCurrentTimestamp();
     }
 
+    void releaseSemaphore() {
+        _semaphore.release();
+    }
 }

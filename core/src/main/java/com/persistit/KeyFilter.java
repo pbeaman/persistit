@@ -1598,11 +1598,11 @@ public class KeyFilter {
                         //
                         key.setEncodedSize(nextIndex);
                         isLastKeySegment = true;
-                        
+
                         if (key.isSpecial()) {
                             return true;
                         }
-                        
+
                         if (forward) {
                             key.nudgeRight();
                             continue;
@@ -1615,7 +1615,8 @@ public class KeyFilter {
                     }
                 } else if (level + 1 < _minDepth) {
                     if (key.isSegmentSpecial(nextIndex)
-                            || (forward || !isLastKeySegment) && next(key, nextIndex, level + 1, forward, eq)) {
+                            || (forward || !isLastKeySegment)
+                            && next(key, nextIndex, level + 1, forward, eq)) {
                         return true;
                     }
                 } else if (isLastKeySegment) {
@@ -1643,12 +1644,28 @@ public class KeyFilter {
             key.setEncodedSize(nextIndex);
 
             if (forward) {
-                if (!term.forward(key, index, nextIndex - index)) {
-                    return false;
+                if (term.selected(key.getEncodedBytes(), index, nextIndex
+                        - index)
+                        && !term.atEdge(key.getEncodedBytes(), index, nextIndex
+                                - index, forward)) {
+                    key.nudgeRight();
+                    return true;
+                } else {
+                    if (!term.forward(key, index, nextIndex - index)) {
+                        return false;
+                    }
                 }
             } else {
-                if (!term.backward(key, index, nextIndex - index)) {
-                    return false;
+                if (term.selected(key.getEncodedBytes(), index, nextIndex
+                        - index)
+                        && !term.atEdge(key.getEncodedBytes(), index, nextIndex
+                                - index, forward)) {
+                    key.nudgeLeft();
+                    return true;
+                } else {
+                    if (!term.backward(key, index, nextIndex - index)) {
+                        return false;
+                    }
                 }
             }
             size = key.getEncodedSize();
@@ -1658,7 +1675,7 @@ public class KeyFilter {
             if (key.isSpecial()) {
                 return true;
             }
-            
+
             if (forward) {
                 if (level + 1 >= _minDepth) {
                     if (!eq) {

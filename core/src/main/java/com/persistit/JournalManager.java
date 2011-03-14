@@ -33,7 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 
@@ -105,6 +107,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private AtomicBoolean _flushing = new AtomicBoolean();
 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
+
+    private ArrayBlockingQueue<Transaction> _transactionsToWrite = new ArrayBlockingQueue<Transaction>(
+            MAX_CONCURRENT_TRANSACTIONS);
 
     private String _journalFilePath;
 
@@ -460,6 +465,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     @Override
     public synchronized VolumeDescriptor lookupVolumeHandle(final int handle) {
         return _handleToVolumeMap.get(Integer.valueOf(handle));
+    }
+
+    void enqueueTransactionToWrite(final Transaction txn)
+            throws InterruptedException {
+        _transactionsToWrite.put(txn);
     }
 
     private void readFully(final ByteBuffer bb, final long address)
@@ -1658,13 +1668,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
         long _lastLogMessageTime = 0;
         Exception _lastException = null;
-
+        boolean interrupted = false;
+        
         JournalFlusher() {
             super(_persistit);
         }
 
         void start() {
-            start("JOURNAL_FLUSHER", _flushInterval);
+            start("JOURNAL_FLUSHER", 0);
         }
 
         @Override
@@ -1672,10 +1683,23 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _flushing.set(true);
             try {
                 try {
+                    while (true) {
+                        final Transaction txn = _transactionsToWrite.poll(
+                                _flushInterval, TimeUnit.MILLISECONDS);
+                        if (txn == null) {
+                            break;
+                        }
+                        txn.writeUpdatesToJournal();
+                        txn.releaseSemaphore();
+                    }
                     force();
-                } catch (PersistitIOException e) {
+                } catch (Exception e) {
+                    if (e instanceof InterruptedException) {
+                        interrupted = true;
+                    }
                     final long now = System.nanoTime();
-                    if (!e.getClass().equals(_lastException.getClass())
+                    if (_lastException == null
+                            || !e.getClass().equals(_lastException.getClass())
                             || now - _lastLogMessageTime > -_logRepeatInterval) {
                         _lastLogMessageTime = now;
                         _lastException = e;
@@ -1694,7 +1718,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
         @Override
         protected boolean shouldStop() {
-            return _closed.get();
+            return _closed.get() || interrupted;
         }
     }
 
