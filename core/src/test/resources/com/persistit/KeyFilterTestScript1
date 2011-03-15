@@ -128,9 +128,9 @@ GTEQ {10,10}-
 KEY {10,10}
 GTEQ {10,10}
 KEY {10,10,1}
-GT <false>
+GT {10}+
 KEY {10,10,1}
-GTEQ <false>
+GTEQ {10}+
 KEY {10,10,1}
 LTEQ {10,10}
 KEY {10,10,1}
@@ -186,3 +186,8 @@ KEY {"cc","cc","cc","dd"}
 GT {"cc","cc","cc","e"}-
 KEY {"cc","cc","cc","dd"}
 GTEQ {"cc","cc","cc","e"}
+
+KF {1,[:(long)2),2,*<}
+KEY {1,(long)0,4,(long)0}
+GT {1,(long)0}+
+
