@@ -2351,6 +2351,7 @@ public class Persistit {
         boolean gui = false;
         boolean icheck = false;
         boolean wait = false;
+        boolean copy = false;
 
         String propertiesFileName = null;
         for (int index = 0; index < args.length; index++) {
@@ -2360,14 +2361,15 @@ public class Persistit {
                 usage();
                 return;
             }
-            if (s.equalsIgnoreCase("-g"))
+            if (s.equalsIgnoreCase("-g")) {
                 gui = true;
-            else if (s.equalsIgnoreCase("-i"))
+            } else if (s.equalsIgnoreCase("-i")) {
                 icheck = true;
-            else if (s.equalsIgnoreCase("-w"))
+            } else if (s.equalsIgnoreCase("-w")) {
                 wait = true;
-
-            else if (!s.startsWith("-") && propertiesFileName == null) {
+            } else if (s.equalsIgnoreCase("-c")) {
+                copy = true;
+            } else if (!s.startsWith("-") && propertiesFileName == null) {
                 propertiesFileName = s;
             } else {
                 usage();
@@ -2382,6 +2384,9 @@ public class Persistit {
             }
             if (icheck) {
                 persistit.checkAllVolumes();
+            }
+            if (copy) {
+                persistit.copyBackPages();
             }
             if (wait) {
                 persistit.setShutdownSuspended(true);

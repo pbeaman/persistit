@@ -1295,25 +1295,10 @@ public class Transaction {
                     _persistit.getTransactionResourceB().release();
                 }
             }
-            //
-            // Wait -- outside of the lock -- for JOURNAL_FLUSHER to write the
-            // transaction.
-            try {
-                if (enqueued) {
-                    _persistit.getJournalManager().notifyTransactionReady();
-                    while (true) {
-                        synchronized (this) {
-                            if (_commitTimestamp.get() == -1) {
-                                break;
-                            }
-                            wait();
-                        }
-                    }
-                }
-                clear();
-            } catch (InterruptedException e) {
-                throw new TransactionFailedException(e);
+            if (enqueued) {
+                writeUpdatesToTransactionWriter(_persistit.getJournalManager());
             }
+            clear();
             return committed;
         } finally {
             _longRecordDeallocationList.clear();
@@ -1762,7 +1747,8 @@ public class Transaction {
         }
         bb.reset();
 
-        _persistit.getJournalManager().writeTransactionBufferToJournal(bb);
+        _persistit.getJournalManager().writeTransactionBufferToJournal(bb,
+                startTimestamp, commitTimestamp);
         return true;
 
     }

@@ -911,9 +911,9 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     @Override
-    public synchronized boolean writeDeleteRecordToJournal(final long timestamp,
-            final int treeHandle, final Key key1, final Key key2)
-            throws PersistitIOException {
+    public synchronized boolean writeDeleteRecordToJournal(
+            final long timestamp, final int treeHandle, final Key key1,
+            final Key key2) throws PersistitIOException {
         int recordSize = DR.OVERHEAD + key1.getEncodedSize()
                 + key2.getEncodedSize();
         prepareWriteBuffer(recordSize);
@@ -1028,15 +1028,21 @@ public class JournalManager implements JournalManagerMXBean,
         TC.putLength(writeBuffer, TC.OVERHEAD);
         writeBuffer.position(writeBuffer.position() + TC.OVERHEAD);
     }
-    
-    synchronized void writeTransactionBufferToJournal(final ByteBuffer writeBuffer)
-    throws PersistitIOException {
+
+    synchronized void writeTransactionBufferToJournal(
+            final ByteBuffer writeBuffer, final long startTimestamp,
+            final long commitTimestamp) throws PersistitIOException {
         final int recordSize = writeBuffer.remaining();
+        final long address = _currentAddress;
         prepareWriteBuffer(recordSize);
         _writeBuffer.put(writeBuffer);
         _currentAddress += recordSize;
         _persistit.getIOMeter().chargeWriteTCtoJournal(recordSize,
                 _currentAddress - recordSize);
+        final TransactionStatus ts = new TransactionStatus(startTimestamp,
+                address);
+        ts.setCommitTimestamp(commitTimestamp);
+        _liveTransactionMap.put(startTimestamp, ts);
     }
 
     static long fileToGeneration(final File file) {
@@ -1116,7 +1122,7 @@ public class JournalManager implements JournalManagerMXBean,
      * 
      * @throws PersistitIOException
      */
-    synchronized void flush() throws PersistitIOException {
+    synchronized boolean flush() throws PersistitIOException {
         final long address = _writeBufferAddress;
         if (address != Long.MAX_VALUE && _writeBuffer != null) {
             try {
@@ -1126,6 +1132,7 @@ public class JournalManager implements JournalManagerMXBean,
                         Debug.$assert(channel.size() == addressToOffset(address));
                     }
                     _writeBuffer.flip();
+                    final int size = _writeBuffer.remaining();
                     channel.write(_writeBuffer);
                     _writeBufferAddress += _writeBuffer.position();
                     if (_writeBuffer.capacity() != _writeBufferSize) {
@@ -1138,6 +1145,8 @@ public class JournalManager implements JournalManagerMXBean,
                     if (remaining < _writeBuffer.limit()) {
                         _writeBuffer.limit((int) remaining);
                     }
+                    _persistit.getIOMeter().chargeFlushJournal(size, address);
+                    return true;
                 }
             } catch (IOException e) {
                 throw new PersistitIOException(
@@ -1145,6 +1154,7 @@ public class JournalManager implements JournalManagerMXBean,
                                 + addressToFile(address), e);
             }
         }
+        return false;
     }
 
     /**
@@ -1157,9 +1167,10 @@ public class JournalManager implements JournalManagerMXBean,
         }
         if (address != Long.MAX_VALUE) {
             try {
-                flush();
-                final FileChannel channel = getFileChannel(address);
-                channel.force(false);
+                if (flush()) {
+                    final FileChannel channel = getFileChannel(address);
+                    channel.force(false);
+                }
             } catch (IOException e) {
                 throw new PersistitIOException(
                         "IOException while writing to file "
@@ -1752,28 +1763,10 @@ public class JournalManager implements JournalManagerMXBean,
             final long now = System.nanoTime();
             try {
                 try {
-                    boolean force = (now - _lastFlush) > (_flushInterval * 1000000);
-                    _persistit.populateTransactionList(_committingTransactions,
-                            0, 0);
-                    Collections.sort(_committingTransactions,
-                            _transactionComparator);
-                    for (final Transaction txn : _committingTransactions) {
-                        txn.writeUpdatesToTransactionWriter((JournalManager.this));
-                        if (!txn.isToDisk()) {
-                            txn.commitDone();
-                        } else {
-                            force = true;
-                        }
-                    }
-                    if (force) {
-                        force();
-                        _lastFlush = now;
-                        for (final Transaction txn : _committingTransactions) {
-                            if (txn.isToDisk()) {
-                                txn.commitDone();
-                            }
-                        }
-                    }
+                    flush();
+                    force();
+                    _lastFlush = now;
+
                 } catch (Exception e) {
                     if (e instanceof InterruptedException) {
                         interrupted = true;
