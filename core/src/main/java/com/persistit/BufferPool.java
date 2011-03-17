@@ -686,6 +686,10 @@ public class BufferPool {
             }
         }
     }
+    
+    Buffer[] getBuffers() {
+        return _buffers;
+    }
 
     /**
      * Find or load a page given its Volume and address. The returned page has a

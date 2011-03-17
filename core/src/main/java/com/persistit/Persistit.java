@@ -327,8 +327,7 @@ public class Persistit {
 
     private ThreadLocal<WaitingThread> _waitingThreadLocal = new ThreadLocal<WaitingThread>();
 
-    private final Map<SessionId, Transaction> _transactionSessionMap = Collections
-            .synchronizedMap(new WeakHashMap<SessionId, Transaction>());
+    private final Map<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
 
     private ManagementImpl _management;
 
@@ -340,7 +339,7 @@ public class Persistit {
 
     private final IOMeter _ioMeter = new IOMeter();
 
-    private WeakHashMap<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
+    private Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
 
     private boolean _readRetryEnabled;
 
@@ -1942,12 +1941,43 @@ public class Persistit {
      */
     public Transaction getTransaction() {
         final SessionId sessionId = getSessionId();
-        Transaction txn = _transactionSessionMap.get(sessionId);
-        if (txn == null) {
-            txn = new Transaction(this);
-            _transactionSessionMap.put(sessionId, txn);
+        synchronized (_transactionSessionMap) {
+            Transaction txn = _transactionSessionMap.get(sessionId);
+            if (txn == null) {
+                txn = new Transaction(this, sessionId);
+                _transactionSessionMap.put(sessionId, txn);
+            }
+            return txn;
         }
-        return txn;
+    }
+
+    /**
+     * Copies the current set of Transaction objects to the supplied List. This
+     * method is used by JOURNAL_FLUSHER to look for transactions that need to
+     * be written to the Journal, and BufferPool checkpoint code to look for
+     * uncommitted transactions. For each session, add that session's
+     * transaction to the supplied list if and only if it has a startTimestamp
+     * greater than <code>from</code> and a commitTimestamp greater than
+     * <code>to</code>.
+     * 
+     * @param transactions
+     *            List of Transaction objects to be populated
+     * @param from
+     *            minimum startTimestamp, or -1 for any
+     * @param to
+     *            minimum commitTimestamp, or -1 for any
+     */
+    void populateTransactionList(final List<Transaction> transactions,
+            final long from, final long to) {
+        transactions.clear();
+        synchronized (_transactionSessionMap) {
+            for (final Transaction t : _transactionSessionMap.values()) {
+                if (t.getStartTimestamp() >= from
+                        && t.getCommitTimestamp() >= to) {
+                    transactions.add(t);
+                }
+            }
+        }
     }
 
     /**

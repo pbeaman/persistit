@@ -180,17 +180,26 @@ public interface Management extends Remote, ManagementMXBean {
      * Return a {@link RecoveryInfo} structure describing the current state of
      * the recovery process.
      * 
-     * @return
+     * @return the JournalInfo
      * @throws RemoteException
      */
     public RecoveryInfo getRecoveryInfo() throws RemoteException;
 
     /**
+     * Return a {@link TransactionInfo} structure summarizing Transaction commit
+     * and rollback information.
+     * 
+     * @return the TransactionInfo
+     * @throws RemoteException
+     */
+    public TransactionInfo getTransactionInfo() throws RemoteException;
+
+    /**
      * <p>
-     * Counts the the number of records that could be traversed given a starting
+     * Count the the number of records that could be traversed given a starting
      * key value in a tree specified by <code>volumeName</code>,
      * <code>treeName</code>, using an optional {@link KeyFilter} specified by
-     * <code>keyFilterString</code> . Records are counted by traversing forward
+     * <code>keyFilterString</code>. Records are counted by traversing forward
      * or backward according to the Persistit <a
      * href="Key.html#_keyOrdering">key order specification</a>. The direction
      * of traversal is specified by <code>direction</code>.
@@ -2446,6 +2455,57 @@ public interface Management extends Remote, ManagementMXBean {
         public String getRecoveryEndedException() {
             return recoveryException;
         }
+    }
+
+    public static class TransactionInfo extends AcquisitionTimeBase {
+        long commitCount;
+        long rollbackCount;
+        long rollbackSinceCommitCount;
+
+        public TransactionInfo() {
+
+        }
+
+        @ConstructorProperties({ "commitCount", "rollbackCount",
+                "rollbackSinceCommitCount" })
+        public TransactionInfo(final long commitCount,
+                final long rollbackCount, final long rollbackSinceCommitCount) {
+            this.commitCount = commitCount;
+            this.rollbackCount = rollbackCount;
+            this.rollbackSinceCommitCount = rollbackSinceCommitCount;
+        }
+
+        /**
+         * Return the elapsed time since startup in milliseconds
+         * 
+         * @return elapsed time in milliseconds
+         */
+        public long getCommitCount() {
+            return commitCount;
+        }
+
+        /**
+         * Return the aggregate number of transactions committed since Persistit
+         * was initialized
+         * 
+         * @return total number of transactions committed
+         * @throws RemoteException
+         */
+        public long getRollbackCount() {
+            return rollbackCount;
+        }
+
+        /**
+         * Return the aggregate number of transaction rollback events since
+         * Persistit was initialized
+         * 
+         * @return total number of transactions rolled back
+         * @throws RemoteException
+         */
+        public long getRollbackSinceCommitCount() {
+            return rollbackSinceCommitCount;
+        }
+
     }
 
     /**

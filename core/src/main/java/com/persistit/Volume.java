@@ -1252,9 +1252,9 @@ public class Volume extends SharedResource {
                     .append(tree.getName()).remove();
 
             synchronized (_lock) {
-                if (tree.getChangeCount() >= 0) {
+//                if (tree.getChangeCount() >= 0) {
                     _treeNameHashMap.remove(tree.getName());
-                }
+//                }
                 tree.bumpGeneration();
                 tree.invalidate();
             }

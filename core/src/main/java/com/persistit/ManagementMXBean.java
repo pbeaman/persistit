@@ -42,32 +42,50 @@ public interface ManagementMXBean {
     public boolean isInitialized() throws RemoteException;
 
     /**
-     * Returns the version name of the current Persistit instance.
+     * Return the version name of the current Persistit instance.
      * 
      * @return the version name
      */
     public String getVersion() throws RemoteException;
 
     /**
-     * Returns the copyright notice for the current Persistit instance.
+     * Return the copyright notice for the current Persistit instance.
      * 
      * @return the copyright notice
      */
     public String getCopyright() throws RemoteException;
 
     /**
-     * Returns the system time at which Persistit was initialized.
+     * Return the system time at which Persistit was initialized.
      * 
      * @return start time, in milliseconds since January 1, 1970 00:00:00 GMT.
      */
     public long getStartTime() throws RemoteException;
 
     /**
-     * Returns the elapsed time since startup in milliseconds
+     * Return the elapsed time since startup in milliseconds
      * 
      * @return elapsed time in milliseconds
      */
     public long getElapsedTime() throws RemoteException;
+
+    /**
+     * Return the aggregate number of transactions committed since Persistit was
+     * initialized
+     * 
+     * @return total number of transactions committed
+     * @throws RemoteException
+     */
+    public long getCommittedTransactionCount() throws RemoteException;
+
+    /**
+     * Return the aggregate number of transaction rollback events since
+     * Persistit was initialized
+     * 
+     * @return total number of transactions rolled back
+     * @throws RemoteException
+     */
+    public long getRollbackCount() throws RemoteException;
 
     /**
      * Indicates whether Persistit will suspend its shutdown activities on
@@ -126,4 +144,6 @@ public interface ManagementMXBean {
      */
     public boolean flushAndSync() throws RemoteException;
 
+    
+    public void snapshotWaits() throws RemoteException;
 }

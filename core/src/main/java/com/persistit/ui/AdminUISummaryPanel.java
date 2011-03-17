@@ -60,6 +60,10 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
     JTextField _totalHits;
     JTextField _hitRatio;
 
+    JTextField _commits;
+    JTextField _rollbacks;
+    JTextField _rollbacksSinceLastCommit;
+
     JTextField _journalCurLocation;
     JTextField _journalBlockSize;
 
@@ -142,6 +146,14 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 new JTextField(), "SummaryPanel.gets", false);
         _hitRatio = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
                 new JTextField(), "SummaryPanel.ratio", true);
+
+        _commits = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
+                new JTextField(), "SummaryPanel.commits", false);
+        _rollbacks = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
+                new JTextField(), "SummaryPanel.rollbacks", false);
+        _rollbacksSinceLastCommit = (JTextField) ui.addLabeledField(
+                _summaryPanel, gbc, new JTextField(),
+                "SummaryPanel.rollbacksSinceLastCommit", true);
 
         _frozenUpdates = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
                 new JTextField(), "SummaryPanel.update_suspended", false);
@@ -331,6 +343,10 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 _totalGets.setText("");
                 _hitRatio.setText("");
 
+                _commits.setText("");
+                _rollbacks.setText("");
+                _rollbacksSinceLastCommit.setText("");
+
                 _journalCurLocation.setText("");
                 _journalBlockSize.setText("");
 
@@ -484,6 +500,17 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 _hitRatio.setText(gets > 0 ? _adminUI
                         .formatPercent((double) hits / (double) gets) : "n/a");
                 _volumeInfoArrayModel.setInfoArray(via);
+
+                Management.TransactionInfo transactionInfo = management
+                        .getTransactionInfo();
+                _commits.setText(_adminUI.formatLong(transactionInfo
+                        .getCommitCount()));
+                _rollbacks.setText(_adminUI.formatLong(transactionInfo
+                        .getRollbackCount()));
+                _rollbacksSinceLastCommit.setText(_adminUI
+                        .formatLong(transactionInfo
+                                .getRollbackSinceCommitCount()));
+
             }
         } catch (RemoteException re) {
             _adminUI.postException(re);

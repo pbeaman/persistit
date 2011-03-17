@@ -26,6 +26,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -33,9 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 
@@ -64,7 +64,8 @@ import com.persistit.exception.PersistitIOException;
  * @author peter
  * 
  */
-public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
+public class JournalManager implements JournalManagerMXBean,
+        VolumeHandleLookup, TransactionWriter {
 
     private long _journalCreatedTime;
 
@@ -107,9 +108,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private AtomicBoolean _flushing = new AtomicBoolean();
 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
-
-    private ArrayBlockingQueue<Transaction> _transactionsToWrite = new ArrayBlockingQueue<Transaction>(
-            MAX_CONCURRENT_TRANSACTIONS);
 
     private String _journalFilePath;
 
@@ -463,13 +461,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     @Override
-    public synchronized VolumeDescriptor lookupVolumeHandle(final int handle) {
+    public VolumeDescriptor lookupVolumeHandle(final int handle) {
         return _handleToVolumeMap.get(Integer.valueOf(handle));
-    }
-
-    void enqueueTransactionToWrite(final Transaction txn)
-            throws InterruptedException {
-        _transactionsToWrite.put(txn);
     }
 
     private void readFully(final ByteBuffer bb, final long address)
@@ -889,58 +882,89 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         advance(recordSize);
     }
 
-    synchronized void writeStoreRecordToJournal(final long timestamp,
+    @Override
+    public synchronized boolean writeStoreRecordToJournal(final long timestamp,
             final int treeHandle, final Key key, final Value value)
             throws PersistitIOException {
         final int recordSize = SR.OVERHEAD + key.getEncodedSize()
                 + value.getEncodedSize();
         prepareWriteBuffer(recordSize);
-        SR.putLength(_writeBuffer, recordSize);
-        SR.putType(_writeBuffer);
-        SR.putTimestamp(_writeBuffer, timestamp);
-        SR.putTreeHandle(_writeBuffer, treeHandle);
-        SR.putKeySize(_writeBuffer, (short) key.getEncodedSize());
-        advance(SR.OVERHEAD);
-        _writeBuffer.put(key.getEncodedBytes(), 0, key.getEncodedSize());
-        _writeBuffer.put(value.getEncodedBytes(), 0, value.getEncodedSize());
-        _currentAddress += recordSize - SR.OVERHEAD;
+        writeStoreRecordToJournal(_writeBuffer, recordSize, timestamp,
+                treeHandle, key, value);
+        _currentAddress += recordSize;
         _persistit.getIOMeter().chargeWriteSRtoJournal(recordSize,
                 _currentAddress - recordSize);
+        return true;
     }
 
-    synchronized void writeDeleteRecordToJournal(final long timestamp,
+    void writeStoreRecordToJournal(final ByteBuffer writeBuffer,
+            final int recordSize, final long timestamp, final int treeHandle,
+            final Key key, final Value value) throws PersistitIOException {
+        SR.putLength(writeBuffer, recordSize);
+        SR.putType(writeBuffer);
+        SR.putTimestamp(writeBuffer, timestamp);
+        SR.putTreeHandle(writeBuffer, treeHandle);
+        SR.putKeySize(writeBuffer, (short) key.getEncodedSize());
+        writeBuffer.position(writeBuffer.position() + SR.OVERHEAD);
+        writeBuffer.put(key.getEncodedBytes(), 0, key.getEncodedSize());
+        writeBuffer.put(value.getEncodedBytes(), 0, value.getEncodedSize());
+    }
+
+    @Override
+    public synchronized boolean writeDeleteRecordToJournal(final long timestamp,
             final int treeHandle, final Key key1, final Key key2)
             throws PersistitIOException {
         int recordSize = DR.OVERHEAD + key1.getEncodedSize()
                 + key2.getEncodedSize();
         prepareWriteBuffer(recordSize);
-        DR.putLength(_writeBuffer, recordSize);
-        DR.putType(_writeBuffer);
-        DR.putTimestamp(_writeBuffer, timestamp);
-        DR.putTreeHandle(_writeBuffer, treeHandle);
-        DR.putKey1Size(_writeBuffer, (short) key1.getEncodedSize());
-        advance(DR.OVERHEAD);
-        _writeBuffer.put(key1.getEncodedBytes(), 0, key1.getEncodedSize());
-        _writeBuffer.put(key2.getEncodedBytes(), 0, key2.getEncodedSize());
-        _currentAddress += recordSize - DR.OVERHEAD;
+        writeDeleteRecordToJournal(_writeBuffer, recordSize, timestamp,
+                treeHandle, key1, key2);
+        _currentAddress += recordSize;
         _persistit.getIOMeter().chargeWriteDRtoJournal(recordSize,
                 _currentAddress - recordSize);
+        return true;
     }
 
-    synchronized void writeDeleteTreeToJournal(final long timestamp,
+    void writeDeleteRecordToJournal(final ByteBuffer writeBuffer,
+            final int recordSize, final long timestamp, final int treeHandle,
+            final Key key1, final Key key2) throws PersistitIOException {
+        DR.putLength(writeBuffer, recordSize);
+        DR.putType(writeBuffer);
+        DR.putTimestamp(writeBuffer, timestamp);
+        DR.putTreeHandle(writeBuffer, treeHandle);
+        DR.putKey1Size(writeBuffer, (short) key1.getEncodedSize());
+        writeBuffer.position(writeBuffer.position() + DR.OVERHEAD);
+        writeBuffer.put(key1.getEncodedBytes(), 0, key1.getEncodedSize());
+        writeBuffer.put(key2.getEncodedBytes(), 0, key2.getEncodedSize());
+    }
+
+    @Override
+    public synchronized boolean writeDeleteTreeToJournal(final long timestamp,
             final int treeHandle) throws PersistitIOException {
         prepareWriteBuffer(DT.OVERHEAD);
-        DT.putLength(_writeBuffer, DT.OVERHEAD);
-        DT.putType(_writeBuffer);
-        DT.putTimestamp(_writeBuffer, timestamp);
-        DT.putTreeHandle(_writeBuffer, treeHandle);
-        advance(DT.OVERHEAD);
+        writeDeleteTreeToJournal(_writeBuffer, DT.OVERHEAD, timestamp,
+                treeHandle);
+        _currentAddress += DT.OVERHEAD;
+        _persistit.getIOMeter().chargeWriteDTtoJournal(DT.OVERHEAD,
+                _currentAddress - DT.OVERHEAD);
+        return true;
+    }
+
+    void writeDeleteTreeToJournal(final ByteBuffer writeBuffer,
+            final int recordSize, final long timestamp, final int treeHandle)
+            throws PersistitIOException {
+        DT.putLength(writeBuffer, DT.OVERHEAD);
+        DT.putType(writeBuffer);
+        DT.putTimestamp(writeBuffer, timestamp);
+        DT.putTreeHandle(writeBuffer, treeHandle);
+        writeBuffer.position(writeBuffer.position() + DT.OVERHEAD);
         _persistit.getIOMeter().chargeWriteDTtoJournal(DT.OVERHEAD,
                 _currentAddress - DT.OVERHEAD);
     }
 
-    synchronized void writeTransactionStartToJournal(final long startTimestamp)
-            throws PersistitIOException {
+    @Override
+    public synchronized boolean writeTransactionStartToJournal(
+            final long startTimestamp) throws PersistitIOException {
 
         final Long key = Long.valueOf(startTimestamp);
         TransactionStatus ts = _liveTransactionMap.get(key);
@@ -953,16 +977,27 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         _liveTransactionMap.put(key, ts);
 
         prepareWriteBuffer(TS.OVERHEAD);
-        TS.putType(_writeBuffer);
-        TS.putTimestamp(_writeBuffer, startTimestamp);
-        TS.putLength(_writeBuffer, TS.OVERHEAD);
-        advance(TS.OVERHEAD);
+        writeTransactionStartToJournal(_writeBuffer, TS.OVERHEAD,
+                startTimestamp);
+        _currentAddress += TS.OVERHEAD;
         _persistit.getIOMeter().chargeWriteTStoJournal(TS.OVERHEAD,
                 _currentAddress - TS.OVERHEAD);
+        return true;
     }
 
-    synchronized void writeTransactionCommitToJournal(final long timestamp,
-            final long commitTimestamp) throws PersistitIOException {
+    void writeTransactionStartToJournal(final ByteBuffer writeBuffer,
+            final int recordSize, final long startTimestamp)
+            throws PersistitIOException {
+        TS.putType(writeBuffer);
+        TS.putTimestamp(writeBuffer, startTimestamp);
+        TS.putLength(writeBuffer, TS.OVERHEAD);
+        writeBuffer.position(writeBuffer.position() + TS.OVERHEAD);
+    }
+
+    @Override
+    public synchronized boolean writeTransactionCommitToJournal(
+            final long timestamp, final long commitTimestamp)
+            throws PersistitIOException {
 
         final Long key = Long.valueOf(timestamp);
         TransactionStatus ts = _liveTransactionMap.get(key);
@@ -975,13 +1010,33 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
 
         prepareWriteBuffer(TC.OVERHEAD);
-        TC.putType(_writeBuffer);
-        TC.putTimestamp(_writeBuffer, timestamp);
-        TC.putCommitTimestamp(_writeBuffer, commitTimestamp);
-        TC.putLength(_writeBuffer, TC.OVERHEAD);
-        advance(TC.OVERHEAD);
+        writeTransactionCommitToJournal(_writeBuffer, TC.OVERHEAD, timestamp,
+                commitTimestamp);
+        _currentAddress += TC.OVERHEAD;
         _persistit.getIOMeter().chargeWriteTCtoJournal(TC.OVERHEAD,
                 _currentAddress - TC.OVERHEAD);
+        return true;
+    }
+
+    void writeTransactionCommitToJournal(final ByteBuffer writeBuffer,
+            final int recordSize, final long timestamp,
+            final long commitTimestamp) throws PersistitIOException {
+
+        TC.putType(writeBuffer);
+        TC.putTimestamp(writeBuffer, timestamp);
+        TC.putCommitTimestamp(writeBuffer, commitTimestamp);
+        TC.putLength(writeBuffer, TC.OVERHEAD);
+        writeBuffer.position(writeBuffer.position() + TC.OVERHEAD);
+    }
+    
+    synchronized void writeTransactionBufferToJournal(final ByteBuffer writeBuffer)
+    throws PersistitIOException {
+        final int recordSize = writeBuffer.remaining();
+        prepareWriteBuffer(recordSize);
+        _writeBuffer.put(writeBuffer);
+        _currentAddress += recordSize;
+        _persistit.getIOMeter().chargeWriteTCtoJournal(recordSize,
+                _currentAddress - recordSize);
     }
 
     static long fileToGeneration(final File file) {
@@ -1125,7 +1180,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @return <code>true</code> iff a new journal file was started
      * @throws PersistitIOException
      */
-    private synchronized boolean prepareWriteBuffer(final int size)
+    private boolean prepareWriteBuffer(final int size)
             throws PersistitIOException {
         boolean newJournalFile = false;
         if (_currentAddress % _blockSize == 0) {
@@ -1669,35 +1724,60 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         long _lastLogMessageTime = 0;
         Exception _lastException = null;
         boolean interrupted = false;
-        
+        final List<Transaction> _committingTransactions = new ArrayList<Transaction>();
+        long _lastFlush;
+
+        final Comparator<Transaction> _transactionComparator = new Comparator<Transaction>() {
+
+            @Override
+            public int compare(Transaction t1, Transaction t2) {
+                return t1.getCommitTimestamp() < t2.getCommitTimestamp() ? -1
+                        : t1.getCommitTimestamp() > t2.getCommitTimestamp() ? 1
+                                : 0;
+            }
+
+        };
+
         JournalFlusher() {
             super(_persistit);
         }
 
         void start() {
-            start("JOURNAL_FLUSHER", 0);
+            start("JOURNAL_FLUSHER", _flushInterval);
         }
 
         @Override
         protected void runTask() {
             _flushing.set(true);
+            final long now = System.nanoTime();
             try {
                 try {
-                    while (true) {
-                        final Transaction txn = _transactionsToWrite.poll(
-                                _flushInterval, TimeUnit.MILLISECONDS);
-                        if (txn == null) {
-                            break;
+                    boolean force = (now - _lastFlush) > (_flushInterval * 1000000);
+                    _persistit.populateTransactionList(_committingTransactions,
+                            0, 0);
+                    Collections.sort(_committingTransactions,
+                            _transactionComparator);
+                    for (final Transaction txn : _committingTransactions) {
+                        txn.writeUpdatesToTransactionWriter((JournalManager.this));
+                        if (!txn.isToDisk()) {
+                            txn.commitDone();
+                        } else {
+                            force = true;
                         }
-                        txn.writeUpdatesToJournal();
-                        txn.releaseSemaphore();
                     }
-//                    force();
+                    if (force) {
+                        force();
+                        _lastFlush = now;
+                        for (final Transaction txn : _committingTransactions) {
+                            if (txn.isToDisk()) {
+                                txn.commitDone();
+                            }
+                        }
+                    }
                 } catch (Exception e) {
                     if (e instanceof InterruptedException) {
                         interrupted = true;
                     }
-                    final long now = System.nanoTime();
                     if (_lastException == null
                             || !e.getClass().equals(_lastException.getClass())
                             || now - _lastLogMessageTime > -_logRepeatInterval) {
@@ -1720,6 +1800,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         protected boolean shouldStop() {
             return _closed.get() || interrupted;
         }
+    }
+
+    void notifyTransactionReady() {
+        _flusher.kick();
     }
 
     private void copierCycle() throws PersistitException {

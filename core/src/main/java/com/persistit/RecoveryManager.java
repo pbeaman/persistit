@@ -1515,7 +1515,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
             case DT.TYPE:
                 read(address, recordSize);
                 final Exchange exchange = getExchange(
-                        SR.getTreeHandle(_readBuffer), address, timestamp);
+                        DT.getTreeHandle(_readBuffer), address, timestamp);
                 listener.removeTree(address, timestamp, exchange);
                 _persistit.releaseExchange(exchange);
                 break;
