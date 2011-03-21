@@ -143,7 +143,4 @@ public interface ManagementMXBean {
      * @throws RemoteException
      */
     public boolean flushAndSync() throws RemoteException;
-
-    
-    public void snapshotWaits() throws RemoteException;
 }

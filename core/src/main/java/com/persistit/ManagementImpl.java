@@ -25,11 +25,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.Vector;
 
-import com.persistit.SharedResource.WaitRecord;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.ValueCoder;
 import com.persistit.exception.PersistitException;
@@ -1154,61 +1151,6 @@ class ManagementImpl implements Management {
                             _registeredHostName, exception);
                 }
             }
-        }
-    }
-
-    // TODO - remove this
-    @Override
-    public void snapshotWaits() throws RemoteException {
-        SharedResource.loggit.set(true);
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-        }
-        SharedResource.loggit.set(false);
-
-        for (final Volume volume : _persistit.getVolumes()) {
-            printHistory("", volume);
-            for (final Tree tree : volume.getTrees()) {
-                printHistory("  ", tree);
-            }
-        }
-        
-        System.out.println();
-        final SortedMap<Long, WaitRecord> sorted = new TreeMap<Long, WaitRecord>();
-        
-        for (final BufferPool pool : _persistit.getBufferPoolHashMap().values()) {
-            for (final Buffer buffer : pool.getBuffers()) {
-                if (buffer.history.isEmpty() == false) {
-                    for (final SharedResource.WaitRecord wr : buffer.history) {
-                        long t = wr.time;
-                        for (int i = 0; i < 1000; i++) {
-                            if (!sorted.containsKey(t + i)) {
-                                sorted.put(t + i, wr);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        for (final WaitRecord wr: sorted.values()) {
-            System.out.println(wr);
-        }
-        
-        printHistory("A: ", _persistit.getTransactionResourceA());
-        printHistory("B: ", _persistit.getTransactionResourceB());
-    }
-
-    private boolean printHistory(final String prefix, final SharedResource resource) {
-        if (resource.history.isEmpty() == false) {
-            System.out.println(prefix + resource);
-            for (final SharedResource.WaitRecord wr : resource.history) {
-                System.out.println(prefix + wr);
-            }
-            return true; 
-        } else {
-            return false;
         }
     }
 }

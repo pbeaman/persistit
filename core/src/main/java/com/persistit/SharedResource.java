@@ -27,30 +27,6 @@ import com.persistit.exception.PersistitException;
  */
 class SharedResource extends WaitingThreadManager {
 
-    // TODO - remove lines below
-    public static AtomicBoolean loggit = new AtomicBoolean();
-    private static long startTime = System.nanoTime();
-
-    public static class WaitRecord {
-        final long time = System.nanoTime() - startTime;
-        int index;
-        long page;
-        int status;
-        String thread;
-        String owner;
-        long waitTime;
-
-        public String toString() {
-            return String
-                    .format("time=%,18d, index=%,5d, page=%,8d, waitTime=%,15d, status=%s, requester=%s, owner=%s",
-                            time, index, page, waitTime, getStatusCode(status),
-                            thread, owner);
-        }
-    }
-
-    public List<WaitRecord> history = new ArrayList<WaitRecord>(10000);
-    // TODO - remove lines above
-
     /**
      * Default maximum time to wait for access to this resource. Methods throw
      * an InUseException when this time is exceeded.
@@ -253,8 +229,6 @@ class SharedResource extends WaitingThreadManager {
     boolean claim(boolean writer, long timeout) throws PersistitException {
         WaitingThread wt = null;
 
-        WaitRecord wr = null; // TODO
-
         synchronized (_lock) {
             if (isAvailableSync(writer, 0)) {
                 _status++;
@@ -272,24 +246,6 @@ class SharedResource extends WaitingThreadManager {
             }
             if (Debug.ENABLED) {
                 Debug.$assert(checkWaitQueue());
-            }
-
-            // TODO - remove this
-
-            if (loggit.get() && history.size() < 10000) {
-                wr = new WaitRecord();
-                wr.status = _status;
-                wr.thread = Thread.currentThread().getName();
-                Thread owner = _writerThread;
-                if (owner != null) {
-                    wr.owner = owner.getName();
-                }
-                if (this instanceof Buffer) {
-                    wr.index = ((Buffer)this).getIndex();
-                    wr.page = ((Buffer) this).getPageAddress();
-                }
-                wr.waitTime = -System.nanoTime();
-                history.add(wr);
             }
 
             //
@@ -348,9 +304,6 @@ class SharedResource extends WaitingThreadManager {
 
         if (claimed) {
             _persistit.getLockManager().register(this);
-            if (wr != null) {
-                wr.waitTime += System.nanoTime();
-            }
         }
 
         releaseWaitingThread(wt);
