@@ -36,7 +36,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TimeoutException;
-import com.persistit.exception.TransactionFailedException;
 
 /**
  * <p>
@@ -337,7 +336,7 @@ public class Transaction {
     // Valid only during the commit() method
     private AtomicBoolean _toDisk = new AtomicBoolean();
 
-    private CommitListener _commitListener = DEFAULT_COMMIT_LISTENER;
+    private List<CommitListener> _commitListeners = new ArrayList<CommitListener>();
 
     private TransactionBuffer _txnBuffer = new TransactionBuffer();
 
@@ -445,7 +444,11 @@ public class Transaction {
         public void rolledBack();
     }
 
-    private static class DefaultCommitListener implements CommitListener {
+    /**
+     * Implementation of CommitListener that does nothing.
+     * 
+     */
+    public static class DefaultCommitListener implements CommitListener {
         public void committed() {
             // do nothing
         }
@@ -632,6 +635,7 @@ public class Transaction {
         if (_nestedDepth == 0) {
             try {
                 clear();
+                _commitListeners.clear();
             } catch (PersistitException pe) {
                 if (_persistit.getLogBase().isLoggable(
                         LogBase.LOG_TXN_EXCEPTION)) {
@@ -651,7 +655,7 @@ public class Transaction {
      * <p>
      * Ends the current transaction scope. Application code should ensure that
      * every method that calls <code>begin</code> also invokes <code>end</code>
-     * using a <code>try/finally</code> pattern described <a
+     * using a <code>try/finally</code> pattern described in <a
      * href="#_scopedCodePattern">above</a></code>.
      * </p>
      * <p>
@@ -687,6 +691,7 @@ public class Transaction {
 
         // Special handling for the outermost scope.
         if (_nestedDepth == 0) {
+            _commitListeners.clear();
             // First release the pessimistic lock if we claimed it.
             if (Debug.ENABLED && _rollbackPending) {
                 Debug.debug1(_rollbacksSinceLastCommit
@@ -719,6 +724,8 @@ public class Transaction {
             }
             _rollbackPending = false;
             _visbilityOrder.clear();
+        } else {
+            _commitCompleted = false;
         }
         // PDB 20050808 - to be sure. Should have been cleared by either
         // commit() or rollbackUpdates().
@@ -770,7 +777,14 @@ public class Transaction {
                         .log(LogBase.LOG_TXN_EXCEPTION, pe, this);
             }
         }
-        _commitListener.rolledBack();
+
+        for (int index = _commitListeners.size(); --index >= 0;) {
+            try {
+                _commitListeners.get(index).rolledBack();
+            } catch (Exception e) {
+                // ignore
+            }
+        }
         throw _rollbackException;
     }
 
@@ -858,7 +872,6 @@ public class Transaction {
                 if (!done && _rollbackPending) {
                     rollback();
                 }
-
             }
             _commitCompleted = true;
         } finally {
@@ -907,13 +920,8 @@ public class Transaction {
      */
     public void commit(final CommitListener commitListener, final boolean toDisk)
             throws PersistitException, RollbackException {
-        final CommitListener saveListener = _commitListener;
-        _commitListener = commitListener;
-        try {
-            commit(toDisk);
-        } finally {
-            _commitListener = saveListener;
-        }
+        _commitListeners.add(commitListener);
+        commit(toDisk);
     }
 
     /**
@@ -1283,11 +1291,14 @@ public class Transaction {
                 }
 
                 committed = true;
-                try {
-                    _commitListener.committed();
-                } catch (RuntimeException e) {
-                    // ignore
+                for (int index = _commitListeners.size(); --index >= 0;) {
+                    try {
+                        _commitListeners.get(index).committed();
+                    } catch (RuntimeException e) {
+                        // ignore
+                    }
                 }
+
                 // all done
 
             } finally {
