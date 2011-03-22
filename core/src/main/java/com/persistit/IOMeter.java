@@ -71,10 +71,9 @@ public class IOMeter implements IOMeterMXBean {
     private final static int WRITE_OTHER_TO_JOURNAL = 11;
     private final static int EVICT_PAGE_FROM_POOL = 12;
     private final static int FLUSH_JOURNAL = 13;
-    private final static int FORCE_JOURNAL = 14;
 
     private final static String[] OPERATIONS = { "??", "CC", "RV", "WV", "RJ",
-            "WJ", "TS", "TC", "SR", "DR", "DT", "XX", "EV", "FJ", "XJ" };
+            "WJ", "TS", "TC", "SR", "DR", "DT", "XX", "EV", "FJ" };
 
     private long _ioRate;
 
@@ -349,12 +348,12 @@ public class IOMeter implements IOMeterMXBean {
     public void chargeEvictPageFromPool(final Volume volume,
             final long pageAddress, final int size, int bufferIndex) {
         final long time = System.nanoTime();
-        log(FLUSH_JOURNAL, time, volume, pageAddress, size, 0, bufferIndex);
+        log(EVICT_PAGE_FROM_POOL, time, volume, pageAddress, size, 0, bufferIndex);
     }
 
     public void chargeFlushJournal(final int size, final long journalAddress) {
         final long time = System.nanoTime();
-        log(EVICT_PAGE_FROM_POOL, time, null, -1, size, journalAddress, -1);
+        log(FLUSH_JOURNAL, time, null, -1, size, journalAddress, -1);
     }
 
     public static void main(final String[] args) throws Exception {
