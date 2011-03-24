@@ -24,7 +24,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -41,6 +40,7 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
+import com.persistit.TimestampAllocator.CheckpointListener;
 import com.persistit.WaitingThreadManager.WaitingThread;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
@@ -356,6 +356,8 @@ public class Persistit {
     private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
     private Checkpoint _currentCheckpoint = new Checkpoint(0, 0);
+
+    private List<CheckpointListener> _checkpointListeners = new ArrayList<CheckpointListener>();
 
     /**
      * <p>
@@ -1521,7 +1523,6 @@ public class Persistit {
         final Checkpoint newCheckpoint = getTimestampAllocator()
                 .updatedCheckpoint();
         applyCheckpoint(newCheckpoint);
-
     }
 
     /**
@@ -1543,25 +1544,32 @@ public class Persistit {
                     getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED,
                             newCheckpoint);
                 }
-                // Now attempt to complete a recent Checkpoint -
-                // which is not the one just added to the outstanding
-                // checkpoints list, but probably the previous one.
-                flushCheckpoint();
             }
         }
+        // Attempt to flush one of the previously proposed checkpoints
+        flushCheckpoint();
     }
 
     void flushCheckpoint() {
         final Checkpoint validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
         if (validCheckpoint != null) {
-            try {
-                getJournalManager().writeCheckpointToJournal(validCheckpoint);
-            } catch (PersistitIOException e) {
-                getLogBase().log(LogBase.LOG_EXCEPTION,
-                        e + " while writing " + validCheckpoint + ":" + e);
+            boolean listenersDone = true;
+            synchronized (_checkpointListeners) {
+                for (final CheckpointListener listener : _checkpointListeners) {
+                    listenersDone &= listener.save(validCheckpoint);
+                }
             }
-            synchronized (this) {
-                _outstandingCheckpoints.remove(validCheckpoint);
+            if (listenersDone) {
+                try {
+                    getJournalManager().writeCheckpointToJournal(
+                            validCheckpoint);
+                } catch (PersistitIOException e) {
+                    getLogBase().log(LogBase.LOG_EXCEPTION,
+                            e + " while writing " + validCheckpoint + ":" + e);
+                }
+                synchronized (this) {
+                    _outstandingCheckpoints.remove(validCheckpoint);
+                }
             }
         }
     }
@@ -1980,6 +1988,21 @@ public class Persistit {
         }
     }
 
+    public int pendingTransactionCount(final long timestamp) {
+        int count = 0;
+        synchronized (_transactionSessionMap) {
+            for (final Transaction t : _transactionSessionMap.values()) {
+                if (t.getStartTimestamp() > 0
+                        && t.getStartTimestamp() < timestamp
+                        && t.getCommitTimestamp() >= timestamp
+                        || t.getCommitTimestamp() == -1) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
     /**
      * @return The current timestamp value
      */
@@ -2335,6 +2358,34 @@ public class Persistit {
      */
     public synchronized void setUpdateSuspended(boolean suspended) {
         _suspendUpdates.set(suspended);
+    }
+
+    /**
+     * Add a {@link CheckpointListener} which may be used to serialize state
+     * during the checkpoint process.
+     * 
+     * @param listener
+     *            The listener to add.
+     * @throws NullPointerException
+     */
+    public void addCheckpointListener(final CheckpointListener listener) {
+        if (listener == null) {
+            throw new NullPointerException();
+        }
+        synchronized (_checkpointListeners) {
+            _checkpointListeners.add(listener);
+        }
+    }
+
+    /**
+     * Attempt to remove a previously added {@link CheckpointListener}.
+     * 
+     * @param listener
+     */
+    public void removeCheckpointListener(final CheckpointListener listener) {
+        synchronized (_checkpointListeners) {
+            _checkpointListeners.remove(listener);
+        }
     }
 
     /**

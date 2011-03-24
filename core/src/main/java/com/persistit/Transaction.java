@@ -636,6 +636,9 @@ public class Transaction {
             try {
                 clear();
                 _commitListeners.clear();
+                _startTimestamp.set(_persistit.getTimestampAllocator()
+                        .updateTimestamp());
+
             } catch (PersistitException pe) {
                 if (_persistit.getLogBase().isLoggable(
                         LogBase.LOG_TXN_EXCEPTION)) {
@@ -698,6 +701,9 @@ public class Transaction {
                         - _pessimisticRetryThreshold > 20);
             }
             _persistit.getTransactionResourceA().release();
+            
+            _startTimestamp.set(-1);
+            _commitTimestamp.set(-1);
             //
             // Perform rollback if needed.
             //
@@ -1270,11 +1276,6 @@ public class Transaction {
                     }
                 }
 
-                //
-                // The timestamp at transaction start
-                //
-                _startTimestamp.set(_persistit.getTimestampAllocator()
-                        .updateTimestamp());
                 _toDisk.set(toDisk);
                 //
                 // Step 3 - apply the updates to their B-Trees
@@ -1286,9 +1287,9 @@ public class Transaction {
                     } else {
                         applyUpdates();
                     }
-                    _commitTimestamp.set(_persistit.getTimestampAllocator()
-                            .updateTimestamp());
                 }
+                _commitTimestamp.set(_persistit.getTimestampAllocator()
+                        .updateTimestamp());
 
                 committed = true;
                 for (int index = _commitListeners.size(); --index >= 0;) {
@@ -1315,11 +1316,6 @@ public class Transaction {
             _longRecordDeallocationList.clear();
             _touchedPagesSet.clear();
         }
-    }
-
-    synchronized void commitDone() {
-        _commitTimestamp.set(-1);
-        notify();
     }
 
     private void prepareTxnExchange(Tree tree, Key key, char type)

@@ -78,7 +78,7 @@ if not tests:
             if filename.find("10") == -1:
                 tests.append(filename)
 
-jar_file = "target/akiban-persistit-core-2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar"
+jar_file = "target/akiban-persistit-core-2.1.1-SNAPSHOT-jar-with-dependencies-and-tests.jar"
 if not os.path.isfile(jar_file):
     print "PersistIT JAR file does not exist! Did you run mvn install?"
     sys.exit(1)

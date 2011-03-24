@@ -91,7 +91,6 @@ import javax.swing.plaf.FontUIResource;
 
 import com.persistit.Management;
 import com.persistit.UtilControl;
-import com.persistit.ui.help.JavaHelpAdapterImpl;
 
 public class AdminUI implements UtilControl, Runnable, AdminCommand {
     final static String BUNDLE_NAME = "com.persistit.ui.AdminUI";
@@ -1328,17 +1327,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     }
 
     private synchronized void showHelp(ActionEvent ae) {
-        if (_javaHelpAdapter == null) {
-            try {
-                JavaHelpAdapter adapter = new JavaHelpAdapterImpl();
-                adapter.create(HELP_SET_NAME, ae);
-            } catch (Exception e) {
-                showMessage(e, "Exception while launching Help",
-                        JOptionPane.ERROR_MESSAGE);
-            }
-        } else {
-            _javaHelpAdapter.showHelp(ae);
-        }
+        // disabled and removed for now.
     }
 
     private class SplashWindow extends JWindow {

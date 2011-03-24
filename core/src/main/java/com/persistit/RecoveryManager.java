@@ -206,7 +206,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
 
     // private PrintWriter _logWriter; // TODO
 
-    interface RecoveryListener {
+    public interface RecoveryListener {
 
         void startRecovery(final long address, final long timestamp)
                 throws PersistitException;
@@ -1480,7 +1480,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                     final TreeDescriptor td = _handleToTreeMap.get(treeHandle);
 
                     convertToLongRecord(value, td.getVolumeHandle(), address,
-                            timestamp);
+                            ts.getCommitTimestamp());
                 }
 
                 listener.store(address, timestamp, exchange);
