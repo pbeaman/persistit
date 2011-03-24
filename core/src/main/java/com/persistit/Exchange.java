@@ -588,8 +588,8 @@ public class Exchange {
     }
 
     /**
-     * Delegate to {@link Key#append(double)} on the associated
-     * <code>Key</code> object.
+     * Delegate to {@link Key#append(double)} on the associated <code>Key</code>
+     * object.
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
@@ -599,8 +599,8 @@ public class Exchange {
     }
 
     /**
-     * Delegate to {@link Key#append(Object)} on the associated
-     * <code>Key</code> object.
+     * Delegate to {@link Key#append(Object)} on the associated <code>Key</code>
+     * object.
      * 
      * @return This <code>Exchange</code> to permit method call chaining.
      */
@@ -810,8 +810,8 @@ public class Exchange {
     }
 
     /**
-     * This method is for the convenience of Transaction, PersistitMap and
-     * Journal.
+     * An additional <code>Key</code> maintained for the convenience of
+     * {@link Transaction}, {@link PersistitMap} and {@link JournalManager}.
      * 
      * @return spareKey1
      */
@@ -820,7 +820,8 @@ public class Exchange {
     }
 
     /**
-     * This method is for the convenience of Transaction and Journal.
+     * An additional <code>Key</code> maintained for the convenience of
+     * {@link Transaction}, {@link PersistitMap} and {@link JournalManager}.
      * 
      * @return spareKey2
      */
@@ -829,7 +830,8 @@ public class Exchange {
     }
 
     /**
-     * This method is fo the convenience of Transaction.
+     * An additional <code>Value</code> maintained for the convenience of
+     * {@link Transaction}.
      * 
      * @return spareValue
      */

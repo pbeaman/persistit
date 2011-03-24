@@ -358,7 +358,7 @@ public class Persistit {
     private Checkpoint _currentCheckpoint = new Checkpoint(0, 0);
 
     private List<CheckpointListener> _checkpointListeners = new ArrayList<CheckpointListener>();
-
+    
     /**
      * <p>
      * Initialize Persistit using properties supplied by the default properties
@@ -1783,18 +1783,7 @@ public class Persistit {
             }
         }
 
-        _logBase.logend();
-        _volumes.clear();
-        _volumesById.clear();
-        _bufferPoolTable.clear();
-        _waitingThreadLocal.set(null);
-
-        if (_management != null) {
-            unregisterMXBeans();
-            _management.unregister();
-            _management = null;
-        }
-
+        releaseAllResources();
     }
 
     /**
@@ -1811,6 +1800,22 @@ public class Persistit {
             for (final BufferPool pool : buffers.values()) {
                 pool.crash();
             }
+        }
+        _closed.set(true);
+        releaseAllResources();
+    }
+    
+    private void releaseAllResources() {
+        _logBase.logend();
+        _volumes.clear();
+        _volumesById.clear();
+        _bufferPoolTable.clear();
+        _waitingThreadLocal.set(null);
+
+        if (_management != null) {
+            unregisterMXBeans();
+            _management.unregister();
+            _management = null;
         }
     }
 

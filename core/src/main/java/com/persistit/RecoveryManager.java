@@ -218,7 +218,8 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                 final Exchange exchange) throws PersistitException;
 
         void removeKeyRange(final long address, final long timestamp,
-                final Exchange exchange) throws PersistitException;
+                final Exchange exchange, Key from, Key to)
+                throws PersistitException;
 
         void removeTree(final long address, final long timestamp,
                 final Exchange exchange) throws PersistitException;
@@ -240,9 +241,9 @@ public class RecoveryManager implements RecoveryManagerMXBean,
 
         @Override
         public void removeKeyRange(final long address, final long timestamp,
-                Exchange exchange) throws PersistitException {
-            exchange.removeKeyRangeInternal(exchange.getAuxiliaryKey1(),
-                    exchange.getAuxiliaryKey2(), false);
+                Exchange exchange, final Key from, final Key to)
+                throws PersistitException {
+            exchange.removeKeyRangeInternal(from, to, false);
         }
 
         @Override
@@ -1507,7 +1508,9 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                         + DR.OVERHEAD + key1Size, key2.getEncodedBytes(), 0,
                         key2Size);
                 key2.setEncodedSize(key2Size);
-                listener.removeKeyRange(address, timestamp, exchange);
+                listener.removeKeyRange(address, timestamp, exchange,
+                        exchange.getAuxiliaryKey1(),
+                        exchange.getAuxiliaryKey2());
                 _persistit.releaseExchange(exchange);
                 break;
             }

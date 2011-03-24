@@ -101,7 +101,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
             @Override
             public void removeKeyRange(final long address,
-                    final long timestamp, Exchange exchange)
+                    final long timestamp, Exchange exchange, Key from, Key to)
                     throws PersistitException {
                 recoveryTimestamps.add(timestamp);
             }
