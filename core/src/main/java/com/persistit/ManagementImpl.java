@@ -21,8 +21,10 @@ import java.rmi.Naming;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Vector;
 
 import com.persistit.encoding.CoderContext;
@@ -57,6 +59,9 @@ import com.persistit.exception.PersistitException;
  * @version 1.0
  */
 class ManagementImpl implements Management {
+
+    private final static long MAX_STALE = 5000;
+
     private static boolean _localRegistryCreated;
     private static long _taskIdCounter;
 
@@ -66,6 +71,8 @@ class ManagementImpl implements Management {
     private boolean _registered = false;
     private String _registeredHostName;
     private HashMap<Long, Task> _tasks = new HashMap<Long, Task>();
+
+    private TransactionInfo _transactionInfoCache = new TransactionInfo();
 
     public ManagementImpl(Persistit persistit) {
         _persistit = persistit;
@@ -126,6 +133,16 @@ class ManagementImpl implements Management {
      */
     public long getElapsedTime() {
         return _persistit.elapsedTime();
+    }
+
+    @Override
+    public long getCommittedTransactionCount() {
+        return getTransactionInfo().getCommitCount();
+    }
+
+    @Override
+    public long getRollbackCount() {
+        return getTransactionInfo().getRollbackCount();
     }
 
     /**
@@ -303,6 +320,27 @@ class ManagementImpl implements Management {
     public RecoveryInfo getRecoveryInfo() {
         final RecoveryInfo info = new RecoveryInfo();
         _persistit.getRecoveryManager().populateRecoveryInfo(info);
+        return info;
+    }
+
+    public TransactionInfo getTransactionInfo() {
+        TransactionInfo info = _transactionInfoCache;
+        if (System.currentTimeMillis() - info.getAcquisitionTime() > MAX_STALE) {
+            final List<Transaction> transactions = new ArrayList<Transaction>();
+            synchronized (info) {
+                info.commitCount = 0;
+                info.rollbackCount = 0;
+                info.rollbackSinceCommitCount = 0;
+                _persistit.populateTransactionList(transactions, -1, -1);
+                for (final Transaction txn : transactions) {
+                    info.commitCount += txn.getCommittedTransactionCount();
+                    info.rollbackCount += txn.getRolledBackTransactionCount();
+                    info.rollbackSinceCommitCount += txn
+                            .getRolledBackSinceLastCommitCount();
+                }
+                info.updateAcquisitonTime();
+            }
+        }
         return info;
     }
 

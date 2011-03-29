@@ -1252,9 +1252,9 @@ public class Volume extends SharedResource {
                     .append(tree.getName()).remove();
 
             synchronized (_lock) {
-                if (tree.getChangeCount() >= 0) {
+//                if (tree.getChangeCount() >= 0) {
                     _treeNameHashMap.remove(tree.getName());
-                }
+//                }
                 tree.bumpGeneration();
                 tree.invalidate();
             }
@@ -1471,7 +1471,6 @@ public class Volume extends SharedResource {
         if (isTransient()) {
             throw new InvalidPageAddressException("Page " + page
                     + " can't be read in transient volume " + this);
-
         }
 
         try {
@@ -1488,6 +1487,9 @@ public class Volume extends SharedResource {
                 }
                 read += bytesRead;
             }
+            _persistit.getIOMeter().chargeReadPageFromVolume(this,
+                    buffer.getPageAddress(), buffer.getBufferSize(),
+                    buffer.getIndex());
             _lastReadTime = System.currentTimeMillis();
             _readCounter.incrementAndGet();
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_READ_OK)) {

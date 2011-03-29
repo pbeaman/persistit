@@ -1,0 +1,24 @@
+logpath $logpath$/result_$timestamp$.log
+
+#Stress 4 test mixture, no transactions, multithreaded, 1000 buffers
+
+delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+
+clearprops
+prop buffer.count.16384=1000
+prop volume.1=$datapath$/persistit.v01,create,bufferSize:16384,initialSize:10M,extensionSize:10M,maximumSize:40G
+prop journalpath=$datapath$/persistit_journal
+prop logfile=$logpath$/persistit_$timestamp$.log
+prop rmiport=8081
+
+init
+
+test com.persistit.stress.Stress4a count=1000000
+test com.persistit.stress.Stress4b count=1000000
+
+icheck persistit
+
+waitIfFailed Please examine the failure!
+
+close
+

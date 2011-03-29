@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
@@ -277,6 +278,8 @@ public class Transaction {
     private static long _idCounter = 100000000;
 
     private final Persistit _persistit;
+    private final SessionId _sessionId;
+
     private final long _id;
     private int _nestedDepth;
     private int _pendingStoreCount = 0;
@@ -305,6 +308,12 @@ public class Transaction {
     private final List<Integer> _visbilityOrder = new ArrayList<Integer>();
 
     private long _rollbackDelay = 50;
+
+    // Valid only during the commit() method
+    private AtomicLong _startTimestamp = new AtomicLong(-1);
+
+    // Valid only during the commit() method
+    private AtomicLong _commitTimestamp = new AtomicLong(-1);
 
     private CommitListener _commitListener = DEFAULT_COMMIT_LISTENER;
 
@@ -392,8 +401,8 @@ public class Transaction {
      * Creates a new transaction context. Any transaction performed within this
      * context will be isolated from all other transactions.
      */
-    public Transaction(final Persistit persistit) {
-        this(persistit, nextId());
+    Transaction(final Persistit persistit, final SessionId sessionId) {
+        this(persistit, sessionId, nextId());
     }
 
     /**
@@ -402,8 +411,10 @@ public class Transaction {
      * 
      * @param id
      */
-    private Transaction(final Persistit persistit, final long id) {
+    private Transaction(final Persistit persistit, final SessionId sessionId,
+            final long id) {
         _persistit = persistit;
+        _sessionId = sessionId;
 
         _id = id;
         _rollbackDelay = persistit.getLongProperty("rollbackDelay", 10, 0,
@@ -514,6 +525,9 @@ public class Transaction {
         if (_nestedDepth == 0) {
             try {
                 clear();
+                _startTimestamp.set(_persistit.getTimestampAllocator()
+                        .updateTimestamp());
+
             } catch (PersistitException pe) {
                 if (_persistit.getLogBase().isLoggable(
                         LogBase.LOG_TXN_EXCEPTION)) {
@@ -575,6 +589,9 @@ public class Transaction {
                         - _pessimisticRetryThreshold > 20);
             }
             _persistit.getTransactionResourceA().release();
+            _startTimestamp.set(-1);
+            _commitTimestamp.set(-1);
+
             //
             // Perform rollback if needed.
             //
@@ -939,6 +956,35 @@ public class Transaction {
     }
 
     /**
+     * @return The SessionId of the session in which this Transaction was
+     *         created.
+     */
+    public SessionId getSessionId() {
+        return _sessionId;
+    }
+
+    /**
+     * Return the timestamp assigned at the beginning of the commit() process,
+     * or -1 if commit is not in progress.
+     * 
+     * @return transaction start timestamp
+     */
+    public long getStartTimestamp() {
+        return _startTimestamp.get();
+    }
+
+    /**
+     * Return the timestamp assigned at the end of the commit() process, or -1
+     * if commit has not occurred yet.
+     * 
+     * @return transaction commit timestamp
+     */
+    public long getCommitTimestamp() {
+        return _commitTimestamp.get();
+    }
+
+
+    /**
      * Return the number of transactions committed by this transaction context.
      * 
      * @return The count
@@ -1001,6 +1047,7 @@ public class Transaction {
      * Returns the most recent occurrence of a <code>RollbackException</code>
      * within this transaction context. This method can be used to detect and
      * diagnose implicit rollback from the {@link #end} method.
+
      * 
      * @return The <code>RollbackException</code>, if <code>end</code> generated
      *         an implicit rollback due to a missing call to <code>commit</code>
@@ -1008,6 +1055,7 @@ public class Transaction {
      *         normally.
      */
     public RollbackException getRollbackException() {
+
         return _rollbackException;
     }
 
@@ -1113,7 +1161,10 @@ public class Transaction {
                     //
                     clear();
                 }
-                _longRecordDeallocationList.clear();
+                _commitTimestamp.set(_persistit.getTimestampAllocator()
+                        .updateTimestamp());
+
+
                 committed = true;
                 try {
                     _commitListener.committed();
@@ -1128,6 +1179,7 @@ public class Transaction {
             }
             return committed;
         } finally {
+                _longRecordDeallocationList.clear();
             //
             // Finally, release all the pages we claimed above.
             // PDB 20050808 - moved this outside of RetryExcepion loop because

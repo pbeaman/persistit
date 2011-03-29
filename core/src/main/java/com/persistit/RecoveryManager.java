@@ -206,7 +206,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
 
     // private PrintWriter _logWriter; // TODO
 
-    interface RecoveryListener {
+    public interface RecoveryListener {
 
         void startRecovery(final long address, final long timestamp)
                 throws PersistitException;
@@ -218,7 +218,8 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                 final Exchange exchange) throws PersistitException;
 
         void removeKeyRange(final long address, final long timestamp,
-                final Exchange exchange) throws PersistitException;
+                final Exchange exchange, Key from, Key to)
+                throws PersistitException;
 
         void removeTree(final long address, final long timestamp,
                 final Exchange exchange) throws PersistitException;
@@ -240,9 +241,9 @@ public class RecoveryManager implements RecoveryManagerMXBean,
 
         @Override
         public void removeKeyRange(final long address, final long timestamp,
-                Exchange exchange) throws PersistitException {
-            exchange.removeKeyRangeInternal(exchange.getAuxiliaryKey1(),
-                    exchange.getAuxiliaryKey2(), false);
+                Exchange exchange, final Key from, final Key to)
+                throws PersistitException {
+            exchange.removeKeyRangeInternal(from, to, false);
         }
 
         @Override
@@ -1480,7 +1481,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                     final TreeDescriptor td = _handleToTreeMap.get(treeHandle);
 
                     convertToLongRecord(value, td.getVolumeHandle(), address,
-                            timestamp);
+                            ts.getCommitTimestamp());
                 }
 
                 listener.store(address, timestamp, exchange);
@@ -1507,7 +1508,9 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                         + DR.OVERHEAD + key1Size, key2.getEncodedBytes(), 0,
                         key2Size);
                 key2.setEncodedSize(key2Size);
-                listener.removeKeyRange(address, timestamp, exchange);
+                listener.removeKeyRange(address, timestamp, exchange,
+                        exchange.getAuxiliaryKey1(),
+                        exchange.getAuxiliaryKey2());
                 _persistit.releaseExchange(exchange);
                 break;
             }
@@ -1515,7 +1518,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
             case DT.TYPE:
                 read(address, recordSize);
                 final Exchange exchange = getExchange(
-                        SR.getTreeHandle(_readBuffer), address, timestamp);
+                        DT.getTreeHandle(_readBuffer), address, timestamp);
                 listener.removeTree(address, timestamp, exchange);
                 _persistit.releaseExchange(exchange);
                 break;
