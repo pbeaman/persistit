@@ -1144,6 +1144,11 @@ public class Exchange {
         return this;
     }
 
+    int maxValueSize() {
+        final int pageSize = _volume.getPageSize();
+        final int reserveForKeys = ((Buffer.KEYBLOCK_LENGTH + Buffer.TAILBLOCK_HDR_SIZE_INDEX) + maxStorableKeySize(pageSize)) * 3;
+        return (pageSize - Buffer.HEADER_SIZE - reserveForKeys) / 2;
+    }
     /**
      * Inserts or replaces a data value in the database starting at a specified
      * level and working up toward the root of the tree.
@@ -1161,8 +1166,7 @@ public class Exchange {
 
         final boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
 
-        int maxSimpleSize = _volume.getPageSize() - Buffer.OVERHEAD
-                - maxStorableKeySize(_volume.getPageSize()) * 2;
+        int maxSimpleValueSize = maxValueSize();
 
         //
         // First insert the record in the data page
@@ -1182,8 +1186,7 @@ public class Exchange {
         //
         long newLongRecordPointer = 0;
 
-        boolean overlength = value.getEncodedSize() > maxSimpleSize
-                && value.getEncodedSize() > maxUnitRecordSize();
+        boolean overlength = value.getEncodedSize() > maxSimpleValueSize;
 
         try {
             if (overlength) {
@@ -1242,7 +1245,7 @@ public class Exchange {
                                 fetch(_spareValue);
                             }
                         }
-                        if (value.getEncodedSize() > maxSimpleSize) {
+                        if (value.getEncodedSize() > maxSimpleValueSize) {
                             newLongRecordPointer = storeOverlengthRecord(value,
                                     0);
                         }
@@ -1312,7 +1315,7 @@ public class Exchange {
                         fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
                     }
 
-                    if (value.getEncodedSize() > maxSimpleSize && !overlength) {
+                    if (value.getEncodedSize() > maxSimpleValueSize && !overlength) {
                         newLongRecordPointer = storeLongRecord(value,
                                 oldLongRecordPointer, 0);
                     } else {
@@ -3471,17 +3474,6 @@ public class Exchange {
         }
     }
 
-    /**
-     * Maximum record size that will be attempted to be stored within a single
-     * generation. If the record is longer than this, Persistit uses the
-     * storeOverlengthRecord method.
-     * 
-     * @return
-     */
-    int maxUnitRecordSize() {
-        int max = _pool.getBufferCount() * _pool.getBufferSize();
-        return max / 2;
-    }
 
     /**
      * <p>
@@ -3535,7 +3527,6 @@ public class Exchange {
         if (Debug.ENABLED) {
             Debug.$assert(value.isLongRecordMode());
             Debug.$assert(rawBytes.length == Buffer.LONGREC_SIZE);
-            Debug.$assert(longSize < maxUnitRecordSize());
         }
 
         System.arraycopy(longBytes, 0, rawBytes, Buffer.LONGREC_PREFIX_OFFSET,

@@ -69,6 +69,10 @@ public class TimestampAllocator {
         void done(final Checkpoint checkpoint);
     }
 
+    /**
+     * A structure containing a timestamp and system clock time at which Persistit will attempt to
+     * record a valid Checkpoint to disk. 
+     */
     public static class Checkpoint {
 
         private final static SimpleDateFormat SDF = new SimpleDateFormat(

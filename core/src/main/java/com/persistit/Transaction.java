@@ -20,8 +20,10 @@ import static com.persistit.JournalRecord.getType;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,6 +33,7 @@ import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.SR;
 import com.persistit.JournalRecord.TC;
 import com.persistit.JournalRecord.TS;
+import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -278,8 +281,6 @@ import com.persistit.exception.TimeoutException;
 public class Transaction {
     public final static int DEFAULT_PESSIMISTIC_RETRY_THRESHOLD = 3;
 
-    private final static CommitListener DEFAULT_COMMIT_LISTENER = new DefaultCommitListener();
-
     private final static int DEFAULT_TXN_BUFFER_SIZE = 64 * 1024;
 
     private final static int MIN_TXN_BUFFER_CAPACITY = 1024;
@@ -340,6 +341,8 @@ public class Transaction {
 
     private TransactionBuffer _txnBuffer = new TransactionBuffer();
 
+    private Map<TransactionalCache, List<Update>> _transactionCacheUpdates = new HashMap<TransactionalCache, List<Update>>();
+    
     private class TransactionBuffer implements TransactionWriter {
 
         private ByteBuffer _bb = ByteBuffer.allocate(DEFAULT_TXN_BUFFER_SIZE);
@@ -2086,6 +2089,15 @@ public class Transaction {
      */
     public long getTimestamp() {
         return _persistit.getCurrentTimestamp();
+    }
+    
+    List<Update> updateList(final TransactionalCache tc) {
+        List<Update> list = _transactionCacheUpdates.get(tc);
+        if (list == null) {
+            list = new ArrayList<Update>();
+            _transactionCacheUpdates.put(tc, list);
+        }
+        return list;
     }
 
 }

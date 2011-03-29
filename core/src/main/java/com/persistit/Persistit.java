@@ -91,12 +91,8 @@ public class Persistit {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit 2.1"
+    public final static String VERSION = "Persistit 2.1.1"
             + (Debug.ENABLED ? "-DEBUG" : "");
-    /**
-     * The internal version number
-     */
-    public final static int BUILD_ID = 22001;
     /**
      * The copyright notice
      */
@@ -291,7 +287,9 @@ public class Persistit {
 
     private final static long SHORT_DELAY = 500;
 
-    private final static long CLOSE_LOG_INTERVAL = 30000;
+    private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
+
+    private final static long FLUSH_CHECKPOINT_INTERVAL = 10000000000L; // 10sec
 
     private AbstractPersistitLogger _logger;
 
@@ -309,6 +307,7 @@ public class Persistit {
 
     private long _beginCloseTime;
     private long _nextCloseTime;
+    private long _nextFlushCheckpoint;
 
     private final LogBase _logBase = new LogBase(this);
 
@@ -355,10 +354,12 @@ public class Persistit {
 
     private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
-    private Checkpoint _currentCheckpoint = new Checkpoint(0, 0);
+    private final List<CheckpointListener> _checkpointListeners = new ArrayList<CheckpointListener>();
 
-    private List<CheckpointListener> _checkpointListeners = new ArrayList<CheckpointListener>();
-    
+    private final HashMap<Long, TransactionalCache> _transactionalCaches = new HashMap<Long, TransactionalCache>();
+
+    private Checkpoint _lastCheckpoint = new Checkpoint(0, 0);
+
     /**
      * <p>
      * Initialize Persistit using properties supplied by the default properties
@@ -1484,8 +1485,11 @@ public class Persistit {
         return _readRetryEnabled;
     }
 
-    public synchronized Checkpoint getCurrentCheckpoint() {
-        return _currentCheckpoint;
+    /**
+     * @return The most recently proposed Checkpoint.
+     */
+    public Checkpoint getCurrentCheckpoint() {
+        return _timestampAllocator.getCurrentCheckpoint();
     }
 
     /**
@@ -1536,18 +1540,21 @@ public class Persistit {
      */
     void applyCheckpoint(final Checkpoint newCheckpoint) {
         synchronized (this) {
-            if (newCheckpoint.getTimestamp() > _currentCheckpoint
-                    .getTimestamp()) {
+            if (newCheckpoint.getTimestamp() > _lastCheckpoint.getTimestamp()) {
                 _outstandingCheckpoints.add(newCheckpoint);
-                _currentCheckpoint = newCheckpoint;
+                _lastCheckpoint = newCheckpoint;
                 if (getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_PROPOSED)) {
                     getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED,
                             newCheckpoint);
                 }
             }
         }
-        // Attempt to flush one of the previously proposed checkpoints
-        flushCheckpoint();
+        if (System.nanoTime() - _nextFlushCheckpoint > 0) {
+            // Attempt to flush one of the previously proposed checkpoints
+            flushCheckpoint();
+            _nextFlushCheckpoint = System.nanoTime()
+                    + FLUSH_CHECKPOINT_INTERVAL;
+        }
     }
 
     void flushCheckpoint() {
@@ -1804,7 +1811,7 @@ public class Persistit {
         _closed.set(true);
         releaseAllResources();
     }
-    
+
     private void releaseAllResources() {
         _logBase.logend();
         _volumes.clear();
@@ -1854,7 +1861,7 @@ public class Persistit {
 
     void waitForIOTaskStop(final IOTaskRunnable task) {
         if (_beginCloseTime == 0) {
-            _beginCloseTime = System.currentTimeMillis();
+            _beginCloseTime = System.nanoTime();
             _nextCloseTime = _beginCloseTime + CLOSE_LOG_INTERVAL;
         }
         task.kick();
@@ -2391,6 +2398,22 @@ public class Persistit {
         synchronized (_checkpointListeners) {
             _checkpointListeners.remove(listener);
         }
+    }
+
+    void addTransactionalCache(TransactionalCache tc) {
+        if (_initialized.get()) {
+            throw new IllegalStateException("TransactionalCache must be added"
+                    + " before Persistit initialization");
+        }
+        if (getTransactionalCache(tc.cacheId()) != null) {
+            throw new IllegalStateException(
+                    "TransactionalCache cacheId must be unique");
+        }
+        _transactionalCaches.put(tc.cacheId(), tc);
+    }
+
+    TransactionalCache getTransactionalCache(final long cacheId) {
+        return _transactionalCaches.get(cacheId);
     }
 
     /**
