@@ -34,9 +34,9 @@ public class UnitTestProperties {
         }
         final Properties p = new Properties();
         p.setProperty("datapath", DATA_PATH);
-        p.setProperty("buffer.count.8192", "20");
+        p.setProperty("buffer.count.16384", "20");
         p.setProperty("volume.1", "${datapath}/persistit.v01,create,"
-                + "pageSize:8192,initialPages:100,extensionPages:100,"
+                + "pageSize:16384,initialPages:100,extensionPages:100,"
                 + "maximumPages:25000");
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
@@ -50,20 +50,20 @@ public class UnitTestProperties {
         }
         final Properties p = new Properties();
         p.setProperty("datapath", DATA_PATH);
-        p.setProperty("buffer.count.8192", "4000");
+        p.setProperty("buffer.count.16384", "2000");
         p.setProperty("volume.1", "${datapath}/persistit.v01,create,"
-                + "pageSize:8192,initialPages:100,extensionPages:100,"
+                + "pageSize:16384,initialPages:100,extensionPages:100,"
                 + "maximumPages:100000,alias:persistit");
         p.setProperty("volume.2", "${datapath}/persistit_system.v01,create,"
-                + "pageSize:8192,initialPages:100,extensionPages:100,"
+                + "pageSize:16384,initialPages:100,extensionPages:100,"
                 + "maximumPages:100000,alias:_system");
         p.setProperty("volume.3", "${datapath}/persistit_txn.v01,create,"
-                + "pageSize:8192,initialPages:100,extensionPages:100,"
+                + "pageSize:16384,initialPages:100,extensionPages:100,"
                 + "maximumPages:100000,alias:_txn");
         p.setProperty(
                 "volume.4",
                 "${datapath}/persistit_transient.v01,createOnly,"
-                        + "pageSize:8192,initialPages:1000000,extensionPages:1000000,"
+                        + "pageSize:16384,initialPages:1000000,extensionPages:1000000,"
                         + "maximumPages:1000000,alias:transient,transient");
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
@@ -77,9 +77,9 @@ public class UnitTestProperties {
         }
         final Properties p = new Properties();
         p.setProperty("datapath", DATA_PATH);
-        p.setProperty("buffer.count.8192", "40");
+        p.setProperty("buffer.count.16384", "40");
         p.setProperty("volume.1", "${datapath}/temp.v01,create,"
-                + "pageSize:8192,initialPages:4,extensionPages:1,"
+                + "pageSize:16384,initialPages:4,extensionPages:1,"
                 + "maximumPages:100000,alias:persistit,transient");
         p.setProperty("journalpath", "${datapath}/persistit_alt_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");

@@ -1149,6 +1149,7 @@ public class Exchange {
         final int reserveForKeys = ((Buffer.KEYBLOCK_LENGTH + Buffer.TAILBLOCK_HDR_SIZE_INDEX) + maxStorableKeySize(pageSize)) * 3;
         return (pageSize - Buffer.HEADER_SIZE - reserveForKeys) / 2;
     }
+    
     /**
      * Inserts or replaces a data value in the database starting at a specified
      * level and working up toward the root of the tree.

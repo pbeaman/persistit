@@ -3275,7 +3275,10 @@ public final class Key implements Comparable<Object> {
     }
 
     static int maxStorableKeySize(int bufferSize) {
-        int result = bufferSize / 5;
+        if (bufferSize >= 8192) {
+            return MAX_KEY_LENGTH;
+        }
+        int result = bufferSize / 8 - 1;
         if (result > MAX_KEY_LENGTH)
             result = MAX_KEY_LENGTH;
         return result;
