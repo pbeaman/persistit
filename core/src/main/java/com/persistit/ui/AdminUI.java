@@ -938,6 +938,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         }
 
         public ArrayList getButtonList() {
+
+
             return _buttonList;
         }
 
@@ -1327,7 +1329,19 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     }
 
     private synchronized void showHelp(ActionEvent ae) {
-        // disabled and removed for now.
+	// disabled and removed for now
+	// 
+        // if (_javaHelpAdapter == null) {
+        //    try {
+        //        JavaHelpAdapter adapter = new JavaHelpAdapterImpl();
+        //        adapter.create(HELP_SET_NAME, ae);
+        //    } catch (Exception e) {
+        //        showMessage(e, "Exception while launching Help",
+        //                JOptionPane.ERROR_MESSAGE);
+        //    }
+        //} else {
+        //    _javaHelpAdapter.showHelp(ae);
+        //}
     }
 
     private class SplashWindow extends JWindow {

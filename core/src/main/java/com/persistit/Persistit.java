@@ -1539,17 +1539,19 @@ public class Persistit {
      * @param newCheckpoint
      */
     void applyCheckpoint(final Checkpoint newCheckpoint) {
+        boolean flush = false;
         synchronized (this) {
             if (newCheckpoint.getTimestamp() > _lastCheckpoint.getTimestamp()) {
                 _outstandingCheckpoints.add(newCheckpoint);
                 _lastCheckpoint = newCheckpoint;
+                flush = true;
                 if (getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_PROPOSED)) {
                     getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED,
                             newCheckpoint);
                 }
             }
         }
-        if (System.nanoTime() - _nextFlushCheckpoint > 0) {
+        if (System.nanoTime() - _nextFlushCheckpoint > 0 || flush) {
             // Attempt to flush one of the previously proposed checkpoints
             flushCheckpoint();
             _nextFlushCheckpoint = System.nanoTime()

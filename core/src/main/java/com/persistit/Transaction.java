@@ -704,7 +704,6 @@ public class Transaction {
                         - _pessimisticRetryThreshold > 20);
             }
             _persistit.getTransactionResourceA().release();
-
             _startTimestamp.set(-1);
             _commitTimestamp.set(-1);
             //
@@ -1162,12 +1161,14 @@ public class Transaction {
      * within this transaction context. This method can be used to detect and
      * diagnose implicit rollback from the {@link #end} method.
      * 
+     * 
      * @return The <code>RollbackException</code>, if <code>end</code> generated
      *         an implicit rollback due to a missing call to <code>commit</code>
      *         , or <code>null</code> if the transaction committed and ended
      *         normally.
      */
     public RollbackException getRollbackException() {
+
         return _rollbackException;
     }
 
