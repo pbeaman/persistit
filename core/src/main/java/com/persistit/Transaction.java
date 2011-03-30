@@ -103,17 +103,17 @@ import com.persistit.exception.TimeoutException;
  * <p>
  * Persistit normally schedules concurrently executing transactions
  * optimistically, meaning that Persistit does not implicitly lock any data
- * records that a transaction reads or writes. Instead, it allows
- * eachMIN_TRANSACTION_BUFFER_CAPACITY transaction to proceed concurrently and
- * then verifies that no other thread has changed data that the transaction has
- * relied upon before it commits. If conflicting changes are found, then
- * Persistit rolls back all changes performed within the scope of the
- * transaction and throws a <code>RollbackException</code>. In most database
- * applications, such a collision is relatively rare, and the application can
- * simply retry the transaction with a high likelihood of success after a small
- * number of retries. To minimize the likelihood of collisions, applications
- * should favor short transactions with small numbers of database operations
- * when possible and practical.
+ * records that a transaction reads or writes. Instead, it allows each
+ * transaction to proceed concurrently and then verifies that no other thread
+ * has changed data that the transaction has relied upon before it commits. If
+ * conflicting changes are found, then Persistit rolls back all changes
+ * performed within the scope of the transaction and throws a
+ * <code>RollbackException</code>. In most database applications, such a
+ * collision is relatively rare, and the application can simply retry the
+ * transaction with a high likelihood of success after a small number of
+ * retries. To minimize the likelihood of collisions, applications should favor
+ * short transactions with small numbers of database operations when possible
+ * and practical.
  * </p>
  * <a name="_pattern1" /> <h3>The try/finally Pattern</h3>
  * <p>
@@ -232,9 +232,9 @@ import com.persistit.exception.TimeoutException;
  * </code>
  * </pre>
  * 
- * </blockquote> This pattern ensures that the transaction scope is
- * endedMIN_TRANSACTION_BUFFER_CAPACITY properly regardless of whether the
- * application code throws an exception or completes and commits normally.
+ * </blockquote> This pattern ensures that the transaction scope is ended
+ * properly regardless of whether the application code throws an exception or
+ * completes and commits normally.
  * </p>
  * <p>
  * The {@link #commit} method performs the actual commit operation only when the
@@ -254,9 +254,9 @@ import com.persistit.exception.TimeoutException;
  * scope, will fail with a <code>RollbackException</code>. The
  * <code>commit</code> method throws a <code>RollbackException</code> (and
  * therefore does not commit the pending updates) if either the transaction
- * scope is marked <i>rollback pending</i> by a prior call
- * toMIN_TRANSACTION_BUFFER_CAPACITY <code>rollback</code> or if the attempt to
- * commit the updates would generate an inconsistent database state.
+ * scope is marked <i>rollback pending</i> by a prior call to
+ * <code>rollback</code> or if the attempt to commit the updates would generate
+ * an inconsistent database state.
  * </p>
  * <p>
  * Application developers should beware that the <code>end</code> method
@@ -342,7 +342,7 @@ public class Transaction {
     private TransactionBuffer _txnBuffer = new TransactionBuffer();
 
     private Map<TransactionalCache, List<Update>> _transactionCacheUpdates = new HashMap<TransactionalCache, List<Update>>();
-    
+
     private class TransactionBuffer implements TransactionWriter {
 
         private ByteBuffer _bb = ByteBuffer.allocate(DEFAULT_TXN_BUFFER_SIZE);
@@ -514,7 +514,7 @@ public class Transaction {
      * Creates a new transaction context. Any transaction performed within this
      * context will be isolated from all other transactions.
      */
-    public Transaction(final Persistit persistit, final SessionId sessionId) {
+    Transaction(final Persistit persistit, final SessionId sessionId) {
         this(persistit, sessionId, nextId());
     }
 
@@ -704,7 +704,7 @@ public class Transaction {
                         - _pessimisticRetryThreshold > 20);
             }
             _persistit.getTransactionResourceA().release();
-            
+
             _startTimestamp.set(-1);
             _commitTimestamp.set(-1);
             //
@@ -2090,7 +2090,7 @@ public class Transaction {
     public long getTimestamp() {
         return _persistit.getCurrentTimestamp();
     }
-    
+
     List<Update> updateList(final TransactionalCache tc) {
         List<Update> list = _transactionCacheUpdates.get(tc);
         if (list == null) {
