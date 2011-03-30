@@ -628,7 +628,7 @@ public class IntegrityCheck extends Task {
                 } else if (buffer.isIndexPage()) {
                     _indexPageCount++;
                     _indexBytesInUse += (buffer.getBufferSize()
-                            - buffer.getAvailableSize() - Buffer.OVERHEAD);
+                            - buffer.getAvailableSize() - Buffer.INDEX_PAGE_OVERHEAD);
                     //
                     // Resetting the key because we are going to re-traverse
                     // the same page, now handling each downpointer.

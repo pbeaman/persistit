@@ -238,7 +238,7 @@ import com.persistit.exception.MissingKeySegmentException;
  * subset of keys in S selected by this KeyFilter.</dd>
  * <dt>Adjacent</dt>
  * <dd>Two keys K1 and K2 in this set are <i>adjacent</i> if K1 != K2 and there
- * exists no other key value K such that K1 &lt; K &lt; k2. The terms
+ * exists no other key value K such that K1 &lt; K &lt; K2. The terms
  * <i>left-adjacent</i> and <i>right-adjacent</i> describe the precedence: K1 is
  * left-adjacent to K2; K2 is right-adjacent to K1</dd>
  * <dt>Contiguous</dt>

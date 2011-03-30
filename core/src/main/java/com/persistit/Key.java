@@ -3272,15 +3272,13 @@ public final class Key implements Comparable<Object> {
         if (_size == 0) {
             throw new InvalidKeyException("Empty Key not permitted");
         }
-        // int b = _bytes[0] & 0xFF;
-        // if (b < TYPE_BEFORE || b > TYPE_AFTER) {
-        // throw new InvalidKeyException(
-        // "Key not between BEFORE and AFTER");
-        // }
     }
 
     static int maxStorableKeySize(int bufferSize) {
-        int result = bufferSize / 4;
+        if (bufferSize >= 8192) {
+            return MAX_KEY_LENGTH;
+        }
+        int result = bufferSize / 8 - 1;
         if (result > MAX_KEY_LENGTH)
             result = MAX_KEY_LENGTH;
         return result;

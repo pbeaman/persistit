@@ -40,6 +40,7 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
+import com.persistit.TimestampAllocator.CheckpointListener;
 import com.persistit.WaitingThreadManager.WaitingThread;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
@@ -90,12 +91,8 @@ public class Persistit {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit 2.1"
+    public final static String VERSION = "Persistit 2.1.1"
             + (Debug.ENABLED ? "-DEBUG" : "");
-    /**
-     * The internal version number
-     */
-    public final static int BUILD_ID = 22001;
     /**
      * The copyright notice
      */
@@ -290,7 +287,9 @@ public class Persistit {
 
     private final static long SHORT_DELAY = 500;
 
-    private final static long CLOSE_LOG_INTERVAL = 30000;
+    private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
+
+    private final static long FLUSH_CHECKPOINT_INTERVAL = 10000000000L; // 10sec
 
     private AbstractPersistitLogger _logger;
 
@@ -308,6 +307,7 @@ public class Persistit {
 
     private long _beginCloseTime;
     private long _nextCloseTime;
+    private long _nextFlushCheckpoint;
 
     private final LogBase _logBase = new LogBase(this);
 
@@ -326,7 +326,7 @@ public class Persistit {
 
     private ThreadLocal<WaitingThread> _waitingThreadLocal = new ThreadLocal<WaitingThread>();
 
-    private final WeakHashMap<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
+    private final Map<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
 
     private ManagementImpl _management;
 
@@ -338,7 +338,7 @@ public class Persistit {
 
     private final IOMeter _ioMeter = new IOMeter();
 
-    private WeakHashMap<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
+    private Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
 
     private boolean _readRetryEnabled;
 
@@ -354,7 +354,9 @@ public class Persistit {
 
     private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
-    private Checkpoint _currentCheckpoint = new Checkpoint(0, 0);
+    private final List<CheckpointListener> _checkpointListeners = new ArrayList<CheckpointListener>();
+
+    private Checkpoint _lastCheckpoint = new Checkpoint(0, 0);
 
     /**
      * <p>
@@ -696,8 +698,8 @@ public class Persistit {
         MBeanServer server = java.lang.management.ManagementFactory
                 .getPlatformMBeanServer();
         try {
-            server.unregisterMBean(new ObjectName(
-                    BufferPoolMXBeanImpl.mbeanName(bufferSize)));
+            server.unregisterMBean(new ObjectName(BufferPoolMXBeanImpl
+                    .mbeanName(bufferSize)));
         } catch (InstanceNotFoundException exception) {
             // ignore
         } catch (Exception exception) {
@@ -1435,6 +1437,35 @@ public class Persistit {
     }
 
     /**
+     * Copies the current set of Transaction objects to the supplied List. This
+     * method is used by JOURNAL_FLUSHER to look for transactions that need to
+     * be written to the Journal, and BufferPool checkpoint code to look for
+     * uncommitted transactions. For each session, add that session's
+     * transaction to the supplied list if and only if it has a startTimestamp
+     * greater than <code>from</code> and a commitTimestamp greater than
+     * <code>to</code>.
+     * 
+     * @param transactions
+     *            List of Transaction objects to be populated
+     * @param from
+     *            minimum startTimestamp, or -1 for any
+     * @param to
+     *            minimum commitTimestamp, or -1 for any
+     */
+    void populateTransactionList(final List<Transaction> transactions,
+            final long from, final long to) {
+        transactions.clear();
+        synchronized (_transactionSessionMap) {
+            for (final Transaction t : _transactionSessionMap.values()) {
+                if (t.getStartTimestamp() >= from
+                        && t.getCommitTimestamp() >= to) {
+                    transactions.add(t);
+                }
+            }
+        }
+    }
+
+    /**
      * Returns the default timeout for operations on an <code>Exchange</code>.
      * The application may override this default value for an instance of an
      * <code>Exchange</code> through the {@link Exchange#setTimeout(long)}
@@ -1481,8 +1512,11 @@ public class Persistit {
         return _readRetryEnabled;
     }
 
-    public synchronized Checkpoint getCurrentCheckpoint() {
-        return _currentCheckpoint;
+    /**
+     * @return The most recently proposed Checkpoint.
+     */
+    public Checkpoint getCurrentCheckpoint() {
+        return _timestampAllocator.getCurrentCheckpoint();
     }
 
     /**
@@ -1520,7 +1554,6 @@ public class Persistit {
         final Checkpoint newCheckpoint = getTimestampAllocator()
                 .updatedCheckpoint();
         applyCheckpoint(newCheckpoint);
-
     }
 
     /**
@@ -1533,34 +1566,46 @@ public class Persistit {
      * @param newCheckpoint
      */
     void applyCheckpoint(final Checkpoint newCheckpoint) {
+        boolean flush = false;
         synchronized (this) {
-            if (newCheckpoint.getTimestamp() > _currentCheckpoint
-                    .getTimestamp()) {
+            if (newCheckpoint.getTimestamp() > _lastCheckpoint.getTimestamp()) {
                 _outstandingCheckpoints.add(newCheckpoint);
-                _currentCheckpoint = newCheckpoint;
+                _lastCheckpoint = newCheckpoint;
+                flush = true;
                 if (getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_PROPOSED)) {
                     getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED,
                             newCheckpoint);
                 }
-                // Now attempt to complete a recent Checkpoint -
-                // which is not the one just added to the outstanding
-                // checkpoints list, but probably the previous one.
-                flushCheckpoint();
             }
+        }
+        if (System.nanoTime() - _nextFlushCheckpoint > 0 || flush) {
+            // Attempt to flush one of the previously proposed checkpoints
+            flushCheckpoint();
+            _nextFlushCheckpoint = System.nanoTime()
+                    + FLUSH_CHECKPOINT_INTERVAL;
         }
     }
 
     void flushCheckpoint() {
         final Checkpoint validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
         if (validCheckpoint != null) {
-            try {
-                getJournalManager().writeCheckpointToJournal(validCheckpoint);
-            } catch (PersistitIOException e) {
-                getLogBase().log(LogBase.LOG_EXCEPTION,
-                        e + " while writing " + validCheckpoint + ":" + e);
+            boolean listenersDone = true;
+            synchronized (_checkpointListeners) {
+                for (final CheckpointListener listener : _checkpointListeners) {
+                    listenersDone &= listener.save(validCheckpoint);
+                }
             }
-            synchronized (this) {
-                _outstandingCheckpoints.remove(validCheckpoint);
+            if (listenersDone) {
+                try {
+                    getJournalManager().writeCheckpointToJournal(
+                            validCheckpoint);
+                } catch (PersistitIOException e) {
+                    getLogBase().log(LogBase.LOG_EXCEPTION,
+                            e + " while writing " + validCheckpoint + ":" + e);
+                }
+                synchronized (this) {
+                    _outstandingCheckpoints.remove(validCheckpoint);
+                }
             }
         }
     }
@@ -1774,18 +1819,7 @@ public class Persistit {
             }
         }
 
-        _logBase.logend();
-        _volumes.clear();
-        _volumesById.clear();
-        _bufferPoolTable.clear();
-        _waitingThreadLocal.set(null);
-
-        if (_management != null) {
-            unregisterMXBeans();
-            _management.unregister();
-            _management = null;
-        }
-
+        releaseAllResources();
     }
 
     /**
@@ -1802,6 +1836,22 @@ public class Persistit {
             for (final BufferPool pool : buffers.values()) {
                 pool.crash();
             }
+        }
+        _closed.set(true);
+        releaseAllResources();
+    }
+
+    private void releaseAllResources() {
+        _logBase.logend();
+        _volumes.clear();
+        _volumesById.clear();
+        _bufferPoolTable.clear();
+        _waitingThreadLocal.set(null);
+
+        if (_management != null) {
+            unregisterMXBeans();
+            _management.unregister();
+            _management = null;
         }
     }
 
@@ -1840,7 +1890,7 @@ public class Persistit {
 
     void waitForIOTaskStop(final IOTaskRunnable task) {
         if (_beginCloseTime == 0) {
-            _beginCloseTime = System.currentTimeMillis();
+            _beginCloseTime = System.nanoTime();
             _nextCloseTime = _beginCloseTime + CLOSE_LOG_INTERVAL;
         }
         task.kick();
@@ -1940,12 +1990,14 @@ public class Persistit {
      */
     public Transaction getTransaction() {
         final SessionId sessionId = getSessionId();
-        Transaction txn = _transactionSessionMap.get(sessionId);
-        if (txn == null) {
-            txn = new Transaction(this);
-            _transactionSessionMap.put(sessionId, txn);
+        synchronized (_transactionSessionMap) {
+            Transaction txn = _transactionSessionMap.get(sessionId);
+            if (txn == null) {
+                txn = new Transaction(this, sessionId);
+                _transactionSessionMap.put(sessionId, txn);
+            }
+            return txn;
         }
-        return txn;
     }
 
     /**
@@ -2306,6 +2358,34 @@ public class Persistit {
     }
 
     /**
+     * Add a {@link CheckpointListener} which may be used to serialize state
+     * during the checkpoint process.
+     * 
+     * @param listener
+     *            The listener to add.
+     * @throws NullPointerException
+     */
+    public void addCheckpointListener(final CheckpointListener listener) {
+        if (listener == null) {
+            throw new NullPointerException();
+        }
+        synchronized (_checkpointListeners) {
+            _checkpointListeners.add(listener);
+        }
+    }
+
+    /**
+     * Attempt to remove a previously added {@link CheckpointListener}.
+     * 
+     * @param listener
+     */
+    public void removeCheckpointListener(final CheckpointListener listener) {
+        synchronized (_checkpointListeners) {
+            _checkpointListeners.remove(listener);
+        }
+    }
+
+    /**
      * Initializes Persistit using a property file path supplied as the first
      * argument, or if no arguments are supplied, the default property file name
      * (<code>persistit.properties</code> in the default directory).
@@ -2319,6 +2399,7 @@ public class Persistit {
         boolean gui = false;
         boolean icheck = false;
         boolean wait = false;
+        boolean copy = false;
 
         String propertiesFileName = null;
         for (int index = 0; index < args.length; index++) {
@@ -2328,14 +2409,15 @@ public class Persistit {
                 usage();
                 return;
             }
-            if (s.equalsIgnoreCase("-g"))
+            if (s.equalsIgnoreCase("-g")) {
                 gui = true;
-            else if (s.equalsIgnoreCase("-i"))
+            } else if (s.equalsIgnoreCase("-i")) {
                 icheck = true;
-            else if (s.equalsIgnoreCase("-w"))
+            } else if (s.equalsIgnoreCase("-w")) {
                 wait = true;
-
-            else if (!s.startsWith("-") && propertiesFileName == null) {
+            } else if (s.equalsIgnoreCase("-c")) {
+                copy = true;
+            } else if (!s.startsWith("-") && propertiesFileName == null) {
                 propertiesFileName = s;
             } else {
                 usage();
@@ -2350,6 +2432,9 @@ public class Persistit {
             }
             if (icheck) {
                 persistit.checkAllVolumes();
+            }
+            if (copy) {
+                persistit.copyBackPages();
             }
             if (wait) {
                 persistit.setShutdownSuspended(true);

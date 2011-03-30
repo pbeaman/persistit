@@ -232,7 +232,7 @@ public final class Buffer extends SharedResource {
     /**
      * Implicit overhead size
      */
-    final static int OVERHEAD = INITIAL_KEY_BLOCK_START_VALUE + 2
+    final static int INDEX_PAGE_OVERHEAD = INITIAL_KEY_BLOCK_START_VALUE + 2
             * KEYBLOCK_LENGTH + 2 * TAILBLOCK_HDR_SIZE_INDEX;
 
     final static int DATA_PAGE_OVERHEAD = INITIAL_KEY_BLOCK_START_VALUE + 2

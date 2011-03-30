@@ -47,7 +47,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final String path = UnitTestProperties.DATA_PATH
                 + "/JournalManagerTest_journal_";
         jman.init(null, path, 100 * 1000 * 1000);
-        final BufferPool pool = _persistit.getBufferPool(8192);
+        final BufferPool pool = _persistit.getBufferPool(16384);
         final long pages = Math.min(1000, volume.getPageCount());
         for (int i = 0; i < 1000; i++) {
             final Buffer buffer = pool.get(volume, i % pages, false, true);
@@ -160,7 +160,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
 
             @Override
             public void removeKeyRange(final long address,
-                    final long timestamp, Exchange exchange)
+                    final long timestamp, Exchange exchange, Key from, Key to)
                     throws PersistitException {
                 recoveryTimestamps.add(timestamp);
             }
@@ -205,7 +205,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final String path = UnitTestProperties.DATA_PATH
                 + "/JournalManagerTest_journal_";
         jman.init(null, path, 100 * 1000 * 1000);
-        final BufferPool pool = _persistit.getBufferPool(8192);
+        final BufferPool pool = _persistit.getBufferPool(16384);
         final long pages = Math.min(1000, volume.getPageCount());
         final Transaction txn = _persistit.getTransaction();
         for (int i = 0; jman.getCurrentAddress() < 300 * 1000 * 1000; i++) {

@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import com.persistit.exception.PersistitException;
 
 /**
@@ -27,7 +29,7 @@ public class Tree extends SharedResource {
     private final Volume _volume;
     private long _rootPageAddr;
     private int _depth;
-    private long _changeCount;
+    private AtomicLong _changeCount = new AtomicLong(-1);
     int _hashCode = -1;
     private Object _appCache;
 
@@ -121,10 +123,7 @@ public class Tree extends SharedResource {
         // Note: the changeCount only gets written when there's a structure
         // change in the tree that causes it to be committed.
         //
-        synchronized (_lock) {
-            _changeCount++;
-            setDirty();
-        }
+        _changeCount.incrementAndGet();
     }
 
     /**
@@ -134,13 +133,11 @@ public class Tree extends SharedResource {
      * tree map.
      */
     void destroy() {
-        _changeCount = -1;
+        _changeCount.set(-1);
     }
 
     long getChangeCount() {
-        synchronized (_lock) {
-            return _changeCount;
-        }
+        return _changeCount.get();
     }
 
     /**
@@ -154,7 +151,7 @@ public class Tree extends SharedResource {
 
         Util.putLong(encoded, 0, _rootPageAddr);
         Util.putShort(encoded, 12, _depth);
-        Util.putLong(encoded, 16, _changeCount);
+        Util.putLong(encoded, 16, getChangeCount());
         // 24-30 free
         Util.putShort(encoded, 30, nameBytes.length);
         Util.putBytes(encoded, 32, nameBytes);
@@ -176,7 +173,7 @@ public class Tree extends SharedResource {
         }
         _rootPageAddr = Util.getLong(encoded, 0);
         _depth = Util.getShort(encoded, 12);
-        _changeCount = Util.getLong(encoded, 16);
+        _changeCount.set(Util.getLong(encoded, 16));
     }
 
     /**
