@@ -26,7 +26,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,6 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 
 import com.persistit.JournalRecord.CP;
+import com.persistit.JournalRecord.CU;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.IT;
@@ -53,6 +53,7 @@ import com.persistit.JournalRecord.TC;
 import com.persistit.JournalRecord.TM;
 import com.persistit.JournalRecord.TS;
 import com.persistit.TimestampAllocator.Checkpoint;
+import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -1027,6 +1028,44 @@ public class JournalManager implements JournalManagerMXBean,
         TC.putCommitTimestamp(writeBuffer, commitTimestamp);
         TC.putLength(writeBuffer, TC.OVERHEAD);
         writeBuffer.position(writeBuffer.position() + TC.OVERHEAD);
+    }
+
+    @Override
+    public boolean writeCacheUpdatesToJournal(final long timestamp,
+            final long cacheId, final List<Update> updates)
+            throws PersistitIOException {
+        int estimate = CU.OVERHEAD;
+        for (int index = 0; index < updates.size(); index++) {
+            estimate += (1 + updates.get(index).size());
+        }
+        prepareWriteBuffer(estimate);
+        final int recordSize = writeCacheUpdatesToJournal(_writeBuffer,
+                timestamp, cacheId, updates);
+        _currentAddress += recordSize;
+        return true;
+    }
+
+    synchronized int writeCacheUpdatesToJournal(final ByteBuffer writeBuffer,
+            final long timestamp, final long cacheId, final List<Update> updates)
+            throws PersistitIOException {
+        int start = writeBuffer.position();
+        CU.putType(writeBuffer);
+        CU.putCacheId(writeBuffer, cacheId);
+        CU.putTimestamp(writeBuffer, timestamp);
+        writeBuffer.position(writeBuffer.position() + CU.OVERHEAD);
+        for (int index = 0; index < updates.size(); index++) {
+            final Update update = updates.get(index);
+            try {
+                update.write(writeBuffer);
+            } catch (IOException e) {
+                throw new PersistitIOException(e);
+            }
+        }
+        int recordSize = writeBuffer.position() - start;
+        writeBuffer.position(start);
+        CU.putLength(writeBuffer, recordSize);
+        writeBuffer.position(start + recordSize);
+        return recordSize;
     }
 
     synchronized void writeTransactionBufferToJournal(

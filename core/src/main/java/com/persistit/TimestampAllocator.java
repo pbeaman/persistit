@@ -70,8 +70,8 @@ public class TimestampAllocator {
     }
 
     /**
-     * A structure containing a timestamp and system clock time at which Persistit will attempt to
-     * record a valid Checkpoint to disk. 
+     * A structure containing a timestamp and system clock time at which
+     * Persistit will attempt to record a valid Checkpoint to disk.
      */
     public static class Checkpoint {
 
@@ -98,6 +98,14 @@ public class TimestampAllocator {
         public String toString() {
             return String.format("Checkpoint %,d @ %s", _timestamp,
                     SDF.format(new Date(_systemTime)));
+        }
+
+        public boolean equals(final Object object) {
+            if (!(object instanceof Checkpoint)) {
+                return false;
+            }
+            Checkpoint cp = (Checkpoint) object;
+            return cp._systemTime == _systemTime && cp._timestamp == _timestamp;
         }
 
     }

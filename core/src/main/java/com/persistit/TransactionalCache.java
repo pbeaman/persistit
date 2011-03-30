@@ -25,7 +25,6 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.exception.RollbackException;
 
 /**
  * Abstract superclass of any object that needs transactional semantics while
@@ -60,24 +59,24 @@ public abstract class TransactionalCache {
 
     protected TransactionalCache(final Persistit persistit) {
         _persistit = persistit;
-        _persistit.addTransactionalCache(this);
     }
 
     protected abstract Update createUpdate(final byte opCode);
 
     protected abstract static class Update {
-        long _timestamp;
         byte _opCode;
-        Object _arg;
 
         protected Update(byte opCode) {
             _opCode = opCode;
         }
 
-        protected Update(byte opCode, Object arg) {
-            _opCode = opCode;
-            _arg = arg;
-        }
+        /**
+         * Compute the number of bytes required to serialize this update, not
+         * including the opcode. This method may return an overestimate.
+         * 
+         * @return number of bytes to reserve for serialization.
+         */
+        protected abstract int size();
 
         /**
          * Serialize this Update to an underlying ByteBuffer. Subclasses should
@@ -102,7 +101,7 @@ public abstract class TransactionalCache {
          * @throws IOException
          */
         protected void writeArg(final ByteBuffer bb) throws IOException {
-            Serializable s = (Serializable) _arg;
+            Serializable s = (Serializable) getArg();
             new ObjectOutputStream(new OutputStream() {
 
                 @Override
@@ -142,7 +141,7 @@ public abstract class TransactionalCache {
          */
         protected void readArg(final ByteBuffer bb) throws IOException {
             try {
-                _arg = new ObjectInputStream(new InputStream() {
+                setArg(new ObjectInputStream(new InputStream() {
 
                     @Override
                     public int read() throws IOException {
@@ -156,13 +155,25 @@ public abstract class TransactionalCache {
                         return length;
                     }
 
-                }).readObject();
+                }).readObject());
             } catch (SecurityException e) {
                 throw new IOException(e);
             } catch (ClassNotFoundException e) {
                 throw new IOException(e);
             }
         }
+
+        /**
+         * @return the argument value as an Object.
+         */
+        protected abstract Object getArg();
+
+        /**
+         * Set the argument to the supplied Object.
+         * 
+         * @param arg
+         */
+        protected abstract void setArg(Object arg);
 
         /**
          * Attempt to combine this Update with a previously record update. For
@@ -200,10 +211,188 @@ public abstract class TransactionalCache {
         }
 
         /**
-         * Apply the update to the state of the TransactionalCache. This method
-         * is called during commit processing.
+         * Apply the update to the state of the supplied TransactionalCache.
+         * This method is called during commit processing.
          */
         protected abstract void apply(final TransactionalCache tc);
+    }
+
+    /**
+     * Abstract superclass of any Updates that holds a single int-valued
+     * argument. This implements provides serialization code optimized for this
+     * case.
+     */
+    public abstract static class UpdateInt extends Update {
+        protected int _arg;
+
+        protected UpdateInt(byte opCode) {
+            super(opCode);
+        }
+
+        protected void writeArg(final ByteBuffer bb) throws IOException {
+            bb.putInt(_arg);
+        }
+
+        protected void readArg(final ByteBuffer bb) throws IOException {
+            _arg = bb.getInt();
+        }
+
+        protected Object getArg() {
+            return Integer.valueOf(_arg);
+        }
+
+        protected void setArg(Object obj) {
+            _arg = ((Integer) obj).intValue();
+        }
+    }
+
+    /**
+     * Abstract superclass of any Update that holds a single long-valued
+     * argument. This subclass provides serialization code optimized for this
+     * case.
+     */
+    public abstract static class UpdateLong extends Update {
+        protected long _arg;
+
+        protected UpdateLong(byte opCode) {
+            super(opCode);
+        }
+
+        protected void writeArg(final ByteBuffer bb) throws IOException {
+            bb.putLong(_arg);
+        }
+
+        protected void readArg(final ByteBuffer bb) throws IOException {
+            _arg = bb.getLong();
+        }
+
+        protected Object getArg() {
+            return Long.valueOf(_arg);
+        }
+
+        protected void setArg(Object obj) {
+            _arg = ((Long) obj).longValue();
+        }
+    }
+
+    /**
+     * Abstract superclass of any Update that holds its argument in the form of
+     * an array of up to 65535 bytes. This subclass provides serialization code
+     * optimized for this case.
+     */
+    public abstract static class UpdateByteArray extends Update {
+        protected byte[] _args;
+
+        protected UpdateByteArray(byte opCode) {
+            super(opCode);
+        }
+
+        protected void writeArg(final ByteBuffer bb) throws IOException {
+            bb.putChar((char) _args.length);
+            for (int index = 0; index < _args.length; index++) {
+                bb.put(_args[index]);
+            }
+        }
+
+        protected void readArg(final ByteBuffer bb) throws IOException {
+            int length = bb.getChar();
+            _args = new byte[length];
+            for (int index = 0; index < _args.length; index++) {
+                _args[index] = bb.get();
+            }
+        };
+
+        protected Object getArg() {
+            return _args;
+        }
+
+        protected void setArg(Object obj) {
+            if (obj == null || !(obj instanceof byte[])
+                    || ((byte[]) obj).length > 65535) {
+                throw new IllegalArgumentException();
+            }
+            _args = (byte[]) obj;
+        }
+    }
+
+    /**
+     * Abstract superclass of any Update that holds its argument in the form of
+     * an array of up to 65535 ints. This subclass provides serialization code
+     * optimized for this case.
+     */
+    public abstract static class UpdateIntArray extends Update {
+        protected int[] _args;
+
+        protected UpdateIntArray(byte opCode) {
+            super(opCode);
+        }
+
+        protected void writeArg(final ByteBuffer bb) throws IOException {
+            bb.putChar((char) _args.length);
+            for (int index = 0; index < _args.length; index++) {
+                bb.putInt(_args[index]);
+            }
+        }
+
+        protected void readArg(final ByteBuffer bb) throws IOException {
+            int length = bb.getChar();
+            _args = new int[length];
+            for (int index = 0; index < _args.length; index++) {
+                _args[index] = bb.getInt();
+            }
+        };
+
+        protected Object getArg() {
+            return _args;
+        }
+
+        protected void setArg(Object obj) {
+            if (obj == null || !(obj instanceof int[])
+                    || ((int[]) obj).length > 65535) {
+                throw new IllegalArgumentException();
+            }
+            _args = (int[]) obj;
+        }
+    }
+
+    /**
+     * Abstract superclass of any Update that holds its argument in the form of
+     * an array of up to 65535 longs. This subclass provides serialization code
+     * optimized for this case.
+     */
+    public abstract static class UpdateLongArray extends Update {
+        protected long[] _args;
+
+        protected UpdateLongArray(byte opCode) {
+            super(opCode);
+        }
+
+        protected void writeArg(final ByteBuffer bb) throws IOException {
+            bb.putChar((char) _args.length);
+            for (int index = 0; index < _args.length; index++) {
+                bb.putLong(_args[index]);
+            }
+        }
+
+        protected void readArg(final ByteBuffer bb) throws IOException {
+            int length = bb.getChar();
+            _args = new long[length];
+            for (int index = 0; index < _args.length; index++) {
+                _args[index] = bb.getLong();
+            }
+        };
+
+        protected Object getArg() {
+            return _args;
+        }
+
+        protected void setArg(Object obj) {
+            if (obj == null || !(obj instanceof long[])
+                    || ((long[]) obj).length > 65535) {
+                throw new IllegalArgumentException();
+            }
+            _args = (long[]) obj;
+        }
     }
 
     /**
@@ -229,20 +418,6 @@ public abstract class TransactionalCache {
      * @return a unique ID value
      */
     protected abstract long cacheId();
-
-    /**
-     * Read the value of a state variable, including all updates performed by
-     * previously committed transactions. Note that any Updates performed within
-     * the scope of the current {@link Transaction} are not included in the
-     * returned value. Updates within the current <code>Transaction</code> are
-     * applied only when the it commits.
-     * 
-     * @param key
-     *            A key value used by concrete implementations to select a
-     *            particular state variable.
-     * @return The associated value.
-     */
-    public abstract Object get(final Object key) throws RollbackException;
 
     /**
      * Inserts the supplied {@link TransactionalCache#Update)} into the update
@@ -279,13 +454,18 @@ public abstract class TransactionalCache {
      * <code>TransactionalCache</code> to contain only values Updated prior to
      * the checkpoint.
      */
-    final void commit() {
-        final Transaction transaction = _persistit.getTransaction();
+    final void commit(final Transaction transaction) {
         final long timestamp = transaction.getCommitTimestamp();
         if (timestamp == -1) {
-            throw new IllegalStateException("Method must be called from doCommit");
+            throw new IllegalStateException("Must be called from doCommit");
         }
-        checkpoint(_persistit.getCurrentCheckpoint());
+        final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
+        if (_checkpoint == null) {
+            _checkpoint = checkpoint;
+        } else if (checkpoint.getTimestamp() > _checkpoint.getTimestamp()) {
+            _previousVersion = copy();
+            _checkpoint = checkpoint;
+        }
         TransactionalCache tc = this;
         final List<Update> updates = transaction.updateList(this);
         while (tc != null) {
@@ -297,61 +477,43 @@ public abstract class TransactionalCache {
             }
             tc = tc._previousVersion;
         }
+        updates.clear();
     }
 
-    /**
-     * Declares a new Checkpoint for this TransactionalCache.
-     * 
-     * @param checkpoint
-     */
-    public final synchronized void checkpoint(final Checkpoint checkpoint) {
-        if (_checkpoint == null) {
-            _checkpoint = checkpoint;
-        } else if (checkpoint.getTimestamp() > _checkpoint.getTimestamp()) {
-            _previousVersion = copy();
-            _checkpoint = checkpoint;
+    final TransactionalCache version(final Checkpoint checkpoint) {
+        TransactionalCache tc = this;
+        while (tc != null) {
+            if (tc._checkpoint.equals(checkpoint)) {
+                return tc;
+            }
+            tc = tc._previousVersion;
         }
+        return tc;
     }
 
     /**
-     * Construct a copy of this <code>TransactionalCache</code>. The copy is
-     * pinned to its declared checkpoint and will receive no updates issued
-     * subsequent to that checkpoint.
-     * <p>
-     * Note that a subclass may use the {@link #clone()} method to create this
-     * copy.
+     * Construct a copy of this <code>TransactionalCache</code>. Any data
+     * structures used to hold state information must be deep-copied. The copy
+     * will be pinned to its declared checkpoint and will receive no updates
+     * issued by transactions committing after that checkpoint, while the
+     * original TransactionalCache will continue to receive new updates.
      * 
      * @return the copy
      */
-    public abstract TransactionalCache copy();
+    protected abstract TransactionalCache copy();
 
     /**
-     * Compute size in bytes of the space required to write a checkpoint of this
-     * TransactionalCache's state. This method is called before the
-     * {@link TransactionalCache#checkpoint(ByteBuffer, Checkpoint)} to ensure
-     * sufficient space has been allocated in the journal's write buffer. The
-     * implementation may return zero to indicate that the checkpoint will not
-     * be written to the journal.
-     * 
-     * @see #checkpoint(ByteBuffer, Checkpoint)
-     * 
-     * @param checkpoint
+     * Save the state of this <code>TransactionalCache</code> such that it will
+     * be recoverable, typically by writing its state to Persistit trees.
+     * The implementation should not run within a transaction scope; it can
+     * save by performing {@link Exchange#store()} operations directly.
      */
-    public abstract void computeCheckpointSize(Checkpoint checkpoint);
-
+    protected abstract void save();
+    
     /**
-     * Write a recoverable checkpoint of this TransactionalCache's state. The
-     * state information may be recorded on the journal via the supplied
-     * ByteBuffer. Alternatively the implementation may record state to B-Trees
-     * and choose not to update the journal at all. In this case, the
-     * {@link #checkpointSize(Checkpoint)} should return zero and this method
-     * should do nothing.
-     * 
-     * @param byteBuffer
-     * @param checkpoint
-     * @throws Exception
+     * Load the state of this <code>TransactionalCache</code>, typically
+     * from Persistit trees.
      */
-    public abstract void writeCheckpoint(ByteBuffer byteBuffer,
-            Checkpoint checkpoint) throws Exception;
+    protected abstract void load();
 
 }

@@ -320,30 +320,6 @@ import java.nio.charset.Charset;
  * </tr>
  * </table>
  * 
- * </tr>
- * <tr valign="top">
- * <td>DV</td>
- * <td>Delete Volume - specifies a Volume to be deleted.
- * <table>
- * <tr valign="top">
- * <td>+16</td>
- * <td>Volume handle (int) - matches a volume identified in a preceding IV
- * record</td>
- * </tr>
- * </table>
- * </tr>
- * 
- * <tr valign="top">
- * <td>DT</td>
- * <td>Delete Tree - specifies a Tree to be deleted.
- * <table>
- * <tr valign="top">
- * <td>+16</td>
- * <td>Tree handle (int) - matches a tree identified in a preceding IT record</td>
- * </tr>
- * </table>
- * </tr>
- * 
  * <tr valign="top">
  * <td>DR</td>
  * <td>Delete Record - specifies a Tree and two Keys: all key/value pairs
@@ -371,6 +347,66 @@ import java.nio.charset.Charset;
  * </tr>
  * </table>
  * </tr>
+ * 
+ * <tr valign="top">
+ * <td>DT</td>
+ * <td>Delete Tree - specifies a Tree to be deleted.
+ * <table>
+ * <tr valign="top">
+ * <td>+16</td>
+ * <td>Tree handle (int) - matches a tree identified in a preceding IT record</td>
+ * </tr>
+ * </table>
+ * </tr>
+ * 
+ * </tr>
+ * <tr valign="top">
+ * <td>DV</td>
+ * <td>Delete Volume - specifies a Volume to be deleted.
+ * <table>
+ * <tr valign="top">
+ * <td>+16</td>
+ * <td>Volume handle (int) - matches a volume identified in a preceding IV
+ * record</td>
+ * </tr>
+ * </table>
+ * </tr>
+ * 
+ * <tr valign="top">
+ * <td>CU</td>
+ * <td>Cache Update - encapsulates a set of updates to be applied to a
+ * {@link TransactionalCache} instance. Serialization format of the Update
+ * records is determined by the <code>TransactionalCache</code> implementation.
+ * <table>
+ * <tr valign="top">
+ * <td>+16</td>
+ * <td>cacheId (long) - unique identifier of <code>TransactionalCache</code> instance</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>+24</td>
+ * <td>Updates (variable-length) - the serialized updates</td>
+ * </tr>
+ * </table>
+ * </tr>
+ * 
+ * <tr valign="top">
+ * <td>CC</td>
+ * <td>Cache Checkpoint - encapsulates the stat of a {@link TransactionalCache}
+ * instance at a Checkpoint boundary. Serialization format is determined by the
+ * <code>TransactionalCache</code> implementation.
+ * <table>
+ * <tr valign="top">
+ * <td>+16</td>
+ * <td>cacheId (long) - unique identifier of <code>TransactionalCache</code> instance</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>+24</td>
+ * <td>Serialized state (variable-length)</td>
+ * </tr>
+ * </table>
+ * </tr>
+ * 
+ * 
  * 
  * </table>
  * 
@@ -978,4 +1014,27 @@ public class JournalRecord {
             return getInt(bb, 16);
         }
     }
+
+    /**
+     * Cache Update
+     */
+    public static class CU extends JournalRecord {
+
+        public final static int TYPE = ('C' << 8) | 'U';
+
+        public final static int OVERHEAD = 24;
+
+        public static void putType(final ByteBuffer bb) {
+            putType(bb, TYPE);
+        }
+
+        public static void putCacheId(final ByteBuffer bb, final long id) {
+            putLong(bb, 16, id);
+        }
+
+        public static long getCacheId(final ByteBuffer bb) {
+            return getLong(bb, 16);
+        }
+    }
+    
 }

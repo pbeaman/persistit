@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.persistit.JournalRecord.CP;
+import com.persistit.JournalRecord.CU;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.IT;
@@ -47,6 +48,7 @@ import com.persistit.JournalRecord.SR;
 import com.persistit.JournalRecord.TC;
 import com.persistit.JournalRecord.TM;
 import com.persistit.JournalRecord.TS;
+import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -156,6 +158,9 @@ public class JournalTool {
                 final int recordSize) throws Exception;
 
         public void tm(final long address, final long timestamp,
+                final int recordSize) throws Exception;
+
+        public void cu(final long address, final long timestamp,
                 final int recordSize) throws Exception;
 
         public void eof(final long address) throws Exception;
@@ -412,6 +417,12 @@ public class JournalTool {
             case CP.TYPE:
                 if (_selectedTimestamps.isSelected(timestamp)) {
                     _action.cp(from, timestamp, recordSize);
+                }
+                break;
+
+            case CU.TYPE:
+                if (_selectedTimestamps.isSelected(timestamp)) {
+                    _action.cu(from, timestamp, recordSize);
                 }
                 break;
 
@@ -783,6 +794,33 @@ public class JournalTool {
             }
         }
 
+
+        @Override
+        public void cu(long address, long timestamp, int recordSize)
+                throws Exception {
+            read(address, recordSize);
+            start(address, timestamp, "CU", recordSize);
+            int start = _readBuffer.position();
+            final long cacheId = CU.getCacheId(_readBuffer);
+            final TransactionalCache tc = _persistit
+                    .getTransactionalCache(cacheId);
+            if (tc == null) {
+                appendf(" cacheId %d is undefined", cacheId);
+            } else {
+                appendf(" cacheId %d: ", cacheId);
+                _readBuffer.position(start + CU.OVERHEAD);
+                final int end = start + recordSize;
+                while (_readBuffer.position() < end) {
+                    final byte opCode = _readBuffer.get();
+                    final Update update = tc.createUpdate(opCode);
+                    update.readArg(_readBuffer);
+                    appendf(" <%s>", update);
+                }
+            }
+            end();
+        }
+
+
         @Override
         public void eof(final long address) throws Exception {
             start(address, 0, "~~", 0);
@@ -886,7 +924,5 @@ public class JournalTool {
                 index++;
             }
         }
-
     }
-
 }

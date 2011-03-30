@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.persistit.JournalRecord.CU;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.SR;
@@ -406,6 +407,22 @@ public class Transaction {
             }
             _persistit.getJournalManager().writeDeleteTreeToJournal(_bb,
                     DT.OVERHEAD, timestamp, treeHandle);
+            return true;
+        }
+
+        @Override
+        public boolean writeCacheUpdatesToJournal(final long timestamp,
+                final long cacheId, final List<Update> updates)
+                throws PersistitIOException {
+            int estimate = CU.OVERHEAD;
+            for (int index = 0; index < updates.size(); index++) {
+                estimate += (1 + updates.get(index).size());
+            }
+            if (DISABLE_TXN_BUFFER || _bb.remaining() < estimate) {
+                return false;
+            }
+            _persistit.getJournalManager().writeCacheUpdatesToJournal(_bb,
+                    timestamp, cacheId, updates);
             return true;
         }
 
@@ -1304,6 +1321,14 @@ public class Transaction {
                     }
                 }
 
+                if (!_transactionCacheUpdates.isEmpty()) {
+                    for (final TransactionalCache tc : _transactionCacheUpdates
+                            .keySet()) {
+                        tc.commit(this);
+                    }
+                    enqueued = true;
+                }
+
                 // all done
 
             } finally {
@@ -1750,6 +1775,10 @@ public class Transaction {
                 DR.putTimestamp(bb, startTimestamp);
                 break;
 
+            case CU.TYPE:
+                CU.putTimestamp(bb, startTimestamp);
+                break;
+
             default:
                 break;
             }
@@ -1826,6 +1855,15 @@ public class Transaction {
                             treeHandle)) {
                         return false;
                     }
+                }
+            }
+        }
+        if (!_transactionCacheUpdates.isEmpty()) {
+            for (final Map.Entry<TransactionalCache, List<Update>> entry : _transactionCacheUpdates
+                    .entrySet()) {
+                if (!tw.writeCacheUpdatesToJournal(_startTimestamp.get(), entry
+                        .getKey().cacheId(), entry.getValue())) {
+                    return false;
                 }
             }
         }
@@ -1914,6 +1952,9 @@ public class Transaction {
                     currentTreeHandle = treeHandle;
                 }
                 removedTrees.add(currentTree);
+                break;
+
+            case CU.TYPE:
                 break;
 
             default:
