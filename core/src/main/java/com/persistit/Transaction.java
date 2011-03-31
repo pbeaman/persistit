@@ -34,6 +34,7 @@ import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.SR;
 import com.persistit.JournalRecord.TC;
 import com.persistit.JournalRecord.TS;
+import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
@@ -343,6 +344,8 @@ public class Transaction {
     private TransactionBuffer _txnBuffer = new TransactionBuffer();
 
     private Map<TransactionalCache, List<Update>> _transactionCacheUpdates = new HashMap<TransactionalCache, List<Update>>();
+    
+    private Checkpoint _transactionalCacheCheckpoint;
 
     private class TransactionBuffer implements TransactionWriter {
 
@@ -1258,7 +1261,7 @@ public class Transaction {
             _txnBuffer.flip();
 
             //
-            // Step 1 - Get exclusive commit claim.
+            // Step 1 - Get exclusive commit claim throws PersistitException.
             // For Version 2.1, we do brain-dead, totally single-threaded
             // commits.
             //
@@ -1311,6 +1314,19 @@ public class Transaction {
                 }
                 _commitTimestamp.set(_persistit.getTimestampAllocator()
                         .updateTimestamp());
+                
+                //
+                // This is a huge hack. To serialize the TransactionalCache's we run
+                // the save() method of each one within the scope of a transaction
+                // that artificially sets its start and commit timestamps to the
+                // timestamp of the checkpoint itself.  This guarantees that this
+                // transaction will get executed first during recovery.
+                //
+                if (_transactionalCacheCheckpoint != null) {
+                    _startTimestamp.set(_transactionalCacheCheckpoint.getTimestamp() - 1);
+                    _commitTimestamp.set(_transactionalCacheCheckpoint.getTimestamp());
+                    _transactionalCacheCheckpoint = null;
+                }
 
                 committed = true;
                 for (int index = _commitListeners.size(); --index >= 0;) {
@@ -1324,9 +1340,8 @@ public class Transaction {
                 if (!_transactionCacheUpdates.isEmpty()) {
                     for (final TransactionalCache tc : _transactionCacheUpdates
                             .keySet()) {
-                        tc.commit(this);
+                        enqueued |= tc.commit(this);
                     }
-                    enqueued = true;
                 }
 
                 // all done
@@ -2133,6 +2148,10 @@ public class Transaction {
         return _persistit.getCurrentTimestamp();
     }
 
+    void setTransactionalCacheCheckpoint(final Checkpoint checkpoint) {
+        _transactionalCacheCheckpoint = checkpoint;
+    }
+    
     List<Update> updateList(final TransactionalCache tc) {
         List<Update> list = _transactionCacheUpdates.get(tc);
         if (list == null) {

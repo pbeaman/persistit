@@ -421,7 +421,7 @@ public class JournalRecord {
 
     public final static int[] TYPES = new int[] { JE.TYPE, JH.TYPE, PA.TYPE,
             PM.TYPE, SR.TYPE, DR.TYPE, DT.TYPE, TM.TYPE, TS.TYPE, TC.TYPE,
-            CP.TYPE, IV.TYPE, IT.TYPE };
+            CP.TYPE, IV.TYPE, IT.TYPE, CU.TYPE };
 
     public static boolean isValidType(final int t) {
         for (int type : TYPES) {

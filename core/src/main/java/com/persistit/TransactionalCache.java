@@ -25,6 +25,8 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import com.persistit.TimestampAllocator.Checkpoint;
+import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitIOException;
 
 /**
  * Abstract superclass of any object that needs transactional semantics while
@@ -44,7 +46,6 @@ import com.persistit.TimestampAllocator.Checkpoint;
  * TC's state. Operations that read from TC state are recorded in the
  * transaction's read set and verified for consistency during commit processing.
  * <p>
- * 
  * 
  * @author peter
  * 
@@ -116,18 +117,6 @@ public abstract class TransactionalCache {
                 }
 
             }).writeObject(s);
-        }
-
-        /**
-         * Read an Update from the supplied ByteBuffer. Subclasses should
-         * override {@link #readArg(ByteBuffer)} to optimize deserialization.
-         * 
-         * @param bb
-         * @throws IOException
-         */
-        protected final void read(final ByteBuffer bb) throws IOException {
-            _opCode = bb.get();
-            readArg(bb);
         }
 
         /**
@@ -454,7 +443,11 @@ public abstract class TransactionalCache {
      * <code>TransactionalCache</code> to contain only values Updated prior to
      * the checkpoint.
      */
-    final void commit(final Transaction transaction) {
+    final boolean commit(final Transaction transaction) {
+        final List<Update> updates = transaction.updateList(this);
+        if (updates.isEmpty()) {
+            return false;
+        }
         final long timestamp = transaction.getCommitTimestamp();
         if (timestamp == -1) {
             throw new IllegalStateException("Must be called from doCommit");
@@ -467,7 +460,6 @@ public abstract class TransactionalCache {
             _checkpoint = checkpoint;
         }
         TransactionalCache tc = this;
-        final List<Update> updates = transaction.updateList(this);
         while (tc != null) {
             for (int index = 0; index < updates.size(); index++) {
                 updates.get(index).apply(tc);
@@ -478,12 +470,37 @@ public abstract class TransactionalCache {
             tc = tc._previousVersion;
         }
         updates.clear();
+        return true;
     }
 
+    final void recoverUpdates(final ByteBuffer bb) throws PersistitException {
+        if (!bb.hasRemaining()) {
+            load();
+        } else {
+            while (bb.hasRemaining()) {
+                final byte opCode = bb.get();
+                final Update update = createUpdate(opCode);
+                try {
+                    update.readArg(bb);
+                    update.apply(this);
+                } catch (IOException e) {
+                    throw new PersistitIOException(e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Get the version of this <code>TransactionalCache</code> that was valid at
+     * the specified timestamp.
+     * 
+     * @param checkpoint
+     * @return
+     */
     final TransactionalCache version(final Checkpoint checkpoint) {
         TransactionalCache tc = this;
         while (tc != null) {
-            if (tc._checkpoint.equals(checkpoint)) {
+            if (tc._checkpoint.getTimestamp() <= checkpoint.getTimestamp()) {
                 return tc;
             }
             tc = tc._previousVersion;
@@ -504,16 +521,15 @@ public abstract class TransactionalCache {
 
     /**
      * Save the state of this <code>TransactionalCache</code> such that it will
-     * be recoverable, typically by writing its state to Persistit trees.
-     * The implementation should not run within a transaction scope; it can
-     * save by performing {@link Exchange#store()} operations directly.
+     * be recoverable, typically by writing its state to backing store in
+     * Persistit trees.
      */
-    protected abstract void save();
-    
+    protected abstract void save() throws PersistitException;
+
     /**
-     * Load the state of this <code>TransactionalCache</code>, typically
-     * from Persistit trees.
+     * Load the state of this <code>TransactionalCache</code>, typically from
+     * backing store in Persistit trees.
      */
-    protected abstract void load();
+    protected abstract void load() throws PersistitException;
 
 }

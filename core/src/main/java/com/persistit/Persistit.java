@@ -40,7 +40,6 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.TimestampAllocator.CheckpointListener;
 import com.persistit.WaitingThreadManager.WaitingThread;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
@@ -51,6 +50,8 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.exception.ReadOnlyVolumeException;
+import com.persistit.exception.RollbackException;
+import com.persistit.exception.TransactionFailedException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.AbstractPersistitLogger;
@@ -353,8 +354,6 @@ public class Persistit {
     private final LockManager _lockManager = new LockManager();
 
     private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
-
-    private final List<CheckpointListener> _checkpointListeners = new ArrayList<CheckpointListener>();
 
     private final HashMap<Long, TransactionalCache> _transactionalCaches = new HashMap<Long, TransactionalCache>();
 
@@ -1562,24 +1561,55 @@ public class Persistit {
     void flushCheckpoint() {
         final Checkpoint validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
         if (validCheckpoint != null) {
-            boolean listenersDone = true;
-            synchronized (_checkpointListeners) {
-                for (final CheckpointListener listener : _checkpointListeners) {
-                    listenersDone &= listener.save(validCheckpoint);
+            try {
+                if (!flushTransactionalCaches(validCheckpoint)) {
+                    return;
                 }
+                getJournalManager().writeCheckpointToJournal(validCheckpoint);
+            } catch (PersistitIOException e) {
+                getLogBase().log(LogBase.LOG_EXCEPTION,
+                        e + " while writing " + validCheckpoint + ":" + e);
             }
-            if (listenersDone) {
+            synchronized (this) {
+                _outstandingCheckpoints.remove(validCheckpoint);
+            }
+        }
+    }
+
+    boolean flushTransactionalCaches(final Checkpoint checkpoint) {
+        if (_transactionalCaches.isEmpty()) {
+            return true;
+        }
+        try {
+            final Transaction transaction = getTransaction();
+            transaction.setTransactionalCacheCheckpoint(checkpoint);
+            int retries = 10;
+            while (true) {
+                transaction.begin();
                 try {
-                    getJournalManager().writeCheckpointToJournal(
-                            validCheckpoint);
-                } catch (PersistitIOException e) {
-                    getLogBase().log(LogBase.LOG_EXCEPTION,
-                            e + " while writing " + validCheckpoint + ":" + e);
-                }
-                synchronized (this) {
-                    _outstandingCheckpoints.remove(validCheckpoint);
+                    for (final TransactionalCache tc : _transactionalCaches.values()) {
+                        final TransactionalCache tcVersion = tc.version(checkpoint);
+                        if (tcVersion != null) {
+                            tcVersion.save();
+                        }
+                    }
+                    transaction.commit();
+                    break;
+                } catch (RollbackException e) {
+                    if (--retries >= 0) {
+                        continue;
+                    } else {
+                        throw new TransactionFailedException(
+                                "Retry limit 10 exceeeded");
+                    }
+                } finally {
+                    transaction.end();
                 }
             }
+            return true;
+        } catch (PersistitException e) {
+            // log this
+            return false;
         }
     }
 
@@ -2375,33 +2405,12 @@ public class Persistit {
     }
 
     /**
-     * Add a {@link CheckpointListener} which may be used to serialize state
-     * during the checkpoint process.
+     * Register a <code>TransactionalCache</code> instance. This method may only
+     * be called before {@link #initialize()}. Each instance must have a unique
+     * <code>cacheId</code>.
      * 
-     * @param listener
-     *            The listener to add.
-     * @throws NullPointerException
+     * @param tc
      */
-    public void addCheckpointListener(final CheckpointListener listener) {
-        if (listener == null) {
-            throw new NullPointerException();
-        }
-        synchronized (_checkpointListeners) {
-            _checkpointListeners.add(listener);
-        }
-    }
-
-    /**
-     * Attempt to remove a previously added {@link CheckpointListener}.
-     * 
-     * @param listener
-     */
-    public void removeCheckpointListener(final CheckpointListener listener) {
-        synchronized (_checkpointListeners) {
-            _checkpointListeners.remove(listener);
-        }
-    }
-
     void addTransactionalCache(TransactionalCache tc) {
         if (_initialized.get()) {
             throw new IllegalStateException("TransactionalCache must be added"
@@ -2414,6 +2423,12 @@ public class Persistit {
         _transactionalCaches.put(tc.cacheId(), tc);
     }
 
+    /**
+     * Get a TransactionalCache instance by its unique <code>cacheId</code>.
+     * 
+     * @param cacheId
+     * @return the corresponding <code>TransactionalCache</code>.
+     */
     TransactionalCache getTransactionalCache(final long cacheId) {
         return _transactionalCaches.get(cacheId);
     }
