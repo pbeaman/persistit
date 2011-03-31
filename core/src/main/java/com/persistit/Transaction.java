@@ -344,7 +344,7 @@ public class Transaction {
     private TransactionBuffer _txnBuffer = new TransactionBuffer();
 
     private Map<TransactionalCache, List<Update>> _transactionCacheUpdates = new HashMap<TransactionalCache, List<Update>>();
-    
+
     private Checkpoint _transactionalCacheCheckpoint;
 
     private class TransactionBuffer implements TransactionWriter {
@@ -1314,17 +1314,21 @@ public class Transaction {
                 }
                 _commitTimestamp.set(_persistit.getTimestampAllocator()
                         .updateTimestamp());
-                
+
                 //
-                // This is a huge hack. To serialize the TransactionalCache's we run
-                // the save() method of each one within the scope of a transaction
-                // that artificially sets its start and commit timestamps to the
-                // timestamp of the checkpoint itself.  This guarantees that this
-                // transaction will get executed first during recovery.
+                // To serialize the TransactionalCache's we run the save()
+                // method of each one within the scope of a transaction that
+                // artificially sets its start and commit timestamps to the
+                // timestamp of the checkpoint itself. This guarantees that this
+                // transaction will get executed first during recovery. This is
+                // valid because the TransactionalCache version being written is
+                // pinned at the checkpoint's timestamp.
                 //
                 if (_transactionalCacheCheckpoint != null) {
-                    _startTimestamp.set(_transactionalCacheCheckpoint.getTimestamp() - 1);
-                    _commitTimestamp.set(_transactionalCacheCheckpoint.getTimestamp());
+                    _startTimestamp.set(_transactionalCacheCheckpoint
+                            .getTimestamp() - 1);
+                    _commitTimestamp.set(_transactionalCacheCheckpoint
+                            .getTimestamp());
                     _transactionalCacheCheckpoint = null;
                 }
 
@@ -1876,6 +1880,10 @@ public class Transaction {
         if (!_transactionCacheUpdates.isEmpty()) {
             for (final Map.Entry<TransactionalCache, List<Update>> entry : _transactionCacheUpdates
                     .entrySet()) {
+                if (_transactionalCacheCheckpoint == null
+                        && entry.getValue().isEmpty()) {
+                    continue;
+                }
                 if (!tw.writeCacheUpdatesToJournal(_startTimestamp.get(), entry
                         .getKey().cacheId(), entry.getValue())) {
                     return false;
@@ -1899,7 +1907,8 @@ public class Transaction {
 
         final Set<Tree> removedTrees = new HashSet<Tree>();
         final ByteBuffer bb = _txnBuffer._bb;
-
+        bb.mark();
+        
         while (bb.hasRemaining()) {
             final int recordSize = getLength(bb);
             final int type = getType(bb);
@@ -1978,6 +1987,7 @@ public class Transaction {
 
             bb.position(bb.position() + recordSize);
         }
+        bb.reset();
 
         for (final Tree tree : removedTrees) {
             tree.getVolume().removeTree(tree);
@@ -2151,7 +2161,7 @@ public class Transaction {
     void setTransactionalCacheCheckpoint(final Checkpoint checkpoint) {
         _transactionalCacheCheckpoint = checkpoint;
     }
-    
+
     List<Update> updateList(final TransactionalCache tc) {
         List<Update> list = _transactionCacheUpdates.get(tc);
         if (list == null) {

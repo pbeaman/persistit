@@ -1591,6 +1591,7 @@ public class Persistit {
                         final TransactionalCache tcVersion = tc.version(checkpoint);
                         if (tcVersion != null) {
                             tcVersion.save();
+                            tcVersion.saved();
                         }
                     }
                     transaction.commit();

@@ -604,7 +604,7 @@ public class JournalTool {
         @Override
         public void jh(final long address, final long timestamp,
                 final int recordSize) throws Exception {
-            read(address, JH.OVERHEAD);
+            read(address, recordSize);
             final long baseAddress = JH.getBaseJournalAddress(_readBuffer);
             final long blockSize = JH.getBlockSize(_readBuffer);
             final String fileCreated = SDF.format(new Date(JH
@@ -623,7 +623,7 @@ public class JournalTool {
         @Override
         public void je(final long address, final long timestamp,
                 final int recordSize) throws Exception {
-            read(address, JE.OVERHEAD);
+            read(address, recordSize);
             start(address, timestamp, "JE", recordSize);
             final long baseAddress = JE.getBaseAddress(_readBuffer);
             final long currentAddress = JE
@@ -638,7 +638,7 @@ public class JournalTool {
         @Override
         public void iv(final long address, final long timestamp,
                 final int recordSize) throws Exception {
-            read(address, IV.MAX_LENGTH);
+            read(address, recordSize);
             final int handle = IV.getHandle(_readBuffer);
             final long id = IV.getVolumeId(_readBuffer);
             final String name = IV.getVolumeName(_readBuffer);
@@ -650,7 +650,7 @@ public class JournalTool {
         @Override
         public void it(final long address, final long timestamp,
                 final int recordSize) throws Exception {
-            read(address, IT.MAX_LENGTH);
+            read(address, recordSize);
             int handle = IT.getHandle(_readBuffer);
             int vhandle = IT.getVolumeHandle(_readBuffer);
             final String treeName = IT.getTreeName(_readBuffer);
@@ -663,7 +663,7 @@ public class JournalTool {
         @Override
         public void cp(final long address, final long timestamp,
                 final int recordSize) throws Exception {
-            read(address, CP.OVERHEAD);
+            read(address, recordSize);
             final long baseAddress = CP.getBaseAddress(_readBuffer);
             final String wallTime = SDF.format(new Date(CP
                     .getSystemTimeMillis(_readBuffer)));
@@ -675,7 +675,7 @@ public class JournalTool {
         @Override
         public void ts(final long address, final long timestamp,
                 final int recordSize) throws Exception {
-            read(address, TS.OVERHEAD);
+            read(address, recordSize);
             start(address, timestamp, "TS", recordSize);
             end();
         }
@@ -683,7 +683,7 @@ public class JournalTool {
         @Override
         public void tc(final long address, final long timestamp,
                 final int recordSize) throws Exception {
-            read(address, TC.OVERHEAD);
+            read(address, recordSize);
             final long commitTimestamp = TC.getCommitTimestamp(_readBuffer);
             start(address, timestamp, "TC", recordSize);
             appendf(" commitTimestamp %,16d", commitTimestamp);
@@ -750,7 +750,7 @@ public class JournalTool {
         @Override
         public void pa(final long address, final long timestamp,
                 final int recordSize) throws Exception {
-            read(address, PA.OVERHEAD + Buffer.HEADER_SIZE);
+            read(address, recordSize);
             final long pageAddress = PA.getPageAddress(_readBuffer);
             final int volumeHandle = PA.getVolumeHandle(_readBuffer);
             if (!_selectedPages.isSelected(pageAddress)) {
@@ -812,9 +812,13 @@ public class JournalTool {
                 final int end = start + recordSize;
                 while (_readBuffer.position() < end) {
                     final byte opCode = _readBuffer.get();
+                    if (opCode == 0) {
+                        appendf(" <saved>");
+                    } else {
                     final Update update = tc.createUpdate(opCode);
                     update.readArg(_readBuffer);
-                    appendf(" <%s>", update);
+                    appendf(" %s", update);
+                    }
                 }
             }
             end();

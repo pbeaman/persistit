@@ -52,11 +52,13 @@ import com.persistit.exception.PersistitIOException;
  */
 public abstract class TransactionalCache {
 
-    final Persistit _persistit;
+    private final Update RELOAD = new ReloadUpdate();
 
-    Checkpoint _checkpoint;
+    final protected Persistit _persistit;
 
-    TransactionalCache _previousVersion;
+    protected Checkpoint _checkpoint;
+
+    protected TransactionalCache _previousVersion;
 
     protected TransactionalCache(final Persistit persistit) {
         _persistit = persistit;
@@ -64,10 +66,17 @@ public abstract class TransactionalCache {
 
     protected abstract Update createUpdate(final byte opCode);
 
-    protected abstract static class Update {
-        byte _opCode;
+    public abstract static class Update {
+        final byte _opCode;
 
+        private Update() {
+            _opCode = 0;
+        }
+        
         protected Update(byte opCode) {
+            if (opCode == 0) {
+                throw new IllegalArgumentException();
+            }
             _opCode = opCode;
         }
 
@@ -87,7 +96,7 @@ public abstract class TransactionalCache {
          * @param bb
          * @throws IOException
          */
-        protected final void write(final ByteBuffer bb) throws IOException {
+        final void write(final ByteBuffer bb) throws IOException {
             bb.put(_opCode);
             writeArg(bb);
         }
@@ -218,20 +227,29 @@ public abstract class TransactionalCache {
             super(opCode);
         }
 
+        @Override
         protected void writeArg(final ByteBuffer bb) throws IOException {
             bb.putInt(_arg);
         }
 
+        @Override
         protected void readArg(final ByteBuffer bb) throws IOException {
             _arg = bb.getInt();
         }
 
+        @Override
         protected Object getArg() {
             return Integer.valueOf(_arg);
         }
 
+        @Override
         protected void setArg(Object obj) {
             _arg = ((Integer) obj).intValue();
+        }
+
+        @Override
+        protected int size() {
+            return 4;
         }
     }
 
@@ -247,20 +265,29 @@ public abstract class TransactionalCache {
             super(opCode);
         }
 
+        @Override
         protected void writeArg(final ByteBuffer bb) throws IOException {
             bb.putLong(_arg);
         }
 
+        @Override
         protected void readArg(final ByteBuffer bb) throws IOException {
             _arg = bb.getLong();
         }
 
+        @Override
         protected Object getArg() {
             return Long.valueOf(_arg);
         }
 
+        @Override
         protected void setArg(Object obj) {
             _arg = ((Long) obj).longValue();
+        }
+
+        @Override
+        protected int size() {
+            return 8;
         }
     }
 
@@ -276,6 +303,7 @@ public abstract class TransactionalCache {
             super(opCode);
         }
 
+        @Override
         protected void writeArg(final ByteBuffer bb) throws IOException {
             bb.putChar((char) _args.length);
             for (int index = 0; index < _args.length; index++) {
@@ -283,6 +311,7 @@ public abstract class TransactionalCache {
             }
         }
 
+        @Override
         protected void readArg(final ByteBuffer bb) throws IOException {
             int length = bb.getChar();
             _args = new byte[length];
@@ -291,10 +320,12 @@ public abstract class TransactionalCache {
             }
         };
 
+        @Override
         protected Object getArg() {
             return _args;
         }
 
+        @Override
         protected void setArg(Object obj) {
             if (obj == null || !(obj instanceof byte[])
                     || ((byte[]) obj).length > 65535) {
@@ -302,6 +333,12 @@ public abstract class TransactionalCache {
             }
             _args = (byte[]) obj;
         }
+
+        @Override
+        protected int size() {
+            return _args.length + 2;
+        }
+
     }
 
     /**
@@ -316,6 +353,7 @@ public abstract class TransactionalCache {
             super(opCode);
         }
 
+        @Override
         protected void writeArg(final ByteBuffer bb) throws IOException {
             bb.putChar((char) _args.length);
             for (int index = 0; index < _args.length; index++) {
@@ -323,6 +361,7 @@ public abstract class TransactionalCache {
             }
         }
 
+        @Override
         protected void readArg(final ByteBuffer bb) throws IOException {
             int length = bb.getChar();
             _args = new int[length];
@@ -331,16 +370,23 @@ public abstract class TransactionalCache {
             }
         };
 
+        @Override
         protected Object getArg() {
             return _args;
         }
 
+        @Override
         protected void setArg(Object obj) {
             if (obj == null || !(obj instanceof int[])
                     || ((int[]) obj).length > 65535) {
                 throw new IllegalArgumentException();
             }
             _args = (int[]) obj;
+        }
+
+        @Override
+        protected int size() {
+            return _args.length * 4 + 2;
         }
     }
 
@@ -356,6 +402,7 @@ public abstract class TransactionalCache {
             super(opCode);
         }
 
+        @Override
         protected void writeArg(final ByteBuffer bb) throws IOException {
             bb.putChar((char) _args.length);
             for (int index = 0; index < _args.length; index++) {
@@ -363,6 +410,7 @@ public abstract class TransactionalCache {
             }
         }
 
+        @Override
         protected void readArg(final ByteBuffer bb) throws IOException {
             int length = bb.getChar();
             _args = new long[length];
@@ -371,16 +419,66 @@ public abstract class TransactionalCache {
             }
         };
 
+        @Override
         protected Object getArg() {
             return _args;
         }
 
+        @Override
         protected void setArg(Object obj) {
             if (obj == null || !(obj instanceof long[])
                     || ((long[]) obj).length > 65535) {
                 throw new IllegalArgumentException();
             }
             _args = (long[]) obj;
+        }
+
+        @Override
+        protected int size() {
+            return _args.length * 8 + 2;
+        }
+    }
+
+    /**
+     * Abstract superclass of any Update that holds its argument in the form of
+     * an array of up to 65535 longs. This subclass provides serialization code
+     * optimized for this case.
+     */
+    public static class ReloadUpdate extends Update {
+
+        protected ReloadUpdate() {
+            super();
+        }
+
+        @Override
+        protected void writeArg(final ByteBuffer bb) throws IOException {
+
+        }
+
+        @Override
+        protected void readArg(final ByteBuffer bb) throws IOException {
+
+        };
+
+        @Override
+        protected Object getArg() {
+            return null;
+        }
+
+        @Override
+        protected void setArg(Object obj) {
+
+        }
+
+        @Override
+        protected int size() {
+            return 0;
+        }
+
+        @Override
+        protected void apply(TransactionalCache tc) {
+            // Does nothing during normal processing - causes
+            // reload from saved checkpoint during recovery
         }
     }
 
@@ -474,11 +572,11 @@ public abstract class TransactionalCache {
     }
 
     final void recoverUpdates(final ByteBuffer bb) throws PersistitException {
-        if (!bb.hasRemaining()) {
-            load();
-        } else {
-            while (bb.hasRemaining()) {
-                final byte opCode = bb.get();
+        while (bb.hasRemaining()) {
+            final byte opCode = bb.get();
+            if (opCode == 0) {
+                load();
+            } else {
                 final Update update = createUpdate(opCode);
                 try {
                     update.readArg(bb);
@@ -506,6 +604,14 @@ public abstract class TransactionalCache {
             tc = tc._previousVersion;
         }
         return tc;
+    }
+
+    final void saved() {
+        update(RELOAD);
+    }
+
+    public final void register() {
+        _persistit.addTransactionalCache(this);
     }
 
     /**

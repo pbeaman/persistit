@@ -45,7 +45,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         Map<Integer, AtomicLong> _maxima = new HashMap<Integer, AtomicLong>();
         Map<Integer, AtomicLong> _count = new HashMap<Integer, AtomicLong>();
 
-        static class CountUpdate extends UpdateInt {
+        public static class CountUpdate extends UpdateInt {
 
             CountUpdate() {
                 super(COUNT);
@@ -54,11 +54,6 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
             CountUpdate(final int tableId) {
                 this();
                 _arg = tableId;
-            }
-
-            @Override
-            protected int size() {
-                return 4;
             }
 
             @Override
@@ -78,7 +73,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
             }
         }
 
-        static class MaxUpdate extends UpdateLongArray {
+        public static class MaxUpdate extends UpdateLongArray {
 
             MaxUpdate() {
                 super(MAX);
@@ -87,11 +82,6 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
             MaxUpdate(final int tableId, final long proposed) {
                 this();
                 _args = new long[] { tableId, proposed };
-            }
-
-            @Override
-            protected int size() {
-                return 16;
             }
 
             @Override
@@ -111,7 +101,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
             }
         }
 
-        static class MinUpdate extends UpdateLongArray {
+        public static class MinUpdate extends UpdateLongArray {
 
             MinUpdate() {
                 super(MIN);
@@ -120,11 +110,6 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
             MinUpdate(final int tableId, final long proposed) {
                 this();
                 _args = new long[] { tableId, proposed };
-            }
-
-            @Override
-            protected int size() {
-                return 16;
             }
 
             @Override
@@ -321,7 +306,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         assertTrue(_tableStatus._maxima != copy._maxima);
         assertTrue(_tableStatus._minima != copy._minima);
 
-        showJournal();
+//        showJournal();
     }
 
     @Test
@@ -344,14 +329,12 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
 
         _persistit.checkpoint();
         _persistit.close();
-        showJournal();
+//        showJournal();
         final Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
         final TableStatus copy = new TableStatus(_persistit);
-        _persistit.addTransactionalCache(copy);
+        copy.register();
         _persistit.initialize(properties);
-        copy.load();
-        
         assertEquals(_tableStatus.toString(), copy.toString());
     }
     
@@ -374,6 +357,11 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         }
 
         _persistit.checkpoint();
+        _persistit.getJournalManager().force();
+        
+//        System.out.println("===========");
+//        showJournal();
+//        System.out.println("===========");
         
         for (int count = 0; count < 20; count++) {
             transaction.begin();
@@ -393,11 +381,11 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         
         _persistit.crash();
         
-        showJournal();
+//        showJournal();
         final Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
         final TableStatus copy = new TableStatus(_persistit);
-        _persistit.addTransactionalCache(copy);
+        copy.register();
         _persistit.initialize(properties);
         
         assertEquals(_tableStatus.toString(), copy.toString());
@@ -405,7 +393,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
 
     @Override
     public void setUp() throws Exception {
-        _persistit.addTransactionalCache(_tableStatus);
+        _tableStatus.register();
         super.setUp();
     }
 
