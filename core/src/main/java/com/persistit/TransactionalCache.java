@@ -52,7 +52,7 @@ import com.persistit.exception.PersistitIOException;
  */
 public abstract class TransactionalCache {
 
-    private final Update RELOAD = new ReloadUpdate();
+    private final static Update SAVED = new ReloadUpdate();
 
     final protected Persistit _persistit;
 
@@ -72,7 +72,7 @@ public abstract class TransactionalCache {
         private Update() {
             _opCode = 0;
         }
-        
+
         protected Update(byte opCode) {
             if (opCode == 0) {
                 throw new IllegalArgumentException();
@@ -100,6 +100,82 @@ public abstract class TransactionalCache {
             bb.put(_opCode);
             writeArg(bb);
         }
+
+        /**
+         * Serialize the argument value to the supplied ByteBuffer. This is a
+         * generic implementation that requires the argument value to be
+         * non-null and serializable. Subclasses may override with more
+         * efficient implementations.
+         * 
+         * @param bb
+         * @throws IOException
+         */
+        protected abstract void writeArg(final ByteBuffer bb)
+                throws IOException;
+
+        /**
+         * Deserialize the argument value from the supplied ByteBuffer.
+         * 
+         * @param bb
+         * @throws IOException
+         */
+        protected abstract void readArg(final ByteBuffer bb) throws IOException;
+
+        /**
+         * Attempt to combine this Update with a previously record update. For
+         * example suppose the supplied Update and this Update each add 1 to the
+         * same counter. Then this method modifies the supplied Update to add 2
+         * and returns <code>true</code> to signify that this Update should not
+         * be added to the pending update queue.
+         * <P>
+         * Default implementation does nothing and returns <code>false</code>.
+         * Subclasses may override to provide more efficient behavior.
+         * 
+         * @param previous
+         * @return <code>true</code> if this Update was successfully combined
+         *         with <code>previous</code>.
+         */
+        protected boolean combine(final Update previous) {
+            return false;
+        }
+
+        /**
+         * Attempt to cancel this update with a previous update. For example,
+         * suppose the supplied Update increments a counter, and this Update
+         * decrements the same counter. Then this method could return
+         * <code>true</code> to signify that both Updates can be removed from
+         * the pending update queue.
+         * <p>
+         * Default implementation does nothing and returns <code>false</code>.
+         * Subclasses may override to provide more efficient behavior.
+         * 
+         * @param previous
+         * @return <code>true</code> if this Update successfully canceled the
+         */
+        protected boolean cancel(final Update previous) {
+            return false;
+        }
+
+        /**
+         * Apply the update to the state of the supplied TransactionalCache.
+         * This method is called during commit processing.
+         */
+        protected abstract void apply(final TransactionalCache tc);
+    }
+
+    public abstract static class UpdateObject extends Update {
+
+        protected UpdateObject(byte opCode) {
+            super(opCode);
+        }
+
+        /**
+         * Compute the number of bytes required to serialize this update, not
+         * including the opcode. This method may return an overestimate.
+         * 
+         * @return number of bytes to reserve for serialization.
+         */
+        protected abstract int size();
 
         /**
          * Serialize the argument value to the supplied ByteBuffer. This is a
@@ -162,57 +238,20 @@ public abstract class TransactionalCache {
         }
 
         /**
+         * Implementation required only for default object serialization.
+         * 
          * @return the argument value as an Object.
          */
         protected abstract Object getArg();
 
         /**
-         * Set the argument to the supplied Object.
+         * Implementation required only for default object serialization. Set
+         * the argument to the supplied Object.
          * 
          * @param arg
          */
         protected abstract void setArg(Object arg);
 
-        /**
-         * Attempt to combine this Update with a previously record update. For
-         * example suppose the supplied Update and this Update each add 1 to the
-         * same counter. Then this method modifies the supplied Update to add 2
-         * and returns <code>true</code> to signify that this Update should not
-         * be added to the pending update queue.
-         * <P>
-         * Default implementation does nothing and returns <code>false</code>.
-         * Subclasses may override to provide more efficient behavior.
-         * 
-         * @param previous
-         * @return <code>true</code> if this Update was successfully combined
-         *         with <code>previous</code>.
-         */
-        protected boolean combine(final Update previous) {
-            return false;
-        }
-
-        /**
-         * Attempt to cancel this update with a previous update. For example,
-         * suppose the supplied Update increments a counter, and this Update
-         * decrements the same counter. Then this method could return
-         * <code>true</code> to signify that both Updates can be removed from
-         * the pending update queue.
-         * <p>
-         * Default implementation does nothing and returns <code>false</code>.
-         * Subclasses may override to provide more efficient behavior.
-         * 
-         * @param previous
-         * @return <code>true</code> if this Update successfully canceled the
-         */
-        protected boolean cancel(final Update previous) {
-            return false;
-        }
-
-        /**
-         * Apply the update to the state of the supplied TransactionalCache.
-         * This method is called during commit processing.
-         */
-        protected abstract void apply(final TransactionalCache tc);
     }
 
     /**
@@ -235,16 +274,6 @@ public abstract class TransactionalCache {
         @Override
         protected void readArg(final ByteBuffer bb) throws IOException {
             _arg = bb.getInt();
-        }
-
-        @Override
-        protected Object getArg() {
-            return Integer.valueOf(_arg);
-        }
-
-        @Override
-        protected void setArg(Object obj) {
-            _arg = ((Integer) obj).intValue();
         }
 
         @Override
@@ -273,16 +302,6 @@ public abstract class TransactionalCache {
         @Override
         protected void readArg(final ByteBuffer bb) throws IOException {
             _arg = bb.getLong();
-        }
-
-        @Override
-        protected Object getArg() {
-            return Long.valueOf(_arg);
-        }
-
-        @Override
-        protected void setArg(Object obj) {
-            _arg = ((Long) obj).longValue();
         }
 
         @Override
@@ -320,25 +339,6 @@ public abstract class TransactionalCache {
             }
         };
 
-        @Override
-        protected Object getArg() {
-            return _args;
-        }
-
-        @Override
-        protected void setArg(Object obj) {
-            if (obj == null || !(obj instanceof byte[])
-                    || ((byte[]) obj).length > 65535) {
-                throw new IllegalArgumentException();
-            }
-            _args = (byte[]) obj;
-        }
-
-        @Override
-        protected int size() {
-            return _args.length + 2;
-        }
-
     }
 
     /**
@@ -369,20 +369,6 @@ public abstract class TransactionalCache {
                 _args[index] = bb.getInt();
             }
         };
-
-        @Override
-        protected Object getArg() {
-            return _args;
-        }
-
-        @Override
-        protected void setArg(Object obj) {
-            if (obj == null || !(obj instanceof int[])
-                    || ((int[]) obj).length > 65535) {
-                throw new IllegalArgumentException();
-            }
-            _args = (int[]) obj;
-        }
 
         @Override
         protected int size() {
@@ -420,20 +406,6 @@ public abstract class TransactionalCache {
         };
 
         @Override
-        protected Object getArg() {
-            return _args;
-        }
-
-        @Override
-        protected void setArg(Object obj) {
-            if (obj == null || !(obj instanceof long[])
-                    || ((long[]) obj).length > 65535) {
-                throw new IllegalArgumentException();
-            }
-            _args = (long[]) obj;
-        }
-
-        @Override
         protected int size() {
             return _args.length * 8 + 2;
         }
@@ -461,16 +433,6 @@ public abstract class TransactionalCache {
         };
 
         @Override
-        protected Object getArg() {
-            return null;
-        }
-
-        @Override
-        protected void setArg(Object obj) {
-
-        }
-
-        @Override
         protected int size() {
             return 0;
         }
@@ -480,19 +442,6 @@ public abstract class TransactionalCache {
             // Does nothing during normal processing - causes
             // reload from saved checkpoint during recovery
         }
-    }
-
-    /**
-     * Read an Update from the supplied ByteBuffer. Subclasses should override
-     * {@link #readArg(ByteBuffer)} to optimize deserialization.
-     * 
-     * @param bb
-     * @throws IOException
-     */
-    protected final void read(final ByteBuffer bb) throws IOException {
-        final byte opCode = bb.get();
-        final Update update = createUpdate(opCode);
-        update.readArg(bb);
     }
 
     /**
@@ -606,8 +555,22 @@ public abstract class TransactionalCache {
         return tc;
     }
 
-    final void saved() {
-        update(RELOAD);
+    final void save(final Checkpoint checkpoint) throws PersistitException {
+        TransactionalCache tc = this;
+        TransactionalCache newer = null;
+        while (tc != null) {
+            if (tc._checkpoint != null
+                    && tc._checkpoint.getTimestamp() <= checkpoint
+                            .getTimestamp()) {
+                tc.save();
+                update(SAVED);
+                if (newer != null) {
+                    newer._previousVersion = null;
+                }
+            }
+            newer = tc;
+            tc = tc._previousVersion;
+        }
     }
 
     public final void register() {

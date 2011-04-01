@@ -1337,7 +1337,11 @@ public class Transaction {
                     try {
                         _commitListeners.get(index).committed();
                     } catch (RuntimeException e) {
-                        // ignore
+                        if (_persistit.getLogBase().isLoggable(
+                                LogBase.LOG_TXN_EXCEPTION)) {
+                            _persistit.getLogBase().log(
+                                    LogBase.LOG_TXN_EXCEPTION, e, this);
+                        }
                     }
                 }
 
@@ -1908,7 +1912,7 @@ public class Transaction {
         final Set<Tree> removedTrees = new HashSet<Tree>();
         final ByteBuffer bb = _txnBuffer._bb;
         bb.mark();
-        
+
         while (bb.hasRemaining()) {
             final int recordSize = getLength(bb);
             final int type = getType(bb);

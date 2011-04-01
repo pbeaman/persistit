@@ -176,22 +176,23 @@ public class IOMeter implements IOMeterMXBean {
         _ioRate += size;
     }
 
-    private synchronized void log(int type, final long time,
-            final Volume volume, long pageAddress, int size,
-            long journalAddress, int bufferIndex) {
+    private void log(int type, final long time, final Volume volume,
+            long pageAddress, int size, long journalAddress, int bufferIndex) {
         final DataOutputStream os = _logStream.get();
         if (os != null) {
-            try {
-                os.write((byte) type);
-                os.writeLong(time);
-                os.writeInt(volume == null ? 0 : (int) volume.getId()
-                        ^ (int) (volume.getId() >>> 32));
-                os.writeLong(pageAddress);
-                os.writeInt(size);
-                os.writeLong(journalAddress);
-                os.writeInt(bufferIndex);
-            } catch (IOException e) {
-                // ignore
+            synchronized (os) {
+                try {
+                    os.write((byte) type);
+                    os.writeLong(time);
+                    os.writeInt(volume == null ? 0 : (int) volume.getId()
+                            ^ (int) (volume.getId() >>> 32));
+                    os.writeLong(pageAddress);
+                    os.writeInt(size);
+                    os.writeLong(journalAddress);
+                    os.writeInt(bufferIndex);
+                } catch (IOException e) {
+                    // ignore
+                }
             }
         }
     }
@@ -348,7 +349,8 @@ public class IOMeter implements IOMeterMXBean {
     public void chargeEvictPageFromPool(final Volume volume,
             final long pageAddress, final int size, int bufferIndex) {
         final long time = System.nanoTime();
-        log(EVICT_PAGE_FROM_POOL, time, volume, pageAddress, size, 0, bufferIndex);
+        log(EVICT_PAGE_FROM_POOL, time, volume, pageAddress, size, 0,
+                bufferIndex);
     }
 
     public void chargeFlushJournal(final int size, final long journalAddress) {
