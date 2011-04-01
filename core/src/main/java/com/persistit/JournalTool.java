@@ -816,7 +816,7 @@ public class JournalTool {
                         appendf(" <saved>");
                     } else {
                     final Update update = tc.createUpdate(opCode);
-                    update.readArg(_readBuffer);
+                    update.readArgs(_readBuffer);
                     appendf(" %s", update);
                     }
                 }
