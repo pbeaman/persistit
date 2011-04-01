@@ -103,12 +103,6 @@ public interface JournalManagerMXBean {
      */
     final static int DEFAULT_PAGE_MAP_SIZE_BASE = 250000;
     
-    /**
-     * Not very meaningful - this is the maximum number of concurrent transactions
-     * that can enqueue themselves to be written by the JOURNAL_FLUSHER.  This is
-     * intentionally much larger than the capacity achievable by hardware today -
-     * we do not intend for a thread ever to block because of this limit.
-     */
     final static int MAX_CONCURRENT_TRANSACTIONS = 10000;
 
     public int getPageMapSize();

@@ -389,25 +389,6 @@ import java.nio.charset.Charset;
  * </table>
  * </tr>
  * 
- * <tr valign="top">
- * <td>CC</td>
- * <td>Cache Checkpoint - encapsulates the stat of a {@link TransactionalCache}
- * instance at a Checkpoint boundary. Serialization format is determined by the
- * <code>TransactionalCache</code> implementation.
- * <table>
- * <tr valign="top">
- * <td>+16</td>
- * <td>cacheId (long) - unique identifier of <code>TransactionalCache</code> instance</td>
- * </tr>
- * <tr valign="top">
- * <td>+24</td>
- * <td>Serialized state (variable-length)</td>
- * </tr>
- * </table>
- * </tr>
- * 
- * 
- * 
  * </table>
  * 
  * @author peter
@@ -501,7 +482,7 @@ public class JournalRecord {
     /**
      * Journal End
      */
-    public static class JE extends JournalRecord {
+    static class JE extends JournalRecord {
 
         public final static int TYPE = ('J' << 8) | 'E';
 
@@ -542,7 +523,7 @@ public class JournalRecord {
     /**
      * Journal header
      */
-    public static class JH extends JournalRecord {
+    static class JH extends JournalRecord {
 
         public final static int TYPE = ('J' << 8) | 'H';
 
@@ -623,7 +604,7 @@ public class JournalRecord {
     /**
      * Page Map
      */
-    public static class PM extends JournalRecord {
+    static class PM extends JournalRecord {
 
         public final static int TYPE = ('P' << 8) | 'M';
 
@@ -673,7 +654,7 @@ public class JournalRecord {
     /**
      * Transaction Map
      */
-    public static class TM extends JournalRecord {
+    static class TM extends JournalRecord {
 
         public final static int TYPE = ('T' << 8) | 'M';
 
@@ -723,7 +704,7 @@ public class JournalRecord {
     /**
      * Identify Volume
      */
-    public static class IV extends JournalRecord {
+    static class IV extends JournalRecord {
 
         public final static int TYPE = ('I' << 8) | 'V';
 
@@ -769,7 +750,7 @@ public class JournalRecord {
     /**
      * Identify Tree
      */
-    public static class IT extends JournalRecord {
+    static class IT extends JournalRecord {
 
         public final static int TYPE = ('I' << 8) | 'T';
 
@@ -816,7 +797,7 @@ public class JournalRecord {
     /**
      * Page
      */
-    public static class PA extends JournalRecord {
+    static class PA extends JournalRecord {
 
         public final static int TYPE = ('P' << 8) | 'A';
 
@@ -866,7 +847,7 @@ public class JournalRecord {
     /**
      * Checkpoint
      */
-    public static class CP extends JournalRecord {
+    static class CP extends JournalRecord {
 
         public final static int TYPE = ('C' << 8) | 'P';
 
@@ -898,7 +879,7 @@ public class JournalRecord {
     /**
      * Transaction Start
      */
-    public static class TS extends JournalRecord {
+    static class TS extends JournalRecord {
 
         public final static int TYPE = ('T' << 8) | 'S';
 
@@ -912,7 +893,7 @@ public class JournalRecord {
     /**
      * Transaction Commit
      */
-    public static class TC extends JournalRecord {
+    static class TC extends JournalRecord {
 
         public final static int TYPE = ('T' << 8) | 'C';
 
@@ -935,7 +916,7 @@ public class JournalRecord {
     /**
      * Store Record
      */
-    public static class SR extends JournalRecord {
+    static class SR extends JournalRecord {
 
         public final static int TYPE = ('S' << 8) | 'R';
 
@@ -965,7 +946,7 @@ public class JournalRecord {
     /**
      * Delete Record
      */
-    public static class DR extends JournalRecord {
+    static class DR extends JournalRecord {
 
         public final static int TYPE = ('D' << 8) | 'R';
 
@@ -996,7 +977,7 @@ public class JournalRecord {
     /**
      * Delete Tree
      */
-    public static class DT extends JournalRecord {
+    static class DT extends JournalRecord {
 
         public final static int TYPE = ('D' << 8) | 'T';
 
@@ -1018,7 +999,7 @@ public class JournalRecord {
     /**
      * Cache Update
      */
-    public static class CU extends JournalRecord {
+    static class CU extends JournalRecord {
 
         public final static int TYPE = ('C' << 8) | 'U';
 
