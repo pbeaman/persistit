@@ -752,15 +752,12 @@ public class Transaction {
             }
             _rollbackPending = false;
             _visbilityOrder.clear();
-        } else {
-            _commitCompleted = false;
+
+            if (Debug.ENABLED) {
+                Debug.$assert(_touchedPagesSet.size() == 0);
+            }
+            _touchedPagesSet.clear();
         }
-        // PDB 20050808 - to be sure. Should have been cleared by either
-        // commit() or rollbackUpdates().
-        if (Debug.ENABLED) {
-            Debug.$assert(_touchedPagesSet.size() == 0);
-        }
-        _touchedPagesSet.clear();
         _commitCompleted = false;
     }
 
