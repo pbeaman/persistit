@@ -687,10 +687,6 @@ public class BufferPool {
         }
     }
     
-    Buffer[] getBuffers() {
-        return _buffers;
-    }
-
     /**
      * Find or load a page given its Volume and address. The returned page has a
      * reader or a writer lock, depending on whether the writer parameter is
