@@ -35,16 +35,48 @@ import com.persistit.exception.PersistitIOException;
  * of a Persistit database. This abstract superclass provides the mechanism to
  * ensure the consistency of this state.
  * <p>
- * An application registers an instance TC of this class with Persistit prior to
- * calling the {@link Persistit#initialize()} method. During Persisit's startup
- * and recovery processing, the state of TC is modified to include the effects
- * of all previously committed transactions. During normal operation, code
- * performed within the scope of a Transaction calls methods of TC to read
- * and/or modify its state. The modifications remain private to the executing
- * transaction until the transaction commits. At that time the modifications are
- * record on the Persistit Journal and applied to a globally visible version of
- * TC's state. Operations that read from TC state are recorded in the
- * transaction's read set and verified for consistency during commit processing.
+ * An application registers an instance T of this class with Persistit prior to
+ * calling the {@link Persistit#initialize()} method by calling
+ * {@link Persistit#addTransactionalCache(TransactionalCache)}. T must provide a
+ * unique, permanent ID value from its {@link #cacheId()} method. During
+ * Persisit's startup and recovery processing, the state of T is modified to
+ * include the effects of all previously committed transactions. During normal
+ * operation, code performed within the scope of a Transaction calls methods of
+ * T to read and/or modify its state. The modifications remain private to the
+ * executing transaction until the transaction commits. At that time the
+ * modifications are recorded on the Persistit Journal and applied to a globally
+ * visible version of T's state.
+ * <p>
+ * A concrete <code>TransactionalCache</code> implementation must provide one or
+ * more concrete implementations of the inner class
+ * {@link TransactionalCache.Update}. The small objects record the modifications
+ * being made to the state. A minimal implementation of Update provides methods
+ * to apply the update to the cached state, and a methods used to serialize the
+ * update to the journal. For convenience, the following more specialized
+ * subclasses are provided:
+ * <ul>
+ * <li>{@link TransactionalCache.UpdateObject}</li>
+ * <li>{@link TransactionalCache.UpdateInt}</li>
+ * <li>{@link TransactionalCache.UpdateIntLong}</li>
+ * <li>{@link TransactionalCache.UpdateLong}</li>
+ * <li>{@link TransactionalCache.UpdateByteArray}</li>
+ * <li>{@link TransactionalCache.UpdateIntArray}</li>
+ * <li>{@link TransactionalCache.UpdateLongArray}</li>
+ * </ul>
+ * where the name of the class describes the structure of the data associated
+ * with the update. Each of these specialized subclasses have final concrete
+ * implementations of the serialization methods and require only the
+ * {@link Update#apply(TransactionalCache)} method. It is recommended to extend
+ * one of these Update classes whenever possible.
+ * <p>
+ * Every <code>Update</code> class must be identified by a unique, permanent
+ * byte value called its <code>opCode</code>. This value identifies the class of
+ * of the <code>Update</code> for journal recovery. The recovery process reads
+ * the byte code, invokes T's {@link #createUpdate(byte)} method to construct an
+ * appropriate <code>Update</code>, then reads any of the update's argument
+ * using its {@link Update#readArg(ByteBuffer)} method. Finally, recovery calls
+ * the update's {link {@link Update#apply(TransactionalCache)} method to apply
+ * it to T's evolving state.
  * <p>
  * 
  * @author peter
@@ -280,6 +312,37 @@ public abstract class TransactionalCache {
         protected int size() {
             return 4;
         }
+    }
+
+    /**
+     * Abstract superclass of any Update that holds an int and a long argument
+     * value.
+     */
+    public abstract static class UpdateIntLong extends Update {
+        protected int _arg1;
+        protected long _arg2;
+
+        protected UpdateIntLong(byte opCode) {
+            super(opCode);
+        }
+
+        @Override
+        protected void writeArg(final ByteBuffer bb) throws IOException {
+            bb.putInt(_arg1);
+            bb.putLong(_arg2);
+        }
+
+        @Override
+        protected void readArg(final ByteBuffer bb) throws IOException {
+            _arg1 = bb.getInt();
+            _arg2 = bb.getLong();
+        }
+
+        @Override
+        protected int size() {
+            return 12;
+        }
+
     }
 
     /**
