@@ -70,13 +70,6 @@ public class Volume extends SharedResource {
             .stringToBytes("PERSISTIT VOLUME");
 
     /**
-     * Volume identifier - human and machine readable confirmation that this is
-     * a Persistit Volume.
-     */
-    public final static byte[] IDENTIFIER_SIGNATURE = Util
-            .stringToBytes("VOL ");
-
-    /**
      * Current product version number.
      */
     public final static int VERSION = 210;
@@ -91,6 +84,7 @@ public class Volume extends SharedResource {
 
     private final static int HEADER_SIZE = Buffer.MIN_BUFFER_SIZE;
 
+    private VolumeHeader _header;
     private FileChannel _channel;
     private String _path;
     private String _name;
@@ -280,26 +274,6 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Utility method to determine whether a subarray of bytes in a byte-array
-     * <code>source</code> matches the byte-array in <code>target</code>.
-     * 
-     * @param source
-     *            The source byte array
-     * @param offset
-     *            The offset of the sub-array within the source.
-     * @param target
-     *            The target byte array
-     * @return
-     */
-    private boolean bytesEqual(byte[] source, int offset, byte[] target) {
-        for (int index = 0; index < target.length; index++) {
-            if (source[index + offset] != target[index])
-                return false;
-        }
-        return true;
-    }
-
-    /**
      * Creates a new volume
      * 
      * @param persistit
@@ -453,37 +427,15 @@ public class Volume extends SharedResource {
             _readOnly = readOnly;
             _channel = new RandomAccessFile(_path, readOnly ? "r" : "rw")
                     .getChannel();
+            
+            _header = new VolumeHeader(_channel); 
+            final ByteBuffer bb = _header.validate();
 
-            long size = _channel.size();
-            if (size < HEADER_SIZE) {
-                throw new CorruptVolumeException("Volume file too short: "
-                        + size);
-            }
-
-            final ByteBuffer bb = ByteBuffer.allocate(HEADER_SIZE);
-            final byte[] bytes = bb.array();
-            _channel.read(bb, 0);
-
-            //
-            // Check out the fixed Volume file and learn
-            // the buffer size.
-            //
-            if (!bytesEqual(bytes, 0, SIGNATURE)) {
-                throw new CorruptVolumeException("Invalid signature");
-            }
-
-            int version = Util.getInt(bytes, 16);
-            if (version < MIN_SUPPORTED_VERSION
-                    || version > MAX_SUPPORTED_VERSION) {
-                throw new CorruptVolumeException("Unsupported version "
-                        + version + " (must be in range "
-                        + MIN_SUPPORTED_VERSION + " - " + MAX_SUPPORTED_VERSION
-                        + ")");
-            }
             //
             // Just to populate _bufferSize. getHeaderInfo will be called
             // again below.
             //
+            final byte[] bytes = bb.array();
             getHeaderInfo(bytes);
             _pool = _persistit.getBufferPool(_bufferSize);
             if (_pool == null) {
