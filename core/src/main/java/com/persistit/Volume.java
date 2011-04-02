@@ -62,27 +62,6 @@ public class Volume extends SharedResource {
      * Key segment name for index by directory tree name.
      */
     private final static String BY_NAME = "byName";
-    /**
-     * Signature value - human and machine readable confirmation that this file
-     * resulted from Persistit.
-     */
-    private final static byte[] SIGNATURE = Util
-            .stringToBytes("PERSISTIT VOLUME");
-
-    /**
-     * Current product version number.
-     */
-    public final static int VERSION = 210;
-    /**
-     * Minimum product version that can handle Volumes created by this version.
-     */
-    private final static int MIN_SUPPORTED_VERSION = 210;
-    /**
-     * Minimum product version that can handle Volumes created by this version.
-     */
-    private final static int MAX_SUPPORTED_VERSION = 299;
-
-    private final static int HEADER_SIZE = Buffer.MIN_BUFFER_SIZE;
 
     private VolumeHeader _header;
     private FileChannel _channel;
@@ -358,6 +337,7 @@ public class Volume extends SharedResource {
 
             _headBuffer = _pool.get(this, 0, true, false);
             _pool.setFixed(_headBuffer, true);
+            _header = new VolumeHeader(_channel);
 
             _headBuffer.clear();
 
@@ -575,7 +555,7 @@ public class Volume extends SharedResource {
             final boolean tranzient, final boolean loose)
             throws PersistitException {
         File file = new File(path);
-        if (file.exists() && file.length() >= HEADER_SIZE) {
+        if (file.exists()) {
             if (mustCreate || tranzient) {
                 throw new VolumeAlreadyExistsException(path);
             }
@@ -1773,8 +1753,8 @@ public class Volume extends SharedResource {
 
     private boolean updateHeaderInfo(byte[] bytes) {
         boolean changed = false;
-        changed |= Util.changeBytes(bytes, 0, SIGNATURE);
-        changed |= Util.changeInt(bytes, 16, VERSION);
+        changed |= Util.changeBytes(bytes, 0, _header.getSignature());
+        changed |= Util.changeInt(bytes, 16, _header.getVersion());
         changed |= Util.changeInt(bytes, 20, _bufferSize);
         Util.putLong(bytes, 24, _timestamp);
         changed |= Util.changeLong(bytes, 32, _id);

@@ -51,7 +51,7 @@ public class VolumeHeader {
      */
     private final static int MAX_SUPPORTED_VERSION = 299;
     
-    private final static int HEADER_SIZE = Buffer.MIN_BUFFER_SIZE;
+    private final static int SIZE = Buffer.MIN_BUFFER_SIZE;
     
     private FileChannel channel;
     
@@ -60,19 +60,22 @@ public class VolumeHeader {
     }
     
     /**
+     * Validate that the header conforms to the volume header 
+     * specification. CorruptVolumeExceptions are thrown when
+     * an inconsistency is observed.
      * 
      * @return ByteBuffer populated with volume header information
      * @throws PersistitException
      * @throws IOException
      */
     public ByteBuffer validate()
-        throws PersistitException, IOException {
-        long size = channel.size();
-        if (size < HEADER_SIZE) {
-            throw new CorruptVolumeException("Volume file too short: " + size);
+        throws CorruptVolumeException, IOException {
+        assert channel != null;
+        if (channel.size() < SIZE) {
+            throw new CorruptVolumeException("Volume file too short: " + channel.size());
         }
 
-        final ByteBuffer bb = ByteBuffer.allocate(HEADER_SIZE);
+        final ByteBuffer bb = ByteBuffer.allocate(SIZE);
         final byte[] bytes = bb.array();
         channel.read(bb, 0);
 
@@ -96,4 +99,26 @@ public class VolumeHeader {
         
         return bb;
     }
+    
+    /**
+     * @return signature for this volume
+     */
+    public byte[] getSignature() {
+        return SIGNATURE;
+    }
+    
+    /**
+     * @return version of persistit for this header
+     */
+    public int getVersion() {
+        return VERSION;
+    }
+    
+    /**
+     * @return size of this header
+     */
+    public int getSize() {
+        return SIZE;
+    }
+    
 }
