@@ -1559,7 +1559,10 @@ public class Persistit {
     }
 
     void flushCheckpoint() {
-        final Checkpoint validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
+        final Checkpoint validCheckpoint;
+        synchronized (this) {
+            validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
+        }
         if (validCheckpoint != null) {
             try {
                 if (!flushTransactionalCaches(validCheckpoint)) {
@@ -1587,7 +1590,8 @@ public class Persistit {
             while (true) {
                 transaction.begin();
                 try {
-                    for (final TransactionalCache tc : _transactionalCaches.values()) {
+                    for (final TransactionalCache tc : _transactionalCaches
+                            .values()) {
                         tc.save(checkpoint);
                     }
                     transaction.commit();
