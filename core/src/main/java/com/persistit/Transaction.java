@@ -249,7 +249,7 @@ import com.persistit.exception.TimeoutException;
  * itself <code>begin</code> and <code>commit</code> transactions.
  * </p>
  * <p>
- * Invoking {@link #rollback} removes all pending but uncomitted updates, marks
+ * Invoking {@link #rollback} removes all pending but uncommitted updates, marks
  * the current transaction scope as <i>rollback pending</i> and throws a
  * <code>RollbackException</code>. Any subsequent attempt to perform any
  * Persistit operation, including <code>commit</code> in the current transaction
