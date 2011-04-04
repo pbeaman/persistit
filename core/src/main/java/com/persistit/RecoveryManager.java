@@ -43,6 +43,7 @@ import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TransactionStatus;
 import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.JournalManager.VolumeDescriptor;
+import com.persistit.JournalRecord.CU;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
@@ -141,7 +142,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
     /**
      * Number of transactions to apply per progress log message
      */
-    private final static int APPLY_TRANSACTION_LOG_COUNT = 1000;
+    private final static int APPLY_TRANSACTION_LOG_COUNT = 10000;
 
     private final Persistit _persistit;
 
@@ -839,6 +840,9 @@ public class RecoveryManager implements RecoveryManagerMXBean,
         case CP.TYPE:
             processCheckpoint(from, timestamp, recordSize);
             break;
+            
+        case CU.TYPE:
+            break;
 
         default:
             if (!isValidType(type)) {
@@ -1521,6 +1525,23 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                         DT.getTreeHandle(_readBuffer), address, timestamp);
                 listener.removeTree(address, timestamp, exchange);
                 _persistit.releaseExchange(exchange);
+                break;
+                
+            case CU.TYPE:
+                read(address, recordSize);
+                final long cacheId = CU.getCacheId(_readBuffer);
+                TransactionalCache tc = _persistit.getTransactionalCache(cacheId);
+                if (tc != null) {
+                    final int position = _readBuffer.position();
+                    final int limit = _readBuffer.limit();
+                    _readBuffer.limit(_readBuffer.position() + recordSize);
+                    _readBuffer.position(_readBuffer.position() + CU.OVERHEAD);
+                    tc.recoverUpdates(_readBuffer);
+                    _readBuffer.position(position);
+                    _readBuffer.limit(limit);
+                } else {
+                    // TODO log  missing TransactionalCache
+                }
                 break;
 
             default:

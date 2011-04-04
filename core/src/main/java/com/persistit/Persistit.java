@@ -40,7 +40,6 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.TimestampAllocator.CheckpointListener;
 import com.persistit.WaitingThreadManager.WaitingThread;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
@@ -51,6 +50,8 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.exception.ReadOnlyVolumeException;
+import com.persistit.exception.RollbackException;
+import com.persistit.exception.TransactionFailedException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.AbstractPersistitLogger;
@@ -91,7 +92,7 @@ public class Persistit {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit 2.1.1"
+    public final static String VERSION = "Persistit 2.2.1"
             + (Debug.ENABLED ? "-DEBUG" : "");
     /**
      * The copyright notice
@@ -354,7 +355,7 @@ public class Persistit {
 
     private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
-    private final List<CheckpointListener> _checkpointListeners = new ArrayList<CheckpointListener>();
+    private final HashMap<Long, TransactionalCache> _transactionalCaches = new HashMap<Long, TransactionalCache>();
 
     private Checkpoint _lastCheckpoint = new Checkpoint(0, 0);
 
@@ -1437,35 +1438,6 @@ public class Persistit {
     }
 
     /**
-     * Copies the current set of Transaction objects to the supplied List. This
-     * method is used by JOURNAL_FLUSHER to look for transactions that need to
-     * be written to the Journal, and BufferPool checkpoint code to look for
-     * uncommitted transactions. For each session, add that session's
-     * transaction to the supplied list if and only if it has a startTimestamp
-     * greater than <code>from</code> and a commitTimestamp greater than
-     * <code>to</code>.
-     * 
-     * @param transactions
-     *            List of Transaction objects to be populated
-     * @param from
-     *            minimum startTimestamp, or -1 for any
-     * @param to
-     *            minimum commitTimestamp, or -1 for any
-     */
-    void populateTransactionList(final List<Transaction> transactions,
-            final long from, final long to) {
-        transactions.clear();
-        synchronized (_transactionSessionMap) {
-            for (final Transaction t : _transactionSessionMap.values()) {
-                if (t.getStartTimestamp() >= from
-                        && t.getCommitTimestamp() >= to) {
-                    transactions.add(t);
-                }
-            }
-        }
-    }
-
-    /**
      * Returns the default timeout for operations on an <code>Exchange</code>.
      * The application may override this default value for an instance of an
      * <code>Exchange</code> through the {@link Exchange#setTimeout(long)}
@@ -1589,24 +1561,52 @@ public class Persistit {
     void flushCheckpoint() {
         final Checkpoint validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
         if (validCheckpoint != null) {
-            boolean listenersDone = true;
-            synchronized (_checkpointListeners) {
-                for (final CheckpointListener listener : _checkpointListeners) {
-                    listenersDone &= listener.save(validCheckpoint);
+            try {
+                if (!flushTransactionalCaches(validCheckpoint)) {
+                    return;
                 }
+                getJournalManager().writeCheckpointToJournal(validCheckpoint);
+            } catch (PersistitIOException e) {
+                getLogBase().log(LogBase.LOG_EXCEPTION,
+                        e + " while writing " + validCheckpoint + ":" + e);
             }
-            if (listenersDone) {
+            synchronized (this) {
+                _outstandingCheckpoints.remove(validCheckpoint);
+            }
+        }
+    }
+
+    boolean flushTransactionalCaches(final Checkpoint checkpoint) {
+        if (_transactionalCaches.isEmpty()) {
+            return true;
+        }
+        try {
+            final Transaction transaction = getTransaction();
+            transaction.setTransactionalCacheCheckpoint(checkpoint);
+            int retries = 10;
+            while (true) {
+                transaction.begin();
                 try {
-                    getJournalManager().writeCheckpointToJournal(
-                            validCheckpoint);
-                } catch (PersistitIOException e) {
-                    getLogBase().log(LogBase.LOG_EXCEPTION,
-                            e + " while writing " + validCheckpoint + ":" + e);
-                }
-                synchronized (this) {
-                    _outstandingCheckpoints.remove(validCheckpoint);
+                    for (final TransactionalCache tc : _transactionalCaches.values()) {
+                        tc.save(checkpoint);
+                    }
+                    transaction.commit();
+                    break;
+                } catch (RollbackException e) {
+                    if (--retries >= 0) {
+                        continue;
+                    } else {
+                        throw new TransactionFailedException(
+                                "Retry limit 10 exceeeded");
+                    }
+                } finally {
+                    transaction.end();
                 }
             }
+            return true;
+        } catch (PersistitException e) {
+            // log this
+            return false;
         }
     }
 
@@ -2001,6 +2001,50 @@ public class Persistit {
     }
 
     /**
+     * Copies the current set of Transaction objects to the supplied List. This
+     * method is used by JOURNAL_FLUSHER to look for transactions that need to
+     * be written to the Journal, and BufferPool checkpoint code to look for
+     * uncommitted transactions. For each session, add that session's
+     * transaction to the supplied list if and only if it has a startTimestamp
+     * greater than <code>from</code> and a commitTimestamp greater than
+     * <code>to</code>.
+     * 
+     * @param transactions
+     *            List of Transaction objects to be populated
+     * @param from
+     *            minimum startTimestamp, or -1 for any
+     * @param to
+     *            minimum commitTimestamp, or -1 for any
+     */
+    void populateTransactionList(final List<Transaction> transactions,
+            final long from, final long to) {
+        transactions.clear();
+        synchronized (_transactionSessionMap) {
+            for (final Transaction t : _transactionSessionMap.values()) {
+                if (t.getStartTimestamp() >= from
+                        && t.getCommitTimestamp() >= to) {
+                    transactions.add(t);
+                }
+            }
+        }
+    }
+
+    public int pendingTransactionCount(final long timestamp) {
+        int count = 0;
+        synchronized (_transactionSessionMap) {
+            for (final Transaction t : _transactionSessionMap.values()) {
+                if (t.getStartTimestamp() > 0
+                        && t.getStartTimestamp() < timestamp
+                        && t.getCommitTimestamp() >= timestamp
+                        || t.getCommitTimestamp() == -1) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
      * @return The current timestamp value
      */
     public long getCurrentTimestamp() {
@@ -2358,31 +2402,32 @@ public class Persistit {
     }
 
     /**
-     * Add a {@link CheckpointListener} which may be used to serialize state
-     * during the checkpoint process.
+     * Register a <code>TransactionalCache</code> instance. This method may only
+     * be called before {@link #initialize()}. Each instance must have a unique
+     * <code>cacheId</code>.
      * 
-     * @param listener
-     *            The listener to add.
-     * @throws NullPointerException
+     * @param tc
      */
-    public void addCheckpointListener(final CheckpointListener listener) {
-        if (listener == null) {
-            throw new NullPointerException();
+    void addTransactionalCache(TransactionalCache tc) {
+        if (_initialized.get()) {
+            throw new IllegalStateException("TransactionalCache must be added"
+                    + " before Persistit initialization");
         }
-        synchronized (_checkpointListeners) {
-            _checkpointListeners.add(listener);
+        if (getTransactionalCache(tc.cacheId()) != null) {
+            throw new IllegalStateException(
+                    "TransactionalCache cacheId must be unique");
         }
+        _transactionalCaches.put(tc.cacheId(), tc);
     }
 
     /**
-     * Attempt to remove a previously added {@link CheckpointListener}.
+     * Get a TransactionalCache instance by its unique <code>cacheId</code>.
      * 
-     * @param listener
+     * @param cacheId
+     * @return the corresponding <code>TransactionalCache</code>.
      */
-    public void removeCheckpointListener(final CheckpointListener listener) {
-        synchronized (_checkpointListeners) {
-            _checkpointListeners.remove(listener);
-        }
+    TransactionalCache getTransactionalCache(final long cacheId) {
+        return _transactionalCaches.get(cacheId);
     }
 
     /**
