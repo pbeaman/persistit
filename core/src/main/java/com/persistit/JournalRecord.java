@@ -320,30 +320,6 @@ import java.nio.charset.Charset;
  * </tr>
  * </table>
  * 
- * </tr>
- * <tr valign="top">
- * <td>DV</td>
- * <td>Delete Volume - specifies a Volume to be deleted.
- * <table>
- * <tr valign="top">
- * <td>+16</td>
- * <td>Volume handle (int) - matches a volume identified in a preceding IV
- * record</td>
- * </tr>
- * </table>
- * </tr>
- * 
- * <tr valign="top">
- * <td>DT</td>
- * <td>Delete Tree - specifies a Tree to be deleted.
- * <table>
- * <tr valign="top">
- * <td>+16</td>
- * <td>Tree handle (int) - matches a tree identified in a preceding IT record</td>
- * </tr>
- * </table>
- * </tr>
- * 
  * <tr valign="top">
  * <td>DR</td>
  * <td>Delete Record - specifies a Tree and two Keys: all key/value pairs
@@ -372,6 +348,47 @@ import java.nio.charset.Charset;
  * </table>
  * </tr>
  * 
+ * <tr valign="top">
+ * <td>DT</td>
+ * <td>Delete Tree - specifies a Tree to be deleted.
+ * <table>
+ * <tr valign="top">
+ * <td>+16</td>
+ * <td>Tree handle (int) - matches a tree identified in a preceding IT record</td>
+ * </tr>
+ * </table>
+ * </tr>
+ * 
+ * </tr>
+ * <tr valign="top">
+ * <td>DV</td>
+ * <td>Delete Volume - specifies a Volume to be deleted.
+ * <table>
+ * <tr valign="top">
+ * <td>+16</td>
+ * <td>Volume handle (int) - matches a volume identified in a preceding IV
+ * record</td>
+ * </tr>
+ * </table>
+ * </tr>
+ * 
+ * <tr valign="top">
+ * <td>CU</td>
+ * <td>Cache Update - encapsulates a set of updates to be applied to a
+ * {@link TransactionalCache} instance. Serialization format of the Update
+ * records is determined by the <code>TransactionalCache</code> implementation.
+ * <table>
+ * <tr valign="top">
+ * <td>+16</td>
+ * <td>cacheId (long) - unique identifier of <code>TransactionalCache</code> instance</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>+24</td>
+ * <td>Updates (variable-length) - the serialized updates</td>
+ * </tr>
+ * </table>
+ * </tr>
+ * 
  * </table>
  * 
  * @author peter
@@ -385,7 +402,7 @@ public class JournalRecord {
 
     public final static int[] TYPES = new int[] { JE.TYPE, JH.TYPE, PA.TYPE,
             PM.TYPE, SR.TYPE, DR.TYPE, DT.TYPE, TM.TYPE, TS.TYPE, TC.TYPE,
-            CP.TYPE, IV.TYPE, IT.TYPE };
+            CP.TYPE, IV.TYPE, IT.TYPE, CU.TYPE };
 
     public static boolean isValidType(final int t) {
         for (int type : TYPES) {
@@ -465,7 +482,7 @@ public class JournalRecord {
     /**
      * Journal End
      */
-    public static class JE extends JournalRecord {
+    static class JE extends JournalRecord {
 
         public final static int TYPE = ('J' << 8) | 'E';
 
@@ -506,7 +523,7 @@ public class JournalRecord {
     /**
      * Journal header
      */
-    public static class JH extends JournalRecord {
+    static class JH extends JournalRecord {
 
         public final static int TYPE = ('J' << 8) | 'H';
 
@@ -587,7 +604,7 @@ public class JournalRecord {
     /**
      * Page Map
      */
-    public static class PM extends JournalRecord {
+    static class PM extends JournalRecord {
 
         public final static int TYPE = ('P' << 8) | 'M';
 
@@ -637,7 +654,7 @@ public class JournalRecord {
     /**
      * Transaction Map
      */
-    public static class TM extends JournalRecord {
+    static class TM extends JournalRecord {
 
         public final static int TYPE = ('T' << 8) | 'M';
 
@@ -687,7 +704,7 @@ public class JournalRecord {
     /**
      * Identify Volume
      */
-    public static class IV extends JournalRecord {
+    static class IV extends JournalRecord {
 
         public final static int TYPE = ('I' << 8) | 'V';
 
@@ -733,7 +750,7 @@ public class JournalRecord {
     /**
      * Identify Tree
      */
-    public static class IT extends JournalRecord {
+    static class IT extends JournalRecord {
 
         public final static int TYPE = ('I' << 8) | 'T';
 
@@ -780,7 +797,7 @@ public class JournalRecord {
     /**
      * Page
      */
-    public static class PA extends JournalRecord {
+    static class PA extends JournalRecord {
 
         public final static int TYPE = ('P' << 8) | 'A';
 
@@ -830,7 +847,7 @@ public class JournalRecord {
     /**
      * Checkpoint
      */
-    public static class CP extends JournalRecord {
+    static class CP extends JournalRecord {
 
         public final static int TYPE = ('C' << 8) | 'P';
 
@@ -862,7 +879,7 @@ public class JournalRecord {
     /**
      * Transaction Start
      */
-    public static class TS extends JournalRecord {
+    static class TS extends JournalRecord {
 
         public final static int TYPE = ('T' << 8) | 'S';
 
@@ -876,7 +893,7 @@ public class JournalRecord {
     /**
      * Transaction Commit
      */
-    public static class TC extends JournalRecord {
+    static class TC extends JournalRecord {
 
         public final static int TYPE = ('T' << 8) | 'C';
 
@@ -899,7 +916,7 @@ public class JournalRecord {
     /**
      * Store Record
      */
-    public static class SR extends JournalRecord {
+    static class SR extends JournalRecord {
 
         public final static int TYPE = ('S' << 8) | 'R';
 
@@ -929,7 +946,7 @@ public class JournalRecord {
     /**
      * Delete Record
      */
-    public static class DR extends JournalRecord {
+    static class DR extends JournalRecord {
 
         public final static int TYPE = ('D' << 8) | 'R';
 
@@ -960,7 +977,7 @@ public class JournalRecord {
     /**
      * Delete Tree
      */
-    public static class DT extends JournalRecord {
+    static class DT extends JournalRecord {
 
         public final static int TYPE = ('D' << 8) | 'T';
 
@@ -978,4 +995,27 @@ public class JournalRecord {
             return getInt(bb, 16);
         }
     }
+
+    /**
+     * Cache Update
+     */
+    static class CU extends JournalRecord {
+
+        public final static int TYPE = ('C' << 8) | 'U';
+
+        public final static int OVERHEAD = 24;
+
+        public static void putType(final ByteBuffer bb) {
+            putType(bb, TYPE);
+        }
+
+        public static void putCacheId(final ByteBuffer bb, final long id) {
+            putLong(bb, 16, id);
+        }
+
+        public static long getCacheId(final ByteBuffer bb) {
+            return getLong(bb, 16);
+        }
+    }
+    
 }
