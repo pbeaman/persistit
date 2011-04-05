@@ -659,6 +659,7 @@ public class Transaction {
             try {
                 clear();
                 _commitListeners.clear();
+                _transactionCacheUpdates.clear();
                 _startTimestamp.set(_persistit.getTimestampAllocator()
                         .updateTimestamp());
 
@@ -726,6 +727,7 @@ public class Transaction {
             _persistit.getTransactionResourceA().release();
             _startTimestamp.set(-1);
             _commitTimestamp.set(-1);
+            _transactionCacheUpdates.clear();
             //
             // Perform rollback if needed.
             //
