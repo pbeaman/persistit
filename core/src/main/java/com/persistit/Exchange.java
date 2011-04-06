@@ -135,6 +135,9 @@ public class Exchange {
     private final static int LEFT_CLAIMED = 1;
 
     private final static int RIGHT_CLAIMED = 2;
+    
+    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.NICE_BIAS;
+    private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
 
     private Persistit _persistit;
 
@@ -160,8 +163,8 @@ public class Exchange {
 
     private Value _spareValue;
 
-    private SplitPolicy _splitPolicy = SplitPolicy.NICE_BIAS;
-    private JoinPolicy _joinPolicy = JoinPolicy.EVEN_BIAS;
+    private SplitPolicy _splitPolicy = DEFAULT_SPLIT_POLICY;
+    private JoinPolicy _joinPolicy = DEFAULT_JOIN_POLICY;
 
     private boolean _isDirectoryExchange = false;
     private boolean _hasDeferredDeallocations = false;
@@ -346,6 +349,8 @@ public class Exchange {
         _spareValue.clear(secure);
         _transaction = null;
         _ignoreTransactions = false;
+        _splitPolicy = DEFAULT_SPLIT_POLICY;
+        _joinPolicy = DEFAULT_JOIN_POLICY;
     }
 
     private void initCache() {
