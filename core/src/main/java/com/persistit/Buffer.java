@@ -249,6 +249,8 @@ public final class Buffer extends SharedResource {
 
     private final static int FINDEX_RUNCOUNT_MASK = 0xFFF00000;
     private final static int FINDEX_RUNCOUNT_SHIFT = 20;
+    
+    private final static int MAX_KEY_RATIO = 16;
 
     // For debugging - set true in debugger to create verbose toString() output.
     //
@@ -298,6 +300,12 @@ public final class Buffer extends SharedResource {
      * The size of this buffer
      */
     private int _bufferSize;
+    
+    /**
+     * The maximum number of keys allowed in this buffer
+     */
+    private int _maxKeys;
+    
     /**
      * Indicates whether the _findexElements array is current valid
      */
@@ -389,8 +397,8 @@ public final class Buffer extends SharedResource {
         _byteBuffer = ByteBuffer.allocate(size);
         _bytes = _byteBuffer.array();
         _bufferSize = size;
-        _findexElements = new int[_bufferSize
-                / (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_DATA)];
+        _maxKeys = (_bufferSize - HEADER_SIZE) / MAX_KEY_RATIO;
+        _findexElements = new int[_maxKeys + 1];
     }
 
     Buffer(Buffer original) {
@@ -655,6 +663,13 @@ public final class Buffer extends SharedResource {
         } else {
             return 0;
         }
+    }
+    
+    /**
+     * @return  Number of key-value pairs currently stored in this page.
+     */
+    public int getKeyCount() {
+        return (_keyBlockEnd - _keyBlockStart) / KEYBLOCK_LENGTH;
     }
 
     /**
@@ -1014,12 +1029,22 @@ public final class Buffer extends SharedResource {
         _isFindexValid = false;
     }
 
-    private void recomputeFindex() {
+    void recomputeFindex() {
         if (_isFindexValid) {
             if (Debug.ENABLED) {
                 verifyFindex();
             }
         } else if (isDataPage() || isIndexPage()) {
+            //
+            // Adjust size of _findexElements to accommodate a page previously created
+            // with more than _maxKeys keys. This should seldom if ever happen.
+            //
+            if (getKeyCount() > _findexElements.length) {
+                _findexElements = new int[getKeyCount() + 512];
+            } else if (_findexElements.length != _maxKeys && getKeyCount() < _maxKeys) {
+                _findexElements = new int[_maxKeys + 1];
+            }
+            
             int start = _keyBlockStart;
             int end = _keyBlockEnd;
 
@@ -1860,7 +1885,7 @@ public final class Buffer extends SharedResource {
             int klength = key.getEncodedSize() - ebcNew - 1;
             int newTailSize = klength + length + _tailHeaderSize;
 
-            if (!willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
+            if (getKeyCount() >= _maxKeys || !willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
                 Debug.$assert(!postSplit);
                 return -1;
             }

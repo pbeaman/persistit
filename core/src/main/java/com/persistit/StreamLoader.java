@@ -307,6 +307,7 @@ public class StreamLoader extends Task {
                 key.copyTo(_exchange.getKey());
                 // Using this package-private method allows us to avoid copying
                 // the value field.
+                _exchange.setSplitPolicy(SplitPolicy.LEFT_BIAS);
                 _exchange.store(_exchange.getKey(), value);
             }
         }
