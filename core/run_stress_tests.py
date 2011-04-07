@@ -50,6 +50,12 @@ parser.add_option(
     help = "Comma separated list of tests to run. (By default all tests are run)"
 )
 
+parser.add_option(
+    "--jar-file",
+    default = "target/akiban-persistit-core-2.2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar",
+    help = "Path to JAR file to use. [default: %default]"
+)
+
 (options, args) = parser.parse_args()
 
 if not os.path.exists(options.test_dir):
@@ -78,7 +84,7 @@ if not tests:
             if filename.find("10") == -1:
                 tests.append(filename)
 
-jar_file = "target/akiban-persistit-core-2.1.1-SNAPSHOT-jar-with-dependencies-and-tests.jar"
+jar_file = options.jar_file
 if not os.path.isfile(jar_file):
     print "PersistIT JAR file does not exist! Did you run mvn install?"
     sys.exit(1)
