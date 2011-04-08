@@ -134,7 +134,7 @@ public class BufferPool {
      * Indicates that Persistit wants to shut down fast, without flushing all
      * the dirty buffers in the buffer pool.
      */
-    private AtomicBoolean fastClose = new AtomicBoolean(false);
+    private AtomicBoolean _fastClose = new AtomicBoolean(false);
 
     /**
      * Indicates that Persistit has closed this buffer pool.
@@ -225,7 +225,7 @@ public class BufferPool {
     }
 
     void close(final boolean flush) {
-        fastClose.set(!flush);
+        _fastClose.set(!flush);
         _closed.set(true);
         _persistit.waitForIOTaskStop(_collector);
         _persistit.waitForIOTaskStop(_writer);
@@ -1110,7 +1110,7 @@ public class BufferPool {
         private boolean _urgent;
 
         DirtyPageCollector() {
-            super(_persistit);
+            super(BufferPool.this._persistit);
         }
 
         void start() {
@@ -1131,11 +1131,11 @@ public class BufferPool {
         }
 
         protected boolean shouldStop() {
-            return fastClose.get() || _clean && _wasClosed;
+            return _fastClose.get() || _clean && _wasClosed;
         }
 
-        protected long pollInterval() {
-            return _wasClosed ? RETRY_SLEEP_TIME : _writerPollInterval;
+        protected synchronized long pollInterval() {
+            return _wasClosed || _urgent ? RETRY_SLEEP_TIME : _writerPollInterval;
         }
 
         private int enqueueDirtyBuffers(int bucket) {
@@ -1200,6 +1200,9 @@ public class BufferPool {
                     }
 
                 }
+                if (countInvalid + countLru > 0) {
+                    _urgent = false;
+                }
             }
             // checkEnqueued();
             final int count = countFixed + countInvalid + countLru;
@@ -1220,7 +1223,7 @@ public class BufferPool {
         int _errors;
 
         PageWriter(final int logIndex) {
-            super(_persistit);
+            super(BufferPool.this._persistit);
             _logIndex = logIndex;
         }
 
@@ -1237,12 +1240,12 @@ public class BufferPool {
             _errors = 0;
             _wasClosed = _closed.get();
 
-            for (int bucket = 0; bucket < _bucketCount && !fastClose.get(); bucket++) {
+            for (int bucket = 0; bucket < _bucketCount && !_fastClose.get(); bucket++) {
                 Buffer buffer;
                 synchronized (_lock[bucket]) {
                     buffer = _dirty[bucket];
                 }
-                while (buffer != null && !fastClose.get()) {
+                while (buffer != null && !_fastClose.get()) {
                     final Result result = writeEnqueuedPage(buffer, bucket);
                     switch (result) {
                     case WRITTEN:
@@ -1270,12 +1273,10 @@ public class BufferPool {
                     }
                 }
             }
-
-            _persistit.applyCheckpoint();
         }
 
         protected boolean shouldStop() {
-            return fastClose.get()
+            return _fastClose.get()
                     || (_wasClosed && _remaining + _unavailable + _errors == 0)
                     && _collector.isStopped();
         }

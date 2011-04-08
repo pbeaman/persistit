@@ -1726,7 +1726,7 @@ public class JournalManager implements JournalManagerMXBean,
     private class JournalCopier extends IOTaskRunnable {
 
         JournalCopier() {
-            super(_persistit);
+            super(JournalManager.this._persistit);
         }
 
         void start() {
@@ -1773,23 +1773,9 @@ public class JournalManager implements JournalManagerMXBean,
 
         long _lastLogMessageTime = 0;
         Exception _lastException = null;
-        boolean interrupted = false;
-        final List<Transaction> _committingTransactions = new ArrayList<Transaction>();
-        long _lastFlush;
-
-        final Comparator<Transaction> _transactionComparator = new Comparator<Transaction>() {
-
-            @Override
-            public int compare(Transaction t1, Transaction t2) {
-                return t1.getCommitTimestamp() < t2.getCommitTimestamp() ? -1
-                        : t1.getCommitTimestamp() > t2.getCommitTimestamp() ? 1
-                                : 0;
-            }
-
-        };
 
         JournalFlusher() {
-            super(_persistit);
+            super(JournalManager.this._persistit);
         }
 
         void start() {
@@ -1804,11 +1790,10 @@ public class JournalManager implements JournalManagerMXBean,
                 try {
                     flush();
                     force();
-                    _lastFlush = now;
 
                 } catch (Exception e) {
                     if (e instanceof InterruptedException) {
-                        interrupted = true;
+                        _closed.set(true);
                     }
                     if (_lastException == null
                             || !e.getClass().equals(_lastException.getClass())
@@ -1830,12 +1815,8 @@ public class JournalManager implements JournalManagerMXBean,
 
         @Override
         protected boolean shouldStop() {
-            return _closed.get() || interrupted;
+            return _closed.get();
         }
-    }
-
-    void notifyTransactionReady() {
-        _flusher.kick();
     }
 
     private void copierCycle() throws PersistitException {

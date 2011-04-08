@@ -23,7 +23,7 @@ package com.persistit;
  */
 abstract class IOTaskRunnable implements Runnable {
 
-    private final Persistit _persistit;
+    protected final Persistit _persistit;
 
     private volatile Thread _thread;
 
@@ -112,6 +112,7 @@ abstract class IOTaskRunnable implements Runnable {
                 if (!e.equals(_lastException)) {
                     _lastException = e;
                     _persistit.getLogBase().log(LogBase.LOG_EXCEPTION, e);
+                    e.printStackTrace();
                 }
             }
 

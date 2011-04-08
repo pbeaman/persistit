@@ -34,6 +34,18 @@ import com.persistit.exception.PersistitException;
  * @version 1.0
  */
 public class StreamLoader extends Task {
+    
+    private final static String[] ARG_TEMPLATE = {
+        "file|string:|Load from file path",
+        "volume|string:|Regular expression to select volume(s) by name; empty for all",
+        "tree|string:|Regular expression to select tree(s) by name; empty for all",
+        "keyfilter|string:|KeyFilter expression to select keys to load",
+        "_flags|V|Create missing Volumes",
+        "_flags|T|Create missing Trees",
+        "_flags|v|Don't create missing Volumes (default)",
+        "_flags|t|Don't create missing Trees (default)"
+        };
+    
     /**
      * Default for BufferedInputStream buffer size.
      */
@@ -283,9 +295,11 @@ public class StreamLoader extends Task {
                 String selectedTreePattern, boolean createMissingVolumes,
                 boolean createMissingTrees, KeyFilter keyFilter) {
             _persistit = persistit;
-            _selectedTreePattern = selectedTreePattern != null ? Pattern
+            _selectedTreePattern = selectedTreePattern != null
+                    && !selectedTreePattern.isEmpty() ? Pattern
                     .compile(selectedTreePattern) : null;
-            _selectedVolumePattern = selectedVolumePattern != null ? Pattern
+            _selectedVolumePattern = selectedVolumePattern != null
+                    && !selectedVolumePattern.isEmpty() ? Pattern
                     .compile(selectedVolumePattern) : null;
             _createMissingTrees = createMissingTrees;
             _createMissingVolumes = createMissingVolumes;
@@ -358,7 +372,8 @@ public class StreamLoader extends Task {
             Exchange oldExchange = _exchange;
             _exchange = null;
             _tree = null;
-            if (_selectedTreePattern != null && !_selectedTreePattern.matcher(treeName).matches()) {
+            if (_selectedTreePattern != null
+                    && !_selectedTreePattern.matcher(treeName).matches()) {
                 return;
             }
 
@@ -414,6 +429,12 @@ public class StreamLoader extends Task {
         _taskKeyFilterString = args.length > 3 ? args[3] : null;
         _taskCreateMissingVolumes = args.length > 4 && "true".equals(args[4]);
         _taskCreateMissingTrees = args.length > 5 && "true".equals(args[5]);
+    }
+    
+    
+    @Override
+    protected String[] argTemplate() {
+        return ARG_TEMPLATE;
     }
 
     @Override

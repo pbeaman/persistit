@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
@@ -114,14 +115,23 @@ public abstract class TransactionalCache {
 
     private final static Update SAVED = new ReloadUpdate();
 
-    final protected Persistit _persistit;
+    final Persistit _persistit;
 
     protected Checkpoint _checkpoint;
 
     protected TransactionalCache _previousVersion;
 
+    private final AtomicBoolean _changed = new AtomicBoolean();
+
     protected TransactionalCache(final Persistit persistit) {
         _persistit = persistit;
+    }
+
+    protected TransactionalCache(final TransactionalCache tc) {
+        this(tc._persistit);
+        _changed.set(tc._changed.get());
+        _checkpoint = tc._checkpoint;
+        _previousVersion = tc._previousVersion;
     }
 
     protected abstract Update createUpdate(final byte opCode);
@@ -575,6 +585,10 @@ public abstract class TransactionalCache {
         updates.add(update);
     }
 
+    protected final void copyBase(final TransactionalCache tc) {
+
+    }
+
     /**
      * Commit all the {@link TransactionalCache#Update} records. As a
      * side-effect, this method may create a pre-checkpoint copy of this
@@ -608,6 +622,7 @@ public abstract class TransactionalCache {
             tc = tc._previousVersion;
         }
         updates.clear();
+        _changed.set(true);
         return true;
     }
 
@@ -664,6 +679,10 @@ public abstract class TransactionalCache {
         }
     }
 
+    /**
+     * Register this TransactionalCache instance with Persistit. This call must
+     * occur before Persistit is initialized.
+     */
     public final void register() {
         _persistit.addTransactionalCache(this);
     }

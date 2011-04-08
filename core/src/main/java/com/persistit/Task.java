@@ -170,6 +170,8 @@ public abstract class Task implements Runnable {
     protected void setPersistit(final Persistit persistit) {
         _persistit = persistit;
     }
+    
+    protected abstract String[] argTemplate();
 
     /**
      * Accept and process an array of input arguments. The number and format of
