@@ -42,6 +42,7 @@ public class CheckpointManager extends IOTaskRunnable {
     }
 
     public void start() {
+        _closed.set(false);
         start("CHECKPOINT_WRITER", FLUSH_CHECKPOINT_INTERVAL);
     }
 
