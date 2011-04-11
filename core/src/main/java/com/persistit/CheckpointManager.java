@@ -55,9 +55,9 @@ public class CheckpointManager extends IOTaskRunnable {
     }
 
     Checkpoint checkpoint() {
-        final Checkpoint checkpoint = _persistit.getTimestampAllocator()
-                .forceCheckpoint();
-        proposeCheckpoint(checkpoint);
+        _persistit.getTimestampAllocator().forceCheckpoint();
+        proposeCheckpoint();
+        final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         while (true) {
             urgent();
             synchronized (this) {
@@ -82,15 +82,16 @@ public class CheckpointManager extends IOTaskRunnable {
      * 
      * @param newCheckpoint
      */
-    void proposeCheckpoint(final Checkpoint newCheckpoint) {
+    void proposeCheckpoint() {
         synchronized (this) {
-            if (newCheckpoint.getTimestamp() > _lastCheckpoint.getTimestamp()) {
-                _outstandingCheckpoints.add(newCheckpoint);
-                _lastCheckpoint = newCheckpoint;
+            final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
+            if (checkpoint.getTimestamp() > _lastCheckpoint.getTimestamp()) {
+                _outstandingCheckpoints.add(checkpoint);
+                _lastCheckpoint = checkpoint;
                 if (_persistit.getLogBase().isLoggable(
                         LogBase.LOG_CHECKPOINT_PROPOSED)) {
                     _persistit.getLogBase().log(
-                            LogBase.LOG_CHECKPOINT_PROPOSED, newCheckpoint);
+                            LogBase.LOG_CHECKPOINT_PROPOSED, checkpoint);
                 }
             }
         }
@@ -168,11 +169,7 @@ public class CheckpointManager extends IOTaskRunnable {
 
     @Override
     protected void runTask() throws Exception {
-        if (!_persistit.isClosed()) {
-            final Checkpoint newCheckpoint = _persistit.getTimestampAllocator()
-                    .updatedCheckpoint();
-            proposeCheckpoint(newCheckpoint);
-        }
+        proposeCheckpoint();
         flushCheckpoint();
     }
 

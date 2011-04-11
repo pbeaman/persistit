@@ -508,20 +508,11 @@ public final class Buffer extends SharedResource {
         return result;
     }
 
-    boolean upgradeClaim() throws PersistitException {
-        final boolean result = super.upgradeClaim();
-        if (result) {
-            writePageOnCheckpoint();
-        }
-        return result;
-    }
-
     private void writePageOnCheckpoint() throws PersistitException {
         if (isDirty()) {
-            final Checkpoint checkpoint = _persistit.getTimestampAllocator()
-                    .getCurrentCheckpoint();
+            final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
             if (getTimestamp() < checkpoint.getTimestamp()
-                    && _persistit.getTimestampAllocator().getCurrentTimestamp() >= checkpoint
+                    && _persistit.getCurrentTimestamp() >= checkpoint
                             .getTimestamp()) {
                 writePage();
             }
