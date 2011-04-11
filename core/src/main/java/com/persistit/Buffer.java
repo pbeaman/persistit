@@ -1170,6 +1170,7 @@ public final class Buffer extends SharedResource {
                                 + " ebc0,ebc,ebc2=" + ebc0 + "," + ebc + ","
                                 + ebc2 + " _findexArray[" + i + "]="
                                 + getFindexRunCount(i));
+                        Debug.debug1(true);
                     }
                 } else if (ebc > ebc0) {
                     if (getFindexRunCount(i) < 0) {
@@ -1179,6 +1180,7 @@ public final class Buffer extends SharedResource {
                                 + " ebc0,ebc,ebc2=" + ebc0 + "," + ebc + ","
                                 + ebc2 + " _findexArray[" + i + "]="
                                 + getFindexRunCount(i));
+                        Debug.debug1(true);
                     }
                 }
             }
