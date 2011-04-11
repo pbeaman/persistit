@@ -1791,8 +1791,15 @@ public class Volume extends SharedResource {
 
         // _pool.invalidate(this);
 
+        final FileChannel channelToClose;
         synchronized (_lock) {
+            channelToClose = _channel;
             _closed = true;
+        }
+        try {
+            channelToClose.close();
+        } catch (IOException e) {
+            throw new PersistitIOException(e);
         }
     }
 
