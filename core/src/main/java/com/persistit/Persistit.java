@@ -1725,6 +1725,9 @@ public class Persistit {
         flush();
 
         _closed.set(true);
+        _checkpointManager.close(flush);
+        waitForIOTaskStop(_checkpointManager);
+
 
         final List<Volume> volumes;
         synchronized (this) {
@@ -1734,9 +1737,6 @@ public class Persistit {
         for (final Volume volume : volumes) {
             volume.close();
         }
-
-        _checkpointManager.close(flush);
-        waitForIOTaskStop(_checkpointManager);
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close(flush);

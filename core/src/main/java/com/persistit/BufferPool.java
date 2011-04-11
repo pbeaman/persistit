@@ -1276,7 +1276,6 @@ public class BufferPool {
                     }
                 }
             }
-            _persistit.getTimestampAllocator().updatedCheckpoint();
         }
 
         protected boolean shouldStop() {

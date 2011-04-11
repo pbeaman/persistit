@@ -1028,16 +1028,6 @@ public final class Buffer extends SharedResource {
                 verifyFindex();
             }
         } else if (isDataPage() || isIndexPage()) {
-            //
-            // Adjust size of _findexElements to accommodate a page previously created
-            // with more than _maxKeys keys. This should seldom if ever happen.
-            //
-            if (getKeyCount() > _findexElements.length) {
-                _findexElements = new int[getKeyCount() + 512];
-            } else if (_findexElements.length != _maxKeys && getKeyCount() < _maxKeys) {
-                _findexElements = new int[_maxKeys + 1];
-            }
-            
             int start = _keyBlockStart;
             int end = _keyBlockEnd;
 
