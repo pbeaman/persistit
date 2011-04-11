@@ -1564,11 +1564,7 @@ public class Persistit {
      */
     private Checkpoint findValidCheckpoint(
             final List<Checkpoint> outstandingCheckpoints) {
-        long earliestDirtyTimestamp = Long.MAX_VALUE;
-        for (final BufferPool pool : _bufferPoolTable.values()) {
-            earliestDirtyTimestamp = Math.min(earliestDirtyTimestamp,
-                    pool.earliestDirtyTimestamp());
-        }
+        long earliestDirtyTimestamp = earliestDirtyTimestamp();
         for (int index = outstandingCheckpoints.size(); --index >= 0;) {
             final Checkpoint checkpoint = outstandingCheckpoints.get(index);
             if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {

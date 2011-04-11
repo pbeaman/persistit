@@ -686,7 +686,7 @@ public class BufferPool {
             }
         }
     }
-    
+
     /**
      * Find or load a page given its Volume and address. The returned page has a
      * reader or a writer lock, depending on whether the writer parameter is
@@ -1094,10 +1094,12 @@ public class BufferPool {
         long earliestDirtyTimestamp = Long.MAX_VALUE;
         for (int index = 0; index < _buffers.length; index++) {
             final Buffer buffer = _buffers[index];
-            if (buffer.isDirty()) {
-                long timestamp = buffer.getTimestamp();
-                if (timestamp < earliestDirtyTimestamp) {
-                    earliestDirtyTimestamp = timestamp;
+            synchronized (buffer._lock) {
+                if (buffer.isDirty()) {
+                    long timestamp = buffer.getTimestamp();
+                    if (timestamp < earliestDirtyTimestamp) {
+                        earliestDirtyTimestamp = timestamp;
+                    }
                 }
             }
         }
@@ -1135,7 +1137,8 @@ public class BufferPool {
         }
 
         protected synchronized long pollInterval() {
-            return _wasClosed || _urgent ? RETRY_SLEEP_TIME : _writerPollInterval;
+            return _wasClosed || _urgent ? RETRY_SLEEP_TIME
+                    : _writerPollInterval;
         }
 
         private int enqueueDirtyBuffers(int bucket) {
