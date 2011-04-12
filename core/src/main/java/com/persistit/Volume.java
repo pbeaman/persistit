@@ -1435,9 +1435,7 @@ public class Volume extends SharedResource {
         tree.init(rootPage);
         tree.release();
         tree.setValid(true);
-        if (!DIRECTORY_TREE_NAME.equals(tree.getName())) {
-            tree.commit();
-        }
+        tree.commit();
         return tree;
     }
 

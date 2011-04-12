@@ -1553,31 +1553,6 @@ public class Persistit {
     }
 
     /**
-     * Given a List of outstanding Checkpoints, find the latest one that is safe
-     * to write and return it. If there is no safe Checkpoint, return
-     * <code>null</code>
-     * 
-     * @param List
-     *            of outstanding Checkpoint instances
-     * @return The latest Checkpoint from the list that can be written, or
-     *         <code>null</code> if there are none.
-     */
-    private Checkpoint findValidCheckpoint(
-            final List<Checkpoint> outstandingCheckpoints) {
-        long earliestDirtyTimestamp = earliestDirtyTimestamp();
-        for (int index = outstandingCheckpoints.size(); --index >= 0;) {
-            final Checkpoint checkpoint = outstandingCheckpoints.get(index);
-            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
-                for (int k = index; k >= 0; --k) {
-                    outstandingCheckpoints.remove(k);
-                }
-                return checkpoint;
-            }
-        }
-        return null;
-    }
-
-    /**
      * Copy back all pages from the journal to their host Volumes.
      * 
      * @throws Exception
