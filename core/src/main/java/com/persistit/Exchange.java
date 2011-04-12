@@ -1756,7 +1756,7 @@ public class Exchange {
      *            (See <a href="Key.html#_keyChildren">Logical Key Children and
      *            Siblings</a>).
      * 
-     * @param minBytes
+     * @param minimumBytes
      *            The minimum number of bytes to fetch. See {@link #fetch(int)}.
      *            If minBytes is less than or equal to 0 then this method does
      *            not update the Key and Value fields of the Exchange.
@@ -1766,13 +1766,13 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean traverse(final Direction direction, final boolean deep,
-            final int minBytes) throws PersistitException {
+            final int minimumBytes) throws PersistitException {
         _persistit.checkClosed();
         final ResourceTracker resourceTracker = _persistit.getLockManager()
                 .getMyResourceTracker();
 
-        boolean doFetch = minBytes > 0;
-        boolean doModify = minBytes >= 0;
+        boolean doFetch = minimumBytes > 0;
+        boolean doModify = minimumBytes >= 0;
         boolean result;
         final int lockedResourceCount = resourceTracker
                 .getLockedResourceCount();
@@ -1805,7 +1805,7 @@ public class Exchange {
         try {
             if (inTxn && edge && !_key.isSpecial()) {
                 Boolean txnResult = _transaction.fetch(this, this.getValue(),
-                        minBytes);
+                        minimumBytes);
                 //
                 // A pending STORE transaction record overrides
                 // the base record.
@@ -1971,7 +1971,7 @@ public class Exchange {
                     // a pending remove operation that affects the result.
                     //
                     Boolean txnResult = _transaction.traverse(_tree,
-                            _spareKey1, _key, direction, deep, minBytes);
+                            _spareKey1, _key, direction, deep, minimumBytes);
 
                     if (txnResult != null) {
                         _transaction.touchedPage(this, buffer);
@@ -2016,10 +2016,10 @@ public class Exchange {
 
                     if (doFetch) {
                         if (fetchFromPendingTxn) {
-                            _transaction.fetchFromLastTraverse(this, minBytes);
+                            _transaction.fetchFromLastTraverse(this, minimumBytes);
                         } else {
                             buffer.fetch(foundAt, _value);
-                            fetchFixupForLongRecords(_value, minBytes);
+                            fetchFixupForLongRecords(_value, minimumBytes);
                         }
                     }
                 } else {
@@ -2037,11 +2037,11 @@ public class Exchange {
                                 if (doFetch) {
                                     if (fetchFromPendingTxn) {
                                         _transaction.fetchFromLastTraverse(
-                                                this, minBytes);
+                                                this, minimumBytes);
                                     } else {
                                         buffer.fetch(foundAt, _value);
                                         fetchFixupForLongRecords(_value,
-                                                minBytes);
+                                                minimumBytes);
                                     }
                                 }
                             } else {
@@ -2470,6 +2470,10 @@ public class Exchange {
      * retrieve the rest of the value.
      * </p>
      * 
+     * @param minimumBytes
+     *            specifies a length at which Persistit will truncate
+     *            the returned value.
+     *            
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
@@ -2484,6 +2488,10 @@ public class Exchange {
      * the fetched state. If there is no value associated with the key then
      * {@link Value#isDefined} is false. Otherwise the value may be retrieved
      * using {@link Value#get} and other methods of <code>Value</code>.
+     * 
+     * @param value
+     *            the <code>Value</code> into which the database value should be
+     *            fetched.
      * 
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
@@ -2503,14 +2511,22 @@ public class Exchange {
      * methods of <code>Value</code>.
      * </p>
      * <p>
-     * This method sets a lower bound on the number of bytes to be fetched. In
+     * This method sets an lower bound on the number of bytes to be fetched. In
      * particular, it may be useful to retrieve only a small fraction of a very
      * long record such as the serialization of an image. Upon successful
      * completion of this method, at least <code>minimumBytes</code> of the
      * <code>Value</code> object will accurately reflect the value stored in the
      * database. This might allow an application to determine whether to
-     * retrieve the rest of the value.
+     * retrieve the rest of the value using the {@link #fetch()} operation.
      * </p>
+     * 
+     * @param value
+     *            the <code>Value</code> into which the database value should be
+     *            fetched.
+     * @param minimumBytes
+     *            specifies a length at which Persistit will truncate
+     *            the returned value.
+     * 
      * 
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException

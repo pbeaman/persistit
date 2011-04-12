@@ -537,12 +537,33 @@ public abstract class TransactionalCache {
         protected int size() {
             return 0;
         }
+        
+        @Override
+        protected boolean cancel(final Update update) {
+            if (update instanceof ReloadUpdate) {
+                return true;
+            }
+            return false;
+        }
 
         @Override
         protected void apply(TransactionalCache tc) {
             // Does nothing during normal processing - causes
             // reload from saved checkpoint during recovery
         }
+    }
+    
+    @Override
+    public boolean equals(final Object object) {
+        if (object instanceof TransactionalCache) {
+            return ((TransactionalCache)object).cacheId() == cacheId();
+        }
+        return false;
+    }
+    
+    @Override
+    public int hashCode() {
+        return (int)(cacheId() >>> 32) ^ (int)(cacheId());
     }
 
     /**

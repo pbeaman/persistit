@@ -1135,14 +1135,15 @@ public class JournalManager implements JournalManagerMXBean,
                 }
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);
+            } finally {
+                _journalFileChannels.clear();
+                _handleToTreeMap.clear();
+                _handleToVolumeMap.clear();
+                _volumeToHandleMap.clear();
+                _treeToHandleMap.clear();
+                _pageMap.clear();
+                _writeBuffer = null;
             }
-            _journalFileChannels.clear();
-            _handleToTreeMap.clear();
-            _handleToVolumeMap.clear();
-            _volumeToHandleMap.clear();
-            _treeToHandleMap.clear();
-            _pageMap.clear();
-            _writeBuffer = null;
         }
 
     }
