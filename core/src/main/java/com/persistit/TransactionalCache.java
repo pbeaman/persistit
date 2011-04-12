@@ -539,7 +539,7 @@ public abstract class TransactionalCache {
         }
         
         @Override
-        protected boolean cancel(final Update update) {
+        protected boolean combine(final Update update) {
             if (update instanceof ReloadUpdate) {
                 return true;
             }
@@ -694,6 +694,7 @@ public abstract class TransactionalCache {
                 if (newer != null) {
                     newer._previousVersion = null;
                 }
+                break;
             }
             newer = tc;
             tc = tc._previousVersion;
