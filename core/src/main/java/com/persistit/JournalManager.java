@@ -26,7 +26,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -34,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 
@@ -76,13 +74,13 @@ public class JournalManager implements JournalManagerMXBean,
 
     private final Map<PageNode, PageNode> _branchMap = new HashMap<PageNode, PageNode>();
 
-    private final Map<VolumeDescriptor, Integer> _volumeToHandleMap = new ConcurrentHashMap<VolumeDescriptor, Integer>();
+    private final Map<VolumeDescriptor, Integer> _volumeToHandleMap = new HashMap<VolumeDescriptor, Integer>();
 
-    private final Map<Integer, VolumeDescriptor> _handleToVolumeMap = new ConcurrentHashMap<Integer, VolumeDescriptor>();
+    private final Map<Integer, VolumeDescriptor> _handleToVolumeMap = new HashMap<Integer, VolumeDescriptor>();
 
-    private final Map<TreeDescriptor, Integer> _treeToHandleMap = new ConcurrentHashMap<TreeDescriptor, Integer>();
+    private final Map<TreeDescriptor, Integer> _treeToHandleMap = new HashMap<TreeDescriptor, Integer>();
 
-    private final Map<Integer, TreeDescriptor> _handleToTreeMap = new ConcurrentHashMap<Integer, TreeDescriptor>();
+    private final Map<Integer, TreeDescriptor> _handleToTreeMap = new HashMap<Integer, TreeDescriptor>();
 
     private final Map<Long, TransactionStatus> _liveTransactionMap = new HashMap<Long, TransactionStatus>();
 
@@ -204,7 +202,7 @@ public class JournalManager implements JournalManagerMXBean,
      * @param maximumSize
      * @throws PersistitException
      */
-    public void init(final RecoveryManager rman, final String path,
+    public synchronized void init(final RecoveryManager rman, final String path,
             final long maximumSize) throws PersistitException {
         _writeBuffer = ByteBuffer.allocate(_writeBufferSize);
         if (rman != null && rman.getKeystoneAddress() != -1) {
@@ -390,47 +388,36 @@ public class JournalManager implements JournalManagerMXBean,
         return handleForVolume(vd);
     }
 
-    public int handleForVolume(final VolumeDescriptor vd)
+    public synchronized int handleForVolume(final VolumeDescriptor vd)
             throws PersistitIOException {
         Integer handle = _volumeToHandleMap.get(vd);
         if (handle == null) {
-            //
-            // Could be a race here: effect would be two handles
-            // for the same Volume - benign
-            //
-            synchronized (this) {
-                handle = Integer.valueOf(++_handleCounter);
-                if (Debug.ENABLED) {
-                    Debug.$assert(!_handleToVolumeMap.containsKey(handle));
-                }
-                writeVolumeHandleToJournal(vd, handle.intValue());
-                _volumeToHandleMap.put(vd, handle);
-                _handleToVolumeMap.put(handle, vd);
+            handle = Integer.valueOf(++_handleCounter);
+            if (Debug.ENABLED) {
+                Debug.$assert(!_handleToVolumeMap.containsKey(handle));
             }
+            writeVolumeHandleToJournal(vd, handle.intValue());
+            _volumeToHandleMap.put(vd, handle);
+            _handleToVolumeMap.put(handle, vd);
         }
         return handle.intValue();
     }
 
-    int handleForTree(final TreeDescriptor td) throws PersistitIOException {
+    synchronized int handleForTree(final TreeDescriptor td)
+            throws PersistitIOException {
         if (td.getVolumeHandle() == -1) {
             // Tree in transient volume -- don't journal updates to it
             return -1;
         }
         Integer handle = _treeToHandleMap.get(td);
         if (handle == null) {
-            //
-            // Could be a race here: effect would be two handles
-            // for the same Tree - benign
-            //
-            synchronized (this) {
-                handle = Integer.valueOf(++_handleCounter);
-                if (Debug.ENABLED) {
-                    Debug.$assert(!_handleToTreeMap.containsKey(handle));
-                }
-                writeTreeHandleToJournal(td, handle.intValue());
-                _treeToHandleMap.put(td, handle);
-                _handleToTreeMap.put(handle, td);
+            handle = Integer.valueOf(++_handleCounter);
+            if (Debug.ENABLED) {
+                Debug.$assert(!_handleToTreeMap.containsKey(handle));
             }
+            writeTreeHandleToJournal(td, handle.intValue());
+            _treeToHandleMap.put(td, handle);
+            _handleToTreeMap.put(handle, td);
         }
         return handle.intValue();
     }
@@ -462,7 +449,7 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     @Override
-    public VolumeDescriptor lookupVolumeHandle(final int handle) {
+    public synchronized VolumeDescriptor lookupVolumeHandle(final int handle) {
         return _handleToVolumeMap.get(Integer.valueOf(handle));
     }
 
@@ -517,12 +504,11 @@ public class JournalManager implements JournalManagerMXBean,
 
         final Volume volume = buffer.getVolume();
         final VolumeDescriptor vd = new VolumeDescriptor(volume);
-        final Integer volumeHandle = _volumeToHandleMap.get(vd);
         PageNode pn = null;
-        if (volumeHandle != null) {
-            synchronized (this) {
-                pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1,
-                        -1));
+        synchronized (this) {
+            final Integer volumeHandle = _volumeToHandleMap.get(vd);
+            if (volumeHandle != null) {
+                pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
             }
         }
 
@@ -2079,7 +2065,7 @@ public class JournalManager implements JournalManagerMXBean,
      * 
      * @param handleToVolumeMap
      */
-    void unitTestInjectVolumes(
+    synchronized void unitTestInjectVolumes(
             final Map<Integer, VolumeDescriptor> handleToVolumeMap) {
         _handleToVolumeMap.putAll(handleToVolumeMap);
     }
