@@ -606,10 +606,6 @@ public abstract class TransactionalCache {
         updates.add(update);
     }
 
-    protected final void copyBase(final TransactionalCache tc) {
-
-    }
-
     /**
      * Commit all the {@link TransactionalCache#Update} records. As a
      * side-effect, this method may create a pre-checkpoint copy of this

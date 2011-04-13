@@ -112,7 +112,6 @@ abstract class IOTaskRunnable implements Runnable {
                 if (!e.equals(_lastException)) {
                     _lastException = e;
                     _persistit.getLogBase().log(LogBase.LOG_EXCEPTION, e);
-                    e.printStackTrace();
                 }
             }
 
