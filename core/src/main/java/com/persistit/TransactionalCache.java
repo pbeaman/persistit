@@ -683,7 +683,9 @@ public abstract class TransactionalCache {
         TransactionalCache newer = null;
         while (tc != null) {
             if (tc._checkpoint != null
-                    && tc._checkpoint.getTimestamp() <= checkpoint
+                    // The checkpoint value in a TransactionalCache version is the 
+                    // beginning, not the end of its era.
+                    && tc._checkpoint.getTimestamp() < checkpoint
                             .getTimestamp()) {
                 tc.save();
                 update(SAVED);
