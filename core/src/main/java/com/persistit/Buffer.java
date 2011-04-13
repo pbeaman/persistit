@@ -249,6 +249,8 @@ public final class Buffer extends SharedResource {
 
     private final static int FINDEX_RUNCOUNT_MASK = 0xFFF00000;
     private final static int FINDEX_RUNCOUNT_SHIFT = 20;
+    
+    private final static int MAX_KEY_RATIO = 16;
 
     // For debugging - set true in debugger to create verbose toString() output.
     //
@@ -298,6 +300,12 @@ public final class Buffer extends SharedResource {
      * The size of this buffer
      */
     private int _bufferSize;
+    
+    /**
+     * The maximum number of keys allowed in this buffer
+     */
+    private int _maxKeys;
+    
     /**
      * Indicates whether the _findexElements array is current valid
      */
@@ -389,8 +397,8 @@ public final class Buffer extends SharedResource {
         _byteBuffer = ByteBuffer.allocate(size);
         _bytes = _byteBuffer.array();
         _bufferSize = size;
-        _findexElements = new int[_bufferSize
-                / (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_DATA)];
+        _maxKeys = (_bufferSize - HEADER_SIZE) / MAX_KEY_RATIO;
+        _findexElements = new int[_maxKeys + 1];
     }
 
     Buffer(Buffer original) {
@@ -448,8 +456,10 @@ public final class Buffer extends SharedResource {
     void load() throws InvalidPageStructureException {
         Debug.$assert(isMine());
 
-        _timestamp = getLong(TIMESTAMP_OFFSET);
-
+        synchronized(_lock) {
+            _timestamp = getLong(TIMESTAMP_OFFSET);
+        }
+        
         if (_page != 0) {
             int type = getByte(TYPE_OFFSET);
             if (type > PAGE_TYPE_MAX) {
@@ -498,20 +508,11 @@ public final class Buffer extends SharedResource {
         return result;
     }
 
-    boolean upgradeClaim() throws PersistitException {
-        final boolean result = super.upgradeClaim();
-        if (result) {
-            writePageOnCheckpoint();
-        }
-        return result;
-    }
-
     private void writePageOnCheckpoint() throws PersistitException {
         if (isDirty()) {
-            final Checkpoint checkpoint = _persistit.getTimestampAllocator()
-                    .getCurrentCheckpoint();
+            final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
             if (getTimestamp() < checkpoint.getTimestamp()
-                    && _persistit.getTimestampAllocator().getCurrentTimestamp() >= checkpoint
+                    && _persistit.getCurrentTimestamp() >= checkpoint
                             .getTimestamp()) {
                 writePage();
             }
@@ -655,6 +656,13 @@ public final class Buffer extends SharedResource {
         } else {
             return 0;
         }
+    }
+    
+    /**
+     * @return  Number of key-value pairs currently stored in this page.
+     */
+    public int getKeyCount() {
+        return (_keyBlockEnd - _keyBlockStart) / KEYBLOCK_LENGTH;
     }
 
     /**
@@ -1014,7 +1022,7 @@ public final class Buffer extends SharedResource {
         _isFindexValid = false;
     }
 
-    private void recomputeFindex() {
+    void recomputeFindex() {
         if (_isFindexValid) {
             if (Debug.ENABLED) {
                 verifyFindex();
@@ -1162,6 +1170,7 @@ public final class Buffer extends SharedResource {
                                 + " ebc0,ebc,ebc2=" + ebc0 + "," + ebc + ","
                                 + ebc2 + " _findexArray[" + i + "]="
                                 + getFindexRunCount(i));
+                        Debug.debug1(true);
                     }
                 } else if (ebc > ebc0) {
                     if (getFindexRunCount(i) < 0) {
@@ -1171,6 +1180,7 @@ public final class Buffer extends SharedResource {
                                 + " ebc0,ebc,ebc2=" + ebc0 + "," + ebc + ","
                                 + ebc2 + " _findexArray[" + i + "]="
                                 + getFindexRunCount(i));
+                        Debug.debug1(true);
                     }
                 }
             }
@@ -1860,7 +1870,7 @@ public final class Buffer extends SharedResource {
             int klength = key.getEncodedSize() - ebcNew - 1;
             int newTailSize = klength + length + _tailHeaderSize;
 
-            if (!willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
+            if (getKeyCount() >= _maxKeys || !willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
                 Debug.$assert(!postSplit);
                 return -1;
             }
