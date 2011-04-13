@@ -115,7 +115,7 @@ public abstract class TransactionalCache {
 
     private final static Update SAVED = new ReloadUpdate();
 
-    final Persistit _persistit;
+    protected final Persistit _persistit;
 
     protected Checkpoint _checkpoint;
 
