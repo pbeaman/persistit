@@ -337,6 +337,9 @@ public class Persistit {
 
     private final TimestampAllocator _timestampAllocator = new TimestampAllocator();
 
+    private final CheckpointManager _checkpointManager = new CheckpointManager(
+            this);
+
     private final IOMeter _ioMeter = new IOMeter();
 
     private Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
@@ -550,6 +553,7 @@ public class Persistit {
             }
             bufferSize <<= 1;
         }
+        _checkpointManager.start();
     }
 
     void initializeVolumes() throws PersistitException {
@@ -590,7 +594,6 @@ public class Persistit {
         if (enableJmx) {
             registerMXBeans();
         }
-
     }
 
     void initializeOther() {
@@ -1501,83 +1504,9 @@ public class Persistit {
         if (_closed.get() || !_initialized.get()) {
             return null;
         }
-        final Checkpoint checkpoint = getTimestampAllocator().forceCheckpoint();
-        applyCheckpoint(checkpoint);
-        while (true) {
-            synchronized (this) {
-                if (!_outstandingCheckpoints.contains(checkpoint)) {
-                    return checkpoint;
-                }
-            }
-            flushCheckpoint();
-            try {
-                Thread.sleep(SHORT_DELAY);
-            } catch (InterruptedException ie) {
-                return null;
-            }
-        }
+        return _checkpointManager.checkpoint();
     }
 
-    /**
-     * Called periodically by PAGE_WRITER threads to see whether a new
-     * Checkpoint should be written.
-     */
-    void applyCheckpoint() {
-        final Checkpoint newCheckpoint = getTimestampAllocator()
-                .updatedCheckpoint();
-        applyCheckpoint(newCheckpoint);
-    }
-
-    /**
-     * Apply a checkpoint. If the checkpoint has already been applied, this
-     * method does nothing. If it is a new checkpoint, this method adds it to
-     * the outstanding checkpoint list. As a side- effect, this method also
-     * calls {@link #flushCheckpoint()} which attempts to find some checkpoint
-     * on the outstanding list that can be closed (written to the journal).
-     * 
-     * @param newCheckpoint
-     */
-    void applyCheckpoint(final Checkpoint newCheckpoint) {
-        boolean flush = false;
-        synchronized (this) {
-            if (newCheckpoint.getTimestamp() > _lastCheckpoint.getTimestamp()) {
-                _outstandingCheckpoints.add(newCheckpoint);
-                _lastCheckpoint = newCheckpoint;
-                flush = true;
-                if (getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_PROPOSED)) {
-                    getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED,
-                            newCheckpoint);
-                }
-            }
-        }
-        if (System.nanoTime() - _nextFlushCheckpoint > 0 || flush) {
-            // Attempt to flush one of the previously proposed checkpoints
-            flushCheckpoint();
-            _nextFlushCheckpoint = System.nanoTime()
-                    + FLUSH_CHECKPOINT_INTERVAL;
-        }
-    }
-
-    void flushCheckpoint() {
-        final Checkpoint validCheckpoint;
-        synchronized (this) {
-            validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
-        }
-        if (validCheckpoint != null) {
-            try {
-                if (!flushTransactionalCaches(validCheckpoint)) {
-                    return;
-                }
-                getJournalManager().writeCheckpointToJournal(validCheckpoint);
-            } catch (PersistitIOException e) {
-                getLogBase().log(LogBase.LOG_EXCEPTION,
-                        e + " while writing " + validCheckpoint + ":" + e);
-            }
-            synchronized (this) {
-                _outstandingCheckpoints.remove(validCheckpoint);
-            }
-        }
-    }
 
     boolean flushTransactionalCaches(final Checkpoint checkpoint) {
         if (_transactionalCaches.isEmpty()) {
@@ -1614,33 +1543,13 @@ public class Persistit {
         }
     }
 
-    /**
-     * Given a List of outstanding Checkpoints, find the latest one that is safe
-     * to write and return it. If there is no safe Checkpoint, return
-     * <code>null</code>
-     * 
-     * @param List
-     *            of outstanding Checkpoint instances
-     * @return The latest Checkpoint from the list that can be written, or
-     *         <code>null</code> if there are none.
-     */
-    private Checkpoint findValidCheckpoint(
-            final List<Checkpoint> outstandingCheckpoints) {
+    final long earliestDirtyTimestamp() {
         long earliestDirtyTimestamp = Long.MAX_VALUE;
         for (final BufferPool pool : _bufferPoolTable.values()) {
             earliestDirtyTimestamp = Math.min(earliestDirtyTimestamp,
                     pool.earliestDirtyTimestamp());
         }
-        for (int index = outstandingCheckpoints.size(); --index >= 0;) {
-            final Checkpoint checkpoint = outstandingCheckpoints.get(index);
-            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
-                for (int k = index; k >= 0; --k) {
-                    outstandingCheckpoints.remove(k);
-                }
-                return checkpoint;
-            }
-        }
-        return null;
+        return earliestDirtyTimestamp;
     }
 
     /**
@@ -1791,6 +1700,9 @@ public class Persistit {
         flush();
 
         _closed.set(true);
+        _checkpointManager.close(flush);
+        waitForIOTaskStop(_checkpointManager);
+
 
         final List<Volume> volumes;
         synchronized (this) {
@@ -1801,15 +1713,10 @@ public class Persistit {
             volume.close();
         }
 
-        if (flush) {
-            _timestampAllocator.forceCheckpoint();
-        }
-
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close(flush);
             unregisterBufferPoolMXBean(pool.getBufferSize());
         }
-
         _journalManager.close();
 
         while (!_volumes.isEmpty()) {
@@ -1841,6 +1748,7 @@ public class Persistit {
                 pool.crash();
             }
         }
+        _checkpointManager.crash();
         _closed.set(true);
         releaseAllResources();
     }

@@ -33,6 +33,13 @@ import com.persistit.exception.PersistitException;
  * @version 1.0
  */
 public class StreamSaver extends Task {
+    
+    private final static String[] ARG_TEMPLATE = {
+        "file|string:|Save to file path",
+        "trees|string:|Volumes and trees to save",
+        "keyfilter|string:|KeyFilter expression to select keys to save",
+        };
+
     /**
      * Record type marker for FILL records
      */
@@ -578,6 +585,11 @@ public class StreamSaver extends Task {
         for (int index = 0; index < volumes.length & !_stop; index++) {
             saveTrees(volumes[index], null);
         }
+    }
+    
+    @Override
+    protected String[] argTemplate() {
+        return ARG_TEMPLATE;
     }
 
     @Override

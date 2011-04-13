@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
@@ -114,14 +115,23 @@ public abstract class TransactionalCache {
 
     private final static Update SAVED = new ReloadUpdate();
 
-    final protected Persistit _persistit;
+    final Persistit _persistit;
 
     protected Checkpoint _checkpoint;
 
     protected TransactionalCache _previousVersion;
 
+    private final AtomicBoolean _changed = new AtomicBoolean();
+
     protected TransactionalCache(final Persistit persistit) {
         _persistit = persistit;
+    }
+
+    protected TransactionalCache(final TransactionalCache tc) {
+        this(tc._persistit);
+        _changed.set(tc._changed.get());
+        _checkpoint = tc._checkpoint;
+        _previousVersion = tc._previousVersion;
     }
 
     protected abstract Update createUpdate(final byte opCode);
@@ -527,12 +537,33 @@ public abstract class TransactionalCache {
         protected int size() {
             return 0;
         }
+        
+        @Override
+        protected boolean combine(final Update update) {
+            if (update instanceof ReloadUpdate) {
+                return true;
+            }
+            return false;
+        }
 
         @Override
         protected void apply(TransactionalCache tc) {
             // Does nothing during normal processing - causes
             // reload from saved checkpoint during recovery
         }
+    }
+    
+    @Override
+    public boolean equals(final Object object) {
+        if (object instanceof TransactionalCache) {
+            return ((TransactionalCache)object).cacheId() == cacheId();
+        }
+        return false;
+    }
+    
+    @Override
+    public int hashCode() {
+        return (int)(cacheId() >>> 32) ^ (int)(cacheId());
     }
 
     /**
@@ -608,6 +639,7 @@ public abstract class TransactionalCache {
             tc = tc._previousVersion;
         }
         updates.clear();
+        _changed.set(true);
         return true;
     }
 
@@ -658,12 +690,17 @@ public abstract class TransactionalCache {
                 if (newer != null) {
                     newer._previousVersion = null;
                 }
+                break;
             }
             newer = tc;
             tc = tc._previousVersion;
         }
     }
 
+    /**
+     * Register this TransactionalCache instance with Persistit. This call must
+     * occur before Persistit is initialized.
+     */
     public final void register() {
         _persistit.addTransactionalCache(this);
     }

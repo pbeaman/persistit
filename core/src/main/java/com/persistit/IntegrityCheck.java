@@ -45,8 +45,16 @@ import com.persistit.exception.TimeoutException;
  * @version 1.0
  */
 public class IntegrityCheck extends Task {
-    public final static int MAX_FAULTS = 200;
-    public final static int MAX_WALK_RIGHT = 1000;
+    final static int MAX_FAULTS = 200;
+    final static int MAX_WALK_RIGHT = 1000;
+    
+    private final static String[] ARG_TEMPLATE = {
+        "trees|string:|Tree specification",
+        "_flags|U|Freeze updates (default)",
+        "_flags|H|Fix holes (default)",
+        "_flags|u|Don't freeze updates",
+        "_flags|h|Don't fix holes",
+    };
 
     private Tree _currentTree;
     private LongBitSet _usedPageBits = new LongBitSet();
@@ -92,6 +100,11 @@ public class IntegrityCheck extends Task {
         _trees = parseTreeList(args[0]);
         _freezeUpdates = args.length > 1 && "true".equals(args[1]);
         _fixHoles = args.length > 2 && "true".equals(args[2]);
+    }
+    
+    @Override
+    protected String[] argTemplate() {
+        return ARG_TEMPLATE;
     }
 
     @Override
