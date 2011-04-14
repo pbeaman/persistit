@@ -1536,7 +1536,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                     final int limit = _readBuffer.limit();
                     _readBuffer.limit(_readBuffer.position() + recordSize);
                     _readBuffer.position(_readBuffer.position() + CU.OVERHEAD);
-                    tc.recoverUpdates(_readBuffer);
+                    tc.recoverUpdates(_readBuffer, timestamp);
                     _readBuffer.position(position);
                     _readBuffer.limit(limit);
                 } else {

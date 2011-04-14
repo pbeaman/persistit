@@ -1759,6 +1759,7 @@ public class Persistit {
         _volumesById.clear();
         _bufferPoolTable.clear();
         _waitingThreadLocal.set(null);
+        _transactionalCaches.clear();
 
         if (_management != null) {
             unregisterMXBeans();
