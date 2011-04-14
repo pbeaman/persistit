@@ -279,10 +279,6 @@ class ManagementImpl implements Management {
         }
     }
 
-    public void cliCommand(final String... params) throws RemoteException {
-        System.out.println("cliCommand=" + Arrays.asList(params));
-    }
-    
     /**
      * Returns an array containing a <code>BufferPoolInfo</code> element for
      * each buffer pool. If Persistit is not initialized then this method
