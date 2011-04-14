@@ -643,11 +643,12 @@ public abstract class TransactionalCache {
         return true;
     }
 
-    final void recoverUpdates(final ByteBuffer bb) throws PersistitException {
+    final void recoverUpdates(final ByteBuffer bb, final long timestamp) throws PersistitException {
         while (bb.hasRemaining()) {
             final byte opCode = bb.get();
             if (opCode == 0) {
                 load();
+                _checkpoint = new Checkpoint(timestamp, System.currentTimeMillis());
             } else {
                 final Update update = createUpdate(opCode);
                 try {

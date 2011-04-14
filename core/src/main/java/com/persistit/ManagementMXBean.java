@@ -143,4 +143,15 @@ public interface ManagementMXBean {
      * @throws RemoteException
      */
     public boolean flushAndSync() throws RemoteException;
+
+    /**
+     * Parse and run a command delivered by JMX. Intended for scripting.
+     * 
+     * @param command
+     *            The command to execute. See the {@link Task} interface for
+     *            details.
+     * @return
+     * @throws RemoteException
+     */
+    public void cliCommand(final String... params) throws RemoteException;
 }
