@@ -33,22 +33,22 @@ public class ManagementCommandTest extends PersistitUnitTestCase {
     @Test
     public void testManagementCommandParser() throws Exception {
 
-        ManagementCommand m = ManagementCommand.parse("status taskId=12345 -v");
+        ManagementCommand m = ManagementCommand.parse("task taskId=12345 -v");
         assertEquals(TaskCheck.class, m.getTaskClass());
         assertEquals(12345, m.getArgParser().getLongValue("taskId"));
         assertTrue(m.getArgParser().isFlag('v'));
         
-        m = ManagementCommand.parse("&status&taskId=12345&-v");
+        m = ManagementCommand.parse("&task&taskId=12345&-v");
         assertEquals(TaskCheck.class, m.getTaskClass());
         assertEquals(12345, m.getArgParser().getLongValue("taskId"));
         assertTrue(m.getArgParser().isFlag('v'));
         
-        m = ManagementCommand.parse("-status-taskId=12345-\\-v");
+        m = ManagementCommand.parse("-task-taskId=12345-\\-v");
         assertEquals(TaskCheck.class, m.getTaskClass());
         assertEquals(12345, m.getArgParser().getLongValue("taskId"));
         assertTrue(m.getArgParser().isFlag('v'));
 
-        m = ManagementCommand.parse("--------------------status-taskId=12345-\\-v--------------------");
+        m = ManagementCommand.parse("--------------------task-taskId=12345-\\-v--------------------");
         assertEquals(TaskCheck.class, m.getTaskClass());
         assertEquals(12345, m.getArgParser().getLongValue("taskId"));
         assertTrue(m.getArgParser().isFlag('v'));
@@ -102,7 +102,7 @@ public class ManagementCommandTest extends PersistitUnitTestCase {
     private void waitForCompletion(final long taskId) throws Exception {
         for (int waiting = 0; waiting < 20; waiting++) {
             final String status = _persistit.getManagement().execute(
-                    "status taskId=" + taskId);
+                    "task taskId=" + taskId);
             if (status.endsWith("done")) {
                 return;
             }
