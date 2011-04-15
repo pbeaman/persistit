@@ -35,6 +35,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.CU;
@@ -65,6 +66,12 @@ import com.persistit.exception.PersistitIOException;
  */
 public class JournalManager implements JournalManagerMXBean,
         VolumeHandleLookup, TransactionWriter {
+
+
+    /**
+     * REGEX expression that recognizes the name of a journal file.
+     */
+    final static Pattern PATH_PATTERN = Pattern.compile("(.+)\\.(\\d{12})");
 
     private long _journalCreatedTime;
 
@@ -107,6 +114,8 @@ public class JournalManager implements JournalManagerMXBean,
     private AtomicBoolean _flushing = new AtomicBoolean();
 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
+    
+    private AtomicBoolean _backupMode = new AtomicBoolean();
 
     private String _journalFilePath;
 
@@ -275,6 +284,7 @@ public class JournalManager implements JournalManagerMXBean,
         info.pageMapSize = _pageMap.size();
         info.baseAddress = _baseAddress;
         info.appendOnly = _appendOnly.get();
+        info.backupMode = _backupMode.get();
         info.fastCopying = _copyFast.get();
     }
 
@@ -297,6 +307,10 @@ public class JournalManager implements JournalManagerMXBean,
     public boolean isAppendOnly() {
         return _appendOnly.get();
     }
+    
+    public boolean isBackupMode() {
+        return _backupMode.get();
+    }
 
     public boolean isCopyingFast() {
         return _copyFast.get();
@@ -304,6 +318,10 @@ public class JournalManager implements JournalManagerMXBean,
 
     public void setAppendOnly(boolean appendOnly) {
         _appendOnly.set(appendOnly);
+    }
+    
+    public void setBackupMode(boolean backupMode) {
+        _backupMode.set(backupMode);
     }
 
     public void setCopyingFast(boolean fast) {
@@ -1074,9 +1092,19 @@ public class JournalManager implements JournalManagerMXBean,
         final Matcher matcher = PATH_PATTERN.matcher(file.getName());
         if (matcher.matches()) {
             // TODO - validate range
-            return Long.parseLong(matcher.group(1));
+            return Long.parseLong(matcher.group(2));
         } else {
             return -1;
+        }
+    }
+    
+    static String fileToPath(final File file) {
+        final Matcher matcher = PATH_PATTERN.matcher(file.getPath());
+        if (matcher.matches()) {
+            // TODO - validate range
+            return matcher.group(1);
+        } else {
+            return null;
         }
     }
 

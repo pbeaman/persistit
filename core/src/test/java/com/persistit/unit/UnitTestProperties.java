@@ -41,6 +41,7 @@ public class UnitTestProperties {
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
         p.setProperty("rmiport", System.getProperty("rmiport", "8081"));
+        p.setProperty("jmx", "true");
         return p;
     }
 

@@ -93,11 +93,6 @@ public interface JournalManagerMXBean {
     final static String PATH_FORMAT = "%s.%012d";
 
     /**
-     * REGEX expression that recognizes the name of a journal file.
-     */
-    final static Pattern PATH_PATTERN = Pattern.compile(".+\\.(\\d{12})");
-
-    /**
      * Default setting for number of pages in the page map before the urgency of
      * copying starts to increase.
      */

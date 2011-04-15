@@ -939,10 +939,11 @@ class ManagementImpl implements Management {
         }
 
         try {
-            Class clazz = Class.forName(className);
+            Class<?> clazz = Class.forName(className);
             Task task = (Task) (clazz.newInstance());
             task.setPersistit(_persistit);
-            task.setup(taskId, description, owner, args, maximumTime, verbosity);
+            task.setup(taskId, description, owner, maximumTime, verbosity);
+            task.setupArgs(args);
             _tasks.put(new Long(taskId), task);
             task.start();
             return taskId;
@@ -965,7 +966,9 @@ class ManagementImpl implements Management {
      * @param clear
      *            <code>true</code> to clear all received messages from the
      *            task.
-     * @return
+     * @param remove
+     *            <code>true</code> to remove the task's status if it has
+     *            finished, failed or expired.
      * @throws RemoteException
      */
     public TaskStatus[] queryTaskStatus(long taskId, boolean details,
@@ -980,6 +983,7 @@ class ManagementImpl implements Management {
                 TaskStatus ts = new TaskStatus();
                 task.populateTaskStatus(ts, details, clear);
                 result[index++] = ts;
+
             }
             return result;
         } else {
@@ -1035,25 +1039,51 @@ class ManagementImpl implements Management {
      * 
      * @param taskId
      *            Task ID for a selected Task.
-     * @return Final Task status after it has been stopped (if necessary) and
-     *         removed.
      * @throws RemoteException
      */
     public void stopTask(long taskId, boolean remove) {
         if (taskId == -1) {
-            for (Iterator iterator = _tasks.values().iterator(); iterator
+            for (Iterator<Task> iterator = _tasks.values().iterator(); iterator
                     .hasNext();) {
                 Task task = (Task) iterator.next();
                 task.stop();
             }
-            if (remove)
+            if (remove) {
                 _tasks.clear();
+            }
         } else {
             Task task = (Task) _tasks.get(new Long(taskId));
             if (task != null) {
                 task.stop();
                 if (remove)
                     _tasks.remove(new Long(task._taskId));
+            }
+        }
+    }
+
+    /**
+     * Removes finished, expired, stopped or failed tasks from the task list. \
+     * This method does not affected running or suspended tasks.
+     * 
+     * @param taskId
+     *            Task ID for a selected task, or -1 for all tasks.
+     * 
+     * @throws RemoteException
+     */
+    public void removeFinishedTasks(long taskId) {
+        if (taskId == -1) {
+            for (Iterator<Task> iterator = _tasks.values().iterator(); iterator
+                    .hasNext();) {
+                Task task = (Task) iterator.next();
+                if (Task.isFinalStatus(task._state)) {
+                    iterator.remove();
+                }
+            }
+        } else {
+            Long key = Long.valueOf(taskId);
+            Task task = (Task) _tasks.get(key);
+            if (task != null && Task.isFinalStatus(task._state)) {
+                _tasks.remove(key);
             }
         }
     }
@@ -1151,6 +1181,33 @@ class ManagementImpl implements Management {
                             _registeredHostName, exception);
                 }
             }
+        }
+    }
+
+    public String execute(final String commandLine) {
+        try {
+            final ManagementCommand command = ManagementCommand
+                    .parse(commandLine);
+            long taskId;
+
+            Task task = (Task) (command.getTaskClass().newInstance());
+            task.setPersistit(_persistit);
+            task.setupTask(command.getArgParser());
+            if (task.isImmediate()) {
+                task.runTask();
+                return task.getStatusDetail();
+            } else {
+                synchronized (this) {
+                    taskId = ++_taskIdCounter;
+                }
+                task.setup(taskId, commandLine, "cli", 0, 0);
+                _tasks.put(new Long(taskId), task);
+                task.start();
+                return taskId + ": started";
+            }
+
+        } catch (Exception ex) {
+            return "Failed: " + ex.toString();
         }
     }
 }

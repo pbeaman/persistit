@@ -19,6 +19,7 @@ import java.beans.ConstructorProperties;
 import java.io.Serializable;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.Arrays;
 import java.util.Date;
 
 import com.persistit.encoding.CoderContext;
@@ -616,6 +617,17 @@ public interface Management extends Remote, ManagementMXBean {
      * @throws RemoteException
      */
     public void stopTask(long taskId, boolean remove) throws RemoteException;
+
+    /**
+     * Removes done, expired, stopped or failed tasks from the task list. This
+     * method does not affected running or suspended tasks.
+     * 
+     * @param taskId
+     *            Task ID for a selected task, or -1 for all tasks.
+     * 
+     * @throws RemoteException
+     */
+    public void removeFinishedTasks(long taskId) throws RemoteException;
 
     public DisplayFilter getDisplayFilter() throws RemoteException;
 
@@ -1331,6 +1343,8 @@ public interface Management extends Remote, ManagementMXBean {
         long traverseCounter;
         long storeCounter;
         long removeCounter;
+        boolean isTransient;
+        boolean isLoose;
 
         VolumeInfo(Volume vol) {
             super();
@@ -1355,6 +1369,8 @@ public interface Management extends Remote, ManagementMXBean {
             maximumPageCount = vol.getMaximumPages();
             extensionPageCount = vol.getExtensionPages();
             garbageRootPage = vol.getGarbageRoot();
+            isTransient = vol.isTransient();
+            isLoose = vol.isLoose();
             name = vol.getName();
         }
 
@@ -1364,7 +1380,7 @@ public interface Management extends Remote, ManagementMXBean {
                 "lastExtension", "maximumPage", "currentPageCount",
                 "maximumPageCount", "extensionPageCount", "garbageRootPage",
                 "fetchCounter", "traverseCounter", "storeCounter",
-                "removeCounter" })
+                "removeCounter", "isTransient", "isLoose" })
         public VolumeInfo(int pageSize, String path, String name, long id,
                 long createTime, long openTime, long generation,
                 long getCounter, long readCounter, long writeCounter,
@@ -1372,7 +1388,7 @@ public interface Management extends Remote, ManagementMXBean {
                 long maximumPage, long currentPageCount, long maximumPageCount,
                 long extensionPageCount, long garbageRootPage,
                 long fetchCounter, long traverseCounter, long storeCounter,
-                long removeCounter) {
+                long removeCounter, boolean isTransient, boolean isLoose) {
             super();
             this.pageSize = pageSize;
             this.path = path;
@@ -1396,6 +1412,8 @@ public interface Management extends Remote, ManagementMXBean {
             this.traverseCounter = traverseCounter;
             this.storeCounter = storeCounter;
             this.removeCounter = removeCounter;
+            this.isTransient = isTransient;
+            this.isLoose = isLoose;
         }
 
         /**
@@ -1613,6 +1631,14 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public long getExtensionSize() {
             return extensionPageCount * pageSize;
+        }
+        
+        public boolean isTransient() {
+            return isTransient;
+        }
+        
+        public boolean isLoose() {
+            return isLoose;
         }
 
         /**
@@ -1925,6 +1951,23 @@ public interface Management extends Remote, ManagementMXBean {
             return lastException;
         }
 
+        @Override
+        public String toString() {
+            return toString(false);
+        }
+
+        public String toString(boolean details) {
+            if (details) {
+                return String
+                        .format("%d: %s start=%s finish=%s status=%s messages=%s exception=%s",
+                                taskId, stateName, Util.date(startTime),
+                                Util.date(finishTime), statusDetail,
+                                Arrays.asList(newMessages), lastException);
+            } else {
+                return taskId + ": " + stateName;
+            }
+        }
+
         /**
          * Tests whether the supplied object is a <code>TaskStatus</code> with
          * the same taskId is this one.
@@ -1963,6 +2006,7 @@ public interface Management extends Remote, ManagementMXBean {
         boolean copying;
         boolean flushing;
         boolean appendOnly;
+        boolean backupMode;
         boolean fastCopying;
 
         public JournalInfo() {
@@ -1979,7 +2023,7 @@ public interface Management extends Remote, ManagementMXBean {
                 "journaledPageCount", "readPageCount", "copiedPageCount",
                 "recoveredCommittedTransactions",
                 "recoveredAppliedTransactions", "closed", "copying",
-                "flushing", "appendOnly", "fastCopying" })
+                "flushing", "appendOnly", "backup", "fastCopying" })
         public JournalInfo(String currentJournalFile,
                 long currentJournalAddress, long blockSize, int pageMapSize,
                 long currentGeneration, long baseAddress,
@@ -1993,7 +2037,7 @@ public interface Management extends Remote, ManagementMXBean {
                 int recoveredCommittedTransactions,
                 int recoveredAppliedTransactions, boolean closed,
                 boolean copying, boolean flushing, boolean appendOnly,
-                boolean fastCopying) {
+                boolean backupMode, boolean fastCopying) {
             super();
             this.currentJournalFile = currentJournalFile;
             this.currentJournalAddress = currentJournalAddress;
@@ -2017,6 +2061,7 @@ public interface Management extends Remote, ManagementMXBean {
             this.copying = copying;
             this.flushing = flushing;
             this.appendOnly = appendOnly;
+            this.backupMode = backupMode;
             this.fastCopying = fastCopying;
         }
 
@@ -2212,13 +2257,24 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * The suspendCopying flag suspends copying of pages to their Volume
-         * files.
+         * The appendOnly flag suspends copying of pages to their Volume files.
          * 
-         * @return <code>true</code> if the suspendCopying flag is set.
+         * @return <code>true</code> if the appendOnly flag is set.
          */
         public boolean isAppendOnly() {
             return appendOnly;
+        }
+
+        /**
+         * The backupMode flag indicates that a concurrent backup is in
+         * progress. It is similar to appendOnly, but weaker: the JOURNAL_COPIER
+         * thread continues to copy pages to the in-place Volume files, but
+         * obsolete journal files are not deleted.
+         * 
+         * @return
+         */
+        public boolean isBackupMode() {
+            return backupMode;
         }
 
         /**
