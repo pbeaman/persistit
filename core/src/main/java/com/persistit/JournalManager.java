@@ -395,7 +395,7 @@ public class JournalManager implements JournalManagerMXBean,
         int urgency = _pageMap.size() / _pageMapSizeBase;
         int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress
                 / _blockSize);
-        if (journalFileCount > 1) {
+        if (!_appendOnly.get() && journalFileCount > 1) {
             urgency += journalFileCount - 1;
         }
         return Math.min(urgency, URGENT);
@@ -859,7 +859,7 @@ public class JournalManager implements JournalManagerMXBean,
      * @param handle
      * @throws PersistitIOException
      */
-    void writeVolumeHandleToJournal(final VolumeDescriptor volume,
+    synchronized void writeVolumeHandleToJournal(final VolumeDescriptor volume,
             final int handle) throws PersistitIOException {
         prepareWriteBuffer(IV.MAX_LENGTH);
         IV.putType(_writeBuffer);
@@ -873,7 +873,7 @@ public class JournalManager implements JournalManagerMXBean,
         advance(recordSize);
     }
 
-    void writeTreeHandleToJournal(final TreeDescriptor td, final int handle)
+    synchronized void writeTreeHandleToJournal(final TreeDescriptor td, final int handle)
             throws PersistitIOException {
         prepareWriteBuffer(IT.MAX_LENGTH);
         IT.putType(_writeBuffer);
@@ -1035,7 +1035,7 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     @Override
-    public boolean writeCacheUpdatesToJournal(final long timestamp,
+    public synchronized boolean writeCacheUpdatesToJournal(final long timestamp,
             final long cacheId, final List<Update> updates)
             throws PersistitIOException {
         int estimate = CU.OVERHEAD;
@@ -1049,7 +1049,7 @@ public class JournalManager implements JournalManagerMXBean,
         return true;
     }
 
-    synchronized int writeCacheUpdatesToJournal(final ByteBuffer writeBuffer,
+    int writeCacheUpdatesToJournal(final ByteBuffer writeBuffer,
             final long timestamp, final long cacheId, final List<Update> updates)
             throws PersistitIOException {
         int start = writeBuffer.position();

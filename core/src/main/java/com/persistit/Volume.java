@@ -192,7 +192,7 @@ public class Volume extends SharedResource {
             throws PersistitException {
         File file = new File(pathName);
         if (file.exists() && file.isFile()) {
-            return new Volume(persistit, pathName, alias, id, ro);
+            return new Volume(persistit, file.getAbsolutePath(), alias, id, ro);
         }
         throw new PersistitIOException(new FileNotFoundException(pathName));
     }
@@ -536,7 +536,7 @@ public class Volume extends SharedResource {
                 && !name.isEmpty()) {
             file = new File(file, name);
         }
-        _path = file.getPath();
+        _path = file.getAbsolutePath();
         if (name == null || name.isEmpty()) {
             _name = file.getName();
             final int p = _name.lastIndexOf('.');
@@ -627,7 +627,7 @@ public class Volume extends SharedResource {
             if (mustCreate || tranzient) {
                 throw new VolumeAlreadyExistsException(path);
             }
-            Volume vol = openVolume(persistit, path, name, id, false);
+            Volume vol = openVolume(persistit, file.getAbsolutePath(), name, id, false);
             if (vol._bufferSize != bufferSize) {
                 throw new VolumeAlreadyExistsException(
                         "Different buffer size expected/actual=" + bufferSize
@@ -643,7 +643,7 @@ public class Volume extends SharedResource {
 
             return vol;
         } else {
-            return new Volume(persistit, path, name, id, bufferSize,
+            return new Volume(persistit, file.getAbsolutePath(), name, id, bufferSize,
                     initialPages, extensionPages, maximumPages, tranzient,
                     loose);
         }
@@ -1540,7 +1540,7 @@ public class Volume extends SharedResource {
             _channel.write(bb, page * _bufferSize);
         } catch (IOException ioe) {
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_WRITE_IOE)) {
-                _persistit.getLogBase().log(LogBase.LOG_WRITE_IOE, page);
+                _persistit.getLogBase().log(LogBase.LOG_WRITE_IOE, page, ioe);
             }
             _lastIOException = ioe;
             throw ioe;
