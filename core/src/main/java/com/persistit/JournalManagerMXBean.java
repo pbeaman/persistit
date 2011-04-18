@@ -142,5 +142,5 @@ public interface JournalManagerMXBean {
 
     public void force() throws PersistitIOException;
 
-    public void copyBack(final long toTimestamp) throws PersistitException;
+    public void copyBack() throws PersistitException;
 }

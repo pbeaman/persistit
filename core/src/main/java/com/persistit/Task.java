@@ -178,7 +178,7 @@ public abstract class Task implements Runnable {
      * 
      * @param persistit
      */
-    protected void setPersistit(final Persistit persistit) {
+    public void setPersistit(final Persistit persistit) {
         _persistit = persistit;
     }
 
@@ -199,7 +199,7 @@ public abstract class Task implements Runnable {
      *            The <code>ArgParser</code> holding parsed argument values.
      * @throws Exception
      */
-    protected abstract void setupTask(final ArgParser ap) throws Exception;
+    protected abstract void setupTaskWithArgParser(String[] args) throws Exception;
 
     /**
      * Called by a newly created <code>Thread</code> to perform the task.

@@ -432,7 +432,8 @@ public class StreamLoader extends Task {
     
     
     @Override
-    protected void setupTask(final ArgParser ap) throws Exception {
+    public void setupTaskWithArgParser(final String[] args) throws Exception {
+        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
         _dis = new DataInputStream(new BufferedInputStream(new FileInputStream(
                 ap.getStringValue("file")), DEFAULT_BUFFER_SIZE));
         _taskSelectedVolumePattern = ap.getStringValue("volume");

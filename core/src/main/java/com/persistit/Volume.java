@@ -627,7 +627,8 @@ public class Volume extends SharedResource {
             if (mustCreate || tranzient) {
                 throw new VolumeAlreadyExistsException(path);
             }
-            Volume vol = openVolume(persistit, file.getAbsolutePath(), name, id, false);
+            Volume vol = openVolume(persistit, file.getAbsolutePath(), name,
+                    id, false);
             if (vol._bufferSize != bufferSize) {
                 throw new VolumeAlreadyExistsException(
                         "Different buffer size expected/actual=" + bufferSize
@@ -643,9 +644,9 @@ public class Volume extends SharedResource {
 
             return vol;
         } else {
-            return new Volume(persistit, file.getAbsolutePath(), name, id, bufferSize,
-                    initialPages, extensionPages, maximumPages, tranzient,
-                    loose);
+            return new Volume(persistit, file.getAbsolutePath(), name, id,
+                    bufferSize, initialPages, extensionPages, maximumPages,
+                    tranzient, loose);
         }
     }
 
@@ -1252,9 +1253,7 @@ public class Volume extends SharedResource {
                     .append(tree.getName()).remove();
 
             synchronized (_lock) {
-//                if (tree.getChangeCount() >= 0) {
-                    _treeNameHashMap.remove(tree.getName());
-//                }
+                _treeNameHashMap.remove(tree.getName());
                 tree.bumpGeneration();
                 tree.invalidate();
             }
@@ -1784,7 +1783,6 @@ public class Volume extends SharedResource {
     }
 
     void close() throws PersistitException {
-        flush();
         _pool.setFixed(_headBuffer, false);
 
         // _pool.invalidate(this);
@@ -1802,7 +1800,7 @@ public class Volume extends SharedResource {
             throw new PersistitIOException(e);
         }
     }
-
+    
     void flush() throws PersistitException {
         claimHeadBuffer();
         commitAllTreeUpdates();

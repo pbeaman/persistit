@@ -17,8 +17,9 @@ package com.persistit.ui;
 
 import java.awt.FlowLayout;
 import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.StringTokenizer;
-import java.util.Vector;
 
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -40,8 +41,8 @@ public class TaskSetupPanel extends Box {
     private AdminUI _adminUI;
     private String _taskClassName;
     private String _taskName;
-    private Vector _generalParameterDescriptors = new Vector();
-    private Vector _taskSpecificParameterDescriptors = new Vector();
+    private List<ParameterComponent> _generalParameterDescriptors = new ArrayList<ParameterComponent>();
+    private List<ParameterComponent> _taskSpecificParameterDescriptors = new ArrayList<ParameterComponent>();
     private String _yesMessage;
     private String _noMessage;
 

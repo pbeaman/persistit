@@ -1192,7 +1192,7 @@ class ManagementImpl implements Management {
 
             Task task = (Task) (command.getTaskClass().newInstance());
             task.setPersistit(_persistit);
-            task.setupTask(command.getArgParser());
+            task.setupTaskWithArgParser(command.getArgs());
             if (task.isImmediate()) {
                 task.runTask();
                 return task.getStatusDetail();
@@ -1200,7 +1200,7 @@ class ManagementImpl implements Management {
                 synchronized (this) {
                     taskId = ++_taskIdCounter;
                 }
-                task.setup(taskId, commandLine, "cli", 0, 0);
+                task.setup(taskId, commandLine, "cli", 0, 5);
                 _tasks.put(new Long(taskId), task);
                 task.start();
                 return taskId + ": started";

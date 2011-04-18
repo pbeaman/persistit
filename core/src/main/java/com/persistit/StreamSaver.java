@@ -601,7 +601,8 @@ public class StreamSaver extends Task {
     }
     
     @Override
-    protected void setupTask(final ArgParser ap) throws Exception {
+    public void setupTaskWithArgParser(final String[] args) throws Exception {
+        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
         _taskTrees = parseTreeList(ap.getStringValue("trees"));
         final String kf = ap.getStringValue("keyfilter");
         if (kf != null) {

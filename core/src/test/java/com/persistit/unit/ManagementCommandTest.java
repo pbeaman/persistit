@@ -16,6 +16,7 @@
 package com.persistit.unit;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,25 +35,20 @@ public class ManagementCommandTest extends PersistitUnitTestCase {
     public void testManagementCommandParser() throws Exception {
 
         ManagementCommand m = ManagementCommand.parse("task taskId=12345 -v");
-        assertEquals(TaskCheck.class, m.getTaskClass());
-        assertEquals(12345, m.getArgParser().getLongValue("taskId"));
-        assertTrue(m.getArgParser().isFlag('v'));
-        
+        verify(m, "[taskId=12345, -v]");
         m = ManagementCommand.parse("&task&taskId=12345&-v");
-        assertEquals(TaskCheck.class, m.getTaskClass());
-        assertEquals(12345, m.getArgParser().getLongValue("taskId"));
-        assertTrue(m.getArgParser().isFlag('v'));
-        
+        verify(m, "[taskId=12345, -v]");
         m = ManagementCommand.parse("-task-taskId=12345-\\-v");
-        assertEquals(TaskCheck.class, m.getTaskClass());
-        assertEquals(12345, m.getArgParser().getLongValue("taskId"));
-        assertTrue(m.getArgParser().isFlag('v'));
+        verify(m, "[taskId=12345, -v]");
+        m = ManagementCommand
+                .parse("--------------------task-taskId=12345-\\-v--------------------");
+        verify(m, "[taskId=12345, -v]");
+    }
 
-        m = ManagementCommand.parse("--------------------task-taskId=12345-\\-v--------------------");
+    private void verify(final ManagementCommand m, final String expected) {
         assertEquals(TaskCheck.class, m.getTaskClass());
-        assertEquals(12345, m.getArgParser().getLongValue("taskId"));
-        assertTrue(m.getArgParser().isFlag('v'));
-}
+        assertEquals(expected, Arrays.asList(m.getArgs()).toString());
+    }
 
     @Test
     public void testCommands() throws Exception {
@@ -71,16 +67,15 @@ public class ManagementCommandTest extends PersistitUnitTestCase {
                 .execute("icheck trees=persistit,ManagementCommandTest");
         assertEquals("started", status(status));
         waitForCompletion(taskId(status));
-
-        final String fileName = File.createTempFile("ManagementCommandTest",
-                ".sav").toString();
-        status = management.execute("save file=" + fileName
+        final File file = File.createTempFile("ManagementCommandTest", ".sav");
+        file.deleteOnExit();
+        status = management.execute("save file=" + file
                 + " keyfilter={200:} trees=persistit,ManagementCommandTest");
         assertEquals("started", status(status));
         waitForCompletion(taskId(status));
         pmap.clear();
 
-        status = management.execute("load file=" + fileName);
+        status = management.execute("load file=" + file);
         assertEquals("started", status(status));
         waitForCompletion(taskId(status));
 
@@ -108,7 +103,8 @@ public class ManagementCommandTest extends PersistitUnitTestCase {
             }
             Thread.sleep(500);
         }
-        throw new IllegalStateException("Task " + taskId + " did not compelete within 10 seconds");
+        throw new IllegalStateException("Task " + taskId
+                + " did not compelete within 10 seconds");
     }
 
     @Override

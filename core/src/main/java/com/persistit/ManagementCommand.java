@@ -39,36 +39,30 @@ public class ManagementCommand {
     private static class CommandStruct {
         private final String _commandName;
         private final Class<?> _class;
-        private final String[] _argTemplate;
 
-        CommandStruct(final String commandName, final Class<?> clazz,
-                final String[] argTemplate) {
+        CommandStruct(final String commandName, final Class<?> clazz) {
             _commandName = commandName;
             _class = clazz;
-            _argTemplate = argTemplate;
         }
     }
 
     static {
         COMMAND_SPECIFICATIONS.put(Backup.COMMAND_NAME, new CommandStruct(
-                Backup.COMMAND_NAME, Backup.class,
-                Backup.ARG_TEMPLATE));
+                Backup.COMMAND_NAME, Backup.class));
         
         COMMAND_SPECIFICATIONS.put(IntegrityCheck.COMMAND_NAME,
                 new CommandStruct(IntegrityCheck.COMMAND_NAME,
-                        IntegrityCheck.class, IntegrityCheck.ARG_TEMPLATE));
+                        IntegrityCheck.class));
         
         COMMAND_SPECIFICATIONS.put(StreamSaver.COMMAND_NAME, new CommandStruct(
-                StreamSaver.COMMAND_NAME, StreamSaver.class,
-                StreamSaver.ARG_TEMPLATE));
+                StreamSaver.COMMAND_NAME, StreamSaver.class));
         
         COMMAND_SPECIFICATIONS.put(StreamLoader.COMMAND_NAME,
                 new CommandStruct(StreamLoader.COMMAND_NAME,
-                        StreamLoader.class, StreamLoader.ARG_TEMPLATE));
+                        StreamLoader.class));
         
         COMMAND_SPECIFICATIONS.put(TaskCheck.COMMAND_NAME,
-                new CommandStruct(TaskCheck.COMMAND_NAME, TaskCheck.class,
-                        TaskCheck.ARG_TEMPLATE));
+                new CommandStruct(TaskCheck.COMMAND_NAME, TaskCheck.class));
     }
 
     public static ManagementCommand parse(final String commandLine) {
@@ -121,17 +115,16 @@ public class ManagementCommand {
             throw new IllegalArgumentException("No such command: "
                     + commandName);
         }
-        return new ManagementCommand(commandStruct, new ArgParser(commandName,
-                args, commandStruct._argTemplate));
+        return new ManagementCommand(commandStruct, args);
     }
 
     private final CommandStruct _commandStruct;
-    private final ArgParser _argParser;
+    private final String[] _args;
 
     private ManagementCommand(final CommandStruct commandStruct,
-            final ArgParser argParser) {
+            final String[] args) {
         _commandStruct = commandStruct;
-        _argParser = argParser;
+        _args = args;
     }
 
     public String getCommandName() {
@@ -142,7 +135,7 @@ public class ManagementCommand {
         return _commandStruct._class;
     }
 
-    public ArgParser getArgParser() {
-        return _argParser;
+    public String[] getArgs() {
+        return _args;
     }
 }

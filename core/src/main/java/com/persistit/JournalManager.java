@@ -1,5 +1,4 @@
 /**
- * Copyright (C) 2011 Akiban Technologies Inc.
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
  * as published by the Free Software Foundation.
@@ -67,7 +66,6 @@ import com.persistit.exception.PersistitIOException;
 public class JournalManager implements JournalManagerMXBean,
         VolumeHandleLookup, TransactionWriter {
 
-
     /**
      * REGEX expression that recognizes the name of a journal file.
      */
@@ -114,7 +112,7 @@ public class JournalManager implements JournalManagerMXBean,
     private AtomicBoolean _flushing = new AtomicBoolean();
 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
-    
+
     private AtomicBoolean _backupMode = new AtomicBoolean();
 
     private String _journalFilePath;
@@ -211,8 +209,9 @@ public class JournalManager implements JournalManagerMXBean,
      * @param maximumSize
      * @throws PersistitException
      */
-    public synchronized void init(final RecoveryManager rman, final String path,
-            final long maximumSize) throws PersistitException {
+    public synchronized void init(final RecoveryManager rman,
+            final String path, final long maximumSize)
+            throws PersistitException {
         _writeBuffer = ByteBuffer.allocate(_writeBufferSize);
         if (rman != null && rman.getKeystoneAddress() != -1) {
             _journalFilePath = rman.getJournalFilePath();
@@ -307,7 +306,7 @@ public class JournalManager implements JournalManagerMXBean,
     public boolean isAppendOnly() {
         return _appendOnly.get();
     }
-    
+
     public boolean isBackupMode() {
         return _backupMode.get();
     }
@@ -319,7 +318,7 @@ public class JournalManager implements JournalManagerMXBean,
     public void setAppendOnly(boolean appendOnly) {
         _appendOnly.set(appendOnly);
     }
-    
+
     public void setBackupMode(boolean backupMode) {
         _backupMode.set(backupMode);
     }
@@ -526,7 +525,8 @@ public class JournalManager implements JournalManagerMXBean,
         synchronized (this) {
             final Integer volumeHandle = _volumeToHandleMap.get(vd);
             if (volumeHandle != null) {
-                pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
+                pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1,
+                        -1));
             }
         }
 
@@ -873,8 +873,8 @@ public class JournalManager implements JournalManagerMXBean,
         advance(recordSize);
     }
 
-    synchronized void writeTreeHandleToJournal(final TreeDescriptor td, final int handle)
-            throws PersistitIOException {
+    synchronized void writeTreeHandleToJournal(final TreeDescriptor td,
+            final int handle) throws PersistitIOException {
         prepareWriteBuffer(IT.MAX_LENGTH);
         IT.putType(_writeBuffer);
         IT.putHandle(_writeBuffer, handle);
@@ -1035,8 +1035,8 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     @Override
-    public synchronized boolean writeCacheUpdatesToJournal(final long timestamp,
-            final long cacheId, final List<Update> updates)
+    public synchronized boolean writeCacheUpdatesToJournal(
+            final long timestamp, final long cacheId, final List<Update> updates)
             throws PersistitIOException {
         int estimate = CU.OVERHEAD;
         for (int index = 0; index < updates.size(); index++) {
@@ -1097,7 +1097,7 @@ public class JournalManager implements JournalManagerMXBean,
             return -1;
         }
     }
-    
+
     static String fileToPath(final File file) {
         final Matcher matcher = PATH_PATTERN.matcher(file.getPath());
         if (matcher.matches()) {
@@ -1223,7 +1223,7 @@ public class JournalManager implements JournalManagerMXBean,
             try {
                 if (flush()) {
                     final FileChannel channel = getFileChannel(address);
-                    channel.force(false);
+                    channel.force(true);
                 }
             } catch (IOException e) {
                 throw new PersistitIOException(
@@ -1386,24 +1386,26 @@ public class JournalManager implements JournalManagerMXBean,
 
     /**
      * Set the copyFast flag and then wait until all pages have been copied to
-     * their respective volumes, allowing the journal files to be deleted.
+     * their respective volumes, allowing the journal files to be deleted. Note:
+     * does nothing of the <code>appendOnly</code> is set.
      * 
-     * @param toTimestamp
      * @throws PersistitException
      */
-    public void copyBack(final long toTimestamp) throws PersistitException {
-        synchronized (this) {
-            _copyFast.set(true);
-            notifyAll();
-            while (_copyFast.get()) {
-                try {
-                    wait(100);
-                } catch (InterruptedException ie) {
-                    // ignore;
+    public void copyBack() throws PersistitException {
+        if (!_appendOnly.get()) {
+            synchronized (this) {
+                _copyFast.set(true);
+                notifyAll();
+                while (_copyFast.get()) {
+                    try {
+                        wait(100);
+                    } catch (InterruptedException ie) {
+                        // ignore;
+                    }
                 }
-            }
-            if (Debug.ENABLED) {
-                Debug.$assert(_pageMap.isEmpty()); // TODO - remove this
+                if (Debug.ENABLED) {
+                    Debug.$assert(_pageMap.isEmpty()); // TODO - remove this
+                }
             }
         }
     }
@@ -1803,7 +1805,6 @@ public class JournalManager implements JournalManagerMXBean,
             final long now = System.nanoTime();
             try {
                 try {
-                    flush();
                     force();
 
                 } catch (Exception e) {
@@ -1864,7 +1865,7 @@ public class JournalManager implements JournalManagerMXBean,
                 }
             }
         }
-
+        
         Volume volume = null;
         VolumeDescriptor vd = null;
         int handle = -1;

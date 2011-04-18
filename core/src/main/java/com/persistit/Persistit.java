@@ -1558,7 +1558,7 @@ public class Persistit {
      * @throws Exception
      */
     public void copyBackPages() throws Exception {
-        _journalManager.copyBack(Long.MAX_VALUE);
+        _journalManager.copyBack();
     }
 
     /**
@@ -1703,14 +1703,13 @@ public class Persistit {
         _checkpointManager.close(flush);
         waitForIOTaskStop(_checkpointManager);
 
-
         final List<Volume> volumes;
         synchronized (this) {
             volumes = new ArrayList<Volume>(_volumes);
         }
 
         for (final Volume volume : volumes) {
-            volume.close();
+            volume.flush();
         }
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
@@ -1718,6 +1717,10 @@ public class Persistit {
             unregisterBufferPoolMXBean(pool.getBufferSize());
         }
         _journalManager.close();
+
+        for (final Volume volume : volumes) {
+            volume.close();
+        }
 
         while (!_volumes.isEmpty()) {
             removeVolume(_volumes.get(0), false);
@@ -1745,6 +1748,7 @@ public class Persistit {
         final Map<Integer, BufferPool> buffers = _bufferPoolTable;
         if (buffers != null) {
             for (final BufferPool pool : buffers.values()) {
+                unregisterBufferPoolMXBean(pool.getBufferSize());
                 pool.crash();
             }
         }

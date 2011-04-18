@@ -102,7 +102,8 @@ public class IntegrityCheck extends Task {
     }
     
     @Override
-    protected void setupTask(final ArgParser ap) throws PersistitException {
+    public void setupTaskWithArgParser(final String[] args) throws Exception {
+        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
         _trees = parseTreeList(ap.getStringValue("trees"));
         _freezeUpdates = !ap.isFlag('u');
         _fixHoles = !ap.isFlag('h');

@@ -241,24 +241,19 @@ public class BufferPool {
     }
 
     int flush() {
-        final BitSet bits = new BitSet(_bufferCount);
         int unavailable = 0;
         for (int retry = 0; retry < MAX_FLUSH_RETRY_COUNT; retry++) {
             unavailable = 0;
             for (int poolIndex = 0; poolIndex < _bufferCount; poolIndex++) {
-                if (!bits.get(poolIndex)) {
-                    final Buffer buffer = _buffers[poolIndex];
-                    final int bucket = bucket(buffer);
-                    synchronized (_lock[bucket]) {
-                        if (buffer.isDirty() && !buffer.isEnqueued()) {
-                            if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                                enqueueDirtyPage(buffer, bucket,
-                                        !buffer.isTransient(), 0, 0);
-                            } else {
-                                unavailable++;
-                            }
+                final Buffer buffer = _buffers[poolIndex];
+                final int bucket = bucket(buffer);
+                synchronized (_lock[bucket]) {
+                    if (buffer.isDirty() && !buffer.isEnqueued()) {
+                        if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
+                            enqueueDirtyPage(buffer, bucket,
+                                    !buffer.isTransient(), 0, 0);
                         } else {
-                            bits.set(poolIndex);
+                            unavailable++;
                         }
                     }
                 }
@@ -1095,7 +1090,7 @@ public class BufferPool {
         for (int index = 0; index < _buffers.length; index++) {
             final Buffer buffer = _buffers[index];
             synchronized (buffer._lock) {
-                if (buffer.isDirty()) {
+                if (buffer.isDirty() && !buffer.isTransient()) {
                     long timestamp = buffer.getTimestamp();
                     if (timestamp < earliestDirtyTimestamp) {
                         earliestDirtyTimestamp = timestamp;

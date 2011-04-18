@@ -47,7 +47,8 @@ public class TaskCheck extends Task {
     }
 
     @Override
-    protected void setupTask(ArgParser ap) throws Exception {
+    public void setupTaskWithArgParser(final String[] args) throws Exception {
+        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
         _taskId = ap.getLongValue("taskId");
         _details = ap.isFlag('v');
         _clear = ap.isFlag('c');
