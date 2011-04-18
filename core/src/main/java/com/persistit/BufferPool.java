@@ -149,6 +149,11 @@ public class BufferPool {
     private PageWriter _writer;
 
     private DirtyPageCollector _collector;
+    
+    /**
+     * Determines how we choose an available buffer.
+     */
+    private BufferReplacementStrategy _replacementStrategy;
 
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -198,6 +203,7 @@ public class BufferPool {
         for (int bucket = 0; bucket < _bucketCount; bucket++) {
             _lock[bucket] = new Object();
         }
+        _replacementStrategy = new BufferReplacementStrategyImpl();
 
         try {
 
@@ -991,18 +997,12 @@ public class BufferPool {
          * Next search for a clean replaceable buffer
          */
         if (!found) {
-            buffer = _lru[bucket];
-            while (buffer != null) {
-                if (buffer.isAvailable() && buffer.isClean()
-                        && buffer.claim(true, 0)) {
-                    detach(buffer);
-                    found = true;
-                    break;
-                }
-                buffer = buffer.getNextLru();
-                if (buffer == _lru[bucket]) {
-                    break;
-                }
+            buffer = _replacementStrategy.getBuffer(_lru, bucket);
+            if (buffer != null) {
+                detach(buffer);
+                found = true;
+            } else {
+                found = false;
             }
         }
         if (found) {
