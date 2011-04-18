@@ -244,16 +244,21 @@ public class BufferPool {
         int unavailable = 0;
         for (int retry = 0; retry < MAX_FLUSH_RETRY_COUNT; retry++) {
             unavailable = 0;
+            final BitSet enqueued = new BitSet(_bufferCount);
             for (int poolIndex = 0; poolIndex < _bufferCount; poolIndex++) {
-                final Buffer buffer = _buffers[poolIndex];
-                final int bucket = bucket(buffer);
-                synchronized (_lock[bucket]) {
-                    if (buffer.isDirty() && !buffer.isEnqueued()) {
-                        if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                            enqueueDirtyPage(buffer, bucket,
-                                    !buffer.isTransient(), 0, 0);
-                        } else {
-                            unavailable++;
+                // prevent starvation: flush only enqueues a dirty buffer once
+                if (!enqueued.get(poolIndex)) {
+                    final Buffer buffer = _buffers[poolIndex];
+                    final int bucket = bucket(buffer);
+                    synchronized (_lock[bucket]) {
+                        if (buffer.isDirty() && !buffer.isEnqueued() && !buffer.isTransient()) {
+                            if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
+                                enqueueDirtyPage(buffer, bucket,
+                                        !buffer.isTransient(), 0, 0);
+                                enqueued.set(poolIndex);
+                            } else {
+                                unavailable++;
+                            }
                         }
                     }
                 }
