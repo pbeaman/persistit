@@ -29,6 +29,7 @@ import org.junit.Test;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
+
 public class BackupTest extends PersistitUnitTestCase {
     private final static int TRANSACTION_COUNT = 50000;
     
@@ -37,7 +38,7 @@ public class BackupTest extends PersistitUnitTestCase {
     }
 
     @Test
-    public void simpleBackupTest() throws Exception {
+    public void testSimpleBackup() throws Exception {
 
         final PersistitMap<Integer, String> pmap1 = new PersistitMap<Integer, String>(
                 _persistit.getExchange("persistit", "BackupTest", true));
@@ -78,7 +79,7 @@ public class BackupTest extends PersistitUnitTestCase {
     }
 
     @Test
-    public void backupWithConcurrentTransactions() throws Exception {
+    public void testBackupWithConcurrentTransactions() throws Exception {
         final TransactionWriter tw = new TransactionWriter();
         final Thread twThread = new Thread(tw, "BackupTest_TW");
         twThread.start();
@@ -164,7 +165,8 @@ public class BackupTest extends PersistitUnitTestCase {
 
     @Override
     public void runAllTests() throws Exception {
-        simpleBackupTest();
+        testSimpleBackup();
+        testBackupWithConcurrentTransactions();
     }
 
 }
