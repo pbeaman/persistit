@@ -23,7 +23,7 @@ package com.persistit;
  */
 abstract class IOTaskRunnable implements Runnable {
 
-    private final Persistit _persistit;
+    protected final Persistit _persistit;
 
     private volatile Thread _thread;
 

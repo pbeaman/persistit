@@ -35,43 +35,8 @@ public class TimestampAllocator {
     private volatile long _checkpointInterval = DEFAULT_CHECKPOINT_INTERVAL;
 
     /**
-     * A component that maintains state outside of Persistit B-Trees can
-     * register a <code>CheckpointListener</code> to receive calls when
-     * checkpoint events are occurring. The <code>save</code> method should save
-     * any updates created before the checkpoint timestamp to Persistit. If it
-     * is able to successfully do so, then <code>save</code> should return
-     * <code>true</code> to indicate that the checkpoint can proceed.
-     * <p>
-     * For example, an in-memory component that keeps aggregated statistics on
-     * various records, and which needs to have its aggregation saved in a state
-     * consistent with a Checkpoint, should register a
-     * <code>CheckpointListener</code>.
-     */
-    public interface CheckpointListener {
-
-        /**
-         * Verify that all data updated before the specified checkpoint has been
-         * written. This method may write data to B-Trees. The return value
-         * indicates whether all updates for timestamps before the given
-         * checkpoint have been written.
-         * 
-         * @param checkpoint
-         * @return <code>true</code> iff all pending updates have been written.
-         */
-        boolean save(final Checkpoint checkpoint);
-
-        /**
-         * Indicates that the checkpoint has been made final. This affords an
-         * opportunity to move obsolete memory structures.
-         * 
-         * @param checkpoint
-         */
-        void done(final Checkpoint checkpoint);
-    }
-
-    /**
-     * A structure containing a timestamp and system clock time at which Persistit will attempt to
-     * record a valid Checkpoint to disk. 
+     * A structure containing a timestamp and system clock time at which
+     * Persistit will attempt to record a valid Checkpoint to disk.
      */
     public static class Checkpoint {
 
@@ -98,6 +63,14 @@ public class TimestampAllocator {
         public String toString() {
             return String.format("Checkpoint %,d @ %s", _timestamp,
                     SDF.format(new Date(_systemTime)));
+        }
+
+        public boolean equals(final Object object) {
+            if (!(object instanceof Checkpoint)) {
+                return false;
+            }
+            Checkpoint cp = (Checkpoint) object;
+            return cp._systemTime == _systemTime && cp._timestamp == _timestamp;
         }
 
     }

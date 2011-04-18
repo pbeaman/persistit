@@ -351,6 +351,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
         // still valid.
         assertTrue(_persistit.getJournalManager().getHandleCount() > updatedHandleValue);
     }
+    
+
 
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName,

@@ -40,7 +40,6 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.TimestampAllocator.CheckpointListener;
 import com.persistit.WaitingThreadManager.WaitingThread;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
@@ -51,6 +50,8 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.exception.ReadOnlyVolumeException;
+import com.persistit.exception.RollbackException;
+import com.persistit.exception.TransactionFailedException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.AbstractPersistitLogger;
@@ -91,7 +92,7 @@ public class Persistit {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit 2.1.1"
+    public final static String VERSION = "Persistit 2.2.1"
             + (Debug.ENABLED ? "-DEBUG" : "");
     /**
      * The copyright notice
@@ -336,6 +337,9 @@ public class Persistit {
 
     private final TimestampAllocator _timestampAllocator = new TimestampAllocator();
 
+    private final CheckpointManager _checkpointManager = new CheckpointManager(
+            this);
+
     private final IOMeter _ioMeter = new IOMeter();
 
     private Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
@@ -354,7 +358,7 @@ public class Persistit {
 
     private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
-    private final List<CheckpointListener> _checkpointListeners = new ArrayList<CheckpointListener>();
+    private final HashMap<Long, TransactionalCache> _transactionalCaches = new HashMap<Long, TransactionalCache>();
 
     private Checkpoint _lastCheckpoint = new Checkpoint(0, 0);
 
@@ -549,6 +553,7 @@ public class Persistit {
             }
             bufferSize <<= 1;
         }
+        _checkpointManager.start();
     }
 
     void initializeVolumes() throws PersistitException {
@@ -589,7 +594,6 @@ public class Persistit {
         if (enableJmx) {
             registerMXBeans();
         }
-
     }
 
     void initializeOther() {
@@ -1437,35 +1441,6 @@ public class Persistit {
     }
 
     /**
-     * Copies the current set of Transaction objects to the supplied List. This
-     * method is used by JOURNAL_FLUSHER to look for transactions that need to
-     * be written to the Journal, and BufferPool checkpoint code to look for
-     * uncommitted transactions. For each session, add that session's
-     * transaction to the supplied list if and only if it has a startTimestamp
-     * greater than <code>from</code> and a commitTimestamp greater than
-     * <code>to</code>.
-     * 
-     * @param transactions
-     *            List of Transaction objects to be populated
-     * @param from
-     *            minimum startTimestamp, or -1 for any
-     * @param to
-     *            minimum commitTimestamp, or -1 for any
-     */
-    void populateTransactionList(final List<Transaction> transactions,
-            final long from, final long to) {
-        transactions.clear();
-        synchronized (_transactionSessionMap) {
-            for (final Transaction t : _transactionSessionMap.values()) {
-                if (t.getStartTimestamp() >= from
-                        && t.getCommitTimestamp() >= to) {
-                    transactions.add(t);
-                }
-            }
-        }
-    }
-
-    /**
      * Returns the default timeout for operations on an <code>Exchange</code>.
      * The application may override this default value for an instance of an
      * <code>Exchange</code> through the {@link Exchange#setTimeout(long)}
@@ -1529,114 +1504,52 @@ public class Persistit {
         if (_closed.get() || !_initialized.get()) {
             return null;
         }
-        final Checkpoint checkpoint = getTimestampAllocator().forceCheckpoint();
-        applyCheckpoint(checkpoint);
-        while (true) {
-            synchronized (this) {
-                if (!_outstandingCheckpoints.contains(checkpoint)) {
-                    return checkpoint;
-                }
-            }
-            flushCheckpoint();
-            try {
-                Thread.sleep(SHORT_DELAY);
-            } catch (InterruptedException ie) {
-                return null;
-            }
-        }
+        return _checkpointManager.checkpoint();
     }
 
-    /**
-     * Called periodically by PAGE_WRITER threads to see whether a new
-     * Checkpoint should be written.
-     */
-    void applyCheckpoint() {
-        final Checkpoint newCheckpoint = getTimestampAllocator()
-                .updatedCheckpoint();
-        applyCheckpoint(newCheckpoint);
-    }
 
-    /**
-     * Apply a checkpoint. If the checkpoint has already been applied, this
-     * method does nothing. If it is a new checkpoint, this method adds it to
-     * the outstanding checkpoint list. As a side- effect, this method also
-     * calls {@link #flushCheckpoint()} which attempts to find some checkpoint
-     * on the outstanding list that can be closed (written to the journal).
-     * 
-     * @param newCheckpoint
-     */
-    void applyCheckpoint(final Checkpoint newCheckpoint) {
-        boolean flush = false;
-        synchronized (this) {
-            if (newCheckpoint.getTimestamp() > _lastCheckpoint.getTimestamp()) {
-                _outstandingCheckpoints.add(newCheckpoint);
-                _lastCheckpoint = newCheckpoint;
-                flush = true;
-                if (getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_PROPOSED)) {
-                    getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED,
-                            newCheckpoint);
-                }
-            }
+    boolean flushTransactionalCaches(final Checkpoint checkpoint) {
+        if (_transactionalCaches.isEmpty()) {
+            return true;
         }
-        if (System.nanoTime() - _nextFlushCheckpoint > 0 || flush) {
-            // Attempt to flush one of the previously proposed checkpoints
-            flushCheckpoint();
-            _nextFlushCheckpoint = System.nanoTime()
-                    + FLUSH_CHECKPOINT_INTERVAL;
-        }
-    }
-
-    void flushCheckpoint() {
-        final Checkpoint validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
-        if (validCheckpoint != null) {
-            boolean listenersDone = true;
-            synchronized (_checkpointListeners) {
-                for (final CheckpointListener listener : _checkpointListeners) {
-                    listenersDone &= listener.save(validCheckpoint);
-                }
-            }
-            if (listenersDone) {
+        try {
+            final Transaction transaction = getTransaction();
+            transaction.setTransactionalCacheCheckpoint(checkpoint);
+            int retries = 10;
+            while (true) {
+                transaction.begin();
                 try {
-                    getJournalManager().writeCheckpointToJournal(
-                            validCheckpoint);
-                } catch (PersistitIOException e) {
-                    getLogBase().log(LogBase.LOG_EXCEPTION,
-                            e + " while writing " + validCheckpoint + ":" + e);
-                }
-                synchronized (this) {
-                    _outstandingCheckpoints.remove(validCheckpoint);
+                    for (final TransactionalCache tc : _transactionalCaches
+                            .values()) {
+                        tc.save(checkpoint);
+                    }
+                    transaction.commit();
+                    break;
+                } catch (RollbackException e) {
+                    if (--retries >= 0) {
+                        continue;
+                    } else {
+                        throw new TransactionFailedException(
+                                "Retry limit 10 exceeeded");
+                    }
+                } finally {
+                    transaction.end();
                 }
             }
+            return true;
+        } catch (PersistitException e) {
+            // log this
+            return false;
         }
     }
 
-    /**
-     * Given a List of outstanding Checkpoints, find the latest one that is safe
-     * to write and return it. If there is no safe Checkpoint, return
-     * <code>null</code>
-     * 
-     * @param List
-     *            of outstanding Checkpoint instances
-     * @return The latest Checkpoint from the list that can be written, or
-     *         <code>null</code> if there are none.
-     */
-    private Checkpoint findValidCheckpoint(
-            final List<Checkpoint> outstandingCheckpoints) {
+    final long earliestDirtyTimestamp() {
         long earliestDirtyTimestamp = Long.MAX_VALUE;
         for (final BufferPool pool : _bufferPoolTable.values()) {
             earliestDirtyTimestamp = Math.min(earliestDirtyTimestamp,
                     pool.earliestDirtyTimestamp());
         }
-        for (int index = outstandingCheckpoints.size(); --index >= 0;) {
-            final Checkpoint checkpoint = outstandingCheckpoints.get(index);
-            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
-                for (int k = index; k >= 0; --k) {
-                    outstandingCheckpoints.remove(k);
-                }
-                return checkpoint;
-            }
-        }
-        return null;
+        return earliestDirtyTimestamp;
     }
 
     /**
@@ -1787,6 +1700,9 @@ public class Persistit {
         flush();
 
         _closed.set(true);
+        _checkpointManager.close(flush);
+        waitForIOTaskStop(_checkpointManager);
+
 
         final List<Volume> volumes;
         synchronized (this) {
@@ -1797,15 +1713,10 @@ public class Persistit {
             volume.close();
         }
 
-        if (flush) {
-            _timestampAllocator.forceCheckpoint();
-        }
-
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close(flush);
             unregisterBufferPoolMXBean(pool.getBufferSize());
         }
-
         _journalManager.close();
 
         while (!_volumes.isEmpty()) {
@@ -1837,6 +1748,7 @@ public class Persistit {
                 pool.crash();
             }
         }
+        _checkpointManager.crash();
         _closed.set(true);
         releaseAllResources();
     }
@@ -1847,6 +1759,7 @@ public class Persistit {
         _volumesById.clear();
         _bufferPoolTable.clear();
         _waitingThreadLocal.set(null);
+        _transactionalCaches.clear();
 
         if (_management != null) {
             unregisterMXBeans();
@@ -1998,6 +1911,50 @@ public class Persistit {
             }
             return txn;
         }
+    }
+
+    /**
+     * Copies the current set of Transaction objects to the supplied List. This
+     * method is used by JOURNAL_FLUSHER to look for transactions that need to
+     * be written to the Journal, and BufferPool checkpoint code to look for
+     * uncommitted transactions. For each session, add that session's
+     * transaction to the supplied list if and only if it has a startTimestamp
+     * greater than <code>from</code> and a commitTimestamp greater than
+     * <code>to</code>.
+     * 
+     * @param transactions
+     *            List of Transaction objects to be populated
+     * @param from
+     *            minimum startTimestamp, or -1 for any
+     * @param to
+     *            minimum commitTimestamp, or -1 for any
+     */
+    void populateTransactionList(final List<Transaction> transactions,
+            final long from, final long to) {
+        transactions.clear();
+        synchronized (_transactionSessionMap) {
+            for (final Transaction t : _transactionSessionMap.values()) {
+                if (t.getStartTimestamp() >= from
+                        && t.getCommitTimestamp() >= to) {
+                    transactions.add(t);
+                }
+            }
+        }
+    }
+
+    public int pendingTransactionCount(final long timestamp) {
+        int count = 0;
+        synchronized (_transactionSessionMap) {
+            for (final Transaction t : _transactionSessionMap.values()) {
+                if (t.getStartTimestamp() > 0
+                        && t.getStartTimestamp() < timestamp
+                        && t.getCommitTimestamp() >= timestamp
+                        || t.getCommitTimestamp() == -1) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     /**
@@ -2358,31 +2315,32 @@ public class Persistit {
     }
 
     /**
-     * Add a {@link CheckpointListener} which may be used to serialize state
-     * during the checkpoint process.
+     * Register a <code>TransactionalCache</code> instance. This method may only
+     * be called before {@link #initialize()}. Each instance must have a unique
+     * <code>cacheId</code>.
      * 
-     * @param listener
-     *            The listener to add.
-     * @throws NullPointerException
+     * @param tc
      */
-    public void addCheckpointListener(final CheckpointListener listener) {
-        if (listener == null) {
-            throw new NullPointerException();
+    void addTransactionalCache(TransactionalCache tc) {
+        if (_initialized.get()) {
+            throw new IllegalStateException("TransactionalCache must be added"
+                    + " before Persistit initialization");
         }
-        synchronized (_checkpointListeners) {
-            _checkpointListeners.add(listener);
+        if (getTransactionalCache(tc.cacheId()) != null) {
+            throw new IllegalStateException(
+                    "TransactionalCache cacheId must be unique");
         }
+        _transactionalCaches.put(tc.cacheId(), tc);
     }
 
     /**
-     * Attempt to remove a previously added {@link CheckpointListener}.
+     * Get a TransactionalCache instance by its unique <code>cacheId</code>.
      * 
-     * @param listener
+     * @param cacheId
+     * @return the corresponding <code>TransactionalCache</code>.
      */
-    public void removeCheckpointListener(final CheckpointListener listener) {
-        synchronized (_checkpointListeners) {
-            _checkpointListeners.remove(listener);
-        }
+    TransactionalCache getTransactionalCache(final long cacheId) {
+        return _transactionalCaches.get(cacheId);
     }
 
     /**

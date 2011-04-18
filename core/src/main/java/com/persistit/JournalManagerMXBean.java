@@ -67,7 +67,7 @@ public interface JournalManagerMXBean {
      * Default time interval (in milliseconds) between calls to the
      * FileChannel.force() method.
      */
-    public final static long DEFAULT_FLUSH_INTERVAL = 100;
+    public final static long DEFAULT_FLUSH_INTERVAL = 250;
 
     /**
      * Default time interval (in milliseconds) between calls to the journal
@@ -102,6 +102,8 @@ public interface JournalManagerMXBean {
      * copying starts to increase.
      */
     final static int DEFAULT_PAGE_MAP_SIZE_BASE = 250000;
+    
+    final static int MAX_CONCURRENT_TRANSACTIONS = 10000;
 
     public int getPageMapSize();
 

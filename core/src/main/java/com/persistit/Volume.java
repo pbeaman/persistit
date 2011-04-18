@@ -1367,9 +1367,7 @@ public class Volume extends SharedResource {
         tree.init(rootPage);
         tree.release();
         tree.setValid(true);
-        if (!DIRECTORY_TREE_NAME.equals(tree.getName())) {
-            tree.commit();
-        }
+        tree.commit();
         return tree;
     }
 
@@ -1723,8 +1721,17 @@ public class Volume extends SharedResource {
 
         // _pool.invalidate(this);
 
+        final FileChannel channelToClose;
         synchronized (_lock) {
+            channelToClose = _channel;
             _closed = true;
+        }
+        try {
+            if (channelToClose != null) {
+                channelToClose.close();
+            }
+        } catch (IOException e) {
+            throw new PersistitIOException(e);
         }
     }
 

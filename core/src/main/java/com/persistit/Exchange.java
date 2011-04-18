@@ -15,6 +15,20 @@
 
 package com.persistit;
 
+import static com.persistit.Buffer.EXACT_MASK;
+import static com.persistit.Buffer.HEADER_SIZE;
+import static com.persistit.Buffer.INITIAL_KEY_BLOCK_START_VALUE;
+import static com.persistit.Buffer.KEYBLOCK_LENGTH;
+import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
+import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
+import static com.persistit.Buffer.LONGREC_SIZE;
+import static com.persistit.Buffer.LONGREC_TYPE;
+import static com.persistit.Buffer.MAX_VALID_PAGE_ADDR;
+import static com.persistit.Buffer.PAGE_TYPE_DATA;
+import static com.persistit.Buffer.PAGE_TYPE_INDEX_MIN;
+import static com.persistit.Buffer.PAGE_TYPE_LONG_RECORD;
+import static com.persistit.Buffer.P_MASK;
+import static com.persistit.Buffer.TAILBLOCK_HDR_SIZE_INDEX;
 import static com.persistit.Key.AFTER;
 import static com.persistit.Key.BEFORE;
 import static com.persistit.Key.EQ;
@@ -136,6 +150,9 @@ public class Exchange {
 
     private final static int RIGHT_CLAIMED = 2;
 
+    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.NICE_BIAS;
+    private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
+
     private Persistit _persistit;
 
     private long _timeout;
@@ -160,8 +177,8 @@ public class Exchange {
 
     private Value _spareValue;
 
-    private SplitPolicy _splitPolicy = SplitPolicy.NICE_BIAS;
-    private JoinPolicy _joinPolicy = JoinPolicy.EVEN_BIAS;
+    private SplitPolicy _splitPolicy = DEFAULT_SPLIT_POLICY;
+    private JoinPolicy _joinPolicy = DEFAULT_JOIN_POLICY;
 
     private boolean _isDirectoryExchange = false;
     private boolean _hasDeferredDeallocations = false;
@@ -346,6 +363,8 @@ public class Exchange {
         _spareValue.clear(secure);
         _transaction = null;
         _ignoreTransactions = false;
+        _splitPolicy = DEFAULT_SPLIT_POLICY;
+        _joinPolicy = DEFAULT_JOIN_POLICY;
     }
 
     private void initCache() {
@@ -423,10 +442,9 @@ public class Exchange {
 
         private void update(Buffer buffer, Key key, int foundAt) {
             if (Debug.ENABLED) {
-                Debug.$assert(_level + Buffer.PAGE_TYPE_DATA == buffer
-                        .getPageType());
+                Debug.$assert(_level + PAGE_TYPE_DATA == buffer.getPageType());
 
-                if (foundAt != -1 && (foundAt & Buffer.EXACT_MASK) != 0) {
+                if (foundAt != -1 && (foundAt & EXACT_MASK) != 0) {
                     int depth = Buffer.decodeDepth(foundAt);
                     int klength = key.getEncodedSize();
                     if (Debug.ENABLED) {
@@ -870,7 +888,7 @@ public class Exchange {
         }
 
         try {
-            checkPageType(buffer, Buffer.PAGE_TYPE_DATA);
+            checkPageType(buffer, PAGE_TYPE_DATA);
         } catch (CorruptVolumeException e) {
             buffer.release(); // Don't make Most-Recently-Used
             throw e;
@@ -977,7 +995,7 @@ public class Exchange {
                             + " is before left edge");
                 }
 
-                checkPageType(buffer, currentLevel + Buffer.PAGE_TYPE_DATA);
+                checkPageType(buffer, currentLevel + PAGE_TYPE_DATA);
 
                 if (currentLevel == toLevel) {
                     for (int level = currentLevel; --level > 0;) {
@@ -986,9 +1004,9 @@ public class Exchange {
                     found = true;
                     return foundAt;
                 } else if (buffer.isIndexPage()) {
-                    int p = foundAt & Buffer.P_MASK;
-                    if ((foundAt & Buffer.EXACT_MASK) == 0) {
-                        p -= Buffer.KEYBLOCK_LENGTH;
+                    int p = foundAt & P_MASK;
+                    if ((foundAt & EXACT_MASK) == 0) {
+                        p -= KEYBLOCK_LENGTH;
                     }
                     oldBuffer = buffer; // So it will be released
                     oldPageAddress = pageAddress;
@@ -996,7 +1014,7 @@ public class Exchange {
 
                     if (Debug.ENABLED) {
                         Debug.$assert(pageAddress > 0
-                                && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
+                                && pageAddress < MAX_VALID_PAGE_ADDR);
                     }
                 } else {
                     oldBuffer = buffer; // So it will be released
@@ -1062,7 +1080,7 @@ public class Exchange {
                 if (buffer == null) {
                     buffer = _pool.get(_volume, pageAddress, _exclusive, true);
                 }
-                checkPageType(buffer, currentLevel + Buffer.PAGE_TYPE_DATA);
+                checkPageType(buffer, currentLevel + PAGE_TYPE_DATA);
 
                 //
                 // Release previous buffer after claiming this one. This
@@ -1104,7 +1122,7 @@ public class Exchange {
 
                 if (Debug.ENABLED) {
                     Debug.$assert(pageAddress > 0
-                            && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
+                            && pageAddress < MAX_VALID_PAGE_ADDR);
                 }
                 oldBuffer = buffer;
             }
@@ -1144,12 +1162,13 @@ public class Exchange {
         return this;
     }
 
-    int maxValueSize() {
+    int maxValueSize(final int keySize) {
         final int pageSize = _volume.getPageSize();
-        final int reserveForKeys = ((Buffer.KEYBLOCK_LENGTH + Buffer.TAILBLOCK_HDR_SIZE_INDEX) + maxStorableKeySize(pageSize)) * 3;
-        return (pageSize - Buffer.HEADER_SIZE - reserveForKeys) / 2;
+        final int reserveForKeys = (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_INDEX)
+                * 3 + maxStorableKeySize(pageSize) * 2 + keySize;
+        return (pageSize - HEADER_SIZE - reserveForKeys) / 2;
     }
-    
+
     /**
      * Inserts or replaces a data value in the database starting at a specified
      * level and working up toward the root of the tree.
@@ -1167,7 +1186,7 @@ public class Exchange {
 
         final boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
 
-        int maxSimpleValueSize = maxValueSize();
+        int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
 
         //
         // First insert the record in the data page
@@ -1306,7 +1325,7 @@ public class Exchange {
                                 && (buffer._status & SharedResource.WRITER_MASK) != 0
                                 && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
                     }
-                    if ((foundAt & Buffer.EXACT_MASK) != 0) {
+                    if ((foundAt & EXACT_MASK) != 0) {
                         oldLongRecordPointer = buffer
                                 .fetchLongRecordPointer(foundAt);
                     }
@@ -1316,7 +1335,8 @@ public class Exchange {
                         fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
                     }
 
-                    if (value.getEncodedSize() > maxSimpleValueSize && !overlength) {
+                    if (value.getEncodedSize() > maxSimpleValueSize
+                            && !overlength) {
                         newLongRecordPointer = storeLongRecord(value,
                                 oldLongRecordPointer, 0);
                     } else {
@@ -1359,7 +1379,7 @@ public class Exchange {
                     // committed.
                     //
                     if (buffer.isDataPage()) {
-                        if ((foundAt & Buffer.EXACT_MASK) == 0) {
+                        if ((foundAt & EXACT_MASK) == 0) {
                             _tree.bumpChangeCount();
                         }
                         committed = true;
@@ -1497,7 +1517,7 @@ public class Exchange {
         try {
             buffer = _volume.allocPage();
 
-            buffer.init(Buffer.PAGE_TYPE_INDEX_MIN + _treeDepth - 1);
+            buffer.init(PAGE_TYPE_INDEX_MIN + _treeDepth - 1);
 
             long newTopPage = buffer.getPageAddress();
             long leftSiblingPointer = _rootPage;
@@ -1736,7 +1756,7 @@ public class Exchange {
      *            (See <a href="Key.html#_keyChildren">Logical Key Children and
      *            Siblings</a>).
      * 
-     * @param minBytes
+     * @param minimumBytes
      *            The minimum number of bytes to fetch. See {@link #fetch(int)}.
      *            If minBytes is less than or equal to 0 then this method does
      *            not update the Key and Value fields of the Exchange.
@@ -1746,13 +1766,13 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean traverse(final Direction direction, final boolean deep,
-            final int minBytes) throws PersistitException {
+            final int minimumBytes) throws PersistitException {
         _persistit.checkClosed();
         final ResourceTracker resourceTracker = _persistit.getLockManager()
                 .getMyResourceTracker();
 
-        boolean doFetch = minBytes > 0;
-        boolean doModify = minBytes >= 0;
+        boolean doFetch = minimumBytes > 0;
+        boolean doModify = minimumBytes >= 0;
         boolean result;
         final int lockedResourceCount = resourceTracker
                 .getLockedResourceCount();
@@ -1785,7 +1805,7 @@ public class Exchange {
         try {
             if (inTxn && edge && !_key.isSpecial()) {
                 Boolean txnResult = _transaction.fetch(this, this.getValue(),
-                        minBytes);
+                        minimumBytes);
                 //
                 // A pending STORE transaction record overrides
                 // the base record.
@@ -1847,7 +1867,7 @@ public class Exchange {
                 // other way to find the left sibling page.
                 //
                 if (reverse && buffer != null
-                        && foundAt <= buffer.getKeyBlockStart()) {
+                        && (foundAt & P_MASK) <= buffer.getKeyBlockStart()) {
                     // Going left from first record in the page requires a
                     // key search.
                     if (inTxn) {
@@ -1881,7 +1901,7 @@ public class Exchange {
                     buffer = lc._buffer;
                 }
 
-                if (edge && (foundAt & Buffer.EXACT_MASK) != 0) {
+                if (edge && (foundAt & EXACT_MASK) != 0) {
                     break;
                 } else {
                     edge = false;
@@ -1891,7 +1911,7 @@ public class Exchange {
 
                         if (Debug.ENABLED) {
                             Debug.$assert(rightSiblingPage >= 0
-                                    && rightSiblingPage <= Buffer.MAX_VALID_PAGE_ADDR);
+                                    && rightSiblingPage <= MAX_VALID_PAGE_ADDR);
                         }
                         if (rightSiblingPage > 0) {
                             Buffer rightSibling = _pool.get(_volume,
@@ -1906,7 +1926,7 @@ public class Exchange {
                             // of the right sibling page.
                             //
                             buffer = rightSibling;
-                            checkPageType(buffer, Buffer.PAGE_TYPE_DATA);
+                            checkPageType(buffer, PAGE_TYPE_DATA);
                             foundAt = buffer.traverse(_key, direction,
                                     buffer.toKeyBlock(0));
 
@@ -1951,7 +1971,7 @@ public class Exchange {
                     // a pending remove operation that affects the result.
                     //
                     Boolean txnResult = _transaction.traverse(_tree,
-                            _spareKey1, _key, direction, deep, minBytes);
+                            _spareKey1, _key, direction, deep, minimumBytes);
 
                     if (txnResult != null) {
                         _transaction.touchedPage(this, buffer);
@@ -1996,10 +2016,10 @@ public class Exchange {
 
                     if (doFetch) {
                         if (fetchFromPendingTxn) {
-                            _transaction.fetchFromLastTraverse(this, minBytes);
+                            _transaction.fetchFromLastTraverse(this, minimumBytes);
                         } else {
                             buffer.fetch(foundAt, _value);
-                            fetchFixupForLongRecords(_value, minBytes);
+                            fetchFixupForLongRecords(_value, minimumBytes);
                         }
                     }
                 } else {
@@ -2017,11 +2037,11 @@ public class Exchange {
                                 if (doFetch) {
                                     if (fetchFromPendingTxn) {
                                         _transaction.fetchFromLastTraverse(
-                                                this, minBytes);
+                                                this, minimumBytes);
                                     } else {
                                         buffer.fetch(foundAt, _value);
                                         fetchFixupForLongRecords(_value,
-                                                minBytes);
+                                                minimumBytes);
                                     }
                                 }
                             } else {
@@ -2036,7 +2056,7 @@ public class Exchange {
                                 if (doFetch) {
                                     _value.clear();
                                 }
-                                foundAt &= ~Buffer.EXACT_MASK;
+                                foundAt &= ~EXACT_MASK;
                             }
                         } else
                             matches = false;
@@ -2450,6 +2470,10 @@ public class Exchange {
      * retrieve the rest of the value.
      * </p>
      * 
+     * @param minimumBytes
+     *            specifies a length at which Persistit will truncate
+     *            the returned value.
+     *            
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
@@ -2464,6 +2488,10 @@ public class Exchange {
      * the fetched state. If there is no value associated with the key then
      * {@link Value#isDefined} is false. Otherwise the value may be retrieved
      * using {@link Value#get} and other methods of <code>Value</code>.
+     * 
+     * @param value
+     *            the <code>Value</code> into which the database value should be
+     *            fetched.
      * 
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
@@ -2483,14 +2511,22 @@ public class Exchange {
      * methods of <code>Value</code>.
      * </p>
      * <p>
-     * This method sets a lower bound on the number of bytes to be fetched. In
+     * This method sets an lower bound on the number of bytes to be fetched. In
      * particular, it may be useful to retrieve only a small fraction of a very
      * long record such as the serialization of an image. Upon successful
      * completion of this method, at least <code>minimumBytes</code> of the
      * <code>Value</code> object will accurately reflect the value stored in the
      * database. This might allow an application to determine whether to
-     * retrieve the rest of the value.
+     * retrieve the rest of the value using the {@link #fetch()} operation.
      * </p>
+     * 
+     * @param value
+     *            the <code>Value</code> into which the database value should be
+     *            fetched.
+     * @param minimumBytes
+     *            specifies a length at which Persistit will truncate
+     *            the returned value.
+     * 
      * 
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
@@ -2536,7 +2572,7 @@ public class Exchange {
     void fetchFixupForLongRecords(Value value, int minimumBytes)
             throws PersistitException {
         if (value.isDefined()
-                && (value.getEncodedBytes()[0] & 0xFF) == Buffer.LONGREC_TYPE) {
+                && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE) {
             //
             // This will potential require numerous pages: the buffer
             // claim is held for the duration to prevent a non-atomic
@@ -2865,7 +2901,7 @@ public class Exchange {
                     if (tryQuickDelete) {
                         Buffer buffer = null;
                         try {
-                            int foundAt1 = search(key1) & Buffer.P_MASK;
+                            int foundAt1 = search(key1) & P_MASK;
                             buffer = _levelCache[0]._buffer;
 
                             if (!buffer.isBeforeLeftEdge(foundAt1)
@@ -2873,11 +2909,11 @@ public class Exchange {
                                 int foundAt2 = buffer.findKey(key2);
                                 if (!buffer.isBeforeLeftEdge(foundAt2)
                                         && !buffer.isAfterRightEdge(foundAt2)) {
-                                    if ((foundAt2 & Buffer.EXACT_MASK) != 0) {
+                                    if ((foundAt2 & EXACT_MASK) != 0) {
                                         foundAt2 = buffer
                                                 .nextKeyBlock(foundAt2);
                                     }
-                                    foundAt2 &= Buffer.P_MASK;
+                                    foundAt2 &= P_MASK;
 
                                     if (Debug.ENABLED) {
                                         Debug.$assert(foundAt2 >= foundAt1);
@@ -2944,7 +2980,7 @@ public class Exchange {
                         depth = level;
 
                         int foundAt1 = searchLevel(key1, pageAddr1, level)
-                                & Buffer.P_MASK;
+                                & P_MASK;
 
                         int foundAt2 = -1;
                         //
@@ -2959,10 +2995,10 @@ public class Exchange {
 
                         if (samePage) {
                             foundAt2 = buffer.findKey(key2);
-                            if ((foundAt2 & Buffer.EXACT_MASK) != 0) {
+                            if ((foundAt2 & EXACT_MASK) != 0) {
                                 foundAt2 = buffer.nextKeyBlock(foundAt2);
                             }
-                            foundAt2 &= Buffer.P_MASK;
+                            foundAt2 &= P_MASK;
 
                             if (!buffer.isAfterRightEdge(foundAt2)) {
                                 lc._rightBuffer = buffer;
@@ -2993,16 +3029,16 @@ public class Exchange {
                             }
 
                             foundAt2 = searchLevel(key2, pageAddr2, level);
-                            if ((foundAt2 & Buffer.EXACT_MASK) != 0) {
+                            if ((foundAt2 & EXACT_MASK) != 0) {
                                 foundAt2 = buffer.nextKeyBlock(foundAt2);
                                 if (Debug.ENABLED) {
                                     Debug.$assert(foundAt2 != -1);
                                 }
                             }
-                            foundAt2 &= Buffer.P_MASK;
+                            foundAt2 &= P_MASK;
 
                             if (Debug.ENABLED) {
-                                Debug.$assert(foundAt2 != Buffer.INITIAL_KEY_BLOCK_START_VALUE);
+                                Debug.$assert(foundAt2 != INITIAL_KEY_BLOCK_START_VALUE);
                             }
                             buffer = lc._buffer;
                             lc._flags |= RIGHT_CLAIMED;
@@ -3117,7 +3153,7 @@ public class Exchange {
                                         int foundAt = buffer
                                                 .findKey(_spareKey1);
                                         if (Debug.ENABLED) {
-                                            Debug.$assert((foundAt & Buffer.EXACT_MASK) == 0);
+                                            Debug.$assert((foundAt & EXACT_MASK) == 0);
                                         }
                                         // Try it the simple way
                                         _value.setPointerValue(buffer2
@@ -3247,8 +3283,7 @@ public class Exchange {
                             buffer = _pool.get(_volume, deferredPage, false,
                                     true);
                             if (buffer.getGeneration() == lc._deferredReindexChangeCount) {
-                                checkPageType(buffer, level
-                                        + Buffer.PAGE_TYPE_DATA);
+                                checkPageType(buffer, level + PAGE_TYPE_DATA);
                                 buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
                                 _value.setPointerValue(buffer.getPageAddress());
                                 _value.setPointerPageType(buffer.getPageType());
@@ -3338,14 +3373,14 @@ public class Exchange {
             int foundAt2) throws PersistitException {
         if (buffer1 == buffer2) {
             if (buffer1.nextKeyBlock(foundAt1) == foundAt2) {
-                buffer1.fetch(foundAt1 | Buffer.EXACT_MASK, _spareValue);
+                buffer1.fetch(foundAt1 | EXACT_MASK, _spareValue);
             }
         } else {
             if (buffer1.getRightSibling() == buffer2.getPageAddress()
                     && buffer1.nextKeyBlock(foundAt1) == -1) {
                 foundAt1 = buffer2.toKeyBlock(0);
                 if (buffer2.nextKeyBlock(foundAt1) == foundAt2) {
-                    buffer2.fetch(foundAt1 | Buffer.EXACT_MASK, _spareValue);
+                    buffer2.fetch(foundAt1 | EXACT_MASK, _spareValue);
                 }
             }
         }
@@ -3383,22 +3418,22 @@ public class Exchange {
         try {
             byte[] rawBytes = value.getEncodedBytes();
             int rawSize = value.getEncodedSize();
-            if (rawSize != Buffer.LONGREC_SIZE) {
+            if (rawSize != LONGREC_SIZE) {
                 if (Debug.ENABLED) {
                     Debug.debug1(true);
                 }
                 throw new CorruptVolumeException(
                         "Invalid LONG_RECORD value size=" + rawSize
-                                + " but should be " + Buffer.LONGREC_SIZE);
+                                + " but should be " + LONGREC_SIZE);
             }
-            if ((rawBytes[0] & 0xFF) != Buffer.LONGREC_TYPE) {
+            if ((rawBytes[0] & 0xFF) != LONGREC_TYPE) {
                 if (Debug.ENABLED) {
                     Debug.debug1(true);
                 }
                 throw new CorruptVolumeException(
                         "Invalid LONG_RECORD value type="
                                 + (rawBytes[0] & 0xFF) + " but should be "
-                                + Buffer.LONGREC_TYPE);
+                                + LONGREC_TYPE);
             }
             int longSize = Buffer.decodeLongRecordDescriptorSize(rawBytes, 0);
             long startAtPage = Buffer.decodeLongRecordDescriptorPointer(
@@ -3415,11 +3450,11 @@ public class Exchange {
             // and JRE 1.4.2 System.arraycopy implementation. Without this, the
             // arraycopy method corrupts the array.
             //
-            Util.arraycopy(rawBytes, Buffer.LONGREC_PREFIX_OFFSET,
-                    value.getEncodedBytes(), offset, Buffer.LONGREC_PREFIX_SIZE);
+            Util.arraycopy(rawBytes, LONGREC_PREFIX_OFFSET,
+                    value.getEncodedBytes(), offset, LONGREC_PREFIX_SIZE);
 
-            offset += Buffer.LONGREC_PREFIX_SIZE;
-            remainingSize -= Buffer.LONGREC_PREFIX_SIZE;
+            offset += LONGREC_PREFIX_SIZE;
+            remainingSize -= LONGREC_PREFIX_SIZE;
             long page = startAtPage;
 
             for (int count = 0; page != 0 && offset < minimumBytesFetched; count++) {
@@ -3433,7 +3468,7 @@ public class Exchange {
                                     + " in page " + page);
                 }
                 buffer = _pool.get(_volume, page, false, true);
-                if (buffer.getPageType() != Buffer.PAGE_TYPE_LONG_RECORD) {
+                if (buffer.getPageType() != PAGE_TYPE_LONG_RECORD) {
                     if (Debug.ENABLED) {
                         Debug.debug1(true);
                     }
@@ -3441,11 +3476,11 @@ public class Exchange {
                             "LONG_RECORD chain is invalid at page " + page
                                     + " - invalid page type: " + buffer);
                 }
-                int segmentSize = buffer.getBufferSize() - Buffer.HEADER_SIZE;
+                int segmentSize = buffer.getBufferSize() - HEADER_SIZE;
                 if (segmentSize > remainingSize)
                     segmentSize = remainingSize;
 
-                System.arraycopy(buffer.getBytes(), Buffer.HEADER_SIZE,
+                System.arraycopy(buffer.getBytes(), HEADER_SIZE,
                         value.getEncodedBytes(), offset, segmentSize);
 
                 offset += segmentSize;
@@ -3474,7 +3509,6 @@ public class Exchange {
                 _pool.release(buffer);
         }
     }
-
 
     /**
      * <p>
@@ -3527,14 +3561,14 @@ public class Exchange {
 
         if (Debug.ENABLED) {
             Debug.$assert(value.isLongRecordMode());
-            Debug.$assert(rawBytes.length == Buffer.LONGREC_SIZE);
+            Debug.$assert(rawBytes.length == LONGREC_SIZE);
         }
 
-        System.arraycopy(longBytes, 0, rawBytes, Buffer.LONGREC_PREFIX_OFFSET,
-                Buffer.LONGREC_PREFIX_SIZE);
+        System.arraycopy(longBytes, 0, rawBytes, LONGREC_PREFIX_OFFSET,
+                LONGREC_PREFIX_SIZE);
 
-        remainingSize -= Buffer.LONGREC_PREFIX_SIZE;
-        int maxSegmentSize = _pool.getBufferSize() - Buffer.HEADER_SIZE;
+        remainingSize -= LONGREC_PREFIX_SIZE;
+        int maxSegmentSize = _pool.getBufferSize() - HEADER_SIZE;
         int count = (remainingSize + (maxSegmentSize - 1)) / maxSegmentSize;
 
         try {
@@ -3575,19 +3609,18 @@ public class Exchange {
             //
             page = newChain;
             for (index = count; --index >= 0;) {
-                int offset = Buffer.LONGREC_PREFIX_SIZE
-                        + (index * maxSegmentSize);
+                int offset = LONGREC_PREFIX_SIZE + (index * maxSegmentSize);
                 int segmentSize = longSize - offset;
                 if (segmentSize > maxSegmentSize)
                     segmentSize = maxSegmentSize;
                 Buffer buffer = bufferArray[index];
-                buffer.init(Buffer.PAGE_TYPE_LONG_RECORD);
+                buffer.init(PAGE_TYPE_LONG_RECORD);
                 buffer.setRightSibling(page);
 
                 System.arraycopy(longBytes, offset, buffer.getBytes(),
-                        Buffer.HEADER_SIZE, segmentSize);
+                        HEADER_SIZE, segmentSize);
 
-                int end = Buffer.HEADER_SIZE + segmentSize;
+                int end = HEADER_SIZE + segmentSize;
                 if (end < buffer.getBufferSize()) {
                     buffer.clearBytes(end, buffer.getBufferSize());
                 }
@@ -3651,19 +3684,19 @@ public class Exchange {
         int longSize = value.getLongSize();
         byte[] longBytes = value.getLongBytes();
         byte[] rawBytes = value.getEncodedBytes();
-        int maxSegmentSize = _pool.getBufferSize() - Buffer.HEADER_SIZE;
+        int maxSegmentSize = _pool.getBufferSize() - HEADER_SIZE;
 
         if (Debug.ENABLED) {
             Debug.$assert(value.isLongRecordMode());
-            Debug.$assert(rawBytes.length == Buffer.LONGREC_SIZE);
+            Debug.$assert(rawBytes.length == LONGREC_SIZE);
         }
 
-        System.arraycopy(longBytes, 0, rawBytes, Buffer.LONGREC_PREFIX_OFFSET,
-                Buffer.LONGREC_PREFIX_SIZE);
+        System.arraycopy(longBytes, 0, rawBytes, LONGREC_PREFIX_OFFSET,
+                LONGREC_PREFIX_SIZE);
 
         long looseChain = 0;
-        if (from < Buffer.LONGREC_PREFIX_SIZE)
-            from = Buffer.LONGREC_PREFIX_SIZE;
+        if (from < LONGREC_PREFIX_SIZE)
+            from = LONGREC_PREFIX_SIZE;
 
         Buffer buffer = null;
         int offset = from
@@ -3673,7 +3706,7 @@ public class Exchange {
             for (;;) {
                 while (offset >= from) {
                     buffer = _volume.allocPage();
-                    buffer.init(Buffer.PAGE_TYPE_LONG_RECORD);
+                    buffer.init(PAGE_TYPE_LONG_RECORD);
 
                     int segmentSize = longSize - offset;
                     if (segmentSize > maxSegmentSize)
@@ -3683,14 +3716,14 @@ public class Exchange {
                         Debug.$assert(segmentSize >= 0
                                 && offset >= 0
                                 && offset + segmentSize < longBytes.length
-                                && Buffer.HEADER_SIZE + segmentSize <= buffer
+                                && HEADER_SIZE + segmentSize <= buffer
                                         .getBytes().length);
                     }
 
                     System.arraycopy(longBytes, offset, buffer.getBytes(),
-                            Buffer.HEADER_SIZE, segmentSize);
+                            HEADER_SIZE, segmentSize);
 
-                    int end = Buffer.HEADER_SIZE + segmentSize;
+                    int end = HEADER_SIZE + segmentSize;
                     if (end < buffer.getBufferSize()) {
                         buffer.clearBytes(end, buffer.getBufferSize());
                     }
@@ -3731,7 +3764,7 @@ public class Exchange {
         try {
             for (int count = 0; page != 0; count++) {
                 buffer = _volume.getPool().get(_volume, page, false, true);
-                if (buffer.getPageType() != Buffer.PAGE_TYPE_LONG_RECORD) {
+                if (buffer.getPageType() != PAGE_TYPE_LONG_RECORD) {
                     if (Debug.ENABLED) {
                         Debug.debug1(true);
                     }

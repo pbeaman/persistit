@@ -15,6 +15,10 @@
 
 package com.persistit;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import com.persistit.exception.PersistitException;
 
 /**
@@ -22,6 +26,7 @@ import com.persistit.exception.PersistitException;
  * 
  */
 class SharedResource extends WaitingThreadManager {
+
     /**
      * Default maximum time to wait for access to this resource. Methods throw
      * an InUseException when this time is exceeded.
@@ -223,6 +228,7 @@ class SharedResource extends WaitingThreadManager {
 
     boolean claim(boolean writer, long timeout) throws PersistitException {
         WaitingThread wt = null;
+
         synchronized (_lock) {
             if (isAvailableSync(writer, 0)) {
                 _status++;
@@ -238,8 +244,9 @@ class SharedResource extends WaitingThreadManager {
             } else if (timeout == 0) {
                 return false;
             }
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 Debug.$assert(checkWaitQueue());
+            }
 
             //
             // We're committed to waiting for the page
