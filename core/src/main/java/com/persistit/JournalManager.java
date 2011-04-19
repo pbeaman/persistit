@@ -1224,7 +1224,7 @@ public class JournalManager implements JournalManagerMXBean,
             try {
                 if (flush()) {
                     final FileChannel channel = getFileChannel(address);
-                    channel.force(true);
+                    channel.force(false);
                 }
             } catch (IOException e) {
                 throw new PersistitIOException(
