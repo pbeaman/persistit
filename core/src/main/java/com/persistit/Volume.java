@@ -24,7 +24,9 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.CorruptVolumeException;
@@ -111,7 +113,7 @@ public class Volume extends SharedResource {
     private long _garbageRoot;
     private int _bufferSize;
     private boolean _loose;
-    private Object _appCache;
+    private AtomicReference<Object> _appCache = new AtomicReference<Object>();
 
     private AtomicLong _readCounter = new AtomicLong();
     private AtomicLong _writeCounter = new AtomicLong();
@@ -120,6 +122,7 @@ public class Volume extends SharedResource {
     private AtomicLong _traverseCounter = new AtomicLong();
     private AtomicLong _storeCounter = new AtomicLong();
     private AtomicLong _removeCounter = new AtomicLong();
+    private AtomicInteger _handle = new AtomicInteger();
 
     private Buffer _headBuffer;
     private BufferPool _pool;
@@ -1902,14 +1905,23 @@ public class Volume extends SharedResource {
      *            object to be cached for application convenience.
      */
     public void setAppCache(Object appCache) {
-        _appCache = appCache;
+        _appCache.set(appCache);
     }
 
     /**
      * @return the object cached for application convenience
      */
     public Object getAppCache() {
-        return _appCache;
+        return _appCache.get();
+    }
+    
+    public int getHandle() {
+        return _handle.get();
+    }
+    
+    public int setHandle(final int handle) {
+        _handle.set(handle);
+        return handle;
     }
 
 }

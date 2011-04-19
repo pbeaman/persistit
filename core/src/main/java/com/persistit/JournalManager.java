@@ -402,8 +402,11 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     public int handleForVolume(final Volume volume) throws PersistitIOException {
+        if (volume.getHandle() != 0) {
+            return volume.getHandle();
+        }
         final VolumeDescriptor vd = new VolumeDescriptor(volume);
-        return handleForVolume(vd);
+        return volume.setHandle(handleForVolume(vd));
     }
 
     public synchronized int handleForVolume(final VolumeDescriptor vd)
@@ -441,9 +444,12 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     int handleForTree(final Tree tree) throws PersistitIOException {
+        if (tree.getHandle() != 0) {
+            return tree.getHandle();
+        }
         final TreeDescriptor td = new TreeDescriptor(
                 handleForVolume(tree.getVolume()), tree.getName());
-        return handleForTree(td);
+        return tree.setHandle(handleForTree(td));
     }
 
     Tree treeForHandle(final int handle) throws PersistitException {
