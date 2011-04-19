@@ -43,6 +43,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     public void testJournalRecords() throws Exception {
         store1();
         final Volume volume = _persistit.getVolume(_volumeName);
+        volume.setHandle(0);
+        
         final JournalManager jman = new JournalManager(_persistit);
         final String path = UnitTestProperties.DATA_PATH
                 + "/JournalManagerTest_journal_";
@@ -201,6 +203,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     public void testRollover() throws Exception {
         store1();
         final Volume volume = _persistit.getVolume(_volumeName);
+        volume.setHandle(0);
         final JournalManager jman = new JournalManager(_persistit);
         final String path = UnitTestProperties.DATA_PATH
                 + "/JournalManagerTest_journal_";
