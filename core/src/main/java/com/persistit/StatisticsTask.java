@@ -148,11 +148,14 @@ public class StatisticsTask extends Task {
             if (count != 0) {
                 next += (_delay * 1000 * NANOS_PER_MILLI);
                 try {
-                    while (now < next) {
+                    while (true) {
+                        poll();
                         now = System.nanoTime();
                         long sleep = Math.min(1000, (next - now) / NANOS_PER_MILLI);
+                        if (sleep <= 0) {
+                            break;
+                        }
                         Thread.sleep(sleep);
-                        poll();
                     }
                 } catch (InterruptedException e) {
                     break;
