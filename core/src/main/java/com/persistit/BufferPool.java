@@ -1109,7 +1109,6 @@ public class BufferPool {
     private class DirtyPageCollector extends IOTaskRunnable {
         private boolean _clean;
         private boolean _wasClosed;
-        private boolean _urgent;
 
         DirtyPageCollector() {
             super(BufferPool.this._persistit);
@@ -1117,11 +1116,6 @@ public class BufferPool {
 
         void start() {
             start("PAGE_COLLECTOR:" + _bufferSize, _writerPollInterval);
-        }
-
-        synchronized void urgent() {
-            _urgent = true;
-            kick();
         }
 
         public void runTask() {
@@ -1136,8 +1130,8 @@ public class BufferPool {
             return _fastClose.get() || _clean && _wasClosed;
         }
 
-        protected synchronized long pollInterval() {
-            return _wasClosed || _urgent ? RETRY_SLEEP_TIME
+        protected long pollInterval() {
+            return _wasClosed || _urgent.get() ? RETRY_SLEEP_TIME
                     : _writerPollInterval;
         }
 
@@ -1157,7 +1151,7 @@ public class BufferPool {
                 buffer = _fixed[bucket];
                 while (buffer != null) {
                     if (buffer.isDirty() && !buffer.isEnqueued()) {
-                        if (enqueueDirtyPage(buffer, bucket, _urgent,
+                        if (enqueueDirtyPage(buffer, bucket, _urgent.get(),
                                 countFixed, maxCount)) {
                             countFixed++;
                         }
@@ -1174,7 +1168,7 @@ public class BufferPool {
                         Debug.$assert(buffer.getNext() != buffer);
                     if (buffer.isDirty()) {
                         if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket, _urgent,
+                            if (enqueueDirtyPage(buffer, bucket, _urgent.get(),
                                     countInvalid, maxCount)) {
                                 countInvalid++;
                             }
@@ -1189,7 +1183,7 @@ public class BufferPool {
                 while (buffer != null) {
                     if (buffer.isDirty()) {
                         if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket, _urgent,
+                            if (enqueueDirtyPage(buffer, bucket, _urgent.get(),
                                     countLru, maxCount)) {
                                 countLru++;
                             }
@@ -1204,7 +1198,7 @@ public class BufferPool {
 
                 }
                 if (countInvalid + countLru > 0) {
-                    _urgent = false;
+                    _urgent.set(false);
                 }
             }
             // checkEnqueued();

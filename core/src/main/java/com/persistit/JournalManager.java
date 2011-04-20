@@ -1183,7 +1183,7 @@ public class JournalManager implements JournalManagerMXBean,
      * 
      * @throws PersistitIOException
      */
-    synchronized boolean flush() throws PersistitIOException {
+    synchronized long flush() throws PersistitIOException {
         final long address = _writeBufferAddress;
         if (address != Long.MAX_VALUE && _writeBuffer != null) {
             try {
@@ -1207,7 +1207,7 @@ public class JournalManager implements JournalManagerMXBean,
                         _writeBuffer.limit((int) remaining);
                     }
                     _persistit.getIOMeter().chargeFlushJournal(size, address);
-                    return true;
+                    return _writeBufferAddress;
                 }
             } catch (IOException e) {
                 throw new PersistitIOException(
@@ -1215,28 +1215,23 @@ public class JournalManager implements JournalManagerMXBean,
                                 + addressToFile(address), e);
             }
         }
-        return false;
+        return Long.MAX_VALUE;
     }
 
     /**
      * Force all data written to the journal file to disk.
      */
     public void force() throws PersistitIOException {
-        final long address;
-        synchronized (this) {
-            address = _writeBufferAddress;
-        }
-        if (address != Long.MAX_VALUE) {
-            try {
-                if (flush()) {
-                    final FileChannel channel = getFileChannel(address);
-                    channel.force(false);
-                }
-            } catch (IOException e) {
-                throw new PersistitIOException(
-                        "IOException while writing to file "
-                                + addressToFile(address), e);
+        long address = Long.MAX_VALUE;
+        try {
+            address = flush();
+            if (address != Long.MAX_VALUE) {
+                final FileChannel channel = getFileChannel(address);
+                channel.force(false);
             }
+        } catch (IOException e) {
+            throw new PersistitIOException("IOException while writing to file "
+                    + addressToFile(address), e);
         }
     }
 
@@ -1872,7 +1867,7 @@ public class JournalManager implements JournalManagerMXBean,
                 }
             }
         }
-        
+
         Volume volume = null;
         VolumeDescriptor vd = null;
         int handle = -1;

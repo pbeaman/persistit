@@ -133,6 +133,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             pool.release(buffer);
         }
         jman.close();
+        volume.setHandle(0);
 
         RecoveryManager rman = new RecoveryManager(_persistit);
         rman.init(path);

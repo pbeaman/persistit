@@ -25,13 +25,11 @@ public class CheckpointManager extends IOTaskRunnable {
 
     private final static long SHORT_DELAY = 500;
 
-    private final static long FLUSH_CHECKPOINT_INTERVAL = 10000;
+    private final static long FLUSH_CHECKPOINT_INTERVAL = 15000;
 
     private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
     private Checkpoint _lastCheckpoint = new Checkpoint(0, 0);
-
-    private AtomicBoolean _urgent = new AtomicBoolean();
 
     private AtomicBoolean _closed = new AtomicBoolean();
 
@@ -152,10 +150,6 @@ public class CheckpointManager extends IOTaskRunnable {
         return null;
     }
 
-    void urgent() {
-        _urgent.set(true);
-        kick();
-    }
 
     @Override
     protected long pollInterval() {

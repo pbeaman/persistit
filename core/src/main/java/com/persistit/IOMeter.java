@@ -47,7 +47,6 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class IOMeter implements IOMeterMXBean {
 
-
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;
     final static int HALF_URGENT = 5;
@@ -158,7 +157,7 @@ public class IOMeter implements IOMeterMXBean {
         return _ioRate;
     }
 
-    public void setLogFile(final String toFile) throws IOException {
+    public synchronized void setLogFile(final String toFile) throws IOException {
         if (toFile == null || toFile.isEmpty()) {
             final DataOutputStream dos = _logStream.get();
             if (dos != null) {
@@ -176,15 +175,17 @@ public class IOMeter implements IOMeterMXBean {
         return _logFileName;
     }
 
-    private synchronized void charge(final long time, final int size, int item) {
-        final long ticks = (time - _lastTick) / _tickSize;
-        if (ticks > 10) {
-            _ioRate = 0;
-        } else {
-            _ioRate >>>= ticks;
+    private void charge(final long time, final int size, int item) {
+        synchronized (this) {
+            final long ticks = (time - _lastTick) / _tickSize;
+            if (ticks > 10) {
+                _ioRate = 0;
+            } else {
+                _ioRate >>>= ticks;
+            }
+            _lastTick = (time / _tickSize) * _tickSize;
+            _ioRate += size;
         }
-        _lastTick = (time / _tickSize) * _tickSize;
-        _ioRate += size;
         _count[item].incrementAndGet();
         _sum[item].addAndGet(size);
     }
@@ -376,7 +377,7 @@ public class IOMeter implements IOMeterMXBean {
     public long getCount(final String opName) {
         return getCount(op(opName));
     }
-    
+
     public long getCount(final int op) {
         if (op > 0 && op < ITEM_COUNT) {
             return _count[op].get();
@@ -384,7 +385,7 @@ public class IOMeter implements IOMeterMXBean {
             return -1;
         }
     }
-    
+
     public long getSum(final String opName) {
         return getSum(op(opName));
     }
@@ -396,7 +397,7 @@ public class IOMeter implements IOMeterMXBean {
             return -1;
         }
     }
-    
+
     public int op(final String opName) {
         for (int index = 1; index < ITEM_COUNT; index++) {
             if (OPERATIONS[index].equalsIgnoreCase(opName)) {
@@ -406,6 +407,13 @@ public class IOMeter implements IOMeterMXBean {
         return -1;
     }
 
+    /**
+     * Dump an IOMeter log file to System.out. For diagnostic purposes only.
+     * 
+     * @param args
+     *            Specify one argument in the form file=<pathname>
+     * @throws Exception
+     */
     public static void main(final String[] args) throws Exception {
         final ArgParser ap = new ArgParser("com.persistit.IOMeter", args,
                 new String[] { "file||log file name" });
