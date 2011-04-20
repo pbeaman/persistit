@@ -18,6 +18,7 @@ package com.persistit;
 import static com.persistit.JournalRecord.getLength;
 import static com.persistit.JournalRecord.getType;
 
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -347,6 +348,8 @@ public class Transaction {
 
     private Checkpoint _transactionalCacheCheckpoint;
 
+    private Map<Integer, WeakReference<Tree>> _treeCache = new HashMap<Integer, WeakReference<Tree>>();
+
     private class TransactionBuffer implements TransactionWriter {
 
         private ByteBuffer _bb = ByteBuffer.allocate(DEFAULT_TXN_BUFFER_SIZE);
@@ -576,13 +579,21 @@ public class Transaction {
         }
     }
 
-    private synchronized int handleForTree(Tree tree) throws PersistitException {
+    private int handleForTree(Tree tree) throws PersistitException {
         return _persistit.getJournalManager().handleForTree(tree);
     }
 
-    private synchronized Tree treeForHandle(int handle)
-            throws PersistitException {
-        return _persistit.getJournalManager().treeForHandle(handle);
+    private Tree treeForHandle(int handle) throws PersistitException {
+        final Integer key = Integer.valueOf(handle);
+        WeakReference<Tree> ref = _treeCache.get(key);
+        Tree tree = ref == null ? null : ref.get();
+        if (tree == null) {
+            tree = _persistit.getJournalManager().treeForHandle(handle);
+            if (tree != null) {
+                _treeCache.put(key, new WeakReference<Tree>(tree));
+            }
+        }
+        return tree;
     }
 
     /**
