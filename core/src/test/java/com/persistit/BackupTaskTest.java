@@ -30,7 +30,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
 
-public class BackupTest extends PersistitUnitTestCase {
+public class BackupTaskTest extends PersistitUnitTestCase {
     private final static int TRANSACTION_COUNT = 50000;
     
     protected Properties getProperties(final boolean cleanup) {
@@ -51,7 +51,7 @@ public class BackupTest extends PersistitUnitTestCase {
                 pmap1);
         final File file = File.createTempFile("backup", ".zip");
         file.deleteOnExit();
-        final Backup backup1 = new Backup();
+        final BackupTask backup1 = new BackupTask();
         backup1.setMessageStream(System.out);
 
         backup1.setPersistit(_persistit);
@@ -64,7 +64,7 @@ public class BackupTest extends PersistitUnitTestCase {
         _persistit.close();
 
         _persistit = new Persistit();
-        final Backup backup2 = new Backup();
+        final BackupTask backup2 = new BackupTask();
         backup2.setMessageStream(System.out);
         backup2.setPersistit(_persistit);
         backup2.doRestore(file.getAbsolutePath());
@@ -90,7 +90,7 @@ public class BackupTest extends PersistitUnitTestCase {
 
         final File file = File.createTempFile("backup", ".zip");
         file.deleteOnExit();
-        final Backup backup1 = new Backup();
+        final BackupTask backup1 = new BackupTask();
         backup1.setMessageStream(System.out);
         backup1.setPersistit(_persistit);
         backup1.setup(1, "backup file=" + file.getAbsolutePath(), "cli", 0, 5);
@@ -105,7 +105,7 @@ public class BackupTest extends PersistitUnitTestCase {
         _persistit.crash();
         UnitTestProperties.cleanUpDirectory(new File(UnitTestProperties.DATA_PATH));
         _persistit = new Persistit();
-        final Backup backup2 = new Backup();
+        final BackupTask backup2 = new BackupTask();
         backup2.setMessageStream(System.out);
         backup2.setPersistit(_persistit);
         backup2.doRestore(file.getAbsolutePath());

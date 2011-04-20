@@ -490,6 +490,7 @@ public class StreamSaver extends Task {
         writeRecordCount(_dataRecordCount, _otherRecordCount);
         _dos.writeChar(RECORD_TYPE_END);
         writeTimestamp();
+        poll();
     }
 
     /**

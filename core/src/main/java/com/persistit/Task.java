@@ -18,6 +18,7 @@ package com.persistit;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TaskEndedException;
@@ -118,11 +119,11 @@ public abstract class Task implements Runnable {
      * {@link #poll} method throws a {@link TaskEndedException} to stop a
      * running task.
      */
-    protected boolean _stop;
+    protected AtomicBoolean _stop = new AtomicBoolean();
     /**
      * When set, the {@link #poll} method waits.
      */
-    protected boolean _suspend;
+    protected AtomicBoolean _suspend = new AtomicBoolean();
     /**
      * Most recently thrown Exception
      */
@@ -226,13 +227,13 @@ public abstract class Task implements Runnable {
             _state = STATE_EXPIRED;
             throw new TaskEndedException("Expired");
         }
-        if (_stop) {
+        if (_stop.get()) {
             _state = STATE_ENDED;
             throw new TaskEndedException("Stopped");
         }
-        if (_suspend) {
-            while (_suspend) {
-                if (_stop) {
+        if (_suspend.get()) {
+            while (_suspend.get()) {
+                if (_stop.get()) {
                     _state = STATE_ENDED;
                     throw new TaskEndedException("Stopped");
                 }
@@ -346,7 +347,7 @@ public abstract class Task implements Runnable {
      * 
      */
     public void stop() {
-        _stop = true;
+        _stop.set(true);
     }
 
     /**
@@ -355,7 +356,7 @@ public abstract class Task implements Runnable {
      * 
      */
     public void suspend() {
-        _suspend = true;
+        _suspend.set(true);
     }
 
     /**
@@ -364,7 +365,7 @@ public abstract class Task implements Runnable {
      * 
      */
     public void resume() {
-        _suspend = false;
+        _suspend.set(false);
     }
 
     /**

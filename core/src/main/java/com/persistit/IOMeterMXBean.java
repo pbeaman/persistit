@@ -59,6 +59,9 @@ public interface IOMeterMXBean {
     public final static String[] OPERATIONS = { "??", "CC", "RV", "WV", "RJ",
             "WJ", "TS", "TC", "SR", "DR", "DT", "XX", "EV", "FJ" };
 
+    public final static String[] SUMMARY_ITEMS = { "CC", "RV", "WV", "RJ",
+            "WJ", "EV", "FJ" };
+
     /**
      * @return the writePageSleepInterval
      */

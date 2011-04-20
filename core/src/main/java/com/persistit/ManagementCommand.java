@@ -47,22 +47,26 @@ public class ManagementCommand {
     }
 
     static {
-        COMMAND_SPECIFICATIONS.put(Backup.COMMAND_NAME, new CommandStruct(
-                Backup.COMMAND_NAME, Backup.class));
-        
+        COMMAND_SPECIFICATIONS.put(BackupTask.COMMAND_NAME, new CommandStruct(
+                BackupTask.COMMAND_NAME, BackupTask.class));
+
         COMMAND_SPECIFICATIONS.put(IntegrityCheck.COMMAND_NAME,
                 new CommandStruct(IntegrityCheck.COMMAND_NAME,
                         IntegrityCheck.class));
-        
+
         COMMAND_SPECIFICATIONS.put(StreamSaver.COMMAND_NAME, new CommandStruct(
                 StreamSaver.COMMAND_NAME, StreamSaver.class));
-        
-        COMMAND_SPECIFICATIONS.put(StreamLoader.COMMAND_NAME,
-                new CommandStruct(StreamLoader.COMMAND_NAME,
-                        StreamLoader.class));
-        
-        COMMAND_SPECIFICATIONS.put(TaskCheck.COMMAND_NAME,
-                new CommandStruct(TaskCheck.COMMAND_NAME, TaskCheck.class));
+
+        COMMAND_SPECIFICATIONS
+                .put(StreamLoader.COMMAND_NAME, new CommandStruct(
+                        StreamLoader.COMMAND_NAME, StreamLoader.class));
+
+        COMMAND_SPECIFICATIONS.put(TaskCheck.COMMAND_NAME, new CommandStruct(
+                TaskCheck.COMMAND_NAME, TaskCheck.class));
+
+        COMMAND_SPECIFICATIONS.put(StatisticsTask.COMMAND_NAME,
+                new CommandStruct(StatisticsTask.COMMAND_NAME,
+                        StatisticsTask.class));
     }
 
     public static ManagementCommand parse(final String commandLine) {

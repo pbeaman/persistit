@@ -151,7 +151,7 @@ public class StreamLoader extends Task {
     public void load(ImportHandler handler) throws IOException,
             PersistitException {
         while (readAndDispatchOneRecord(handler))
-            ;
+            poll();
     }
 
     private boolean readAndDispatchOneRecord(ImportHandler handler)

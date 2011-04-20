@@ -55,7 +55,7 @@ import com.persistit.TimestampAllocator.Checkpoint;
  * @author peter
  * 
  */
-public class Backup extends Task {
+public class BackupTask extends Task {
 
     static final String COMMAND_NAME = "backup";
     static final String[] ARG_TEMPLATE = new String[] {
@@ -184,39 +184,49 @@ public class Backup extends Task {
         final ZipOutputStream zos = new ZipOutputStream(
                 new BufferedOutputStream(new FileOutputStream(_toFile),
                         BUFFER_SIZE));
-        final byte[] buffer = new byte[65536];
-        zos.setLevel(_compressed ? ZipOutputStream.DEFLATED
-                : ZipOutputStream.STORED);
-        long size = 0;
-        for (final String file : _files) {
-            size += new File(file).length();
-        }
-        postMessage("Total size of files in backup set: " + formatedSize(size),
-                0);
-        for (final String path : _files) {
-            final File file = new File(path);
-            postMessage("Backing up " + path + " size=" + formatedSize(file.length()), 0);
-            final ZipEntry ze = new ZipEntry(path);
-            ze.setSize(file.length());
-            ze.setTime(file.lastModified());
-            zos.putNextEntry(ze);
-            long progress = 0;
-            long fileSize = 0;
-            final BufferedInputStream is = new BufferedInputStream(
-                    new FileInputStream(file), BUFFER_SIZE);
-            int readCount = 0;
-            while ((readCount = is.read(buffer, 0, buffer.length)) != -1) {
-                zos.write(buffer, 0, readCount);
-                progress += readCount;
-                fileSize += readCount;
-                if (progress > PROGRESS_MARK_AT) {
-                    progress -= PROGRESS_MARK_AT;
-                    appendMessage(" (" + formatedSize(fileSize) + ")", 1);
+        try {
+            final byte[] buffer = new byte[65536];
+            zos.setLevel(_compressed ? ZipOutputStream.DEFLATED
+                    : ZipOutputStream.STORED);
+            long size = 0;
+            for (final String file : _files) {
+                size += new File(file).length();
+            }
+            postMessage("Total size of files in backup set: "
+                    + formatedSize(size), 0);
+            for (final String path : _files) {
+                final File file = new File(path);
+                postMessage(
+                        "Backing up " + path + " size="
+                                + formatedSize(file.length()), 0);
+                final ZipEntry ze = new ZipEntry(path);
+                ze.setSize(file.length());
+                ze.setTime(file.lastModified());
+                zos.putNextEntry(ze);
+                long progress = 0;
+                long fileSize = 0;
+                final BufferedInputStream is = new BufferedInputStream(
+                        new FileInputStream(file), BUFFER_SIZE);
+                try {
+                    int readCount = 0;
+                    while ((readCount = is.read(buffer, 0, buffer.length)) != -1) {
+                        zos.write(buffer, 0, readCount);
+                        progress += readCount;
+                        fileSize += readCount;
+                        if (progress > PROGRESS_MARK_AT) {
+                            progress -= PROGRESS_MARK_AT;
+                            appendMessage(" (" + formatedSize(fileSize) + ")",
+                                    1);
+                        }
+                        poll();
+                    }
+                } finally {
+                    is.close();
                 }
             }
-            is.close();
+        } finally {
+            zos.close();
         }
-        zos.close();
     }
 
     /**
