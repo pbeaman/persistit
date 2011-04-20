@@ -242,9 +242,9 @@ public class BufferPool {
 
     int flush() {
         int unavailable = 0;
+        final BitSet enqueued = new BitSet(_bufferCount);
         for (int retry = 0; retry < MAX_FLUSH_RETRY_COUNT; retry++) {
             unavailable = 0;
-            final BitSet enqueued = new BitSet(_bufferCount);
             for (int poolIndex = 0; poolIndex < _bufferCount; poolIndex++) {
                 // prevent starvation: flush only enqueues a dirty buffer once
                 if (!enqueued.get(poolIndex)) {

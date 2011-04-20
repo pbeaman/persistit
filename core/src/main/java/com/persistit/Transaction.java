@@ -1916,9 +1916,6 @@ public class Transaction {
             setupExchanges();
         }
 
-        int currentTreeHandle = -1;
-        Tree currentTree = null;
-
         final Set<Tree> removedTrees = new HashSet<Tree>();
         final ByteBuffer bb = _txnBuffer._bb;
         bb.mark();
@@ -1938,11 +1935,7 @@ public class Transaction {
             case SR.TYPE: {
                 final int keySize = SR.getKeySize(bb);
                 final int treeHandle = SR.getTreeHandle(bb);
-                if (treeHandle != currentTreeHandle || currentTree == null) {
-                    currentTree = treeForHandle(treeHandle);
-                    currentTreeHandle = treeHandle;
-                    _ex2.setTree(currentTree);
-                }
+                _ex2.setTree(treeForHandle(treeHandle));
                 final Key key = _ex2.getKey();
                 final Value value = _ex2.getValue();
                 System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD,
@@ -1954,19 +1947,15 @@ public class Transaction {
                         + keySize, value.getEncodedBytes(), 0, valueSize);
                 value.setEncodedSize(valueSize);
                 _ex2.storeInternal(key, value, 0, false, false);
-                removedTrees.remove(currentTree);
+                removedTrees.remove(_ex2.getTree());
                 break;
             }
 
             case DR.TYPE: {
                 final int key1Size = DR.getKey1Size(bb);
                 final int treeHandle = DR.getTreeHandle(bb);
-                if (treeHandle != currentTreeHandle || currentTree == null) {
-                    currentTree = treeForHandle(treeHandle);
-                    currentTreeHandle = treeHandle;
-                    _ex2.setTree(currentTree);
-                }
-                if (removedTrees.contains(currentTree)) {
+                _ex2.setTree(treeForHandle(treeHandle));
+                if (removedTrees.contains(_ex2.getTree())) {
                     break;
                 }
                 final Key key1 = _ex2.getAuxiliaryKey1();
@@ -1985,11 +1974,8 @@ public class Transaction {
 
             case DT.TYPE:
                 final int treeHandle = DT.getTreeHandle(bb);
-                if (treeHandle != currentTreeHandle || currentTree == null) {
-                    currentTree = treeForHandle(treeHandle);
-                    currentTreeHandle = treeHandle;
-                }
-                removedTrees.add(currentTree);
+                final Tree tree = treeForHandle(treeHandle);
+                removedTrees.add(tree);
                 break;
 
             case CU.TYPE:

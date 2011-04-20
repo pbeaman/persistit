@@ -28,7 +28,7 @@ public class StatisticsTaskTest extends PersistitUnitTestCase {
         task.setup(1, "stats", "cls", 0, 5);
         final File file = File.createTempFile("statistics", ".log");
         file.deleteOnExit();
-        task.setupTaskWithArgParser(new String[] {"-a", "delay=1", "count=30", "file=" + file.getAbsolutePath()});
+        task.setupTaskWithArgParser(new String[] {"-a", "-r", "delay=1", "count=10", "file=" + file.getAbsolutePath()});
         task.run();
         
     }
