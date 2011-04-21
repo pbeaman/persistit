@@ -60,7 +60,7 @@ import com.persistit.exception.PersistitException;
  */
 class ManagementImpl implements Management {
 
-    private final static long MAX_STALE = 5000;
+    private final static long MAX_STALE = 100;
 
     private static boolean _localRegistryCreated;
     private static long _taskIdCounter;

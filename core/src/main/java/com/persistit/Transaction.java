@@ -583,6 +583,15 @@ public class Transaction {
         return _persistit.getJournalManager().handleForTree(tree);
     }
 
+    /**
+     * Given a handle, return the corresponding Tree. For better performance,
+     * this method caches a handle->Tree map privately in this Transaction to
+     * avoid synchronizing on the <code>JournalManager</code>.
+     * 
+     * @param handle
+     * @return the corresponding <code>Tree</code>
+     * @throws PersistitException
+     */
     private Tree treeForHandle(int handle) throws PersistitException {
         final Integer key = Integer.valueOf(handle);
         WeakReference<Tree> ref = _treeCache.get(key);
@@ -1999,8 +2008,6 @@ public class Transaction {
             setupExchanges();
         }
         Value txnValue = _ex1.getValue();
-        int currentTreeHandle = -1;
-        Tree currentTree = null;
 
         final Set<Tree> removedTrees = new HashSet<Tree>();
 
@@ -2017,12 +2024,7 @@ public class Transaction {
                 if (type != 'R' && type != 'S' && type != 'D')
                     continue;
 
-                if (treeHandle != currentTreeHandle || currentTree == null) {
-                    currentTree = treeForHandle(treeHandle);
-                    currentTreeHandle = treeHandle;
-                }
-
-                _ex2.setTree(currentTree);
+                _ex2.setTree(treeForHandle(treeHandle));
                 int offset = key1.getIndex();
                 int size = key1.getEncodedSize() - offset;
 

@@ -453,7 +453,7 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     Tree treeForHandle(final int handle) throws PersistitException {
-        final TreeDescriptor td = _handleToTreeMap.get(Integer.valueOf(handle));
+        final TreeDescriptor td = lookupTreeHandle(handle);
         if (td == null) {
             return null;
         }
@@ -475,6 +475,10 @@ public class JournalManager implements JournalManagerMXBean,
     @Override
     public synchronized VolumeDescriptor lookupVolumeHandle(final int handle) {
         return _handleToVolumeMap.get(Integer.valueOf(handle));
+    }
+    
+    public synchronized TreeDescriptor lookupTreeHandle(final int handle) {
+        return _handleToTreeMap.get(Integer.valueOf(handle));
     }
 
     private void readFully(final ByteBuffer bb, final long address)
