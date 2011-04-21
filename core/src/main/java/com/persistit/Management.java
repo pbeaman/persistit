@@ -858,17 +858,17 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         @ConstructorProperties({ "bufferSize", "bufferCount", "getCounter",
-                "hitCounter", "validPageCount", "dirtyPageCount",
+                "hitCounter", "readCounter", "validPageCount", "dirtyPageCount",
                 "readerClaimedPageCount", "writerClaimedPageCount" })
         public BufferPoolInfo(int bufferSize, int bufferCount, long getCounter,
-                long hitCounter, int validPageCount, int dirtyPageCount,
+                long hitCounter, long readCounter, int validPageCount, int dirtyPageCount,
                 int readerClaimedPageCount, int writerClaimedPageCount) {
             super();
             this.bufferSize = bufferSize;
             this.bufferCount = bufferCount;
             this.getCounter = getCounter;
             this.hitCounter = hitCounter;
-            this.readCounter = getCounter - hitCounter;
+            this.readCounter = readCounter;
             this.validPageCount = validPageCount;
             this.dirtyPageCount = dirtyPageCount;
             this.readerClaimedPageCount = readerClaimedPageCount;

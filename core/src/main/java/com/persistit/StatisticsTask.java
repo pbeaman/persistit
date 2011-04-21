@@ -40,6 +40,7 @@ public class StatisticsTask extends Task {
             "_flag|v|Show values" };
 
     static final long NANOS_PER_MILLI = 1000000;
+    static final long NANOS_PER_SECOND = 1000000000;
 
     long _delay;
     long _count;
@@ -86,11 +87,11 @@ public class StatisticsTask extends Task {
         public String toString(Display display) {
             switch (display) {
             case ABSOLUTE:
-                return String.format("%s=%,d", _name, _value);
+                return String.format("%s=%d", _name, _value);
             case CHANGE:
-                return String.format("%s=%,d", _name, _change);
+                return String.format("%s=%d", _name, _change);
             case RATE:
-                return String.format("%s=%,d", _name, rate());
+                return String.format("%s=%d/s", _name, rate());
             default:
                 throw new IllegalStateException();
             }
@@ -98,7 +99,7 @@ public class StatisticsTask extends Task {
 
         public long rate() {
             if (_interval > 0) {
-                return (_change * NANOS_PER_MILLI) / _interval;
+                return (_change * NANOS_PER_SECOND) / _interval;
             }
             return -1;
         }
@@ -146,7 +147,7 @@ public class StatisticsTask extends Task {
 
         for (long count = 0; count < _count || count == 0; count++) {
             if (count != 0) {
-                next += (_delay * 1000 * NANOS_PER_MILLI);
+                next += (_delay * NANOS_PER_SECOND);
                 try {
                     while (true) {
                         poll();
