@@ -1267,14 +1267,14 @@ public class JournalManager implements JournalManagerMXBean,
         //
         // If the current journal file has room for the record, then return.
         //
-        if (_writeBuffer.remaining() >= size + JE.OVERHEAD) {
+        if (_writeBuffer.remaining() > size + JE.OVERHEAD) {
             return newJournalFile;
         }
         //
         // Otherwise, flush the write buffer and try again
         flush();
 
-        if (_writeBuffer.remaining() >= size + JE.OVERHEAD) {
+        if (_writeBuffer.remaining() > size + JE.OVERHEAD) {
             return newJournalFile;
         }
         //

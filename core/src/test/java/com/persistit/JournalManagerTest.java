@@ -231,6 +231,45 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         rman.init(path);
         assertTrue(rman.analyze());
     }
+    
+    @Test
+    public void testRollover768048() throws Exception {
+        final Exchange exchange = _persistit.getExchange(_volumeName,
+                "JournalManagerTest1", true);
+        final JournalManager jman = new JournalManager(_persistit);
+        final String path = UnitTestProperties.DATA_PATH
+                + "/JournalManagerTest_journal_";
+        jman.init(null, path, 100 * 1000 * 1000);
+        final int treeHandle = jman.handleForTree(exchange.getTree());
+        exchange.clear().append("key");
+        final StringBuilder sb = new StringBuilder(1000000);
+        for (int i = 0; sb.length() < 1000; i++) {
+            sb.append(String.format("%018d  ", i));
+        }
+        final String kilo = sb.toString();
+        exchange.getValue().put(kilo);
+        int overhead = JournalRecord.SR.OVERHEAD + exchange.getKey().getEncodedSize() + JournalRecord.JE.OVERHEAD + 1;
+        long timestamp = 0;
+        long addressBeforeRollover = -1;
+        long addressAfterRollover = -1;
+        while (jman.getCurrentAddress() < 300 * 1000 * 1000) {
+            long remaining = jman.getBlockSize() - (jman.getCurrentAddress() % jman.getBlockSize()) - 1;
+            if (remaining == JournalRecord.JE.OVERHEAD) {
+                addressBeforeRollover = jman.getCurrentAddress();
+            }
+            long size = remaining - overhead;
+            if (size > 0 && size < sb.length()) {
+                exchange.getValue().put(kilo.substring(0, (int)size));
+            } else {
+                exchange.getValue().put(kilo);
+            }
+            jman.writeStoreRecordToJournal(++timestamp, treeHandle, exchange.getKey(), exchange.getValue());
+            if (remaining ==  JournalRecord.JE.OVERHEAD) {
+                addressAfterRollover = jman.getCurrentAddress();
+                assertTrue(addressAfterRollover - addressBeforeRollover < 2000);
+            }
+        }
+    }
 
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName,
