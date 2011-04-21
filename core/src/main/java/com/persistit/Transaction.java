@@ -18,6 +18,7 @@ package com.persistit;
 import static com.persistit.JournalRecord.getLength;
 import static com.persistit.JournalRecord.getType;
 
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -347,6 +348,8 @@ public class Transaction {
 
     private Checkpoint _transactionalCacheCheckpoint;
 
+    private Map<Integer, WeakReference<Tree>> _treeCache = new HashMap<Integer, WeakReference<Tree>>();
+
     private class TransactionBuffer implements TransactionWriter {
 
         private ByteBuffer _bb = ByteBuffer.allocate(DEFAULT_TXN_BUFFER_SIZE);
@@ -576,13 +579,30 @@ public class Transaction {
         }
     }
 
-    private synchronized int handleForTree(Tree tree) throws PersistitException {
+    private int handleForTree(Tree tree) throws PersistitException {
         return _persistit.getJournalManager().handleForTree(tree);
     }
 
-    private synchronized Tree treeForHandle(int handle)
-            throws PersistitException {
-        return _persistit.getJournalManager().treeForHandle(handle);
+    /**
+     * Given a handle, return the corresponding Tree. For better performance,
+     * this method caches a handle->Tree map privately in this Transaction to
+     * avoid synchronizing on the <code>JournalManager</code>.
+     * 
+     * @param handle
+     * @return the corresponding <code>Tree</code>
+     * @throws PersistitException
+     */
+    private Tree treeForHandle(int handle) throws PersistitException {
+        final Integer key = Integer.valueOf(handle);
+        WeakReference<Tree> ref = _treeCache.get(key);
+        Tree tree = ref == null ? null : ref.get();
+        if (tree == null) {
+            tree = _persistit.getJournalManager().treeForHandle(handle);
+            if (tree != null) {
+                _treeCache.put(key, new WeakReference<Tree>(tree));
+            }
+        }
+        return tree;
     }
 
     /**
@@ -1905,9 +1925,6 @@ public class Transaction {
             setupExchanges();
         }
 
-        int currentTreeHandle = -1;
-        Tree currentTree = null;
-
         final Set<Tree> removedTrees = new HashSet<Tree>();
         final ByteBuffer bb = _txnBuffer._bb;
         bb.mark();
@@ -1927,11 +1944,7 @@ public class Transaction {
             case SR.TYPE: {
                 final int keySize = SR.getKeySize(bb);
                 final int treeHandle = SR.getTreeHandle(bb);
-                if (treeHandle != currentTreeHandle || currentTree == null) {
-                    currentTree = treeForHandle(treeHandle);
-                    currentTreeHandle = treeHandle;
-                    _ex2.setTree(currentTree);
-                }
+                _ex2.setTree(treeForHandle(treeHandle));
                 final Key key = _ex2.getKey();
                 final Value value = _ex2.getValue();
                 System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD,
@@ -1943,19 +1956,15 @@ public class Transaction {
                         + keySize, value.getEncodedBytes(), 0, valueSize);
                 value.setEncodedSize(valueSize);
                 _ex2.storeInternal(key, value, 0, false, false);
-                removedTrees.remove(currentTree);
+                removedTrees.remove(_ex2.getTree());
                 break;
             }
 
             case DR.TYPE: {
                 final int key1Size = DR.getKey1Size(bb);
                 final int treeHandle = DR.getTreeHandle(bb);
-                if (treeHandle != currentTreeHandle || currentTree == null) {
-                    currentTree = treeForHandle(treeHandle);
-                    currentTreeHandle = treeHandle;
-                    _ex2.setTree(currentTree);
-                }
-                if (removedTrees.contains(currentTree)) {
+                _ex2.setTree(treeForHandle(treeHandle));
+                if (removedTrees.contains(_ex2.getTree())) {
                     break;
                 }
                 final Key key1 = _ex2.getAuxiliaryKey1();
@@ -1974,11 +1983,8 @@ public class Transaction {
 
             case DT.TYPE:
                 final int treeHandle = DT.getTreeHandle(bb);
-                if (treeHandle != currentTreeHandle || currentTree == null) {
-                    currentTree = treeForHandle(treeHandle);
-                    currentTreeHandle = treeHandle;
-                }
-                removedTrees.add(currentTree);
+                final Tree tree = treeForHandle(treeHandle);
+                removedTrees.add(tree);
                 break;
 
             case CU.TYPE:
@@ -2002,8 +2008,6 @@ public class Transaction {
             setupExchanges();
         }
         Value txnValue = _ex1.getValue();
-        int currentTreeHandle = -1;
-        Tree currentTree = null;
 
         final Set<Tree> removedTrees = new HashSet<Tree>();
 
@@ -2020,12 +2024,7 @@ public class Transaction {
                 if (type != 'R' && type != 'S' && type != 'D')
                     continue;
 
-                if (treeHandle != currentTreeHandle || currentTree == null) {
-                    currentTree = treeForHandle(treeHandle);
-                    currentTreeHandle = treeHandle;
-                }
-
-                _ex2.setTree(currentTree);
+                _ex2.setTree(treeForHandle(treeHandle));
                 int offset = key1.getIndex();
                 int size = key1.getEncodedSize() - offset;
 

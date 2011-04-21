@@ -18,6 +18,8 @@ package com.persistit.unit;
 import java.io.IOException;
 import java.util.Properties;
 
+import org.junit.Test;
+
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
@@ -29,6 +31,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
 
     private String _volumeName = "persistit";
 
+    @Test
     public void test1() throws PersistitException {
         store1();
         fetch1a();
@@ -121,6 +124,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         assertEquals(0, count);
     }
 
+    @Test
     public void test2() throws PersistitException {
         store2();
         fetch2();
@@ -168,6 +172,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         }
     }
 
+    @Test
     public void test3() throws PersistitException {
         // Tests fix for split calculation failure.
         //
@@ -226,6 +231,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
 
     }
 
+    @Test
     public void test4() throws PersistitException {
         // Tests join calculation.
         //
@@ -336,6 +342,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
 
     }
 
+    @Test
     public void test5() throws PersistitException {
         final StringBuilder sb = new StringBuilder(1024 * 1024 * 16);
         final StringBuilder sb2 = new StringBuilder(1024 * 1024 * 16);

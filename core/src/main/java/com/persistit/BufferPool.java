@@ -121,14 +121,24 @@ public class BufferPool {
     private final Object[] _lock;
 
     /**
-     * Count of buffer pool gets
+     * Count of buffer pool misses (buffer not found in pool)
      */
-    private AtomicLong _getCounter = new AtomicLong();
+    private AtomicLong _missCounter = new AtomicLong();
 
     /**
      * Count of buffer pool hits (buffer found in pool)
      */
     private AtomicLong _hitCounter = new AtomicLong();
+
+    /**
+     * Count of newly created pages
+     */
+    private AtomicLong _newCounter = new AtomicLong();
+
+    /**
+     * Count of valid buffers evicted to make room for another page.
+     */
+    private AtomicLong _evictCounter = new AtomicLong();
 
     /**
      * Indicates that Persistit wants to shut down fast, without flushing all
@@ -241,24 +251,25 @@ public class BufferPool {
     }
 
     int flush() {
-        final BitSet bits = new BitSet(_bufferCount);
         int unavailable = 0;
+        final BitSet enqueued = new BitSet(_bufferCount);
         for (int retry = 0; retry < MAX_FLUSH_RETRY_COUNT; retry++) {
             unavailable = 0;
             for (int poolIndex = 0; poolIndex < _bufferCount; poolIndex++) {
-                if (!bits.get(poolIndex)) {
+                // prevent starvation: flush only enqueues a dirty buffer once
+                if (!enqueued.get(poolIndex)) {
                     final Buffer buffer = _buffers[poolIndex];
                     final int bucket = bucket(buffer);
                     synchronized (_lock[bucket]) {
-                        if (buffer.isDirty() && !buffer.isEnqueued()) {
+                        if (buffer.isDirty() && !buffer.isEnqueued()
+                                && !buffer.isTransient()) {
                             if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
                                 enqueueDirtyPage(buffer, bucket,
                                         !buffer.isTransient(), 0, 0);
+                                enqueued.set(poolIndex);
                             } else {
                                 unavailable++;
                             }
-                        } else {
-                            bits.set(poolIndex);
                         }
                     }
                 }
@@ -327,9 +338,10 @@ public class BufferPool {
     void populateBufferPoolInfo(ManagementImpl.BufferPoolInfo info) {
         info.bufferCount = _bufferCount;
         info.bufferSize = _bufferSize;
-        info.getCounter = _getCounter.get();
-        info.hitCounter = _hitCounter.get();
-        info.readCounter = info.getCounter - info.hitCounter;
+        info.missCount = _missCounter.get();
+        info.hitCount = _hitCounter.get();
+        info.newCount = _newCounter.get();
+        info.evictCount = _evictCounter.get();
         int validPages = 0;
         int dirtyPages = 0;
         int readerClaimedPages = 0;
@@ -506,12 +518,13 @@ public class BufferPool {
     }
 
     /**
-     * @return The count of lookup operations for pages images in this pool.
-     *         This number, in comparison with the hit counter, indicates how
-     *         effective the cache is in reducing disk I/O.
+     * @return The count of lookup operations for pages images in this pool that
+     *         required a physical read operation. This number, in comparison
+     *         with the hit counter, indicates how effective the cache is in
+     *         reducing disk I/O.
      */
-    public long getGetCounter() {
-        return _getCounter.get();
+    public long getMissCounter() {
+        return _missCounter.get();
     }
 
     /**
@@ -526,32 +539,36 @@ public class BufferPool {
     }
 
     /**
-     * Resets the get and hit counters to zero.
+     * 
+     * @return The count of buffers newly created in this pool. Each time a new
+     *         page is added to a Volume, this counter is incremented.
      */
-    public void resetCounters() {
-        _getCounter.set(0);
-        _hitCounter.set(0);
+    public long getNewCounter() {
+        return _newCounter.get();
     }
 
     /**
-     * Resets the get and hit counters to supplied values.
-     * 
-     * @param gets
-     * @param hits
+     * Resets the get and hit counters to zero.
      */
-    public void resetCounters(long gets, long hits) {
-        _getCounter.set(gets);
-        _hitCounter.set(hits);
+    public void resetCounters() {
+        _missCounter.set(0);
+        _hitCounter.set(0);
+        _newCounter.set(0);
+        _evictCounter.set(0);
     }
 
     private void bumpHitCounter() {
-        _getCounter.incrementAndGet();
         _hitCounter.incrementAndGet();
     }
 
-    private void bumpGetCounter() {
-        _getCounter.incrementAndGet();
+    private void bumpMissCounter() {
+        _missCounter.incrementAndGet();
     }
+    
+    private void bumpNewCounter() {
+        _newCounter.incrementAndGet();
+    }
+    
 
     /**
      * Get the "hit ratio" - the number of hits divided by the number of overall
@@ -562,8 +579,9 @@ public class BufferPool {
      * @return The ratio
      */
     public double getHitRatio() {
-        final long getCounter = _getCounter.get();
         final long hitCounter = _hitCounter.get();
+        final long getCounter = hitCounter + _missCounter.get()
+                + _newCounter.get();
         if (getCounter == 0)
             return 0.0;
         else
@@ -845,7 +863,7 @@ public class BufferPool {
                             buffer.load(vol, page);
                             loaded = true;
                             vol.bumpGetCounter();
-                            bumpGetCounter();
+                            bumpMissCounter();
                         } finally {
                             if (!loaded) {
                                 invalidate(buffer);
@@ -855,6 +873,7 @@ public class BufferPool {
                     } else {
                         buffer.clear();
                         buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
+                        bumpNewCounter();
                     }
                     if (!writer) {
                         buffer.releaseWriterClaim();
@@ -1007,6 +1026,7 @@ public class BufferPool {
         }
         if (found) {
             if (buffer.isValid()) {
+                _evictCounter.incrementAndGet();
                 _persistit.getIOMeter().chargeEvictPageFromPool(
                         buffer.getVolume(), buffer.getPageAddress(),
                         buffer.getBufferSize(), buffer.getIndex());
@@ -1095,7 +1115,7 @@ public class BufferPool {
         for (int index = 0; index < _buffers.length; index++) {
             final Buffer buffer = _buffers[index];
             synchronized (buffer._lock) {
-                if (buffer.isDirty()) {
+                if (buffer.isDirty() && !buffer.isTransient()) {
                     long timestamp = buffer.getTimestamp();
                     if (timestamp < earliestDirtyTimestamp) {
                         earliestDirtyTimestamp = timestamp;
@@ -1109,7 +1129,6 @@ public class BufferPool {
     private class DirtyPageCollector extends IOTaskRunnable {
         private boolean _clean;
         private boolean _wasClosed;
-        private boolean _urgent;
 
         DirtyPageCollector() {
             super(BufferPool.this._persistit);
@@ -1117,11 +1136,6 @@ public class BufferPool {
 
         void start() {
             start("PAGE_COLLECTOR:" + _bufferSize, _writerPollInterval);
-        }
-
-        synchronized void urgent() {
-            _urgent = true;
-            kick();
         }
 
         public void runTask() {
@@ -1136,8 +1150,8 @@ public class BufferPool {
             return _fastClose.get() || _clean && _wasClosed;
         }
 
-        protected synchronized long pollInterval() {
-            return _wasClosed || _urgent ? RETRY_SLEEP_TIME
+        protected long pollInterval() {
+            return _wasClosed || _urgent.get() ? RETRY_SLEEP_TIME
                     : _writerPollInterval;
         }
 
@@ -1157,7 +1171,7 @@ public class BufferPool {
                 buffer = _fixed[bucket];
                 while (buffer != null) {
                     if (buffer.isDirty() && !buffer.isEnqueued()) {
-                        if (enqueueDirtyPage(buffer, bucket, _urgent,
+                        if (enqueueDirtyPage(buffer, bucket, _urgent.get(),
                                 countFixed, maxCount)) {
                             countFixed++;
                         }
@@ -1174,7 +1188,7 @@ public class BufferPool {
                         Debug.$assert(buffer.getNext() != buffer);
                     if (buffer.isDirty()) {
                         if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket, _urgent,
+                            if (enqueueDirtyPage(buffer, bucket, _urgent.get(),
                                     countInvalid, maxCount)) {
                                 countInvalid++;
                             }
@@ -1189,7 +1203,7 @@ public class BufferPool {
                 while (buffer != null) {
                     if (buffer.isDirty()) {
                         if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket, _urgent,
+                            if (enqueueDirtyPage(buffer, bucket, _urgent.get(),
                                     countLru, maxCount)) {
                                 countLru++;
                             }
@@ -1204,7 +1218,7 @@ public class BufferPool {
 
                 }
                 if (countInvalid + countLru > 0) {
-                    _urgent = false;
+                    _urgent.set(false);
                 }
             }
             // checkEnqueued();

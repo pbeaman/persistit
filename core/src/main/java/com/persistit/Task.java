@@ -16,7 +16,9 @@
 package com.persistit;
 
 import java.io.PrintStream;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TaskEndedException;
@@ -117,11 +119,11 @@ public abstract class Task implements Runnable {
      * {@link #poll} method throws a {@link TaskEndedException} to stop a
      * running task.
      */
-    protected boolean _stop;
+    protected AtomicBoolean _stop = new AtomicBoolean();
     /**
      * When set, the {@link #poll} method waits.
      */
-    protected boolean _suspend;
+    protected AtomicBoolean _suspend = new AtomicBoolean();
     /**
      * Most recently thrown Exception
      */
@@ -145,9 +147,9 @@ public abstract class Task implements Runnable {
     protected int _messageLogVerbosity;
     /**
      * Collection of messages posted by the task. Note we are using JDK1.1
-     * Vector to help port to J2ME.
+     * ArrayList to help port to J2ME.
      */
-    protected Vector _messageLog = new Vector();
+    protected ArrayList<String> _messageLog = new ArrayList<String>();
     /**
      * An optional PrintStream - if not null, {@link #postMessage(String, int)}
      * writes messages to it.
@@ -159,6 +161,11 @@ public abstract class Task implements Runnable {
      */
     protected Thread _thread;
 
+    static boolean isFinalStatus(final int statusCode) {
+        return statusCode == STATE_DONE || statusCode == STATE_ENDED
+                || statusCode == STATE_EXPIRED || statusCode == STATE_FAILED;
+    }
+
     protected Task() {
 
     }
@@ -167,11 +174,14 @@ public abstract class Task implements Runnable {
         setPersistit(persistit);
     }
 
-    protected void setPersistit(final Persistit persistit) {
+    /**
+     * Set the Persistit instance to be accessed by this Task.
+     * 
+     * @param persistit
+     */
+    public void setPersistit(final Persistit persistit) {
         _persistit = persistit;
     }
-    
-    protected abstract String[] argTemplate();
 
     /**
      * Accept and process an array of input arguments. The number and format of
@@ -180,7 +190,17 @@ public abstract class Task implements Runnable {
      * @param args
      * @throws Exception
      */
-    protected abstract void setupTask(String[] args) throws Exception;
+    protected abstract void setupArgs(String[] args) throws Exception;
+
+    /**
+     * Accept and process of input arguments from an {@link ArgParser} whose
+     * argument template is specified by the specific <code>Task</code>.
+     * 
+     * @param ap
+     *            The <code>ArgParser</code> holding parsed argument values.
+     * @throws Exception
+     */
+    protected abstract void setupTaskWithArgParser(String[] args) throws Exception;
 
     /**
      * Called by a newly created <code>Thread</code> to perform the task.
@@ -207,13 +227,13 @@ public abstract class Task implements Runnable {
             _state = STATE_EXPIRED;
             throw new TaskEndedException("Expired");
         }
-        if (_stop) {
+        if (_stop.get()) {
             _state = STATE_ENDED;
             throw new TaskEndedException("Stopped");
         }
-        if (_suspend) {
-            while (_suspend) {
-                if (_stop) {
+        if (_suspend.get()) {
+            while (_suspend.get()) {
+                if (_stop.get()) {
                     _state = STATE_ENDED;
                     throw new TaskEndedException("Stopped");
                 }
@@ -239,7 +259,7 @@ public abstract class Task implements Runnable {
      */
     protected Tree[] parseTreeList(String specification)
             throws PersistitException {
-        Vector vector = new Vector();
+        List<Tree> list = new ArrayList<Tree>();
         StringBuilder sb = new StringBuilder();
         Volume volume = null;
         int end = specification.length();
@@ -257,7 +277,7 @@ public abstract class Task implements Runnable {
                 } else {
                     Tree tree = volume.getTree(name, false);
                     if (tree != null) {
-                        vector.add(tree);
+                        list.add(tree);
                     }
                 }
                 if (c != ',')
@@ -266,14 +286,8 @@ public abstract class Task implements Runnable {
                 sb.append((char) c);
         }
 
-        Tree[] result = new Tree[vector.size()];
-        //
-        // Avoiding modern collections and toArray() for possible
-        // backward compatibility with J2ME
-        //
-        for (int index = 0; index < result.length; index++) {
-            result[index] = (Tree) vector.get(index);
-        }
+        Tree[] result = (Tree[]) list.toArray(new Tree[list.size()]);
+
         return result;
     }
 
@@ -305,13 +319,12 @@ public abstract class Task implements Runnable {
      * @throws Exception
      */
     public void setup(long taskId, String description, String owner,
-            String[] args, long maxTime, int verbosity) throws Exception {
+            long maxTime, int verbosity) throws Exception {
         _taskId = taskId;
         _description = description;
         _owner = owner;
         _messageLogVerbosity = verbosity;
         _expirationTime = maxTime > 0 ? now() + maxTime : Long.MAX_VALUE;
-        setupTask(args);
     }
 
     /**
@@ -334,7 +347,7 @@ public abstract class Task implements Runnable {
      * 
      */
     public void stop() {
-        _stop = true;
+        _stop.set(true);
     }
 
     /**
@@ -343,7 +356,7 @@ public abstract class Task implements Runnable {
      * 
      */
     public void suspend() {
-        _suspend = true;
+        _suspend.set(true);
     }
 
     /**
@@ -352,7 +365,7 @@ public abstract class Task implements Runnable {
      * 
      */
     public void resume() {
-        _suspend = false;
+        _suspend.set(false);
     }
 
     /**
@@ -484,7 +497,7 @@ public abstract class Task implements Runnable {
                 int index = _messageLog.size() - 1;
                 if (index >= 0) {
                     String s = (String) _messageLog.get(index) + fragment;
-                    _messageLog.setElementAt(s, index);
+                    _messageLog.set(index, s);
                 }
             }
             if (_messageStream != null) {
@@ -581,6 +594,7 @@ public abstract class Task implements Runnable {
             boolean clearMessages) {
         ts.taskId = _taskId;
         ts.state = _state;
+        ts.stateName = STATE_NAMES[_state];
         ts.description = _description;
         ts.owner = _owner;
         ts.startTime = _startTime;
@@ -595,5 +609,9 @@ public abstract class Task implements Runnable {
             if (clearMessages)
                 cullMessages(Integer.MAX_VALUE);
         }
+    }
+
+    public boolean isImmediate() {
+        return false;
     }
 }

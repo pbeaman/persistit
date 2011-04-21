@@ -41,6 +41,7 @@ public class UnitTestProperties {
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
         p.setProperty("rmiport", System.getProperty("rmiport", "8081"));
+        p.setProperty("jmx", "true");
         return p;
     }
 
@@ -87,7 +88,7 @@ public class UnitTestProperties {
         return p;
     }
 
-    private final static void cleanUpDirectory(final File file) {
+    public final static void cleanUpDirectory(final File file) {
         if (!file.exists()) {
             file.mkdirs();
             return;
@@ -99,7 +100,7 @@ public class UnitTestProperties {
         }
     }
 
-    private final static void cleanUpFiles(final File[] files) {
+    public final static void cleanUpFiles(final File[] files) {
         for (final File file : files) {
             if (file.isDirectory()) {
                 cleanUpDirectory(file);

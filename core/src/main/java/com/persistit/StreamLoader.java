@@ -35,15 +35,14 @@ import com.persistit.exception.PersistitException;
  */
 public class StreamLoader extends Task {
     
-    private final static String[] ARG_TEMPLATE = {
+    final static String COMMAND_NAME = "load";
+    final static String[] ARG_TEMPLATE = {
         "file|string:|Load from file path",
         "volume|string:|Regular expression to select volume(s) by name; empty for all",
         "tree|string:|Regular expression to select tree(s) by name; empty for all",
         "keyfilter|string:|KeyFilter expression to select keys to load",
-        "_flags|V|Create missing Volumes",
-        "_flags|T|Create missing Trees",
-        "_flags|v|Don't create missing Volumes (default)",
-        "_flags|t|Don't create missing Trees (default)"
+        "_flag|v|Don't create missing Volumes (Default is to create them)",
+        "_flag|t|Don't create missing Trees (Default is to create them)"
         };
     
     /**
@@ -152,7 +151,7 @@ public class StreamLoader extends Task {
     public void load(ImportHandler handler) throws IOException,
             PersistitException {
         while (readAndDispatchOneRecord(handler))
-            ;
+            poll();
     }
 
     private boolean readAndDispatchOneRecord(ImportHandler handler)
@@ -421,7 +420,7 @@ public class StreamLoader extends Task {
     }
 
     @Override
-    protected void setupTask(String[] args) throws Exception {
+    protected void setupArgs(String[] args) throws Exception {
         _dis = new DataInputStream(new BufferedInputStream(new FileInputStream(
                 args[0]), DEFAULT_BUFFER_SIZE));
         _taskSelectedVolumePattern = args.length > 1 ? args[1] : null;
@@ -433,10 +432,17 @@ public class StreamLoader extends Task {
     
     
     @Override
-    protected String[] argTemplate() {
-        return ARG_TEMPLATE;
+    public void setupTaskWithArgParser(final String[] args) throws Exception {
+        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
+        _dis = new DataInputStream(new BufferedInputStream(new FileInputStream(
+                ap.getStringValue("file")), DEFAULT_BUFFER_SIZE));
+        _taskSelectedVolumePattern = ap.getStringValue("volume");
+        _taskSelectedTreePattern = ap.getStringValue("tree");
+        _taskKeyFilterString = ap.getStringValue("keyfilter");
+        _taskCreateMissingVolumes = !ap.isFlag('v');
+        _taskCreateMissingTrees = !ap.isFlag('t');
     }
-
+    
     @Override
     public void runTask() throws Exception {
         load(_taskSelectedVolumePattern, _taskSelectedTreePattern,

@@ -256,19 +256,19 @@ public class ArgParser {
             _isDefault[position] = true;
         }
         if ("int".equals(t)) {
-            long lo = longVal(piece(type, ':', 2));
-            long hi = longVal(piece(type, ':', 3));
-            long argInt = longVal(arg);
-            if (argInt == Integer.MIN_VALUE || argInt < lo || argInt > hi
+            long lo = longVal(piece(type, ':', 2), 0);
+            long hi = longVal(piece(type, ':', 3), Integer.MAX_VALUE);
+            long argInt = longVal(arg, Long.MIN_VALUE);
+            if (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi
                     || argInt > Integer.MAX_VALUE) {
                 throw new IllegalArgumentException("Invalid argument "
                         + piece(_template[position], '|', 0) + "=" + arg);
             }
             _longArgs[position] = argInt;
         } else if ("long".equals(t)) {
-            long lo = longVal(piece(type, ':', 2));
-            long hi = longVal(piece(type, ':', 3));
-            long argInt = longVal(arg);
+            long lo = longVal(piece(type, ':', 2), 0);
+            long hi = longVal(piece(type, ':', 3), Long.MAX_VALUE);
+            long argInt = longVal(arg, Long.MIN_VALUE);
             if (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi) {
                 throw new IllegalArgumentException("Invalid argument "
                         + piece(_template[position], '|', 0) + "=" + arg);
@@ -279,14 +279,14 @@ public class ArgParser {
         }
     }
 
-    private long longVal(String s) {
+    private long longVal(String s, long dflt) {
         if (s.length() == 0)
-            return 0;
+            return dflt;
         try {
             return Long.parseLong(s);
         } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(s + " is not a number");
         }
-        return Integer.MIN_VALUE;
     }
 
     private void tab(StringBuilder sb, int count) {

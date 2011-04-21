@@ -327,7 +327,7 @@ public class JournalTool {
      */
     private int scanOneRecord() throws Exception {
 
-        final long from = _currentAddress;
+        long from = _currentAddress;
         try {
             read(_currentAddress, OVERHEAD);
         } catch (CorruptJournalException e) {
@@ -359,6 +359,14 @@ public class JournalTool {
                 break;
 
             case JH.TYPE:
+                read(_currentAddress, recordSize);
+                final long blockSize = JH.getBlockSize(_readBuffer);
+                if (blockSize != _blockSize) {
+                    from = _currentAddress = (_currentAddress / _blockSize) * blockSize;
+                    _readBufferAddress = _currentAddress;
+                    _blockSize = blockSize;
+                }
+
                 _action.jh(from, timestamp, recordSize);
                 break;
 

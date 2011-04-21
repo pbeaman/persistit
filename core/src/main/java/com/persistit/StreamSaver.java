@@ -34,9 +34,11 @@ import com.persistit.exception.PersistitException;
  */
 public class StreamSaver extends Task {
     
-    private final static String[] ARG_TEMPLATE = {
-        "file|string:|Save to file path",
-        "trees|string:|Volumes and trees to save",
+    final static String COMMAND_NAME="save";
+    
+    final static String[] ARG_TEMPLATE = {
+        "file|string:|Save to file",
+        "trees|string:*|Volumes and trees to save",
         "keyfilter|string:|KeyFilter expression to select keys to save",
         };
 
@@ -488,6 +490,7 @@ public class StreamSaver extends Task {
         writeRecordCount(_dataRecordCount, _otherRecordCount);
         _dos.writeChar(RECORD_TYPE_END);
         writeTimestamp();
+        poll();
     }
 
     /**
@@ -586,14 +589,9 @@ public class StreamSaver extends Task {
             saveTrees(volumes[index], null);
         }
     }
-    
-    @Override
-    protected String[] argTemplate() {
-        return ARG_TEMPLATE;
-    }
 
     @Override
-    protected void setupTask(String[] args) throws PersistitException,
+    protected void setupArgs(String[] args) throws PersistitException,
             IOException {
         _taskTrees = parseTreeList(args[0]);
         if (args[1] != null && args[1].length() > 0) {
@@ -601,6 +599,19 @@ public class StreamSaver extends Task {
         }
         _dos = new DataOutputStream(new BufferedOutputStream(
                 new FileOutputStream(args[2]), DEFAULT_BUFFER_SIZE));
+    }
+    
+    @Override
+    public void setupTaskWithArgParser(final String[] args) throws Exception {
+        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
+        _taskTrees = parseTreeList(ap.getStringValue("trees"));
+        final String kf = ap.getStringValue("keyfilter");
+        if (kf != null) {
+            _taskKeyFilter = new KeyFilter(kf);
+        }
+        _dos = new DataOutputStream(new BufferedOutputStream(
+                new FileOutputStream(ap.getStringValue("file")), DEFAULT_BUFFER_SIZE));
+        
     }
 
     @Override

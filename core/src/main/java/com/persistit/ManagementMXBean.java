@@ -143,4 +143,14 @@ public interface ManagementMXBean {
      * @throws RemoteException
      */
     public boolean flushAndSync() throws RemoteException;
+    
+    /**
+     * Uses simple command-line processor to invoke a task. Allows task
+     * invocation to be scripted through a command-line JMX client.
+     * @param arg
+     * @return
+     * @throws RemoteException
+     */
+    public String execute(final String commandLine) throws RemoteException;
+    
 }
