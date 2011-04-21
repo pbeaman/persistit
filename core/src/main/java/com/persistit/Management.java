@@ -845,9 +845,10 @@ public interface Management extends Remote, ManagementMXBean {
 
         int bufferSize;
         int bufferCount;
-        long getCounter;
-        long hitCounter;
-        long readCounter;
+        long missCount;
+        long hitCount;
+        long newCount;
+        long evictCount;
         int validPageCount;
         int dirtyPageCount;
         int readerClaimedPageCount;
@@ -857,18 +858,21 @@ public interface Management extends Remote, ManagementMXBean {
 
         }
 
-        @ConstructorProperties({ "bufferSize", "bufferCount", "getCounter",
-                "hitCounter", "readCounter", "validPageCount", "dirtyPageCount",
-                "readerClaimedPageCount", "writerClaimedPageCount" })
-        public BufferPoolInfo(int bufferSize, int bufferCount, long getCounter,
-                long hitCounter, long readCounter, int validPageCount, int dirtyPageCount,
+        @ConstructorProperties({ "bufferSize", "bufferCount", "missCount",
+                "hitCount", "newCount", "evictCount", "validPageCount",
+                "dirtyPageCount", "readerClaimedPageCount",
+                "writerClaimedPageCount" })
+        public BufferPoolInfo(int bufferSize, int bufferCount, long missCount,
+                long hitCount, long newCount, long evictCount,
+                long readCounter, int validPageCount, int dirtyPageCount,
                 int readerClaimedPageCount, int writerClaimedPageCount) {
             super();
             this.bufferSize = bufferSize;
             this.bufferCount = bufferCount;
-            this.getCounter = getCounter;
-            this.hitCounter = hitCounter;
-            this.readCounter = readCounter;
+            this.missCount = missCount;
+            this.hitCount = hitCount;
+            this.newCount = newCount;
+            this.evictCount = evictCount;
             this.validPageCount = validPageCount;
             this.dirtyPageCount = dirtyPageCount;
             this.readerClaimedPageCount = readerClaimedPageCount;
@@ -900,28 +904,39 @@ public interface Management extends Remote, ManagementMXBean {
          * 
          * @return The get count
          */
-        public long getGetCounter() {
-            return getCounter;
+        public long getMissCount() {
+            return missCount;
         }
 
         /**
          * Return the count of lookup operations for pages images in this pool
          * for which the page image was already found in this
-         * <code>BufferPool</code>. This number, in comparison with the get
+         * <code>BufferPool</code>. This number, in comparison with the miss
          * counter, indicates how effective the cache is in reducing disk I/O.
          * 
          * @return The hit count
          */
-        public long getHitCounter() {
-            return hitCounter;
+        public long getHitCount() {
+            return hitCount;
         }
 
         /**
-         * @return count of pages read back into the buffer pool from the
-         *         journal
+         * Return the count of newly create pages images in this Pool. A new
+         * page is one that does not need to be read from disk.
+         * 
+         * @return The new page counter
          */
-        public long getReadCounter() {
-            return readCounter;
+        public long getNewCount() {
+            return newCount;
+        }
+
+        /**
+         * Return the count of valid pages evicted from this pool.
+         * 
+         * @return The evicted page count
+         */
+        public long getEvictCount() {
+            return evictCount;
         }
 
         /**
@@ -933,10 +948,11 @@ public interface Management extends Remote, ManagementMXBean {
          * @return The ratio
          */
         public double getHitRatio() {
-            if (getCounter == 0)
+            final long denominator = missCount + hitCount + newCount;
+            if (denominator == 0)
                 return 0.0;
             else
-                return ((double) hitCounter) / ((double) getCounter);
+                return ((double) hitCount) / ((double) denominator);
         }
 
         /**
@@ -1632,11 +1648,11 @@ public interface Management extends Remote, ManagementMXBean {
         public long getExtensionSize() {
             return extensionPageCount * pageSize;
         }
-        
+
         public boolean isTransient() {
             return isTransient;
         }
-        
+
         public boolean isLoose() {
             return isLoose;
         }

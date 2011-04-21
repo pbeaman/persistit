@@ -59,21 +59,20 @@ public class IOMeter implements IOMeterMXBean {
     private final static long DEFAULT_COPY_PAGE_SLEEP_INTERVAL = 10;
     private final static long DEFAULT_WRITE_PAGE_SLEEP_INTERVAL = 100;
 
-    private final static int COPY_PAGE_TO_VOLUME = 1;
-    private final static int READ_PAGE_FROM_VOLUME = 2;
-    private final static int WRITE_PAGE_TO_VOLUME = 3;
-    private final static int READ_PAGE_FROM_JOURNAL = 4;
-    private final static int WRITE_PAGE_TO_JOURNAL = 5;
-    private final static int WRITE_TS_TO_JOURNAL = 6;
-    private final static int WRITE_TC_TO_JOURNAL = 7;
-    private final static int WRITE_SR_TO_JOURNAL = 8;
-    private final static int WRITE_DR_TO_JOURNAL = 9;
-    private final static int WRITE_DT_TO_JOURNAL = 10;
-    private final static int WRITE_OTHER_TO_JOURNAL = 11;
-    private final static int EVICT_PAGE_FROM_POOL = 12;
-    private final static int FLUSH_JOURNAL = 13;
+    private final static int READ_PAGE_FROM_VOLUME = 1;
+    private final static int READ_PAGE_FROM_JOURNAL = 2;
+    private final static int COPY_PAGE_TO_VOLUME = 3;
+    private final static int WRITE_PAGE_TO_JOURNAL = 4;
+    private final static int WRITE_TS_TO_JOURNAL = 5;
+    private final static int WRITE_TC_TO_JOURNAL = 6;
+    private final static int WRITE_SR_TO_JOURNAL = 7;
+    private final static int WRITE_DR_TO_JOURNAL = 8;
+    private final static int WRITE_DT_TO_JOURNAL = 9;
+    private final static int WRITE_OTHER_TO_JOURNAL = 10;
+    private final static int EVICT_PAGE_FROM_POOL = 11;
+    private final static int FLUSH_JOURNAL = 12;
 
-    private final static int ITEM_COUNT = 14;
+    private final static int ITEM_COUNT = 13;
 
     private long _ioRate;
 
@@ -283,14 +282,6 @@ public class IOMeter implements IOMeterMXBean {
         log(READ_PAGE_FROM_VOLUME, time, volume, pageAddress, size, -1,
                 bufferIndex);
         charge(time, size, READ_PAGE_FROM_VOLUME);
-    }
-
-    public void chargeWritePageToVolume(final Volume volume,
-            final long pageAddress, final int size, final int bufferIndex) {
-        final long time = System.nanoTime();
-        log(WRITE_PAGE_TO_VOLUME, time, volume, pageAddress, size, -1,
-                bufferIndex);
-        charge(time, size, WRITE_PAGE_TO_VOLUME);
     }
 
     public void chargeReadPageFromJournal(final Volume volume,

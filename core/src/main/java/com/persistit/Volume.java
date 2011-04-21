@@ -920,6 +920,10 @@ public class Volume extends SharedResource {
         return _extensionPages;
     }
 
+    void bumpReadCounter() {
+        _readCounter.incrementAndGet();
+        _lastReadTime = System.currentTimeMillis();
+    }
     void bumpWriteCounter() {
         _writeCounter.incrementAndGet();
         _lastWriteTime = System.currentTimeMillis();
@@ -1490,8 +1494,7 @@ public class Volume extends SharedResource {
             _persistit.getIOMeter().chargeReadPageFromVolume(this,
                     buffer.getPageAddress(), buffer.getBufferSize(),
                     buffer.getIndex());
-            _lastReadTime = System.currentTimeMillis();
-            _readCounter.incrementAndGet();
+            bumpReadCounter();
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_READ_OK)) {
                 _persistit.getLogBase().log(LogBase.LOG_READ_OK, page,
                         buffer.getIndex());
@@ -1506,18 +1509,6 @@ public class Volume extends SharedResource {
             _lastIOException = ioe;
             throw new PersistitIOException(ioe);
         }
-    }
-
-    void writePage(final Buffer buffer) throws IOException,
-            InvalidPageAddressException, ReadOnlyVolumeException,
-            VolumeClosedException {
-
-        final ByteBuffer bb = buffer.getByteBuffer();
-        bb.position(0).limit(buffer.getBufferSize());
-        writePage(bb, buffer.getPageAddress());
-        _persistit.getIOMeter().chargeWritePageToVolume(this,
-                buffer.getPageAddress(), buffer.getBufferSize(),
-                buffer.getIndex());
     }
 
     void writePage(final ByteBuffer bb, final long page) throws IOException,

@@ -556,6 +556,7 @@ public class JournalManager implements JournalManagerMXBean,
                     + bb.limit());
         }
         _readPageCount++;
+        buffer.getVolume().bumpReadCounter();
         return true;
     }
 

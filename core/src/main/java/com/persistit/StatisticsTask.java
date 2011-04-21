@@ -16,13 +16,13 @@
 package com.persistit;
 
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.persistit.KeyFilter.Term;
 import com.persistit.Management.BufferPoolInfo;
 import com.persistit.Management.JournalInfo;
 import com.persistit.Management.TransactionInfo;
@@ -32,7 +32,7 @@ public class StatisticsTask extends Task {
     static final String COMMAND_NAME = "stat";
     static final String[] ARG_TEMPLATE = new String[] {
             "delay|long:10:0:10000000|Interval in seconds between updates",
-            "count|long:1:1:|Number of updates",
+            "count|long:1:0:|Number of updates",
             "file|string|Output file name",
             "_flag|a|All", "_flag|b|Buffer pool statistics",
             "_flag|j|Journal statistics", "_flag|i|I/O Statistics",
@@ -58,17 +58,17 @@ public class StatisticsTask extends Task {
     private List<Stat> _statsList = new ArrayList<Stat>();
 
     enum Display {
-        ABSOLUTE, CHANGE, RATE
+        TOTAL, CHANGE, RATE
     };
 
-    private static class Stat {
+    static class Stat {
         final String _name;
         long _time;
         long _value;
         long _interval;
         long _change;
 
-        private Stat(final String name) {
+        Stat(final String name) {
             this._name = name;
         }
 
@@ -81,27 +81,47 @@ public class StatisticsTask extends Task {
 
         @Override
         public String toString() {
-            return toString(Display.ABSOLUTE);
+            return toString(Display.TOTAL);
         }
 
         public String toString(Display display) {
             switch (display) {
-            case ABSOLUTE:
+            case TOTAL:
                 return String.format("%s=%d", _name, _value);
             case CHANGE:
                 return String.format("%s=%d", _name, _change);
             case RATE:
-                return String.format("%s=%d/s", _name, rate());
+                return String.format("%s=%.3f", _name, rate());
+            default:
+                throw new IllegalStateException();
+            }
+        }
+        
+        public void printHeader(final PrintWriter pw) throws IOException {
+            pw.print(String.format(" %10s", _name));
+        }
+        
+        public void printValue(final PrintWriter pw, final Display display) throws IOException {
+            switch (display) {
+            case TOTAL:
+                pw.print(String.format(" %,10d", _value));
+                break;
+            case CHANGE:
+                pw.print(String.format(" %,10d", _change));
+                break;
+            case RATE:
+                pw.print(String.format(" %,10.3f", rate()));
+                break;
             default:
                 throw new IllegalStateException();
             }
         }
 
-        public long rate() {
+        public double rate() {
             if (_interval > 0) {
-                return (_change * NANOS_PER_SECOND) / _interval;
+                return ((double)_change * NANOS_PER_SECOND) / (double)_interval;
             }
-            return -1;
+            return -1.0d;
         }
     }
 
@@ -145,6 +165,7 @@ public class StatisticsTask extends Task {
         long now = System.nanoTime();
         long next = now;
 
+        boolean first = true;
         for (long count = 0; count < _count || count == 0; count++) {
             if (count != 0) {
                 next += (_delay * NANOS_PER_SECOND);
@@ -165,7 +186,7 @@ public class StatisticsTask extends Task {
             updateStatistics(now);
             sb.setLength(0);
             Display d = _showRate ? Display.RATE
-                    : count == 0 ? Display.ABSOLUTE : Display.CHANGE;
+                    : count == 0 ? Display.TOTAL : Display.CHANGE;
             if (count > 0 || !_showRate) {
                 for (final Stat stat : _statsList) {
                     if (sb.length() > 0) {
@@ -178,8 +199,20 @@ public class StatisticsTask extends Task {
                 final String line = sb.toString();
                 _lastUpdate = line;
                 if (_pw != null) {
-                    _pw.print(String.format("%12d ", _persistit.elapsedTime()));
-                    _pw.println(line);
+                    if (first) {
+                        _pw.printf("%12s ", "elapsed ms");
+                        for (final Stat stat : _statsList) {
+                            stat.printHeader(_pw);
+                        }
+                        _pw.println();
+                        first = false;
+                    }
+                    _pw.printf("%,12d ", _persistit.elapsedTime());
+                    for (final Stat stat : _statsList) {
+                        stat.printValue(_pw, d);
+                     }
+                    _pw.print(' ');
+                    _pw.println(d.toString());
                     _pw.flush();
                 } else {
                     postMessage(line, 1);
@@ -190,7 +223,7 @@ public class StatisticsTask extends Task {
             }
         }
     }
-
+    
     private Stat stat(final String name) {
         Stat stat = _statsMap.get(name);
         if (stat == null) {
@@ -222,12 +255,18 @@ public class StatisticsTask extends Task {
         final BufferPoolInfo[] array = management.getBufferPoolInfoArray();
         long hits = 0;
         long misses = 0;
+        long newPages = 0;
+        long evictions = 0;
         for (final BufferPoolInfo info : array) {
-            hits += info.getHitCounter();
-            misses += info.getReadCounter();
+            hits += info.getHitCount();
+            misses += info.getMissCount();
+            newPages += info.getNewCount();
+            evictions += info.getEvictCount();
         }
         stat("hit").update(time, hits);
         stat("miss").update(time, misses);
+        stat("new").update(time, newPages);
+        stat("evict").update(time, evictions);
     }
 
     private void updateJournalStatistics(final Management management,
@@ -255,7 +294,7 @@ public class StatisticsTask extends Task {
             stat(item).update(time, ioMeter.getCount(item));
             size += ioMeter.getSum(item);
         }
-        stat("IObytes").update(time, size);
+        stat("IOkbytes").update(time, (size + 600) / 1000);
     }
 
     @Override

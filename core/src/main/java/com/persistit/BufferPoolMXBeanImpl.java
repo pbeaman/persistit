@@ -19,31 +19,32 @@ import java.rmi.RemoteException;
 
 import com.persistit.Management.BufferPoolInfo;
 
-public class BufferPoolMXBeanImpl implements BufferPoolMXBean  {
+public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
 
     private final static long MAX_STALE = 5000;
-    
+
     private final Persistit _persistit;
-    
+
     private final int _bufferSize;
-    
+
     private BufferPoolInfo _recent;
-    
+
     static String mbeanName(final int bufferPoolSize) {
         return MXBEAN_NAME + "." + bufferPoolSize;
     }
-    
+
     BufferPoolMXBeanImpl(final Persistit persistit, final int bufferSize) {
         _persistit = persistit;
         _bufferSize = bufferSize;
         _recent = new BufferPoolInfo();
     }
-    
-    private BufferPoolInfo recent()  {
+
+    private BufferPoolInfo recent() {
         long now = System.currentTimeMillis();
         if (_recent.getAcquisitionTime() < now - MAX_STALE) {
             try {
-                BufferPoolInfo[] array = _persistit.getManagement().getBufferPoolInfoArray();
+                BufferPoolInfo[] array = _persistit.getManagement()
+                        .getBufferPoolInfoArray();
                 for (BufferPoolInfo info : array) {
                     if (info.getBufferSize() == _bufferSize) {
                         _recent = info;
@@ -59,7 +60,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean  {
         }
         return _recent;
     }
-    
+
     /**
      * Return the size of <code>Buffer</code>s managed by this pool.
      * 
@@ -79,41 +80,50 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean  {
     }
 
     /**
-     * Return the count of lookup operations for pages images in this pool.
-     * This number, in comparison with the hit counter, indicates how
-     * effective the cache is in reducing disk I/O.
+     * Return the count of lookup operations for pages images that resulted in a
+     * physical disk read operation. This number, in comparison with the hit
+     * counter, indicates how effective the cache is in reducing disk I/O.
      * 
      * @return The get count
      */
-    public long getGetCounter() {
-        return recent().getGetCounter();
+    public long getMissCount() {
+        return recent().getMissCount();
     }
 
     /**
-     * Return the count of lookup operations for pages images in this pool
-     * for which the page image was already found in this
-     * <code>BufferPool</code>. This number, in comparison with the get
-     * counter, indicates how effective the cache is in reducing disk I/O.
+     * Return the count of lookup operations for pages images in this pool for
+     * which the page image was already found in this <code>BufferPool</code>.
+     * This number, in comparison with the get counter, indicates how effective
+     * the cache is in reducing disk I/O.
      * 
      * @return The hit count
      */
-    public long getHitCounter() {
-        return recent().getHitCounter();
+    public long getHitCount() {
+        return recent().getHitCount();
     }
 
     /**
-     * @return count of pages read back into the buffer pool from the
-     *         journal
+     * @return Count of pages newly created in this <code>BufferPool</code>.
      */
-    public long getReadCounter() {
-        return recent().getReadCounter();
+    public long getNewCount() {
+        return recent().getNewCount();
     }
 
     /**
-     * Get the "hit ratio" - the number of hits divided by the number of
-     * overall gets. A value close to 1.0 indicates that most attempts to
-     * find data in the <code>BufferPool</code> are successful - i.e., that
-     * the cache is effectively reducing the need for disk read operations.
+     * Get the count of valid pages evicted from this <code>BufferPool</code> to
+     * make room for newly read or created pages.
+     * 
+     * @return The evicted page count
+     */
+    public long getEvictCount() {
+        return recent().getEvictCount();
+    }
+
+    /**
+     * Get the "hit ratio" - the number of hits divided by the number of overall
+     * gets. A value close to 1.0 indicates that most attempts to find data in
+     * the <code>BufferPool</code> are successful - i.e., that the cache is
+     * effectively reducing the need for disk read operations.
      * 
      * @return The ratio
      */
@@ -131,8 +141,8 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean  {
     }
 
     /**
-     * Get the count of dirty pages (pages that contain updates not yet
-     * written to disk) in this pool.
+     * Get the count of dirty pages (pages that contain updates not yet written
+     * to disk) in this pool.
      * 
      * @return The count of dirty pages in this pool
      */
@@ -142,8 +152,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean  {
 
     /**
      * Get the count of pages on which running threads have reader
-     * (non-exclusive), but <i>not</i> writer (exclusive) claims in this
-     * pool.
+     * (non-exclusive), but <i>not</i> writer (exclusive) claims in this pool.
      * 
      * @return The count of pages with reader claims
      */
@@ -152,8 +161,8 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean  {
     }
 
     /**
-     * Get the count of pages on which running threads have writer
-     * (exclusive) claims in this pool.
+     * Get the count of pages on which running threads have writer (exclusive)
+     * claims in this pool.
      * 
      * @return The count of pages with writer claims
      */

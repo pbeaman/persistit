@@ -27,14 +27,12 @@ public interface IOMeterMXBean {
     /**
      * Abbreviated names for types of I/O operations measured by this bean:
      * <dl>
-     * <dt>CC</dt>
-     * <dd>Page copy from Journal to Volume</dd>
      * <dt>RV</dt>
      * <dd>Read page from Volume</dd>
-     * <dt>WV</dt>
-     * <dd>Write page to Volume</dd>
      * <dt>RJ</dt>
      * <dd>Read page from Journal</dd>
+     * <dt>CC</dt>
+     * <dd>Page copy from Journal to Volume</dd>
      * <dt>WJ</dt>
      * <dd>Write page from Journal</dd>
      * <dt>TS</dt>
@@ -56,10 +54,10 @@ public interface IOMeterMXBean {
      * </dl>
      * 
      */
-    public final static String[] OPERATIONS = { "??", "CC", "RV", "WV", "RJ",
+    public final static String[] OPERATIONS = { "??", "RV", "RJ", "CC",
             "WJ", "TS", "TC", "SR", "DR", "DT", "XX", "EV", "FJ" };
 
-    public final static String[] SUMMARY_ITEMS = { "CC", "RV", "WV", "RJ",
+    public final static String[] SUMMARY_ITEMS = { "CC", "RV", "RJ",
             "WJ", "EV", "FJ" };
 
     /**
