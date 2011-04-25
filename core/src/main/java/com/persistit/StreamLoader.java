@@ -441,6 +441,7 @@ public class StreamLoader extends Task {
         _taskKeyFilterString = ap.getStringValue("keyfilter");
         _taskCreateMissingVolumes = !ap.isFlag('v');
         _taskCreateMissingTrees = !ap.isFlag('t');
+        setVerbose(true);
     }
     
     @Override

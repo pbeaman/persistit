@@ -76,12 +76,7 @@ public class BackupTask extends Task {
     private boolean _copyback;
     private String _toFile;
     final List<String> _files = new ArrayList<String>();
-    private String _backupStatus;
-
-    @Override
-    public boolean isImmediate() {
-        return _toFile == null || _toFile.isEmpty();
-    }
+    private volatile String _backupStatus;
 
     @Override
     protected void setupArgs(String[] args) throws Exception {
@@ -120,8 +115,6 @@ public class BackupTask extends Task {
         validate();
         final Management management = _persistit.getManagement();
         boolean wasAppendOnly = management.getJournalInfo().isAppendOnly();
-        postMessage("Flushing modified pages to disk", 0);
-        _persistit.flush();
         if (_checkpoint) {
             postMessage("Waiting for checkpoint", 0);
             final Checkpoint cp = _persistit.checkpoint();
@@ -146,10 +139,17 @@ public class BackupTask extends Task {
                     doBackup();
                 }
             }
+        } catch (Exception e) {
+            _backupStatus = "Failed: " + e;
         } finally {
             management.setAppendOnly(_start ? true : _end ? false
                     : wasAppendOnly);
         }
+    }
+
+    protected void postMessage(final String message, int level) {
+        super.postMessage(message, level);
+        _backupStatus = message;
     }
 
     private void populateBackupFiles() throws Exception {
@@ -169,8 +169,14 @@ public class BackupTask extends Task {
         for (long generation = baseAddress / blockSize; generation <= currentAddress
                 / blockSize; generation++) {
             File file = JournalManager.generationToFile(path, generation);
-            _files.add(file.getPath());
+            _files.add(file.getAbsolutePath());
         }
+        final StringBuilder sb = new StringBuilder();
+        for (final String file : _files) {
+            sb.append(file);
+            sb.append(Util.NEW_LINE);
+        }
+        _backupStatus = sb.toString();
     }
 
     /**
@@ -198,7 +204,7 @@ public class BackupTask extends Task {
                 final File file = new File(path);
                 postMessage(
                         "Backing up " + path + " size="
-                                + formatedSize(file.length()), 0);
+                                + formatedSize(file.length()), 1);
                 final ZipEntry ze = new ZipEntry(path);
                 ze.setSize(file.length());
                 ze.setTime(file.lastModified());
@@ -224,6 +230,8 @@ public class BackupTask extends Task {
                     is.close();
                 }
             }
+            postMessage("Backup of " + _files.size() + " files to " + _toFile
+                    + " completed", 0);
         } finally {
             zos.close();
         }
@@ -295,24 +303,7 @@ public class BackupTask extends Task {
 
     @Override
     public String getStatus() {
-        try {
-            if (isImmediate()) {
-                final StringBuilder sb = new StringBuilder("appendOnly="
-                        + _persistit.getManagement().getJournalInfo()
-                                .isAppendOnly());
-                if (_showFiles) {
-                    for (final String file : _files) {
-                        sb.append(Util.NEW_LINE);
-                        sb.append(file);
-                    }
-                }
-                return sb.toString();
-            } else {
-                return _backupStatus;
-            }
-        } catch (Exception e) {
-            return "Failed: " + e.toString();
-        }
+        return _backupStatus;
     }
 
     public List<String> getFileList() {

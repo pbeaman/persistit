@@ -466,7 +466,7 @@ public abstract class Task implements Runnable {
      *            the level of the message is below the current verbosity
      *            threshhold set through {@link #setMessageLogVerbosity(int)}.
      */
-    public void postMessage(String message, int level) {
+    protected void postMessage(String message, int level) {
         if (level <= _messageLogVerbosity) {
             synchronized (_messageLog) {
                 if (_messageLog.size() >= _maxMessageLogSize) {
@@ -491,7 +491,7 @@ public abstract class Task implements Runnable {
      *            the level of the message is below the current verbosity
      *            threshhold set through {@link #setMessageLogVerbosity(int)}.
      */
-    public void appendMessage(String fragment, int level) {
+    protected void appendMessage(String fragment, int level) {
         if (level <= _messageLogVerbosity) {
             synchronized (_messageLog) {
                 int index = _messageLog.size() - 1;
@@ -516,7 +516,7 @@ public abstract class Task implements Runnable {
             return _messageLog.size();
         }
     }
-
+    
     /**
      * Get all the messages, starting from a specified index.
      * 

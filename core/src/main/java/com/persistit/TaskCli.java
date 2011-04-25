@@ -37,7 +37,7 @@ public class TaskCli extends Task {
 
     @Override
     protected void runTask() throws Exception {
-        _status = _persistit.getManagement().execute(_commandLine);
+        _status = _persistit.getManagement().launch(_commandLine);
     }
 
     @Override
@@ -45,8 +45,4 @@ public class TaskCli extends Task {
         return _status;
     }
 
-    @Override
-    public boolean isImmediate() {
-        return true;
-    }
 }

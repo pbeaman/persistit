@@ -606,12 +606,12 @@ public class StreamSaver extends Task {
         final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
         _taskTrees = parseTreeList(ap.getStringValue("trees"));
         final String kf = ap.getStringValue("keyfilter");
-        if (kf != null) {
+        if (kf != null && !kf.isEmpty()) {
             _taskKeyFilter = new KeyFilter(kf);
         }
         _dos = new DataOutputStream(new BufferedOutputStream(
                 new FileOutputStream(ap.getStringValue("file")), DEFAULT_BUFFER_SIZE));
-        
+        setVerbose(true);
     }
 
     @Override

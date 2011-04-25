@@ -1974,11 +1974,17 @@ public interface Management extends Remote, ManagementMXBean {
 
         public String toString(boolean details) {
             if (details) {
-                return String
-                        .format("%d: %s start=%s finish=%s status=%s messages=%s exception=%s",
+                final StringBuilder sb = new StringBuilder(String
+                        .format("%d: %s start=%s finish=%s status=%s exception=%s",
                                 taskId, stateName, Util.date(startTime),
                                 Util.date(finishTime), statusDetail,
-                                Arrays.asList(newMessages), lastException);
+                                lastException));
+                for (final String message : newMessages) {
+                    sb.append(Util.NEW_LINE);
+                    sb.append("  ");
+                    sb.append(message);
+                }
+                return sb.toString();
             } else {
                 return taskId + ": " + stateName;
             }

@@ -1184,7 +1184,7 @@ class ManagementImpl implements Management {
         }
     }
 
-    public String execute(final String commandLine) {
+    public String launch(final String commandLine) {
         try {
             final ManagementCommand command = ManagementCommand
                     .parse(commandLine);
@@ -1196,15 +1196,28 @@ class ManagementImpl implements Management {
             if (task.isImmediate()) {
                 task.runTask();
                 return task.getStatusDetail();
-            } else {
-                synchronized (this) {
-                    taskId = ++_taskIdCounter;
-                }
-                task.setup(taskId, commandLine, "cli", 0, 5);
-                _tasks.put(new Long(taskId), task);
-                task.start();
-                return taskId + ": started";
             }
+            synchronized (this) {
+                taskId = ++_taskIdCounter;
+            }
+            task.setup(taskId, commandLine, "cli", 0, 5);
+            _tasks.put(new Long(taskId), task);
+            task.start();
+            return Long.toString(taskId);
+        } catch (Exception ex) {
+            return "Failed: " + ex.toString();
+        }
+    }
+
+    public String execute(final String commandLine) {
+        try {
+            final ManagementCommand command = ManagementCommand
+                    .parse(commandLine);
+            Task task = (Task) (command.getTaskClass().newInstance());
+            task.setPersistit(_persistit);
+            task.setupTaskWithArgParser(command.getArgs());
+            task.runTask();
+            return task.getStatusDetail();
 
         } catch (Exception ex) {
             return "Failed: " + ex.toString();

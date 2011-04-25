@@ -146,11 +146,6 @@ public class StatisticsTask extends Task {
     }
 
     @Override
-    public boolean isImmediate() {
-        return _count == 1;
-    }
-
-    @Override
     protected void runTask() throws Exception {
         if (_fileName != null && !_fileName.isEmpty()) {
             _pw = new PrintWriter(new FileOutputStream(_fileName, true));
