@@ -191,3 +191,6 @@ KF {1,[:(long)2),2,*<}
 KEY {1,(long)0,4,(long)0}
 GT {1,(long)0}+
 
+KF {:0}
+KEY {-1}
+GT {-1}

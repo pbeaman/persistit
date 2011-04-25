@@ -29,8 +29,6 @@ import com.persistit.TaskCheck;
 
 public class ManagementCommandTest extends PersistitUnitTestCase {
 
-    private final Pattern STATUS_PATTERN = Pattern.compile("(\\d)+: (\\w+)");
-
     @Test
     public void testManagementCommandParser() throws Exception {
 
@@ -64,35 +62,25 @@ public class ManagementCommandTest extends PersistitUnitTestCase {
         final Management management = _persistit.getManagement();
 
         String status = management
-                .execute("icheck trees=persistit,ManagementCommandTest");
-        assertEquals("started", status(status));
+                .launch("icheck trees=persistit,ManagementCommandTest");
         waitForCompletion(taskId(status));
         final File file = File.createTempFile("ManagementCommandTest", ".sav");
         file.deleteOnExit();
-        status = management.execute("save file=" + file
+        status = management.launch("save file=" + file
                 + " keyfilter={200:} trees=persistit,ManagementCommandTest");
-        assertEquals("started", status(status));
         waitForCompletion(taskId(status));
         pmap.clear();
 
-        status = management.execute("load file=" + file);
-        assertEquals("started", status(status));
+        status = management.launch("load file=" + file);
         waitForCompletion(taskId(status));
 
         assertEquals(300, pmap.size());
     }
 
     private long taskId(final String status) {
-        Matcher matcher = STATUS_PATTERN.matcher(status);
-        assertTrue(matcher.matches());
-        return Long.parseLong(matcher.group(1));
+        return Long.parseLong(status);
     }
 
-    private String status(final String status) {
-        Matcher matcher = STATUS_PATTERN.matcher(status);
-        assertTrue(matcher.matches());
-        return matcher.group(2);
-    }
 
     private void waitForCompletion(final long taskId) throws Exception {
         for (int waiting = 0; waiting < 20; waiting++) {
