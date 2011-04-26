@@ -1,0 +1,20 @@
+Miscellaneous Topics
+===============================
+
+Following are some short items you may find useful as you explore Persistit.  Follow links to the API documentation for more details.
+
+== Histograms
+
+The method +com.persistit.Exchange#computeHistogram+ class provides a way to sample and summarize a set of keys in a +Tree+.  It works by traversing keys in index pages near the root of the tree.  Because only a small fraction of all the keys in the tree are represented in the index, this can result in relatively small sample set of keys relatively quickly. The result can be used to estimate the actual number of keys.
+
+== Transient Volumes
+
+A Persistit transient volume is a special kind of Volume that is deleted when Persistit is closed. Each time Persistit starts up, volumes marked as +transient+ are reinitialized to an empty state. The update mechanism for temporary volumes avoids writing to disk whenever possible, and its contents are not recoverable Persistit shuts down. Therefore in some cases database operations on temporary volumes are faster.
+
+The primary use case for a temporary volume is an application that needs the unlimited size, but not the persistence of normal Persistit volumes.
+
+See com.persistit.Volume for details.
+
+== Logging
+
+By default Persistit emits log messages to a file called persistit.log  and also writes high level log messages to System.out.  You can change this behavior by plugging in a different logging implementation. In particular, Persistit provides pluggable adapters for Apache Log4J and the Java logging API introduced in JDK 1.4. For details see the API documentation for com.persistit.logging.AbstractPersistitLogger.

@@ -1,0 +1,189 @@
+== Management
+
+Persistit provides two main avenues for measuring and managing its internal resources: an RMI interface and a JMX interface. 
+
+The RMI interface is used by and primarily intended for the com.persistit.io.AdminUI utility. AdminUI is a Java Swing program that runs a device with graphical UI capabilities.  For example, in Linux and Unix it requires an XServer.  Since production servers are often “headless”, it is often necessary to run AdminUI remotely, via its RMI interface. To do this, the Persistit configuration must specify either the +rmiport+ or +rmihost+ property so that it can start an RMI server.
+
+Suppose a Persistit-based application is running on a host named “myhost” and has specified the configuration property +rmiport=1099+ in its configuration.  Then the AdminUI can be launched as follows to connect with it:
+
+----
+java -cp <classpath>  com.persistit.ui.AdminUI myhost:1099
+----
+
+where <classpath> includes the Persistit com.persistit.ui package. 
+
+The JMX interface can be used by third-party management utilities, from applications such as +jconsole+ and +visualvm+, and from command-line JMX clients such as +jmxterm+. To enable JMX access, the configuration must specify the property +jmx=true+.  This causes Persistit to register several MBeans with the platform MBean server during initialization.
+
+=== MBeans
+
+The following MBeans are available:
+
+[horizontal]
++com.persistit:type=Persistit+:: See com.persistit.ManagementMXBean
++com.persistit:type=Persistit,class=IOMeter+:: See com.persistit.IOMeterMXBean
++com.persistit.type=Persistit,class=JournalManager+:: See com.persistit.JournalManagerMXBean
++com.persistit.type=Persistit,class=RecoveryManager+:: See com.persistit.RecoveryManager.MXBean
++com.persistit.type=Persistit,class=BufferPool._SSSS_+:: where _SSSS_ is a buffer size (512, 1024, 2048, 4096 or 16394) See com.persistit.BufferPoolMXBean
+
+=== Management Tasks
+
+Both the AdminUI and the ManagementMXBean can launch and administer com.persistit.Task instances.  A Task is a management operation that may take a significant amount of time and usually runs in a separate thread.  For example, com.persistit.IntegrityCheck is a Task that verifies the internal structural integrity of one or more trees. It can run for minutes or hours, depending on the size of the database.  Both AdminUI and ManagementMXBean provide mechanisms to launch, suspend or stop a task, and to monitor a task’s progress.
+
+Currently the following built-in Tasks are available:
+
+[horizontal]
++icheck+:: Check the integrity of one or more Trees. See com.persistit.IntegrityCheck
++save+:: Save selected key-value pairs from one or more Trees to a save file.  See com.persistit.StreamSaver.
++load+:: Load selected key-value pairs from a save file. See com.persistit.StreamLoader
++backup+:: Control and/or perform a concurrent backup of one more more Volumes.  See com.persistit.Backup
++stat+:: Aggregate various performance statistics and either return them immediately, or write them periodically to a file.
++task+:: Check the status of an existing task.  This task can also suspend, resume or stop an existing task.  See com.persistit.TaskCheck. Note that this task, which immediately returns its status, can be used by external tools to poll the status of other tasks. 
+
+All of these tasks can be launched by either the AdminUI program (see the +Tasks+ tab) or a JMX client using the com.persistit.ManagementMXBean#launch method.
+
+=== Executing a Task via the Command Line Interface
+
+The com.persistit.ManagementMXBean#execute and com.persistit.ManagementMXBean#launch methods both take a single String-valued argument, parse it to set up a Task and return a String-valued result. You can invoke these methods:
+
+- programmatically, as follows:
+
+[source,java]
+----
+String taskId = db.getManagement().launch(“backup -z file=/tmp/mybackup.zip”);
+String status = db.getManagement().execute(“task -v -m -c taskId=” + taskId);
+----
+
+- via +jconsole+ by typing the desired command line as the argument of the +execute+ operation.
+- via a third-party JMX client.
+
+For example, you can use the +jmxterm+ program (http://www.cyclopsgroup.org/projects/jmxterm/) to execute commands with the following shell script:
+
+[source,bash]
+----
+#/bin/sh
+java -jar jmxterm-1.0-alpha-4-uber.jar --verbose silent --noninteract --url $1 <<EOF
+run -d com.persistit -b com.persistit:type=Persistit execute $2
+EOF
+----
+
+To use this, specify either the JMX URL or the process ID as the first command argument, and the command line as the second argument.  Example
+
+----
+peter:~/workspace/sandbox$ jmxterm-execute 1234 ‘stat\ -a’
+hit=3942334 miss=14 new=7364 evict=0 jwrite=81810 jread=2 jcopy=63848 tcommit=0 troll=0 CC=0 RV=12 RJ=2 WJ=81810 EV=0 FJ=529 IOkbytes=1134487 TOTAL
+----
+
+This command invokes the +stat+ task with the flag +-a+ on a JVM running with process id 1234.  Note that white-space must be quoted by backslash (‘\’) even though the argument list is also enclosed in single-quotes.  The backslash marshals the space character through +jmxterm+’s parser. Commas and other delimiters also need to be quoted.
+
+More examples:
+----
+peter:~/workspace/sandbox$ ./jmxterm-launch 1234 'icheck\ trees=persistit\,SimpleTest1'
+7
+
+peter:~/workspace/sandbox$ ./jmxterm-execute 1234 'task\ taskId=7\ -v'
+7: done start=20110423-080202 finish=20110423-080205 status=null exception=none
+  Checking BenchTree in /home/peter/dev/persistit/better_backup/bench/./SimpleBench.v01 - OKAY
+  IntegerityCheck is OKAY Index: 10 pages / 49392 bytes, Data:3084 pages, 16789060 bytes, Long Record:0 pages, 0 bytes
+----
+
+As shown in the example above, +launch+ starts a background thread to perform the Task and then returns the  _taskId_ as a String.  You can then issue the +task+ command to poll the _taskId_ for interim or final results.  Here the  +task+ operation returned the result of the IntegrityCheck operation whose taskId was 7.
+
+=== Commands
+
+The String value passed to the +execute+ operation specifies the name of a task and arguments it applies to.  The general form is
+
+----
+commandname -flag -flag argname=value argname=value
+----
+
+where the order of arguments and flags is immaterial.
+
+==== Command: +icheck+
+
+Performs a com.persistit.IntegrityCheck task. Arguments:
+
+[horizontal]
++trees+:: a semicolon- and comma-delimited list of volume name/tree name pairs
++-u+:: Don't freeze updates (Default is to freeze updates)
++-h+:: Don't fix holes (Default is to fix index holes)
+
+By default,IntegrityCheck suspends all threads attempting to modify the tree being checked, and repairs any index holes.  (An _index hole_ is an anomaly that occurs rarely in normal operation such that a page does not have an index entry in the index page level immediately above it.)  The flags suppress these options.
+
+Example:
+----
+icheck trees=vehicles,car,truck -h
+----
+Checks the trees named +car+ and +truck+ in the +vehicles+ volume and does not repair index holes.
+
+==== Command: +save+
+
+Starts a com.persistit.StreamSaver task. Arguments:
+
+[horizontal]
++file+:: Name of file to save records to (required)
++trees+:: a semicolon- and comma-delimited list of volume name/tree name pairs
++keyfilter+:: String representation of a com.persistit.KeyFilter expression to select keys to save; default = all
+
+Example:
+----
+save file=/home/akiban/save.dat trees=vehicles,car keyfilter={“Edsel”,”Yugo”}
+----
+
+==== Command: +load+
+
+Starts a com.persistit.StreamLoader task. Arguments:
+
+[horizontal]
++file+:: Name of file to load records from
++volume+:: Regular expression to select volume(s) by name; default = all
+ +tree+:: Regular expression to select tree(s) by name; default = all
+ +keyfilter+:: KeyFilter expression to select keys to load; default = all
+ +-v+:: Don't create missing Volumes (Default is to create them)
+ +-t+::  Don't create missing Trees (Default is to create them)
+
+Example:
+----
+load file=/home/akiban/save.dat keyfilter={“Falcon”:”Firebird”}
+----
+
+==== Command: +backup+
+
+Starts a com.persistit.BackupTask task.  Arguments:
+
+[horizontal]
++file+:: Archive file path. If this argument is specified, BackupTask will back up the database in .zip format to the specified file.  This is intended only for small databases. It is expected that +backup+ will be used in conjunction with high-speed third-party data copying utilities for production use. The +-a+ and +-e+ flags are incompatible with operation when the +file+ argument is specified and are ignored.
++-a+:: Start appendOnly mode - for use with third-party backup tools.  +backup -a+ should be invoked before data copying begins.
++-e+:: End appendOnly mode - for use with third-party backup tools.  +backup -e+ should be invoked after data copying ends.
++-c+:: Request checkpoint before backup.
++-z+:: Compress output to ZIP format - meaningful only in conjunction with the +file+ argument.
++-f+:: Emit a list of files that need to be copied. In this form the task immediately returns with a list of files currently comprising the Persistit database, including Volume and journal files.
++-y+:: Copy pages from journal to Volumes before starting backup.  This reduces the number of journal files in the backup set.
+
+Example:
+----
+backup -y -a -c -y -f
+… invoke third-party backup tool to copy the database files
+backup -e
+----
+
+=== Command: +task+
+
+Queries, stops, suspends or resumes a background task.  Arguments:
+
+[horizontal]
++taskId+:: Task ID to to check, or -1 for all
++-v+:: Verbose - returns detailed status messages from the selected task(s)
++-m+:: Remove delivered messages
++-c+:: Remove completed tasks
++-x+:: Stop task(s)
++-u+:: Suspend the task(s)
++-r+:: Resume task(s)
+Unlike other commands, the +task+ command always runs immediately even if invoked through the +launch+ method. 
+
+You can use the +task+ command to poll and display progress of long-running tasks. Invoke
+
+----
+task  -v -m -c taskId=nnn
+----
+
+until the result is empty.

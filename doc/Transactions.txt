@@ -1,0 +1,116 @@
+Transactions
+==============================
+
+Persistit supports transactions with full isolation and optimistic concurrency control. An application may begin, commit or roll back the current transaction scope explicitly, executing multiple database operations in an atomic, consistent, isolated and (optionally) durable (ACID) manner. If the application does not explicitly define the scope of a transaction, each database operation implicitly runs within the scope of a separate transaction. Each Persistit transaction may optionally be committed to either memory or disk. Transactions committed to memory are much faster, but are not immediately durable.
+
+=== Optimistic transaction Scheduling
+
+To achieve high performance and scalability, Persistit supports optimistic transaction scheduling. Multiple threads, each concurrently running a transaction, are permitted to continue without blocking until a potentially inconsistent state is recognized. At this point the suspected transaction is implicitly rolled back.
+
+Optimistic scheduling works because transactions usually do not collide – especially when individual database operations are fast – and so in practice transactions are seldom rolled back. But because any transaction may be automatically rolled back at any point, applications must be designed carefully to avoid unintended side-effects. For example, no transaction should perform non-repeatable or externally visible operations within the scope of a transaction.
+
+=== Using Transactions
+
+The following code fragment performs two store operations within the scope of a transaction:
+
+[source,java]
+----
+//
+// Get the transaction context for the current thread.
+//
+Transaction txn = myExchange.getTransaction();
+int remainingRetries = RETRY_COUNT;
+Boolean done = false;
+while (!done)
+{
+ txn.begin();
+ try
+ {
+ 	myExchange.getValue().put("First value");
+ 	myExchange.clear().append(1).store();
+ 	myExchange.getValue().put("Second value");
+ 	myExchange.clear().append(2).store();
+ 	// Required to commit the transaction
+ 	txn.commit();
+ 	done = true;
+ }
+ catch (RollbackException re)
+ {
+ 	// any special rollback handling
+ 	// allow loop to repeat until commit succeeds or retries
+ 	// too many times.
+ 	If (--remainingRetries < 0)
+ 	{
+     	throw new TransactionFailedException();
+ 	}
+ }
+ catch (PersistitException pe)
+ {
+ 	// handle other Persistit exception
+ }
+ finally
+ {
+ 	// Required to end the scope of a transaction.
+ 	txn.end();
+ }
+}
+----
+
+This example catches +com.persistit.exception.RollbackException+, which can be thrown by any Persistit operation within the scope of a transaction, including +commit+. Any code explicitly running within the scope of a transaction should be designed to handle rollbacks.
+
+This example also uses a _finally_ block to ensure every call to +begin()+ has a matching call to +end()+.  This code pattern is mandatory: it is critical to correct transaction nesting behavior.
+
+One convenient way to do this is to encapsulate the logic of a transaction in an implementation of +com.persisitit.TransactionRunnable+ interface. The run method of +com.persistit.Transaction+ automatically provides logic to begin the transaction, execute the TransactionRunnable and commit the transaction, repeating the process until no rollback is thrown or a maximum retry count is reached. For example, the code fragment shown above can be rewritten as:
+
+[source,java]
+----
+//
+// Get the transaction context for the current thread.
+//
+Transaction txn = myExchange.getTransaction();
+//
+// Perform the transaction with the following parameters:
+// - try to commit it up to 10 times
+// - delay 2 milliseconds before each retry
+// - commit to memory
+//
+txn.run(new TransactionRunnable()
+{
+ public void run()
+ throws PersistitException
+ {
+ 	myExchange.getValue().put("First value");
+ 	myExchange.clear().append(1).store();
+ 	myExchange.getValue().put("Second value");
+ 	myExchange.clear().append(2).store();
+ }
+}, 10, 2, false);
+}
+----
+
+Database operations running outside the scope of an explicitly defined transaction (i.e., between begin and commit) are never subject to rollback and therefore do not require retry logic. However, such operations are also not guaranteed to be present in the database after recovery from a crash.
+
+Note that com.persistit.exception.RollbackException is an unchecked Exception.
+
+=== Disk vs. Memory Commits
+
+Persistit transactions may be committed either to disk or to memory. Committing  to disk causes the commit operation to synchronously write the transaction to  the journal and limits the rate of transaction commits to the physical disk’s  random I/O rate. (Allocating the journal to an SSD volume can dramatically  improve throughput.)
+
+Committing to memory is much faster (by several orders of magnitude) because no  synchronous disk I/O operation is required. Instead, Persistit flushes all memory-committed  transactions to disk within a fraction of a second after they committed.   Because one disk write operation may flush many transactions, this results in  much greater throughput. However, a memory-committed transaction is not durable in the event of a power failure or system interruption. In many applications  this may be a legitimate and useful compromise. Should a system fail, the recovered database will be consistent with some set of committed transactions, but will simply not include memory-committed transactions that were completed in the last few  milliseconds before failure.
+
+Whether committed to disk or memory, whether implicit or explicit, if any transaction T is present in the recovered state of a database after an abnormal termination, Persistit guarantees that all other transactions that T depended on are also present. If transaction T2 has read a data value that was written by transaction T1, and if T2 is visible in the durable state of the database, then so is T1.
+
+=== Nested Transactions
+
+A nested transaction occurs when code that is already executing within the scope of a transaction executes the begin method to start a new transaction scope. This might happen, for example, if an application’s transaction logic calls a method in an external library that also uses transactions. In this case, the commit processing of the inner transaction scope is deferred until the outermost transaction commits. At that point, all the updates performed within the scope of the outer transaction are committed to the database unless an inconsistency has occurred because of updates committed by other threads. Similarly, a rollback initiated by the inner transaction causes the outermost transaction to roll back.
+
+See the +com.persistit.Transaction+ API documentation for further details.
+
+=== TransactionalCache
+
+In certain cases it may be desirable for a Transaction to modify an object in memory.  For example, it may be useful to aggregate statistical information about a tree such as a counts or sums of values.  The abstract +com.persistit.TranscationalCache+ class provides a framework for such memory updates that preserves transactional consistency, even in the event of a crash.
+
+To use this facility, an application defines a concrete TransactionalCache subclass and registers it with Persistit.  Registration may only occur before the Persistit instance’s +initialize+ method is called. During the processing of the +initialize+ method, Persistit recovers the the TransactionalCache instance to its state at the last value checkpoint, and then applies the updates associated with every committed transaction that happened after the checkpoint.  As a result, the state of the TransactionalCache instance subsequent to recovery is consistent with the result of applying every committed Transaction.  Any transactions that were in progress but not yet committed at the time of a shutdown or crash do not affect the state of the recovered TransactionalCache object.
+
+See the com.persistit.TransactionalCache API documentation for details.
+

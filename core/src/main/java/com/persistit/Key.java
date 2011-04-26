@@ -1472,7 +1472,8 @@ public final class Key implements Comparable<Object> {
         StringBuilder sb = new StringBuilder("{");
         int index = _index;
         _index = 0;
-
+        byte save = 0;
+        
         Nudged nudged = Nudged.NO;
         if (_size >= 2) {
             byte z0 = _bytes[_size - 2];
@@ -1483,10 +1484,13 @@ public final class Key implements Comparable<Object> {
             } else if (z0 != 0 && z1 == (byte) 1) {
                 nudged = Nudged.RIGHT;
                 _bytes[_size - 1] = 0;
-            } else if (z0 != 0 && z1 == (byte) 0xFF) {
+            } else if (z0 != 0 && z1 != 0) {
                 nudged = Nudged.LEFT;
-                _bytes[_size - 2]++;
-                _bytes[_size - 1] = (byte) 0;
+                save = _bytes[_size];
+                _bytes[_size] = (byte) 0;
+                _size++;
+//                _bytes[_size - 2]++;
+//                _bytes[_size - 1] = (byte) 0;
             }
         }
 
@@ -1516,8 +1520,8 @@ public final class Key implements Comparable<Object> {
         } finally {
             switch (nudged) {
             case LEFT:
-                _bytes[_size - 2]--;
-                _bytes[_size - 1] = (byte) 0xFF;
+                _size--;
+                _bytes[_size] = save;
                 break;
             case RIGHT:
                 _bytes[_size - 1] = (byte) 1;
@@ -3301,8 +3305,9 @@ public final class Key implements Comparable<Object> {
      */
     void nudgeLeft() {
         if (_size >= 2 && _bytes[_size - 1] == 0 && _bytes[_size - 2] != 0) {
-            _bytes[_size - 2]--;
-            _bytes[_size - 1] = (byte) 0xFF;
+//            _bytes[_size - 2]--;
+//            _bytes[_size - 1] = (byte) 0xFF;
+            _size--;
             bumpGeneration();
         }
     }
