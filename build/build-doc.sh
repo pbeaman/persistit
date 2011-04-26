@@ -34,7 +34,7 @@
 rm -rf /tmp/akiban-persistit-doc
 mkdir /tmp/akiban-persistit-doc
 javac -d /tmp/akiban-persistit-doc -cp core/target/classes build/src/*.java
-java -cp /tmp/akiban-persistit-doc:core/target/classes AsciiDocPrep in=doc/TOC.txt out=/tmp/akiban-persistit-doc/doc.txt base=apidocs
+java -cp /tmp/akiban-persistit-doc:core/target/classes AsciiDocPrep in=doc/TOC.txt out=/tmp/akiban-persistit-doc/doc.txt base=apidocs index=core/target/site/apidocs/index-all.html
 asciidoc -a toc -n -d book -b xhtml11 -o /tmp/akiban-persistit-doc/doc.html /tmp/akiban-persistit-doc/doc.txt
 asciidoc -a toc -n -d book -b docbook -o /tmp/akiban-persistit-doc/doc.xml /tmp/akiban-persistit-doc/doc.txt
 sed s/\`/\ / /tmp/akiban-persistit-doc/doc.html > /tmp/akiban-persistit-doc/user_guide.html
