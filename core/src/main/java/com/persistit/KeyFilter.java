@@ -958,8 +958,6 @@ public class KeyFilter {
             if (size > 1 && from[size - 1]!= 0) {
                 to = new byte[size + 1];
                 System.arraycopy(from, 0, to, 0, size);
-                to[size - 2]++;
-                to[size - 1] = (byte) 0;
             } else {
                 to = from;
             }
