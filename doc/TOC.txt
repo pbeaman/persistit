@@ -1,0 +1,20 @@
+Akiban Persistit User Guide
+===========================
+Peter Beaman <pbeaman@akiban.com>
+:toc:
+:doctype: book
+:icons:
+:numbered:
+:website: http://www.akiban.com/persistit/
+
+@doc//GettingStarted.txt
+@doc//BasicAPI.txt
+@doc//Transactions.txt
+@doc//PhysicalStorage.txt
+@doc//Configuration.txt
+@doc//Recovery.txt
+@doc//Management.txt
+@doc//Security.txt
+@doc//Serialization.txt
+@doc//Miscellaneous.txt
+
