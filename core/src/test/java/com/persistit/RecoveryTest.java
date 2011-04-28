@@ -64,7 +64,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertTrue(jman.getPageMapSize() > 0);
         _persistit.flush();
         _persistit.checkpoint();
-        jman.copyBack(Long.MAX_VALUE);
+        jman.copyBack();
         assertEquals(0, jman.getPageMapSize());
         _persistit.close();
         final Properties saveProperties = _persistit.getProperties();
@@ -165,7 +165,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
         jman.rollover();
         _persistit.checkpoint();
-        jman.copyBack(Long.MAX_VALUE);
+        jman.copyBack();
         assertEquals(0, jman.getPageMapSize());
 
         final Transaction txn = _persistit.getTransaction();
@@ -179,7 +179,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
         jman.rollover();
         _persistit.checkpoint();
-        jman.copyBack(Long.MAX_VALUE);
+        jman.copyBack();
         //
         // Because JournalManager thinks there's an open transaction
         // (due to the call to setUnitTestNeverCloseTransactionId method)
@@ -201,7 +201,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         //
         jman.rollover();
         _persistit.checkpoint();
-        jman.copyBack(Long.MAX_VALUE);
+        jman.copyBack();
 
         assertEquals(3, jman.getBaseAddress() / blockSize);
         assertEquals(0, jman.getPageMapSize());

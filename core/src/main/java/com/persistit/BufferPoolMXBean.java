@@ -35,35 +35,42 @@ public interface BufferPoolMXBean {
     public int getBufferCount();
 
     /**
-     * Return the count of lookup operations for pages images in this pool.
-     * This number, in comparison with the hit counter, indicates how
-     * effective the cache is in reducing disk I/O.
+     * Return the count of lookup operations for pages images that resulted in a
+     * physical disk read operation. This number, in comparison with the hit
+     * counter, indicates how effective the cache is in reducing disk I/O.
      * 
      * @return The get count
      */
-    public long getGetCounter();
+    public long getMissCount();
 
     /**
-     * Return the count of lookup operations for pages images in this pool
-     * for which the page image was already found in this
-     * <code>BufferPool</code>. This number, in comparison with the get
-     * counter, indicates how effective the cache is in reducing disk I/O.
+     * Return the count of lookup operations for pages images in this pool for
+     * which the page image was already found in this <code>BufferPool</code>.
+     * This number, in comparison with the get counter, indicates how effective
+     * the cache is in reducing disk I/O.
      * 
      * @return The hit count
      */
-    public long getHitCounter();
+    public long getHitCount();
 
     /**
-     * @return count of pages read back into the buffer pool from the
-     *         journal
+     * @return Count of pages newly created in this <code>BufferPool</code>.
      */
-    public long getReadCounter();
+    public long getNewCount();
 
     /**
-     * Get the "hit ratio" - the number of hits divided by the number of
-     * overall gets. A value close to 1.0 indicates that most attempts to
-     * find data in the <code>BufferPool</code> are successful - i.e., that
-     * the cache is effectively reducing the need for disk read operations.
+     * Get the count of valid pages evicted from this <code>BufferPool</code> to
+     * make room for newly read or created pages.
+     * 
+     * @return The evicted page count
+     */
+    public long getEvictCount();
+
+    /**
+     * Get the "hit ratio" - the number of hits divided by the number of overall
+     * gets. A value close to 1.0 indicates that most attempts to find data in
+     * the <code>BufferPool</code> are successful - i.e., that the cache is
+     * effectively reducing the need for disk read operations.
      * 
      * @return The ratio
      */

@@ -456,9 +456,7 @@ public final class Buffer extends SharedResource {
     void load() throws InvalidPageStructureException {
         Debug.$assert(isMine());
 
-        synchronized(_lock) {
-            _timestamp = getLong(TIMESTAMP_OFFSET);
-        }
+        _timestamp = getLong(TIMESTAMP_OFFSET);
         
         if (_page != 0) {
             int type = getByte(TYPE_OFFSET);

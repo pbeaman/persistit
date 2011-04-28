@@ -139,8 +139,9 @@ public class PoolDisplayPanel extends JPanel {
         private String _includeMask = null;
         private String _excludeMask = null;
 
-        private long _getCounter;
-        private long _hitCounter;
+        private long _missCount;
+        private long _newCount;
+        private long _hitCount;
         private double _hitRatio;
 
         private DecimalFormat _df = new DecimalFormat("#####.#####");
@@ -235,8 +236,9 @@ public class PoolDisplayPanel extends JPanel {
                 if (pools.length < 1) {
                     _selectedBufferCount = 0;
 
-                    _hitCounter = 0;
-                    _getCounter = 0;
+                    _hitCount = 0;
+                    _missCount = 0;
+                    _newCount = 0;
                     _hitRatio = 0;
                 } else {
                     String managementClassName = _management.getClass()
@@ -263,24 +265,25 @@ public class PoolDisplayPanel extends JPanel {
                                         _includeMask, _excludeMask);
                     }
 
-                    _hitCounter = info.getHitCounter();
-                    _getCounter = info.getGetCounter();
+                    _hitCount = info.getHitCount();
+                    _missCount = info.getMissCount();
+                    _newCount = info.getNewCount();
                     _hitRatio = info.getHitRatio();
                 }
             } catch (Exception ex) {
                 ex.printStackTrace();
                 _selectedBufferCount = 0;
 
-                _hitCounter = 0;
-                _getCounter = 0;
+                _hitCount = 0;
+                _missCount = 0;
                 _hitRatio = 0;
             }
         }
 
         private String getBufferStats() {
-            return Long.toString(_hitCounter) + " / "
-                    + Long.toString(_getCounter) + " = "
-                    + _df.format(_hitRatio);
+            return Long.toString(_hitCount) + " / ("
+                    + Long.toString(_missCount) + "+"
+                    + Long.toString(_newCount) + ") = " + _df.format(_hitRatio);
         }
     }
 }

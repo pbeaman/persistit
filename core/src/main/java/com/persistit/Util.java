@@ -16,6 +16,8 @@
 package com.persistit;
 
 import java.io.UnsupportedEncodingException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
  * @author pbeaman
@@ -519,6 +521,14 @@ public class Util {
             sb.append((char) c);
     }
 
+    public static String date(final long t) {
+        if (t == 0) {
+            return "none";
+        } else {
+            return new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date(t));
+        }
+    }
+    
     public static void println(final String template, final Object... args) {
         System.out.println(String.format(template, args));
     }

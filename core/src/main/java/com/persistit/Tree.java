@@ -15,7 +15,9 @@
 
 package com.persistit;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.persistit.exception.PersistitException;
 
@@ -31,7 +33,8 @@ public class Tree extends SharedResource {
     private int _depth;
     private AtomicLong _changeCount = new AtomicLong(-1);
     int _hashCode = -1;
-    private Object _appCache;
+    private AtomicReference<Object> _appCache = new AtomicReference<Object>();
+    private AtomicInteger _handle = new AtomicInteger();
 
     Tree(final Persistit persistit, Volume volume, String name) {
         super(persistit);
@@ -229,13 +232,24 @@ public class Tree extends SharedResource {
      *            object to be cached for application convenience.
      */
     public void setAppCache(Object appCache) {
-        _appCache = appCache;
+        _appCache.set(appCache);
     }
 
     /**
      * @return the object cached for application convenience
      */
     public Object getAppCache() {
-        return _appCache;
+        return _appCache.get();
     }
+    
+    public int getHandle() {
+        return _handle.get();
+    }
+    
+    public int setHandle(final int handle) {
+        _handle.set(handle);
+        return handle;
+    }
+
+
 }

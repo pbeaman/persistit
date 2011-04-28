@@ -24,7 +24,9 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.CorruptVolumeException;
@@ -84,7 +86,7 @@ public class Volume extends SharedResource {
     private long _garbageRoot;
     private int _bufferSize;
     private boolean _loose;
-    private Object _appCache;
+    private AtomicReference<Object> _appCache = new AtomicReference<Object>();
 
     private AtomicLong _readCounter = new AtomicLong();
     private AtomicLong _writeCounter = new AtomicLong();
@@ -93,6 +95,7 @@ public class Volume extends SharedResource {
     private AtomicLong _traverseCounter = new AtomicLong();
     private AtomicLong _storeCounter = new AtomicLong();
     private AtomicLong _removeCounter = new AtomicLong();
+    private AtomicInteger _handle = new AtomicInteger();
 
     private Buffer _headBuffer;
     private BufferPool _pool;
@@ -165,7 +168,7 @@ public class Volume extends SharedResource {
             throws PersistitException {
         File file = new File(pathName);
         if (file.exists() && file.isFile()) {
-            return new Volume(persistit, pathName, alias, id, ro);
+            return new Volume(persistit, file.getAbsolutePath(), alias, id, ro);
         }
         throw new PersistitIOException(new FileNotFoundException(pathName));
     }
@@ -468,7 +471,7 @@ public class Volume extends SharedResource {
                 && !name.isEmpty()) {
             file = new File(file, name);
         }
-        _path = file.getPath();
+        _path = file.getCanonicalPath();
         if (name == null || name.isEmpty()) {
             _name = file.getName();
             final int p = _name.lastIndexOf('.');
@@ -559,7 +562,8 @@ public class Volume extends SharedResource {
             if (mustCreate || tranzient) {
                 throw new VolumeAlreadyExistsException(path);
             }
-            Volume vol = openVolume(persistit, path, name, id, false);
+            Volume vol = openVolume(persistit, file.getAbsolutePath(), name,
+                    id, false);
             if (vol._bufferSize != bufferSize) {
                 throw new VolumeAlreadyExistsException(
                         "Different buffer size expected/actual=" + bufferSize
@@ -575,9 +579,9 @@ public class Volume extends SharedResource {
 
             return vol;
         } else {
-            return new Volume(persistit, path, name, id, bufferSize,
-                    initialPages, extensionPages, maximumPages, tranzient,
-                    loose);
+            return new Volume(persistit, file.getAbsolutePath(), name, id,
+                    bufferSize, initialPages, extensionPages, maximumPages,
+                    tranzient, loose);
         }
     }
 
@@ -848,6 +852,10 @@ public class Volume extends SharedResource {
         return _extensionPages;
     }
 
+    void bumpReadCounter() {
+        _readCounter.incrementAndGet();
+        _lastReadTime = System.currentTimeMillis();
+    }
     void bumpWriteCounter() {
         _writeCounter.incrementAndGet();
         _lastWriteTime = System.currentTimeMillis();
@@ -1184,9 +1192,7 @@ public class Volume extends SharedResource {
                     .append(tree.getName()).remove();
 
             synchronized (_lock) {
-//                if (tree.getChangeCount() >= 0) {
-                    _treeNameHashMap.remove(tree.getName());
-//                }
+                _treeNameHashMap.remove(tree.getName());
                 tree.bumpGeneration();
                 tree.invalidate();
             }
@@ -1420,8 +1426,7 @@ public class Volume extends SharedResource {
             _persistit.getIOMeter().chargeReadPageFromVolume(this,
                     buffer.getPageAddress(), buffer.getBufferSize(),
                     buffer.getIndex());
-            _lastReadTime = System.currentTimeMillis();
-            _readCounter.incrementAndGet();
+            bumpReadCounter();
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_READ_OK)) {
                 _persistit.getLogBase().log(LogBase.LOG_READ_OK, page,
                         buffer.getIndex());
@@ -1436,18 +1441,6 @@ public class Volume extends SharedResource {
             _lastIOException = ioe;
             throw new PersistitIOException(ioe);
         }
-    }
-
-    void writePage(final Buffer buffer) throws IOException,
-            InvalidPageAddressException, ReadOnlyVolumeException,
-            VolumeClosedException {
-
-        final ByteBuffer bb = buffer.getByteBuffer();
-        bb.position(0).limit(buffer.getBufferSize());
-        writePage(bb, buffer.getPageAddress());
-        _persistit.getIOMeter().chargeWritePageToVolume(this,
-                buffer.getPageAddress(), buffer.getBufferSize(),
-                buffer.getIndex());
     }
 
     void writePage(final ByteBuffer bb, final long page) throws IOException,
@@ -1472,7 +1465,7 @@ public class Volume extends SharedResource {
             _channel.write(bb, page * _bufferSize);
         } catch (IOException ioe) {
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_WRITE_IOE)) {
-                _persistit.getLogBase().log(LogBase.LOG_WRITE_IOE, page);
+                _persistit.getLogBase().log(LogBase.LOG_WRITE_IOE, page, ioe);
             }
             _lastIOException = ioe;
             throw ioe;
@@ -1716,7 +1709,6 @@ public class Volume extends SharedResource {
     }
 
     void close() throws PersistitException {
-        flush();
         _pool.setFixed(_headBuffer, false);
 
         // _pool.invalidate(this);
@@ -1734,7 +1726,7 @@ public class Volume extends SharedResource {
             throw new PersistitIOException(e);
         }
     }
-
+    
     void flush() throws PersistitException {
         claimHeadBuffer();
         commitAllTreeUpdates();
@@ -1836,14 +1828,23 @@ public class Volume extends SharedResource {
      *            object to be cached for application convenience.
      */
     public void setAppCache(Object appCache) {
-        _appCache = appCache;
+        _appCache.set(appCache);
     }
 
     /**
      * @return the object cached for application convenience
      */
     public Object getAppCache() {
-        return _appCache;
+        return _appCache.get();
+    }
+    
+    public int getHandle() {
+        return _handle.get();
+    }
+    
+    public int setHandle(final int handle) {
+        _handle.set(handle);
+        return handle;
     }
 
 }

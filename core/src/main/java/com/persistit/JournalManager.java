@@ -35,6 +35,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.CU;
@@ -65,6 +66,11 @@ import com.persistit.exception.PersistitIOException;
  */
 public class JournalManager implements JournalManagerMXBean,
         VolumeHandleLookup, TransactionWriter {
+
+    /**
+     * REGEX expression that recognizes the name of a journal file.
+     */
+    final static Pattern PATH_PATTERN = Pattern.compile("(.+)\\.(\\d{12})");
 
     private long _journalCreatedTime;
 
@@ -107,6 +113,8 @@ public class JournalManager implements JournalManagerMXBean,
     private AtomicBoolean _flushing = new AtomicBoolean();
 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
+
+    private AtomicBoolean _backupMode = new AtomicBoolean();
 
     private String _journalFilePath;
 
@@ -202,8 +210,9 @@ public class JournalManager implements JournalManagerMXBean,
      * @param maximumSize
      * @throws PersistitException
      */
-    public synchronized void init(final RecoveryManager rman, final String path,
-            final long maximumSize) throws PersistitException {
+    public synchronized void init(final RecoveryManager rman,
+            final String path, final long maximumSize)
+            throws PersistitException {
         _writeBuffer = ByteBuffer.allocate(_writeBufferSize);
         if (rman != null && rman.getKeystoneAddress() != -1) {
             _journalFilePath = rman.getJournalFilePath();
@@ -275,6 +284,7 @@ public class JournalManager implements JournalManagerMXBean,
         info.pageMapSize = _pageMap.size();
         info.baseAddress = _baseAddress;
         info.appendOnly = _appendOnly.get();
+        info.backupMode = _backupMode.get();
         info.fastCopying = _copyFast.get();
     }
 
@@ -298,12 +308,20 @@ public class JournalManager implements JournalManagerMXBean,
         return _appendOnly.get();
     }
 
+    public boolean isBackupMode() {
+        return _backupMode.get();
+    }
+
     public boolean isCopyingFast() {
         return _copyFast.get();
     }
 
     public void setAppendOnly(boolean appendOnly) {
         _appendOnly.set(appendOnly);
+    }
+
+    public void setBackupMode(boolean backupMode) {
+        _backupMode.set(backupMode);
     }
 
     public void setCopyingFast(boolean fast) {
@@ -377,15 +395,18 @@ public class JournalManager implements JournalManagerMXBean,
         int urgency = _pageMap.size() / _pageMapSizeBase;
         int journalFileCount = (int) (_currentAddress / _blockSize - _baseAddress
                 / _blockSize);
-        if (journalFileCount > 1) {
+        if (!_appendOnly.get() && journalFileCount > 1) {
             urgency += journalFileCount - 1;
         }
         return Math.min(urgency, URGENT);
     }
 
     public int handleForVolume(final Volume volume) throws PersistitIOException {
+        if (volume.getHandle() != 0) {
+            return volume.getHandle();
+        }
         final VolumeDescriptor vd = new VolumeDescriptor(volume);
-        return handleForVolume(vd);
+        return volume.setHandle(handleForVolume(vd));
     }
 
     public synchronized int handleForVolume(final VolumeDescriptor vd)
@@ -423,13 +444,16 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     int handleForTree(final Tree tree) throws PersistitIOException {
+        if (tree.getHandle() != 0) {
+            return tree.getHandle();
+        }
         final TreeDescriptor td = new TreeDescriptor(
                 handleForVolume(tree.getVolume()), tree.getName());
-        return handleForTree(td);
+        return tree.setHandle(handleForTree(td));
     }
 
     Tree treeForHandle(final int handle) throws PersistitException {
-        final TreeDescriptor td = _handleToTreeMap.get(Integer.valueOf(handle));
+        final TreeDescriptor td = lookupTreeHandle(handle);
         if (td == null) {
             return null;
         }
@@ -451,6 +475,10 @@ public class JournalManager implements JournalManagerMXBean,
     @Override
     public synchronized VolumeDescriptor lookupVolumeHandle(final int handle) {
         return _handleToVolumeMap.get(Integer.valueOf(handle));
+    }
+    
+    public synchronized TreeDescriptor lookupTreeHandle(final int handle) {
+        return _handleToTreeMap.get(Integer.valueOf(handle));
     }
 
     private void readFully(final ByteBuffer bb, final long address)
@@ -508,7 +536,8 @@ public class JournalManager implements JournalManagerMXBean,
         synchronized (this) {
             final Integer volumeHandle = _volumeToHandleMap.get(vd);
             if (volumeHandle != null) {
-                pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
+                pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1,
+                        -1));
             }
         }
 
@@ -531,6 +560,7 @@ public class JournalManager implements JournalManagerMXBean,
                     + bb.limit());
         }
         _readPageCount++;
+        buffer.getVolume().bumpReadCounter();
         return true;
     }
 
@@ -841,7 +871,7 @@ public class JournalManager implements JournalManagerMXBean,
      * @param handle
      * @throws PersistitIOException
      */
-    void writeVolumeHandleToJournal(final VolumeDescriptor volume,
+    synchronized void writeVolumeHandleToJournal(final VolumeDescriptor volume,
             final int handle) throws PersistitIOException {
         prepareWriteBuffer(IV.MAX_LENGTH);
         IV.putType(_writeBuffer);
@@ -855,8 +885,8 @@ public class JournalManager implements JournalManagerMXBean,
         advance(recordSize);
     }
 
-    void writeTreeHandleToJournal(final TreeDescriptor td, final int handle)
-            throws PersistitIOException {
+    synchronized void writeTreeHandleToJournal(final TreeDescriptor td,
+            final int handle) throws PersistitIOException {
         prepareWriteBuffer(IT.MAX_LENGTH);
         IT.putType(_writeBuffer);
         IT.putHandle(_writeBuffer, handle);
@@ -1017,8 +1047,8 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     @Override
-    public boolean writeCacheUpdatesToJournal(final long timestamp,
-            final long cacheId, final List<Update> updates)
+    public synchronized boolean writeCacheUpdatesToJournal(
+            final long timestamp, final long cacheId, final List<Update> updates)
             throws PersistitIOException {
         int estimate = CU.OVERHEAD;
         for (int index = 0; index < updates.size(); index++) {
@@ -1031,7 +1061,7 @@ public class JournalManager implements JournalManagerMXBean,
         return true;
     }
 
-    synchronized int writeCacheUpdatesToJournal(final ByteBuffer writeBuffer,
+    int writeCacheUpdatesToJournal(final ByteBuffer writeBuffer,
             final long timestamp, final long cacheId, final List<Update> updates)
             throws PersistitIOException {
         int start = writeBuffer.position();
@@ -1074,9 +1104,19 @@ public class JournalManager implements JournalManagerMXBean,
         final Matcher matcher = PATH_PATTERN.matcher(file.getName());
         if (matcher.matches()) {
             // TODO - validate range
-            return Long.parseLong(matcher.group(1));
+            return Long.parseLong(matcher.group(2));
         } else {
             return -1;
+        }
+    }
+
+    static String fileToPath(final File file) {
+        final Matcher matcher = PATH_PATTERN.matcher(file.getPath());
+        if (matcher.matches()) {
+            // TODO - validate range
+            return matcher.group(1);
+        } else {
+            return null;
         }
     }
 
@@ -1148,7 +1188,7 @@ public class JournalManager implements JournalManagerMXBean,
      * 
      * @throws PersistitIOException
      */
-    synchronized boolean flush() throws PersistitIOException {
+    synchronized long flush() throws PersistitIOException {
         final long address = _writeBufferAddress;
         if (address != Long.MAX_VALUE && _writeBuffer != null) {
             try {
@@ -1172,7 +1212,7 @@ public class JournalManager implements JournalManagerMXBean,
                         _writeBuffer.limit((int) remaining);
                     }
                     _persistit.getIOMeter().chargeFlushJournal(size, address);
-                    return true;
+                    return _writeBufferAddress;
                 }
             } catch (IOException e) {
                 throw new PersistitIOException(
@@ -1180,28 +1220,23 @@ public class JournalManager implements JournalManagerMXBean,
                                 + addressToFile(address), e);
             }
         }
-        return false;
+        return Long.MAX_VALUE;
     }
 
     /**
      * Force all data written to the journal file to disk.
      */
     public void force() throws PersistitIOException {
-        final long address;
-        synchronized (this) {
-            address = _writeBufferAddress;
-        }
-        if (address != Long.MAX_VALUE) {
-            try {
-                if (flush()) {
-                    final FileChannel channel = getFileChannel(address);
-                    channel.force(false);
-                }
-            } catch (IOException e) {
-                throw new PersistitIOException(
-                        "IOException while writing to file "
-                                + addressToFile(address), e);
+        long address = Long.MAX_VALUE;
+        try {
+            address = flush();
+            if (address != Long.MAX_VALUE) {
+                final FileChannel channel = getFileChannel(address);
+                channel.force(false);
             }
+        } catch (IOException e) {
+            throw new PersistitIOException("IOException while writing to file "
+                    + addressToFile(address), e);
         }
     }
 
@@ -1232,14 +1267,14 @@ public class JournalManager implements JournalManagerMXBean,
         //
         // If the current journal file has room for the record, then return.
         //
-        if (_writeBuffer.remaining() >= size + JE.OVERHEAD) {
+        if (_writeBuffer.remaining() > size + JE.OVERHEAD) {
             return newJournalFile;
         }
         //
         // Otherwise, flush the write buffer and try again
         flush();
 
-        if (_writeBuffer.remaining() >= size + JE.OVERHEAD) {
+        if (_writeBuffer.remaining() > size + JE.OVERHEAD) {
             return newJournalFile;
         }
         //
@@ -1358,24 +1393,26 @@ public class JournalManager implements JournalManagerMXBean,
 
     /**
      * Set the copyFast flag and then wait until all pages have been copied to
-     * their respective volumes, allowing the journal files to be deleted.
+     * their respective volumes, allowing the journal files to be deleted. Note:
+     * does nothing of the <code>appendOnly</code> is set.
      * 
-     * @param toTimestamp
      * @throws PersistitException
      */
-    public void copyBack(final long toTimestamp) throws PersistitException {
-        synchronized (this) {
-            _copyFast.set(true);
-            notifyAll();
-            while (_copyFast.get()) {
-                try {
-                    wait(100);
-                } catch (InterruptedException ie) {
-                    // ignore;
+    public void copyBack() throws PersistitException {
+        if (!_appendOnly.get()) {
+            synchronized (this) {
+                _copyFast.set(true);
+                notifyAll();
+                while (_copyFast.get()) {
+                    try {
+                        wait(100);
+                    } catch (InterruptedException ie) {
+                        // ignore;
+                    }
                 }
-            }
-            if (Debug.ENABLED) {
-                Debug.$assert(_pageMap.isEmpty()); // TODO - remove this
+                if (Debug.ENABLED) {
+                    Debug.$assert(_pageMap.isEmpty()); // TODO - remove this
+                }
             }
         }
     }
@@ -1775,7 +1812,6 @@ public class JournalManager implements JournalManagerMXBean,
             final long now = System.nanoTime();
             try {
                 try {
-                    flush();
                     force();
 
                 } catch (Exception e) {

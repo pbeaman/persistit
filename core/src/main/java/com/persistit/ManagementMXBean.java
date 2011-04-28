@@ -35,7 +35,7 @@ public interface ManagementMXBean {
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit";
 
     /**
-     * Indicates whether Persistit is currently in the initialized state.
+     * Indicate whether Persistit is currently in the initialized state.
      * 
      * @return The state
      */
@@ -88,7 +88,7 @@ public interface ManagementMXBean {
     public long getRollbackCount() throws RemoteException;
 
     /**
-     * Indicates whether Persistit will suspend its shutdown activities on
+     * Indicate whether Persistit will suspend its shutdown activities on
      * invocation of {@link com.persistit.Persistit#close}. This flag is
      * intended for use by management tools that need to keep Persistit open
      * even when the application has requested it to close so that the final
@@ -101,7 +101,7 @@ public interface ManagementMXBean {
     public boolean isShutdownSuspended() throws RemoteException;
 
     /**
-     * Controls whether Persistit will suspend its shutdown activities on
+     * Control whether Persistit will suspend its shutdown activities on
      * invocation of {@link com.persistit.Persistit#close}. This flag is
      * intended for use by management tools that need to keep Persistit open
      * even when the application has requested it to close so that the final
@@ -114,7 +114,7 @@ public interface ManagementMXBean {
     public void setShutdownSuspended(boolean suspended) throws RemoteException;
 
     /**
-     * Indicates whether Persistit is suspending all update operations. When
+     * Indicate whether Persistit is suspending all update operations. When
      * enabled, Persistit will indefinitely delay each Thread that attempts to
      * perform an update operation.
      * 
@@ -125,7 +125,7 @@ public interface ManagementMXBean {
     public boolean isUpdateSuspended() throws RemoteException;
 
     /**
-     * Controls whether Persistit will suspend all update operations. When
+     * Control whether Persistit will suspend all update operations. When
      * enabled, Persistit will delay each Thread that attempts to perform an
      * update operation indefinitely.
      * 
@@ -135,7 +135,7 @@ public interface ManagementMXBean {
     public void setUpdateSuspended(boolean suspended) throws RemoteException;
 
     /**
-     * Attempts to flush and sync all dirty data in Persistit by invoking
+     * Attempt to flush and sync all dirty data in Persistit by invoking
      * {@link Persistit#flush} and {@link Persistit#sync}.
      * 
      * @return <code>true</code> if the attempt to close Persistit was
@@ -143,4 +143,29 @@ public interface ManagementMXBean {
      * @throws RemoteException
      */
     public boolean flushAndSync() throws RemoteException;
+
+    /**
+     * Use a simple command-line processor to invoke a task. Allows task
+     * invocation to be scripted through a command-line JMX client. This method
+     * runs the Task, which in some cases may take a long time. In contrast, the
+     * {@link #launch(String)} method initiates the task in a new thread and
+     * returns immediately.
+     * 
+     * @param arg
+     * @return The final status of the Task, as a String
+     * @throws RemoteException
+     */
+    public String execute(final String commandLine) throws RemoteException;
+
+    /**
+     * Use a simple command-line processor to start a task. Allows task
+     * invocation to be scripted through a command-line JMX client. This method
+     * starts the task in a new thread and returns immediately. In contrast, the
+     * {@link #execute(String)} method completes the task before returning.
+     * 
+     * @param arg
+     * @return The taskId, as a String
+     * @throws RemoteException
+     */
+    public String launch(final String commandLine) throws RemoteException;
 }

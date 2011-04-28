@@ -475,12 +475,14 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
 
                 long reads = 0;
                 long writes = 0;
-                long gets = 0;
+                long misses = 0;
                 long hits = 0;
+                long creates = 0;
 
                 for (int index = 0; index < bpia.length; index++) {
-                    gets += bpia[index].getGetCounter();
-                    hits += bpia[index].getHitCounter();
+                    misses += bpia[index].getMissCount();
+                    hits += bpia[index].getHitCount();
+                    creates += bpia[index].getNewCount();
                 }
 
                 Management.VolumeInfo[] via = management.getVolumeInfoArray();
@@ -496,9 +498,9 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
 
                 _totalReads.setText(_adminUI.formatLong(reads));
                 _totalWrites.setText(_adminUI.formatLong(writes));
-                _totalGets.setText(_adminUI.formatLong(gets));
-                _hitRatio.setText(gets > 0 ? _adminUI
-                        .formatPercent((double) hits / (double) gets) : "n/a");
+                _totalGets.setText(_adminUI.formatLong(misses));
+                _hitRatio.setText(misses + hits + creates > 0 ? _adminUI
+                        .formatPercent((double) hits / (double) (misses + hits + creates)) : "n/a");
                 _volumeInfoArrayModel.setInfoArray(via);
 
                 Management.TransactionInfo transactionInfo = management

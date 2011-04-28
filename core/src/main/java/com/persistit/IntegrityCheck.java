@@ -48,12 +48,11 @@ public class IntegrityCheck extends Task {
     final static int MAX_FAULTS = 200;
     final static int MAX_WALK_RIGHT = 1000;
     
-    private final static String[] ARG_TEMPLATE = {
+    final static String COMMAND_NAME = "icheck";
+    final static String[] ARG_TEMPLATE = {
         "trees|string:|Tree specification",
-        "_flags|U|Freeze updates (default)",
-        "_flags|H|Fix holes (default)",
-        "_flags|u|Don't freeze updates",
-        "_flags|h|Don't fix holes",
+        "_flag|u|Don't freeze updates (Default is to freeze updates)",
+        "_flag|h|Don't fix holes (Default is to fix index holes)",
     };
 
     private Tree _currentTree;
@@ -96,15 +95,18 @@ public class IntegrityCheck extends Task {
     }
 
     @Override
-    protected void setupTask(String[] args) throws PersistitException {
+    protected void setupArgs(String[] args) throws PersistitException {
         _trees = parseTreeList(args[0]);
         _freezeUpdates = args.length > 1 && "true".equals(args[1]);
         _fixHoles = args.length > 2 && "true".equals(args[2]);
     }
     
     @Override
-    protected String[] argTemplate() {
-        return ARG_TEMPLATE;
+    public void setupTaskWithArgParser(final String[] args) throws Exception {
+        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
+        _trees = parseTreeList(ap.getStringValue("trees"));
+        _freezeUpdates = !ap.isFlag('u');
+        _fixHoles = !ap.isFlag('h');
     }
 
     @Override

@@ -39,6 +39,7 @@ public class SaveLoadTest1 extends PersistitUnitTestCase {
         pmap.putAll(tmap);
 
         final File saveFile = File.createTempFile("SaveLoadTest", ".sav");
+        saveFile.deleteOnExit();
         final StreamSaver saver = new StreamSaver(_persistit, saveFile);
         saver.saveTrees("persistit", new String[] { "SaveLoadTest1" });
         saver.close();

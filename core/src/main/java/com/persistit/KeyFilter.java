@@ -931,11 +931,13 @@ public class KeyFilter {
 
         private byte[] nudgeLeft(byte[] from) {
             int size = from.length;
-            final byte[] to = new byte[size];
-            System.arraycopy(from, 0, to, 0, size);
-            if (size > 1 && to[size - 1] == 0 && to[size - 2] != 0) {
-                to[size - 2]--;
-                to[size - 1] = -1;
+            final byte[] to;
+            if (size > 1 && from[size - 1] == 0 && from[size - 2] != 0) {
+                to = new byte[size - 1];
+                System.arraycopy(from, 0, to, 0, size - 1);
+            } else {
+                to = new byte[size];
+                System.arraycopy(from, 0, to, 0, size);
             }
             return to;
         }
@@ -952,11 +954,12 @@ public class KeyFilter {
 
         private byte[] unnudgeLeft(byte[] from) {
             int size = from.length;
-            final byte[] to = new byte[size];
-            System.arraycopy(from, 0, to, 0, size);
-            if (size > 1 && to[size - 1] == -1) {
-                to[size - 2]++;
-                to[size - 1] = (byte) 0;
+            final byte[] to;
+            if (size > 1 && from[size - 1]!= 0) {
+                to = new byte[size + 1];
+                System.arraycopy(from, 0, to, 0, size);
+            } else {
+                to = from;
             }
             return to;
         }

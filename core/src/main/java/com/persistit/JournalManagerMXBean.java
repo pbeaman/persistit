@@ -67,7 +67,7 @@ public interface JournalManagerMXBean {
      * Default time interval (in milliseconds) between calls to the
      * FileChannel.force() method.
      */
-    public final static long DEFAULT_FLUSH_INTERVAL = 250;
+    public final static long DEFAULT_FLUSH_INTERVAL = 100;
 
     /**
      * Default time interval (in milliseconds) between calls to the journal
@@ -91,11 +91,6 @@ public interface JournalManagerMXBean {
      * Format expression defining the name of a journal file.
      */
     final static String PATH_FORMAT = "%s.%012d";
-
-    /**
-     * REGEX expression that recognizes the name of a journal file.
-     */
-    final static Pattern PATH_PATTERN = Pattern.compile(".+\\.(\\d{12})");
 
     /**
      * Default setting for number of pages in the page map before the urgency of
@@ -147,5 +142,5 @@ public interface JournalManagerMXBean {
 
     public void force() throws PersistitIOException;
 
-    public void copyBack(final long toTimestamp) throws PersistitException;
+    public void copyBack() throws PersistitException;
 }

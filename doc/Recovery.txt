@@ -1,0 +1,43 @@
+Recovery
+==============================
+
+Persistit is designed, implemented and tested to ensure that in the event the application stops abruptly without cleanly closing the database, the database remains structurally intact and in an internally consistent state after restart.
+
+To do this, Persistit writes modified pages to the journal before writing them to the actual Volume structures. Upon restart after an abrupt termination, Persistit examines the journal, finds a valid checkpoint and restores B-tree contents accordingly, and then applies any transactions that committed after the checkpoint. This process is called _recovery_.
+
+The journal consists of sequentially numbered files containing a variety of different record types. The journal is append-only, which allows updates to be streamed to disk very efficiently. Periodically a background Copier thread copies modified pages from the journal to their home Volumes, allowing Persistit to delete obsolete journal files. This process is efficient because often multiple versions of a page will be written to subsequent journal files; the Copier need only copy the most recent version.
+
+Recovery depends on the availability of the volume and journal files as they existed prior to abrupt termination. If either of these is modified or destroyed outside of Persistit, successful recovery is unlikely.
+
+== Timestamps and Checkpoints
+
+Persistit maintains a universal counter called the timestamp counter. Every update operation assigns a new, larger timestamp, and every record in the journal includes the timestamp assigned to the operation writing the record.
+
+A checkpoint is simply a timestamp for which a valid recovery is possible.  Periodically Persistit chooses a timestamp to be a new checkpoint, ensures that all pages updated before the checkpoint have been written to the journal, and then writes a checkpoint marker.
+
+During recovery Persistit recovers only those page images that were  written prior to the last valid checkpoint marker. The results is that all B-Trees are internally consistent and contain all the updates that were issued and committed to disk before the checkpoint timestamp.
+
+Persistit always performs these recovery steps ever time it is initialized.  If the preceding Persistit shutdown was _graceful_, meaning that the com.persistit.Peristit#close() method ran successfully, then normal recovery processing is almost instantaneous. However, in the event Persistit was previously stopped abruptly, without graceful shutdown, recovery can take some time.  
+
+During recovery Persistit also locates all transaction records for transactions that committed after the checkpoint timestamp. These transactions are reapplied to the B-Trees, with the result that
+. The B-Tree index and data structures are intact. All store, fetch, remove and traverse operations will complete successfully. footnote:[Persistit provides the utility class com.persistit.IntegrityCheck to verify the integrity of a Volume.]
+. All committed transactions are present in the recovered database.  (See <<Transactions>> for durability of disk- vs. memory-committed  transactions.)
+. When update operations are applied outside of transactions the resulting state is identical to some consistent, reasonably recent state prior to the termination. (Reasonably recent means within about a minute of the abrupt termination.)
+
+== The +flush()+, +sync()+ and +checkpoint()+ Operations
+
+An application may require certainty at various points that all pending updates have been fully written to disk. The com.persistit.Persistit class provides three methods to ensure that updates have been written:
+
+[horizontal]
++flush+:: causes Persistit to write all pending updates to the journal. Upon successful completion of flush any pages that needed writing prior to the call to flush are guaranteed to have been written to their respective volume files.
++sync+:: forces the underlying operating system to write pending updates from the operating system’s write-behind cache to the actual disk. (This operation relies on the underlying java.io.FileDescriptor.sync method.)
++checkpoint:++ causes Persistit to allocate a new checkpoint timestamp and then wait for all updates that happened before that timestamp to be committed to disk.
+
+
+== Disk I/O Retries
+
+Persistit is designed to retry any disk read or write operation that fails due to an IOException. Often the cause of an I/O failure is transient, and will resolve in time. For example, some backup programs lock files while backing them up, resulting in read and write failures in Persistit. Persistit handles read and write failures somewhat differently:
+
+Read operations are always performed by the client thread – that is, the thread actually fetching data from an Exchange. You can specify via the system configuration whether a failure while trying to read data from a Persistit volume file should result in an immediate com.persistit.PersistitIOException by setting the readretry configuration  property to false.  Otherwise, Persistit periodically retries the read operation, ultimately throwing a com.persistit.TimeoutException if the read operation does not succeed within the timeout interval.  You can specify a default timeout interval for all operations by setting the timeout configuration property.
+
+Write operations are usually performed by a background thread.  In the event a write operation fails, the background thread will periodically retry the operation at short intervals until it either succeeds or Persistit is shut down.
