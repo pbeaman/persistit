@@ -159,6 +159,11 @@ public class BufferPool {
     private PageWriter _writer;
 
     private DirtyPageCollector _collector;
+    
+    /**
+     * Determines how we choose an available buffer.
+     */
+    private BufferReplacementStrategy _replacementStrategy;
 
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -208,6 +213,7 @@ public class BufferPool {
         for (int bucket = 0; bucket < _bucketCount; bucket++) {
             _lock[bucket] = new Object();
         }
+        _replacementStrategy = new BufferReplacementStrategyImpl();
 
         try {
 
@@ -425,79 +431,7 @@ public class BufferPool {
             buffer.populateInfo(array[index]);
         }
     }
-
-    // /**
-    // * Selects and collects <code>Buffer</code>s from this pool that conform
-    // to
-    // the
-    // * selection specifications. This method is intended for use only by
-    // * the diagnostic utility package.
-    // * @param type
-    // * @param includeMask
-    // * @param excludeMask
-    // * @return An array of <code>Buffer</code>s that conform to the selection
-    // * criteria.
-    // */
-    // public Buffer[] selectBuffers(int type, int includeMask, int excludeMask)
-    // {
-    // Vector list = new Vector(_bufferCount);
-    // switch (type)
-    // {
-    // case 1:
-    // for (int bucket = 0; bucket < _bucketCount; bucket++)
-    // {
-    // synchronized(_lock[bucket])
-    // {
-    // Buffer lru = _lru[bucket];
-    // for (Buffer buffer = lru;
-    // buffer != null;
-    // buffer = buffer.getNextLru())
-    // {
-    // if (selected(buffer, includeMask, excludeMask))
-    // {
-    // list.add(buffer);
-    // }
-    // if (buffer.getNextLru() == lru) break;
-    // }
-    // }
-    // }
-    // break;
-    // case 2:
-    // for (int bucket = 0; bucket < _bucketCount; bucket++)
-    // {
-    // synchronized(_lock[bucket])
-    // {
-    // for (Buffer buffer = _invalidBufferQueue[bucket];
-    // buffer != null;
-    // buffer = buffer.getNext())
-    // {
-    // if (selected(buffer, includeMask, excludeMask))
-    // {
-    // list.add(buffer);
-    // }
-    // }
-    // }
-    // }
-    // break;
-    // default:
-    // for (int i = 0; i < _bufferCount; i++)
-    // {
-    // Buffer buffer = _buffers[i];
-    // if (selected(buffer, includeMask, excludeMask))
-    // {
-    // list.add(buffer);
-    // }
-    // }
-    // break;
-    // }
-    // Buffer[] array = new Buffer[list.size()];
-    // for (int i = 0; i < list.size(); i++)
-    // {
-    // array[i] = (Buffer)list.elementAt(i);
-    // }
-    // return array;
-    // }
-
+ 
     private boolean selected(Buffer buffer, int includeMask, int excludeMask) {
         return ((includeMask == 0) || (buffer._status & includeMask) != 0)
                 && (buffer._status & excludeMask) == 0;
@@ -1010,18 +944,12 @@ public class BufferPool {
          * Next search for a clean replaceable buffer
          */
         if (!found) {
-            buffer = _lru[bucket];
-            while (buffer != null) {
-                if (buffer.isAvailable() && buffer.isClean()
-                        && buffer.claim(true, 0)) {
-                    detach(buffer);
-                    found = true;
-                    break;
-                }
-                buffer = buffer.getNextLru();
-                if (buffer == _lru[bucket]) {
-                    break;
-                }
+            buffer = _replacementStrategy.getBuffer(_lru, bucket);
+            if (buffer != null) {
+                detach(buffer);
+                found = true;
+            } else {
+                found = false;
             }
         }
         if (found) {
