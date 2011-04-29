@@ -64,35 +64,8 @@ public class Volume extends SharedResource {
      * Key segment name for index by directory tree name.
      */
     private final static String BY_NAME = "byName";
-    /**
-     * Signature value - human and machine readable confirmation that this file
-     * resulted from Persistit.
-     */
-    private final static byte[] SIGNATURE = Util
-            .stringToBytes("PERSISTIT VOLUME");
 
-    /**
-     * Volume identifier - human and machine readable confirmation that this is
-     * a Persistit Volume.
-     */
-    public final static byte[] IDENTIFIER_SIGNATURE = Util
-            .stringToBytes("VOL ");
-
-    /**
-     * Current product version number.
-     */
-    public final static int VERSION = 210;
-    /**
-     * Minimum product version that can handle Volumes created by this version.
-     */
-    private final static int MIN_SUPPORTED_VERSION = 210;
-    /**
-     * Minimum product version that can handle Volumes created by this version.
-     */
-    private final static int MAX_SUPPORTED_VERSION = 299;
-
-    private final static int HEADER_SIZE = Buffer.MIN_BUFFER_SIZE;
-
+    private VolumeHeader _header;
     private FileChannel _channel;
     private String _path;
     private String _name;
@@ -283,26 +256,6 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Utility method to determine whether a subarray of bytes in a byte-array
-     * <code>source</code> matches the byte-array in <code>target</code>.
-     * 
-     * @param source
-     *            The source byte array
-     * @param offset
-     *            The offset of the sub-array within the source.
-     * @param target
-     *            The target byte array
-     * @return
-     */
-    private boolean bytesEqual(byte[] source, int offset, byte[] target) {
-        for (int index = 0; index < target.length; index++) {
-            if (source[index + offset] != target[index])
-                return false;
-        }
-        return true;
-    }
-
-    /**
      * Creates a new volume
      * 
      * @param persistit
@@ -387,6 +340,7 @@ public class Volume extends SharedResource {
 
             _headBuffer = _pool.get(this, 0, true, false);
             _pool.setFixed(_headBuffer, true);
+            _header = new VolumeHeader(_channel);
 
             _headBuffer.clear();
 
@@ -456,37 +410,15 @@ public class Volume extends SharedResource {
             _readOnly = readOnly;
             _channel = new RandomAccessFile(_path, readOnly ? "r" : "rw")
                     .getChannel();
+            
+            _header = new VolumeHeader(_channel); 
+            final ByteBuffer bb = _header.validate();
 
-            long size = _channel.size();
-            if (size < HEADER_SIZE) {
-                throw new CorruptVolumeException("Volume file too short: "
-                        + size);
-            }
-
-            final ByteBuffer bb = ByteBuffer.allocate(HEADER_SIZE);
-            final byte[] bytes = bb.array();
-            _channel.read(bb, 0);
-
-            //
-            // Check out the fixed Volume file and learn
-            // the buffer size.
-            //
-            if (!bytesEqual(bytes, 0, SIGNATURE)) {
-                throw new CorruptVolumeException("Invalid signature");
-            }
-
-            int version = Util.getInt(bytes, 16);
-            if (version < MIN_SUPPORTED_VERSION
-                    || version > MAX_SUPPORTED_VERSION) {
-                throw new CorruptVolumeException("Unsupported version "
-                        + version + " (must be in range "
-                        + MIN_SUPPORTED_VERSION + " - " + MAX_SUPPORTED_VERSION
-                        + ")");
-            }
             //
             // Just to populate _bufferSize. getHeaderInfo will be called
             // again below.
             //
+            final byte[] bytes = bb.array();
             getHeaderInfo(bytes);
             _pool = _persistit.getBufferPool(_bufferSize);
             if (_pool == null) {
@@ -626,7 +558,7 @@ public class Volume extends SharedResource {
             final boolean tranzient, final boolean loose)
             throws PersistitException {
         File file = new File(path);
-        if (file.exists() && file.length() >= HEADER_SIZE) {
+        if (file.exists()) {
             if (mustCreate || tranzient) {
                 throw new VolumeAlreadyExistsException(path);
             }
@@ -1820,8 +1752,8 @@ public class Volume extends SharedResource {
 
     private boolean updateHeaderInfo(byte[] bytes) {
         boolean changed = false;
-        changed |= Util.changeBytes(bytes, 0, SIGNATURE);
-        changed |= Util.changeInt(bytes, 16, VERSION);
+        changed |= Util.changeBytes(bytes, 0, _header.getSignature());
+        changed |= Util.changeInt(bytes, 16, _header.getVersion());
         changed |= Util.changeInt(bytes, 20, _bufferSize);
         Util.putLong(bytes, 24, _timestamp);
         changed |= Util.changeLong(bytes, 32, _id);

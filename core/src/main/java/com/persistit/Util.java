@@ -532,5 +532,26 @@ public class Util {
     public static void println(final String template, final Object... args) {
         System.out.println(String.format(template, args));
     }
+    
+    /**
+     * Utility method to determine whether a subarray of bytes in a byte-array
+     * <code>source</code> matches the byte-array in <code>target</code>.
+     * 
+     * @param source
+     *            The source byte array
+     * @param offset
+     *            The offset of the sub-array within the source.
+     * @param target
+     *            The target byte array
+     * @return
+     */
+    public static boolean bytesEqual(byte[] source, int offset, byte[] target) {
+        for (int index = 0; index < target.length; index++) {
+            if (source[index + offset] != target[index]) {
+                return false;
+            }
+        }
+        return true;
+    }
 
 }
