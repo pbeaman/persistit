@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import com.persistit.Exchange.Sequence;
+
 /**
  * @author pbeaman
  */
@@ -23,6 +25,7 @@ public abstract class SplitPolicy {
     public final static SplitPolicy RIGHT_BIAS = new Right();
     public final static SplitPolicy EVEN_BIAS = new Even();
     public final static SplitPolicy NICE_BIAS = new Nice();
+    public final static SplitPolicy PACK_BIAS = new Pack();
 
     /**
      * Determines the quality of fit for a specified candidate split location
@@ -60,16 +63,16 @@ public abstract class SplitPolicy {
      *            is no candidate split location yet.
      * @return measure of goodness of fit.
      */
-    abstract int splitFit(Buffer buffer, int kbOffset, int insertAt,
+    public abstract int splitFit(Buffer buffer, int kbOffset, int insertAt,
             boolean replace, int leftSize, int rightSize, int currentSize,
-            int virtualSize, int capacity, int splitInfo);
+            int virtualSize, int capacity, int splitInfo, Sequence sequence);
 
     private static class Left extends SplitPolicy {
 
         @Override
-        int splitFit(Buffer buffer, int kbOffset, int insertAt,
+        public int splitFit(Buffer buffer, int kbOffset, int insertAt,
                 boolean replace, int leftSize, int rightSize, int currentSize,
-                int virtualSize, int capacity, int splitInfo) {
+                int virtualSize, int capacity, int splitInfo, Sequence sequence) {
             //
             // This implementation maximizes the number of bytes in the left
             // sibling.
@@ -87,9 +90,9 @@ public abstract class SplitPolicy {
 
     private static class Right extends SplitPolicy {
         @Override
-        int splitFit(Buffer buffer, int kbOffset, int insertAt,
+        public int splitFit(Buffer buffer, int kbOffset, int insertAt,
                 boolean replace, int leftSize, int rightSize, int currentSize,
-                int virtualSize, int capacity, int splitInfo) {
+                int virtualSize, int capacity, int splitInfo, Sequence sequence) {
             //
             // This implementation maximizes the number of bytes
             // moved to the right sibling.
@@ -107,9 +110,9 @@ public abstract class SplitPolicy {
 
     private static class Even extends SplitPolicy {
         @Override
-        int splitFit(Buffer buffer, int kbOffset, int insertAt,
+        public int splitFit(Buffer buffer, int kbOffset, int insertAt,
                 boolean replace, int leftSize, int rightSize, int currentSize,
-                int virtualSize, int capacity, int splitInfo) {
+                int virtualSize, int capacity, int splitInfo, Sequence sequence) {
             //
             // This implementation minimizes the difference -- i.e., attempts
             // to split the page into equally sized siblings.
@@ -130,9 +133,9 @@ public abstract class SplitPolicy {
 
     private static class Nice extends SplitPolicy {
         @Override
-        int splitFit(Buffer buffer, int kbOffset, int insertAt,
+        public int splitFit(Buffer buffer, int kbOffset, int insertAt,
                 boolean replace, int leftSize, int rightSize, int currentSize,
-                int virtualSize, int capacity, int splitInfo) {
+                int virtualSize, int capacity, int splitInfo, Sequence sequence) {
             //
             // This implementation optimizes toward a 66/34 split - i.e.,
             // biases toward splitting 66% of the records into the
@@ -152,4 +155,25 @@ public abstract class SplitPolicy {
         }
     }
 
+    private static class Pack extends SplitPolicy {
+        @Override
+        public int splitFit(Buffer buffer, int kbOffset, int insertAt,
+                boolean replace, int leftSize, int rightSize, int currentSize,
+                int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+            switch (sequence) {
+            case FORWARD:
+                return LEFT_BIAS.splitFit(buffer, kbOffset, insertAt, replace,
+                        leftSize, rightSize, currentSize, virtualSize,
+                        capacity, splitInfo, sequence);
+            case REVERSE:
+                return RIGHT_BIAS.splitFit(buffer, kbOffset, insertAt, replace,
+                        leftSize, rightSize, currentSize, virtualSize,
+                        capacity, splitInfo, sequence);
+            default:
+                return EVEN_BIAS.splitFit(buffer, kbOffset, insertAt, replace,
+                        leftSize, rightSize, currentSize, virtualSize,
+                        capacity, splitInfo, sequence);
+            }
+        }
+    }
 }

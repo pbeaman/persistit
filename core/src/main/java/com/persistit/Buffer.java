@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
 
+import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.InvalidPageAddressException;
@@ -249,7 +250,7 @@ public final class Buffer extends SharedResource {
 
     private final static int FINDEX_RUNCOUNT_MASK = 0xFFF00000;
     private final static int FINDEX_RUNCOUNT_SHIFT = 20;
-    
+
     private final static int MAX_KEY_RATIO = 16;
 
     // For debugging - set true in debugger to create verbose toString() output.
@@ -300,12 +301,12 @@ public final class Buffer extends SharedResource {
      * The size of this buffer
      */
     private int _bufferSize;
-    
+
     /**
      * The maximum number of keys allowed in this buffer
      */
     private int _maxKeys;
-    
+
     /**
      * Indicates whether the _findexElements array is current valid
      */
@@ -457,7 +458,7 @@ public final class Buffer extends SharedResource {
         Debug.$assert(isMine());
 
         _timestamp = getLong(TIMESTAMP_OFFSET);
-        
+
         if (_page != 0) {
             int type = getByte(TYPE_OFFSET);
             if (type > PAGE_TYPE_MAX) {
@@ -655,9 +656,9 @@ public final class Buffer extends SharedResource {
             return 0;
         }
     }
-    
+
     /**
-     * @return  Number of key-value pairs currently stored in this page.
+     * @return Number of key-value pairs currently stored in this page.
      */
     public int getKeyCount() {
         return (_keyBlockEnd - _keyBlockStart) / KEYBLOCK_LENGTH;
@@ -1868,7 +1869,8 @@ public final class Buffer extends SharedResource {
             int klength = key.getEncodedSize() - ebcNew - 1;
             int newTailSize = klength + length + _tailHeaderSize;
 
-            if (getKeyCount() >= _maxKeys || !willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
+            if (getKeyCount() >= _maxKeys
+                    || !willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
                 Debug.$assert(!postSplit);
                 return -1;
             }
@@ -2334,12 +2336,15 @@ public final class Buffer extends SharedResource {
      * @param indexKey
      *            A Key into which this method writes the rightmost key in the
      *            left sibling page.
+     * @param sequence
+     *            The insert sequence (FORWARD, REVERSE or NONE)
      * @param policy
      *            The SplitPolicy for this insertion
      * @throws PersistitException
      */
-    final void split(Buffer rightSibling, Key key, Value value, int foundAt,
-            Key indexKey, SplitPolicy policy) throws PersistitException {
+    final int split(Buffer rightSibling, Key key, Value value, int foundAt,
+            Key indexKey, Sequence sequence, SplitPolicy policy)
+            throws PersistitException {
         // Make sure the right sibling page is empty.
 
         if (Debug.ENABLED) {
@@ -2412,6 +2417,7 @@ public final class Buffer extends SharedResource {
         int leftSize = 0; // Bytes in left sibling page
 
         boolean armed = true;
+        int whereInserted = -1;
 
         int rightKeyBlock = _keyBlockEnd - KEYBLOCK_LENGTH;
         for (int p = _keyBlockStart; p < rightKeyBlock;) {
@@ -2456,7 +2462,7 @@ public final class Buffer extends SharedResource {
                 splitCandidate = policy.splitFit(this, p, foundAtPosition,
                         exact, leftSize + KEYBLOCK_LENGTH + edgeTailBlockSize,
                         rightSize, currentSize, virtualSize, _bufferSize
-                                - _keyBlockStart, splitBest);
+                                - _keyBlockStart, splitBest, sequence);
                 if (splitCandidate > splitBest) {
                     splitBest = splitCandidate;
                     splitAt = p | EXACT_MASK;
@@ -2502,7 +2508,7 @@ public final class Buffer extends SharedResource {
                 splitCandidate = policy.splitFit(this, p, foundAtPosition,
                         exact, leftSize + KEYBLOCK_LENGTH + edgeTailBlockSize,
                         rightSize, currentSize, virtualSize, _bufferSize
-                                - _keyBlockStart, splitBest);
+                                - _keyBlockStart, splitBest, sequence);
                 if (splitCandidate > splitBest) {
                     splitBest = splitCandidate;
                     splitAt = p;
@@ -2772,7 +2778,6 @@ public final class Buffer extends SharedResource {
                     + KEYBLOCK_LENGTH ? rightSibling
                     .adjacentKeyCheck(rightSibling._keyBlockStart) : true);
         }
-
         if (!exact) {
             if (foundAtPosition >= splitAtPosition
                     && (!lastLeft || foundAtPosition > splitAtPosition)) {
@@ -2782,22 +2787,33 @@ public final class Buffer extends SharedResource {
                             | (ebc << DEPTH_SHIFT);
                 }
                 final int t = rightSibling.putValue(key, value, foundAt, true);
+                whereInserted = -foundAt;
                 Debug.$assert(t != -1);
             } else {
                 final int t = putValue(key, value, foundAt, true);
+                whereInserted = foundAt;
                 Debug.$assert(t != -1);
             }
         } else {
             int p = -1;
             if (foundAtPosition < splitAtPosition) {
                 p = replaceValue(key, value, foundAtPosition);
+                whereInserted = foundAtPosition;
                 //
                 // It is really bad if p is less than 0. Means that we failed
                 // to replace the value.
                 //
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(p > 0);
+                }
+                if (p <= 0) {
+                    throw new IllegalStateException("p = " + p
+                            + " foundAtPosition=" + foundAtPosition
+                            + " splitAtPosition=" + splitAtPosition);
+                }
             }
+            // If foundAtPosition >= splitAtPosition then the split code already copied
+            // the new value into the right sibling page.
         }
 
         if (Debug.ENABLED) {
@@ -2813,7 +2829,7 @@ public final class Buffer extends SharedResource {
             assertVerify();
         if (Debug.ENABLED)
             rightSibling.assertVerify();
-
+        return whereInserted;
     }
 
     /**

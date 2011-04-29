@@ -203,7 +203,6 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
         setupString(sb, 2524);
         value.putString(sb);
         exchange.store();
-
         System.out.println("- done");
 
     }
@@ -316,7 +315,6 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
 
         key.clear().append("B").append("z");
         exchange.remove(); // may cause wedge failure.
-
         System.out.println("- done");
     }
 

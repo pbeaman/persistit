@@ -150,7 +150,7 @@ public class Exchange {
 
     private final static int RIGHT_CLAIMED = 2;
 
-    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.NICE_BIAS;
+    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
 
     private Persistit _persistit;
@@ -191,6 +191,10 @@ public class Exchange {
     private long _longRecordPageAddress;
 
     private Object _appCache;
+
+    public enum Sequence {
+        NONE, FORWARD, REVERSE
+    }
 
     /**
      * <p>
@@ -395,6 +399,7 @@ public class Exchange {
         long _bufferGeneration;
         long _keyGeneration;
         int _foundAt;
+        int _lastInsertAt;
         //
         // The remaining fields are used only by removeKeyRangeInternal and
         // its helpers.
@@ -440,6 +445,11 @@ public class Exchange {
             _bufferGeneration = -1;
         }
 
+        private void updateInsert(Buffer buffer, Key key, int foundAt) {
+            update(buffer, key, foundAt);
+            _lastInsertAt = foundAt;
+        }
+
         private void update(Buffer buffer, Key key, int foundAt) {
             if (Debug.ENABLED) {
                 Debug.$assert(_level + PAGE_TYPE_DATA == buffer.getPageType());
@@ -464,6 +474,19 @@ public class Exchange {
                 _keyGeneration = -1;
                 _foundAt = -1;
             }
+        }
+
+        private Sequence sequence(final int foundAt) {
+            int delta = ((foundAt & P_MASK) - (_lastInsertAt & P_MASK));
+            if ((foundAt & EXACT_MASK) != 0 && delta == 0
+                    || delta == KEYBLOCK_LENGTH) {
+                return Sequence.FORWARD;
+            }
+            if ((foundAt & EXACT_MASK) == 0 && delta == 0
+                    || delta == -KEYBLOCK_LENGTH) {
+                return Sequence.REVERSE;
+            }
+            return Sequence.NONE;
         }
 
         private void initRemoveFields() {
@@ -1579,12 +1602,11 @@ public class Exchange {
             Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
                     && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
         }
-
+        final Sequence sequence = lc.sequence(foundAt);
         int result = buffer.putValue(key, value, foundAt, false);
         if (result != -1) {
             buffer.setDirty();
-            // lc.update(buffer, key, exact ? foundAt : -1);
-            lc.update(buffer, key, result);
+            lc.updateInsert(buffer, key, result);
             return false;
         } else {
             if (Debug.ENABLED) {
@@ -1619,9 +1641,13 @@ public class Exchange {
                 // level cache for this level will become
                 // (appropriately) invalid.
                 //
-                buffer.split(rightSibling, key, value, foundAt, _spareKey1,
-                        _splitPolicy);
-                lc.update(buffer, key, -1);
+                int at = buffer.split(rightSibling, key, value, foundAt,
+                        _spareKey1, sequence, _splitPolicy);
+                if (at < 0) {
+                    lc.updateInsert(rightSibling, key, -at);
+                } else {
+                    lc.updateInsert(buffer, key, at);
+                }
 
                 long oldRightSibling = buffer.getRightSibling();
                 long newRightSibling = rightSibling.getPageAddress();
@@ -2016,7 +2042,8 @@ public class Exchange {
 
                     if (doFetch) {
                         if (fetchFromPendingTxn) {
-                            _transaction.fetchFromLastTraverse(this, minimumBytes);
+                            _transaction.fetchFromLastTraverse(this,
+                                    minimumBytes);
                         } else {
                             buffer.fetch(foundAt, _value);
                             fetchFixupForLongRecords(_value, minimumBytes);
@@ -2471,9 +2498,9 @@ public class Exchange {
      * </p>
      * 
      * @param minimumBytes
-     *            specifies a length at which Persistit will truncate
-     *            the returned value.
-     *            
+     *            specifies a length at which Persistit will truncate the
+     *            returned value.
+     * 
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
@@ -2524,8 +2551,8 @@ public class Exchange {
      *            the <code>Value</code> into which the database value should be
      *            fetched.
      * @param minimumBytes
-     *            specifies a length at which Persistit will truncate
-     *            the returned value.
+     *            specifies a length at which Persistit will truncate the
+     *            returned value.
      * 
      * 
      * @return This <code>Exchange</code> to permit method call chaining
