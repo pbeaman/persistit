@@ -318,9 +318,9 @@ public class StreamLoader extends Task {
                             _tree.getName(), false);
                 }
                 key.copyTo(_exchange.getKey());
-                // Using this package-private method allows us to avoid copying
+                _exchange.setSplitPolicy(SplitPolicy.PACK_BIAS);
+                // Using this package-private method avoids copying
                 // the value field.
-                _exchange.setSplitPolicy(SplitPolicy.LEFT_BIAS);
                 _exchange.store(_exchange.getKey(), value);
             }
         }

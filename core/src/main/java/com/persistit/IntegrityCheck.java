@@ -634,7 +634,7 @@ public class IntegrityCheck extends Task {
                     _dataBytesInUse += (buffer.getBufferSize()
                             - buffer.getAvailableSize() - Buffer.DATA_PAGE_OVERHEAD);
 
-                    for (int p = Buffer.INITIAL_KEY_BLOCK_START_VALUE;; p += Buffer.KEYBLOCK_LENGTH) {
+                    for (int p = Buffer.KEY_BLOCK_START;; p += Buffer.KEYBLOCK_LENGTH) {
                         p = buffer.nextLongRecord(_value, p);
                         if (p == -1)
                             break;
@@ -652,7 +652,7 @@ public class IntegrityCheck extends Task {
                     //
                     // Here we work our way through the index page.
                     //
-                    for (int p = Buffer.INITIAL_KEY_BLOCK_START_VALUE;; p += Buffer.KEYBLOCK_LENGTH) {
+                    for (int p = Buffer.KEY_BLOCK_START;; p += Buffer.KEYBLOCK_LENGTH) {
                         int foundAt = buffer.nextKey(key, p);
                         // If the exact bit is not set, then next() reached
                         // the end of keyblocks.

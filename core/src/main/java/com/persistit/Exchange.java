@@ -17,7 +17,7 @@ package com.persistit;
 
 import static com.persistit.Buffer.EXACT_MASK;
 import static com.persistit.Buffer.HEADER_SIZE;
-import static com.persistit.Buffer.INITIAL_KEY_BLOCK_START_VALUE;
+import static com.persistit.Buffer.KEY_BLOCK_START;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
 import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
 import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
@@ -150,7 +150,7 @@ public class Exchange {
 
     private final static int RIGHT_CLAIMED = 2;
 
-    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
+    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.NICE_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
 
     private Persistit _persistit;
@@ -3065,7 +3065,7 @@ public class Exchange {
                             foundAt2 &= P_MASK;
 
                             if (Debug.ENABLED) {
-                                Debug.$assert(foundAt2 != INITIAL_KEY_BLOCK_START_VALUE);
+                                Debug.$assert(foundAt2 != KEY_BLOCK_START);
                             }
                             buffer = lc._buffer;
                             lc._flags |= RIGHT_CLAIMED;
