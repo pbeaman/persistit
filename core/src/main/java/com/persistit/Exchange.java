@@ -150,7 +150,7 @@ public class Exchange {
 
     private final static int RIGHT_CLAIMED = 2;
 
-    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.NICE_BIAS;
+    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
 
     private Persistit _persistit;
