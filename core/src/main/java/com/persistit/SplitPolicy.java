@@ -26,6 +26,8 @@ public abstract class SplitPolicy {
     public final static SplitPolicy EVEN_BIAS = new Even();
     public final static SplitPolicy NICE_BIAS = new Nice();
     public final static SplitPolicy PACK_BIAS = new Pack();
+    public final static SplitPolicy LEFT90 = new Left90();
+    public final static SplitPolicy RIGHT90 = new Right90();
 
     /**
      * Determines the quality of fit for a specified candidate split location
@@ -108,6 +110,47 @@ public abstract class SplitPolicy {
         }
     }
 
+    private static class Left90 extends SplitPolicy {
+
+        @Override
+        public int splitFit(Buffer buffer, int kbOffset, int insertAt,
+                boolean replace, int leftSize, int rightSize, int currentSize,
+                int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+            //
+            // This implementation maximizes the number of bytes in the left
+            // sibling.
+            //
+            if (leftSize > capacity || rightSize > capacity)
+                return 0;
+            return capacity - (int)Math.abs(capacity * .9 - leftSize);
+        }
+
+        @Override
+        public String toString() {
+            return "LEFT90";
+        }
+    }
+
+    private static class Right90 extends SplitPolicy {
+        @Override
+        public int splitFit(Buffer buffer, int kbOffset, int insertAt,
+                boolean replace, int leftSize, int rightSize, int currentSize,
+                int virtualSize, int capacity, int splitInfo, Sequence sequence) {
+            //
+            // This implementation maximizes the number of bytes
+            // moved to the right sibling.
+            //
+            if (leftSize > capacity || rightSize > capacity)
+                return 0;
+            return capacity - (int)Math.abs(capacity * .9 - rightSize);
+        }
+
+        @Override
+        public String toString() {
+            return "RIGHT90";
+        }
+    }
+
     private static class Even extends SplitPolicy {
         @Override
         public int splitFit(Buffer buffer, int kbOffset, int insertAt,
@@ -120,8 +163,9 @@ public abstract class SplitPolicy {
             if (leftSize > capacity || rightSize > capacity)
                 return 0;
             int difference = rightSize - leftSize;
-            if (difference < 0)
+            if (difference < 0) {
                 difference = -difference;
+            }
             return capacity - difference;
         }
 
@@ -144,8 +188,9 @@ public abstract class SplitPolicy {
             if (leftSize > capacity || rightSize > capacity)
                 return 0;
             int difference = 2 * rightSize - leftSize;
-            if (difference < 0)
+            if (difference < 0) {
                 difference = -difference;
+            }
             return capacity * 2 - difference;
         }
 
@@ -162,11 +207,11 @@ public abstract class SplitPolicy {
                 int virtualSize, int capacity, int splitInfo, Sequence sequence) {
             switch (sequence) {
             case FORWARD:
-                return LEFT_BIAS.splitFit(buffer, kbOffset, insertAt, replace,
+                return LEFT90.splitFit(buffer, kbOffset, insertAt, replace,
                         leftSize, rightSize, currentSize, virtualSize,
                         capacity, splitInfo, sequence);
             case REVERSE:
-                return RIGHT_BIAS.splitFit(buffer, kbOffset, insertAt, replace,
+                return RIGHT90.splitFit(buffer, kbOffset, insertAt, replace,
                         leftSize, rightSize, currentSize, virtualSize,
                         capacity, splitInfo, sequence);
             default:

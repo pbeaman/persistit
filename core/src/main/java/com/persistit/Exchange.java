@@ -478,12 +478,10 @@ public class Exchange {
 
         private Sequence sequence(final int foundAt) {
             int delta = ((foundAt & P_MASK) - (_lastInsertAt & P_MASK));
-            if ((foundAt & EXACT_MASK) != 0 && delta == 0
-                    || delta == KEYBLOCK_LENGTH) {
+            if ((foundAt & EXACT_MASK) == 0 && delta == KEYBLOCK_LENGTH) {
                 return Sequence.FORWARD;
             }
-            if ((foundAt & EXACT_MASK) == 0 && delta == 0
-                    || delta == -KEYBLOCK_LENGTH) {
+            if ((foundAt & EXACT_MASK) == 0 && delta == 0) {
                 return Sequence.REVERSE;
             }
             return Sequence.NONE;
