@@ -36,8 +36,8 @@ public class BufferMaxPack {
                 break;
             }
         }
-        b1.invalidateFindex();
-        b1.recomputeFindex();
+        b1.invalidateFastIndex();
+        b1.recomputeFastIndex();
         assertTrue(b1.getKeyCount() < b1.getBufferSize() / 16);
     }
 }
