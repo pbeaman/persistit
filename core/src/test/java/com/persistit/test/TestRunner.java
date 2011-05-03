@@ -28,6 +28,7 @@ import java.util.StringTokenizer;
 
 import com.persistit.ArgParser;
 import com.persistit.ConfirmIntegrity;
+import com.persistit.Invariants;
 import com.persistit.Persistit;
 import com.persistit.Util;
 
@@ -484,6 +485,7 @@ public class TestRunner {
                     if (_verboseGui && _persistit.isInitialized()) {
                         _persistit.shutdownGUI();
                     }
+                    Invariants.checkQueueSizes(_persistit);
                     _persistit.close();
                     return null;
                 }

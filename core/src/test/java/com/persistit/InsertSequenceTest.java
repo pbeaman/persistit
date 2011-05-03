@@ -38,10 +38,6 @@ public class InsertSequenceTest extends PersistitUnitTestCase {
             if (buffer.isDataPage()) {
                 InsertSequenceTest.this.sequence = sequence;
             }
-            if (index == 699) {
-                buffer._toStringDebug=true;
-                //System.out.println(buffer);
-            }
             return SplitPolicy.PACK_BIAS.splitFit(buffer, kbOffset, insertAt,
                     replace, leftSize, rightSize, currentSize, virtualSize,
                     capacity, splitInfo, sequence);
@@ -50,9 +46,34 @@ public class InsertSequenceTest extends PersistitUnitTestCase {
     }
 
     @Test
+    public void testPacked() throws PersistitException {
+        final Exchange exchange = _persistit.getExchange("persistit",
+                "InsertSequenceTest", true);
+        exchange.removeAll();
+        exchange.setSplitPolicy(new TestPolicy());
+        for (index = 1; index < 100000; index++) {
+            exchange.clear().append(index);
+            exchange.getValue().put("Record #" + index);
+            exchange.store();
+            if (sequence != null) {
+                assertEquals(Sequence.FORWARD, sequence);
+            }
+            sequence = null;
+        }
+        // -1 for the volume head page which isn't on the LRU queue.
+        int bufferCount = exchange.getVolume().getPool().getBufferCount() - 1;
+        assertEquals(bufferCount,exchange.getVolume().getPool().countLruQueueEntries());
+        for (index = 10000; index < 100000; index += 10000) {
+            Buffer buffer = exchange.clear().append(index).fetchBufferCopy(0);
+            assertTrue(buffer.getAvailableSize() < 100);
+        }
+        assertEquals(bufferCount,exchange.getVolume().getPool().countLruQueueEntries());
+    }
+
+    @Test
     public void testForwardSequence() throws PersistitException {
         final Exchange exchange = _persistit.getExchange("persistit",
-                "SimpleTest1", true);
+                "InsertSequenceTest", true);
         exchange.removeAll();
         exchange.setSplitPolicy(new TestPolicy());
 
@@ -70,11 +91,10 @@ public class InsertSequenceTest extends PersistitUnitTestCase {
         }
     }
 
-
     @Test
     public void testReverseSequence() throws PersistitException {
         final Exchange exchange = _persistit.getExchange("persistit",
-                "SimpleTest1", true);
+                "InsertSequenceTest", true);
         exchange.removeAll();
         exchange.setSplitPolicy(new TestPolicy());
 
@@ -91,7 +111,9 @@ public class InsertSequenceTest extends PersistitUnitTestCase {
             sequence = null;
         }
     }
-    public void runAllTests() throws Exception {
 
+    public void runAllTests() throws Exception {
+        testForwardSequence();
+        testReverseSequence();
     }
 }

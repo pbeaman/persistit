@@ -330,6 +330,36 @@ public interface Management extends Remote, ManagementMXBean {
             throws RemoteException;
 
     /**
+     * Return a <code>BufferInfo</code> reflecting the state of a page
+     * containing the specified key. The <code>volumeName</code> and
+     * <code>treeName</code> parameters specify a {@link Tree} in which to seach
+     * for the key. The <code>level</code> parameter indicates whether the data
+     * page, or one of the pages on the index path to that data page should be
+     * returned. Level 0 refers to the data path, level 1 is the lowest index
+     * level, and level d-1 where d is the number of levels in the the tree
+     * represents the three's root page.
+     * <p>
+     * Specify <code>treeName</code> as <code>null</code> to access the volume's
+     * directory tree.
+     * 
+     * @param volumeName
+     *            the name of the volume
+     * @param treeName
+     *            the name of the tree within the volume, or <code>null</code>
+     *            for the directory tree
+     * @param key
+     *            a <code>KeyState</code> representing a key
+     * @param level
+     *            tree level: 0 for root, 1...d-1 for index pages of a tree
+     *            having depth d.
+     * @return a <code>BufferInfo</code> object reflecting the selected page, or
+     *         <code>null</code> if the specified tree does not exist.
+     * @throws RemoteException
+     */
+    public BufferInfo getBufferInfo(String volumeName, String treeName,
+            KeyState key, int level) throws RemoteException;
+
+    /**
      * <p>
      * Populates a supplied array of {@link BufferInfo} objects to reflect the
      * current states of selected buffers from the <code>BufferPool</code> for
@@ -1974,11 +2004,10 @@ public interface Management extends Remote, ManagementMXBean {
 
         public String toString(boolean details) {
             if (details) {
-                final StringBuilder sb = new StringBuilder(String
-                        .format("%d: %s start=%s finish=%s status=%s exception=%s",
-                                taskId, stateName, Util.date(startTime),
-                                Util.date(finishTime), statusDetail,
-                                lastException));
+                final StringBuilder sb = new StringBuilder(String.format(
+                        "%d: %s start=%s finish=%s status=%s exception=%s",
+                        taskId, stateName, Util.date(startTime),
+                        Util.date(finishTime), statusDetail, lastException));
                 for (final String message : newMessages) {
                     sb.append(Util.NEW_LINE);
                     sb.append("  ");

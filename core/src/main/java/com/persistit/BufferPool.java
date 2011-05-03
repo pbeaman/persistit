@@ -335,6 +335,38 @@ public class BufferPool {
         return count;
     }
 
+    int countLruQueueEntries() {
+        int count = 0;
+        for (int bucket = 0; bucket < _bucketCount; bucket++) {
+            synchronized (_lock[bucket]) {
+                Buffer head = _lru[bucket];
+                for (Buffer buffer = head; buffer != null;) {
+                    count++;
+                    buffer = buffer.getNextLru();
+                    if (buffer == head)
+                        break;
+                }
+            }
+        }
+        return count;
+    }
+
+    int countInvalidQueueEntries() {
+        int count = 0;
+        for (int bucket = 0; bucket < _bucketCount; bucket++) {
+            synchronized (_lock[bucket]) {
+                Buffer head = _invalidBufferQueue[bucket];
+                for (Buffer buffer = head; buffer != null;) {
+                    count++;
+                    buffer = buffer.getNext();
+                    if (buffer == head)
+                        break;
+                }
+            }
+        }
+        return count;
+    }
+
     void populateBufferPoolInfo(ManagementImpl.BufferPoolInfo info) {
         info.bufferCount = _bufferCount;
         info.bufferSize = _bufferSize;
@@ -426,78 +458,6 @@ public class BufferPool {
         }
     }
 
-    // /**
-    // * Selects and collects <code>Buffer</code>s from this pool that conform
-    // to
-    // the
-    // * selection specifications. This method is intended for use only by
-    // * the diagnostic utility package.
-    // * @param type
-    // * @param includeMask
-    // * @param excludeMask
-    // * @return An array of <code>Buffer</code>s that conform to the selection
-    // * criteria.
-    // */
-    // public Buffer[] selectBuffers(int type, int includeMask, int excludeMask)
-    // {
-    // Vector list = new Vector(_bufferCount);
-    // switch (type)
-    // {
-    // case 1:
-    // for (int bucket = 0; bucket < _bucketCount; bucket++)
-    // {
-    // synchronized(_lock[bucket])
-    // {
-    // Buffer lru = _lru[bucket];
-    // for (Buffer buffer = lru;
-    // buffer != null;
-    // buffer = buffer.getNextLru())
-    // {
-    // if (selected(buffer, includeMask, excludeMask))
-    // {
-    // list.add(buffer);
-    // }
-    // if (buffer.getNextLru() == lru) break;
-    // }
-    // }
-    // }
-    // break;
-    // case 2:
-    // for (int bucket = 0; bucket < _bucketCount; bucket++)
-    // {
-    // synchronized(_lock[bucket])
-    // {
-    // for (Buffer buffer = _invalidBufferQueue[bucket];
-    // buffer != null;
-    // buffer = buffer.getNext())
-    // {
-    // if (selected(buffer, includeMask, excludeMask))
-    // {
-    // list.add(buffer);
-    // }
-    // }
-    // }
-    // }
-    // break;
-    // default:
-    // for (int i = 0; i < _bufferCount; i++)
-    // {
-    // Buffer buffer = _buffers[i];
-    // if (selected(buffer, includeMask, excludeMask))
-    // {
-    // list.add(buffer);
-    // }
-    // }
-    // break;
-    // }
-    // Buffer[] array = new Buffer[list.size()];
-    // for (int i = 0; i < list.size(); i++)
-    // {
-    // array[i] = (Buffer)list.elementAt(i);
-    // }
-    // return array;
-    // }
-
     private boolean selected(Buffer buffer, int includeMask, int excludeMask) {
         return ((includeMask == 0) || (buffer._status & includeMask) != 0)
                 && (buffer._status & excludeMask) == 0;
@@ -564,11 +524,10 @@ public class BufferPool {
     private void bumpMissCounter() {
         _missCounter.incrementAndGet();
     }
-    
+
     private void bumpNewCounter() {
         _newCounter.incrementAndGet();
     }
-    
 
     /**
      * Get the "hit ratio" - the number of hits divided by the number of overall

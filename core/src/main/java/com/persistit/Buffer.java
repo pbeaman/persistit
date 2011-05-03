@@ -163,8 +163,8 @@ public final class Buffer extends SharedResource {
     final static int PAGE_ADDRESS_OFFSET = 8;
     final static int RIGHT_SIBLING_OFFSET = 16;
     final static int TIMESTAMP_OFFSET = 24;
-    
-    //Offset within page of first KeyBlock
+
+    // Offset within page of first KeyBlock
     final static int KEY_BLOCK_START = HEADER_SIZE;
 
     // (Constant) length of the key block
@@ -236,8 +236,8 @@ public final class Buffer extends SharedResource {
     final static int INDEX_PAGE_OVERHEAD = KEY_BLOCK_START + 2
             * KEYBLOCK_LENGTH + 2 * TAILBLOCK_HDR_SIZE_INDEX;
 
-    final static int DATA_PAGE_OVERHEAD = KEY_BLOCK_START + 2
-            * KEYBLOCK_LENGTH + 2 * TAILBLOCK_HDR_SIZE_DATA;
+    final static int DATA_PAGE_OVERHEAD = KEY_BLOCK_START + 2 * KEYBLOCK_LENGTH
+            + 2 * TAILBLOCK_HDR_SIZE_DATA;
 
     private final static Stack<int[]> REPACK_BUFFER_STACK = new Stack<int[]>();
 
@@ -288,8 +288,8 @@ public final class Buffer extends SharedResource {
     private ByteBuffer _byteBuffer;
 
     /**
-     * The bytes in this buffer. Note these bytes are also the backing
-     * store of _byteBuffer.
+     * The bytes in this buffer. Note these bytes are also the backing store of
+     * _byteBuffer.
      */
     private byte[] _bytes;
 
@@ -2806,7 +2806,8 @@ public final class Buffer extends SharedResource {
                             + " splitAtPosition=" + splitAtPosition);
                 }
             }
-            // If foundAtPosition >= splitAtPosition then the split code already copied
+            // If foundAtPosition >= splitAtPosition then the split code already
+            // copied
             // the new value into the right sibling page.
         }
 
@@ -2956,8 +2957,10 @@ public final class Buffer extends SharedResource {
         int virtualSize = foundAt1 + (buffer._keyBlockEnd - foundAt2)
                 + (_bufferSize - _alloc) - _slack
                 + (buffer._bufferSize - buffer._alloc) - buffer._slack;
-        final int virtualKeyCount = ((foundAt1 - KEY_BLOCK_START) + (buffer.getKeyBlockEnd() - foundAt2)) / KEYBLOCK_LENGTH;
-        boolean okayToRejoin = virtualKeyCount < _maxKeys && policy.acceptJoin(this, virtualSize);
+        final int virtualKeyCount = ((foundAt1 - KEY_BLOCK_START) + (buffer
+                .getKeyBlockEnd() - foundAt2)) / KEYBLOCK_LENGTH;
+        boolean okayToRejoin = virtualKeyCount < _maxKeys
+                && policy.acceptJoin(this, virtualSize);
         boolean result;
 
         if (okayToRejoin) {
@@ -3038,9 +3041,9 @@ public final class Buffer extends SharedResource {
                 int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1,
                         foundAt2, virtualSize, candidateLeftSize,
                         candidateRightSize, _bufferSize - KEY_BLOCK_START /*
-                                                                          * PDB
-                                                                          * 20050902
-                                                                          */);
+                                                                           * PDB
+                                                                           * 20050902
+                                                                           */);
 
                 if (joinFit > joinBest) {
                     joinBest = joinFit;
@@ -3948,31 +3951,34 @@ public final class Buffer extends SharedResource {
     }
 
     public String toString() {
+        if (_toStringDebug) {
+            return toStringDetail();
+        }
 
+        return "Page " + _page + " in Volume " + _vol + " at index "
+                + _poolIndex + " status=" + getStatusDisplayString();
+    }
+
+    public String toStringDetail() {
         final StringBuilder sb = new StringBuilder("Page " + _page
                 + " in Volume " + _vol + " at index " + _poolIndex + " status="
                 + getStatusDisplayString());
+        sb.append(String.format("\n  type=%,d  alloc=%,d  slack=%,d  "
+                + "keyBlockStart=%,d  keyBlockEnd=%,d\n", _type, _alloc,
+                _slack, KEY_BLOCK_START, _keyBlockEnd));
+        final Key key = new Key((Persistit) null);
+        final Value value = new Value((Persistit) null);
 
-        if (_toStringDebug) {
-            sb.append(String.format("\n  type=%,d  alloc=%,d  slack=%,d  "
-                    + "keyBlockStart=%,d  keyBlockEnd=%,d\n", _type, _alloc,
-                    _slack, KEY_BLOCK_START, _keyBlockEnd));
-            final Key key = new Key((Persistit) null);
-            final Value value = new Value((Persistit) null);
-
-            for (RecordInfo r : getRecords()) {
-                r.getKeyState().copyTo(key);
-                r.getValueState().copyTo(value);
-                sb.append(String.format(
-                        "%5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s\n", r
-                                .getKbOffset(), r.getDb(), r.getEbc(), r
-                                .getTbOffset(), r.getKLength(), key, r
-                                .getValueState().getEncodedBytes().length,
-                        value));
-            }
+        for (RecordInfo r : getRecords()) {
+            r.getKeyState().copyTo(key);
+            r.getValueState().copyTo(value);
+            sb.append(String.format(
+                    "%5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s\n",
+                    r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(),
+                    r.getKLength(), key,
+                    r.getValueState().getEncodedBytes().length, value));
         }
         return sb.toString();
-
     }
 
     String foundAtString(int p) {

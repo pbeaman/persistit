@@ -913,7 +913,7 @@ public class Exchange {
         try {
             checkPageType(buffer, PAGE_TYPE_DATA);
         } catch (CorruptVolumeException e) {
-            buffer.release(); // Don't make Most-Recently-Used
+            _pool.release(buffer);
             throw e;
         }
 
@@ -921,7 +921,7 @@ public class Exchange {
 
         if (buffer.isBeforeLeftEdge(foundAt)
                 || buffer.isAfterRightEdge(foundAt)) {
-            buffer.release(); // Don't make Most-Recently-Used
+            _pool.release(buffer);
             return searchTree(key, 0);
         }
         return foundAt;
@@ -1899,7 +1899,7 @@ public class Exchange {
                     if (inTxn) {
                         _transaction.touchedPage(this, buffer);
                     }
-                    buffer.release();
+                    _pool.release(buffer);
                     buffer = null;
                 }
                 //
@@ -3998,5 +3998,36 @@ public class Exchange {
      */
     public Object getAppCache() {
         return _appCache;
+    }
+
+    /**
+     * Returns a copy of either the data page or a page on the index path to the
+     * data page containing the current key. This method looks up the current
+     * key, then copies and returns the page at the specified tree level in a
+     * new Buffer. The resulting Buffer object is not part of the BufferPool and
+     * can simply be discarded when the caller is finished with it.
+     * 
+     * @param level
+     *            The tree level, starting at zero for the data page.
+     * @return copy of page on the key's index tree at that level.
+     */
+    public Buffer fetchBufferCopy(final int level) throws PersistitException {
+        if (level >= _tree.getDepth() || level <= -_tree.getDepth()) {
+            throw new IllegalArgumentException("Tree depth is "
+                    + _tree.getDepth());
+        }
+        int lvl = level >= 0 ? level : _treeDepth + level;
+        _exclusive = false;
+        int foundAt = searchTree(_key, lvl);
+        final Buffer buffer = _levelCache[lvl]._buffer;
+        try {
+            if (foundAt == -1) {
+                return null;
+            } else {
+                return new Buffer(buffer);
+            }
+        } finally {
+            _volume.getPool().release(buffer);
+        }
     }
 }
