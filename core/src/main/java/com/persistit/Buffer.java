@@ -240,7 +240,7 @@ public final class Buffer extends SharedResource {
 
     private final static Stack REPACK_BUFFER_STACK = new Stack();
     
-    private final static int MAX_KEY_RATIO = 16;
+    public final static int MAX_KEY_RATIO = 16;
 
     // For debugging - set true in debugger to create verbose toString() output.
     //
@@ -798,7 +798,7 @@ public final class Buffer extends SharedResource {
             else // if (depth == ebc)
             {
                 // Now we are looking for the keyblock with the matching db
-                int db = _fastIndexes.getDiscriminatorByte(index);
+                int db = _fastIndexes.getDescriminatorByte(index);
                 int kb = kbytes[depth] & 0xFF;
 
                 if (kb < db) {
@@ -810,7 +810,7 @@ public final class Buffer extends SharedResource {
                         int p2 = p + (runCount << 2);
                         // p2 now points to the last key block with the same
                         // ebc in this run.
-                        int db2 = _fastIndexes.getDiscriminatorByte(index + runCount);
+                        int db2 = _fastIndexes.getDescriminatorByte(index + runCount);
 
                         // For the common case that runCount == 1, we avoid
                         // setting up the binary search loop. Instead, the
@@ -2669,6 +2669,10 @@ public final class Buffer extends SharedResource {
     
     public void recomputeFastIndex() {
         _fastIndexes.recompute();
+    }
+    
+    public FastIndex getFastIndex() {
+        return _fastIndexes;
     }
 
     private void reduceEbc(int p, int newEbc, byte[] indexKeyBytes) {
