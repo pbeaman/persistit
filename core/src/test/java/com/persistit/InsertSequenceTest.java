@@ -65,7 +65,7 @@ public class InsertSequenceTest extends PersistitUnitTestCase {
         assertEquals(bufferCount,exchange.getVolume().getPool().countLruQueueEntries());
         for (index = 10000; index < 100000; index += 10000) {
             Buffer buffer = exchange.clear().append(index).fetchBufferCopy(0);
-            assertTrue(buffer.getAvailableSize() < 100);
+            assertTrue(buffer.getAvailableSize() < buffer.getBufferSize() * .9);
         }
         assertEquals(bufferCount,exchange.getVolume().getPool().countLruQueueEntries());
     }

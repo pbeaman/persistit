@@ -258,19 +258,15 @@ public class Persistit {
      */
     public final static String APPEND_ONLY_PROPERTY = "appendonly";
 
+    public final static String SPLIT_POLICY_PROPERTY = "splitpolicy";
+
+    public final static String JOIN_POLICY_PROPERTY = "joinpolicy";
+
     /**
      * Maximum number of Exchanges that will be held in an internal pool.
      */
-    public final static int MAX_POOLED_EXCHANGES = 100;
+    public final static int MAX_POOLED_EXCHANGES = 10000;
 
-    /**
-     * Default environment name
-     */
-    public final static String DEFAULT_ENVIRONMENT = "default";
-    /**
-     * New-Line character sequence
-     */
-    public final static String NEW_LINE = System.getProperty("line.separator");
     /**
      * Minimal command line documentation
      */
@@ -290,7 +286,8 @@ public class Persistit {
 
     private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
 
-    private final static long FLUSH_CHECKPOINT_INTERVAL = 10000000000L; // 10sec
+    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
+    private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
 
     private AbstractPersistitLogger _logger;
 
@@ -308,7 +305,6 @@ public class Persistit {
 
     private long _beginCloseTime;
     private long _nextCloseTime;
-    private long _nextFlushCheckpoint;
 
     private final LogBase _logBase = new LogBase(this);
 
@@ -356,11 +352,11 @@ public class Persistit {
 
     private final LockManager _lockManager = new LockManager();
 
-    private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
-
     private final HashMap<Long, TransactionalCache> _transactionalCaches = new HashMap<Long, TransactionalCache>();
 
-    private Checkpoint _lastCheckpoint = new Checkpoint(0, 0);
+    private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
+
+    private JoinPolicy _defaultJoinPolicy = DEFAULT_JOIN_POLICY;
 
     /**
      * <p>
@@ -434,9 +430,9 @@ public class Persistit {
      */
     public void initialize(Properties properties) throws PersistitException {
         initializeProperties(properties);
+        initializeLogging();
         initializeManagement();
         initializeOther();
-        initializeLogging();
         initializeRecovery();
         initializeJournal();
         initializeBufferPools();
@@ -482,7 +478,6 @@ public class Persistit {
         _readRetryEnabled = getBooleanProperty(READ_RETRY_PROPERTY, true);
         _defaultTimeout = getLongProperty(TIMEOUT_PROPERTY,
                 DEFAULT_TIMEOUT_VALUE, 0, MAXIMUM_TIMEOUT_VALUE);
-
     }
 
     void initializeLogging() throws PersistitException {
@@ -607,7 +602,24 @@ public class Persistit {
             try {
                 setupGUI(true);
             } catch (Exception e) {
-                // If we can't open the utility gui, well, tough.
+                if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
+                    _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e);
+                }
+            }
+        }
+
+        try {
+            _defaultSplitPolicy = SplitPolicy.forName(getProperty(SPLIT_POLICY_PROPERTY, DEFAULT_SPLIT_POLICY.toString()));
+        } catch (IllegalArgumentException e) {
+            if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
+                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e.getLocalizedMessage());
+            }
+        }
+        try {
+            _defaultJoinPolicy = JoinPolicy.forName(getProperty(JOIN_POLICY_PROPERTY, DEFAULT_JOIN_POLICY.toString()));
+        } catch (IllegalArgumentException e) {
+            if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
+                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e.getLocalizedMessage());
             }
         }
     }
@@ -1441,7 +1453,7 @@ public class Persistit {
     }
 
     /**
-     * Returns the default timeout for operations on an <code>Exchange</code>.
+     * Return the default timeout for operations on an <code>Exchange</code>.
      * The application may override this default value for an instance of an
      * <code>Exchange</code> through the {@link Exchange#setTimeout(long)}
      * method. The default timeout may be specified through the
@@ -1451,6 +1463,52 @@ public class Persistit {
      */
     public long getDefaultTimeout() {
         return _defaultTimeout;
+    }
+
+    /**
+     * @return The {@link SplitPolicy} that will by applied by default to newly
+     *         created or allocated {@link Exchange}s.
+     */
+    public SplitPolicy getDefaultSplitPolicy() {
+        return _defaultSplitPolicy;
+    }
+
+    /**
+     * @return The {@link JoinPolicy} that will by applied by default to newly
+     *         created or allocated {@link Exchange}s.
+     */
+    public JoinPolicy getDefaultJoinPolicy() {
+        return _defaultJoinPolicy;
+    }
+
+    /**
+     * Replace the current default {@link SplitPolicy}.
+     * 
+     * @param policy
+     *            The {@link JoinPolicy} that will by applied by default to
+     *            newly created or allocated {@link Exchange}s.
+     */
+    public void setDefaultSplitPolicy(final SplitPolicy policy) {
+        if (policy == null) {
+            throw new IllegalArgumentException(
+                    "Default SplitPolicy may not be null");
+        }
+        _defaultSplitPolicy = policy;
+    }
+
+    /**
+     * Replace the current default {@link SplitPolicy}.
+     * 
+     * @param policy
+     *            The {@link JoinPolicy} that will by applied by default to
+     *            newly created or allocated {@link Exchange}s.
+     */
+    public void setDefaultJoinPolicy(final JoinPolicy policy) {
+        if (policy == null) {
+            throw new IllegalArgumentException(
+                    "Default JoinPolicy may not be null");
+        }
+        _defaultJoinPolicy = policy;
     }
 
     /**
@@ -1506,7 +1564,6 @@ public class Persistit {
         }
         return _checkpointManager.checkpoint();
     }
-
 
     boolean flushTransactionalCaches(final Checkpoint checkpoint) {
         if (_transactionalCaches.isEmpty()) {

@@ -28,6 +28,17 @@ public abstract class SplitPolicy {
     public final static SplitPolicy PACK_BIAS = new Pack();
     public final static SplitPolicy LEFT90 = new Left90();
     public final static SplitPolicy RIGHT90 = new Right90();
+    
+    private final static SplitPolicy[] POLICIES = {LEFT_BIAS, RIGHT_BIAS, EVEN_BIAS, NICE_BIAS, PACK_BIAS, LEFT90, RIGHT90};
+    
+    public static SplitPolicy forName(final String name) {
+        for (final SplitPolicy policy : POLICIES) {
+            if (policy.toString().equalsIgnoreCase(name)) {
+                return policy;
+            }
+        }
+        throw new IllegalArgumentException("No such SplitPolicy " + name);
+    }
 
     /**
      * Determines the quality of fit for a specified candidate split location
@@ -86,7 +97,7 @@ public abstract class SplitPolicy {
 
         @Override
         public String toString() {
-            return "LEFT_BIAS";
+            return "LEFT";
         }
     }
 
@@ -106,7 +117,7 @@ public abstract class SplitPolicy {
 
         @Override
         public String toString() {
-            return "RIGHT_BIAS";
+            return "RIGHT";
         }
     }
 
@@ -171,7 +182,7 @@ public abstract class SplitPolicy {
 
         @Override
         public String toString() {
-            return "EVEN_BIAS";
+            return "EVEN";
         }
     }
 
@@ -196,7 +207,7 @@ public abstract class SplitPolicy {
 
         @Override
         public String toString() {
-            return "NICE_BIAS";
+            return "NICE";
         }
     }
 
@@ -219,6 +230,11 @@ public abstract class SplitPolicy {
                         leftSize, rightSize, currentSize, virtualSize,
                         capacity, splitInfo, sequence);
             }
+        }
+        
+        @Override
+        public String toString() {
+            return "PACK";
         }
     }
 }

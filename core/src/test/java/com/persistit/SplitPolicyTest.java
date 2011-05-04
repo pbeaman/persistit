@@ -26,7 +26,7 @@ public class SplitPolicyTest extends TestCase {
         int mockLeftSize = 20;
         int capacity = 0;
         SplitPolicy leftBias = SplitPolicy.LEFT_BIAS;
-        assertEquals("LEFT_BIAS", leftBias.toString());
+        assertEquals("LEFT", leftBias.toString());
         int measure = leftBias.splitFit(nullBuffer, 0, 0, false, mockLeftSize,
                 0, 0, 0, capacity, 0, Sequence.NONE);
         /* splitFit should return 0 since leftSize is larger than capcity */
@@ -44,7 +44,7 @@ public class SplitPolicyTest extends TestCase {
         int mockRightSize = 20;
         int capacity = 0;
         SplitPolicy rightBias = SplitPolicy.RIGHT_BIAS;
-        assertEquals("RIGHT_BIAS", rightBias.toString());
+        assertEquals("RIGHT", rightBias.toString());
         int measure = rightBias.splitFit(nullBuffer, 0, 0, false, 0,
                 mockRightSize, 0, 0, capacity, 0, Sequence.NONE);
         /* splitFit should return 0 since rightSize is larger than capacity */
@@ -63,7 +63,7 @@ public class SplitPolicyTest extends TestCase {
         int mockLeftSize = 20;
         int capacity = 0;
         SplitPolicy evenBias = SplitPolicy.EVEN_BIAS;
-        assertEquals("EVEN_BIAS", evenBias.toString());
+        assertEquals("EVEN", evenBias.toString());
         int measure = evenBias.splitFit(nullBuffer, 0, 0, false, mockLeftSize,
                 mockRightSize, 0, 0, capacity, 0, Sequence.NONE);
         /*
@@ -99,7 +99,7 @@ public class SplitPolicyTest extends TestCase {
         int mockLeftSize = 20;
         int capacity = 0;
         SplitPolicy niceBias = SplitPolicy.NICE_BIAS;
-        assertEquals("NICE_BIAS", niceBias.toString());
+        assertEquals("NICE", niceBias.toString());
         int measure = niceBias.splitFit(nullBuffer, 0, 0, false, mockLeftSize,
                 mockRightSize, 0, 0, capacity, 0, Sequence.NONE);
         /*

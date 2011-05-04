@@ -150,9 +150,6 @@ public class Exchange {
 
     private final static int RIGHT_CLAIMED = 2;
 
-    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
-    private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
-
     private Persistit _persistit;
 
     private long _timeout;
@@ -177,8 +174,8 @@ public class Exchange {
 
     private Value _spareValue;
 
-    private SplitPolicy _splitPolicy = DEFAULT_SPLIT_POLICY;
-    private JoinPolicy _joinPolicy = DEFAULT_JOIN_POLICY;
+    private SplitPolicy _splitPolicy;
+    private JoinPolicy _joinPolicy;
 
     private boolean _isDirectoryExchange = false;
     private boolean _hasDeferredDeallocations = false;
@@ -334,6 +331,9 @@ public class Exchange {
             _treeGeneration = -1;
             initCache();
         }
+        _splitPolicy = _persistit.getDefaultSplitPolicy();
+        _joinPolicy = _persistit.getDefaultJoinPolicy();
+
     }
 
     void init(Exchange exchange) {
@@ -357,6 +357,8 @@ public class Exchange {
 
         exchange._key.copyTo(_key);
         exchange._value.copyTo(_value);
+        _splitPolicy = exchange._splitPolicy;
+        _joinPolicy = exchange._joinPolicy;
     }
 
     void removeState(boolean secure) {
@@ -367,8 +369,8 @@ public class Exchange {
         _spareValue.clear(secure);
         _transaction = null;
         _ignoreTransactions = false;
-        _splitPolicy = DEFAULT_SPLIT_POLICY;
-        _joinPolicy = DEFAULT_JOIN_POLICY;
+        _splitPolicy = _persistit.getDefaultSplitPolicy();
+        _joinPolicy = _persistit.getDefaultJoinPolicy();
     }
 
     private void initCache() {
