@@ -203,6 +203,68 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(false, ex.traverse(Key.LT, kf, 4));
         assertEquals(false, ex.traverse(Key.LTEQ, kf, 4));
     }
+    
+    public void testKeyValues() throws PersistitException {
+        Exchange ex = _persistit.getExchange("persistit", "gogo", true);
+        String firstValue = new String("PADRAIG");
+        String secondValue = new String("SARAH");
+        String thirdValue = new String("TEENY");
+        String fourthValue = new String("NIMBUS");
+        ex.clear().append(-2);
+        ex.getValue().put(firstValue);
+        ex.store();
+        ex.clear().append(-1);
+        ex.getValue().put(secondValue);
+        ex.store();
+        ex.clear().append(0);
+        ex.getValue().put(thirdValue);
+        ex.store();
+        ex.clear().append(1);
+        ex.getValue().put(fourthValue);
+        ex.store();
+        ex.clear().to(-2);
+        ex.fetch();
+        assertEquals(firstValue, ex.getValue().getString());
+        ex.clear().to(-1);
+        ex.fetch();
+        assertEquals(secondValue, ex.getValue().getString());
+        ex.clear().to(0);
+        ex.fetch();
+        assertEquals(thirdValue, ex.getValue().getString());
+        ex.clear().to(1);
+        ex.fetch();
+        assertEquals(fourthValue, ex.getValue().getString());
+        
+        ex.clear().append(-2);
+        ex.remove();
+        ex.getValue().put(-2);
+        ex.store();
+        ex.clear().append(-1);
+        ex.remove();
+        ex.getValue().put(-1);
+        ex.store();
+        ex.clear().append(0);
+        ex.remove();
+        ex.getValue().put(0);
+        ex.store();
+        ex.clear().append(1);
+        ex.remove();
+        ex.getValue().put(1);
+        ex.store();
+        
+        ex.clear().to(-2);
+        ex.fetch();
+        assertEquals(-2, ex.getValue().getInt());
+        ex.clear().to(-1);
+        ex.fetch();
+        assertEquals(-1, ex.getValue().getInt());
+        ex.clear().to(0);
+        ex.fetch();
+        assertEquals(0, ex.getValue().getInt());
+        ex.clear().to(1);
+        ex.fetch();
+        assertEquals(1, ex.getValue().getInt());
+    }
 
     /*
      * This function is "borrowed" from the YCSB benchmark framework developed

@@ -241,17 +241,7 @@ public final class Buffer extends SharedResource {
 
     private final static Stack<int[]> REPACK_BUFFER_STACK = new Stack<int[]>();
 
-    private final static int FINDEX_DB_MASK = 0x000000FF;
-
-    // private final static int FINDEX_DB_SHIFT = 0;
-
-    private final static int FINDEX_EBC_MASK = 0x000FFF00;
-    private final static int FINDEX_EBC_SHIFT = 8;
-
-    private final static int FINDEX_RUNCOUNT_MASK = 0xFFF00000;
-    private final static int FINDEX_RUNCOUNT_SHIFT = 20;
-
-    private final static int MAX_KEY_RATIO = 16;
+    public final static int MAX_KEY_RATIO = 16;
 
     // For debugging - set true in debugger to create verbose toString() output.
     //
@@ -309,15 +299,10 @@ public final class Buffer extends SharedResource {
     private int _maxKeys;
 
     /**
-     * Indicates whether the _findexElements array is current valid
+     * The array of fast indexes. Each element per keyblock holds the
+     * crossCount, runCount, ebc and db from the keyblock.
      */
-    private boolean _isFindexValid;
-
-    /**
-     * The Findex array. One element per keyblock holds the crossCount,
-     * runCount, ebc and db from the keyblock.
-     */
-    private int[] _findexElements;
+    private FastIndex _fastIndexes;
 
     /**
      * Type code for this page.
@@ -383,8 +368,9 @@ public final class Buffer extends SharedResource {
         super(persistit);
         boolean ok = false;
         for (int s = MIN_BUFFER_SIZE; !ok && s <= MAX_BUFFER_SIZE; s *= 2) {
-            if (s == size)
+            if (s == size) {
                 ok = true;
+            }
         }
         if (!ok) {
             throw new IllegalArgumentException("Invalid buffer size: " + size);
@@ -396,7 +382,7 @@ public final class Buffer extends SharedResource {
         _bytes = _byteBuffer.array();
         _bufferSize = size;
         _maxKeys = (_bufferSize - HEADER_SIZE) / MAX_KEY_RATIO;
-        _findexElements = new int[_maxKeys + 1];
+        _fastIndexes = new FastIndex(_maxKeys + 1, this);
     }
 
     Buffer(Buffer original) {
@@ -414,7 +400,7 @@ public final class Buffer extends SharedResource {
         _tailHeaderSize = original._tailHeaderSize;
         System.arraycopy(original._bytes, 0, _bytes, 0, _bytes.length);
 
-        // Note - do not populate _findexElements since this buffer
+        // Note - do not populate _fastIndexes since this buffer
         // is for ManagementImpl only
     }
 
@@ -478,10 +464,10 @@ public final class Buffer extends SharedResource {
 
                 if (isDataPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
-                    invalidateFindex();
+                    _fastIndexes.invalidate();
                 } else if (isIndexPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_INDEX;
-                    invalidateFindex();
+                    _fastIndexes.invalidate();
                 }
             }
         }
@@ -769,10 +755,7 @@ public final class Buffer extends SharedResource {
      *         it follows the last key in the page.
      */
     int findKey(Key key) {
-        synchronized (_findexElements) {
-            recomputeFindex();
-        }
-
+        _fastIndexes.recompute();
         byte[] kbytes = key.getEncodedBytes();
         int klength = key.getEncodedSize();
         int depth = 0;
@@ -786,9 +769,8 @@ public final class Buffer extends SharedResource {
             // Here we MUST land on a KeyBlock at an ebc value change point.
             //
             int index = (p - start) >> 2;
-            int element = _findexElements[index];
-            int runCount = (element) >> FINDEX_RUNCOUNT_SHIFT;
-            int ebc = (element & FINDEX_EBC_MASK) >>> FINDEX_EBC_SHIFT;
+            int runCount = _fastIndexes.getRunCount(index);
+            int ebc = _fastIndexes.getEbc(index);
 
             if (depth < ebc) {
                 // We know that depth < ebc for a bunch of KeyBlocks - we
@@ -796,8 +778,9 @@ public final class Buffer extends SharedResource {
                 // equal to or greater than this one, so whether there's a
                 // runCount (positive) or crossCount (negative), we skip
                 // this KeyBlock and all its successors.
-                if (runCount < 0)
+                if (runCount < 0) {
                     runCount = -runCount;
+                }
                 p += KEYBLOCK_LENGTH * (runCount + 1);
                 continue;
             }
@@ -810,9 +793,7 @@ public final class Buffer extends SharedResource {
             else // if (depth == ebc)
             {
                 // Now we are looking for the keyblock with the matching db
-                //
-                // int kbData = getInt(p);
-                int db = element & FINDEX_DB_MASK; // getDb(p);
+                int db = _fastIndexes.getDescriminatorByte(index);
                 int kb = kbytes[depth] & 0xFF;
 
                 if (kb < db) {
@@ -822,20 +803,14 @@ public final class Buffer extends SharedResource {
                 if (kb > db) {
                     if (runCount > 0) {
                         int p2 = p + (runCount << 2);
-                        //
                         // p2 now points to the last key block with the same
                         // ebc in this run.
-                        //
-                        // int kbData2 = getInt(p2);
-                        int db2 = _findexElements[index + runCount]
-                                & FINDEX_DB_MASK; // getDb(p2);
-                        // int db2 = getDb(p2);
+                        int db2 = _fastIndexes.getDescriminatorByte(index + runCount);
 
                         // For the common case that runCount == 1, we avoid
                         // setting up the binary search loop. Instead, the
                         // result is completely determined here by the
                         // value of db2.
-                        //
                         if (runCount == 1) {
                             if (db2 > kb) {
                                 //
@@ -916,15 +891,13 @@ public final class Buffer extends SharedResource {
                             // we just want to move forward from kb2, skipping
                             // the crossCount if non-zero.
                             index = (p2 - start) >> 2;
-                            runCount = _findexElements[index] >> FINDEX_RUNCOUNT_SHIFT;
-                            if (Debug.ENABLED)
-                                Debug.$assert(runCount <= 0);
+                            runCount = _fastIndexes.getRunCount(index);
+                            assert runCount <= 0;
                             p = p2 + KEYBLOCK_LENGTH * (-runCount + 1);
                             continue;
                         } else {
                             // found it right here. We'll fall through to the
                             // equality check below.
-                            //
                             p = p2;
                             db = db2;
                         }
@@ -1005,516 +978,6 @@ public final class Buffer extends SharedResource {
         // maxkey.
         int result = right | (depth << DEPTH_SHIFT);
         return result;
-    }
-
-    boolean isFindexValid() {
-        return _isFindexValid;
-    }
-
-    void invalidateFindex() {
-        _isFindexValid = false;
-    }
-
-    void recomputeFindex() {
-        if (_isFindexValid) {
-            if (Debug.ENABLED) {
-                verifyFindex();
-            }
-        } else if (isDataPage() || isIndexPage()) {
-            int start = KEY_BLOCK_START;
-            int end = _keyBlockEnd;
-
-            int ebc0 = 0;
-            int runCountFixupIndex = 0;
-            int crossCountFixupIndex = -1;
-            int lastIndex = (end - start) / Buffer.KEYBLOCK_LENGTH;
-
-            for (int i = 0, p = start; i <= lastIndex; i++, p += Buffer.KEYBLOCK_LENGTH) {
-                int ebc;
-                if (i < lastIndex || i == 0) {
-                    int kbData = getInt(p);
-                    ebc = Buffer.decodeKeyBlockEbc(kbData);
-                    putFindexEbc(i, ebc);
-                } else {
-                    ebc = -1;
-                    putFindexEbc(i, 0);
-                }
-
-                if (ebc != ebc0) {
-                    int runCount = i - runCountFixupIndex - 1;
-                    putFindexRunCount(runCountFixupIndex, runCount);
-                    runCountFixupIndex = i;
-
-                    if (ebc > ebc0) {
-                        //
-                        // If not true then the ebc for the very first
-                        // KeyBlock is non-zero, which is wrong.
-                        //
-                        if (Debug.ENABLED)
-                            Debug.$assert(i > 0);
-                        putFindexRunCountAndEbc(i - 1, crossCountFixupIndex,
-                                ebc0);
-                        crossCountFixupIndex = i - 1;
-                    } else {
-                        // ebc < ebc0
-                        //
-                        // Now we need to walk back through the linked list
-                        // of findex array elements that need to have their
-                        // crossCount field updated.
-                        //
-                        for (int j = crossCountFixupIndex; j != -1;) {
-                            int ccFixupEbc = getFindexEbc(j);
-
-                            if (ebc <= ccFixupEbc) {
-                                int crossCount = -(i - j - 1);
-
-                                crossCountFixupIndex = getFindexRunCount(j);
-                                putFindexRunCount(j, crossCount);
-                                j = crossCountFixupIndex;
-                            } else {
-                                crossCountFixupIndex = j;
-                                break;
-                            }
-
-                        }
-                    }
-
-                    ebc0 = ebc;
-                } else {
-                    _findexElements[i] = 0;
-                }
-                int kbData = getInt(p);
-                putFindexDb(i, decodeKeyBlockDb(kbData));
-            }
-            if (Debug.ENABLED)
-                verifyFindex();
-            _isFindexValid = true;
-        } else {
-            _isFindexValid = false;
-        }
-    }
-
-    private void putFindexDb(int index, int db) {
-        _findexElements[index] = (db & FINDEX_DB_MASK)
-                | (_findexElements[index] & ~FINDEX_DB_MASK);
-    }
-
-    private void putFindexRunCount(int index, int runCount) {
-        _findexElements[index] = (runCount << FINDEX_RUNCOUNT_SHIFT)
-                | (_findexElements[index] & ~FINDEX_RUNCOUNT_MASK);
-    }
-
-    private void putFindexEbc(int index, int ebc) {
-        _findexElements[index] = ((ebc << FINDEX_EBC_SHIFT) & FINDEX_EBC_MASK)
-                | (_findexElements[index] & ~FINDEX_EBC_MASK);
-    }
-
-    private void putFindexRunCountAndEbc(int index, int runCount, int ebc) {
-        _findexElements[index] = ((ebc << FINDEX_EBC_SHIFT) & FINDEX_EBC_MASK)
-                | (runCount << FINDEX_RUNCOUNT_SHIFT)
-                | (_findexElements[index] & FINDEX_DB_MASK);
-    }
-
-    private void putFindexZero(int index) {
-        _findexElements[index] = _findexElements[index] & FINDEX_DB_MASK;
-    }
-
-    //
-    // private int getFindexDb(int index)
-    // {
-    // return _findexElements[index] & FINDEX_DB_MASK;
-    // }
-
-    private int getFindexRunCount(int index) {
-        return _findexElements[index] >> FINDEX_RUNCOUNT_SHIFT;
-    }
-
-    private int getFindexEbc(int index) {
-        int ebc = (_findexElements[index] & FINDEX_EBC_MASK) >> FINDEX_EBC_SHIFT;
-        if (ebc > 2047)
-            return ebc - 4096;
-        else
-            return ebc;
-    }
-
-    private void verifyFindex() {
-        if (Debug.ENABLED) {
-            int start = KEY_BLOCK_START;
-            int end = _keyBlockEnd;
-            // This is the index of a Findex array entry that needs to be fixed
-            // up with its true count.
-
-            int ebc0;
-            int ebc = -1;
-            int ebc2 = Buffer.decodeKeyBlockEbc(getInt(start));
-            int faultAt = -1;
-
-            for (int i = 0, p = start; p < end; i++, p += Buffer.KEYBLOCK_LENGTH) {
-                ebc0 = ebc;
-                ebc = ebc2;
-                ebc2 = p + Buffer.KEYBLOCK_LENGTH < end ? Buffer
-                        .decodeKeyBlockEbc(getInt(p + Buffer.KEYBLOCK_LENGTH))
-                        : 0;
-                if (ebc2 > ebc) {
-                    if (getFindexRunCount(i) >= 0) {
-                        if (faultAt < 0)
-                            faultAt = i;
-                        System.out.println("At i=" + i + ", p=" + p
-                                + " ebc0,ebc,ebc2=" + ebc0 + "," + ebc + ","
-                                + ebc2 + " _findexArray[" + i + "]="
-                                + getFindexRunCount(i));
-                        Debug.debug1(true);
-                    }
-                } else if (ebc > ebc0) {
-                    if (getFindexRunCount(i) < 0) {
-                        if (faultAt < 0)
-                            faultAt = i;
-                        System.out.println("At i=" + i + ", p=" + p
-                                + " ebc0,ebc,ebc2=" + ebc0 + "," + ebc + ","
-                                + ebc2 + " _findexArray[" + i + "]="
-                                + getFindexRunCount(i));
-                        Debug.debug1(true);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Adjusts the Findex array when a KeyBlock is inserted. The update process
-     * depends on the ebc of the new KeyBlock relative to its neighbors. Let
-     * ebc0 and ebc1 be the ebc values for the keyblocks before and after the
-     * newly inserted keyblock, prior to the insertion. (Inserting the new
-     * keyblock may cause ebc2 to change.)
-     */
-
-    private void insertFindexKeyBlock(int foundAt, int insertedEbc,
-            boolean fixupSuccessor) {
-        if (_findexElements == null) {
-            return;
-        }
-        if (!_isFindexValid) {
-            recomputeFindex();
-            return;
-        }
-        if (Debug.ENABLED)
-            Debug.$assert(_findexElements != null);
-        int p = foundAt & Buffer.P_MASK;
-        int start = KEY_BLOCK_START;
-        int end = _keyBlockEnd;
-        int runIndex = -1;
-
-        if (p > end)
-            p = end;
-        int insertIndex = (foundAt - start) / Buffer.KEYBLOCK_LENGTH;
-        int lastIndex = (end - start) / Buffer.KEYBLOCK_LENGTH;
-        //
-        // Insert the associated Findex element.
-        //
-        System.arraycopy(_findexElements, insertIndex, _findexElements,
-                insertIndex + 1, lastIndex - insertIndex - 1);
-
-        int kbData = getInt(p);
-        putFindexDb(insertIndex, decodeKeyBlockDb(kbData));
-        //
-        // Adjust all predecessor crossCount and runCount values
-        //
-        for (int index = 0; index < insertIndex;) {
-            int runCount = getFindexRunCount(index);
-            int ebc = getFindexEbc(index);
-
-            runIndex = -1;
-            if (runCount < 0) {
-                // Index of the next element whose ebc is less than or equal to
-                // this one.
-                int nextSibling = index - runCount + 1;
-                if (insertIndex > nextSibling) {
-                    // We can skip the entire crossCount because the insertion
-                    // is after the next sibling.
-                    //
-                    index = nextSibling;
-                } else {
-                    if (nextSibling == insertIndex && insertedEbc <= ebc) {
-                        // Can skip the crossCount
-                        index = nextSibling;
-                    } else {
-                        if (insertedEbc > ebc) {
-                            // Extend the crossCount if we are inserting a
-                            // subordinate. Inserting a subordinate cannot
-                            // change a sibling's ebc.
-                            //
-                            putFindexRunCount(index, runCount - 1);
-                        }
-                        // Step inside.
-                        //
-                        index++;
-                    }
-                }
-            } else if (runCount == 0) {
-                if (insertedEbc >= ebc)
-                    runIndex = index;
-                //
-                // Skip this one-element run because by definition it can't
-                // have a crossCount.
-                //
-                index++;
-            } else {
-                if (insertedEbc >= ebc)
-                    runIndex = index;
-                //
-                // Skip to the last element of the run because the
-                // inserted element is not contiguous with it.
-                // (Need to look at the last element because it may have
-                // a crossCount.)
-                //
-                index += runCount;
-                //
-                // Only handle final element of run specially if it has
-                // a crossCount. Otherwise skip it.
-                //
-                if (getFindexRunCount(index) >= 0) {
-                    index++;
-                }
-            }
-        }
-
-        //
-        // The inserted kb is either at the head, tail or in the middle of
-        // a run. If runIndex is -1 then the inserted kb is at the head.
-        // Otherwise we can measure where it is.
-        //
-        if (runIndex == -1) {
-            // //////
-            // HEAD
-            // //////
-            //
-            // The inserted kb is at the head of a run.
-            //
-            int ebc = getFindexEbc(insertIndex);
-            int runCount = getFindexRunCount(insertIndex);
-            //
-            // If it were less, the key would differ within the first ebc bytes,
-            // which is impossible.
-            //
-
-            if (Debug.ENABLED)
-                Debug.$assert(insertedEbc >= ebc);
-
-            if (insertedEbc > ebc) {
-                // Can't have a fixup because the sucessor has a smaller ebc.
-                //
-                if (Debug.ENABLED)
-                    Debug.$assert(!fixupSuccessor);
-                putFindexRunCountAndEbc(insertIndex, 0, insertedEbc);
-            } else // insertedEbc == ebc
-            {
-                if (fixupSuccessor) {
-                    // This is a tricky case because the successor KeyBlock
-                    // is changing level.
-                    //
-                    // dx += "fixup case -";
-                    int successorEbc = Buffer.decodeKeyBlockEbc(getInt(p
-                            + Buffer.KEYBLOCK_LENGTH));
-                    if (runCount < 0)
-                        runCount = 0;
-                    fixupFindexSuccessor(lastIndex, insertIndex, insertIndex,
-                            runCount, ebc, successorEbc);
-                } else {
-                    if (insertIndex + 1 >= lastIndex) {
-                        putFindexRunCountAndEbc(insertIndex, 0, ebc);
-                    } else if (runCount >= 0) {
-                        putFindexRunCountAndEbc(insertIndex, runCount + 1, ebc);
-                        putFindexZero(insertIndex + 1);
-                    } else {
-                        putFindexRunCountAndEbc(insertIndex, 1, ebc);
-                    }
-                }
-            }
-        } else {
-            int runCount = getFindexRunCount(runIndex);
-            int ebc = getFindexEbc(runIndex);
-            if (Debug.ENABLED) {
-                Debug.$assert(runCount + runIndex + 1 >= insertIndex);
-            }
-            if (runCount + runIndex + 1 > insertIndex) {
-                // ///////
-                // MIDDLE
-                // ///////
-                // The insertion is in the middle of the run. This means that
-                // the successor ebc is the same as the ebc at the head of the
-                // run. No fixup is possible.
-                //
-                if (insertedEbc == ebc) {
-                    if (fixupSuccessor) {
-                        putFindexRunCount(runIndex, insertIndex - runIndex);
-                        //
-                        // This is a tricky case because the successor KeyBlock
-                        // is changing level.
-                        //
-                        int successorEbc = Buffer.decodeKeyBlockEbc(getInt(p
-                                + Buffer.KEYBLOCK_LENGTH));
-
-                        fixupFindexSuccessor(lastIndex, insertIndex, runIndex,
-                                runCount, ebc, successorEbc);
-                    } else {
-                        putFindexRunCount(runIndex, runCount + 1);
-                        putFindexZero(insertIndex);
-                    }
-                } else {
-                    if (Debug.ENABLED)
-                        Debug.$assert(!fixupSuccessor);
-                    if (insertIndex - 1 > runIndex) {
-                        putFindexRunCount(runIndex, insertIndex - runIndex - 1);
-                    }
-                    putFindexRunCountAndEbc(insertIndex - 1, -1, ebc);
-
-                    putFindexRunCountAndEbc(insertIndex, 0, insertedEbc);
-
-                    if (runIndex + runCount > insertIndex) {
-                        putFindexRunCountAndEbc(insertIndex + 1, runCount
-                                - (insertIndex - runIndex), ebc);
-                    } else {
-                        putFindexEbc(insertIndex + 1, ebc);
-                    }
-
-                }
-            } else {
-                // ///////
-                // END
-                // ///////
-                //
-                // The insertion is at the end of the run.
-                //
-                if (insertedEbc == ebc) {
-                    if (Debug.ENABLED)
-                        Debug.$assert(!fixupSuccessor);
-                    putFindexRunCount(runIndex, runCount + 1);
-                    putFindexZero(insertIndex);
-                    // dx += "simple sibling";
-                } else {
-                    if (Debug.ENABLED) {
-                        // If insertedEbc were less, then runIndex would have
-                        // been -1.
-                        Debug.$assert(insertedEbc > ebc);
-                        Debug.$assert(!fixupSuccessor);
-                        Debug.$assert(getFindexRunCount(insertIndex - 1) >= 0);
-                    }
-                    putFindexRunCountAndEbc(insertIndex - 1, -1, ebc);
-                    putFindexRunCountAndEbc(insertIndex, 0, insertedEbc);
-                }
-            }
-        }
-        if (Debug.ENABLED)
-            verifyFindex();
-    }
-
-    /**
-     * Fixes up the elements surrounding insertion of keyblock that causes the
-     * successor ebc to get fixed up.
-     * 
-     * @param insertIndex
-     * @param runIndex
-     * @param runCount
-     * @param ebc
-     * @param successorEbc
-     */
-    private void fixupFindexSuccessor(int lastIndex, int insertIndex,
-            int runIndex, int runCount, int ebc, int successorEbc) {
-        int p = KEY_BLOCK_START + (insertIndex + 1) * KEYBLOCK_LENGTH;
-        int kbData = getInt(p);
-        putFindexDb(insertIndex + 1, decodeKeyBlockDb(kbData));
-
-        if (insertIndex > runIndex) {
-            putFindexRunCount(runIndex, insertIndex - runIndex);
-        }
-        // Test whether fixup is in the middle or at the end of a run
-        if (runIndex + runCount > insertIndex) {
-            //
-            // The fixup happens in the middle of the run, so this is
-            // easy. The successor will now run of length 1.
-            //
-            putFindexRunCountAndEbc(insertIndex, -1, ebc);
-            putFindexRunCountAndEbc(insertIndex + 1, 0, successorEbc);
-            int remainingRunCount = runCount - (insertIndex - runIndex) - 1;
-            if (insertIndex + 2 < lastIndex) {
-                if (remainingRunCount > 0) {
-                    putFindexRunCountAndEbc(insertIndex + 2, remainingRunCount,
-                            ebc);
-                } else {
-                    putFindexEbc(insertIndex + 2, ebc);
-                }
-            }
-            // dx += "fixup breaks run";
-        } else {
-            //
-            // The kb that's been fixed up is the final member of a run.
-            // (Otherwise we should not be here.
-            //
-            if (Debug.ENABLED) {
-                Debug.$assert(runIndex + runCount == insertIndex);
-            }
-            //
-            // The fixup is on the last element of the run.
-            //
-            // dx += "fixup ends run";
-
-            putFindexRunCount(insertIndex, runCount - 1);
-
-            int successorRunCount = insertIndex + 1 < lastIndex ? getFindexRunCount(insertIndex + 1)
-                    : 0;
-
-            if (Debug.ENABLED)
-                Debug.$assert(successorRunCount <= 0);
-            putFindexRunCountAndEbc(insertIndex, successorRunCount - 1, ebc);
-
-            if (insertIndex + 2 < lastIndex) {
-                int secondSuccessorEbc = getFindexEbc(insertIndex + 2);
-                if (successorEbc == secondSuccessorEbc) {
-                    // The fixup has made the successor kb the new
-                    // start of a run.
-                    //
-                    int secondSuccessorRunCount = getFindexRunCount(insertIndex + 2);
-                    if (secondSuccessorRunCount >= 0) {
-                        putFindexRunCountAndEbc(insertIndex + 1,
-                                secondSuccessorRunCount + 1, successorEbc);
-                        putFindexZero(insertIndex + 2);
-                        // dx += " and becomes new head of inner run";
-                    } else {
-                        putFindexRunCountAndEbc(insertIndex + 1, 1,
-                                successorEbc);
-                        // dx += " and becode a new 2-element inner run";
-                    }
-                } else {
-                    putFindexEbc(insertIndex + 1, successorEbc);
-                    int newCrossCount = successorEbc < secondSuccessorEbc ? computeFindexCrossCount(
-                            successorEbc, insertIndex + 1, lastIndex) : 0;
-                    putFindexRunCount(insertIndex + 1, newCrossCount);
-                    // dx +=
-                    // " but is not contiguous with inner run, does not change its crossCount";
-                }
-            } else {
-                if (Debug.ENABLED)
-                    Debug.$assert(insertIndex + 1 < lastIndex);
-                putFindexRunCountAndEbc(insertIndex + 1, 0, successorEbc);
-                // dx += " at very end of page";
-            }
-        }
-    }
-
-    private int computeFindexCrossCount(int ebc0, int start, int end) {
-        for (int index = start + 1; index < end;) {
-            int ebc = getFindexEbc(index);
-            if (ebc <= ebc0)
-                return start - index + 1;
-            int runCount = getFindexRunCount(index);
-            if (runCount < 0) {
-                index = index + 1 - runCount;
-            } else {
-                index = index + 1 + runCount;
-            }
-        }
-        return start - end + 1;
-
     }
 
     boolean hasValue(Key key) {
@@ -1954,9 +1417,7 @@ public final class Buffer extends SharedResource {
                         + _tailHeaderSize + klength, length);
             }
 
-            synchronized (_findexElements) {
-                insertFindexKeyBlock(p, ebcNew, fixupSuccessor);
-            }
+            _fastIndexes.insertKeyBlock(p, ebcNew, fixupSuccessor);
 
             bumpGeneration();
 
@@ -1967,8 +1428,9 @@ public final class Buffer extends SharedResource {
                 Debug.$assert(adjacentKeyCheck(p));
             }
 
-            if (Debug.ENABLED)
+            if (Debug.ENABLED) {
                 assertVerify();
+            }
 
             return p | (key.getEncodedSize() << DEPTH_SHIFT) | EXACT_MASK;
         }
@@ -2271,10 +1733,11 @@ public final class Buffer extends SharedResource {
                 putInt(p1, kbNewNext);
             }
         }
-        invalidateFindex();
+        _fastIndexes.invalidate();
         bumpGeneration();
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             assertVerify();
+        }
         return true;
     }
 
@@ -2292,15 +1755,17 @@ public final class Buffer extends SharedResource {
      */
     private int wedgeTail(int tail, int delta) {
         delta = (delta + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-        if (delta == 0)
+        if (delta == 0) {
             return tail;
+        }
         if (delta < 0) {
             throw new IllegalArgumentException(
                     "wedgeTail delta must be positive: " + delta
                             + " is invalid");
         }
-        if (_alloc - _keyBlockEnd < delta)
+        if (_alloc - _keyBlockEnd < delta) {
             return -1;
+        }
 
         System.arraycopy(_bytes, _alloc, _bytes, _alloc - delta, tail - _alloc);
         _alloc -= delta;
@@ -2764,8 +2229,8 @@ public final class Buffer extends SharedResource {
             // pointers
         }
 
-        invalidateFindex();
-        rightSibling.invalidateFindex();
+        _fastIndexes.invalidate();
+        rightSibling.invalidateFastIndex();
 
         if (Debug.ENABLED) {
             Debug.$assert(rightSibling._keyBlockEnd > rightSibling.KEY_BLOCK_START
@@ -2986,7 +2451,7 @@ public final class Buffer extends SharedResource {
             //
             long rightSibling = buffer.getRightSibling();
             setRightSibling(rightSibling);
-            invalidateFindex();
+            _fastIndexes.invalidate();
             result = false;
         }
 
@@ -3169,8 +2634,8 @@ public final class Buffer extends SharedResource {
 
             setRightSibling(buffer.getPageAddress());
 
-            invalidateFindex();
-            buffer.invalidateFindex();
+            _fastIndexes.invalidate();
+            buffer.invalidateFastIndex();
 
             result = true;
         }
@@ -3193,6 +2658,18 @@ public final class Buffer extends SharedResource {
             buffer.assertVerify();
 
         return result;
+    }
+    
+    public void invalidateFastIndex() {
+        _fastIndexes.invalidate();
+    }
+    
+    public void recomputeFastIndex() {
+        _fastIndexes.recompute();
+    }
+    
+    public FastIndex getFastIndex() {
+        return _fastIndexes;
     }
 
     private void reduceEbc(int p, int newEbc, byte[] indexKeyBytes) {
@@ -3710,11 +3187,6 @@ public final class Buffer extends SharedResource {
     public boolean isLongRecordPage() {
         return _type == PAGE_TYPE_LONG_RECORD;
     }
-
-    // private int fixedTailblockOverhead()
-    // {
-    // return isIndexPage() ? 4 : 0;
-    // }
 
     static int encodeKeyBlock(int ebc, int db, int tail) {
         return ((ebc << EBC_SHIFT) & EBC_MASK)

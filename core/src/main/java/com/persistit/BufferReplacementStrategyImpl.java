@@ -15,29 +15,26 @@
 
 package com.persistit;
 
-import static org.junit.Assert.assertTrue;
+import com.persistit.exception.PersistitException;
 
-import org.junit.Test;
+public class BufferReplacementStrategyImpl implements BufferReplacementStrategy {
 
-public class BufferMaxPack {
-
-    @Test
-    public void testJoinBuffer() throws Exception {
-        final Persistit db = new Persistit();
-        final Buffer b1 = new Buffer(16384, 0, null, db);
-        b1.init(Buffer.PAGE_TYPE_DATA);
-        b1.claim(true);
-        final Key key = new Key((Persistit) null);
-        final Value value = new Value((Persistit) null);
-        for (int i = 0; i < 4096; i++) {
-            key.clear().append(i);
-            int at = b1.putValue(key, value);
-            if (at < 0) {
+    @Override
+    public Buffer getBuffer(Buffer[] bufferList, int bucket) 
+        throws PersistitException {
+        Buffer buffer = bufferList[bucket];
+        while (buffer != null) {
+            if (buffer.isAvailable() && 
+                buffer.isClean() &&
+                buffer.claim(true, 0)) {
+                return buffer;
+            }
+            buffer = buffer.getNextLru();
+            if (buffer == bufferList[bucket]) {
                 break;
             }
         }
-        b1.invalidateFastIndex();
-        b1.recomputeFastIndex();
-        assertTrue(b1.getKeyCount() < b1.getBufferSize() / 16);
+        return null;
     }
+
 }
