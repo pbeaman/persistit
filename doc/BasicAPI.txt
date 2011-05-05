@@ -1,14 +1,13 @@
-== Basic API
+[[BasicAPI]]
+= Basic API
 
-Persistit(TM) is a small, lightweight Java(TM) library that provides simple, fast and reliable data persistence for Java applications. It is designed to be embedded in Java application programs and to operate free of administration by the end-user.
-
-Persistit stores data as key-value pairs in highly optimized B-Tree footnote:[Technically, Persistit implements B+-trees in which each page includes the page identifier of its right sibling page within the structure]  structures. Much like a Java Map implementation, Persistit associates at most one value with each unique instance of a key.
+Akiban Persistit stores data as key-value pairs in highly optimized B-Tree footnote:[Technically, Persistit implements B+-trees in which each page includes the page identifier of its right sibling page within the structure]  structures. Much like a Java Map implementation, Persistit associates at most one value with each unique instance of a key.
 
 Persistit provides interfaces to access and modify keys and their associated values. Application code calls Persistit API methods to store, fetch, traverse and remove keys and records to and from the database. Persistit permits efficient multi-threaded concurrent access to database volumes. It is designed to minimize contention for critical resources and to maximize throughput on multi-processor machines.
 
 == The Persistit Instance
 
-To access Persistit, the application first constructs an instance of the link:apidocs/com/persistit/Persistit.html[+com.persistit.Persistit+] class and initializes it. This instance is the keystone of all subsequent operations.  It holds references to the buffers, maps and other structures needed to access B-trees. The life cycle of a Persistit instance should be managed as follows:
+To access Persistit, the application first constructs an instance of the +com.persistit.Persistit+ class and initializes it. This instance is the keystone of all subsequent operations.  It holds references to the buffers, maps and other structures needed to access B-trees. The life cycle of a Persistit instance should be managed as follows:
 
 [source,java]
 ----
@@ -25,7 +24,7 @@ try {
 }
 ----
 
-The _configuration properties_ describe the memory allocation, initial set of volumes, the journal, and other settings needed to get Persistit started. See link:Configuration.html[Configuration] for details.
+The _configuration properties_ describe the memory allocation, initial set of volumes, the journal, and other settings needed to get Persistit started. See <<Configuration>> for details.
 
 The +close+ method gracefully flushes all modified data to disk, stops background threads and unregisters JMX MBeans. 
 ****
@@ -34,7 +33,7 @@ The Persistit background threads are not daemon threads, so if your application 
 
 Although it is recommended that normal shutdown should invoke +close+, Persistit is designed to recover a consistent database state in the event of an abrupt shutdown. See <<Recovery>>.
 
-Within Persistit, key values are _segmented_ and _ordered_. Segmented means that you can append multiple primitive values or Strings to construct a concatenated key. Ordered means that the methods that enumerate key values within a Persistit database do so in a specified natural order. (See <<Keys>>).
+Within Persistit, key values are _segmented_ and _ordered_. Segmented means that you can append multiple p	rimitive values or Strings to construct a concatenated key. Ordered means that the methods that enumerate key values within a Persistit database do so in a specified natural order. (See <<Keys>>).
 
 A Persistit value may be any primitive value, any Serializable Java object, or an object of any class supported by a custom serialization helper class. When stored in the B-Tree, keys and values are represented by sequences of bytes. The byte sequence that represents a value may be of arbitrary length, bounded only by available heap memory. See <<Values>>.
 

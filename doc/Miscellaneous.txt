@@ -1,7 +1,7 @@
-Miscellaneous Topics
-===============================
+[[Miscellaneous]]
+= Miscellaneous Topics
 
-Following are some short items you may find useful as you explore Persistit.  Follow links to the API documentation for more details.
+Following are some short items you may find useful as you explore Akiban Persistit.  Follow links to the API documentation for more details.
 
 == Histograms
 

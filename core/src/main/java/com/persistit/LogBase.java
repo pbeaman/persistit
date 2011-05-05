@@ -66,6 +66,8 @@ public class LogBase {
     final static int LOG_END = addLogTemplate(INFO, LIFECYCLE, "END");
     public final static int LOG_EXCEPTION = addLogTemplate(SEVERE, ALL,
             "EXCEPTION");
+    public final static int LOG_CONFIGURATION_ERROR = addLogTemplate(WARNING,
+            LIFECYCLE, "CONFIGURATION_ERROR");
     final static int LOG_INIT_ALLOCATE_BUFFERS = addLogTemplate(INFO,
             LIFECYCLE, "INIT_ALLOCATE_BUFFERS");
     final static int LOG_INIT_OPEN_VOLUME = addLogTemplate(INFO, LIFECYCLE,

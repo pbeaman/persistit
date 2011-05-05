@@ -6,7 +6,7 @@ logpath $logpath$/result_$timestamp$.log
 delete $datapath$/persistit*
 
 clearprops
-prop buffer.count.8192=12000
+prop buffer.count.8192=10000
 prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop logfile=$logpath$/persistit_$timestamp$.log

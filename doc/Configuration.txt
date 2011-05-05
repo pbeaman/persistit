@@ -1,7 +1,7 @@
-Configuration
-==============================
+[[Configuration]]
+= Configuration
 
-To initialize Persistit the embedding application invokes one of the +initialize+ methods of +com.persistit.Persistit+, passing either a +java.util.Properties+ object or the name of a properties file from which the Properties object derives its content. For example
+To initialize Akiban Persistit the embedding application invokes one of the +initialize+ methods of +com.persistit.Persistit+, passing either a +java.util.Properties+ object or the name of a properties file from which the Properties object derives its content. For example
 
 [source,java]
 ----
@@ -26,7 +26,7 @@ The following properties are defined for Persistit. Other properties may also re
 +rmiport+:: Specifies a port number on which Persistit will create a temporary Remote Method Invocation registry.  If this property is specified, Persistit creates a registry and register a com.persistit.Management server on it. This allows remote access to management facilities within Persistit and permits the Swing-based administrative utility to attach to and manage a Persistit instance running on a headless server. The rmihost and rmiport properties are mutually exclusive.
 +rmihost+:: Specifies the URL of an Remote Method Invocation registry.  If present, Persistit registers its a server for its com.persistit.Management interface at the specified external registry. The +rmihost+ and +rmiport+ properties are mutually exclusive.
 +jmx+::True of false. Specifies whether Persistit registers MXBeans with the platform MBean server. Set this value to +true+ to enable access from +jconsole+ and other management tools.
-+readretry+:: True or false. If true, Persistit retries file read operations that fail due to IOExceptions.  Retries are performed periodically until the requested read operation either succeeds or the Timeout interval is exceeded. If false, Persistit immediately throws any IOException on a read operation back to the application, wrapped in a com.persistit.PersistitIOException. The default value is true.
++readretry+:: True or false. If true, Persistit retries file read operations that fail due to IOExceptions.  Retries are performed periodically until the requested read operation either succeeds or the Timeout interval is exceeded. If false, Persistit immediately throws any IOException on a read operation back to the application, wrapped in a com.persistit.exception.PersistitIOException. The default value is true.
 +timeout+:: The default I/O retry timeout. Note that the timeout for a particular com.persistit.Exchange can be individually modified.  The specified time, in milliseconds, is the maximum time any Persistit operation will wait for completion of disk I/O before throwing an IOException. The default value is 60000, or one minute.
 +serialOverride+, +constructorOverride+:: Control aspects of object serialization. See <<Serialization>>.
 +showgui+:: True of False.  If true, Persistit attempts to create and display an instance of the AdminUI utility panel within the current JVM. (Alternatively, AdminUI uses RMI and can be launched and run remotely if +rmiport+ or +rmihost+ has been specified.
@@ -35,7 +35,7 @@ The following properties are defined for Persistit. Other properties may also re
 For all integer-valued properties, the suffix “K” may be used to represent kilo, “M” for mega, “G” for giga and “T” for tera. For example,
 “2M” represents the value 2,097,152.
 
-=== Volume Specification
+== Volume Specification
 
 Each volume specification in the configuration has the following form:
 
@@ -59,17 +59,17 @@ volume.1=/home/akiban/ffdemo.vol,create,pageSize:16K,\
 specifies a volume having the name “ffdemo” in the /home/akiban directory. A new volume will be created if there is no existing volume file, and when created it will have the initial, extension and maximum sizes of 10M, 10M and 1G, respectively. Its page size will be 16K, meaning that the configuration must also have a non-zero allocation of 16384 buffers.
 
 
-=== System Volume
+== System Volume
 
 One volume in a Persistit configuration must be designated as the system volume. It contains class meta data for objects stored serialized in Persistit Values. When a configuration specifies only one volume, that volume implicitly becomes the system volume. However, when a configuration specifies multiple volumes, you must specify which volume should be designated as the system volume. There are two ways to do this. By default, Persistit looks for a unique volume named “_system”. You can simply create a volume whose file name is “_system”.
 
 Alternatively, you can specify a different volume name with the +sysvolume+ property. The value specified for this name should be the name of the volume chosen to be the system volume.
 
-=== Transaction Volume
+== Transaction Volume
 
 Analogous to the System Volume, Persistit uses a designated volume called the Transaction Volume to store a log of transaction data prior to transaction commit. A configuration with only one volume implicitly uses that one volume for this purpose.  However, in a multi-volume configuration you must specify which volume is to serve in this role.  By default Persistit looks for a volume whose name is “_txn”, or a volume named by the +txnvolume+ property.
 
-=== A Configuration Example
+== A Configuration Example
 
 Following is an example of a Persistit configuration properties file:
 
@@ -102,11 +102,11 @@ The +demo_data.v01+ volume has the alias +data+. This means that application cod
 
 The +demo_txn.v01+ volume serves as the transaction volume for this configuration.
 
-=== Property Value Substitution
+== Property Value Substitution
 
 This example also illustrates how property value substitution can be used within a Persistit configuration.  The value of +datapath+ value replaces _${datapath}_ in the volume specification. The property name datapath is arbitrary; you may use any valid property name as a substitution variable. Similarly, the value of +logpath+ replaces _${logpath}_. The pseudo-property _${timestamp}_ expands to a timestamp in the form yyyyMMddHHmm. This provides a unique time-based log file name.
 
-=== Incorporating Java System Properties
+== Incorporating Java System Properties
 
 You may also specify any configuration property as a Java system property with the prefix +com.persisit.+ System properties override values specified in the configuration file.  For example, you can override the value of +buffer.count.8192+ specifying
 

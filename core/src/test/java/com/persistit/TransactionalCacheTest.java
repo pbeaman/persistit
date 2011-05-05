@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
@@ -306,7 +307,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         assertTrue(_tableStatus._maxima != copy._maxima);
         assertTrue(_tableStatus._minima != copy._minima);
 
-//        showJournal();
+        // showJournal();
     }
 
     @Test
@@ -329,7 +330,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
 
         _persistit.checkpoint();
         _persistit.close();
-//        showJournal();
+        // showJournal();
         final Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
         final TableStatus copy = new TableStatus(_persistit);
@@ -337,58 +338,63 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         _persistit.initialize(properties);
         assertEquals(_tableStatus.toString(), copy.toString());
     }
-    
+
     @Test
     public void testCrashCheckpoint() throws Exception {
-        final Transaction transaction = _persistit.getTransaction();
-        for (int count = 0; count < 20; count++) {
-            transaction.begin();
-            try {
-                _tableStatus.incrementCount(1);
-                _tableStatus.incrementCount(2);
-                _tableStatus.incrementCount(3);
-                _tableStatus.incrementCount(1);
-                _tableStatus.proposeMax(1, count % 37);
-                _tableStatus.proposeMin(1, count % 37);
-                transaction.commit(true);
-            } finally {
-                transaction.end();
+        final int cycles = Integer.getInteger("cycles", 1);
+        for (int repeat = 0; repeat < cycles; repeat++) {
+            System.out.println("testCrashCheckpoint iteration #" + repeat);
+            final Transaction transaction = _persistit.getTransaction();
+            for (int count = 0; count < 20; count++) {
+                transaction.begin();
+                try {
+                    _tableStatus.incrementCount(1);
+                    _tableStatus.incrementCount(2);
+                    _tableStatus.incrementCount(3);
+                    _tableStatus.incrementCount(1);
+                    _tableStatus.proposeMax(1, count % 37);
+                    _tableStatus.proposeMin(1, count % 37);
+                    transaction.commit(true);
+                } finally {
+                    transaction.end();
+                }
             }
-        }
 
-        _persistit.checkpoint();
-        _persistit.getJournalManager().force();
-        
-//        System.out.println("===========");
-//        showJournal();
-//        System.out.println("===========");
-        
-        for (int count = 0; count < 20; count++) {
-            transaction.begin();
-            try {
-                _tableStatus.incrementCount(1);
-                _tableStatus.incrementCount(2);
-                _tableStatus.incrementCount(3);
-                _tableStatus.incrementCount(1);
-                _tableStatus.proposeMax(1, count % 37);
-                _tableStatus.proposeMin(1, count % 37);
-                transaction.commit(true);
-            } finally {
-                transaction.end();
+            _persistit.checkpoint();
+            _persistit.getJournalManager().force();
+
+            // System.out.println("===========");
+            // showJournal();
+            // System.out.println("===========");
+
+            for (int count = 0; count < 20; count++) {
+                transaction.begin();
+                try {
+                    _tableStatus.incrementCount(1);
+                    _tableStatus.incrementCount(2);
+                    _tableStatus.incrementCount(3);
+                    _tableStatus.incrementCount(1);
+                    _tableStatus.proposeMax(1, count % 37);
+                    _tableStatus.proposeMin(1, count % 37);
+                    transaction.commit(true);
+                } finally {
+                    transaction.end();
+                }
             }
+            _persistit.getJournalManager().flush();
+//            Thread.sleep(random.nextInt(3000));
+            _persistit.crash();
+
+            // showJournal();
+            final Properties properties = _persistit.getProperties();
+            _persistit = new Persistit();
+            final TableStatus copy = new TableStatus(_persistit);
+            copy.register();
+            _persistit.initialize(properties);
+
+            assertEquals(_tableStatus.toString(), copy.toString());
+            _tableStatus = copy;
         }
-        _persistit.getJournalManager().flush();
-        
-        _persistit.crash();
-        
-//        showJournal();
-        final Properties properties = _persistit.getProperties();
-        _persistit = new Persistit();
-        final TableStatus copy = new TableStatus(_persistit);
-        copy.register();
-        _persistit.initialize(properties);
-        
-        assertEquals(_tableStatus.toString(), copy.toString());
     }
 
     @Override

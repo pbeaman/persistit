@@ -1,8 +1,9 @@
-== Management
+[[Management]]
+= Management
 
-Persistit provides two main avenues for measuring and managing its internal resources: an RMI interface and a JMX interface. 
+Akiban Persistit provides two main avenues for measuring and managing its internal resources: an RMI interface and a JMX interface. 
 
-The RMI interface is used by and primarily intended for the com.persistit.io.AdminUI utility. AdminUI is a Java Swing program that runs a device with graphical UI capabilities.  For example, in Linux and Unix it requires an XServer.  Since production servers are often “headless”, it is often necessary to run AdminUI remotely, via its RMI interface. To do this, the Persistit configuration must specify either the +rmiport+ or +rmihost+ property so that it can start an RMI server.
+The RMI interface is used by and primarily intended for the com.persistit.ui.AdminUI utility. AdminUI is a Java Swing program that runs a device with graphical UI capabilities.  For example, in Linux and Unix it requires an XServer. Since production servers are often “headless”, it is often necessary to run AdminUI remotely, via its RMI interface. To do this, the Persistit configuration must specify either the +rmiport+ or +rmihost+ property so that it can start an RMI server.
 
 Suppose a Persistit-based application is running on a host named “myhost” and has specified the configuration property +rmiport=1099+ in its configuration.  Then the AdminUI can be launched as follows to connect with it:
 
@@ -14,7 +15,7 @@ where <classpath> includes the Persistit com.persistit.ui package.
 
 The JMX interface can be used by third-party management utilities, from applications such as +jconsole+ and +visualvm+, and from command-line JMX clients such as +jmxterm+. To enable JMX access, the configuration must specify the property +jmx=true+.  This causes Persistit to register several MBeans with the platform MBean server during initialization.
 
-=== MBeans
+== MBeans
 
 The following MBeans are available:
 
@@ -25,9 +26,9 @@ The following MBeans are available:
 +com.persistit.type=Persistit,class=RecoveryManager+:: See com.persistit.RecoveryManager.MXBean
 +com.persistit.type=Persistit,class=BufferPool._SSSS_+:: where _SSSS_ is a buffer size (512, 1024, 2048, 4096 or 16394) See com.persistit.BufferPoolMXBean
 
-=== Management Tasks
+== Management Tasks
 
-Both the AdminUI and the ManagementMXBean can launch and administer com.persistit.Task instances.  A Task is a management operation that may take a significant amount of time and usually runs in a separate thread.  For example, com.persistit.IntegrityCheck is a Task that verifies the internal structural integrity of one or more trees. It can run for minutes or hours, depending on the size of the database.  Both AdminUI and ManagementMXBean provide mechanisms to launch, suspend or stop a task, and to monitor a task’s progress.
+Both the AdminUI and the ManagementMXBean can launch and administer com.persistit.Task instances.  A Task is a management operation that may take a significant amount of time and usually runs in a separate thread.  For example, com.persistit.IntegrityCheck is a +Task+ that verifies the internal structural integrity of one or more trees. It can run for minutes to hours, depending on the size of the database.  Both AdminUI and ManagementMXBean provide mechanisms to launch, suspend or stop a task, and to monitor a task’s progress.
 
 Currently the following built-in Tasks are available:
 
@@ -35,15 +36,15 @@ Currently the following built-in Tasks are available:
 +icheck+:: Check the integrity of one or more Trees. See com.persistit.IntegrityCheck
 +save+:: Save selected key-value pairs from one or more Trees to a save file.  See com.persistit.StreamSaver.
 +load+:: Load selected key-value pairs from a save file. See com.persistit.StreamLoader
-+backup+:: Control and/or perform a concurrent backup of one more more Volumes.  See com.persistit.Backup
++backup+:: Control and/or perform a concurrent backup of one more more Volumes.  See +com.persistit.BackupTask+.
 +stat+:: Aggregate various performance statistics and either return them immediately, or write them periodically to a file.
 +task+:: Check the status of an existing task.  This task can also suspend, resume or stop an existing task.  See com.persistit.TaskCheck. Note that this task, which immediately returns its status, can be used by external tools to poll the status of other tasks. 
 
 All of these tasks can be launched by either the AdminUI program (see the +Tasks+ tab) or a JMX client using the com.persistit.ManagementMXBean#launch method.
 
-=== Executing a Task via the Command Line Interface
+== Executing a Task via the Command Line Interface
 
-The com.persistit.ManagementMXBean#execute and com.persistit.ManagementMXBean#launch methods both take a single String-valued argument, parse it to set up a Task and return a String-valued result. You can invoke these methods:
+The com.persistit.ManagementMXBean#execute and com.persistit.ManagementMXBean#launch methods both take a single String-valued argument, parse it to set up a +Task+ and return a String-valued result. You can invoke these methods:
 
 - programmatically, as follows:
 
@@ -88,7 +89,7 @@ peter:~/workspace/sandbox$ ./jmxterm-execute 1234 'task\ taskId=7\ -v'
 
 As shown in the example above, +launch+ starts a background thread to perform the Task and then returns the  _taskId_ as a String.  You can then issue the +task+ command to poll the _taskId_ for interim or final results.  Here the  +task+ operation returned the result of the IntegrityCheck operation whose taskId was 7.
 
-=== Commands
+== Commands
 
 The String value passed to the +execute+ operation specifies the name of a task and arguments it applies to.  The general form is
 
@@ -98,7 +99,7 @@ commandname -flag -flag argname=value argname=value
 
 where the order of arguments and flags is immaterial.
 
-==== Command: +icheck+
+=== Command: +icheck+
 
 Performs a com.persistit.IntegrityCheck task. Arguments:
 
@@ -115,7 +116,7 @@ icheck trees=vehicles,car,truck -h
 ----
 Checks the trees named +car+ and +truck+ in the +vehicles+ volume and does not repair index holes.
 
-==== Command: +save+
+=== Command: +save+
 
 Starts a com.persistit.StreamSaver task. Arguments:
 
@@ -129,7 +130,7 @@ Example:
 save file=/home/akiban/save.dat trees=vehicles,car keyfilter={“Edsel”,”Yugo”}
 ----
 
-==== Command: +load+
+=== Command: +load+
 
 Starts a com.persistit.StreamLoader task. Arguments:
 
@@ -146,7 +147,7 @@ Example:
 load file=/home/akiban/save.dat keyfilter={“Falcon”:”Firebird”}
 ----
 
-==== Command: +backup+
+=== Command: +backup+
 
 Starts a com.persistit.BackupTask task.  Arguments:
 
@@ -187,3 +188,4 @@ task  -v -m -c taskId=nnn
 ----
 
 until the result is empty.
+

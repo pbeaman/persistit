@@ -30,6 +30,7 @@ import java.util.Vector;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.ValueCoder;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.TreeNotFoundException;
 
 /**
  * <p>
@@ -564,6 +565,59 @@ class ManagementImpl implements Management {
             BufferInfo info = new BufferInfo();
             buffer.populateInfo(info);
             return info;
+        } catch (PersistitException pe) {
+            throw new WrappedRemoteException(pe);
+        }
+    }
+
+    /**
+     * Return a <code>BufferInfo</code> reflecting the state of a page
+     * containing the specified key. The <code>volumeName</code> and
+     * <code>treeName</code> parameters specify a {@link Tree} in which to seach
+     * for the key. The <code>level</code> parameter indicates whether the data
+     * page, or one of the pages on the index path to that data page should be
+     * returned. Level 0 refers to the data path, level 1 is the lowest index
+     * level, and level d-1 where d is the number of levels in the the tree
+     * represents the three's root page.
+     * <p>
+     * Specify <code>treeName</code> as <code>null</code> to access the volume's
+     * directory tree.
+     * 
+     * @param volumeName
+     *            the name of the volume
+     * @param treeName
+     *            the name of the tree within the volume, or <code>null</code>
+     *            for the directory tree
+     * @param key
+     *            a <code>KeyState</code> representing a key
+     * @param level
+     *            tree level: 0 for root, 1...d-1 for index pages of a tree
+     *            having depth d.
+     * @return a <code>BufferInfo</code> object reflecting the selected page, or
+     *         <code>null</code> if the specified tree does not exist.
+     * @throws RemoteException
+     */
+    public BufferInfo getBufferInfo(final String volumeName,
+            final String treeName, final KeyState key, final int level)
+            throws RemoteException {
+        try {
+            Exchange exchange;
+            final Volume volume = _persistit.getVolume(volumeName);
+            if (volume == null) {
+                return null;
+            }
+            if (treeName == null) {
+                exchange = volume.directoryExchange();
+            } else {
+                exchange = _persistit.getExchange(volume, treeName, false);
+            }
+            key.copyTo(exchange.getKey());
+            final Buffer buffer = exchange.fetchBufferCopy(level);
+            BufferInfo info = new BufferInfo();
+            buffer.populateInfo(info);
+            return info;
+        } catch (TreeNotFoundException tnfe) {
+            return null;
         } catch (PersistitException pe) {
             throw new WrappedRemoteException(pe);
         }

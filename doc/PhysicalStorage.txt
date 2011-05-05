@@ -1,26 +1,25 @@
-Physical B-Tree Representation
-==============================
-
+[[PhysicalStorage]]
+= Physical B-Tree Representation
 
 This section describes the physical structures used to represent records on disk and in memory.
 
-=== Pages
+== Pages
 
-Persistit stores its data in one or more files called Volumes. Each volume may contain an arbitrary number of named B-Trees. Persistit manages volume files internally in sections called pages. Each page is the same size within a volume. The page size is configurable and may be 1K, 2K, 4K, 8K (the default size) or 16K bytes long. Once the page size for a volume has been established, it cannot be changed. These settings are defined by properties supplied to the +Persistit.initialize+ method. See <<Configuration>> for complete details.)
+Akiban Persistit stores its data in one or more files called Volumes. Each volume may contain an arbitrary number of named B-Trees. Persistit manages volume files internally in sections called pages. Each page is the same size within a volume. The page size is configurable and may be 1K, 2K, 4K, 8K (the default size) or 16K bytes long. Once the page size for a volume has been established, it cannot be changed. These settings are defined by properties supplied to the +Persistit.initialize+ method. See <<Configuration>> for complete details.)
 
-=== Volumes
+== Volumes
 
 Within a Volume there may be an arbitrary number B-Trees. (B-Trees are also known as balanced trees or simply Trees in this document.) In Persistit, a tree is a data structure comprising a root page and subordinate index and data pages. A data page contains a representation of an arbitrary number of key/value pairs. An index page contains a representation of an arbitrary number of keys, each associated with a subordinate index or data page having related information. Data pages are leaf pages because they have no children while index pages are non-leaf pages because they must have children.
 
 The defining characteristic of a B-Tree is that it is height-balanced: the length of the path from the root page to any leaf page is the same. Persistit trees typically range from 1 to 5 levels in depth; the upper bound on tree depth is 20. Each Volume contains a special directory Tree used to identify all other Trees in the Volume. The directory Tree is implicitly used whenever Persistit creates, removes or enumerates the Trees in a volume.
 
-=== The Journal
+== The Journal
 
 Persistit writes all updated pages to the _journal_. The journal is append-only; new records are written only at the end. The journal consists of a numbered series of files having a configurable maximum size. When a journal file becomes full Persistit closes it and begins a new file with the next counter value. In normal operation an independent Copier thread copies pages from the journal back into their home Volume files, allowing old files to be deleted.
 
 The journal is critical to ensuring Persistit can recover structurally intact B-Trees and apply any committed transactions after a system failure. (For more details on the journal, checkpoints and transactions, see <<Recovery>>.)
 
-=== The Buffer Pool
+== The Buffer Pool
 
 Persistit maintains a cache of page copies in memory called the buffer pool. The buffer pool is a critical resource in reducing disk I/O and providing good runtime performance. Specifically, after performing a relatively expensive disk operation to read a copy of a page into the buffer pool, Persistit retains that copy to allow potentially many fetch and update operations to be performed against keys and values stored in that page.
 

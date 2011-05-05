@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -43,7 +44,7 @@ public class BufferTest extends PersistitUnitTestCase {
         sb.setLength(20);
         key.to(sb);
         final int foundAt = b1.findKey(key);
-        b1.split(b2, key, value, foundAt, indexKey, SplitPolicy.NICE_BIAS);
+        b1.split(b2, key, value, foundAt, indexKey, Sequence.NONE, SplitPolicy.NICE_BIAS);
 
         // final String s1 = bufferDump(b1);
         // final String s2= bufferDump(b2);
