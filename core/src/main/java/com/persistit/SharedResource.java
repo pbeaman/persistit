@@ -332,6 +332,7 @@ class SharedResource extends WaitingThreadManager {
                 throw new IllegalStateException(
                         "Release on unclaimed resource " + this);
             }
+            _persistit.getLockManager().unregister(this);
             _status--;
 
             boolean writer = (_status & WRITER_MASK) != 0;
@@ -341,8 +342,6 @@ class SharedResource extends WaitingThreadManager {
                 _status &= ~WRITER_MASK;
                 _writerThread = null;
             }
-
-            _persistit.getLockManager().unregister(this);
 
             //
             // Dequeue and wake up each WaitingThread that could now execute
