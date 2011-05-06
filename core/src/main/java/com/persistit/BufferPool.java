@@ -341,6 +341,38 @@ public class BufferPool {
         return count;
     }
 
+    int countLruQueueEntries() {
+        int count = 0;
+        for (int bucket = 0; bucket < _bucketCount; bucket++) {
+            synchronized (_lock[bucket]) {
+                Buffer head = _lru[bucket];
+                for (Buffer buffer = head; buffer != null;) {
+                    count++;
+                    buffer = buffer.getNextLru();
+                    if (buffer == head)
+                        break;
+                }
+            }
+        }
+        return count;
+    }
+
+    int countInvalidQueueEntries() {
+        int count = 0;
+        for (int bucket = 0; bucket < _bucketCount; bucket++) {
+            synchronized (_lock[bucket]) {
+                Buffer head = _invalidBufferQueue[bucket];
+                for (Buffer buffer = head; buffer != null;) {
+                    count++;
+                    buffer = buffer.getNext();
+                    if (buffer == head)
+                        break;
+                }
+            }
+        }
+        return count;
+    }
+
     void populateBufferPoolInfo(ManagementImpl.BufferPoolInfo info) {
         info.bufferCount = _bufferCount;
         info.bufferSize = _bufferSize;
@@ -431,7 +463,7 @@ public class BufferPool {
             buffer.populateInfo(array[index]);
         }
     }
- 
+
     private boolean selected(Buffer buffer, int includeMask, int excludeMask) {
         return ((includeMask == 0) || (buffer._status & includeMask) != 0)
                 && (buffer._status & excludeMask) == 0;
@@ -498,11 +530,10 @@ public class BufferPool {
     private void bumpMissCounter() {
         _missCounter.incrementAndGet();
     }
-    
+
     private void bumpNewCounter() {
         _newCounter.incrementAndGet();
     }
-    
 
     /**
      * Get the "hit ratio" - the number of hits divided by the number of overall

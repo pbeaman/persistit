@@ -229,7 +229,36 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         value.putString(sb);
         exchange.store();
 
-    }
+        key.clear().append("stress2").append(1566).append(3);
+        setupString(sb, 119);
+        exchange.fetch();
+        assertEquals(sb.toString(), exchange.getValue().getString());
+
+        key.clear().append("stress2").append(1568).append(4);
+        setupString(sb, 2258);
+        exchange.fetch();
+        assertEquals(sb.toString(), exchange.getValue().getString());
+
+        key.clear().append("stress2").append(1569).append(3);
+        setupString(sb, 119);
+        exchange.fetch();
+        assertEquals(sb.toString(), exchange.getValue().getString());
+
+        key.clear().append("stress2").append(1571).append(3);
+        setupString(sb, 3052);
+        exchange.fetch();
+        assertEquals(sb.toString(), exchange.getValue().getString());
+
+        key.clear().append("stress2").append(1573).append(4);
+        setupString(sb, 2203);
+        exchange.fetch();
+        assertEquals(sb.toString(), exchange.getValue().getString());
+
+        key.clear().append("stress2").append(1573).append(3);
+        setupString(sb, 2524);
+        exchange.fetch();
+        assertEquals(sb.toString(), exchange.getValue().getString());
+}
 
     @Test
     public void test4() throws PersistitException {

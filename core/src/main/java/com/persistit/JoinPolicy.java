@@ -26,18 +26,31 @@ public class JoinPolicy {
      * A policy that maximizes the number of records in the left sibling page,
      * and minimizes the number of records in the right sibling page.
      */
-    public final static JoinPolicy LEFT_BIAS = new JoinPolicy(-1, "LEFT BIAS");
+    public final static JoinPolicy LEFT_BIAS = new JoinPolicy(-1, "LEFT");
     /**
      * A policy that minimizes the number of records in the left sibling page,
      * and maximizes the number of records in the right sibling page.
      */
-    public final static JoinPolicy RIGHT_BIAS = new JoinPolicy(1, "RIGHT BIAS");
+    public final static JoinPolicy RIGHT_BIAS = new JoinPolicy(1, "RIGHT");
     /**
      * A policy that attempts to evenly balance the number of records in the
      * left and right sibling pages.
      */
-    public final static JoinPolicy EVEN_BIAS = new JoinPolicy(0, "EVEN BIAS");
+    public final static JoinPolicy EVEN_BIAS = new JoinPolicy(0, "EVEN");
 
+    
+    private final static JoinPolicy[] POLICIES = {LEFT_BIAS, RIGHT_BIAS, EVEN_BIAS};
+    
+    public static JoinPolicy forName(final String name) {
+        for (final JoinPolicy policy : POLICIES) {
+            if (policy.toString().equalsIgnoreCase(name)) {
+                return policy;
+            }
+        }
+        throw new IllegalArgumentException("No such SplitPolicy " + name);
+    }
+
+    
     String _name;
     int _bias;
 

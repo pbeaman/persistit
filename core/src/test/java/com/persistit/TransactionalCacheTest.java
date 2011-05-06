@@ -387,6 +387,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
             _persistit.checkpoint();
             _persistit.getJournalManager().force();
 
+
             for (int count = 0; count < 20; count++) {
                 transaction.begin();
                 try {

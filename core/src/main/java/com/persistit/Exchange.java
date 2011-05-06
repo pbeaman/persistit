@@ -17,7 +17,7 @@ package com.persistit;
 
 import static com.persistit.Buffer.EXACT_MASK;
 import static com.persistit.Buffer.HEADER_SIZE;
-import static com.persistit.Buffer.INITIAL_KEY_BLOCK_START_VALUE;
+import static com.persistit.Buffer.KEY_BLOCK_START;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
 import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
 import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
@@ -150,9 +150,6 @@ public class Exchange {
 
     private final static int RIGHT_CLAIMED = 2;
 
-    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.NICE_BIAS;
-    private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
-
     private Persistit _persistit;
 
     private long _timeout;
@@ -177,8 +174,8 @@ public class Exchange {
 
     private Value _spareValue;
 
-    private SplitPolicy _splitPolicy = DEFAULT_SPLIT_POLICY;
-    private JoinPolicy _joinPolicy = DEFAULT_JOIN_POLICY;
+    private SplitPolicy _splitPolicy;
+    private JoinPolicy _joinPolicy;
 
     private boolean _isDirectoryExchange = false;
     private boolean _hasDeferredDeallocations = false;
@@ -191,6 +188,10 @@ public class Exchange {
     private long _longRecordPageAddress;
 
     private Object _appCache;
+
+    public enum Sequence {
+        NONE, FORWARD, REVERSE
+    }
 
     /**
      * <p>
@@ -330,6 +331,9 @@ public class Exchange {
             _treeGeneration = -1;
             initCache();
         }
+        _splitPolicy = _persistit.getDefaultSplitPolicy();
+        _joinPolicy = _persistit.getDefaultJoinPolicy();
+
     }
 
     void init(Exchange exchange) {
@@ -353,6 +357,8 @@ public class Exchange {
 
         exchange._key.copyTo(_key);
         exchange._value.copyTo(_value);
+        _splitPolicy = exchange._splitPolicy;
+        _joinPolicy = exchange._joinPolicy;
     }
 
     void removeState(boolean secure) {
@@ -363,8 +369,8 @@ public class Exchange {
         _spareValue.clear(secure);
         _transaction = null;
         _ignoreTransactions = false;
-        _splitPolicy = DEFAULT_SPLIT_POLICY;
-        _joinPolicy = DEFAULT_JOIN_POLICY;
+        _splitPolicy = _persistit.getDefaultSplitPolicy();
+        _joinPolicy = _persistit.getDefaultJoinPolicy();
     }
 
     private void initCache() {
@@ -395,6 +401,7 @@ public class Exchange {
         long _bufferGeneration;
         long _keyGeneration;
         int _foundAt;
+        int _lastInsertAt;
         //
         // The remaining fields are used only by removeKeyRangeInternal and
         // its helpers.
@@ -440,6 +447,11 @@ public class Exchange {
             _bufferGeneration = -1;
         }
 
+        private void updateInsert(Buffer buffer, Key key, int foundAt) {
+            update(buffer, key, foundAt);
+            _lastInsertAt = foundAt;
+        }
+
         private void update(Buffer buffer, Key key, int foundAt) {
             if (Debug.ENABLED) {
                 Debug.$assert(_level + PAGE_TYPE_DATA == buffer.getPageType());
@@ -464,6 +476,17 @@ public class Exchange {
                 _keyGeneration = -1;
                 _foundAt = -1;
             }
+        }
+
+        private Sequence sequence(final int foundAt) {
+            int delta = ((foundAt & P_MASK) - (_lastInsertAt & P_MASK));
+            if ((foundAt & EXACT_MASK) == 0 && delta == KEYBLOCK_LENGTH) {
+                return Sequence.FORWARD;
+            }
+            if ((foundAt & EXACT_MASK) == 0 && delta == 0) {
+                return Sequence.REVERSE;
+            }
+            return Sequence.NONE;
         }
 
         private void initRemoveFields() {
@@ -890,7 +913,7 @@ public class Exchange {
         try {
             checkPageType(buffer, PAGE_TYPE_DATA);
         } catch (CorruptVolumeException e) {
-            buffer.release(); // Don't make Most-Recently-Used
+            _pool.release(buffer);
             throw e;
         }
 
@@ -898,7 +921,7 @@ public class Exchange {
 
         if (buffer.isBeforeLeftEdge(foundAt)
                 || buffer.isAfterRightEdge(foundAt)) {
-            buffer.release(); // Don't make Most-Recently-Used
+            _pool.release(buffer);
             return searchTree(key, 0);
         }
         return foundAt;
@@ -1579,12 +1602,11 @@ public class Exchange {
             Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
                     && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
         }
-
+        final Sequence sequence = lc.sequence(foundAt);
         int result = buffer.putValue(key, value, foundAt, false);
         if (result != -1) {
             buffer.setDirty();
-            // lc.update(buffer, key, exact ? foundAt : -1);
-            lc.update(buffer, key, result);
+            lc.updateInsert(buffer, key, result);
             return false;
         } else {
             if (Debug.ENABLED) {
@@ -1619,9 +1641,13 @@ public class Exchange {
                 // level cache for this level will become
                 // (appropriately) invalid.
                 //
-                buffer.split(rightSibling, key, value, foundAt, _spareKey1,
-                        _splitPolicy);
-                lc.update(buffer, key, -1);
+                int at = buffer.split(rightSibling, key, value, foundAt,
+                        _spareKey1, sequence, _splitPolicy);
+                if (at < 0) {
+                    lc.updateInsert(rightSibling, key, -at);
+                } else {
+                    lc.updateInsert(buffer, key, at);
+                }
 
                 long oldRightSibling = buffer.getRightSibling();
                 long newRightSibling = rightSibling.getPageAddress();
@@ -1873,7 +1899,7 @@ public class Exchange {
                     if (inTxn) {
                         _transaction.touchedPage(this, buffer);
                     }
-                    buffer.release();
+                    _pool.release(buffer);
                     buffer = null;
                 }
                 //
@@ -2016,7 +2042,8 @@ public class Exchange {
 
                     if (doFetch) {
                         if (fetchFromPendingTxn) {
-                            _transaction.fetchFromLastTraverse(this, minimumBytes);
+                            _transaction.fetchFromLastTraverse(this,
+                                    minimumBytes);
                         } else {
                             buffer.fetch(foundAt, _value);
                             fetchFixupForLongRecords(_value, minimumBytes);
@@ -2471,9 +2498,9 @@ public class Exchange {
      * </p>
      * 
      * @param minimumBytes
-     *            specifies a length at which Persistit will truncate
-     *            the returned value.
-     *            
+     *            specifies a length at which Persistit will truncate the
+     *            returned value.
+     * 
      * @return This <code>Exchange</code> to permit method call chaining
      * @throws PersistitException
      */
@@ -2524,8 +2551,8 @@ public class Exchange {
      *            the <code>Value</code> into which the database value should be
      *            fetched.
      * @param minimumBytes
-     *            specifies a length at which Persistit will truncate
-     *            the returned value.
+     *            specifies a length at which Persistit will truncate the
+     *            returned value.
      * 
      * 
      * @return This <code>Exchange</code> to permit method call chaining
@@ -3038,7 +3065,7 @@ public class Exchange {
                             foundAt2 &= P_MASK;
 
                             if (Debug.ENABLED) {
-                                Debug.$assert(foundAt2 != INITIAL_KEY_BLOCK_START_VALUE);
+                                Debug.$assert(foundAt2 != KEY_BLOCK_START);
                             }
                             buffer = lc._buffer;
                             lc._flags |= RIGHT_CLAIMED;
@@ -3971,5 +3998,36 @@ public class Exchange {
      */
     public Object getAppCache() {
         return _appCache;
+    }
+
+    /**
+     * Returns a copy of either the data page or a page on the index path to the
+     * data page containing the current key. This method looks up the current
+     * key, then copies and returns the page at the specified tree level in a
+     * new Buffer. The resulting Buffer object is not part of the BufferPool and
+     * can simply be discarded when the caller is finished with it.
+     * 
+     * @param level
+     *            The tree level, starting at zero for the data page.
+     * @return copy of page on the key's index tree at that level.
+     */
+    public Buffer fetchBufferCopy(final int level) throws PersistitException {
+        if (level >= _tree.getDepth() || level <= -_tree.getDepth()) {
+            throw new IllegalArgumentException("Tree depth is "
+                    + _tree.getDepth());
+        }
+        int lvl = level >= 0 ? level : _treeDepth + level;
+        _exclusive = false;
+        int foundAt = searchTree(_key, lvl);
+        final Buffer buffer = _levelCache[lvl]._buffer;
+        try {
+            if (foundAt == -1) {
+                return null;
+            } else {
+                return new Buffer(buffer);
+            }
+        } finally {
+            _volume.getPool().release(buffer);
+        }
     }
 }

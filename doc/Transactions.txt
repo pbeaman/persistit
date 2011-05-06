@@ -1,15 +1,15 @@
-Transactions
-==============================
+[[Transactions]]
+= Transactions
 
-Persistit supports transactions with full isolation and optimistic concurrency control. An application may begin, commit or roll back the current transaction scope explicitly, executing multiple database operations in an atomic, consistent, isolated and (optionally) durable (ACID) manner. If the application does not explicitly define the scope of a transaction, each database operation implicitly runs within the scope of a separate transaction. Each Persistit transaction may optionally be committed to either memory or disk. Transactions committed to memory are much faster, but are not immediately durable.
+Akiban Persistit supports transactions with full isolation and optimistic concurrency control. An application may begin, commit or roll back the current transaction scope explicitly, executing multiple database operations in an atomic, consistent, isolated and (optionally) durable (ACID) manner. If the application does not explicitly define the scope of a transaction, each database operation implicitly runs within the scope of a separate transaction. Each Persistit transaction may optionally be committed to either memory or disk. Transactions committed to memory are much faster, but are not immediately durable.
 
-=== Optimistic transaction Scheduling
+== Optimistic transaction Scheduling
 
 To achieve high performance and scalability, Persistit supports optimistic transaction scheduling. Multiple threads, each concurrently running a transaction, are permitted to continue without blocking until a potentially inconsistent state is recognized. At this point the suspected transaction is implicitly rolled back.
 
 Optimistic scheduling works because transactions usually do not collide – especially when individual database operations are fast – and so in practice transactions are seldom rolled back. But because any transaction may be automatically rolled back at any point, applications must be designed carefully to avoid unintended side-effects. For example, no transaction should perform non-repeatable or externally visible operations within the scope of a transaction.
 
-=== Using Transactions
+== Using Transactions
 
 The following code fragment performs two store operations within the scope of a transaction:
 
@@ -56,9 +56,9 @@ while (!done)
 }
 ----
 
-This example catches +com.persistit.exception.RollbackException+, which can be thrown by any Persistit operation within the scope of a transaction, including +commit+. Any code explicitly running within the scope of a transaction should be designed to handle rollbacks.
+This example catches +com.persistit.exception.RollbackException+, which can be thrown by any Persistit operation within the scope of a transaction, including +com.persistit.Transaction#commit+. Any code explicitly running within the scope of a transaction should be designed to handle rollbacks.
 
-This example also uses a _finally_ block to ensure every call to +begin()+ has a matching call to +end()+.  This code pattern is mandatory: it is critical to correct transaction nesting behavior.
+This example also uses a _finally_ block to ensure every call to +com.persistit.Transaction#begin+ has a matching call to +com.persistit.Transaction#end+. This code pattern is mandatory: it is critical to correct transaction nesting behavior.
 
 One convenient way to do this is to encapsulate the logic of a transaction in an implementation of +com.persisitit.TransactionRunnable+ interface. The run method of +com.persistit.Transaction+ automatically provides logic to begin the transaction, execute the TransactionRunnable and commit the transaction, repeating the process until no rollback is thrown or a maximum retry count is reached. For example, the code fragment shown above can be rewritten as:
 
@@ -92,7 +92,7 @@ Database operations running outside the scope of an explicitly defined transacti
 
 Note that com.persistit.exception.RollbackException is an unchecked Exception.
 
-=== Disk vs. Memory Commits
+== Disk vs. Memory Commits
 
 Persistit transactions may be committed either to disk or to memory. Committing  to disk causes the commit operation to synchronously write the transaction to  the journal and limits the rate of transaction commits to the physical disk’s  random I/O rate. (Allocating the journal to an SSD volume can dramatically  improve throughput.)
 
@@ -100,17 +100,17 @@ Committing to memory is much faster (by several orders of magnitude) because no 
 
 Whether committed to disk or memory, whether implicit or explicit, if any transaction T is present in the recovered state of a database after an abnormal termination, Persistit guarantees that all other transactions that T depended on are also present. If transaction T2 has read a data value that was written by transaction T1, and if T2 is visible in the durable state of the database, then so is T1.
 
-=== Nested Transactions
+== Nested Transactions
 
 A nested transaction occurs when code that is already executing within the scope of a transaction executes the begin method to start a new transaction scope. This might happen, for example, if an application’s transaction logic calls a method in an external library that also uses transactions. In this case, the commit processing of the inner transaction scope is deferred until the outermost transaction commits. At that point, all the updates performed within the scope of the outer transaction are committed to the database unless an inconsistency has occurred because of updates committed by other threads. Similarly, a rollback initiated by the inner transaction causes the outermost transaction to roll back.
 
 See the +com.persistit.Transaction+ API documentation for further details.
 
-=== TransactionalCache
+== TransactionalCache
 
-In certain cases it may be desirable for a Transaction to modify an object in memory.  For example, it may be useful to aggregate statistical information about a tree such as a counts or sums of values.  The abstract +com.persistit.TranscationalCache+ class provides a framework for such memory updates that preserves transactional consistency, even in the event of a crash.
+In certain cases it may be desirable for a Transaction to modify an object in memory.  For example, it may be useful to aggregate statistical information about a tree such as a counts or sums of values.  The abstract +com.persistit.TransactionalCache+ class provides a framework for such memory updates that preserves transactional consistency, even in the event of a crash.
 
-To use this facility, an application defines a concrete TransactionalCache subclass and registers it with Persistit.  Registration may only occur before the Persistit instance’s +initialize+ method is called. During the processing of the +initialize+ method, Persistit recovers the the TransactionalCache instance to its state at the last value checkpoint, and then applies the updates associated with every committed transaction that happened after the checkpoint.  As a result, the state of the TransactionalCache instance subsequent to recovery is consistent with the result of applying every committed Transaction.  Any transactions that were in progress but not yet committed at the time of a shutdown or crash do not affect the state of the recovered TransactionalCache object.
+To use this facility, an application defines a concrete +TransactionalCache+ subclass and registers it with Persistit.  Registration may only occur before the Persistit instance’s +initialize+ method is called. During the processing of the +initialize+ method, Persistit recovers the the TransactionalCache instance to its state at the last valid checkpoint, and then applies the updates associated with every committed transaction that happened after the checkpoint.  As a result, the state of the +TransactionalCache+ instance subsequent to recovery is consistent with the result of applying every committed transaction.  Any transactions that were in progress but not yet committed at the time of a shutdown or crash do not affect the state of the recovered +TransactionalCache+ object.
 
-See the com.persistit.TransactionalCache API documentation for details.
+See the +com.persistit.TransactionalCache+ API documentation for details.
 

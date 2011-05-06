@@ -1,22 +1,21 @@
 
-Getting Started with Persistit(TM)
-==================================
+= Getting Started with Akiban Persistit
 
 
 Welcome!
 
-We have worked hard to make Persistit exceptionally fast, reliable, simple and lightweight. We hope you will enjoy learning more about it and using it.
+We have worked hard to make Akiban Persistit(TM) exceptionally fast, reliable, simple and lightweight. We hope you will enjoy learning more about it and using it.
 
 This document briefly and informally introduces and demonstrates various Persistit features through examples. The Javadoc API documentation provides a detailed reference guide to the product.
 
 
 == Download and Install
 
-Download akiban-persistit-2.2.1.zip from <<http://www.akiban.com/persistit/download.html>>.
+Download +akiban-persistit-2.3.zip+ from http://www.akiban.com/persistit/download.html.
 
 Unpack the distribution kit into a convenient directory using any unzip utility. For example, use +jar+ to unpack the distribution kit to the current working directory as follows:
 ----
-jar xvzf akiban-persistit-core-2.2.1.zip
+jar xvzf akiban-persistit-core-2.3.zip
 ----
 
 Review the LICENSE.html and README.html files located in the root of the installation directory. Persistit is licensed under the Affero GPL License. By installing, copying or otherwise using the Software contained in the distribution kit, you agree to be bound by the terms of the license agreement. If you do not agree, remove and destroy all copies of the software in your possession immediately.
@@ -27,7 +26,7 @@ Review the examples directory. Here you will find functional examples of varying
 
 == Working with Persistit
 
-Add the akiban-persistit-core-2.2.1.jar from the lib directory of the distribution kit to your project's classpath. For example, copy it to jre/lib/ext in your Java Runtime Environment, or add it to your classpath environment variable. 
+Add the +akiban-persistit-core-2.3.jar+ from the +lib+ directory of the distribution kit to your project's classpath. For example, copy it to +jre/lib/ext+ in your Java Runtime Environment, or add it to your classpath environment variable. 
 
 That's it. You are ready to work with Persistit.
 
@@ -111,7 +110,7 @@ Although +HelloWorld.java+ is not very useful, it demonstrates several of the ba
 
 === Initialization and Configuration
 
-Before accessing any data, +HelloWorld.java+ calls one of the +initialize+ methods of +com.persistit.Persistit+. This sets up the memory configuration for buffers and the path names of Persistit volume files. Alternative versions of the initialize method accept configuration information from a java.util.Properties object, from a specified properties file, or from the default file named persistit.properties.
+Before accessing any data, +HelloWorld.java+ calls one of the +com.persistit.Persistit#initialize+ methods of +com.persistit.Persistit+. This sets up the memory configuration for buffers and the path names of Persistit volume files. Alternative versions of the initialize method accept configuration information from a java.util.Properties object, from a specified properties file, or from the default file named persistit.properties.
 
 In this example, +persistit.properties+ looks like this:
 
@@ -144,7 +143,7 @@ Exchange dbex = db.getExchange("hwdemo", "greetings", true);
 
 in +HelloWorld.java+ finds a volume named hwdemo and attempts to find a tree in it named greetings. If there is no such tree, the constructor optionally creates it.
 
-The +getExchange+ and +releaseExchange+ methods maintain a pool of reusable Exchange objects designed for use by multi-threaded applications such as web applications. If a suitable exchange already exists, +getExchange+ returns it; otherwise it constructs a new one.
+The +com.persistit.Persistit#getExchange+ and +com.persistit.Persistit#releaseExchange+ methods maintain a pool of reusable Exchange objects designed for use by multi-threaded applications such as web applications. If a suitable exchange already exists, +getExchange+ returns it; otherwise it constructs a new one.
 
 The Exchange looks up the volume name "hwdemo" by matching it against the volumes specified in the configuration. The match is based on the simple file name of the volume after removing its final dotted suffix.  For example, the volume name +hwdemo+ matches the volume specification +${datapath}/hwdemo.v00+.
 
@@ -250,11 +249,11 @@ throws PersistitException
 
 The fetch operation copies the serialized byte array representing an object's state from an Exchange's Tree into its Value object, but does not deserialize it. To get an instance of an object having that state you call the get method. By default, each time you call get, Persistit creates a new object instance and loads its fields with data decoded from the Value. (However, you can use a +com.persistit.encoding.ValueRenderer+ to load updated state information into a pre-existing object instance.)
 
-Persistit does not intrinsically cache object values, nor does it track an object's state changes. However, you can use a +com.persistit.encoding.ObjectCache+ to cache object values. ObjectCache is specifically designed to cache objects fetched from Persistit: it's implementation is similar to java.util.WeakHashMap, but with specific support for use of Persistit Key and KeyState objects as keys.
+Persistit does not intrinsically cache object values, nor does it track an object's state changes. However, you can use a +com.persistit.encoding.ObjectCache+ to cache object values. +ObjectCache+ is specifically designed to cache objects fetched from Persistit: it's implementation is similar to java.util.WeakHashMap, but with specific support for use of Persistit Key and KeyState objects as keys.
 
 === Compound Operations
 
-The Exchange class also provides the methods +fetchAndStore+, +fetchAndRemove+ and +incrementValue+. Each of these methods both retrieves and updates the state of the database atomically.  For example, fetchAndStore atomically stores a new value in the database and then modifies the Exchange's  Value to hold the previously stored value. You could execute separate fetch and store operations within the scope of a transaction to achieve the same result, but the compound operations require simpler internal transaction coordination and are therefore much faster.
+The Exchange class also provides the methods +com.persistit.Exchange#fetchAndStore+, +com.persistit.Exchange#fetchAndRemove+ and +com.persistit.Exchange#incrementValue+. Each of these methods both retrieves and updates the state of the database atomically.  For example, fetchAndStore atomically stores a new value in the database and then modifies the Exchange's  Value to hold the previously stored value. You could execute separate fetch and store operations within the scope of a transaction to achieve the same result, but the compound operations require simpler internal transaction coordination and are therefore much faster.
 
 === Closing Persistit
 
@@ -284,13 +283,13 @@ To create a PersistitMap, you first need to initialize Persistit and create an E
 
 A PersistitMap uses an Exchange to fetch and update data; it serializes and stores values in a Persistit Tree as described in the previous section.
 
-See +com.persistit.PersistitMap+ for special considerations regarding concurrency, Comparator objects, exceptions and the +putFast+ and +removeFast+ methods.
+See +com.persistit.PersistitMap+ for special considerations regarding concurrency, Comparator objects, exceptions and the +com.persistit.PersistitMap#putFast+ and +com.persistit.PersistitMap#removeFast+ methods.
 
 == Transactions
 
 All Persistit database operations are either implicitly or explicitly performed within the scope of a transaction. In +HelloWorld.java+, where there are no begin, commit or end calls, each of the database calls operates implicitly within an independent transaction scope.
 
-To incorporate several database operations into a single atomic unit of work requires explicit calls to +start+, +commit+ and +end+ on a +com.persistit.Transaction+. The next example illustrates an explicitly defined transaction.
+To incorporate several database operations into a single atomic unit of work requires explicit calls to +com.persistit.Transaction#start+, +com.persistit.Transaction#commit+ and +com.persistit.Transaction#end+ on a +com.persistit.Transaction+. The next example illustrates an explicitly defined transaction.
 
 .Excerpt From SimpleTransaction.java
 [source,java]
@@ -353,7 +352,7 @@ To incorporate several database operations into a single atomic unit of work req
 
 You will find the complete program from which this excerpt is taken in the +examples/SimpleTransaction+ directory of the distribution kit.
 
-A +com.persistit.Transaction+ represents a context in which transactions are performed. Each thread acquires a unique, thread-local Transaction instance when it first calls any method on Exchange. You begin, commit or rollback, and end a transaction scope within this context. There is one Transaction instance per thread; once allocated, it lasts until the thread dies. Currently Persistit does not support transactions that span multiple threads.
+A +Transaction+ represents a context in which transactions are performed. Each thread acquires a unique, thread-local +Transaction+ instance when it first calls any method on +Exchange+. You begin, commit or rollback, and end a transaction scope within this context. There is one +Transaction+ instance per thread; once allocated, it lasts until the thread dies. Currently Persistit does not support transactions that span multiple threads.
 
 === Optimistic Concurrent Control and Rollbacks
 
@@ -371,7 +370,7 @@ Persistit transactions may be committed either to disk or to memory. Committing 
 
 === TransactionRunnable
 
-The Transaction class offers an encapsulated method for executing transaction logic. You may embed the transaction logic in an implementation of com.persistit.TransactionRunnable and invoke it as shown here.
+The +Transaction+ class offers an encapsulated method for executing transaction logic. You may embed the transaction logic in an implementation of com.persistit.TransactionRunnable and invoke it as shown here.
 
 [source,java]
 ----
@@ -434,7 +433,7 @@ In this example, the iterator will only access String-valued keys between â€œAâ€
 
 == Managing Persistit
 
-Persistit provides an API for managing a running Persistit instance through the +com.persistit.Management+ interface. The Management interface provides statistics and other information about numerous elements within Persistit.  Your application program can acquire a Management instance as shown here:
+Persistit provides an API for managing a running Persistit instance through the +com.persistit.Management+ interface. The +Management+ interface provides statistics and other information about numerous elements within Persistit.  Your application program can acquire a +Management+ instance as shown here:
 
 .Using the Management API
 [source,java]
@@ -452,7 +451,7 @@ Persistit provides an API for managing a running Persistit instance through the 
 ----
 
 
-This example uses a Management object to set the update suspended flag. When enabled, this setting suspends all threads attempting to update the Persistit database.  (Suspending updates can be useful when trying to diagnose application problems, to or create a snapshot of the Persistit database without shutting down the application.)  The example then displays the hit ratio for each buffer pool.  (The hit ratio indicates how frequently a page sought in the buffer pool is actually found there.)
+This example uses a +Management+ object to set the update suspended flag. When enabled, this setting suspends all threads attempting to update the Persistit database.  (Suspending updates can be useful when trying to diagnose application problems, to or create a snapshot of the Persistit database without shutting down the application.)  The example then displays the hit ratio for each buffer pool.  (The hit ratio indicates how frequently a page sought in the buffer pool is actually found there.)
 
 Many attributes and methods of the Management class are also available through a +com.persistit.ManagementMXBean+.  If the +jmx+ configuration property is _true_, Persistit registers a ManagementMXBean instances with the platform MBean server. When so registered, you can access the bean through a JMX client such as +jconsole+.
 
@@ -464,9 +463,9 @@ AdminUI uses a JFC/Swing interface and requires a display, mouse and keyboard to
 
 [source,java]
 ----
-java -jar akiban-persistit-ui-2.2.1.jar
+java -jar akiban-persistit-ui-2.3.jar
 - or -
-java -cp akiban-persistit-core-2.2.1.jar com.persistit.ui.AdminUI
+java -cp akiban-persistit-core-2.3.jar com.persistit.ui.AdminUI
 ----
 
 Click on File->Connect to supply the host name and port of the RMI registry specified for the remote interface.  For example, if a Persistit instance is running on a host named +alpha+, and if you launched the application with the property setting +rmiport=1099+ in the configuration, then specify +alpha:1099+, or just +alpha+ (because 1099 is the default port for RMI) in the connect dialog.
