@@ -606,6 +606,15 @@ public abstract class TransactionalCache {
         updates.add(update);
     }
 
+    private synchronized void updateCheckpoint() {
+        final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
+        if (_checkpoint == null) {
+            _checkpoint = checkpoint;
+        } else if (checkpoint.getTimestamp() > _checkpoint.getTimestamp()) {
+            _previousVersion = copy();
+            _checkpoint = checkpoint;
+        }
+    }
     /**
      * Commit all the {@link TransactionalCache#Update} records. As a
      * side-effect, this method may create a pre-checkpoint copy of this
@@ -621,13 +630,7 @@ public abstract class TransactionalCache {
         if (timestamp == -1) {
             throw new IllegalStateException("Must be called from doCommit");
         }
-        final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
-        if (_checkpoint == null) {
-            _checkpoint = checkpoint;
-        } else if (checkpoint.getTimestamp() > _checkpoint.getTimestamp()) {
-            _previousVersion = copy();
-            _checkpoint = checkpoint;
-        }
+        updateCheckpoint();
         TransactionalCache tc = this;
         while (tc != null) {
             for (int index = 0; index < updates.size(); index++) {
@@ -680,6 +683,7 @@ public abstract class TransactionalCache {
     }
 
     final void save(final Checkpoint checkpoint) throws PersistitException {
+        updateCheckpoint();
         TransactionalCache tc = this;
         TransactionalCache newer = null;
         while (tc != null) {

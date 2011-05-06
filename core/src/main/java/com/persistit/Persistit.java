@@ -418,6 +418,7 @@ public class Persistit {
      * rather than reading them from a file. If Persistit has already been
      * initialized, this method does nothing. This method is threadsafe; if
      * multiple threads concurrently attempt to invoke this method, one of the
+
      * threads will actually perform the initialization and the other threads
      * will do nothing.
      * </p>
@@ -1545,12 +1546,20 @@ public class Persistit {
 
     final long earliestDirtyTimestamp() {
         long earliestDirtyTimestamp = Long.MAX_VALUE;
+        synchronized (_transactionSessionMap) {
+            for (final Transaction t : _transactionSessionMap.values()) {
+                if (t.getStartTimestamp() != -1 && t.getCommitTimestamp() == -1) {
+                    earliestDirtyTimestamp = Math.min(earliestDirtyTimestamp, t.getStartTimestamp());
+                }
+            }
+        }
         for (final BufferPool pool : _bufferPoolTable.values()) {
             earliestDirtyTimestamp = Math.min(earliestDirtyTimestamp,
                     pool.earliestDirtyTimestamp());
         }
         return earliestDirtyTimestamp;
     }
+
 
     /**
      * Copy back all pages from the journal to their host Volumes.

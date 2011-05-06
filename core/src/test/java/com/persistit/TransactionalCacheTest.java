@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
@@ -30,13 +31,25 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 public class TransactionalCacheTest extends PersistitUnitTestCase {
 
+    private static final Random RANDOM = new Random(1);
+    
     private TableStatus _tableStatus = new TableStatus(_persistit);
+
+    private static void randomSleep() {
+        try {
+            if (RANDOM.nextInt(50) == 0) {
+                Thread.sleep(500);
+            }
+        } catch (InterruptedException e) {
+
+        } catch (ThreadDeath e) {
+        }
+    }
 
     public static class TableStatus extends TransactionalCache implements
             Serializable {
 
         private static final long serialVersionUID = 2823468378367226075L;
-
         private final static byte COUNT = 1;
         private final static byte MAX = 2;
         private final static byte MIN = 3;
@@ -44,6 +57,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         Map<Integer, AtomicLong> _minima = new HashMap<Integer, AtomicLong>();
         Map<Integer, AtomicLong> _maxima = new HashMap<Integer, AtomicLong>();
         Map<Integer, AtomicLong> _count = new HashMap<Integer, AtomicLong>();
+        
 
         public static class CountUpdate extends UpdateInt {
 
@@ -157,11 +171,21 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         public TableStatus copy() {
             TableStatus ts = new TableStatus(_persistit);
             ts._checkpoint = _checkpoint;
-            ts._count = new HashMap<Integer, AtomicLong>(_count);
-            ts._minima = new HashMap<Integer, AtomicLong>(_minima);
-            ts._maxima = new HashMap<Integer, AtomicLong>(_maxima);
+            ts._count = copyMap(_count);
+            ts._minima = copyMap(_minima);
+            ts._maxima = copyMap(_maxima);
             ts._previousVersion = _previousVersion;
             return ts;
+        }
+
+        private Map<Integer, AtomicLong> copyMap(
+                final Map<Integer, AtomicLong> map) {
+            Map<Integer, AtomicLong> newMap = new HashMap<Integer, AtomicLong>();
+            for (final Entry<Integer, AtomicLong> entry : map.entrySet()) {
+                newMap.put(entry.getKey(), new AtomicLong(entry.getValue()
+                        .longValue()));
+            }
+            return newMap;
         }
 
         @Override
@@ -183,6 +207,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
                 final Map<Integer, AtomicLong> map) throws PersistitException {
             exchange.append(category);
             for (final Entry<Integer, AtomicLong> entry : map.entrySet()) {
+                randomSleep(); // Try to induce interference from other threads.
                 exchange.append(entry.getKey().intValue());
                 exchange.getValue().put(entry.getValue().longValue());
                 exchange.store();
@@ -306,7 +331,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         assertTrue(_tableStatus._maxima != copy._maxima);
         assertTrue(_tableStatus._minima != copy._minima);
 
-//        showJournal();
+        // showJournal();
     }
 
     @Test
@@ -329,7 +354,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
 
         _persistit.checkpoint();
         _persistit.close();
-//        showJournal();
+        // showJournal();
         final Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
         final TableStatus copy = new TableStatus(_persistit);
@@ -337,59 +362,59 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         _persistit.initialize(properties);
         assertEquals(_tableStatus.toString(), copy.toString());
     }
-    
+
     @Test
     public void testCrashCheckpoint() throws Exception {
-        final Transaction transaction = _persistit.getTransaction();
-        for (int count = 0; count < 20; count++) {
-            transaction.begin();
-            try {
-                _tableStatus.incrementCount(1);
-                _tableStatus.incrementCount(2);
-                _tableStatus.incrementCount(3);
-                _tableStatus.incrementCount(1);
-                _tableStatus.proposeMax(1, count % 37);
-                _tableStatus.proposeMin(1, count % 37);
-                transaction.commit(true);
-            } finally {
-                transaction.end();
+        final int cycles = Integer.getInteger("cycles", 1);
+        for (int repeat = 0; repeat < cycles; repeat++) {
+            System.out.println("testCrashCheckpoint iteration #" + repeat);
+            final Transaction transaction = _persistit.getTransaction();
+            for (int count = 0; count < 20; count++) {
+                transaction.begin();
+                try {
+                    _tableStatus.incrementCount(1);
+                    _tableStatus.incrementCount(2);
+                    _tableStatus.incrementCount(3);
+                    _tableStatus.incrementCount(1);
+                    _tableStatus.proposeMax(1, count % 37);
+                    _tableStatus.proposeMin(1, count % 37);
+                    transaction.commit(true);
+                } finally {
+                    transaction.end();
+                }
             }
-        }
 
-        _persistit.checkpoint();
-        _persistit.getJournalManager().force();
-        
-//        System.out.println("===========");
-//        showJournal();
-//        System.out.println("===========");
-        
-        for (int count = 0; count < 20; count++) {
-            transaction.begin();
-            try {
-                _tableStatus.incrementCount(1);
-                _tableStatus.incrementCount(2);
-                _tableStatus.incrementCount(3);
-                _tableStatus.incrementCount(1);
-                _tableStatus.proposeMax(1, count % 37);
-                _tableStatus.proposeMin(1, count % 37);
-                transaction.commit(true);
-            } finally {
-                transaction.end();
+            _persistit.checkpoint();
+            _persistit.getJournalManager().force();
+
+            for (int count = 0; count < 20; count++) {
+                transaction.begin();
+                try {
+                    _tableStatus.incrementCount(1);
+                    _tableStatus.incrementCount(2);
+                    _tableStatus.incrementCount(3);
+                    _tableStatus.incrementCount(1);
+                    _tableStatus.proposeMax(1, count % 37);
+                    _tableStatus.proposeMin(1, count % 37);
+                    transaction.commit(true);
+                } finally {
+                    transaction.end();
+                }
             }
+            _persistit.getJournalManager().flush();
+            _persistit.crash();
+
+            final Properties properties = _persistit.getProperties();
+            _persistit = new Persistit();
+            final TableStatus copy = new TableStatus(_persistit);
+            copy.register();
+            _persistit.initialize(properties);
+
+            assertEquals(_tableStatus.toString(), copy.toString());
+            _tableStatus = copy;
         }
-        _persistit.getJournalManager().flush();
-        
-        _persistit.crash();
-        
-//        showJournal();
-        final Properties properties = _persistit.getProperties();
-        _persistit = new Persistit();
-        final TableStatus copy = new TableStatus(_persistit);
-        copy.register();
-        _persistit.initialize(properties);
-        
-        assertEquals(_tableStatus.toString(), copy.toString());
     }
+
 
     @Override
     public void setUp() throws Exception {
