@@ -18,6 +18,7 @@ package com.persistit;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
@@ -299,10 +300,9 @@ public final class Buffer extends SharedResource {
     private int _maxKeys;
 
     /**
-     * The array of fast indexes. Each element per keyblock holds the
-     * crossCount, runCount, ebc and db from the keyblock.
+     * FastIndex structure used for rapid page searching
      */
-    private FastIndex _fastIndexes;
+    private FastIndex _fastIndex;
 
     /**
      * Type code for this page.
@@ -339,16 +339,6 @@ public final class Buffer extends SharedResource {
     private Buffer _next = null;
 
     /**
-     * Doubly-linked list of Buffers in least-recently-used order.
-     */
-    private Buffer _nextLru = this;
-
-    /**
-     * Back pointer for least-recently-used list.
-     */
-    private Buffer _prevLru = this;
-
-    /**
      * Doubly-linked list of Buffers needing to be written.
      */
     private Buffer _nextDirty = this;
@@ -357,6 +347,14 @@ public final class Buffer extends SharedResource {
      * Back pointer for dirty list
      */
     private Buffer _prevDirty = this;
+    
+    /**
+     * This is for the new CLOCK algorithm experiment.  Bits:
+     * 1 Touched
+     * 2 FastIndex touched
+     * 4 Fixed - can't evict
+     */
+    AtomicInteger _bits = new AtomicInteger();
 
     /**
      * Construct a new buffer.
@@ -382,7 +380,7 @@ public final class Buffer extends SharedResource {
         _bytes = _byteBuffer.array();
         _bufferSize = size;
         _maxKeys = (_bufferSize - HEADER_SIZE) / MAX_KEY_RATIO;
-        _fastIndexes = new FastIndex(_maxKeys + 1, this);
+        _fastIndex = new FastIndex(_maxKeys + 1, this);
     }
 
     Buffer(Buffer original) {
@@ -464,10 +462,10 @@ public final class Buffer extends SharedResource {
 
                 if (isDataPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
-                    _fastIndexes.invalidate();
+                    _fastIndex.invalidate();
                 } else if (isIndexPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_INDEX;
-                    _fastIndexes.invalidate();
+                    _fastIndex.invalidate();
                 }
             }
         }
@@ -755,7 +753,7 @@ public final class Buffer extends SharedResource {
      *         it follows the last key in the page.
      */
     int findKey(Key key) {
-        _fastIndexes.recompute();
+        _fastIndex.recompute();
         byte[] kbytes = key.getEncodedBytes();
         int klength = key.getEncodedSize();
         int depth = 0;
@@ -769,8 +767,8 @@ public final class Buffer extends SharedResource {
             // Here we MUST land on a KeyBlock at an ebc value change point.
             //
             int index = (p - start) >> 2;
-            int runCount = _fastIndexes.getRunCount(index);
-            int ebc = _fastIndexes.getEbc(index);
+            int runCount = _fastIndex.getRunCount(index);
+            int ebc = _fastIndex.getEbc(index);
 
             if (depth < ebc) {
                 // We know that depth < ebc for a bunch of KeyBlocks - we
@@ -793,7 +791,7 @@ public final class Buffer extends SharedResource {
             else // if (depth == ebc)
             {
                 // Now we are looking for the keyblock with the matching db
-                int db = _fastIndexes.getDescriminatorByte(index);
+                int db = _fastIndex.getDescriminatorByte(index);
                 int kb = kbytes[depth] & 0xFF;
 
                 if (kb < db) {
@@ -805,7 +803,7 @@ public final class Buffer extends SharedResource {
                         int p2 = p + (runCount << 2);
                         // p2 now points to the last key block with the same
                         // ebc in this run.
-                        int db2 = _fastIndexes.getDescriminatorByte(index + runCount);
+                        int db2 = _fastIndex.getDescriminatorByte(index + runCount);
 
                         // For the common case that runCount == 1, we avoid
                         // setting up the binary search loop. Instead, the
@@ -891,7 +889,7 @@ public final class Buffer extends SharedResource {
                             // we just want to move forward from kb2, skipping
                             // the crossCount if non-zero.
                             index = (p2 - start) >> 2;
-                            runCount = _fastIndexes.getRunCount(index);
+                            runCount = _fastIndex.getRunCount(index);
                             assert runCount <= 0;
                             p = p2 + KEYBLOCK_LENGTH * (-runCount + 1);
                             continue;
@@ -1417,7 +1415,7 @@ public final class Buffer extends SharedResource {
                         + _tailHeaderSize + klength, length);
             }
 
-            _fastIndexes.insertKeyBlock(p, ebcNew, fixupSuccessor);
+            _fastIndex.insertKeyBlock(p, ebcNew, fixupSuccessor);
 
             bumpGeneration();
 
@@ -1733,7 +1731,7 @@ public final class Buffer extends SharedResource {
                 putInt(p1, kbNewNext);
             }
         }
-        _fastIndexes.invalidate();
+        _fastIndex.invalidate();
         bumpGeneration();
         if (Debug.ENABLED) {
             assertVerify();
@@ -2229,7 +2227,7 @@ public final class Buffer extends SharedResource {
             // pointers
         }
 
-        _fastIndexes.invalidate();
+        _fastIndex.invalidate();
         rightSibling.invalidateFastIndex();
 
         if (Debug.ENABLED) {
@@ -2451,7 +2449,7 @@ public final class Buffer extends SharedResource {
             //
             long rightSibling = buffer.getRightSibling();
             setRightSibling(rightSibling);
-            _fastIndexes.invalidate();
+            _fastIndex.invalidate();
             result = false;
         }
 
@@ -2634,7 +2632,7 @@ public final class Buffer extends SharedResource {
 
             setRightSibling(buffer.getPageAddress());
 
-            _fastIndexes.invalidate();
+            _fastIndex.invalidate();
             buffer.invalidateFastIndex();
 
             result = true;
@@ -2661,15 +2659,15 @@ public final class Buffer extends SharedResource {
     }
     
     public void invalidateFastIndex() {
-        _fastIndexes.invalidate();
+        _fastIndex.invalidate();
     }
     
     public void recomputeFastIndex() {
-        _fastIndexes.recompute();
+        _fastIndex.recompute();
     }
     
     public FastIndex getFastIndex() {
-        return _fastIndexes;
+        return _fastIndex;
     }
 
     private void reduceEbc(int p, int newEbc, byte[] indexKeyBytes) {
@@ -3663,28 +3661,6 @@ public final class Buffer extends SharedResource {
 
     }
 
-    void removeFromLru() {
-        _prevLru._nextLru = _nextLru;
-        _nextLru._prevLru = _prevLru;
-        _nextLru = this;
-        _prevLru = this;
-    }
-
-    void moveInLru(final Buffer to) {
-        //
-        // detach
-        //
-        _prevLru._nextLru = _nextLru;
-        _nextLru._prevLru = _prevLru;
-        //
-        // Now splice it in
-        //
-        _nextLru = to;
-        _prevLru = to._prevLru;
-        to._prevLru._nextLru = this;
-        to._prevLru = this;
-    }
-
     void removeFromDirty() {
         _prevDirty._nextDirty = _nextDirty;
         _nextDirty._prevDirty = _prevDirty;
@@ -3715,11 +3691,37 @@ public final class Buffer extends SharedResource {
         return _next;
     }
 
-    Buffer getNextLru() {
-        return _nextLru;
-    }
-
     Buffer getNextDirty() {
         return _nextDirty;
+    }
+    
+    boolean setBit(int mask) {
+        while (true) {
+            int oldValue = _bits.get();
+            int newValue = oldValue | mask;
+            if (oldValue == newValue) {
+                return false;
+            }
+            if (_bits.compareAndSet(oldValue, newValue)) {
+                return true;
+            }
+        }
+    }
+    
+    boolean clearBit(int mask) {
+        while (true) {
+            int oldValue = _bits.get();
+            int newValue = oldValue & ~mask;
+            if (oldValue == newValue) {
+                return false;
+            }
+            if (_bits.compareAndSet(oldValue, newValue)) {
+                return true;
+            }
+        }
+    }
+    
+    boolean testBit(int mask) {
+        return (_bits.get() & mask) != 0;
     }
 }

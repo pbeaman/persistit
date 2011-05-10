@@ -18,6 +18,7 @@ package com.persistit;
 import java.io.IOException;
 import java.util.BitSet;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.exception.InUseException;
@@ -74,13 +75,15 @@ public class BufferPool {
      */
     private Buffer[] _hashTable;
 
+    private Object[] _hashLocks;
+
     /**
-     * PBuffer indexed by size and
+     * Buffer indexed by size and
      */
     private Buffer[] _buffers;
 
     /**
-     * Count of PBuffers allocated to this pool.
+     * Count of Buffers allocated to this pool.
      */
     private int _bufferCount;
 
@@ -94,31 +97,19 @@ public class BufferPool {
     private int _bucketCount;
 
     /**
-     * Head of singly-linked list of invalid pages
-     */
-    private Buffer[] _invalidBufferQueue;
-
-    /**
-     * Doubly-linked list of fixed Buffers. Note that a Buffer on this list
-     * cannot also be on the LRU list. A fixed Buffer cannot be replaced. The
-     * "head" Buffer (page 0) of each Volume is so-marked.
-     */
-    private Buffer[] _fixed;
-
-    /**
-     * Head of doubly-linked list of valid page in least-recently-used order
-     */
-    private Buffer[] _lru;
-
-    /**
      * Head of doubly-linked list of dirty pages in write priority order
      */
     private Buffer[] _dirty;
 
     /**
-     * An Object used to lock the buffer management memory structures
+     * Pointer to next location in bucket to look for a replacement buffer
      */
-    private final Object[] _lock;
+    private AtomicInteger[] _clock;
+
+    /**
+     * Pointer to next location in bucket to look for a dirty buffer
+     */
+    private AtomicInteger[] _dirtyClock;
 
     /**
      * Count of buffer pool misses (buffer not found in pool)
@@ -159,11 +150,6 @@ public class BufferPool {
     private PageWriter _writer;
 
     private DirtyPageCollector _collector;
-    
-    /**
-     * Determines how we choose an available buffer.
-     */
-    private BufferReplacementStrategy _replacementStrategy;
 
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -198,30 +184,29 @@ public class BufferPool {
             throw new IllegalArgumentException(
                     "Invalid buffer size requested: " + size);
 
-        _bufferCount = count;
-        _bufferSize = size;
-        _buffers = new Buffer[count];
         _bucketCount = (count / PAGES_PER_BUCKET) + 1;
-        _hashTable = new Buffer[((count * HASH_MULTIPLE) / _bucketCount)
+        _bufferCount = (count / _bucketCount) * _bucketCount;
+        _bufferSize = size;
+        _buffers = new Buffer[_bufferCount];
+        _hashTable = new Buffer[((_bufferCount * HASH_MULTIPLE) / _bucketCount)
                 * _bucketCount];
+        _hashLocks = new Object[_hashTable.length];
 
-        _invalidBufferQueue = new Buffer[_bucketCount];
-        _lru = new Buffer[_bucketCount];
-        _fixed = new Buffer[_bucketCount];
         _dirty = new Buffer[_bucketCount];
-        _lock = new Object[_bucketCount];
+        _clock = new AtomicInteger[_bucketCount];
+        _dirtyClock = new AtomicInteger[_bucketCount];
+
         for (int bucket = 0; bucket < _bucketCount; bucket++) {
-            _lock[bucket] = new Object();
+            _clock[bucket] = new AtomicInteger(bucket);
+            _dirtyClock[bucket] = new AtomicInteger(bucket);
         }
-        _replacementStrategy = new BufferReplacementStrategyImpl();
 
+        for (int index = 0; index < _hashLocks.length; index++) {
+            _hashLocks[index] = new Object();
+        }
         try {
-
-            for (int index = 0; index < count; index++) {
+            for (int index = 0; index < _bufferCount; index++) {
                 Buffer buffer = new Buffer(size, index, this, _persistit);
-                int bucket = index % _bucketCount;
-                buffer.setNext(_invalidBufferQueue[bucket]);
-                _invalidBufferQueue[bucket] = buffer;
                 _buffers[index] = buffer;
                 created++;
             }
@@ -266,16 +251,14 @@ public class BufferPool {
                 if (!enqueued.get(poolIndex)) {
                     final Buffer buffer = _buffers[poolIndex];
                     final int bucket = bucket(buffer);
-                    synchronized (_lock[bucket]) {
-                        if (buffer.isDirty() && !buffer.isEnqueued()
-                                && !buffer.isTransient()) {
-                            if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                                enqueueDirtyPage(buffer, bucket,
-                                        !buffer.isTransient(), 0, 0);
-                                enqueued.set(poolIndex);
-                            } else {
-                                unavailable++;
-                            }
+                    if (buffer.isDirty() && !buffer.isEnqueued()
+                            && !buffer.isTransient()) {
+                        if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
+                            enqueueDirtyPage(buffer, bucket,
+                                    !buffer.isTransient(), 0, 0);
+                            enqueued.set(poolIndex);
+                        } else {
+                            unavailable++;
                         }
                     }
                 }
@@ -293,9 +276,7 @@ public class BufferPool {
         while (true) {
             boolean hasEnqueuedPages = false;
             for (int bucket = 0; !hasEnqueuedPages && bucket < _bucketCount; bucket++) {
-                synchronized (_lock[bucket]) {
-                    hasEnqueuedPages |= _dirty[bucket] != null;
-                }
+                hasEnqueuedPages |= _dirty[bucket] != null;
             }
             if (!hasEnqueuedPages) {
                 break;
@@ -341,38 +322,6 @@ public class BufferPool {
         return count;
     }
 
-    int countLruQueueEntries() {
-        int count = 0;
-        for (int bucket = 0; bucket < _bucketCount; bucket++) {
-            synchronized (_lock[bucket]) {
-                Buffer head = _lru[bucket];
-                for (Buffer buffer = head; buffer != null;) {
-                    count++;
-                    buffer = buffer.getNextLru();
-                    if (buffer == head)
-                        break;
-                }
-            }
-        }
-        return count;
-    }
-
-    int countInvalidQueueEntries() {
-        int count = 0;
-        for (int bucket = 0; bucket < _bucketCount; bucket++) {
-            synchronized (_lock[bucket]) {
-                Buffer head = _invalidBufferQueue[bucket];
-                for (Buffer buffer = head; buffer != null;) {
-                    count++;
-                    buffer = buffer.getNext();
-                    if (buffer == head)
-                        break;
-                }
-            }
-        }
-        return count;
-    }
-
     void populateBufferPoolInfo(ManagementImpl.BufferPoolInfo info) {
         info.bufferCount = _bufferCount;
         info.bufferSize = _bufferSize;
@@ -413,37 +362,6 @@ public class BufferPool {
                 if (selected(buffer, includeMask, excludeMask)) {
                     populateInfo1(array, index, buffer);
                     index++;
-                }
-            }
-            break;
-
-        case 1:
-            for (int bucket = 0; bucket < _bucketCount; bucket++) {
-                synchronized (_lock[bucket]) {
-                    Buffer lru = _lru[bucket];
-                    for (Buffer buffer = lru; buffer != null; buffer = buffer
-                            .getNextLru()) {
-                        if (selected(buffer, includeMask, excludeMask)) {
-                            populateInfo1(array, index, buffer);
-                            index++;
-                        }
-                        if (buffer.getNextLru() == lru)
-                            break;
-                    }
-                }
-            }
-            break;
-
-        case 2:
-            for (int bucket = 0; bucket < _bucketCount; bucket++) {
-                synchronized (_lock[bucket]) {
-                    for (Buffer buffer = _invalidBufferQueue[bucket]; buffer != null; buffer = buffer
-                            .getNext()) {
-                        if (selected(buffer, includeMask, excludeMask)) {
-                            populateInfo1(array, index, buffer);
-                            index++;
-                        }
-                    }
                 }
             }
             break;
@@ -584,38 +502,26 @@ public class BufferPool {
 
     private void invalidate(Buffer buffer) {
         int bucket = bucket(buffer);
-        synchronized (_lock[bucket]) {
-            if (Debug.ENABLED)
-                Debug.$assert(buffer.isValid());
-            detach(buffer);
-            buffer._status &= (~SharedResource.VALID_MASK & ~SharedResource.DIRTY_MASK);
-            buffer.setPageAddressAndVolume(0, null);
-            buffer.setNext(_invalidBufferQueue[bucket]);
-            _invalidBufferQueue[bucket] = buffer;
-        }
+        if (Debug.ENABLED)
+            Debug.$assert(buffer.isValid());
+        buffer._status &= (~SharedResource.VALID_MASK & ~SharedResource.DIRTY_MASK);
+        buffer.setPageAddressAndVolume(0, null);
     }
 
     private void delete(Buffer buffer) {
-        int bucket = bucket(buffer);
-        synchronized (_lock[bucket]) {
-            buffer._status |= SharedResource.DELETE_MASK;
-            buffer.setPageAddressAndVolume(0, null);
-        }
-
+        buffer._status |= SharedResource.DELETE_MASK;
+        buffer.setPageAddressAndVolume(0, null);
     }
 
     private void detach(Buffer buffer) {
-        int bucket = bucket(buffer);
-        synchronized (_lock[bucket]) {
+        final int hash = hashIndex(buffer.getVolume(), buffer.getPageAddress());
+        synchronized (_hashLocks[hash]) {
             //
             // If already invalid, we're done.
             //
             if ((buffer._status & SharedResource.VALID_MASK) == 0) {
                 return;
             }
-
-            final int hash = hashIndex(buffer.getVolume(),
-                    buffer.getPageAddress());
             //
             // Detach this buffer from the hash table.
             //
@@ -632,15 +538,6 @@ public class BufferPool {
                     prev = next;
                 }
             }
-            //
-            // Detach buffer from the LRU queue.
-            //
-            if (_lru[bucket] == buffer)
-                _lru[bucket] = buffer.getNextLru();
-            if (_lru[bucket] == buffer)
-                _lru[bucket] = null;
-
-            buffer.removeFromLru();
         }
     }
 
@@ -652,22 +549,7 @@ public class BufferPool {
      *            The Buffer to move
      */
     private void makeMostRecentlyUsed(Buffer buffer) {
-
-        int bucket = bucket(buffer);
-        synchronized (_lock[bucket]) {
-            //
-            // Return if buffer is already least-recently-used.
-            //
-            if (_lru[bucket] == null) {
-                _lru[bucket] = buffer;
-            } else if (_lru[bucket] != buffer) {
-                //
-                // Detach buffer from the list. (Is a no-op for a buffer
-                // that wasn't already on the LRU queue.)
-                //
-                buffer.moveInLru(_lru[bucket]);
-            }
-        }
+        buffer.setBit(1);
     }
 
     /**
@@ -696,7 +578,7 @@ public class BufferPool {
         for (;;) {
             boolean mustRead = false;
             boolean mustClaim = false;
-            synchronized (_lock[bucket]) {
+            synchronized (_hashLocks[hash]) {
                 buffer = _hashTable[hash];
                 //
                 // Search for the page
@@ -761,9 +643,9 @@ public class BufferPool {
             }
             if (buffer == null) {
                 _collector.urgent();
-                synchronized (_lock[bucket]) {
+                synchronized (_hashLocks[hash]) {
                     try {
-                        _lock[bucket].wait(RETRY_SLEEP_TIME);
+                        _hashLocks[hash].wait(RETRY_SLEEP_TIME);
                     } catch (InterruptedException e) {
                         // ignore
                     }
@@ -869,9 +751,8 @@ public class BufferPool {
             throws InvalidPageAddressException, InvalidPageStructureException,
             VolumeClosedException, TimeoutException, PersistitIOException {
         int hash = hashIndex(vol, page);
-        int bucket = (int) (page % _bucketCount);
         Buffer buffer = null;
-        synchronized (_lock[bucket]) {
+        synchronized (_hashLocks[hash]) {
             buffer = _hashTable[hash];
             //
             // Search for the page
@@ -909,26 +790,10 @@ public class BufferPool {
     }
 
     void setFixed(final Buffer buffer, boolean fixed) {
-        if (fixed != buffer.isFixed()) {
-            final int bucket = bucket(buffer);
-            buffer.setFixed(fixed);
-            synchronized (_lock[bucket]) {
-                if (fixed) {
-                    // Insert
-                    if (_fixed[bucket] == null) {
-                        buffer.removeFromLru();
-                        _fixed[bucket] = buffer;
-                    } else {
-                        buffer.moveInLru(_fixed[bucket]);
-                    }
-                } else {
-                    if (_fixed[bucket] == buffer) {
-                        _fixed[bucket] = buffer.getNext() == buffer ? null
-                                : buffer.getNext();
-                    }
-                    buffer.removeFromLru();
-                }
-            }
+        if (fixed) {
+            buffer.setBit(4);
+        } else {
+            buffer.clearBit(4);
         }
     }
 
@@ -945,54 +810,32 @@ public class BufferPool {
      * @throws InvalidPageStructureException
      */
     private Buffer allocBuffer(int bucket) throws PersistitException {
-        // No need to synchronize here because the only caller is get(...).
-        Buffer lastBuffer = null;
 
-        boolean found = false;
-
-        /**
-         * First search the Invalid Buffer Queue
-         */
-        Buffer buffer = _invalidBufferQueue[bucket];
-        while (buffer != null) {
-            if (Debug.ENABLED)
-                Debug.$assert(buffer.getNext() != buffer);
-
-            if (buffer.isAvailable() && buffer.isClean()
-                    && buffer.claim(true, 0)) {
-                if (lastBuffer != null)
-                    lastBuffer.setNext(buffer.getNext());
-                else
-                    _invalidBufferQueue[bucket] = buffer.getNext();
-                found = true;
-                break;
-            }
-            lastBuffer = buffer;
-            buffer = buffer.getNext();
-        }
-
-        /**
-         * Next search for a clean replaceable buffer
-         */
-        if (!found) {
-            buffer = _replacementStrategy.getBuffer(_lru, bucket);
-            if (buffer != null) {
-                detach(buffer);
-                found = true;
+        for (;;) {
+            int clock = _clock[bucket].addAndGet(_bucketCount);
+            if (_buffers[clock % _bufferCount].testBit(5)) {
+                _buffers[clock % _bufferCount].clearBit(1);
             } else {
-                found = false;
+                Buffer buffer = _buffers[clock % _bufferCount];
+                if (buffer.claim(true, 0)) {
+                    if (buffer.isDirty()) {
+                        _clock[bucket].addAndGet(_bucketCount);
+                        _dirtyClock[bucket].set(_clock[bucket].get());
+                        buffer.release();
+                        return null;
+                    } else {
+                        if (buffer.isValid()) {
+                            detach(buffer);
+                            _evictCounter.incrementAndGet();
+                            _persistit.getIOMeter().chargeEvictPageFromPool(
+                                    buffer.getVolume(),
+                                    buffer.getPageAddress(),
+                                    buffer.getBufferSize(), buffer.getIndex());
+                        }
+                        return buffer;
+                    }
+                }
             }
-        }
-        if (found) {
-            if (buffer.isValid()) {
-                _evictCounter.incrementAndGet();
-                _persistit.getIOMeter().chargeEvictPageFromPool(
-                        buffer.getVolume(), buffer.getPageAddress(),
-                        buffer.getBufferSize(), buffer.getIndex());
-            }
-            return buffer;
-        } else {
-            return null;
         }
     }
 
@@ -1047,25 +890,23 @@ public class BufferPool {
 
     private boolean unenqueuePage(final Buffer buffer, final int bucket) {
         final boolean result;
-        synchronized (_lock[bucket]) {
-            // checkEnqueued(bucket);
-            if (buffer.isEnqueued()) {
-                if (_dirty[bucket] == buffer) {
-                    _dirty[bucket] = buffer.getNextDirty();
-                }
-                buffer.removeFromDirty();
-                if (_dirty[bucket] == buffer) {
-                    _dirty[bucket] = null;
-                    result = false;
-                } else {
-                    result = true;
-                }
-            } else {
-                result = false;
+        // checkEnqueued(bucket);
+        if (buffer.isEnqueued()) {
+            if (_dirty[bucket] == buffer) {
+                _dirty[bucket] = buffer.getNextDirty();
             }
-            buffer.setUnenqueued();
-            // checkEnqueued(bucket);
+            buffer.removeFromDirty();
+            if (_dirty[bucket] == buffer) {
+                _dirty[bucket] = null;
+                result = false;
+            } else {
+                result = true;
+            }
+        } else {
+            result = false;
         }
+        buffer.setUnenqueued();
+        // checkEnqueued(bucket);
         return result;
     }
 
@@ -1115,73 +956,31 @@ public class BufferPool {
         }
 
         private int enqueueDirtyBuffers(int bucket) {
-            int countFixed = 0;
-            int countInvalid = 0;
-            int countLru = 0;
+            int count = 0;
             int maxCount = _closed.get() ? Integer.MAX_VALUE : Math.max(
                     _bufferCount / _bucketCount / 8, 32);
+            // int stopClock = ((_closed.get() ? _bucketCount : (_bucketCount /
+            // 2)) * _bucketCount)
+            // + _clock[bucket].get();
+
+            int stopClock = _bufferCount + _clock[bucket].get();
 
             int unavailable = 0;
             // checkEnqueued();
 
-            synchronized (_lock[bucket]) {
-                Buffer buffer;
-
-                buffer = _fixed[bucket];
-                while (buffer != null) {
-                    if (buffer.isDirty() && !buffer.isEnqueued()) {
-                        if (enqueueDirtyPage(buffer, bucket, _urgent.get(),
-                                countFixed, maxCount)) {
-                            countFixed++;
-                        }
-                    }
-                    buffer = buffer.getNextLru();
-                    if (buffer == _fixed[bucket]) {
-                        break;
+            int dirtyClock;
+            while ((dirtyClock = _dirtyClock[bucket].get()) < stopClock
+                    && count < maxCount) {
+                final Buffer buffer = _buffers[dirtyClock % _bufferCount];
+                if (buffer.isDirty() && !buffer.isEnqueued()) {
+                    if (enqueueDirtyPage(buffer, bucket, _urgent.get(), count,
+                            maxCount)) {
+                        count++;
                     }
                 }
-
-                buffer = _invalidBufferQueue[bucket];
-                while (buffer != null) {
-                    if (Debug.ENABLED)
-                        Debug.$assert(buffer.getNext() != buffer);
-                    if (buffer.isDirty()) {
-                        if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket, _urgent.get(),
-                                    countInvalid, maxCount)) {
-                                countInvalid++;
-                            }
-                        } else {
-                            unavailable++;
-                        }
-                    }
-                    buffer = buffer.getNext();
-                }
-
-                buffer = _lru[bucket];
-                while (buffer != null) {
-                    if (buffer.isDirty()) {
-                        if ((buffer.getStatus() & SharedResource.WRITER_MASK) == 0) {
-                            if (enqueueDirtyPage(buffer, bucket, _urgent.get(),
-                                    countLru, maxCount)) {
-                                countLru++;
-                            }
-                        } else {
-                            unavailable++;
-                        }
-                    }
-                    buffer = buffer.getNextLru();
-                    if (buffer == _lru[bucket]) {
-                        break;
-                    }
-
-                }
-                if (countInvalid + countLru > 0) {
-                    _urgent.set(false);
-                }
+                _dirtyClock[bucket].compareAndSet(dirtyClock, dirtyClock
+                        + _bucketCount);
             }
-            // checkEnqueued();
-            final int count = countFixed + countInvalid + countLru;
             if (count == 0) {
                 return -unavailable;
             } else {
@@ -1218,9 +1017,7 @@ public class BufferPool {
 
             for (int bucket = 0; bucket < _bucketCount && !_fastClose.get(); bucket++) {
                 Buffer buffer;
-                synchronized (_lock[bucket]) {
-                    buffer = _dirty[bucket];
-                }
+                buffer = _dirty[bucket];
                 while (buffer != null && !_fastClose.get()) {
                     final Result result = writeEnqueuedPage(buffer, bucket);
                     switch (result) {
@@ -1241,11 +1038,9 @@ public class BufferPool {
                     if (result == Result.WRITTEN) {
                         break;
                     }
-                    synchronized (_lock[bucket]) {
-                        buffer = buffer.getNextDirty();
-                        if (buffer == _dirty[bucket]) {
-                            break;
-                        }
+                    buffer = buffer.getNextDirty();
+                    if (buffer == _dirty[bucket]) {
+                        break;
                     }
                 }
             }
@@ -1271,9 +1066,6 @@ public class BufferPool {
                 if (claimed) {
                     if (buffer.isDirty()) {
                         buffer.writePage();
-                        synchronized (_lock[bucket]) {
-                            _lock[bucket].notify();
-                        }
                     }
                     return Result.WRITTEN;
                 } else {
@@ -1304,16 +1096,13 @@ public class BufferPool {
     }
 
     void checkEnqueued(final int bucket) {
-        synchronized (_lock[bucket]) {
-            Buffer buffer = _dirty[bucket];
-            while (buffer != null) {
-                Debug.debug1(!buffer.isEnqueued());
-                buffer = buffer.getNextDirty();
-                if (buffer == _dirty[bucket]) {
-                    break;
-                }
+        Buffer buffer = _dirty[bucket];
+        while (buffer != null) {
+            Debug.debug1(!buffer.isEnqueued());
+            buffer = buffer.getNextDirty();
+            if (buffer == _dirty[bucket]) {
+                break;
             }
-
         }
     }
 
