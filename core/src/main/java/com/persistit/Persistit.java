@@ -2108,7 +2108,7 @@ public class Persistit {
         return _timestampAllocator;
     }
 
-    IOMeter getIOMeter() {
+    public IOMeter getIOMeter() {
         return _ioMeter;
     }
 

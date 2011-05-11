@@ -472,11 +472,11 @@ public final class Buffer extends SharedResource {
         bumpGeneration();
     }
 
-    boolean claim(final boolean writer) throws PersistitException {
-        return claim(writer, DEFAULT_MAX_WAIT_TIME);
+    boolean checkedClaim(final boolean writer) throws PersistitException {
+        return checkedClaim(writer, DEFAULT_MAX_WAIT_TIME);
     }
 
-    boolean claim(final boolean writer, final long timeout)
+    boolean checkedClaim(final boolean writer, final long timeout)
             throws PersistitException {
         final boolean result = super.claim(writer, timeout);
         if (writer && result) {
@@ -506,7 +506,6 @@ public final class Buffer extends SharedResource {
                 volume.bumpWriteCounter();
             }
         }
-        setClean();
     }
 
     void setDirty() {

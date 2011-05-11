@@ -23,8 +23,9 @@ import com.persistit.exception.PersistitException;
 
 public class TreeTest1 extends PersistitUnitTestCase {
 
-    public void test1() throws PersistitException {
+    public void test1() throws Exception {
         System.out.print("test1 ");
+        _persistit.getIOMeter().setLogFile("/tmp/persistit_test_data/TreeTest_test1.log");
         Exchange exchange = _persistit
                 .getExchange("persistit", "NewTree", true);
         exchange.removeTree();
@@ -48,8 +49,9 @@ public class TreeTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    public void test2() throws PersistitException {
+    public void test2() throws Exception {
         System.out.print("test2 ");
+        _persistit.getIOMeter().setLogFile("/tmp/persistit_test_data/TreeTest_test1.log");
         final Exchange[] exchanges = new Exchange[1000];
         for (int counter = 0; counter < 1000; counter++) {
             exchanges[counter] = _persistit.getExchange("persistit",

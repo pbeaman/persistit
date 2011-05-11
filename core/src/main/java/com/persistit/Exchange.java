@@ -1683,7 +1683,7 @@ public class Exchange {
         if (buffer == null)
             return null;
 
-        boolean available = buffer.claim(_exclusive, 0);
+        boolean available = buffer.checkedClaim(_exclusive, 0);
         if (available) {
             // Have to retest all this now that we've gotten a claim
             if (buffer.getPageAddress() == lc._page
