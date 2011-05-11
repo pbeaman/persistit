@@ -133,7 +133,7 @@ public class BufferPool {
 
     private PageWriter _writer;
 
-    private boolean _enableTrace = true;    // TODO - turn this off
+    private boolean _enableTrace = true; // TODO - turn this off
 
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -525,7 +525,7 @@ public class BufferPool {
                         if (buffer.checkedClaim(writer, 0)) {
                             vol.bumpGetCounter();
                             bumpHitCounter();
-                            return trace(buffer);
+                            return buffer; //trace(buffer);
                         } else {
                             mustClaim = true;
                             break;
@@ -573,9 +573,9 @@ public class BufferPool {
             }
             if (buffer == null) {
                 _writer.urgent();
-                synchronized (_hashLocks[hash]) {
+                synchronized (this) {
                     try {
-                        _hashLocks[hash].wait(RETRY_SLEEP_TIME);
+                        wait(RETRY_SLEEP_TIME);
                     } catch (InterruptedException e) {
                         // ignore
                     }
@@ -604,7 +604,7 @@ public class BufferPool {
                         //
                         vol.bumpGetCounter();
                         bumpHitCounter();
-                        return trace(buffer);
+                        return buffer; //trace(buffer);
                     }
                     //
                     // If not, release the claim and retry.
@@ -655,7 +655,7 @@ public class BufferPool {
                     if (!writer) {
                         buffer.releaseWriterClaim();
                     }
-                    return trace(buffer);
+                    return buffer; //trace(buffer);
                 }
             }
         }
@@ -739,18 +739,21 @@ public class BufferPool {
      */
     private Buffer allocBuffer() throws PersistitException {
 
-        for (;;) {
+        for (int retry = 0; retry < _bufferCount; retry++) {
             int clock = _clock.getAndIncrement();
+            boolean resetDirtyClock = false;
             Buffer buffer = _buffers[clock % _bufferCount];
             if (buffer.testBit(5)) {
                 buffer.clearBit(1);
             } else {
                 if (buffer.checkedClaim(true, 0)) {
                     if (buffer.isDirty()) {
-                        _dirtyClock.set(_clock.get());
-                        _writer.urgent();
+                        if (!resetDirtyClock) {
+                            resetDirtyClock = true;
+                            _dirtyClock.set(clock);
+                            _writer.urgent();
+                        }
                         buffer.release();
-                        return null;
                     } else {
                         if (buffer.isValid()) {
                             detach(buffer);
@@ -765,6 +768,7 @@ public class BufferPool {
                 }
             }
         }
+        return null;
     }
 
     enum Result {
@@ -819,8 +823,9 @@ public class BufferPool {
                     try {
                         if (buffer.isValid() && buffer.isDirty()) {
                             buffer.writePage();
+                        } else {
+                            buffer.setClean();
                         }
-                        buffer.setClean();
                     } catch (Exception e) {
                         final Volume volume = buffer.getVolume();
                         final long page = buffer.getPageAddress();
@@ -830,6 +835,11 @@ public class BufferPool {
                                         + " in volume " + volume);
                     } finally {
                         buffer.release();
+                        if (all) {
+                            synchronized(BufferPool.this) {
+                                notify();
+                            }
+                        }
                     }
                 } else {
                     unavailable++;
@@ -864,7 +874,7 @@ public class BufferPool {
         }
 
         protected long pollInterval() {
-            return _wasClosed || _urgent.get() ? RETRY_SLEEP_TIME
+            return _wasClosed || _urgent.get() ? 0
                     : _writerPollInterval;
         }
     }

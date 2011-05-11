@@ -502,6 +502,7 @@ public final class Buffer extends SharedResource {
             clearSlack();
             save();
             _persistit.getJournalManager().writePageToJournal(this);
+            setClean();
             if (!volume.isClosed()) {
                 volume.bumpWriteCounter();
             }
@@ -3695,7 +3696,7 @@ public final class Buffer extends SharedResource {
     }
     
     boolean setBit(int mask) {
-        while (true) {
+        for (int count = 0; ; count++) {
             int oldValue = _bits.get();
             int newValue = oldValue | mask;
             if (oldValue == newValue) {
