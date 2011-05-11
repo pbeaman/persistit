@@ -50,7 +50,7 @@ public class BufferPool {
     /**
      * The ratio of hash table slots per buffer in this pool
      */
-    private final static int HASH_MULTIPLE = 13;
+    private final static int HASH_MULTIPLE = 3;
     /**
      * Minimum number of buffers this pool may have
      */

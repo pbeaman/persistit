@@ -3446,9 +3446,18 @@ public final class Buffer extends SharedResource {
                     "%5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s\n",
                     r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(),
                     r.getKLength(), key,
-                    r.getValueState().getEncodedBytes().length, value));
+                    r.getValueState().getEncodedBytes().length, abridge(value)));
         }
         return sb.toString();
+    }
+
+    String abridge(final Value value) {
+        String s = value.toString();
+        if (s.length() > 120) {
+            return s.substring(0, 120) + "...";
+        } else {
+            return s;
+        }
     }
 
     String foundAtString(int p) {
