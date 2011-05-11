@@ -1880,13 +1880,11 @@ public final class Buffer extends SharedResource {
         for (int p = KEY_BLOCK_START; p < rightKeyBlock;) {
             int splitCandidate = 0;
             if (p == foundAtPosition && armed) {
+
                 // Here we are adding the newly inserted (or replacing) record
                 // to the left side. The key block pointed to by p is our
                 // candidate for the first key in the right sibling page.
 
-                // PDB 20050802 - miscalculated actual left side size.
-                // leftSize +=
-                // newTailBlockSize + keyBlockSizeDelta;
                 leftSize += newTailBlockSize + KEYBLOCK_LENGTH;
                 if (exact) {
                     p += KEYBLOCK_LENGTH;
@@ -1902,27 +1900,22 @@ public final class Buffer extends SharedResource {
                 int tbSizeDelta = ((tbSize + ebc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
                         - ((tbSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
 
-                // int edgeTailBlockSize =
-                // (decodeTailBlockKLength(tbSuccessor) -
-                // deltaSuccessorTailSize +
-                // _tailHeaderSize +
-                // ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-
-                // PDB 20050802 - because when inserting a record
-                // this is the actual successor, not tbSuccessor.
                 int edgeTailBlockSize = (decodeTailBlockKLength(tbData)
                         - deltaSuccessorEbc + _tailHeaderSize + ~TAILBLOCK_MASK)
                         & TAILBLOCK_MASK;
 
-                int rightSize = virtualSize - leftSize + tbSizeDelta;
+                if (p < rightKeyBlock) {
+                    int rightSize = virtualSize - leftSize + tbSizeDelta;
 
-                splitCandidate = policy.splitFit(this, p, foundAtPosition,
-                        exact, leftSize + KEYBLOCK_LENGTH + edgeTailBlockSize,
-                        rightSize, currentSize, virtualSize, _bufferSize
-                                - KEY_BLOCK_START, splitBest, sequence);
-                if (splitCandidate > splitBest) {
-                    splitBest = splitCandidate;
-                    splitAt = p | EXACT_MASK;
+                    splitCandidate = policy.splitFit(this, p, foundAtPosition,
+                            exact, leftSize + KEYBLOCK_LENGTH
+                                    + edgeTailBlockSize, rightSize,
+                            currentSize, virtualSize, _bufferSize
+                                    - KEY_BLOCK_START, splitBest, sequence);
+                    if (splitCandidate > splitBest) {
+                        splitBest = splitCandidate;
+                        splitAt = p | EXACT_MASK;
+                    }
                 }
                 armed = false;
             } else {
@@ -1960,15 +1953,18 @@ public final class Buffer extends SharedResource {
                             & TAILBLOCK_MASK;
                 }
 
-                int rightSize = virtualSize - leftSize + tbSizeDelta;
+                if (p < rightKeyBlock) {
+                    int rightSize = virtualSize - leftSize + tbSizeDelta;
 
-                splitCandidate = policy.splitFit(this, p, foundAtPosition,
-                        exact, leftSize + KEYBLOCK_LENGTH + edgeTailBlockSize,
-                        rightSize, currentSize, virtualSize, _bufferSize
-                                - KEY_BLOCK_START, splitBest, sequence);
-                if (splitCandidate > splitBest) {
-                    splitBest = splitCandidate;
-                    splitAt = p;
+                    splitCandidate = policy.splitFit(this, p, foundAtPosition,
+                            exact, leftSize + KEYBLOCK_LENGTH
+                                    + edgeTailBlockSize, rightSize,
+                            currentSize, virtualSize, _bufferSize
+                                    - KEY_BLOCK_START, splitBest, sequence);
+                    if (splitCandidate > splitBest) {
+                        splitBest = splitCandidate;
+                        splitAt = p;
+                    }
                 }
             }
             // Following is true when we have gone past the best split
@@ -2657,15 +2653,15 @@ public final class Buffer extends SharedResource {
 
         return result;
     }
-    
+
     public void invalidateFastIndex() {
         _fastIndex.invalidate();
     }
-    
+
     public void recomputeFastIndex() {
         _fastIndex.recompute();
     }
-    
+
     public FastIndex getFastIndex() {
         return _fastIndex;
     }
@@ -3448,6 +3444,7 @@ public final class Buffer extends SharedResource {
                     r.getKLength(), key,
                     r.getValueState().getEncodedBytes().length, abridge(value)));
         }
+
         return sb.toString();
     }
 

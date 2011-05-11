@@ -55,19 +55,22 @@ public class LockManager {
             if (!_disabled) {
                 final int size = _resources.size();
                 final int position = size - _offset - 1;
-                final SharedResource matchingResource = _resources
-                        .get(position);
+                final SharedResource matchingResource = position >= 0
+                        && position < size ? _resources.get(position) : null;
                 if (matchingResource != resource) {
-                    System.err
-                            .println("Mismatched resource being unregistered actual/expected="
-                                    + resource + "/" + matchingResource);
+                    System.err.println("Mismatched resource being "
+                            + "unregistered at position=" + position
+                            + " actual/expected=" + resource + "/"
+                            + matchingResource);
                     for (int i = 0; i < size; i++) {
                         System.err.println("  " + _resources.get(i)
                                 + (i == _offset ? "*" : ""));
                     }
                 }
                 Debug.debug1(matchingResource != resource);
-                _resources.remove(position);
+                if (position >= 0 && position < size) {
+                    _resources.remove(position);
+                }
                 _offset = 0;
             }
         }

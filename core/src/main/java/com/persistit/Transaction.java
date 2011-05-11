@@ -691,9 +691,11 @@ public class Transaction {
                 }
                 throw pe;
             }
-            _persistit.getTransactionResourceA().claim(
+            if (!_persistit.getTransactionResourceA().claim(
                     _rollbacksSinceLastCommit >= _pessimisticRetryThreshold,
-                    COMMIT_CLAIM_TIMEOUT);
+                    COMMIT_CLAIM_TIMEOUT)) {
+                throw new TimeoutException("Unavailable TransactionResourceA lock");
+            }
         }
         _nestedDepth++;
     }
