@@ -68,7 +68,9 @@ public class LockManager {
                     }
                 }
                 Debug.debug1(matchingResource != resource);
-                _resources.remove(position);
+                if (position >= 0 && position < size) {
+                    _resources.remove(position);
+                }
                 _offset = 0;
             }
         }

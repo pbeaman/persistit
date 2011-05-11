@@ -23,6 +23,13 @@ import com.persistit.Exchange;
 import com.persistit.SplitPolicy;
 import com.persistit.unit.PersistitUnitTestCase;
 
+/*
+ * Stress10 with 1K pages exhibited a failure in which a value was simply not
+ * inserted into the page. Apparently this is due to a miscalculation of free
+ * space after a page split. I think this is probably related to, or the same
+ * bug as, the former #102 page split error.
+ */
+
 public class Bug706132Test extends PersistitUnitTestCase {
 
     /*
