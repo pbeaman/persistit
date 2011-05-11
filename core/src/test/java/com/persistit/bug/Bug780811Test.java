@@ -1,4 +1,21 @@
+/**
+ * Copyright (C) 2011 Akiban Technologies Inc.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License, version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses.
+ */
+
 package com.persistit.bug;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.persistit.Exchange;
 import com.persistit.Persistit;
@@ -66,6 +83,8 @@ import com.persistit.unit.PersistitUnitTestCase;
  */
 public class Bug780811Test extends PersistitUnitTestCase {
 
+    private final AtomicBoolean done = new AtomicBoolean();
+    
     @Override
     public void runAllTests() throws Exception {
         // TODO Auto-generated method stub
@@ -75,14 +94,16 @@ public class Bug780811Test extends PersistitUnitTestCase {
     public void testTransactionTimeout() throws Exception {
         final Persistit db = _persistit;
 
-        new Thread(new Runnable() {
+        final Thread thread = new Thread(new Runnable() {
             public void run() {
                 final Transaction t = db.getTransaction();
                 t.setPessimisticRetryThreshold(0);
                 try {
                     t.begin();
                     try {
-                        Thread.sleep(40000);
+                        for (int i = 0; !done.get() && i < 1000; i++) {
+                            Thread.sleep(50);
+                        }
                     } catch (InterruptedException e) {
 
                     }
@@ -92,7 +113,8 @@ public class Bug780811Test extends PersistitUnitTestCase {
                     e.printStackTrace();
                 }
             }
-        }).start();
+        });
+        thread.start();
         
         Thread.sleep(1000);
         Transaction t = db.getTransaction();
@@ -111,6 +133,8 @@ public class Bug780811Test extends PersistitUnitTestCase {
                 t.end();
             }
         }
+        done.set(true);
+        thread.join();
         assertTrue(okay);
     }
 
