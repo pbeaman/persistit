@@ -1600,21 +1600,26 @@ public class Persistit {
             return false;
         }
     }
-
-    final long earliestDirtyTimestamp() {
-        long earliestDirtyTimestamp = Long.MAX_VALUE;
+    
+    final long earliestLiveTransaction() {
+        long earliest = Long.MAX_VALUE;
         synchronized (_transactionSessionMap) {
             for (final Transaction t : _transactionSessionMap.values()) {
                 if (t.getStartTimestamp() != -1 && t.getCommitTimestamp() == -1) {
-                    earliestDirtyTimestamp = Math.min(earliestDirtyTimestamp, t.getStartTimestamp());
+                    earliest = Math.min(earliest, t.getStartTimestamp());
                 }
             }
         }
+        return earliest;
+    }
+
+    final long earliestDirtyTimestamp() {
+        long earliest = Long.MAX_VALUE;
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            earliestDirtyTimestamp = Math.min(earliestDirtyTimestamp,
+            earliest = Math.min(earliest,
                     pool.earliestDirtyTimestamp());
         }
-        return earliestDirtyTimestamp;
+        return earliest;
     }
 
 

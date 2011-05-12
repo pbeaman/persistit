@@ -75,9 +75,7 @@ public class CheckpointManager extends IOTaskRunnable {
     /**
      * Apply a checkpoint. If the checkpoint has already been applied, this
      * method does nothing. If it is a new checkpoint, this method adds it to
-     * the outstanding checkpoint list. As a side- effect, this method also
-     * calls {@link #flushCheckpoint()} which attempts to find some checkpoint
-     * on the outstanding list that can be closed (written to the journal).
+     * the outstanding checkpoint list.
      * 
      * @param newCheckpoint
      */
@@ -96,6 +94,11 @@ public class CheckpointManager extends IOTaskRunnable {
         }
     }
 
+    /**
+     * Attempt to find a new checkpoint that can be completed. Looks for the
+     * earliest live transaction and the earliest dirty page; determines from
+     * these whether a currently outstanding checkpoint is ready to complete.
+     */
     void flushCheckpoint() {
         final Checkpoint validCheckpoint;
         synchronized (this) {
@@ -136,7 +139,9 @@ public class CheckpointManager extends IOTaskRunnable {
     private Checkpoint findValidCheckpoint(
             final List<Checkpoint> outstandingCheckpoints) {
         if (!outstandingCheckpoints.isEmpty()) {
-            long earliestDirtyTimestamp = _persistit.earliestDirtyTimestamp();
+            long earliestDirtyTimestamp = Math.min(
+                    _persistit.earliestLiveTransaction(),
+                    _persistit.earliestDirtyTimestamp());
             for (int index = outstandingCheckpoints.size(); --index >= 0;) {
                 final Checkpoint checkpoint = outstandingCheckpoints.get(index);
                 if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
@@ -149,7 +154,6 @@ public class CheckpointManager extends IOTaskRunnable {
         }
         return null;
     }
-
 
     @Override
     protected long pollInterval() {

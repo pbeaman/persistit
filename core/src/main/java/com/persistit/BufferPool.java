@@ -213,7 +213,7 @@ public class BufferPool {
     int flush() {
         int unavailable = 0;
         for (int retries = 0; retries < MAX_FLUSH_RETRY_COUNT; retries++) {
-            unavailable = writeDirtyBuffers(true);
+            unavailable = writeDirtyBuffers(true, Long.MAX_VALUE);
             if (unavailable == 0) {
                 break;
             }
@@ -525,7 +525,7 @@ public class BufferPool {
                         if (buffer.checkedClaim(writer, 0)) {
                             vol.bumpGetCounter();
                             bumpHitCounter();
-                            return buffer; //trace(buffer);
+                            return buffer; // trace(buffer);
                         } else {
                             mustClaim = true;
                             break;
@@ -604,7 +604,7 @@ public class BufferPool {
                         //
                         vol.bumpGetCounter();
                         bumpHitCounter();
-                        return buffer; //trace(buffer);
+                        return buffer; // trace(buffer);
                     }
                     //
                     // If not, release the claim and retry.
@@ -655,7 +655,7 @@ public class BufferPool {
                     if (!writer) {
                         buffer.releaseWriterClaim();
                     }
-                    return buffer; //trace(buffer);
+                    return buffer; // trace(buffer);
                 }
             }
         }
@@ -739,8 +739,11 @@ public class BufferPool {
      */
     private Buffer allocBuffer() throws PersistitException {
 
-        for (int retry = 0; retry < _bufferCount; retry++) {
-            int clock = _clock.getAndIncrement();
+        for (int retry = 0; retry < _bufferCount; ) {
+            int clock = _clock.get();
+            if (!_clock.compareAndSet(clock, (clock + 1) % _bufferCount)) {
+                continue;
+            }
             boolean resetDirtyClock = false;
             Buffer buffer = _buffers[clock % _bufferCount];
             if (buffer.testBit(5)) {
@@ -767,6 +770,7 @@ public class BufferPool {
                     }
                 }
             }
+            retry++;
         }
         return null;
     }
@@ -807,18 +811,15 @@ public class BufferPool {
         return earliestDirtyTimestamp;
     }
 
-    private int writeDirtyBuffers(final boolean all) {
+    private int writeDirtyBuffers(final boolean all, final long timestamp) {
         int unavailable = 0;
-        final int stopClock = all ? _dirtyClock.get() + _bufferCount : _clock
+        int start = _dirtyClock.get();
+        final int end = all ? start + _bufferCount : _clock
                 .get() + (_bufferCount / 4);
-        for (;;) {
-            final int dirtyClock = _dirtyClock.getAndIncrement();
-            if (dirtyClock >= stopClock) {
-                _dirtyClock.compareAndSet(dirtyClock + 1, dirtyClock);
-                break;
-            }
-            final Buffer buffer = _buffers[dirtyClock % _bufferCount];
-            if (buffer.isDirty()) {
+        int index = start;
+        for (; index < end; index++) {
+            final Buffer buffer = _buffers[index % _bufferCount];
+            if (buffer.isDirty() && buffer.getTimestamp() < timestamp) {
                 if (buffer.claim(true, 0)) {
                     try {
                         if (buffer.isValid() && buffer.isDirty()) {
@@ -836,7 +837,7 @@ public class BufferPool {
                     } finally {
                         buffer.release();
                         if (all) {
-                            synchronized(BufferPool.this) {
+                            synchronized (BufferPool.this) {
                                 notify();
                             }
                         }
@@ -846,6 +847,7 @@ public class BufferPool {
                 }
             }
         }
+        _dirtyClock.compareAndSet(start, index % _bufferCount);
         return unavailable;
     }
 
@@ -863,7 +865,7 @@ public class BufferPool {
 
         public void runTask() {
             _wasClosed = _closed.get();
-            _clean = writeDirtyBuffers(_wasClosed) == 0;
+            _clean = writeDirtyBuffers(_wasClosed, Long.MAX_VALUE) == 0;
             if (_clean) {
                 _urgent.set(false);
             }
@@ -874,8 +876,7 @@ public class BufferPool {
         }
 
         protected long pollInterval() {
-            return _wasClosed || _urgent.get() ? 0
-                    : _writerPollInterval;
+            return _wasClosed || _urgent.get() ? 0 : _writerPollInterval;
         }
     }
 
