@@ -29,10 +29,9 @@ import org.junit.Test;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
-
 public class BackupTaskTest extends PersistitUnitTestCase {
     private final static int TRANSACTION_COUNT = 50000;
-    
+
     protected Properties getProperties(final boolean cleanup) {
         return UnitTestProperties.getBiggerProperties(cleanup);
     }
@@ -83,7 +82,7 @@ public class BackupTaskTest extends PersistitUnitTestCase {
         final TransactionWriter tw = new TransactionWriter();
         final Thread twThread = new Thread(tw, "BackupTest_TW");
         twThread.start();
-        
+
         while (tw.counter.get() < TRANSACTION_COUNT) {
             Thread.sleep(1000);
         }
@@ -100,19 +99,23 @@ public class BackupTaskTest extends PersistitUnitTestCase {
         backup1.run();
         tw.stop.set(true);
         twThread.join();
-        
+
         final Properties properties = _persistit.getProperties();
         _persistit.crash();
-        UnitTestProperties.cleanUpDirectory(new File(UnitTestProperties.DATA_PATH));
+        UnitTestProperties.cleanUpDirectory(new File(
+                UnitTestProperties.DATA_PATH));
+
         _persistit = new Persistit();
         final BackupTask backup2 = new BackupTask();
         backup2.setMessageStream(System.out);
         backup2.setPersistit(_persistit);
         backup2.doRestore(file.getAbsolutePath());
+        properties.setProperty("appendonly", "true");
 
         _persistit.initialize(properties);
         _persistit.checkAllVolumes();
-        final Exchange exchange = _persistit.getExchange("persistit", "BackupTest", false);
+        final Exchange exchange = _persistit.getExchange("persistit",
+                "BackupTest", false);
         exchange.to(Key.BEFORE);
         int extras = 0;
         while (exchange.next()) {
@@ -150,7 +153,8 @@ public class BackupTaskTest extends PersistitUnitTestCase {
                     }
                     int count = counter.incrementAndGet();
                     transaction.end();
-                    // Once the counter has advanced to TRANSACTION_COUNT, throttle this
+                    // Once the counter has advanced to TRANSACTION_COUNT,
+                    // throttle this
                     // thread back to a more "realistic" rate and let the backup
                     // thread proceed.
                     if (count > TRANSACTION_COUNT) {

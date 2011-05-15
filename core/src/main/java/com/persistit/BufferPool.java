@@ -59,6 +59,8 @@ public class BufferPool {
      * Maximum number of buffers this pool may have
      */
     public final static int MAXIMUM_POOL_COUNT = Integer.MAX_VALUE;
+
+    private final static int HASH_LOCKS = 4096;
     /**
      * The Persistit instance that references this BufferBool.
      */
@@ -172,9 +174,9 @@ public class BufferPool {
         _bufferSize = size;
         _buffers = new Buffer[_bufferCount];
         _hashTable = new Buffer[_bufferCount * HASH_MULTIPLE];
-        _hashLocks = new Object[_hashTable.length];
+        _hashLocks = new Object[HASH_LOCKS];
 
-        for (int index = 0; index < _hashLocks.length; index++) {
+        for (int index = 0; index < HASH_LOCKS; index++) {
             _hashLocks[index] = new Object();
         }
         try {
@@ -213,7 +215,7 @@ public class BufferPool {
     int flush() {
         int unavailable = 0;
         for (int retries = 0; retries < MAX_FLUSH_RETRY_COUNT; retries++) {
-            unavailable = writeDirtyBuffers(true, Long.MAX_VALUE);
+            unavailable = writeDirtyBuffers(false, true, Long.MAX_VALUE);
             if (unavailable == 0) {
                 break;
             }
@@ -226,10 +228,7 @@ public class BufferPool {
         return unavailable;
     }
 
-    private int hashIndex(Volume vol, long page) {
-        // Important - all pages that hash to the same hash table entry
-        // must also belong to the same bucket.
-        //
+    int hashIndex(Volume vol, long page) {
         return (int) ((page ^ vol.getId()) % _hashTable.length);
     }
 
@@ -446,7 +445,7 @@ public class BufferPool {
 
     private void detach(Buffer buffer) {
         final int hash = hashIndex(buffer.getVolume(), buffer.getPageAddress());
-        synchronized (_hashLocks[hash]) {
+        synchronized (_hashLocks[hash % HASH_LOCKS]) {
             //
             // If already invalid, we're done.
             //
@@ -508,7 +507,7 @@ public class BufferPool {
         for (;;) {
             boolean mustRead = false;
             boolean mustClaim = false;
-            synchronized (_hashLocks[hash]) {
+            synchronized (_hashLocks[hash % HASH_LOCKS]) {
                 buffer = _hashTable[hash];
                 //
                 // Search for the page
@@ -596,7 +595,7 @@ public class BufferPool {
                     //
                     // Test whether the buffer we picked out is still valid
                     //
-                    if ((buffer._status & SharedResource.VALID_MASK) != 0
+                    if (buffer.isValid()
                             && buffer.getPageAddress() == page
                             && buffer.getVolume() == vol) {
                         //
@@ -682,7 +681,7 @@ public class BufferPool {
             VolumeClosedException, TimeoutException, PersistitIOException {
         int hash = hashIndex(vol, page);
         Buffer buffer = null;
-        synchronized (_hashLocks[hash]) {
+        synchronized (_hashLocks[hash % HASH_LOCKS]) {
             buffer = _hashTable[hash];
             //
             // Search for the page
@@ -720,11 +719,7 @@ public class BufferPool {
     }
 
     void setFixed(final Buffer buffer, boolean fixed) {
-        if (fixed) {
-            buffer.setBit(4);
-        } else {
-            buffer.clearBit(4);
-        }
+        buffer.setFixed(fixed);
     }
 
     /**
@@ -739,17 +734,19 @@ public class BufferPool {
      */
     private Buffer allocBuffer() throws PersistitException {
 
-        for (int retry = 0; retry < _bufferCount; ) {
+        for (int retry = 0; retry < _bufferCount;) {
             int clock = _clock.get();
             if (!_clock.compareAndSet(clock, (clock + 1) % _bufferCount)) {
                 continue;
             }
             boolean resetDirtyClock = false;
             Buffer buffer = _buffers[clock % _bufferCount];
-            if (buffer.testBit(5)) {
+            if (buffer.testBit(1)) {
                 buffer.clearBit(1);
             } else {
-                if (buffer.checkedClaim(true, 0)) {
+                if (!buffer.isFixed()
+                        && (buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0
+                        && buffer.checkedClaim(true, 0)) {
                     if (buffer.isDirty()) {
                         if (!resetDirtyClock) {
                             resetDirtyClock = true;
@@ -811,11 +808,12 @@ public class BufferPool {
         return earliestDirtyTimestamp;
     }
 
-    private int writeDirtyBuffers(final boolean all, final long timestamp) {
+    private int writeDirtyBuffers(final boolean urgent, final boolean all,
+            final long timestamp) {
         int unavailable = 0;
         int start = _dirtyClock.get();
-        final int end = all ? start + _bufferCount : _clock
-                .get() + (_bufferCount / 4);
+        int max = all ? _bufferCount : _bufferCount / 8;
+        final int end = all ? start + _bufferCount : start + (_bufferCount / 8);
         int index = start;
         for (; index < end; index++) {
             final Buffer buffer = _buffers[index % _bufferCount];
@@ -824,6 +822,10 @@ public class BufferPool {
                     try {
                         if (buffer.isValid() && buffer.isDirty()) {
                             buffer.writePage();
+                            if (--max <= 0) {
+                                index++;
+                                break;
+                            }
                         } else {
                             buffer.setClean();
                         }
@@ -836,7 +838,7 @@ public class BufferPool {
                                         + " in volume " + volume);
                     } finally {
                         buffer.release();
-                        if (all) {
+                        if (urgent) {
                             synchronized (BufferPool.this) {
                                 notify();
                             }
@@ -865,7 +867,8 @@ public class BufferPool {
 
         public void runTask() {
             _wasClosed = _closed.get();
-            _clean = writeDirtyBuffers(_wasClosed, Long.MAX_VALUE) == 0;
+            _clean = writeDirtyBuffers(_urgent.get(), _wasClosed,
+                    Long.MAX_VALUE) == 0;
             if (_clean) {
                 _urgent.set(false);
             }
@@ -877,6 +880,11 @@ public class BufferPool {
 
         protected long pollInterval() {
             return _wasClosed || _urgent.get() ? 0 : _writerPollInterval;
+        }
+
+        @Override
+        protected void urgent() {
+            super.urgent();
         }
     }
 

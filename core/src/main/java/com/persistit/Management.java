@@ -2057,7 +2057,6 @@ public interface Management extends Remote, ManagementMXBean {
         boolean copying;
         boolean flushing;
         boolean appendOnly;
-        boolean backupMode;
         boolean fastCopying;
 
         public JournalInfo() {
@@ -2074,7 +2073,7 @@ public interface Management extends Remote, ManagementMXBean {
                 "journaledPageCount", "readPageCount", "copiedPageCount",
                 "recoveredCommittedTransactions",
                 "recoveredAppliedTransactions", "closed", "copying",
-                "flushing", "appendOnly", "backup", "fastCopying" })
+                "flushing", "appendOnly", "fastCopying" })
         public JournalInfo(String currentJournalFile,
                 long currentJournalAddress, long blockSize, int pageMapSize,
                 long currentGeneration, long baseAddress,
@@ -2088,7 +2087,7 @@ public interface Management extends Remote, ManagementMXBean {
                 int recoveredCommittedTransactions,
                 int recoveredAppliedTransactions, boolean closed,
                 boolean copying, boolean flushing, boolean appendOnly,
-                boolean backupMode, boolean fastCopying) {
+                boolean fastCopying) {
             super();
             this.currentJournalFile = currentJournalFile;
             this.currentJournalAddress = currentJournalAddress;
@@ -2112,7 +2111,6 @@ public interface Management extends Remote, ManagementMXBean {
             this.copying = copying;
             this.flushing = flushing;
             this.appendOnly = appendOnly;
-            this.backupMode = backupMode;
             this.fastCopying = fastCopying;
         }
 
@@ -2314,18 +2312,6 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public boolean isAppendOnly() {
             return appendOnly;
-        }
-
-        /**
-         * The backupMode flag indicates that a concurrent backup is in
-         * progress. It is similar to appendOnly, but weaker: the JOURNAL_COPIER
-         * thread continues to copy pages to the in-place Volume files, but
-         * obsolete journal files are not deleted.
-         * 
-         * @return
-         */
-        public boolean isBackupMode() {
-            return backupMode;
         }
 
         /**

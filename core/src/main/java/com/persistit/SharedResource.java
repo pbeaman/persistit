@@ -15,9 +15,7 @@
 
 package com.persistit;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.exception.PersistitException;
 
@@ -101,12 +99,12 @@ class SharedResource extends WaitingThreadManager {
      * Status indicating whether this resource has been claimed. Note:
      * subclasses can (carefully) overload this to use remaining bits.
      */
-    protected int _status;
+    protected volatile int _status;
 
     /**
      * A counter that increments every time the buffer is changed.
      */
-    protected long _generation;
+    protected AtomicLong _generation = new AtomicLong();
 
     /**
      * The Thread that holds a writer claim on this resource.
@@ -130,7 +128,8 @@ class SharedResource extends WaitingThreadManager {
 
     private boolean isAvailableSync(boolean writer, int count) {
 
-        // Available - No claims
+        // Available - No claims        }
+
         if ((_status & (WRITER_MASK | CLAIMED_MASK)) == 0) {
             return true;
         }
@@ -193,9 +192,7 @@ class SharedResource extends WaitingThreadManager {
     }
 
     boolean isSet(final int mask) {
-        synchronized (_lock) {
-            return (_status & mask) == mask;
-        }
+        return (_status & mask) == mask;
     }
 
     /**
@@ -213,12 +210,10 @@ class SharedResource extends WaitingThreadManager {
     }
 
     void setFixed(boolean b) {
-        synchronized (_lock) {
-            if (b) {
-                _status |= FIXED_MASK;
-            } else {
-                _status &= ~FIXED_MASK;
-            }
+        if (b) {
+            _status |= FIXED_MASK;
+        } else {
+            _status &= ~FIXED_MASK;
         }
     }
 
@@ -453,9 +448,7 @@ class SharedResource extends WaitingThreadManager {
     }
 
     public long getGeneration() {
-        synchronized (_lock) {
-            return _generation;
-        }
+        return _generation.get();
     }
 
     void setTransient(final boolean transientBuffer) {
@@ -485,9 +478,7 @@ class SharedResource extends WaitingThreadManager {
     }
 
     void bumpGeneration() {
-        synchronized (_lock) {
-            ++_generation;
-        }
+        _generation.incrementAndGet();
     }
 
     public int getStatus() {

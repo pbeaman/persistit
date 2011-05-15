@@ -410,8 +410,8 @@ public class Volume extends SharedResource {
             _readOnly = readOnly;
             _channel = new RandomAccessFile(_path, readOnly ? "r" : "rw")
                     .getChannel();
-            
-            _header = new VolumeHeader(_channel); 
+
+            _header = new VolumeHeader(_channel);
             final ByteBuffer bb = _header.validate();
 
             //
@@ -856,6 +856,7 @@ public class Volume extends SharedResource {
         _readCounter.incrementAndGet();
         _lastReadTime = System.currentTimeMillis();
     }
+
     void bumpWriteCounter() {
         _writeCounter.incrementAndGet();
         _lastWriteTime = System.currentTimeMillis();
@@ -1388,7 +1389,7 @@ public class Volume extends SharedResource {
     }
 
     private void claimHeadBuffer() throws PersistitException {
-        if (!_headBuffer.claim(true)) {
+        if (!_headBuffer.checkedClaim(true)) {
             throw new InUseException(this + " head buffer " + _headBuffer
                     + " is unavailable");
         }
@@ -1591,9 +1592,9 @@ public class Volume extends SharedResource {
                                         null, null, null);
                             }
 
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(nextGarbagePage > 0);
-
+                            }
                             garbageBuffer.setGarbageLeftPage(nextGarbagePage);
                         }
                     }
@@ -1726,7 +1727,7 @@ public class Volume extends SharedResource {
             throw new PersistitIOException(e);
         }
     }
-    
+
     void flush() throws PersistitException {
         claimHeadBuffer();
         commitAllTreeUpdates();
@@ -1755,7 +1756,7 @@ public class Volume extends SharedResource {
         changed |= Util.changeBytes(bytes, 0, _header.getSignature());
         changed |= Util.changeInt(bytes, 16, _header.getVersion());
         changed |= Util.changeInt(bytes, 20, _bufferSize);
-        Util.putLong(bytes, 24, _timestamp);
+        changed |= Util.changeLong(bytes, 24, _timestamp);
         changed |= Util.changeLong(bytes, 32, _id);
         changed |= Util.changeLong(bytes, 40, _readCounter.get());
         // Ugly, but the act of closing the system increments this
@@ -1837,11 +1838,11 @@ public class Volume extends SharedResource {
     public Object getAppCache() {
         return _appCache.get();
     }
-    
+
     public int getHandle() {
         return _handle.get();
     }
-    
+
     public int setHandle(final int handle) {
         _handle.set(handle);
         return handle;

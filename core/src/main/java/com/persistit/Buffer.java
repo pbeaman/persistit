@@ -339,20 +339,8 @@ public final class Buffer extends SharedResource {
     private Buffer _next = null;
 
     /**
-     * Doubly-linked list of Buffers needing to be written.
-     */
-    private Buffer _nextDirty = this;
-
-    /**
-     * Back pointer for dirty list
-     */
-    private Buffer _prevDirty = this;
-    
-    /**
-     * This is for the new CLOCK algorithm experiment.  Bits:
-     * 1 Touched
-     * 2 FastIndex touched
-     * 4 Fixed - can't evict
+     * This is for the new CLOCK algorithm experiment. Bits: 1 Touched 2
+     * FastIndex touched
      */
     AtomicInteger _bits = new AtomicInteger();
 
@@ -803,7 +791,8 @@ public final class Buffer extends SharedResource {
                         int p2 = p + (runCount << 2);
                         // p2 now points to the last key block with the same
                         // ebc in this run.
-                        int db2 = _fastIndex.getDescriminatorByte(index + runCount);
+                        int db2 = _fastIndex.getDescriminatorByte(index
+                                + runCount);
 
                         // For the common case that runCount == 1, we avoid
                         // setting up the binary search loop. Instead, the
@@ -3422,29 +3411,51 @@ public final class Buffer extends SharedResource {
         }
 
         return "Page " + _page + " in Volume " + _vol + " at index "
-                + _poolIndex + " status=" + getStatusDisplayString();
+                + _poolIndex + " status=" + getStatusDisplayString() + " type="
+                + getPageTypeName();
     }
 
     public String toStringDetail() {
         final StringBuilder sb = new StringBuilder("Page " + _page
                 + " in Volume " + _vol + " at index " + _poolIndex + " status="
-                + getStatusDisplayString());
+                + getStatusDisplayString() + " type=" + getPageTypeName());
         sb.append(String.format("\n  type=%,d  alloc=%,d  slack=%,d  "
-                + "keyBlockStart=%,d  keyBlockEnd=%,d\n", _type, _alloc,
-                _slack, KEY_BLOCK_START, _keyBlockEnd));
-        final Key key = new Key((Persistit) null);
-        final Value value = new Value((Persistit) null);
+                + "keyBlockStart=%,d  keyBlockEnd=%,d "
+                + "timestamp=%,d generation=%,d right=%,d hash=%,d\n", _type,
+                _alloc, _slack, KEY_BLOCK_START, _keyBlockEnd, getTimestamp(),
+                getGeneration(), getRightSibling(),
+                _pool.hashIndex(_vol, _page)));
 
-        for (RecordInfo r : getRecords()) {
-            r.getKeyState().copyTo(key);
-            r.getValueState().copyTo(value);
-            sb.append(String.format(
-                    "%5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s\n",
-                    r.getKbOffset(), r.getDb(), r.getEbc(), r.getTbOffset(),
-                    r.getKLength(), key,
-                    r.getValueState().getEncodedBytes().length, abridge(value)));
+        if (isDataPage() || isIndexPage()) {
+            try {
+                final Key key = new Key((Persistit) null);
+                final Value value = new Value((Persistit) null);
+
+                for (RecordInfo r : getRecords()) {
+                    r.getKeyState().copyTo(key);
+                    if (isDataPage()) {
+                        r.getValueState().copyTo(value);
+                        sb.append(String
+                                .format("%5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s\n",
+                                        r.getKbOffset(), r.getDb(), r.getEbc(),
+                                        r.getTbOffset(), r.getKLength(), key, r
+                                                .getValueState()
+                                                .getEncodedBytes().length,
+                                        abridge(value)));
+                    } else {
+                        sb.append(String.format(
+                                "%5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d\n",
+                                r.getKbOffset(), r.getDb(), r.getEbc(),
+                                r.getTbOffset(), r.getKLength(), key,
+                                r.getPointerValue()));
+                    }
+                }
+            } catch (Exception e) {
+                sb.append("\n");
+                sb.append(e);
+                e.printStackTrace();
+            }
         }
-
         return sb.toString();
     }
 
@@ -3667,28 +3678,6 @@ public final class Buffer extends SharedResource {
 
     }
 
-    void removeFromDirty() {
-        _prevDirty._nextDirty = _nextDirty;
-        _nextDirty._prevDirty = _prevDirty;
-        _nextDirty = this;
-        _prevDirty = this;
-    }
-
-    void moveInDirty(final Buffer to) {
-        //
-        // detach
-        //
-        _prevDirty._nextDirty = _nextDirty;
-        _nextDirty._prevDirty = _prevDirty;
-        //
-        // Now splice it in
-        //
-        _nextDirty = to;
-        _prevDirty = to._prevDirty;
-        to._prevDirty._nextDirty = this;
-        to._prevDirty = this;
-    }
-
     void setNext(final Buffer buffer) {
         _next = buffer;
     }
@@ -3697,12 +3686,8 @@ public final class Buffer extends SharedResource {
         return _next;
     }
 
-    Buffer getNextDirty() {
-        return _nextDirty;
-    }
-    
     boolean setBit(int mask) {
-        for (int count = 0; ; count++) {
+        for (int count = 0;; count++) {
             int oldValue = _bits.get();
             int newValue = oldValue | mask;
             if (oldValue == newValue) {
@@ -3713,7 +3698,7 @@ public final class Buffer extends SharedResource {
             }
         }
     }
-    
+
     boolean clearBit(int mask) {
         while (true) {
             int oldValue = _bits.get();
@@ -3726,7 +3711,7 @@ public final class Buffer extends SharedResource {
             }
         }
     }
-    
+
     boolean testBit(int mask) {
         return (_bits.get() & mask) != 0;
     }

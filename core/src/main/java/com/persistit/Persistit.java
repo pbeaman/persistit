@@ -1826,6 +1826,7 @@ public class Persistit {
         _checkpointManager.crash();
         _closed.set(true);
         releaseAllResources();
+        shutdownGUI();
     }
 
     private void releaseAllResources() {

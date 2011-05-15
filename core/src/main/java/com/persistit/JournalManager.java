@@ -114,8 +114,6 @@ public class JournalManager implements JournalManagerMXBean,
 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
 
-    private AtomicBoolean _backupMode = new AtomicBoolean();
-
     private String _journalFilePath;
 
     /**
@@ -257,6 +255,9 @@ public class JournalManager implements JournalManagerMXBean,
     public synchronized void populateJournalInfo(
             final Management.JournalInfo info) {
         info.closed = _closed.get();
+        if (_blockSize == 0) {
+            return;
+        }
         info.copiedPageCount = _copiedPageCount;
         info.copying = _copying.get();
         info.currentGeneration = _currentAddress;
@@ -284,7 +285,6 @@ public class JournalManager implements JournalManagerMXBean,
         info.pageMapSize = _pageMap.size();
         info.baseAddress = _baseAddress;
         info.appendOnly = _appendOnly.get();
-        info.backupMode = _backupMode.get();
         info.fastCopying = _copyFast.get();
     }
 
@@ -308,20 +308,12 @@ public class JournalManager implements JournalManagerMXBean,
         return _appendOnly.get();
     }
 
-    public boolean isBackupMode() {
-        return _backupMode.get();
-    }
-
     public boolean isCopyingFast() {
         return _copyFast.get();
     }
 
     public void setAppendOnly(boolean appendOnly) {
         _appendOnly.set(appendOnly);
-    }
-
-    public void setBackupMode(boolean backupMode) {
-        _backupMode.set(backupMode);
     }
 
     public void setCopyingFast(boolean fast) {
@@ -476,7 +468,7 @@ public class JournalManager implements JournalManagerMXBean,
     public synchronized VolumeDescriptor lookupVolumeHandle(final int handle) {
         return _handleToVolumeMap.get(Integer.valueOf(handle));
     }
-    
+
     public synchronized TreeDescriptor lookupTreeHandle(final int handle) {
         return _handleToTreeMap.get(Integer.valueOf(handle));
     }
@@ -1392,14 +1384,18 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     /**
-     * Set the copyFast flag and then wait until all pages have been copied to
-     * their respective volumes, allowing the journal files to be deleted. Note:
-     * does nothing of the <code>appendOnly</code> is set.
+     * Set the copyFast flag and then wait until all checkpointed pages have
+     * been copied to their respective volumes, allowing the journal files to be
+     * deleted. Pages modified after the last valid checkpoint cannot
+     * be copied.
+     * <p>
+     * Does nothing of the <code>appendOnly</code> is set.
      * 
      * @throws PersistitException
      */
     public void copyBack() throws PersistitException {
         if (!_appendOnly.get()) {
+            int pagesLeft = 0;
             synchronized (this) {
                 _copyFast.set(true);
                 notifyAll();
@@ -1410,9 +1406,7 @@ public class JournalManager implements JournalManagerMXBean,
                         // ignore;
                     }
                 }
-                if (Debug.ENABLED) {
-                    Debug.$assert(_pageMap.isEmpty()); // TODO - remove this
-                }
+                pagesLeft = _pageMap.size();
             }
         }
     }
