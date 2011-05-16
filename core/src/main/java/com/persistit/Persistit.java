@@ -286,7 +286,7 @@ public class Persistit {
 
     private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
 
-    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.NICE_BIAS;
+    private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
 
     private AbstractPersistitLogger _logger;
