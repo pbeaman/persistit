@@ -68,7 +68,7 @@ public class BufferPool {
     /**
      * Ratio of FastIndex to buffers
      */
-    private final static float FAST_INDEX_RATIO = 0.33f;
+    private final static float FAST_INDEX_RATIO = 0.35f;
 
     /**
      * The Persistit instance that references this BufferBool.
@@ -90,10 +90,6 @@ public class BufferPool {
      */
     private Buffer[] _buffers;
     /**
-     * FastIndex array
-     */
-    private FastIndex[] _fastIndexes;
-    /**
      * Count of Buffers allocated to this pool.
      */
     private int _bufferCount;
@@ -103,7 +99,14 @@ public class BufferPool {
      */
     private int _bufferSize;
 
+    /**
+     * Count of FastIndex instances, computed as a fraction of buffer count
+     */
     private int _fastIndexCount;
+    /**
+     * FastIndex array
+     */
+    private FastIndex[] _fastIndexes;
 
     /**
      * The maximum number of keys allowed Buffers in this pool
@@ -222,7 +225,7 @@ public class BufferPool {
         }
         _fastIndexCount = (int) (count * FAST_INDEX_RATIO);
         _fastIndexes = new FastIndex[_fastIndexCount];
-        created = 0; 
+        created = 0;
         try {
             for (int index = 0; index < _fastIndexCount; index++) {
                 _fastIndexes[index] = new FastIndex(_maxKeys + 1);
