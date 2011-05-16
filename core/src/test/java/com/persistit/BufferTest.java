@@ -22,14 +22,14 @@ import com.persistit.unit.PersistitUnitTestCase;
 public class BufferTest extends PersistitUnitTestCase {
 
     public void testJoinBuffer() throws Exception {
-        _persistit = new Persistit();
+        final Exchange ex = _persistit.getExchange("persistit", "BufferTest", true);
         final StringBuilder sb = new StringBuilder();
-        final Buffer b1 = new Buffer(1024, 0, null, _persistit);
+        final Buffer b1 = ex.getBufferPool().get(ex.getVolume(), 1, true, false);
+        final Buffer b2 = ex.getBufferPool().get(ex.getVolume(), 2, true, false);
         b1.init(Buffer.PAGE_TYPE_DATA);
-        final Buffer b2 = new Buffer(1024, 0, null, _persistit);
         b2.init(Buffer.PAGE_TYPE_DATA);
-        b1.claim(true);
-        b2.claim(true);
+        b1.getFastIndex();
+        b2.getFastIndex();
         final Key key = new Key((Persistit) null);
         final Key indexKey = new Key((Persistit) null);
         final Value value = new Value((Persistit) null);

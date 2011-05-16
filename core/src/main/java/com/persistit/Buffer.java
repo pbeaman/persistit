@@ -295,11 +295,6 @@ public final class Buffer extends SharedResource {
     private int _bufferSize;
 
     /**
-     * The maximum number of keys allowed in this buffer
-     */
-    private int _maxKeys;
-
-    /**
      * FastIndex structure used for rapid page searching
      */
     private FastIndex _fastIndex;
@@ -367,8 +362,6 @@ public final class Buffer extends SharedResource {
         _byteBuffer = ByteBuffer.allocate(size);
         _bytes = _byteBuffer.array();
         _bufferSize = size;
-        _maxKeys = (_bufferSize - HEADER_SIZE) / MAX_KEY_RATIO;
-        _fastIndex = new FastIndex(_maxKeys + 1, this);
     }
 
     Buffer(Buffer original) {
@@ -385,9 +378,6 @@ public final class Buffer extends SharedResource {
         _keyBlockEnd = original._keyBlockEnd;
         _tailHeaderSize = original._tailHeaderSize;
         System.arraycopy(original._bytes, 0, _bytes, 0, _bytes.length);
-
-        // Note - do not populate _fastIndexes since this buffer
-        // is for ManagementImpl only
     }
 
     /**
@@ -450,11 +440,10 @@ public final class Buffer extends SharedResource {
 
                 if (isDataPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
-                    _fastIndex.invalidate();
                 } else if (isIndexPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_INDEX;
-                    _fastIndex.invalidate();
                 }
+                invalidateFastIndex();
             }
         }
         bumpGeneration();
@@ -741,7 +730,7 @@ public final class Buffer extends SharedResource {
      *         it follows the last key in the page.
      */
     int findKey(Key key) {
-        _fastIndex.recompute();
+        final FastIndex fastIndex = getFastIndex();
         byte[] kbytes = key.getEncodedBytes();
         int klength = key.getEncodedSize();
         int depth = 0;
@@ -755,8 +744,8 @@ public final class Buffer extends SharedResource {
             // Here we MUST land on a KeyBlock at an ebc value change point.
             //
             int index = (p - start) >> 2;
-            int runCount = _fastIndex.getRunCount(index);
-            int ebc = _fastIndex.getEbc(index);
+            int runCount = fastIndex.getRunCount(index);
+            int ebc = fastIndex.getEbc(index);
 
             if (depth < ebc) {
                 // We know that depth < ebc for a bunch of KeyBlocks - we
@@ -779,7 +768,7 @@ public final class Buffer extends SharedResource {
             else // if (depth == ebc)
             {
                 // Now we are looking for the keyblock with the matching db
-                int db = _fastIndex.getDescriminatorByte(index);
+                int db = fastIndex.getDescriminatorByte(index);
                 int kb = kbytes[depth] & 0xFF;
 
                 if (kb < db) {
@@ -791,7 +780,7 @@ public final class Buffer extends SharedResource {
                         int p2 = p + (runCount << 2);
                         // p2 now points to the last key block with the same
                         // ebc in this run.
-                        int db2 = _fastIndex.getDescriminatorByte(index
+                        int db2 = fastIndex.getDescriminatorByte(index
                                 + runCount);
 
                         // For the common case that runCount == 1, we avoid
@@ -878,7 +867,7 @@ public final class Buffer extends SharedResource {
                             // we just want to move forward from kb2, skipping
                             // the crossCount if non-zero.
                             index = (p2 - start) >> 2;
-                            runCount = _fastIndex.getRunCount(index);
+                            runCount = fastIndex.getRunCount(index);
                             assert runCount <= 0;
                             p = p2 + KEYBLOCK_LENGTH * (-runCount + 1);
                             continue;
@@ -1313,7 +1302,7 @@ public final class Buffer extends SharedResource {
             int klength = key.getEncodedSize() - ebcNew - 1;
             int newTailSize = klength + length + _tailHeaderSize;
 
-            if (getKeyCount() >= _maxKeys
+            if (getKeyCount() >= _pool.getMaxKeys()
                     || !willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
                 Debug.$assert(!postSplit);
                 return -1;
@@ -1404,7 +1393,9 @@ public final class Buffer extends SharedResource {
                         + _tailHeaderSize + klength, length);
             }
 
-            _fastIndex.insertKeyBlock(p, ebcNew, fixupSuccessor);
+            if (_fastIndex != null) {
+                _fastIndex.insertKeyBlock(p, ebcNew, fixupSuccessor);
+            }
 
             bumpGeneration();
 
@@ -1720,7 +1711,7 @@ public final class Buffer extends SharedResource {
                 putInt(p1, kbNewNext);
             }
         }
-        _fastIndex.invalidate();
+        invalidateFastIndex();
         bumpGeneration();
         if (Debug.ENABLED) {
             assertVerify();
@@ -2212,7 +2203,7 @@ public final class Buffer extends SharedResource {
             // pointers
         }
 
-        _fastIndex.invalidate();
+        invalidateFastIndex();
         rightSibling.invalidateFastIndex();
 
         if (Debug.ENABLED) {
@@ -2311,8 +2302,7 @@ public final class Buffer extends SharedResource {
         foundAt2 &= P_MASK;
 
         if (buffer == this || foundAt1 <= KEY_BLOCK_START
-                || foundAt1 >= _keyBlockEnd
-                || foundAt2 <= buffer.KEY_BLOCK_START
+                || foundAt1 >= _keyBlockEnd || foundAt2 <= KEY_BLOCK_START
                 || foundAt2 >= buffer._keyBlockEnd /*- KEYBLOCK_LENGTH */) {
             if (Debug.ENABLED)
                 Debug.debug2(true);
@@ -2332,7 +2322,7 @@ public final class Buffer extends SharedResource {
         //
         int newEbc = Integer.MAX_VALUE;
         byte[] indexKeyBytes = indexKey.getEncodedBytes();
-        int kbData = buffer.getInt(buffer.KEY_BLOCK_START);
+        int kbData = buffer.getInt(KEY_BLOCK_START);
         indexKeyBytes[0] = (byte) decodeKeyBlockDb(kbData);
         int tail = decodeKeyBlockTail(kbData);
         int tbData = buffer.getInt(tail);
@@ -2360,10 +2350,10 @@ public final class Buffer extends SharedResource {
                     & TAILBLOCK_MASK;
             deallocTail(tail, size);
         }
-        for (int index = buffer.KEY_BLOCK_START; index < foundAt2; index += KEYBLOCK_LENGTH) {
+        for (int index = KEY_BLOCK_START; index < foundAt2; index += KEYBLOCK_LENGTH) {
             kbData = buffer.getInt(index);
             int ebc = decodeKeyBlockEbc(kbData);
-            if (ebc < newEbc && index > buffer.KEY_BLOCK_START)
+            if (ebc < newEbc && index > KEY_BLOCK_START)
                 newEbc = ebc;
             tail = decodeKeyBlockTail(kbData);
             tbData = buffer.getInt(tail);
@@ -2407,7 +2397,7 @@ public final class Buffer extends SharedResource {
                 + (buffer._bufferSize - buffer._alloc) - buffer._slack;
         final int virtualKeyCount = ((foundAt1 - KEY_BLOCK_START) + (buffer
                 .getKeyBlockEnd() - foundAt2)) / KEYBLOCK_LENGTH;
-        boolean okayToRejoin = virtualKeyCount < _maxKeys
+        boolean okayToRejoin = virtualKeyCount < _pool.getMaxKeys()
                 && policy.acceptJoin(this, virtualSize);
         boolean result;
 
@@ -2434,7 +2424,7 @@ public final class Buffer extends SharedResource {
             //
             long rightSibling = buffer.getRightSibling();
             setRightSibling(rightSibling);
-            _fastIndex.invalidate();
+            invalidateFastIndex();
             result = false;
         }
 
@@ -2575,13 +2565,13 @@ public final class Buffer extends SharedResource {
                 moveRecords(buffer, foundAt2, joinOffset, _keyBlockEnd, true);
 
                 System.arraycopy(buffer._bytes, joinOffset, buffer._bytes,
-                        buffer.KEY_BLOCK_START, rightSize);
+                        KEY_BLOCK_START, rightSize);
 
-                buffer.clearBytes(buffer.KEY_BLOCK_START + rightSize,
+                buffer.clearBytes(KEY_BLOCK_START + rightSize,
                         buffer._keyBlockEnd);
                 buffer._keyBlockEnd = KEY_BLOCK_START + rightSize;
 
-                buffer.reduceEbc(buffer.KEY_BLOCK_START, 0, indexKeyBytes);
+                buffer.reduceEbc(KEY_BLOCK_START, 0, indexKeyBytes);
             } else {
                 //
                 // We will move records from the left page to the right page.
@@ -2589,25 +2579,25 @@ public final class Buffer extends SharedResource {
                 int rightSize = buffer._keyBlockEnd - foundAt2;
 
                 System.arraycopy(buffer._bytes, foundAt2, buffer._bytes,
-                        buffer.KEY_BLOCK_START, rightSize);
+                        KEY_BLOCK_START, rightSize);
 
-                buffer.clearBytes(buffer.KEY_BLOCK_START + rightSize,
+                buffer.clearBytes(KEY_BLOCK_START + rightSize,
                         buffer._keyBlockEnd);
 
-                buffer._keyBlockEnd = buffer.KEY_BLOCK_START + rightSize;
+                buffer._keyBlockEnd = KEY_BLOCK_START + rightSize;
 
                 if (joinOffset != foundAt1) {
                     buffer.moveRecords(this, joinOffset, foundAt1,
-                            buffer.KEY_BLOCK_START, false);
+                            KEY_BLOCK_START, false);
                 }
                 _keyBlockEnd = joinOffset;
                 //
                 // Now set up the edge key in the left page.
                 //
-                moveRecords(buffer, buffer.KEY_BLOCK_START,
-                        buffer.KEY_BLOCK_START, joinOffset, true);
+                moveRecords(buffer, KEY_BLOCK_START, KEY_BLOCK_START,
+                        joinOffset, true);
 
-                buffer.reduceEbc(buffer.KEY_BLOCK_START, 0, indexKeyBytes);
+                buffer.reduceEbc(KEY_BLOCK_START, 0, indexKeyBytes);
             }
             //
             // This is now the key that will be reinserted into the index
@@ -2617,7 +2607,7 @@ public final class Buffer extends SharedResource {
 
             setRightSibling(buffer.getPageAddress());
 
-            _fastIndex.invalidate();
+            invalidateFastIndex();
             buffer.invalidateFastIndex();
 
             result = true;
@@ -2626,7 +2616,7 @@ public final class Buffer extends SharedResource {
         if (Debug.ENABLED) {
             Debug.$assert(KEY_BLOCK_START + KEYBLOCK_LENGTH < _keyBlockEnd);
             if (result) {
-                Debug.$assert(buffer.KEY_BLOCK_START + KEYBLOCK_LENGTH < buffer._keyBlockEnd);
+                Debug.$assert(KEY_BLOCK_START + KEYBLOCK_LENGTH < buffer._keyBlockEnd);
             }
         }
         //
@@ -2643,16 +2633,27 @@ public final class Buffer extends SharedResource {
         return result;
     }
 
-    public void invalidateFastIndex() {
-        _fastIndex.invalidate();
+    void invalidateFastIndex() {
+        if (_fastIndex != null) {
+            _fastIndex.invalidate();
+        }
     }
 
-    public void recomputeFastIndex() {
-        _fastIndex.recompute();
+    FastIndex getFastIndex() {
+        synchronized (this) {
+            if (_fastIndex == null) {
+                _fastIndex = _pool.allocFastIndex();
+                _fastIndex.setBuffer(this);
+            }
+            if (!_fastIndex.isValid()) {
+                _fastIndex.recompute();
+            }
+            return _fastIndex;
+        }
     }
 
-    public FastIndex getFastIndex() {
-        return _fastIndex;
+    void takeFastIndex() {
+        _fastIndex = null;
     }
 
     private void reduceEbc(int p, int newEbc, byte[] indexKeyBytes) {

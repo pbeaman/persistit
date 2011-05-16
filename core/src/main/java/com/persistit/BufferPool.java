@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
@@ -59,8 +60,16 @@ public class BufferPool {
      * Maximum number of buffers this pool may have
      */
     public final static int MAXIMUM_POOL_COUNT = Integer.MAX_VALUE;
-
+    /**
+     * The maximum number of lock buckets
+     */
     private final static int HASH_LOCKS = 4096;
+
+    /**
+     * Ratio of FastIndex to buffers
+     */
+    private final static float FAST_INDEX_RATIO = 0.33f;
+
     /**
      * The Persistit instance that references this BufferBool.
      */
@@ -71,13 +80,19 @@ public class BufferPool {
      */
     private Buffer[] _hashTable;
 
-    private Object[] _hashLocks;
+    /**
+     * Locks used to lock hashtable entries.
+     */
+    private ReentrantLock[] _hashLocks;
 
     /**
-     * Buffer indexed by size and
+     * All Buffers in this pool
      */
     private Buffer[] _buffers;
-
+    /**
+     * FastIndex array
+     */
+    private FastIndex[] _fastIndexes;
     /**
      * Count of Buffers allocated to this pool.
      */
@@ -87,6 +102,14 @@ public class BufferPool {
      * Size of each buffer
      */
     private int _bufferSize;
+
+    private int _fastIndexCount;
+
+    /**
+     * The maximum number of keys allowed Buffers in this pool
+     */
+    private int _maxKeys;
+
     /**
      * Pointer to next location to look for a replacement buffer
      */
@@ -96,6 +119,11 @@ public class BufferPool {
      * Pointer to next location to look for a dirty buffer
      */
     private AtomicInteger _dirtyClock = new AtomicInteger();
+
+    /**
+     * Pointer to next FastIndex to allocate
+     */
+    private AtomicInteger _fastIndexClock = new AtomicInteger();
 
     /**
      * Count of buffer pool misses (buffer not found in pool)
@@ -174,11 +202,13 @@ public class BufferPool {
         _bufferSize = size;
         _buffers = new Buffer[_bufferCount];
         _hashTable = new Buffer[_bufferCount * HASH_MULTIPLE];
-        _hashLocks = new Object[HASH_LOCKS];
+        _hashLocks = new ReentrantLock[HASH_LOCKS];
+        _maxKeys = (_bufferSize - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO;
 
         for (int index = 0; index < HASH_LOCKS; index++) {
-            _hashLocks[index] = new Object();
+            _hashLocks[index] = new ReentrantLock();
         }
+
         try {
             for (int index = 0; index < _bufferCount; index++) {
                 Buffer buffer = new Buffer(size, index, this, _persistit);
@@ -188,6 +218,20 @@ public class BufferPool {
         } catch (OutOfMemoryError e) {
             System.err.println("Out of memory after creating " + created
                     + " buffers");
+            throw e;
+        }
+        _fastIndexCount = (int) (count * FAST_INDEX_RATIO);
+        _fastIndexes = new FastIndex[_fastIndexCount];
+        created = 0; 
+        try {
+            for (int index = 0; index < _fastIndexCount; index++) {
+                _fastIndexes[index] = new FastIndex(_maxKeys + 1);
+                _fastIndexes[index].setBuffer(_buffers[index]);
+                created++;
+            }
+        } catch (OutOfMemoryError e) {
+            System.err.println("Out of memory after creating " + created
+                    + " FastIndex instances");
             throw e;
         }
         _writer = new PageWriter();
@@ -375,6 +419,10 @@ public class BufferPool {
         _evictCounter.set(0);
     }
 
+    int getMaxKeys() {
+        return _maxKeys;
+    }
+
     private void bumpHitCounter() {
         _hitCounter.incrementAndGet();
     }
@@ -445,7 +493,8 @@ public class BufferPool {
 
     private void detach(Buffer buffer) {
         final int hash = hashIndex(buffer.getVolume(), buffer.getPageAddress());
-        synchronized (_hashLocks[hash % HASH_LOCKS]) {
+        _hashLocks[hash % HASH_LOCKS].lock();
+        try {
             //
             // If already invalid, we're done.
             //
@@ -468,6 +517,8 @@ public class BufferPool {
                     prev = next;
                 }
             }
+        } finally {
+            _hashLocks[hash % HASH_LOCKS].unlock();
         }
     }
 
@@ -507,7 +558,8 @@ public class BufferPool {
         for (;;) {
             boolean mustRead = false;
             boolean mustClaim = false;
-            synchronized (_hashLocks[hash % HASH_LOCKS]) {
+            _hashLocks[hash % HASH_LOCKS].lock();
+            try {
                 buffer = _hashTable[hash];
                 //
                 // Search for the page
@@ -569,6 +621,8 @@ public class BufferPool {
                         mustRead = true;
                     }
                 }
+            } finally {
+                _hashLocks[hash % HASH_LOCKS].unlock();
             }
             if (buffer == null) {
                 _writer.urgent();
@@ -595,8 +649,7 @@ public class BufferPool {
                     //
                     // Test whether the buffer we picked out is still valid
                     //
-                    if (buffer.isValid()
-                            && buffer.getPageAddress() == page
+                    if (buffer.isValid() && buffer.getPageAddress() == page
                             && buffer.getVolume() == vol) {
                         //
                         // If so, then we're done.
@@ -681,7 +734,8 @@ public class BufferPool {
             VolumeClosedException, TimeoutException, PersistitIOException {
         int hash = hashIndex(vol, page);
         Buffer buffer = null;
-        synchronized (_hashLocks[hash % HASH_LOCKS]) {
+        _hashLocks[hash % HASH_LOCKS].lock();
+        try {
             buffer = _hashTable[hash];
             //
             // Search for the page
@@ -701,6 +755,8 @@ public class BufferPool {
                 }
                 buffer = buffer.getNext();
             }
+        } finally {
+            _hashLocks[hash % HASH_LOCKS].unlock();
         }
         //
         // Didn't find it in the pool, so we'll read a copy.
@@ -770,6 +826,30 @@ public class BufferPool {
             retry++;
         }
         return null;
+    }
+
+    FastIndex allocFastIndex() {
+        for (int retry = 0; retry < _fastIndexCount; retry++) {
+            int clock = _fastIndexClock.get();
+            if (!_fastIndexClock.compareAndSet(clock, (clock + 1)
+                    % _fastIndexCount)) {
+                continue;
+            }
+            FastIndex findex = _fastIndexes[clock];
+            if (findex.testBit(1)) {
+                findex.clearBit(1);
+            } else {
+                Buffer buffer = findex.getBuffer();
+                synchronized (buffer._lock) {
+                    if ((buffer.getStatus() & buffer.CLAIMED_MASK) == 0) {
+                        buffer.takeFastIndex();
+                        findex.invalidate();
+                        return findex;
+                    }
+                }
+            }
+        }
+        throw new IllegalStateException("No FastIndex buffers available");
     }
 
     enum Result {
