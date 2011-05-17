@@ -2655,6 +2655,14 @@ public final class Buffer extends SharedResource {
     void takeFastIndex() {
         _fastIndex = null;
     }
+    
+    /**
+     * Only for unit tests.
+     * @param fastIndex
+     */
+    void setFastIndex(final FastIndex fastIndex) {
+        _fastIndex = fastIndex;
+    }
 
     private void reduceEbc(int p, int newEbc, byte[] indexKeyBytes) {
         int kbData = getInt(p);

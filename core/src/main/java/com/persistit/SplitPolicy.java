@@ -246,15 +246,13 @@ public abstract class SplitPolicy {
             if (!replace) {
                 if (sequence == Sequence.FORWARD) {
                     int shoulder = (int) (capacity * PACK_SHOULDER);
-                    int keyOffsetCost = Math.abs(insertAt & P_MASK - kbOffset
-                            & P_MASK);
+                    int keyOffsetCost = Math.abs(insertAt - kbOffset);
                     if (leftSize < shoulder && rightSize < shoulder) {
                         return capacity * 2 - keyOffsetCost;
                     } // otherwise revert to NICE
                 } else if (sequence == Sequence.REVERSE) {
                     int shoulder = (int) (capacity * PACK_SHOULDER);
-                    int keyOffsetCost = Math.abs(insertAt & P_MASK - kbOffset
-                            & P_MASK + KEYBLOCK_LENGTH);
+                    int keyOffsetCost = Math.abs(insertAt - kbOffset + KEYBLOCK_LENGTH);
                     if (leftSize < shoulder && rightSize < shoulder) {
                         return capacity * 2 - keyOffsetCost;
                     } // otherwise revert to NICE
