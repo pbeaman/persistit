@@ -1,3 +1,18 @@
+/**
+ * Copyright (C) 2011 Akiban Technologies Inc.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License, version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses.
+ */
+
 package com.persistit;
 
 import java.io.BufferedReader;
@@ -151,15 +166,12 @@ public class CLI {
                     "journalpath|string|Journal path",
                     "volumepath|string|Volume file",
                     "rmiport|int:1099:0:99999|RMI Management port",
-                    "_flag|g|Show AdminUI" };
+                    "_flag|g|Show AdminUI",
+                    "_flag|r|Recovery committed transactions" };
         }
 
         String execute(final ArgParser ap) throws Exception {
-            String datapath = ap.getStringValue("datapath");
-            String journalpath = ap.getStringValue("journalpath");
-            String volumepath = ap.getStringValue("volumepath");
-            int rmiport = ap.getIntValue("rmiport");
-            return init(ap, datapath, journalpath, volumepath, rmiport);
+            return init(ap);
         }
     }
 
@@ -278,7 +290,8 @@ public class CLI {
     class CommandView extends Command {
         String[] template() {
             return new String[] { "page|long:0:0:999999999999|Page address",
-                    "level|int:0:0:20|Tree level", "key|string|Key", };
+                    "level|int:0:0:20|Tree level", "key|string|Key",
+                    "_flag|a|All lines", "_flag|s|Summary only" };
         }
 
         String execute(final ArgParser ap) throws Exception {
@@ -305,7 +318,23 @@ public class CLI {
                 }
                 buffer = exchange.fetchBufferCopy(level);
             }
-            return buffer.toStringDetail();
+            if (ap.isFlag('s')) {
+                return buffer.toString();
+            }
+            String detail = buffer.toStringDetail();
+            if (ap.isFlag('a')) {
+                return detail;
+            }
+            else {
+                int p = -1;
+                for (int i = 0; i < 20; i++) {
+                    p = detail.indexOf('\n', p + 1);
+                    if (p == -1) {
+                        return detail;
+                    }
+                }
+                return detail.substring(0, p);
+            }
         }
     }
 
@@ -323,11 +352,15 @@ public class CLI {
         return "ok";
     }
 
-    private String init(final ArgParser ap, final String datapath,
-            final String journalpath, final String volumepath, final int rmiport)
-            throws Exception {
+    private String init(final ArgParser ap) throws Exception {
 
         close(false);
+
+        String datapath = ap.getStringValue("datapath");
+        String journalpath = ap.getStringValue("journalpath");
+        String volumepath = ap.getStringValue("volumepath");
+        int rmiport = ap.getIntValue("rmiport");
+
         String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath
                 : journalpath));
         List<VolumeSpecification> volumeSpecifications = volumeSpecifications(filesOnPath(volumepath
@@ -351,6 +384,7 @@ public class CLI {
         }
         properties.put(Persistit.JOURNAL_PATH_PROPERTY_NAME, jpath);
         properties.put(Persistit.APPEND_ONLY_PROPERTY, "true");
+
         if (rmiport > 0) {
             properties.put(Persistit.RMI_REGISTRY_PORT,
                     Integer.toString(rmiport));
@@ -361,6 +395,7 @@ public class CLI {
         properties.put(Persistit.JMX_PARAMS, "true");
 
         final Persistit persistit = new Persistit();
+        persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         persistit.initialize(properties);
         _persistit = persistit;
         return "ok";
@@ -394,9 +429,8 @@ public class CLI {
                 final File file = new File(path);
                 final VolumeInfo volumeInfo = volumeInfo(file);
                 if (volumeInfo != null) {
-                    list.add(new VolumeSpecification(path
-                            + ",readOnly,pageSize:" + volumeInfo._bufferSize
-                            + ",id:" + volumeInfo._id));
+                    list.add(new VolumeSpecification(path + ",pageSize:"
+                            + volumeInfo._bufferSize + ",id:" + volumeInfo._id));
                 }
             } catch (IOException e) {
                 // ignore this file
@@ -509,6 +543,7 @@ public class CLI {
                     }
                 }
             };
+            writer.println("jline.ConsoleReader enabled");
         } catch (Exception e) {
 
         }

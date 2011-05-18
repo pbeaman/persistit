@@ -373,7 +373,7 @@ public class Exchange {
         _joinPolicy = _persistit.getDefaultJoinPolicy();
     }
 
-    private void initCache() {
+    void initCache() {
         for (int level = 0; level < MAX_TREE_DEPTH; level++) {
             if (_levelCache[level] != null)
                 _levelCache[level].invalidate();
@@ -910,12 +910,7 @@ public class Exchange {
             return searchTree(key, 0);
         }
 
-        try {
-            checkPageType(buffer, PAGE_TYPE_DATA);
-        } catch (CorruptVolumeException e) {
-            _pool.release(buffer);
-            throw e;
-        }
+        checkPageType(buffer, PAGE_TYPE_DATA);
 
         int foundAt = findKey(buffer, key, lc);
 
@@ -990,10 +985,10 @@ public class Exchange {
                         Debug.debug1(true);
                     }
 
-                    throw new CorruptVolumeException("Volume " + _volume
-                            + " level=" + currentLevel + " page=" + pageAddress
-                            + " oldPage=" + oldPageAddress + " key=<"
-                            + key.toString() + "> " + " invalid page address");
+                    corrupt("Volume " + _volume + " level=" + currentLevel
+                            + " page=" + pageAddress + " oldPage="
+                            + oldPageAddress + " key=<" + key.toString() + "> "
+                            + " invalid page address");
                 }
 
                 foundAt = searchLevel(key, pageAddress, currentLevel);
@@ -1012,10 +1007,9 @@ public class Exchange {
                         Debug.debug1(true);
                     }
 
-                    throw new CorruptVolumeException("Volume " + _volume
-                            + " level=" + currentLevel + " page=" + pageAddress
-                            + " key=<" + key.toString() + "> "
-                            + " is before left edge");
+                    corrupt("Volume " + _volume + " level=" + currentLevel
+                            + " page=" + pageAddress + " key=<"
+                            + key.toString() + "> " + " is before left edge");
                 }
 
                 checkPageType(buffer, currentLevel + PAGE_TYPE_DATA);
@@ -1045,9 +1039,9 @@ public class Exchange {
                         Debug.debug1(true);
                     }
 
-                    throw new CorruptVolumeException("Volume " + _volume
-                            + " level=" + currentLevel + " page=" + pageAddress
-                            + " key=<" + key.toString() + ">" + " page type="
+                    corrupt("Volume " + _volume + " level=" + currentLevel
+                            + " page=" + pageAddress + " key=<"
+                            + key.toString() + ">" + " page type="
                             + buffer.getPageType() + " is invalid");
                 }
             }
@@ -1083,12 +1077,13 @@ public class Exchange {
             long oldPageAddress = pageAddress;
             for (int rightWalk = MAX_WALK_RIGHT; rightWalk-- > 0;) {
                 Buffer buffer = null;
-                if (pageAddress <= 0) {
+                if (pageAddress <= 0 || pageAddress > _volume.getMaximumPageInUse()) {
                     if (Debug.ENABLED) {
                         Debug.debug1(true);
                     }
-                    throw new CorruptVolumeException("Volume " + _volume
-                            + " level=" + currentLevel + " page=" + pageAddress
+
+                    corrupt("Volume " + _volume + " level="
+                            + currentLevel + " page=" + pageAddress
                             + " previousPage=" + oldPageAddress
                             + " initialPage=" + initialPageAddress + " key=<"
                             + key.toString() + ">" + " oldBuffer=<" + oldBuffer
@@ -1152,12 +1147,16 @@ public class Exchange {
             if (Debug.ENABLED) {
                 Debug.debug1(true);
             }
-            throw new CorruptVolumeException("Volume " + _volume + " level="
-                    + currentLevel + " page=" + oldPageAddress
-                    + " initialPage=" + initialPageAddress + " key=<"
-                    + key.toString() + ">" + " walked right more than "
-                    + MAX_WALK_RIGHT + " pages" + " last page visited="
-                    + pageAddress);
+
+            corrupt("Volume " + _volume + " level=" + currentLevel
+                    + " page=" + oldPageAddress + " initialPage="
+                    + initialPageAddress + " key=<" + key.toString() + ">"
+                    + " walked right more than " + MAX_WALK_RIGHT + " pages"
+                    + " last page visited=" + pageAddress);
+            
+            // won't happen - here to make compiler happy.
+            return -1;
+            
         } finally {
             if (oldBuffer != null) {
                 _pool.release(oldBuffer);
@@ -3449,16 +3448,16 @@ public class Exchange {
                 if (Debug.ENABLED) {
                     Debug.debug1(true);
                 }
-                throw new CorruptVolumeException(
-                        "Invalid LONG_RECORD value size=" + rawSize
-                                + " but should be " + LONGREC_SIZE);
+                
+                corrupt("Invalid LONG_RECORD value size=" + rawSize
+                + " but should be " + LONGREC_SIZE);
             }
             if ((rawBytes[0] & 0xFF) != LONGREC_TYPE) {
                 if (Debug.ENABLED) {
                     Debug.debug1(true);
                 }
-                throw new CorruptVolumeException(
-                        "Invalid LONG_RECORD value type="
+                
+                corrupt("Invalid LONG_RECORD value type="
                                 + (rawBytes[0] & 0xFF) + " but should be "
                                 + LONGREC_TYPE);
             }
@@ -3489,8 +3488,7 @@ public class Exchange {
                     if (Debug.ENABLED) {
                         Debug.debug1(true);
                     }
-                    throw new CorruptVolumeException(
-                            "Invalid LONG_RECORD remaining size="
+                    corrupt("Invalid LONG_RECORD remaining size="
                                     + remainingSize + " of " + rawSize
                                     + " in page " + page);
                 }
@@ -3499,8 +3497,7 @@ public class Exchange {
                     if (Debug.ENABLED) {
                         Debug.debug1(true);
                     }
-                    throw new CorruptVolumeException(
-                            "LONG_RECORD chain is invalid at page " + page
+                    corrupt("LONG_RECORD chain is invalid at page " + page
                                     + " - invalid page type: " + buffer);
                 }
                 int segmentSize = buffer.getBufferSize() - HEADER_SIZE;
@@ -3522,8 +3519,7 @@ public class Exchange {
 
                 if (count > MAX_LONG_RECORD_CHAIN) {
                     if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
-                        throw new CorruptVolumeException(
-                                "LONG_RECORD chain starting at " + startAtPage
+                        corrupt("LONG_RECORD chain starting at " + startAtPage
                                         + " is too long");
                     }
 
@@ -3615,8 +3611,7 @@ public class Exchange {
                             Debug.debug1(true);
                         }
 
-                        throw new CorruptVolumeException(
-                                "LONG_RECORD chain cycle at " + bufferArray[0]);
+                        corrupt("LONG_RECORD chain cycle at " + bufferArray[0]);
                     }
                 }
             }
@@ -3795,8 +3790,7 @@ public class Exchange {
                     if (Debug.ENABLED) {
                         Debug.debug1(true);
                     }
-                    throw new CorruptVolumeException(
-                            "LONG_RECORD chain  starting at "
+                    corrupt("LONG_RECORD chain starting at "
                                     + _longRecordPageAddress
                                     + " is invalid at page " + page
                                     + " - invalid page type: " + buffer);
@@ -3808,8 +3802,7 @@ public class Exchange {
                 _volume.getPool().release(buffer);
                 buffer = null;
                 if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
-                    throw new CorruptVolumeException(
-                            "LONG_RECORD chain starting at "
+                    corrupt("LONG_RECORD chain starting at "
                                     + _longRecordPageAddress + " is too long");
                 }
             }
@@ -3827,9 +3820,10 @@ public class Exchange {
             if (Debug.ENABLED) {
                 Debug.$assert(false);
             }
-            throw new CorruptVolumeException("Volume " + _volume + " page "
-                    + buffer.getPageAddress() + " invalid page type " + type
-                    + ": should be " + expectedType);
+            _pool.release(buffer);
+            corrupt("Volume " + _volume + " page " + buffer.getPageAddress()
+                    + " invalid page type " + type + ": should be "
+                    + expectedType);
         }
     }
 
@@ -3983,6 +3977,14 @@ public class Exchange {
         return histogram;
     }
 
+    void corrupt(final String error) throws CorruptVolumeException {
+        if (_persistit.getLogBase().isLoggable(LogBase.LOG_CORRUPT)) {
+            _persistit.getLogBase().log(LogBase.LOG_CORRUPT,
+                    error + Util.NEW_LINE + toStringDetail());
+        }
+        throw new CorruptVolumeException(error);
+    }
+
     /**
      * Store an Object with this Exchange for the convenience of an application.
      * 
@@ -4029,5 +4031,21 @@ public class Exchange {
         } finally {
             _volume.getPool().release(buffer);
         }
+    }
+
+    public String toStringDetail() {
+        final StringBuilder sb = new StringBuilder(toString());
+        for (int level = 0; level < MAX_TREE_DEPTH; level++) {
+            final LevelCache lc = _levelCache[level];
+            if (lc == null || lc._buffer == null) {
+                break;
+            } else {
+                sb.append(Util.NEW_LINE);
+                sb.append(level);
+                sb.append(": ");
+                sb.append(lc);
+            }
+        }
+        return sb.toString();
     }
 }
