@@ -143,6 +143,7 @@ public class LogBase {
             "WAIT_FOR_CLOSE");
     final static int LOG_STRANDED = addLogTemplate(SEVERE, LIFECYCLE,
             "STRANDED");
+    final static int LOG_CORRUPT = addLogTemplate(SEVERE, PERSISTIT, "CORRUPT");
 
     private static ResourceBundle _logBundle;
     private static boolean _logBundleLoadFailed = false;
