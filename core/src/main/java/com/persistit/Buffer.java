@@ -2655,9 +2655,10 @@ public final class Buffer extends SharedResource {
     void takeFastIndex() {
         _fastIndex = null;
     }
-    
+
     /**
      * Only for unit tests.
+     * 
      * @param fastIndex
      */
     void setFastIndex(final FastIndex fastIndex) {
@@ -3551,6 +3552,12 @@ public final class Buffer extends SharedResource {
                         vsize = 0;
                     value.putEncodedBytes(_bytes, tail + _tailHeaderSize
                             + klength, vsize);
+                    if (value.isDefined()
+                            && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE) {
+                        value.setLongRecordMode(true);
+                    } else {
+                        value.setLongRecordMode(false);
+                    }
                     rec._value = new ValueState(value);
                 }
                 result[n++] = rec;

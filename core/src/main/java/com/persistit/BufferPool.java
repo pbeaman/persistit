@@ -765,7 +765,9 @@ public class BufferPool {
         // Didn't find it in the pool, so we'll read a copy.
         //
         buffer = new Buffer(_bufferSize, -1, this, _persistit);
+        buffer.claim(true);
         buffer.load(vol, page);
+        buffer.release();
         return buffer;
     }
 

@@ -236,12 +236,18 @@ public class VolumeSpecification {
         sb.append(path);
         sb.append(',').append(ATTR_ID).append(':').append(id);
         sb.append(',').append(ATTR_PAGE_SIZE).append(':').append(bufferSize);
-        sb.append(',').append(ATTR_INITIAL_PAGES).append(':')
-                .append(initialPages);
-        sb.append(',').append(ATTR_MAXIMUM_PAGES).append(':')
-                .append(maximumPages);
-        sb.append(',').append(ATTR_EXTENSION_PAGES).append(':')
-                .append(extensionPages);
+        if (initialPages >= 0) {
+            sb.append(',').append(ATTR_INITIAL_PAGES).append(':')
+                    .append(initialPages);
+        }
+        if (maximumPages >= 0) {
+            sb.append(',').append(ATTR_MAXIMUM_PAGES).append(':')
+                    .append(maximumPages);
+        }
+        if (extensionPages >= 0) {
+            sb.append(',').append(ATTR_EXTENSION_PAGES).append(':')
+                    .append(extensionPages);
+        }
         if (name != null) {
             sb.append(',').append(ATTR_ALIAS).append(':').append(name);
         }

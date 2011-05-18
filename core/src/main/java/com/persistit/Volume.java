@@ -591,10 +591,7 @@ public class Volume extends SharedResource {
      * @throws PMapException
      */
     private void checkpointMetaData() throws ReadOnlyVolumeException {
-        if (_readOnly) {
-            throw new ReadOnlyVolumeException(toString());
-        }
-        if (updateHeaderInfo(_headBuffer.getBytes())) {
+        if (!_readOnly && updateHeaderInfo(_headBuffer.getBytes())) {
             _headBuffer.setDirtyStructure();
         }
     }

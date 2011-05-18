@@ -69,7 +69,15 @@ public class ManagementCommand {
                         StatisticsTask.class));
     }
 
-    public static ManagementCommand parse(final String commandLine) {
+    /**
+     * Parse a command line string consisting of a command followed by flags and
+     * name=value parameters, all separate by spaces. Argument values containing
+     * spaces can be quoted by a leading backslash.
+     * 
+     * @param commandLine
+     * @return List of String values, one per command name or argument token.
+     */
+    public static List<String> pieces(final String commandLine) {
         final StringBuilder sb = new StringBuilder();
         final List<String> strings = new ArrayList<String>();
         char commandDelimiter = DEFAULT_COMMAND_DELIMITER;
@@ -108,9 +116,19 @@ public class ManagementCommand {
         if (sb.length() > 0) {
             strings.add(sb.toString());
         }
-        if (strings.isEmpty()) {
-            throw new IllegalArgumentException("No command name specified");
-        }
+        return strings;
+    }
+
+    /**
+     * Parse a command line to produce a <code>ManagementCommand</code>.
+     * 
+     * @param commandLine
+     * @return the command
+     * @throws IllegalArgumentException
+     *             if the command name is unknown
+     */
+    public static ManagementCommand parse(final String commandLine) {
+        final List<String> strings = pieces(commandLine);
         final String commandName = strings.remove(0);
         final String[] args = strings.toArray(new String[strings.size()]);
         final CommandStruct commandStruct = COMMAND_SPECIFICATIONS
