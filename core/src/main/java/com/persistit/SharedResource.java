@@ -102,7 +102,7 @@ class SharedResource extends WaitingThreadManager {
     protected volatile int _status;
 
     /**
-     * A counter that increments every time the buffer is changed.
+     * A counter that increments every time the resource is changed.
      */
     protected AtomicLong _generation = new AtomicLong();
 
@@ -165,10 +165,6 @@ class SharedResource extends WaitingThreadManager {
 
     boolean isDirty() {
         return isSet(DIRTY_MASK);
-    }
-
-    boolean isEnqueued() {
-        return isSet(ENQUEUED_MASK);
     }
 
     public boolean isValid() {
@@ -432,18 +428,6 @@ class SharedResource extends WaitingThreadManager {
     void setDirtyStructure() {
         synchronized (_lock) {
             _status |= (DIRTY_MASK | STRUCTURE_MASK);
-        }
-    }
-
-    void setEnqueued() {
-        synchronized (_lock) {
-            _status |= ENQUEUED_MASK;
-        }
-    }
-
-    void setUnenqueued() {
-        synchronized (_lock) {
-            _status &= ~ENQUEUED_MASK;
         }
     }
 
