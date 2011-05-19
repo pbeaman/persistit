@@ -87,6 +87,7 @@ public class CLI {
         commands.put("adminui", new CommandAdminUI());
         commands.put("close", new CommandClose());
         commands.put("init", new CommandInit());
+        commands.put("journal", new CommandJournal());
         commands.put("path", new CommandPath());
         commands.put("select", new CommandSelect());
         commands.put("source", new CommandSource());
@@ -131,10 +132,12 @@ public class CLI {
                     final String[] args = list.toArray(new String[list.size()]);
                     final ArgParser ap = new ArgParser(commandName, args,
                             command.template());
-                    String result = command.execute(ap);
-                    if (result != null) {
-                        _writer.println(result);
-                        _writer.flush();
+                    if (!ap.isUsageOnly()) {
+                        String result = command.execute(ap);
+                        if (result != null) {
+                            _writer.println(result);
+                            _writer.flush();
+                        }
                     }
                 } catch (Exception e) {
                     _writer.println(e);
@@ -167,11 +170,26 @@ public class CLI {
                     "volumepath|string|Volume file",
                     "rmiport|int:1099:0:99999|RMI Management port",
                     "_flag|g|Show AdminUI",
-                    "_flag|r|Recovery committed transactions" };
+                    "_flag|y|Recover committed transactions" };
         }
 
         String execute(final ArgParser ap) throws Exception {
             return init(ap);
+        }
+    }
+
+    class CommandJournal extends Command {
+
+        String[] template() {
+            return JournalTool.ARGS_TEMPLATE;
+        }
+
+        String execute(final ArgParser ap) throws Exception {
+            final JournalTool jt = new JournalTool(_persistit);
+            jt.init(ap);
+            jt.setWriter(_writer);
+            jt.scan();
+            return null;
         }
     }
 
@@ -324,8 +342,7 @@ public class CLI {
             String detail = buffer.toStringDetail();
             if (ap.isFlag('a')) {
                 return detail;
-            }
-            else {
+            } else {
                 int p = -1;
                 for (int i = 0; i < 20; i++) {
                     p = detail.indexOf('\n', p + 1);
@@ -360,6 +377,7 @@ public class CLI {
         String journalpath = ap.getStringValue("journalpath");
         String volumepath = ap.getStringValue("volumepath");
         int rmiport = ap.getIntValue("rmiport");
+        boolean recover = ap.isFlag('y');
 
         String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath
                 : journalpath));
@@ -379,8 +397,11 @@ public class CLI {
         }
         int index = 0;
         for (final VolumeSpecification vs : volumeSpecifications) {
-            properties.put(Persistit.VOLUME_PROPERTY_PREFIX + (++index),
-                    vs.toString());
+            String value = vs.toString();
+            if (!recover) {
+                value += ",readOnly";
+            }
+            properties.put(Persistit.VOLUME_PROPERTY_PREFIX + (++index), value);
         }
         properties.put(Persistit.JOURNAL_PATH_PROPERTY_NAME, jpath);
         properties.put(Persistit.APPEND_ONLY_PROPERTY, "true");
@@ -395,7 +416,9 @@ public class CLI {
         properties.put(Persistit.JMX_PARAMS, "true");
 
         final Persistit persistit = new Persistit();
-        persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
+        if (!recover) {
+            persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
+        }
         persistit.initialize(properties);
         _persistit = persistit;
         return "ok";

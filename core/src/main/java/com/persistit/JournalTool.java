@@ -24,7 +24,8 @@ import static com.persistit.JournalRecord.isValidType;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -67,7 +68,7 @@ public class JournalTool {
 
     private final static int EOJ = -2;
 
-    private final static String[] ARGS_TEMPLATE = {
+    final static String[] ARGS_TEMPLATE = {
             "path|string:|Journal file name",
             "start|long:0:0:10000000000000|Start journal address",
             "end|long:1000000000000000000:0:1000000000000000000|End journal address",
@@ -94,7 +95,7 @@ public class JournalTool {
 
     private String _flags;
 
-    private PrintStream _os = System.out;
+    private PrintWriter _writer = new PrintWriter(new OutputStreamWriter(System.out));
 
     private final Map<Long, FileChannel> _journalFileChannels = new HashMap<Long, FileChannel>();
 
@@ -119,6 +120,86 @@ public class JournalTool {
     private int _valueDisplayLength;
 
     private boolean _verbose;
+
+    public long getStartAddr() {
+        return _startAddr;
+    }
+
+    public void setStartAddr(long startAddr) {
+        _startAddr = startAddr;
+    }
+
+    public long getEndAddr() {
+        return _endAddr;
+    }
+
+    public void setEndAddr(long endAddr) {
+        _endAddr = endAddr;
+    }
+
+    public String getFlags() {
+        return _flags;
+    }
+
+    public void setFlags(String flags) {
+        _flags = flags;
+    }
+
+    public PrintWriter getWriter() {
+        return _writer;
+    }
+
+    public void setWriter(PrintWriter writer) {
+        _writer = writer;
+    }
+
+    public BitSet getSelectedTypes() {
+        return _selectedTypes;
+    }
+
+    public void setSelectedTypes(BitSet selectedTypes) {
+        _selectedTypes = selectedTypes;
+    }
+
+    public RangePredicate getSelectedPages() {
+        return _selectedPages;
+    }
+
+    public void setSelectedPages(RangePredicate selectedPages) {
+        _selectedPages = selectedPages;
+    }
+
+    public RangePredicate getSelectedTimestamps() {
+        return _selectedTimestamps;
+    }
+
+    public void setSelectedTimestamps(RangePredicate selectedTimestamps) {
+        _selectedTimestamps = selectedTimestamps;
+    }
+
+    public int getKeyDisplayLength() {
+        return _keyDisplayLength;
+    }
+
+    public void setKeyDisplayLength(int keyDisplayLength) {
+        _keyDisplayLength = keyDisplayLength;
+    }
+
+    public int getValueDisplayLength() {
+        return _valueDisplayLength;
+    }
+
+    public void setValueDisplayLength(int valueDisplayLength) {
+        _valueDisplayLength = valueDisplayLength;
+    }
+
+    public boolean isVerbose() {
+        return _verbose;
+    }
+
+    public void setVerbose(boolean verbose) {
+        _verbose = verbose;
+    }
 
     interface Action {
         public void je(final long address, final long timestamp,
@@ -166,11 +247,11 @@ public class JournalTool {
         public void eof(final long address) throws Exception;
     }
 
-    private static class RangePredicate {
+    static class RangePredicate {
         private final long[] _left;
         private final long[] _right;
 
-        private RangePredicate(final String ps) {
+        RangePredicate(final String ps) {
             if ("*".equals(ps)) {
                 _left = new long[0];
                 _right = new long[0];
@@ -229,16 +310,22 @@ public class JournalTool {
         }
     }
 
-    JournalTool(final Persistit persistit, final String[] args)
-            throws IOException {
+    JournalTool(final Persistit persistit) {
         _persistit = persistit;
         _action = new SimpleDumpAction();
         _selectedTypes.set(0, 65535, true);
+    }
+    
+    void init(final String[] args) {
         ArgParser ap = new ArgParser("com.persistit.JournalTool", args,
                 ARGS_TEMPLATE);
         if (ap.isUsageOnly()) {
             return;
         }
+        init(ap);
+    }
+    
+    void init(final ArgParser ap) {
         _startAddr = ap.getLongValue("start");
         _endAddr = ap.getLongValue("end");
         String pathName = ap.getStringValue("path");
@@ -521,7 +608,8 @@ public class JournalTool {
         final Persistit persistit = new Persistit();
         JournalTool jt = null;
         try {
-            jt = new JournalTool(persistit, args);
+            jt = new JournalTool(persistit);
+            jt.init(args);
         } catch (IllegalArgumentException e) {
             System.err.println(e.getLocalizedMessage());
             System.exit(1);
@@ -604,7 +692,7 @@ public class JournalTool {
         }
 
         private void end() {
-            _os.println(sb.toString());
+            _writer.println(sb.toString());
         }
 
         // -----------------------
