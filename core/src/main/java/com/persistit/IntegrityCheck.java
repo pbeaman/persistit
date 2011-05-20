@@ -519,7 +519,6 @@ public class IntegrityCheck extends Task {
         if (!tree.claim(true)) {
             throw new TimeoutException(tree + " is in use");
         }
-        _persistit.getLockManager().setDisabled(true);
         try {
             while (again) {
                 try {
@@ -562,7 +561,6 @@ public class IntegrityCheck extends Task {
                 }
             }
         } finally {
-            _persistit.getLockManager().setDisabled(true);
             tree.release();
         }
         return _faults.size() == initialFaultCount;
@@ -751,7 +749,6 @@ public class IntegrityCheck extends Task {
                 oldBuffer = buffer;
                 buffer = getPage(page);
                 if (oldBuffer != startingBuffer) {
-                    _persistit.getLockManager().setOffset(1);
                     releasePage(oldBuffer);
                     oldBuffer = null;
                 }

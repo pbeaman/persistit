@@ -701,6 +701,11 @@ public class BufferPool {
             }
         }
     }
+    
+    void release(final Buffer buffer) {
+        buffer.setTouched();
+        buffer.release();
+    }
 
     /**
      * Returns a copy of Buffer. The returned buffer is newly created, is not a
@@ -755,17 +760,6 @@ public class BufferPool {
         buffer.load(vol, page);
         buffer.release();
         return buffer;
-    }
-
-    void release(Buffer buffer) {
-        if (buffer.isValid() && !buffer.isFixed()) {
-            buffer.setTouched();
-        }
-        buffer.release();
-    }
-
-    void setFixed(final Buffer buffer, boolean fixed) {
-        buffer.setFixed(fixed);
     }
 
     /**

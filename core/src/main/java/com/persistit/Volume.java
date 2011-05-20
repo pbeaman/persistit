@@ -339,7 +339,7 @@ public class Volume extends SharedResource {
             _persistit.addVolume(this);
 
             _headBuffer = _pool.get(this, 0, true, false);
-            _pool.setFixed(_headBuffer, true);
+            _headBuffer.setFixed(true);
             _header = new VolumeHeader(_channel);
 
             _headBuffer.clear();
@@ -380,7 +380,7 @@ public class Volume extends SharedResource {
         } finally {
             if (_headBuffer != null) {
                 if (!open) {
-                    _pool.setFixed(_headBuffer, false);
+                    _headBuffer.setFixed(false);
                 }
                 releaseHeadBuffer();
             }
@@ -448,7 +448,7 @@ public class Volume extends SharedResource {
                 checkpointMetaData();
             }
 
-            _pool.setFixed(_headBuffer, true);
+            _headBuffer.setFixed(true);
             releaseHeadBuffer();
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
@@ -1593,9 +1593,6 @@ public class Volume extends SharedResource {
                     return buffer;
                 } finally {
                     if (garbageBuffer != null) {
-                        if (buffer != null) {
-                            _persistit.getLockManager().setOffset();
-                        }
                         _pool.release(garbageBuffer);
                     }
                 }
@@ -1623,9 +1620,6 @@ public class Volume extends SharedResource {
                 return buffer;
             }
         } finally {
-            if (buffer != null) {
-                _persistit.getLockManager().setOffset();
-            }
             releaseHeadBuffer();
         }
     }
@@ -1687,7 +1681,7 @@ public class Volume extends SharedResource {
     }
 
     void close() throws PersistitException {
-        _pool.setFixed(_headBuffer, false);
+        _headBuffer.setFixed(false);
 
         // _pool.invalidate(this);
 

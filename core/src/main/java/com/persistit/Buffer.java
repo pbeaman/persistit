@@ -487,19 +487,19 @@ public final class Buffer extends SharedResource {
     }
 
     void setDirty() {
-            super.setDirty();
-            bumpGeneration();
-            final long timestamp = _persistit.getTimestampAllocator()
-                    .updateTimestamp();
-            _timestamp = Math.max(_timestamp, timestamp);
+        super.setDirty();
+        bumpGeneration();
+        final long timestamp = _persistit.getTimestampAllocator()
+                .updateTimestamp();
+        _timestamp = Math.max(_timestamp, timestamp);
     }
 
     void setDirtyStructure() {
-            super.setDirtyStructure();
-            bumpGeneration();
-            final long timestamp = _persistit.getTimestampAllocator()
-                    .updateTimestamp();
-            _timestamp = Math.max(_timestamp, timestamp);
+        super.setDirtyStructure();
+        bumpGeneration();
+        final long timestamp = _persistit.getTimestampAllocator()
+                .updateTimestamp();
+        _timestamp = Math.max(_timestamp, timestamp);
     }
 
     /**
@@ -590,7 +590,7 @@ public final class Buffer extends SharedResource {
      * @return
      */
     public long getTimestamp() {
-            return _timestamp;
+        return _timestamp;
     }
 
     /**

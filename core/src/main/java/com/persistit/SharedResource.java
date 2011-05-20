@@ -325,36 +325,30 @@ class SharedResource {
     }
 
     boolean claim(boolean writer, long timeout) {
-        boolean result;
         if (timeout == 0) {
             if (writer) {
-               result = _sync.tryAcquire(1);
+               return _sync.tryAcquire(1);
             } else {
-                result =  _sync.tryAcquireShared(1) >= 0;
+                return _sync.tryAcquireShared(1) >= 0;
             }
         } else {
             try {
                 if (writer) {
-                    result =  _sync.tryAcquireNanos(1, timeout * 1000000);
+                    return  _sync.tryAcquireNanos(1, timeout * 1000000);
                 } else {
-                    result =  _sync.tryAcquireSharedNanos(1, timeout * 1000000);
+                    return  _sync.tryAcquireSharedNanos(1, timeout * 1000000);
                 }
             } catch (InterruptedException e) {
-                result =  false;
+                return  false;
             }
         }
-        if (result) {
-            _persistit.getLockManager().register(this);
-        }
-        return result;
     }
-
+    
     boolean upgradeClaim() throws PersistitException {
         return _sync.tryUpgrade();
     }
 
     void release() {
-        _persistit.getLockManager().unregister(this);
         if (_sync.testBitsInState(WRITER_MASK)) {
             _sync.release(1);
         } else {

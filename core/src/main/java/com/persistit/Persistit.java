@@ -347,8 +347,6 @@ public class Persistit {
     private final SharedResource _transactionResourceB = new SharedResource(
             this);
 
-    private final LockManager _lockManager = new LockManager();
-
     private final HashMap<Long, TransactionalCache> _transactionalCaches = new HashMap<Long, TransactionalCache>();
 
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
@@ -2120,10 +2118,6 @@ public class Persistit {
 
     SharedResource getTransactionResourceB() {
         return _transactionResourceB;
-    }
-
-    LockManager getLockManager() {
-        return _lockManager;
     }
 
     /**
