@@ -29,8 +29,8 @@ import com.persistit.exception.PersistitException;
 public class Tree extends SharedResource {
     private final String _name;
     private final Volume _volume;
-    private long _rootPageAddr;
-    private int _depth;
+    private volatile long _rootPageAddr;
+    private volatile int _depth;
     private AtomicLong _changeCount = new AtomicLong(-1);
     int _hashCode = -1;
     private AtomicReference<Object> _appCache = new AtomicReference<Object>();
@@ -75,9 +75,7 @@ public class Tree extends SharedResource {
      * @return The page address
      */
     public long getRootPageAddr() {
-        synchronized (_lock) {
-            return _rootPageAddr;
-        }
+        return _rootPageAddr;
     }
 
     /**
@@ -86,19 +84,15 @@ public class Tree extends SharedResource {
      * @return The depth
      */
     public int getDepth() {
-        synchronized (_lock) {
-            return _depth;
-        }
+        return _depth;
     }
 
     void changeRootPageAddr(long rootPageAddr, int deltaDepth) {
         if (Debug.ENABLED)
             Debug.$assert(isMine());
-        synchronized (_lock) {
-            _rootPageAddr = rootPageAddr;
-            _depth += deltaDepth;
-            setDirty();
-        }
+        _rootPageAddr = rootPageAddr;
+        _depth += deltaDepth;
+        setDirty();
     }
 
     /**
@@ -109,9 +103,7 @@ public class Tree extends SharedResource {
      * @param lc
      */
     void loadRootLevelInfo(Exchange exchange) {
-        synchronized (_lock) {
-            exchange.setRootLevelInfo(_rootPageAddr, _depth, getGeneration());
-        }
+        exchange.setRootLevelInfo(_rootPageAddr, _depth, getGeneration());
     }
 
     void commit() throws PersistitException {
@@ -207,10 +199,8 @@ public class Tree extends SharedResource {
      * <code>Tree</code> to fail.
      */
     void invalidate() {
-        synchronized (_lock) {
-            _generation.set(-1);
-            super.setValid(false);
-        }
+        super.setValid(false);
+        _generation.set(-1);
     }
 
     /**
@@ -241,15 +231,14 @@ public class Tree extends SharedResource {
     public Object getAppCache() {
         return _appCache.get();
     }
-    
+
     public int getHandle() {
         return _handle.get();
     }
-    
+
     public int setHandle(final int handle) {
         _handle.set(handle);
         return handle;
     }
-
 
 }

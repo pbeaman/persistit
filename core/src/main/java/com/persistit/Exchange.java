@@ -160,13 +160,13 @@ public class Exchange {
     private final LevelCache[] _levelCache = new LevelCache[MAX_TREE_DEPTH];
 
     private BufferPool _pool;
-    private long _treeGeneration = -1;
     private Volume _volume;
     private Tree _tree;
 
-    private int _cacheDepth = 0;
-    private int _treeDepth = 0;
-    private long _rootPage = 0;
+    private volatile long _treeGeneration = -1;
+    private volatile int _cacheDepth = 0;
+    private volatile int _treeDepth = 0;
+    private volatile long _rootPage = 0;
 
     private boolean _exclusive;
     private Key _spareKey1;
@@ -1344,8 +1344,8 @@ public class Exchange {
 
                     if (Debug.ENABLED) {
                         Debug.$assert(buffer != null
-                                && (buffer._status & SharedResource.WRITER_MASK) != 0
-                                && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+                                && (buffer.getStatus() & SharedResource.WRITER_MASK) != 0
+                                && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
                     }
                     if ((foundAt & EXACT_MASK) != 0) {
                         oldLongRecordPointer = buffer
@@ -1377,8 +1377,8 @@ public class Exchange {
                             lockedResourceCount2);
 
                     if (Debug.ENABLED) {
-                        Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
-                                && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+                        Debug.$assert((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
+                                && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
                     }
                     //
                     // If a split is required then putLevel did not change
@@ -1598,8 +1598,8 @@ public class Exchange {
             throws PersistitException {
         if (Debug.ENABLED) {
             Debug.$assert(_exclusive);
-            Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
-                    && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+            Debug.$assert((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
+                    && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
         }
         final Sequence sequence = lc.sequence(foundAt);
         int result = buffer.putValue(key, value, foundAt, false);

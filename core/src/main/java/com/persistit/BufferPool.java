@@ -68,7 +68,7 @@ public class BufferPool {
     /**
      * Ratio of FastIndex to buffers
      */
-    private final static float FAST_INDEX_RATIO = 0.35f;
+    private final static float FAST_INDEX_RATIO = 0.33f;
 
     /**
      * The Persistit instance that references this BufferBool.
@@ -296,7 +296,8 @@ public class BufferPool {
         for (int i = 0; i < _bufferCount; i++) {
             Buffer buffer = _buffers[i];
             if ((vol == null || buffer.getVolume() == vol)
-                    && ((buffer._status & SharedResource.CLAIMED_MASK) != 0 && (!writer || (buffer._status & SharedResource.WRITER_MASK) != 0))) {
+                    && ((buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0 && (!writer || (buffer
+                            .getStatus() & SharedResource.WRITER_MASK) != 0))) {
                 count++;
             }
         }
@@ -364,8 +365,8 @@ public class BufferPool {
     }
 
     private boolean selected(Buffer buffer, int includeMask, int excludeMask) {
-        return ((includeMask == 0) || (buffer._status & includeMask) != 0)
-                && (buffer._status & excludeMask) == 0;
+        return ((includeMask == 0) || (buffer.getStatus() & includeMask) != 0)
+                && (buffer.getStatus() & excludeMask) == 0;
     }
 
     /**
@@ -476,7 +477,7 @@ public class BufferPool {
         for (int index = 0; index < _buffers.length; index++) {
             Buffer buffer = _buffers[index];
             if (buffer.getVolume() == volume) {
-                delete(buffer);
+                invalidate(buffer);
             }
         }
     }
@@ -485,12 +486,8 @@ public class BufferPool {
         if (Debug.ENABLED) {
             Debug.$assert(buffer.isValid());
         }
-        buffer._status &= (~SharedResource.VALID_MASK & ~SharedResource.DIRTY_MASK);
-        buffer.setPageAddressAndVolume(0, null);
-    }
-
-    private void delete(Buffer buffer) {
-        buffer._status |= SharedResource.DELETE_MASK;
+        buffer.setValid(false);
+        buffer.setClean();
         buffer.setPageAddressAndVolume(0, null);
     }
 
@@ -501,7 +498,7 @@ public class BufferPool {
             //
             // If already invalid, we're done.
             //
-            if ((buffer._status & SharedResource.VALID_MASK) == 0) {
+            if (!buffer.isValid()) {
                 return;
             }
             //
@@ -523,17 +520,6 @@ public class BufferPool {
         } finally {
             _hashLocks[hash % HASH_LOCKS].unlock();
         }
-    }
-
-    /**
-     * Removes a Buffer from the LRU list and inserts it at the
-     * most-recently-used end.
-     * 
-     * @param nub
-     *            The Buffer to move
-     */
-    private void makeMostRecentlyUsed(Buffer buffer) {
-        buffer.setBit(1);
     }
 
     /**
@@ -750,7 +736,7 @@ public class BufferPool {
                 if (buffer.getPageAddress() == page
                         && buffer.getVolume() == vol) {
                     if (Debug.ENABLED)
-                        Debug.$assert((buffer._status & SharedResource.VALID_MASK) != 0);
+                        Debug.$assert(buffer.isValid());
                     //
                     // Found it - now return a copy of it.
                     //
@@ -772,9 +758,8 @@ public class BufferPool {
     }
 
     void release(Buffer buffer) {
-        if ((buffer._status & SharedResource.VALID_MASK) != 0
-                && (buffer._status & SharedResource.FIXED_MASK) == 0) {
-            makeMostRecentlyUsed(buffer);
+        if (buffer.isValid() && !buffer.isFixed()) {
+            buffer.setTouched();
         }
         buffer.release();
     }
@@ -802,8 +787,8 @@ public class BufferPool {
             }
             boolean resetDirtyClock = false;
             Buffer buffer = _buffers[clock % _bufferCount];
-            if (buffer.testBit(1)) {
-                buffer.clearBit(1);
+            if (buffer.isTouched()) {
+                buffer.clearTouched();
             } else {
                 if (!buffer.isFixed()
                         && (buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0
@@ -845,12 +830,11 @@ public class BufferPool {
                 findex.clearBit(1);
             } else {
                 Buffer buffer = findex.getBuffer();
-                synchronized (buffer._lock) {
-                    if ((buffer.getStatus() & buffer.CLAIMED_MASK) == 0) {
-                        buffer.takeFastIndex();
-                        findex.invalidate();
-                        return findex;
-                    }
+                if (buffer.claim(true, 0)) {
+                    buffer.takeFastIndex();
+                    buffer.release();
+                    findex.invalidate();
+                    return findex;
                 }
             }
         }
@@ -861,32 +845,14 @@ public class BufferPool {
         WRITTEN, UNAVAILABLE, ERROR
     };
 
-    private boolean needToWrite(final Buffer buffer, final int count,
-            final int max) {
-        if (buffer.isTransient()) {
-            return false;
-        }
-        if (buffer.getTimestamp() > _persistit.getCurrentCheckpoint()
-                .getTimestamp()) {
-            return false;
-        }
-        if (buffer.isDataPage() && !buffer.isStructure()
-                && buffer.getVolume().isLoose()) {
-            return false;
-        }
-        return count < max;
-    }
-
     long earliestDirtyTimestamp() {
         long earliestDirtyTimestamp = Long.MAX_VALUE;
         for (int index = 0; index < _buffers.length; index++) {
             final Buffer buffer = _buffers[index];
-            synchronized (buffer._lock) {
-                if (buffer.isDirty() && !buffer.isTransient()) {
-                    long timestamp = buffer.getTimestamp();
-                    if (timestamp < earliestDirtyTimestamp) {
-                        earliestDirtyTimestamp = timestamp;
-                    }
+            if (buffer.isDirty() && !buffer.isTransient()) {
+                long timestamp = buffer.getTimestamp();
+                if (timestamp < earliestDirtyTimestamp) {
+                    earliestDirtyTimestamp = timestamp;
                 }
             }
         }

@@ -40,7 +40,6 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.WaitingThreadManager.WaitingThread;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
@@ -320,8 +319,6 @@ public class Persistit {
             return new SessionId();
         }
     };
-
-    private ThreadLocal<WaitingThread> _waitingThreadLocal = new ThreadLocal<WaitingThread>();
 
     private final Map<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
 
@@ -1834,7 +1831,6 @@ public class Persistit {
         _volumes.clear();
         _volumesById.clear();
         _bufferPoolTable.clear();
-        _waitingThreadLocal.set(null);
         _transactionalCaches.clear();
 
         if (_management != null) {
@@ -2116,10 +2112,6 @@ public class Persistit {
 
     public IOMeter getIOMeter() {
         return _ioMeter;
-    }
-
-    ThreadLocal<WaitingThread> getWaitingThreadThreadLocal() {
-        return _waitingThreadLocal;
     }
 
     SharedResource getTransactionResourceA() {

@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
@@ -271,7 +272,7 @@ public final class Buffer extends SharedResource {
     /**
      * Timestamp of last Transaction to modify this resource
      */
-    private long _timestamp;
+    private volatile long _timestamp;
 
     /**
      * A ByteBuffer facade for this Buffer used in NIO operations
@@ -368,8 +369,7 @@ public final class Buffer extends SharedResource {
         this(original._bufferSize, original._poolIndex, original._pool,
                 original._persistit);
         _type = original._type;
-        _status = original._status
-                & ~(SharedResource.CLAIMED_MASK | SharedResource.WRITER_MASK);
+        setStatus(original.getStatus());
         _page = original._page;
         _vol = original._vol;
         _rightSibling = original._rightSibling;
@@ -487,23 +487,19 @@ public final class Buffer extends SharedResource {
     }
 
     void setDirty() {
-        synchronized (_lock) {
-            bumpGeneration();
             super.setDirty();
+            bumpGeneration();
             final long timestamp = _persistit.getTimestampAllocator()
                     .updateTimestamp();
             _timestamp = Math.max(_timestamp, timestamp);
-        }
     }
 
     void setDirtyStructure() {
-        synchronized (_lock) {
-            bumpGeneration();
             super.setDirtyStructure();
+            bumpGeneration();
             final long timestamp = _persistit.getTimestampAllocator()
                     .updateTimestamp();
             _timestamp = Math.max(_timestamp, timestamp);
-        }
     }
 
     /**
@@ -594,9 +590,7 @@ public final class Buffer extends SharedResource {
      * @return
      */
     public long getTimestamp() {
-        synchronized (_lock) {
             return _timestamp;
-        }
     }
 
     /**
@@ -1254,8 +1248,10 @@ public final class Buffer extends SharedResource {
      *            The keyblock before which this record will be inserted
      */
     int putValue(Key key, Value value, int foundAt, boolean postSplit) {
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             assertVerify();
+        }
+        final FastIndex fastIndex = _fastIndex;
 
         boolean exactMatch = (foundAt & EXACT_MASK) > 0;
         int p = foundAt & P_MASK;
@@ -1393,8 +1389,8 @@ public final class Buffer extends SharedResource {
                         + _tailHeaderSize + klength, length);
             }
 
-            if (_fastIndex != null) {
-                _fastIndex.insertKeyBlock(p, ebcNew, fixupSuccessor);
+            if (fastIndex != null) {
+                fastIndex.insertKeyBlock(p, ebcNew, fixupSuccessor);
             }
 
             bumpGeneration();
@@ -2640,6 +2636,7 @@ public final class Buffer extends SharedResource {
     }
 
     FastIndex getFastIndex() {
+        // TODO - replace synchronized with CAS instructions
         synchronized (this) {
             if (_fastIndex == null) {
                 _fastIndex = _pool.allocFastIndex();
@@ -3682,7 +3679,7 @@ public final class Buffer extends SharedResource {
         info.alloc = _alloc;
         info.slack = _slack;
         info.timestamp = _timestamp;
-        info.status = _status;
+        info.status = getStatus();
         info.statusName = getStatusCode();
         Thread writerThread = getWriterThread();
         if (writerThread != null) {
@@ -3702,33 +3699,4 @@ public final class Buffer extends SharedResource {
         return _next;
     }
 
-    boolean setBit(int mask) {
-        for (int count = 0;; count++) {
-            int oldValue = _bits.get();
-            int newValue = oldValue | mask;
-            if (oldValue == newValue) {
-                return false;
-            }
-            if (_bits.compareAndSet(oldValue, newValue)) {
-                return true;
-            }
-        }
-    }
-
-    boolean clearBit(int mask) {
-        while (true) {
-            int oldValue = _bits.get();
-            int newValue = oldValue & ~mask;
-            if (oldValue == newValue) {
-                return false;
-            }
-            if (_bits.compareAndSet(oldValue, newValue)) {
-                return true;
-            }
-        }
-    }
-
-    boolean testBit(int mask) {
-        return (_bits.get() & mask) != 0;
-    }
 }
