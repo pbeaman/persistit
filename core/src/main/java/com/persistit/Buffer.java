@@ -412,7 +412,7 @@ public final class Buffer extends SharedResource {
     }
 
     void load() throws InvalidPageStructureException {
-        Debug.$assert(isMine());
+        Debug.$assert(verifyIsMine());
 
         _timestamp = getLong(TIMESTAMP_OFFSET);
 
@@ -684,7 +684,7 @@ public final class Buffer extends SharedResource {
      *            the sibling's address
      */
     void setRightSibling(long pageAddress) {
-        Debug.$assert(isMine());
+        Debug.$assert(verifyIsMine());
         _rightSibling = pageAddress;
     }
 
@@ -2870,7 +2870,7 @@ public final class Buffer extends SharedResource {
      * Repacks the tail blocks so that they are contiguous.
      */
     private void repack() {
-        Debug.$assert(isMine());
+        Debug.$assert(verifyIsMine());
 
         int[] plan = getRepackPlanBuffer();
         //
@@ -3466,7 +3466,7 @@ public final class Buffer extends SharedResource {
         return sb.toString();
     }
 
-    String abridge(final Value value) {
+    private String abridge(final Value value) {
         String s = value.toString();
         if (s.length() > 120) {
             return s.substring(0, 120) + "...";
@@ -3644,7 +3644,7 @@ public final class Buffer extends SharedResource {
     }
 
     void setGarbageLeftPage(long left) {
-        Debug.$assert(isMine());
+        Debug.$assert(verifyIsMine());
         if (Debug.ENABLED) {
             if (Debug.ENABLED)
                 Debug.$assert(left > 0 && left <= MAX_VALID_PAGE_ADDR

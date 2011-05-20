@@ -20,8 +20,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
-import com.persistit.exception.PersistitException;
-
 /**
  * @author pbeaman
  * 
@@ -167,17 +165,6 @@ class SharedResource {
             }
         }
 
-        private boolean tryDowngrade() {
-            for (;;) {
-                int state = getState();
-                if ((state & CLAIMED_MASK) != 1 || (state & WRITER_MASK) == 0) {
-                    return false;
-                } else if (compareAndSetState(state, state + 1)) {
-                    return true;
-                }
-            }
-        }
-
         @Override
         protected boolean tryRelease(int arg) {
             return (releaseState(arg) & WRITER_MASK) == 0;
@@ -317,6 +304,14 @@ class SharedResource {
      */
     boolean isMine() {
         return (_sync.writerThread() == Thread.currentThread());
+    }
+    
+    boolean verifyIsMine() {
+        int state = _sync.state();
+        Thread writer = _sync.writerThread();
+        final boolean mine = (state & WRITER_MASK) != 0 && (state & CLAIMED_MASK) > 0 && writer == Thread.currentThread();
+        Debug.debug1(!mine);
+        return mine;
     }
 
     void setFixed(boolean b) {
