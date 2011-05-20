@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
@@ -46,7 +48,7 @@ class SharedResource {
     final static int DIRTY_MASK = 0x00010000;
 
     /**
-     * Status field mask for valid bit. The bit is set it if the contents of the
+     * Status field mask for valid bit. The bit is set if the contents of the
      * buffer accurately reflects the status of the page.
      */
     final static int VALID_MASK = 0x00020000;
@@ -107,18 +109,18 @@ class SharedResource {
             // Implement non-strict fairness doctrine, as suggested in
             // download.oracle.com/javase/6/docs/api/java/util/concurrent/locks/AbstractQueuedSynchronizer.html
             //
-            Thread thisThread = Thread.currentThread();
-            Thread queuedThread = getFirstQueuedThread();
-            if (queuedThread != null && queuedThread != thisThread
-                    && getExclusiveOwnerThread() != thisThread) {
-                return false;
-            }
+            final Thread thisThread = Thread.currentThread();
             for (;;) {
+                final Thread queuedThread = getFirstQueuedThread();
+                if (queuedThread != null && queuedThread != thisThread
+                        && getExclusiveOwnerThread() != thisThread) {
+                    return false;
+                }
                 int state = getState();
                 if (!isAvailable(state)) {
                     return false;
                 } else if (compareAndSetState(state, (state | WRITER_MASK) + 1)) {
-                    setExclusiveOwnerThread(Thread.currentThread());
+                    setExclusiveOwnerThread(thisThread);
                     return true;
                 }
             }
@@ -130,11 +132,13 @@ class SharedResource {
             // Implement non-strict fairness doctrine, as suggested in
             // download.oracle.com/javase/6/docs/api/java/util/concurrent/locks/AbstractQueuedSynchronizer.html
             //
-            Thread thread = getFirstQueuedThread();
-            if (thread != null && thread != Thread.currentThread()) {
-                return -1;
-            }
+            final Thread thisThread = Thread.currentThread();
             for (;;) {
+                final Thread queuedThread = getFirstQueuedThread();
+                if (queuedThread != null && queuedThread != thisThread
+                        && getExclusiveOwnerThread() != thisThread) {
+                    return -1;
+                }
                 int state = getState();
                 if (!isAvailableShared(state)) {
                     return -1;
@@ -176,14 +180,12 @@ class SharedResource {
 
         @Override
         protected boolean tryRelease(int arg) {
-            assert arg == 1;
-            return (release() & CLAIMED_MASK) == 0;
+            return (releaseState(arg) & WRITER_MASK) == 0;
         }
 
         @Override
         protected boolean tryReleaseShared(int arg) {
-            assert arg == 1;
-            return (release() & WRITER_MASK) == 0;
+            return (releaseState(arg) & WRITER_MASK) == 0;
         }
 
         @Override
@@ -203,18 +205,21 @@ class SharedResource {
                             .currentThread());
         }
 
-        private int release() {
+        private int releaseState(final int count) {
+            assert count == 0 || count == 1;
             for (;;) {
                 int state = getState();
-                int newState = state;
-                if ((newState & CLAIMED_MASK) == 1) {
-                    newState = (newState - 1) & ~WRITER_MASK;
+                if ((state & CLAIMED_MASK) == 1) {
+                    int newState = (state - count) & ~WRITER_MASK;
                     if (compareAndSetState(state, newState)) {
                         setExclusiveOwnerThread(null);
                         return newState;
                     }
-                } else if ((newState & CLAIMED_MASK) > 1) {
-                    newState = (newState - 1);
+                } else if ((state & CLAIMED_MASK) > 1) {
+                    if (count == 0) {
+                        return state;
+                    }
+                    int newState = state - 1;
                     if (compareAndSetState(state, newState)) {
                         return newState;
                     }
@@ -261,6 +266,8 @@ class SharedResource {
 
     private final Sync _sync = new Sync();
 
+    private List<Thread> _threads = new ArrayList<Thread>();
+
     /**
      * A counter that increments every time the resource is changed.
      */
@@ -273,10 +280,6 @@ class SharedResource {
     public boolean isAvailable(boolean writer) {
         return writer ? _sync.isAvailable(_sync.state()) : _sync
                 .isAvailableShared(_sync.state());
-    }
-
-    boolean isClean() {
-        return !isDirty();
     }
 
     boolean isDirty() {
@@ -303,6 +306,10 @@ class SharedResource {
         return _sync.testBitsInState(FIXED_MASK);
     }
 
+    boolean isWriter() {
+        return _sync.testBitsInState(WRITER_MASK);
+    }
+
     /**
      * Indicates whether this Thread has a writer claim on this page.
      * 
@@ -327,42 +334,67 @@ class SharedResource {
     boolean claim(boolean writer, long timeout) {
         if (timeout == 0) {
             if (writer) {
-               return _sync.tryAcquire(1);
+                return _sync.tryAcquire(1);
             } else {
                 return _sync.tryAcquireShared(1) >= 0;
             }
         } else {
             try {
                 if (writer) {
-                    return  _sync.tryAcquireNanos(1, timeout * 1000000);
+                    if (_sync.tryAcquireNanos(1, timeout * 1000000)) {
+                        return true;
+                    }
                 } else {
-                    return  _sync.tryAcquireSharedNanos(1, timeout * 1000000);
+                    if (_sync.tryAcquireSharedNanos(1, timeout * 1000000)) {
+                        return true;
+                    }
                 }
             } catch (InterruptedException e) {
-                return  false;
             }
+            Debug.debug1(true);
+            return false;
         }
     }
-    
-    boolean upgradeClaim() throws PersistitException {
+
+    /**
+     * For debugging resource protocol issues only
+     */
+    synchronized void register() {
+        _threads.add(Thread.currentThread());
+    }
+
+    synchronized boolean unregister() {
+        final Thread t = Thread.currentThread();
+        for (int index = _threads.size(); --index >= 0;) {
+            if (_threads.get(index) == t) {
+                _threads.remove(index);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    synchronized boolean verifyReleased() {
+        final Thread t = Thread.currentThread();
+        for (int index = _threads.size(); --index >= 0;) {
+            if (_threads.get(index) == t) {
+                Debug.debug1(true);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    boolean upgradeClaim() {
         return _sync.tryUpgrade();
     }
 
     void release() {
-        if (_sync.testBitsInState(WRITER_MASK)) {
-            _sync.release(1);
-        } else {
-            _sync.releaseShared(1);
-        }
+        _sync.release(1);
     }
 
     void releaseWriterClaim() {
-
-        // tryDowngrade actually increments the acquired count, allowing
-        // release to then decrement it and unblock waiting threads.
-        if (_sync.tryDowngrade()) {
-            _sync.release(1);
-        }
+        _sync.release(0);
     }
 
     void setClean() {

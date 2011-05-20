@@ -17,8 +17,8 @@ package com.persistit;
 
 import static com.persistit.Buffer.EXACT_MASK;
 import static com.persistit.Buffer.HEADER_SIZE;
-import static com.persistit.Buffer.KEY_BLOCK_START;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
+import static com.persistit.Buffer.KEY_BLOCK_START;
 import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
 import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
 import static com.persistit.Buffer.LONGREC_SIZE;
@@ -187,7 +187,9 @@ public class Exchange {
     private long _longRecordPageAddress;
 
     private Object _appCache;
-
+    
+    private ReentrantResourceHolder _treeHolder;
+    
     public enum Sequence {
         NONE, FORWARD, REVERSE
     }
@@ -327,6 +329,7 @@ public class Exchange {
         if (_volume != volume || _tree != tree) {
             _volume = volume;
             _tree = tree;
+            _treeHolder = new ReentrantResourceHolder(_tree);
             _treeGeneration = -1;
             initCache();
         }
@@ -339,6 +342,7 @@ public class Exchange {
         _persistit = exchange._persistit;
         _volume = exchange._volume;
         _tree = exchange._tree;
+        _treeHolder = new ReentrantResourceHolder(_tree);
         _pool = exchange._pool;
 
         _rootPage = exchange._rootPage;
@@ -370,6 +374,7 @@ public class Exchange {
         _ignoreTransactions = false;
         _splitPolicy = _persistit.getDefaultSplitPolicy();
         _joinPolicy = _persistit.getDefaultJoinPolicy();
+        _treeHolder.verifyReleased();
     }
 
     void initCache() {
@@ -961,7 +966,7 @@ public class Exchange {
         int foundAt = -1;
         boolean found = false;
 
-        if (!_tree.claim(false)) {
+        if (!_treeHolder.claim(false)) {
             if (Debug.ENABLED) {
                 Debug.debug1(true);
             }
@@ -1051,7 +1056,7 @@ public class Exchange {
                 _pool.release(oldBuffer);
                 oldBuffer = null;
             }
-            _tree.release();
+            _treeHolder.release();
         }
     }
 
@@ -1171,6 +1176,9 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
         storeInternal(key, value, 0, false, false);
+
+        _treeHolder.verifyReleased();
+
         return this;
     }
 
@@ -1237,7 +1245,7 @@ public class Exchange {
                 }
 
                 if (treeClaimRequired && !treeClaimAcquired) {
-                    if (!_tree.claim(treeWriterClaimRequired)) {
+                    if (!_treeHolder.claim(treeWriterClaimRequired)) {
                         if (Debug.ENABLED) {
                             Debug.debug1(true);
                         }
@@ -1287,7 +1295,7 @@ public class Exchange {
                         // Need to lock the tree because we may need to change
                         // its root.
                         //
-                        if (!treeClaimAcquired || !_tree.upgradeClaim()) {
+                        if (!treeClaimAcquired || !_treeHolder.upgradeClaim()) {
                             treeClaimRequired = true;
                             treeWriterClaimRequired = true;
                             throw RetryException.SINGLE;
@@ -1420,10 +1428,10 @@ public class Exchange {
                     }
 
                     if (treeClaimAcquired) {
-                        _tree.release();
+                        _treeHolder.release();
                         treeClaimAcquired = false;
                     }
-                    treeClaimAcquired = _tree.claim(true, dontWait ? 0
+                    treeClaimAcquired = _treeHolder.claim(true, dontWait ? 0
                             : Tree.DEFAULT_MAX_WAIT_TIME);
                     if (!treeClaimAcquired) {
                         if (dontWait) {
@@ -1445,7 +1453,7 @@ public class Exchange {
             _exclusive = false;
 
             if (treeClaimAcquired) {
-                _tree.release();
+                _treeHolder.release();
                 treeClaimAcquired = false;
             }
 
@@ -2541,6 +2549,7 @@ public class Exchange {
                 }
                 _pool.release(buffer);
             }
+            _treeHolder.verifyReleased();
         }
     }
 
@@ -2757,7 +2766,10 @@ public class Exchange {
             }
         }
 
-        return removeKeyRangeInternal(_spareKey1, _spareKey2, fetchFirst);
+        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, fetchFirst);
+        _treeHolder.verifyReleased();
+
+        return result;
     }
 
     /**
@@ -2803,7 +2815,10 @@ public class Exchange {
             throw new IllegalArgumentException(
                     "Second key must be larger than first");
         }
-        return removeKeyRangeInternal(_spareKey1, _spareKey2, false);
+        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, false);
+        _treeHolder.verifyReleased();
+
+        return result;
     }
 
     /**
@@ -2918,7 +2933,7 @@ public class Exchange {
                     }
 
                     if (!treeClaimAcquired) {
-                        if (!_tree.claim(treeWriterClaimRequired)) {
+                        if (!_treeHolder.claim(treeWriterClaimRequired)) {
                             if (Debug.ENABLED) {
                                 Debug.debug1(true);
                             }
@@ -2989,7 +3004,7 @@ public class Exchange {
                             //
                             if (!treeWriterClaimRequired) {
                                 treeWriterClaimRequired = true;
-                                if (!_tree.upgradeClaim()) {
+                                if (!_treeHolder.upgradeClaim()) {
                                     throw RetryException.SINGLE;
                                 }
                             }
@@ -3189,12 +3204,12 @@ public class Exchange {
                     }
 
                     if (treeClaimAcquired) {
-                        _tree.release();
+                        _treeHolder.release();
                         treeClaimAcquired = false;
                     }
                 }
                 if (treeWriterClaimRequired) {
-                    if (!_tree.claim(true)) {
+                    if (!_treeHolder.claim(true)) {
                         if (Debug.ENABLED) {
                             Debug.debug1(true);
                         }
@@ -3230,7 +3245,7 @@ public class Exchange {
                         LevelCache lc = _levelCache[level];
                         if (lc._deferredReindexPage != 0) {
                             if (!treeClaimAcquired) {
-                                if (!_tree.claim(treeWriterClaimRequired)) {
+                                if (!_treeHolder.claim(treeWriterClaimRequired)) {
                                     if (Debug.ENABLED) {
                                         Debug.debug1(true);
                                     }
@@ -3283,7 +3298,7 @@ public class Exchange {
         } finally {
             if (treeClaimAcquired) {
                 _tree.bumpGeneration();
-                _tree.release();
+                _treeHolder.release();
                 treeClaimAcquired = false;
             }
             _exclusive = false;
@@ -3788,6 +3803,7 @@ public class Exchange {
         }
         if (_tree != tree) {
             _tree = tree;
+            _treeHolder = new ReentrantResourceHolder(_tree);
             _treeGeneration = -1;
             checkLevelCache();
         }
@@ -3817,8 +3833,8 @@ public class Exchange {
      * needs exclusive access to a Tree
      */
     private void waitForTreeExclusive() throws PersistitException {
-        _tree.claim(true);
-        _tree.release();
+        _treeHolder.claim(true);
+        _treeHolder.release();
     }
 
     public KeyHistogram computeHistogram(final Key start, final Key end,
