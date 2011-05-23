@@ -187,9 +187,9 @@ public class Exchange {
     private long _longRecordPageAddress;
 
     private Object _appCache;
-    
+
     private ReentrantResourceHolder _treeHolder;
-    
+
     public enum Sequence {
         NONE, FORWARD, REVERSE
     }
@@ -1152,10 +1152,8 @@ public class Exchange {
                     + " key=<" + key.toString() + ">"
                     + " walked right more than " + MAX_WALK_RIGHT + " pages"
                     + " last page visited=" + pageAddress);
-
             // won't happen - here to make compiler happy.
             return -1;
-
         } finally {
             if (oldBuffer != null) {
                 _pool.release(oldBuffer);
@@ -2766,7 +2764,8 @@ public class Exchange {
             }
         }
 
-        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, fetchFirst);
+        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2,
+                fetchFirst);
         _treeHolder.verifyReleased();
 
         return result;
@@ -2815,7 +2814,8 @@ public class Exchange {
             throw new IllegalArgumentException(
                     "Second key must be larger than first");
         }
-        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, false);
+        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2,
+                false);
         _treeHolder.verifyReleased();
 
         return result;
@@ -3395,7 +3395,6 @@ public class Exchange {
                 if (Debug.ENABLED) {
                     Debug.debug1(true);
                 }
-
                 corrupt("Invalid LONG_RECORD value size=" + rawSize
                         + " but should be " + LONGREC_SIZE);
             }
@@ -3403,7 +3402,6 @@ public class Exchange {
                 if (Debug.ENABLED) {
                     Debug.debug1(true);
                 }
-
                 corrupt("Invalid LONG_RECORD value type="
                         + (rawBytes[0] & 0xFF) + " but should be "
                         + LONGREC_TYPE);
