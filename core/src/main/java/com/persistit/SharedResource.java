@@ -124,6 +124,7 @@ class SharedResource {
             }
         }
 
+        @Override
         protected int tryAcquireShared(int arg) {
             assert arg == 1;
             //
@@ -156,11 +157,12 @@ class SharedResource {
         private boolean tryUpgrade() {
             for (;;) {
                 int state = getState();
+                final Thread thisThread = Thread.currentThread();
                 if ((state & CLAIMED_MASK) != 1 || ((state & WRITER_MASK) != 0)
-                        && getExclusiveOwnerThread() != Thread.currentThread()) {
+                        && getExclusiveOwnerThread() != thisThread) {
                     return false;
                 } else if (compareAndSetState(state, state | WRITER_MASK)) {
-                    setExclusiveOwnerThread(Thread.currentThread());
+                    setExclusiveOwnerThread(thisThread);
                     return true;
                 }
             }
@@ -199,8 +201,10 @@ class SharedResource {
                 int state = getState();
                 if ((state & CLAIMED_MASK) == 1) {
                     int newState = (state - count) & ~WRITER_MASK;
+                    // Do this first so that another thread setting
+                    // a writer claim does not lose it's copy.
+                    setExclusiveOwnerThread(null);
                     if (compareAndSetState(state, newState)) {
-                        setExclusiveOwnerThread(null);
                         return newState;
                     }
                 } else if ((state & CLAIMED_MASK) > 1) {
@@ -305,16 +309,6 @@ class SharedResource {
      */
     boolean isMine() {
         return (_sync.writerThread() == Thread.currentThread());
-    }
-
-    boolean verifyIsMine() {
-        int state = _sync.state();
-        Thread writer = _sync.writerThread();
-        final boolean mine = (state & WRITER_MASK) != 0
-                && (state & CLAIMED_MASK) > 0
-                && writer == Thread.currentThread();
-        Debug.debug1(!mine);
-        return mine;
     }
 
     void setFixed(boolean b) {
