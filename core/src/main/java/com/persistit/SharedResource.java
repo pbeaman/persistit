@@ -156,7 +156,8 @@ class SharedResource {
         private boolean tryUpgrade() {
             for (;;) {
                 int state = getState();
-                if ((state & CLAIMED_MASK) != 1 || (state & WRITER_MASK) != 0) {
+                if ((state & CLAIMED_MASK) != 1 || ((state & WRITER_MASK) != 0)
+                        && getExclusiveOwnerThread() != Thread.currentThread()) {
                     return false;
                 } else if (compareAndSetState(state, state | WRITER_MASK)) {
                     setExclusiveOwnerThread(Thread.currentThread());
@@ -305,11 +306,13 @@ class SharedResource {
     boolean isMine() {
         return (_sync.writerThread() == Thread.currentThread());
     }
-    
+
     boolean verifyIsMine() {
         int state = _sync.state();
         Thread writer = _sync.writerThread();
-        final boolean mine = (state & WRITER_MASK) != 0 && (state & CLAIMED_MASK) > 0 && writer == Thread.currentThread();
+        final boolean mine = (state & WRITER_MASK) != 0
+                && (state & CLAIMED_MASK) > 0
+                && writer == Thread.currentThread();
         Debug.debug1(!mine);
         return mine;
     }
