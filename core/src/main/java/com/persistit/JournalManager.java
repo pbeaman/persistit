@@ -584,7 +584,7 @@ public class JournalManager implements JournalManagerMXBean,
                     + " leftSize=" + leftSize + " bufferSize=" + bufferSize);
         }
 
-        if (pageAddress != pn.getPageAddress()) {
+        if (pageAddress != pn.getPageAddress() && pn.getPageAddress() != -1) {
             throw new CorruptJournalException("Record at "
                     + pn.toStringJournalAddress(this)
                     + " mismatched page address: expected/actual="
@@ -602,6 +602,51 @@ public class JournalManager implements JournalManagerMXBean,
         }
         bb.limit(bufferSize).position(0);
         return pageAddress;
+    }
+    
+    /**
+     * Method used by diagnostic tools to attempt to read a page from journal
+     * @param address journal address
+     * @param bb ByteBuffer in which to return the result
+     * @return pageAddress of the page at the specified location, or -1 if the
+     * address does not reference a valid page
+     * @throws PersistitException 
+     */
+    Buffer readPageBuffer(final long address) throws PersistitException {
+        ByteBuffer bb = ByteBuffer.allocate(PA.OVERHEAD);
+        readFully(bb, address);
+        if (bb.remaining() < PA.OVERHEAD) {
+            return null;
+        }
+        final int type = PA.getType(bb);
+        final int payloadSize = PA.getLength(bb) - PA.OVERHEAD;
+        final int leftSize = PA.getLeftSize(bb);
+        final int bufferSize = PA.getBufferSize(bb);
+        final long pageAddress = PA.getPageAddress(bb);
+        final int volumeHandle = PA.getVolumeHandle(bb);
+        
+        if (type != PA.TYPE || leftSize < 0 || payloadSize < leftSize || payloadSize > bufferSize) {
+            return null;
+        }
+
+        final BufferPool pool = _persistit.getBufferPool(bufferSize);
+        final Buffer buffer = new Buffer(bufferSize, -1,  pool, _persistit);
+        buffer.setPageAddressAndVolume(pageAddress, volumeForHandle(volumeHandle));
+        bb = buffer.getByteBuffer();
+        bb.limit(payloadSize).position(0);
+        readFully(bb, address + PA.OVERHEAD);
+
+        if (leftSize > 0) {
+            final int rightSize = payloadSize - leftSize;
+            System.arraycopy(bb.array(), leftSize, bb.array(), bufferSize
+                    - rightSize, rightSize);
+            Arrays.fill(bb.array(), leftSize, bufferSize - rightSize, (byte) 0);
+        }
+        bb.limit(bufferSize).position(0);
+        buffer.claim(true, 0);
+        buffer.load();
+        buffer.release();
+        return buffer;
     }
 
     private void advance(final int recordSize) {

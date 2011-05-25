@@ -47,13 +47,12 @@ import com.persistit.exception.TimeoutException;
 public class IntegrityCheck extends Task {
     final static int MAX_FAULTS = 200;
     final static int MAX_WALK_RIGHT = 1000;
-    
+
     final static String COMMAND_NAME = "icheck";
-    final static String[] ARG_TEMPLATE = {
-        "trees|string:|Tree specification",
-        "_flag|u|Don't freeze updates (Default is to freeze updates)",
-        "_flag|h|Don't fix holes (Default is to fix index holes)",
-    };
+    final static String[] ARG_TEMPLATE = { "trees|string:|Tree specification",
+            "_flag|u|Don't freeze updates (Default is to freeze updates)",
+            "_flag|h|Don't fix holes (Default is to fix index holes)",
+            "_flag|v|Verbose results" };
 
     private Tree _currentTree;
     private LongBitSet _usedPageBits = new LongBitSet();
@@ -100,13 +99,17 @@ public class IntegrityCheck extends Task {
         _freezeUpdates = args.length > 1 && "true".equals(args[1]);
         _fixHoles = args.length > 2 && "true".equals(args[2]);
     }
-    
+
     @Override
     public void setupTaskWithArgParser(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
+        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(),
+                args, ARG_TEMPLATE);
         _trees = parseTreeList(ap.getStringValue("trees"));
         _freezeUpdates = !ap.isFlag('u');
         _fixHoles = !ap.isFlag('h');
+        if (ap.isFlag('v')) {
+            _messageLogVerbosity = 5;
+        }
     }
 
     @Override
@@ -387,7 +390,12 @@ public class IntegrityCheck extends Task {
             _description = description;
             _path = new long[level + 1];
             for (int index = 0; index <= level; index++) {
-                _path[index] = work._edgeBuffers[index].getPageAddress();
+                if (index >= work._edgeBuffers.length
+                        || work._edgeBuffers[index] == null) {
+                    _path[index] = 0;
+                } else {
+                    _path[index] = work._edgeBuffers[index].getPageAddress();
+                }
             }
             _path[level] = page;
             _level = level;
@@ -594,6 +602,14 @@ public class IntegrityCheck extends Task {
 
         Buffer buffer = getPage(page);
         _pagesVisited++;
+
+        try {
+            if (parent == 0 && buffer.getRightSibling() != 0) {
+                addFault("Tree root has a right sibling", page, 0, 0);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         try {
             Buffer leftSibling = null;

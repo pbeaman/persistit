@@ -397,6 +397,7 @@ public class JournalTool {
                 return;
             }
         }
+        _writer.flush();
     }
 
     /**

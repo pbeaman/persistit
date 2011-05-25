@@ -493,32 +493,27 @@ public class BufferPool {
 
     private void detach(Buffer buffer) {
         final int hash = hashIndex(buffer.getVolume(), buffer.getPageAddress());
-        _hashLocks[hash % HASH_LOCKS].lock();
-        try {
-            //
-            // If already invalid, we're done.
-            //
-            if (!buffer.isValid()) {
-                return;
-            }
-            //
-            // Detach this buffer from the hash table.
-            //
-            if (_hashTable[hash] == buffer) {
-                _hashTable[hash] = buffer.getNext();
-            } else {
-                Buffer prev = _hashTable[hash];
-                for (Buffer next = prev.getNext(); next != null; next = prev
-                        .getNext()) {
-                    if (next == buffer) {
-                        prev.setNext(next.getNext());
-                        break;
-                    }
-                    prev = next;
+        //
+        // If already invalid, we're done.
+        //
+        if (!buffer.isValid()) {
+            return;
+        }
+        //
+        // Detach this buffer from the hash table.
+        //
+        if (_hashTable[hash] == buffer) {
+            _hashTable[hash] = buffer.getNext();
+        } else {
+            Buffer prev = _hashTable[hash];
+            for (Buffer next = prev.getNext(); next != null; next = prev
+                    .getNext()) {
+                if (next == buffer) {
+                    prev.setNext(next.getNext());
+                    break;
                 }
+                prev = next;
             }
-        } finally {
-            _hashLocks[hash % HASH_LOCKS].unlock();
         }
     }
 
@@ -623,9 +618,9 @@ public class BufferPool {
                     }
                 }
             } else {
-                if (Debug.ENABLED)
+                if (Debug.ENABLED) {
                     Debug.$assert(!mustClaim || !mustRead);
-
+                }
                 if (mustClaim) {
                     if (!buffer.claim(writer)) {
                         throw new InUseException("Thread "
@@ -701,7 +696,7 @@ public class BufferPool {
             }
         }
     }
-    
+
     void release(final Buffer buffer) {
         buffer.setTouched();
         buffer.release();
@@ -758,6 +753,7 @@ public class BufferPool {
         buffer = new Buffer(_bufferSize, -1, this, _persistit);
         buffer.claim(true);
         buffer.load(vol, page);
+        buffer.setValid(true);
         buffer.release();
         return buffer;
     }
@@ -784,9 +780,7 @@ public class BufferPool {
             if (buffer.isTouched()) {
                 buffer.clearTouched();
             } else {
-                if (!buffer.isFixed()
-                        && (buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0
-                        && buffer.checkedClaim(true, 0)) {
+                if (!buffer.isFixed() && buffer.checkedClaim(true, 0)) {
                     if (buffer.isDirty()) {
                         if (!resetDirtyClock) {
                             resetDirtyClock = true;

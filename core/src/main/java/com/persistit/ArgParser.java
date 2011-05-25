@@ -137,6 +137,27 @@ public class ArgParser {
         _flags = flags.toString();
 
     }
+    
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < _template.length; i++) {
+            String t = _template[i];
+            if (t.startsWith("_flag|")) {
+                sb.append("  flag -");
+                sb.append(piece(t, '|', 1));
+                tab(sb, 24);
+                sb.append(piece(t, '|', 2));
+            } else {
+                sb.append("  ");
+                sb.append(piece(t, '|', 0));
+                tab(sb, 24);
+                sb.append(piece(t, '|', 2));
+            }
+            sb.append(Util.NEW_LINE);
+        }
+        return sb.toString();
+    }
 
     /**
      * Display a description of the permissible argument values to
@@ -144,27 +165,9 @@ public class ArgParser {
      */
     public void usage() {
         _usageOnly = true;
-        StringBuilder sb = new StringBuilder();
         System.out.println();
         System.out.println("Usage: java " + _progName + " arguments");
-        for (int i = 0; i < _template.length; i++) {
-            sb.setLength(0);
-            String t = _template[i];
-            if (t.startsWith("_flag|")) {
-                sb.append("  flag -");
-                sb.append(piece(t, '|', 1));
-                tab(sb, 24);
-                sb.append(piece(t, '|', 2));
-                System.out.println(sb);
-            } else {
-                sb.append("  ");
-                sb.append(piece(t, '|', 0));
-                tab(sb, 24);
-                sb.append(piece(t, '|', 2));
-                System.out.println(sb);
-            }
-        }
-        System.out.println();
+        System.out.println(toString());
     }
 
     /**
@@ -283,14 +286,15 @@ public class ArgParser {
         if (s.length() == 0)
             return dflt;
         try {
-            return Long.parseLong(s);
+            return Long.parseLong(s.replace(",", ""));
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(s + " is not a number");
         }
     }
 
     private void tab(StringBuilder sb, int count) {
-        while (sb.length() < count) {
+        int last = sb.lastIndexOf(Util.NEW_LINE);
+        while (sb.length() - last + 1 < count) {
             sb.append(' ');
         }
     }

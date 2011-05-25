@@ -91,7 +91,7 @@ public class Persistit {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit 2.2.1"
+    public final static String VERSION = "Persistit 2.3.2"
             + (Debug.ENABLED ? "-DEBUG" : "");
     /**
      * The copyright notice

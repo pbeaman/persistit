@@ -29,18 +29,22 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.persistit.exception.PersistitException;
 
 public class CLI {
+
+    private final static Pattern ALL = Pattern.compile(".*");
 
     public static void main(final String[] args) throws Exception {
         final PrintWriter writer = new PrintWriter(System.out);
@@ -68,7 +72,7 @@ public class CLI {
     private boolean _stop = false;
     private Volume _currentVolume;
     private Tree _currentTree;
-    Map<String, Command> commands = new HashMap<String, Command>();
+    Map<String, Command> commands = new TreeMap<String, Command>();
 
     interface LineReader {
         public String readLine() throws IOException;
@@ -86,8 +90,11 @@ public class CLI {
 
         commands.put("adminui", new CommandAdminUI());
         commands.put("close", new CommandClose());
+        commands.put("help", new CommandHelp());
+        commands.put("icheck", new CommandICheck());
         commands.put("init", new CommandInit());
         commands.put("journal", new CommandJournal());
+        commands.put("list", new CommandList());
         commands.put("path", new CommandPath());
         commands.put("select", new CommandSelect());
         commands.put("source", new CommandSource());
@@ -139,6 +146,9 @@ public class CLI {
                             _writer.flush();
                         }
                     }
+                } catch (RuntimeException e) {
+                    e.printStackTrace(_writer);
+                    _writer.flush();
                 } catch (Exception e) {
                     _writer.println(e);
                     _writer.flush();
@@ -163,6 +173,75 @@ public class CLI {
         }
     }
 
+    class CommandICheck extends Command {
+        String[] template() {
+            return new String[] {
+                    "volume|string|Volume name pattern",
+                    "tree|string|Tree name pattern",
+                    "_flag|r|Use regex expression",
+                    "_flag|c|Check only the currently selected volume and/or tree",
+                    "_flag|u|Don't freeze updates (Default is to freeze updates)",
+                    "_flag|h|Don't fix holes (Default is to fix index holes)",
+                    "_flag|v|Verbose results" };
+        }
+
+        String execute(final ArgParser ap) throws Exception {
+            if (_persistit == null) {
+                return "Not initialized";
+            }
+            final Pattern vpattern = toRegEx(ap.getStringValue("volume"),
+                    !ap.isFlag('r'));
+            final Pattern tpattern = toRegEx(ap.getStringValue("tree"),
+                    !ap.isFlag('r'));
+            final StringBuilder sb = new StringBuilder();
+            for (final Volume volume : _persistit.getVolumes()) {
+                if (vpattern.matcher(volume.getName()).matches()
+                        && isSelected(volume, ap.isFlag('c'))) {
+                    if (sb.length() > 0) {
+                        sb.append(";");
+                    }
+                    sb.append(volume.getName());
+                    for (final String treeName : volume.getTreeNames()) {
+                        if (tpattern.matcher(treeName).matches()) {
+                            final Tree tree = volume.getTree(treeName, false);
+                            if (isSelected(tree, ap.isFlag('c'))) {
+                                sb.append(",");
+                                sb.append(tree.getName());
+                            }
+                        }
+                    }
+                }
+            }
+            if (ap.isFlag('u')) {
+                sb.append(" -u");
+            }
+            if (ap.isFlag('h')) {
+                sb.append(" -h");
+            }
+            if (ap.isFlag('v')) {
+                sb.append(" -v");
+            }
+            return _persistit.getManagement().execute(
+                    "icheck trees=" + sb.toString());
+        }
+    }
+
+    private boolean isSelected(final Volume volume, final boolean isOnlyCurrent) {
+        if (isOnlyCurrent && _currentVolume != null) {
+            return volume.equals(_currentVolume);
+        } else {
+            return true;
+        }
+    }
+
+    private boolean isSelected(final Tree tree, final boolean isOnlyCurrent) {
+        if (isOnlyCurrent && _currentTree != null) {
+            return tree.equals(_currentTree);
+        } else {
+            return true;
+        }
+    }
+
     class CommandInit extends Command {
         String[] template() {
             return new String[] { "datapath|string|Data path",
@@ -175,6 +254,40 @@ public class CLI {
 
         String execute(final ArgParser ap) throws Exception {
             return init(ap);
+        }
+    }
+
+    class CommandList extends Command {
+        String[] template() {
+            return new String[] { "volume|string|Volume name pattern",
+                    "tree|string|Tree name pattern",
+                    "_flag|r|Use regex expression" };
+        }
+
+        String execute(final ArgParser ap) throws Exception {
+            if (_persistit == null) {
+                return "Not initialized";
+            }
+            final Pattern vpattern = toRegEx(ap.getStringValue("volume"),
+                    !ap.isFlag('r'));
+            final Pattern tpattern = toRegEx(ap.getStringValue("tree"),
+                    !ap.isFlag('r'));
+            final StringBuilder sb = new StringBuilder();
+            for (final Volume volume : _persistit.getVolumes()) {
+                if (vpattern.matcher(volume.getName()).matches()) {
+                    sb.append(volume);
+                    sb.append(Util.NEW_LINE);
+                    for (final String treeName : volume.getTreeNames()) {
+                        if (tpattern.matcher(treeName).matches()) {
+                            final Tree tree = volume.getTree(treeName, false);
+                            sb.append("   ");
+                            sb.append(tree);
+                            sb.append(Util.NEW_LINE);
+                        }
+                    }
+                }
+            }
+            return sb.toString();
         }
     }
 
@@ -250,28 +363,71 @@ public class CLI {
             if (_persistit == null) {
                 return "Not initialized";
             }
-            String vname = ap.getStringValue("volume");
 
-            if (!vname.isEmpty()) {
-                Volume volume = _persistit.getVolume(vname);
-                if (volume == null) {
-                    return String.format("No volume named %s", vname);
-                }
-                _currentVolume = volume;
-            }
+            final StringBuilder sb = new StringBuilder();
 
-            String tname = ap.getStringValue("tree");
-            if (!tname.isEmpty()) {
-                Tree tree = _currentVolume.getTree(tname, false);
-                if (tree == null) {
-                    return String.format("No tree in %s named %s",
-                            _currentVolume, tname);
-                } else {
-                    _currentTree = tree;
+            Volume selectedVolume = null;
+            Tree selectedTree = null;
+
+            boolean tooMany = false;
+
+            final Pattern vpattern = toRegEx(ap.getStringValue("volume"),
+                    !ap.isFlag('r'));
+            final Pattern tpattern = toRegEx(ap.getStringValue("tree"),
+                    !ap.isFlag('r'));
+            for (final Volume volume : _persistit.getVolumes()) {
+                if (vpattern.matcher(volume.getName()).matches()) {
+                    if (selectedVolume == null) {
+                        selectedVolume = volume;
+                    } else if (!tooMany) {
+                        tooMany = true;
+                        sb.append("Multiple volumes - select one");
+                        sb.append(Util.NEW_LINE);
+                        sb.append(selectedVolume);
+                        sb.append(Util.NEW_LINE);
+                    }
+                    sb.append(volume);
+                    sb.append(Util.NEW_LINE);
                 }
             }
-            return String.format("Volume %s tree %s", _currentVolume,
-                    _currentTree);
+            if (tooMany) {
+                return sb.toString();
+            }
+            if (selectedVolume != null) {
+                _currentVolume = selectedVolume;
+            }
+            if (_currentVolume == null) {
+                return "No volume selected";
+            }
+            sb.setLength(0);
+            for (final String treeName : _currentVolume.getTreeNames()) {
+                if (tpattern.matcher(treeName).matches()) {
+                    final Tree tree = _currentVolume.getTree(treeName, false);
+                    if (selectedTree == null) {
+                        selectedTree = tree;
+                    } else if (!tooMany) {
+                        tooMany = true;
+                        sb.append("Multiple trees - select one");
+                        sb.append(Util.NEW_LINE);
+                        sb.append(selectedTree);
+                        sb.append(Util.NEW_LINE);
+                    }
+                    sb.append(tree);
+                    sb.append(Util.NEW_LINE);
+                }
+            }
+            if (tooMany) {
+                return sb.toString();
+            }
+            if (selectedTree != null) {
+                _currentTree = selectedTree;
+            }
+            if (_currentTree == null) {
+                return String.format("Volume %s selected", _currentVolume);
+            } else {
+                return String.format("Volume %s tree %s selected",
+                        _currentVolume, _currentTree);
+            }
         }
     }
 
@@ -307,7 +463,8 @@ public class CLI {
 
     class CommandView extends Command {
         String[] template() {
-            return new String[] { "page|long:0:0:999999999999|Page address",
+            return new String[] { "page|long:-1:-1:999999999999|Page address",
+                    "jaddr|long:-1:-1:99999999999999999|Journal address of a PA page record",
                     "level|int:0:0:20|Tree level", "key|string|Key",
                     "_flag|a|All lines", "_flag|s|Summary only" };
         }
@@ -317,8 +474,29 @@ public class CLI {
                 return "Not initialized";
             }
             final Buffer buffer;
-            long pageAddress = ap.getLongValue("page");
-            if (pageAddress > 0) {
+            final long pageAddress = ap.getLongValue("page");
+            final long journalAddress = ap.getLongValue("jaddr");
+            final String keyString = ap.getStringValue("key");
+            int specified = 0;
+            if (pageAddress >= 0) {
+                specified++;
+            }
+            if (journalAddress >= 0) {
+                specified++;
+            }
+            if (!keyString.isEmpty()) {
+                specified++;
+            }
+            if (specified != 1) {
+                return "Specify one of key=<key>, page=<page address> or journal=<journal address>";
+            }
+            if (journalAddress >= 0) {
+                buffer = _persistit.getJournalManager().readPageBuffer(journalAddress);
+                if (buffer == null) {
+                    return String.format("Journal address %,d is not a valid PA record");
+                }
+                buffer.setValid(true);
+            } else if (pageAddress >= 0) {
                 if (_currentVolume == null) {
                     return "Select a volume";
                 }
@@ -330,7 +508,6 @@ public class CLI {
                 }
                 final Exchange exchange = new Exchange(_currentTree);
                 final int level = ap.getIntValue("level");
-                final String keyString = ap.getStringValue("key");
                 if (!keyString.isEmpty()) {
                     new KeyParser(keyString).parseKey(exchange.getKey());
                 }
@@ -352,6 +529,25 @@ public class CLI {
                 }
                 return detail.substring(0, p);
             }
+        }
+    }
+
+    class CommandHelp extends Command {
+        String[] template() {
+            return new String[0];
+        }
+
+        String execute(final ArgParser ap) throws Exception {
+            final StringBuilder sb = new StringBuilder();
+            for (final Entry<String, ? extends CLI.Command> entry : commands
+                    .entrySet()) {
+                sb.append(entry.getKey());
+                sb.append(Util.NEW_LINE);
+                sb.append(new ArgParser(entry.getKey(), new String[0], entry
+                        .getValue().template()).toString());
+                sb.append(Util.NEW_LINE);
+            }
+            return sb.toString();
         }
     }
 
@@ -403,7 +599,9 @@ public class CLI {
             }
             properties.put(Persistit.VOLUME_PROPERTY_PREFIX + (++index), value);
         }
-        properties.put(Persistit.JOURNAL_PATH_PROPERTY_NAME, jpath);
+        if (jpath != null) {
+            properties.put(Persistit.JOURNAL_PATH_PROPERTY_NAME, jpath);
+        }
         properties.put(Persistit.APPEND_ONLY_PROPERTY, "true");
 
         if (rmiport > 0) {
@@ -421,7 +619,7 @@ public class CLI {
         }
         persistit.initialize(properties);
         _persistit = persistit;
-        return "ok";
+        return "Last value checkpoint=" + persistit.getRecoveryManager().getLastValidCheckpoint().toString();
     }
 
     private String journalPath(List<String> files) {
@@ -581,5 +779,29 @@ public class CLI {
             };
         }
         return lineReader;
+    }
+
+    private Pattern toRegEx(final String pattern, final boolean simple) {
+        if (pattern == null || pattern.isEmpty()) {
+            return ALL;
+        }
+        if (simple) {
+            final StringBuilder sb = new StringBuilder();
+            for (int index = 0; index < pattern.length(); index++) {
+                final char c = pattern.charAt(index);
+                if (c == '.') {
+                    sb.append("\\.");
+                } else if (c == '*') {
+                    sb.append(".*");
+                } else if (c == '?') {
+                    sb.append(".");
+                } else {
+                    sb.append(c);
+                }
+            }
+            return Pattern.compile(sb.toString());
+        } else {
+            return Pattern.compile(pattern);
+        }
     }
 }

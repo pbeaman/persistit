@@ -19,7 +19,6 @@ import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
@@ -445,6 +444,8 @@ public final class Buffer extends SharedResource {
                 }
                 invalidateFastIndex();
             }
+        } else {
+            _type = PAGE_TYPE_HEAD;
         }
         bumpGeneration();
     }
@@ -3422,18 +3423,24 @@ public final class Buffer extends SharedResource {
                 + getPageTypeName();
     }
 
+    /**
+     * @return a human-readable inventory of the contents of this buffer
+     */
     public String toStringDetail() {
-        final StringBuilder sb = new StringBuilder("Page " + _page
-                + " in Volume " + _vol + " at index " + _poolIndex + " status="
-                + getStatusDisplayString() + " type=" + getPageTypeName());
-        sb.append(String.format("\n  type=%,d  alloc=%,d  slack=%,d  "
-                + "keyBlockStart=%,d  keyBlockEnd=%,d "
-                + "timestamp=%,d generation=%,d right=%,d hash=%,d\n", _type,
-                _alloc, _slack, KEY_BLOCK_START, _keyBlockEnd, getTimestamp(),
-                getGeneration(), getRightSibling(),
-                _pool.hashIndex(_vol, _page)));
+        final StringBuilder sb = new StringBuilder(String.format(
+                "Page %,d in volume %s at index @%,d status %s type %s",
+                _page, _vol, _poolIndex, getStatusDisplayString(),
+                getPageTypeName()));
+        if (!isValid()) {
+            sb.append(" - invalid");
+        } else if (isDataPage() || isIndexPage()) {
+            sb.append(String.format("\n  type=%,d  alloc=%,d  slack=%,d  "
+                    + "keyBlockStart=%,d  keyBlockEnd=%,d "
+                    + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
+                    _alloc, _slack, KEY_BLOCK_START, _keyBlockEnd,
+                    getTimestamp(), getGeneration(), getRightSibling(),
+                    _pool.hashIndex(_vol, _page)));
 
-        if (isDataPage() || isIndexPage()) {
             try {
                 final Key key = new Key((Persistit) null);
                 final Value value = new Value((Persistit) null);
@@ -3442,26 +3449,55 @@ public final class Buffer extends SharedResource {
                     r.getKeyState().copyTo(key);
                     if (isDataPage()) {
                         r.getValueState().copyTo(value);
-                        sb.append(String
-                                .format("%5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s\n",
-                                        r.getKbOffset(), r.getDb(), r.getEbc(),
-                                        r.getTbOffset(), r.getKLength(), key, r
-                                                .getValueState()
-                                                .getEncodedBytes().length,
-                                        abridge(value)));
+                        sb.append(String.format(
+                                "\n   %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s",
+                                r.getKbOffset(), r.getDb(), r.getEbc(), r
+                                        .getTbOffset(), r.getKLength(), key,
+                                r.getValueState().getEncodedBytes().length,
+                                abridge(value)));
                     } else {
                         sb.append(String.format(
-                                "%5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d\n",
+                                "%\n   5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d",
                                 r.getKbOffset(), r.getDb(), r.getEbc(),
                                 r.getTbOffset(), r.getKLength(), key,
                                 r.getPointerValue()));
                     }
                 }
             } catch (Exception e) {
-                sb.append("\n");
-                sb.append(e);
-                e.printStackTrace();
+                sb.append(" - " + e);
             }
+        } else if (isHeadPage()) {
+            //
+            // TODO - Desperately needs to be refactored so that Volume and this
+            // method don't need all these constant byte references.
+            //
+            sb.append(String.format("\n  type=%,d  "
+                    + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
+                    getTimestamp(), getGeneration(), getRightSibling(),
+                    _pool.hashIndex(_vol, _page)));
+            sb.append(String
+                    .format("/n  highestPageUsed=%,d pageCount=%,d "
+                            + "firstAvailablePage=%,d directoryRootPage=%,d garbageRootPage=%,d id=%,d ",
+                            Util.getLong(_bytes, 104),
+                            Util.getLong(_bytes, 112),
+                            Util.getLong(_bytes, 136),
+                            Util.getLong(_bytes, 144),
+                            Util.getLong(_bytes, 152), Util.getLong(_bytes, 32)));
+        } else if (isGarbagePage()) {
+            sb.append(String.format("\n  type=%,d  "
+                    + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
+                    getTimestamp(), getGeneration(), getRightSibling(),
+                    _pool.hashIndex(_vol, _page)));
+            for (int p = _alloc; p < _bufferSize; p += GARBAGE_BLOCK_SIZE) {
+                sb.append(String.format("\n  garbage chain @%,6d : %,d -> %,d",
+                        p, getLong(p + GARBAGE_BLOCK_LEFT_PAGE), getLong(p
+                                + GARBAGE_BLOCK_RIGHT_PAGE)));
+            }
+        } else {
+            sb.append(String.format("\n  type=%,d  "
+                    + "timestamp=%,d generation=%,d right=%,d hash=%,d\n",
+                    _type, getTimestamp(), getGeneration(), getRightSibling(),
+                    _pool.hashIndex(_vol, _page)));
         }
         return sb.toString();
     }
