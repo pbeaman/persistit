@@ -121,16 +121,6 @@ public class Tree extends SharedResource {
         _changeCount.incrementAndGet();
     }
 
-    /**
-     * Sets the tree name to null. This is done only by Volume.getTree() which
-     * may create a Tree and then immediately discard it. Clearing the change
-     * count prevents removing the surviving tree having the same name from the
-     * tree map.
-     */
-    void destroy() {
-        _changeCount.set(-1);
-    }
-
     long getChangeCount() {
         return _changeCount.get();
     }

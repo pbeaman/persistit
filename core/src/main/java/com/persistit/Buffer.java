@@ -214,7 +214,8 @@ public final class Buffer extends SharedResource {
     // Shift for tail pointer
     private final static int TAIL_SHIFT = 20 - 2;
 
-    private final static int GARBAGE_BLOCK_SIZE = 32;
+    final static int GARBAGE_BLOCK_SIZE = 32;
+
     private final static int GARBAGE_BLOCK_STATUS = 4;
     private final static int GARBAGE_BLOCK_LEFT_PAGE = 8;
     private final static int GARBAGE_BLOCK_RIGHT_PAGE = 16;
@@ -367,8 +368,9 @@ public final class Buffer extends SharedResource {
     Buffer(Buffer original) {
         this(original._bufferSize, original._poolIndex, original._pool,
                 original._persistit);
+        setStatus(original.getStatus() & ~(WRITER_MASK | CLAIMED_MASK));
         _type = original._type;
-        setStatus(original.getStatus());
+        _timestamp = original._timestamp;
         _page = original._page;
         _vol = original._vol;
         _rightSibling = original._rightSibling;
@@ -3428,9 +3430,8 @@ public final class Buffer extends SharedResource {
      */
     public String toStringDetail() {
         final StringBuilder sb = new StringBuilder(String.format(
-                "Page %,d in volume %s at index @%,d status %s type %s",
-                _page, _vol, _poolIndex, getStatusDisplayString(),
-                getPageTypeName()));
+                "Page %,d in volume %s at index @%,d status %s type %s", _page,
+                _vol, _poolIndex, getStatusDisplayString(), getPageTypeName()));
         if (!isValid()) {
             sb.append(" - invalid");
         } else if (isDataPage() || isIndexPage()) {
@@ -3449,15 +3450,16 @@ public final class Buffer extends SharedResource {
                     r.getKeyState().copyTo(key);
                     if (isDataPage()) {
                         r.getValueState().copyTo(value);
-                        sb.append(String.format(
-                                "\n   %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s",
-                                r.getKbOffset(), r.getDb(), r.getEbc(), r
-                                        .getTbOffset(), r.getKLength(), key,
-                                r.getValueState().getEncodedBytes().length,
-                                abridge(value)));
+                        sb.append(String
+                                .format("\n   %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s",
+                                        r.getKbOffset(), r.getDb(), r.getEbc(),
+                                        r.getTbOffset(), r.getKLength(), key, r
+                                                .getValueState()
+                                                .getEncodedBytes().length,
+                                        abridge(value)));
                     } else {
                         sb.append(String.format(
-                                "%\n   5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d",
+                                "\n  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d",
                                 r.getKbOffset(), r.getDb(), r.getEbc(),
                                 r.getTbOffset(), r.getKLength(), key,
                                 r.getPointerValue()));
@@ -3665,6 +3667,18 @@ public final class Buffer extends SharedResource {
             return -1;
         else
             return getLong(_alloc + GARBAGE_BLOCK_RIGHT_PAGE);
+    }
+
+    long getGarbageChainLeftPage(int p) {
+        long page = getLong(p + GARBAGE_BLOCK_LEFT_PAGE);
+        if (Debug.ENABLED)
+            Debug.$assert(page > 0 && page <= MAX_VALID_PAGE_ADDR
+                    && page != _page);
+        return page;
+    }
+
+    long getGarbageChainRightPage(int p) {
+        return getLong(p + GARBAGE_BLOCK_RIGHT_PAGE);
     }
 
     boolean removeGarbageChain() {

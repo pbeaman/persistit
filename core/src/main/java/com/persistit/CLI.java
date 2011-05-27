@@ -619,7 +619,7 @@ public class CLI {
         }
         persistit.initialize(properties);
         _persistit = persistit;
-        return "Last value checkpoint=" + persistit.getRecoveryManager().getLastValidCheckpoint().toString();
+        return "Last valid checkpoint=" + persistit.getRecoveryManager().getLastValidCheckpoint().toString();
     }
 
     private String journalPath(List<String> files) {

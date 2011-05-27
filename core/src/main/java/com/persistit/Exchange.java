@@ -1491,17 +1491,14 @@ public class Exchange {
         if (Debug.ENABLED) {
             Debug.suspend();
         }
-        for (;;) {
-            if (_hasDeferredDeallocations) {
-                _volume.commitAllDeferredDeallocations();
-                _hasDeferredDeallocations = false;
-            }
-            if (_hasDeferredTreeUpdate) {
-                _tree.commit();
-                _volume.getDirectoryTree().commit();
-                _hasDeferredTreeUpdate = false;
-            }
-            break;
+        if (_hasDeferredDeallocations) {
+            _volume.commitAllDeferredDeallocations();
+            _hasDeferredDeallocations = false;
+        }
+        if (_hasDeferredTreeUpdate) {
+            _tree.commit();
+            _volume.getDirectoryTree().commit();
+            _hasDeferredTreeUpdate = false;
         }
     }
 
