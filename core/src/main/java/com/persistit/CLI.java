@@ -104,6 +104,7 @@ public class CLI {
     public void run() throws Exception {
         while (!_stop) {
             final String input;
+            _writer.flush();
             if (!_sourceStack.isEmpty()) {
                 input = _sourceStack.peek().readLine();
                 if (input == null) {
@@ -143,15 +144,12 @@ public class CLI {
                         String result = command.execute(ap);
                         if (result != null) {
                             _writer.println(result);
-                            _writer.flush();
                         }
                     }
                 } catch (RuntimeException e) {
                     e.printStackTrace(_writer);
-                    _writer.flush();
                 } catch (Exception e) {
                     _writer.println(e);
-                    _writer.flush();
                 }
                 continue;
             }
@@ -182,7 +180,7 @@ public class CLI {
                     "_flag|c|Check only the currently selected volume and/or tree",
                     "_flag|u|Don't freeze updates (Default is to freeze updates)",
                     "_flag|h|Don't fix holes (Default is to fix index holes)",
-                    "_flag|v|Verbose results" };
+                    "_flag|v|Verbose results", "_flag|v|All volumes" };
         }
 
         String execute(final ArgParser ap) throws Exception {
@@ -194,6 +192,7 @@ public class CLI {
             final Pattern tpattern = toRegEx(ap.getStringValue("tree"),
                     !ap.isFlag('r'));
             final StringBuilder sb = new StringBuilder();
+
             for (final Volume volume : _persistit.getVolumes()) {
                 if (vpattern.matcher(volume.getName()).matches()
                         && isSelected(volume, ap.isFlag('c'))) {
@@ -201,17 +200,26 @@ public class CLI {
                         sb.append(";");
                     }
                     sb.append(volume.getName());
-                    for (final String treeName : volume.getTreeNames()) {
-                        if (tpattern.matcher(treeName).matches()) {
-                            final Tree tree = volume.getTree(treeName, false);
-                            if (isSelected(tree, ap.isFlag('c'))) {
-                                sb.append(",");
-                                sb.append(tree.getName());
+                    //
+                    // Add tree names only to limit the check to specific
+                    // trees. Adding only the volume name checks the entire
+                    // volume.
+                    //
+                    if (tpattern != ALL || ap.isFlag('c')) {
+                        for (final String treeName : volume.getTreeNames()) {
+                            if (tpattern.matcher(treeName).matches()) {
+                                final Tree tree = volume.getTree(treeName,
+                                        false);
+                                if (isSelected(tree, ap.isFlag('c'))) {
+                                    sb.append(",");
+                                    sb.append(tree.getName());
+                                }
                             }
                         }
                     }
                 }
             }
+
             if (ap.isFlag('u')) {
                 sb.append(" -u");
             }
@@ -463,10 +471,13 @@ public class CLI {
 
     class CommandView extends Command {
         String[] template() {
-            return new String[] { "page|long:-1:-1:999999999999|Page address",
+            return new String[] {
+                    "page|long:-1:-1:999999999999|Page address",
                     "jaddr|long:-1:-1:99999999999999999|Journal address of a PA page record",
                     "level|int:0:0:20|Tree level", "key|string|Key",
-                    "_flag|a|All lines", "_flag|s|Summary only" };
+                    "_flag|a|All lines", "_flag|s|Summary only",
+                    "_flag|h|View page map history",
+                    "_flag|b|View branch map history"};
         }
 
         String execute(final ArgParser ap) throws Exception {
@@ -491,9 +502,12 @@ public class CLI {
                 return "Specify one of key=<key>, page=<page address> or journal=<journal address>";
             }
             if (journalAddress >= 0) {
-                buffer = _persistit.getJournalManager().readPageBuffer(journalAddress);
+                buffer = _persistit.getJournalManager().readPageBuffer(
+                        journalAddress);
                 if (buffer == null) {
-                    return String.format("Journal address %,d is not a valid PA record");
+                    return String.format(
+                            "Journal address %,d is not a valid PA record",
+                            journalAddress);
                 }
                 buffer.setValid(true);
             } else if (pageAddress >= 0) {
@@ -515,6 +529,14 @@ public class CLI {
             }
             if (ap.isFlag('s')) {
                 return buffer.toString();
+            }
+            if (ap.isFlag('h')) {
+                return _persistit.getJournalManager().pageHistory(
+                        _currentVolume, buffer.getPageAddress(), false);
+            }
+            if (ap.isFlag('b')) {
+                return _persistit.getJournalManager().pageHistory(
+                        buffer.getVolume(), buffer.getPageAddress(), true);
             }
             String detail = buffer.toStringDetail();
             if (ap.isFlag('a')) {
@@ -619,7 +641,9 @@ public class CLI {
         }
         persistit.initialize(properties);
         _persistit = persistit;
-        return "Last valid checkpoint=" + persistit.getRecoveryManager().getLastValidCheckpoint().toString();
+        return "Last valid checkpoint="
+                + persistit.getRecoveryManager().getLastValidCheckpoint()
+                        .toString();
     }
 
     private String journalPath(List<String> files) {

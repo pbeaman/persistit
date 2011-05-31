@@ -274,6 +274,7 @@ public abstract class Task implements Runnable {
                 sb.setLength(0);
                 if (volume == null) {
                     volume = _persistit.getVolume(name);
+                    list.add(volume.getDirectoryTree());
                 } else {
                     Tree tree = volume.getTree(name, false);
                     if (tree != null) {
@@ -287,7 +288,6 @@ public abstract class Task implements Runnable {
         }
 
         Tree[] result = (Tree[]) list.toArray(new Tree[list.size()]);
-
         return result;
     }
 
