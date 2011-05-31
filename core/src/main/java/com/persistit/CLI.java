@@ -475,9 +475,7 @@ public class CLI {
                     "page|long:-1:-1:999999999999|Page address",
                     "jaddr|long:-1:-1:99999999999999999|Journal address of a PA page record",
                     "level|int:0:0:20|Tree level", "key|string|Key",
-                    "_flag|a|All lines", "_flag|s|Summary only",
-                    "_flag|h|View page map history",
-                    "_flag|b|View branch map history"};
+                    "_flag|a|All lines", "_flag|s|Summary only"};
         }
 
         String execute(final ArgParser ap) throws Exception {
@@ -529,14 +527,6 @@ public class CLI {
             }
             if (ap.isFlag('s')) {
                 return buffer.toString();
-            }
-            if (ap.isFlag('h')) {
-                return _persistit.getJournalManager().pageHistory(
-                        _currentVolume, buffer.getPageAddress(), false);
-            }
-            if (ap.isFlag('b')) {
-                return _persistit.getJournalManager().pageHistory(
-                        buffer.getVolume(), buffer.getPageAddress(), true);
             }
             String detail = buffer.toStringDetail();
             if (ap.isFlag('a')) {
