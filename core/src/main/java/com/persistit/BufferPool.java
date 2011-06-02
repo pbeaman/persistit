@@ -491,30 +491,35 @@ public class BufferPool {
         buffer.setPageAddressAndVolume(0, null);
     }
 
-    private void detach(Buffer buffer) {
+    private boolean detach(Buffer buffer) {
         final int hash = hashIndex(buffer.getVolume(), buffer.getPageAddress());
-        //
-        // If already invalid, we're done.
-        //
-        if (!buffer.isValid()) {
-            return;
+        if (!_hashLocks[hash % HASH_LOCKS].tryLock()) {
+            return false;
         }
-        //
-        // Detach this buffer from the hash table.
-        //
-        if (_hashTable[hash] == buffer) {
-            _hashTable[hash] = buffer.getNext();
-        } else {
-            Buffer prev = _hashTable[hash];
-            for (Buffer next = prev.getNext(); next != null; next = prev
-                    .getNext()) {
-                if (next == buffer) {
-                    prev.setNext(next.getNext());
-                    break;
+        try {
+            //
+            // If already invalid, we're done.
+            //
+            //
+            // Detach this buffer from the hash table.
+            //
+            if (_hashTable[hash] == buffer) {
+                _hashTable[hash] = buffer.getNext();
+            } else {
+                Buffer prev = _hashTable[hash];
+                for (Buffer next = prev.getNext(); next != null; next = prev
+                        .getNext()) {
+                    if (next == buffer) {
+                        prev.setNext(next.getNext());
+                        break;
+                    }
+                    prev = next;
                 }
-                prev = next;
             }
+        } finally {
+            _hashLocks[hash % HASH_LOCKS].unlock();
         }
+        return true;
     }
 
     /**
@@ -791,15 +796,19 @@ public class BufferPool {
                         }
                         buffer.release();
                     } else {
-                        if (buffer.isValid()) {
-                            detach(buffer);
+                        if (buffer.isValid() && detach(buffer)) {
+                            buffer.setValid(false);
                             _evictCounter.incrementAndGet();
                             _persistit.getIOMeter().chargeEvictPageFromPool(
                                     buffer.getVolume(),
                                     buffer.getPageAddress(),
                                     buffer.getBufferSize(), buffer.getIndex());
                         }
-                        return buffer;
+                        if (!buffer.isValid()) {
+                            return buffer;
+                        } else {
+                            buffer.release();
+                        }
                     }
                 }
             }

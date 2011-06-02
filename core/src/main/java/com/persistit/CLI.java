@@ -23,6 +23,11 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.io.Reader;
+import java.lang.annotation.Annotation;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
 import java.lang.reflect.InvocationTargetException;
@@ -32,7 +37,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Stack;
@@ -44,13 +48,25 @@ import com.persistit.exception.PersistitException;
 
 public class CLI {
 
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.METHOD)
+    private @interface Cmd {
+        String value();
+    }
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.PARAMETER)
+    private @interface Arg {
+        String value();
+    }
+
     private final static Pattern ALL = Pattern.compile(".*");
 
     public static void main(final String[] args) throws Exception {
         final PrintWriter writer = new PrintWriter(System.out);
         final LineReader reader = lineReader(new BufferedReader(
                 new InputStreamReader(System.in)), writer);
-        new CLI(reader, writer).run();
+        new CLI(reader, writer).mainLoop();
     }
 
     public static long availableMemory() {
@@ -78,30 +94,68 @@ public class CLI {
         public String readLine() throws IOException;
     }
 
-    abstract class Command {
-        abstract String[] template();
+    private class Command {
+        final String name;
+        final String[] argTemplate;
+        final Method method;
 
-        abstract String execute(final ArgParser ap) throws Exception;
+        private Command(final String name, final String[] argTemplate,
+                final Method method) {
+            this.name = name;
+            this.argTemplate = argTemplate;
+            this.method = method;
+        }
+
+        private String execute(final ArgParser ap) throws Exception {
+            Class<?>[] types = method.getParameterTypes();
+            final Object[] args = new Object[types.length];
+            for (int index = 0; index < types.length; index++) {
+                Class<?> type = types[index];
+                if (String.class.equals(type)) {
+                    args[index] = ap.stringValue(index);
+                } else if (int.class.equals(type)) {
+                    args[index] = ap.intValue(index);
+                } else if (long.class.equals(type)) {
+                    args[index] = ap.longValue(index);
+                } else if (boolean.class.equals(type)) {
+                    args[index] = ap.booleanValue(index);
+                } else {
+                    throw new IllegalArgumentException("Method " + method
+                            + " takes an unsupported argument type " + type);
+                }
+            }
+            String result = (String) method.invoke(CLI.this, args);
+            return result;
+        }
+
+        public String toString() {
+            StringBuilder sb = new StringBuilder(name);
+            sb.append(Util.NEW_LINE);
+            sb.append(new ArgParser(name, new String[0], argTemplate));
+            return sb.toString();
+        }
     }
 
     private CLI(final LineReader reader, final PrintWriter writer) {
         _reader = reader;
         _writer = writer;
 
-        commands.put("adminui", new CommandAdminUI());
-        commands.put("close", new CommandClose());
-        commands.put("help", new CommandHelp());
-        commands.put("icheck", new CommandICheck());
-        commands.put("init", new CommandInit());
-        commands.put("journal", new CommandJournal());
-        commands.put("list", new CommandList());
-        commands.put("path", new CommandPath());
-        commands.put("select", new CommandSelect());
-        commands.put("source", new CommandSource());
-        commands.put("view", new CommandView());
+        for (final Method method : getClass().getDeclaredMethods()) {
+            if (method.isAnnotationPresent(Cmd.class)) {
+                String name = method.getAnnotation(Cmd.class).value();
+                Annotation[][] parameters = method.getParameterAnnotations();
+                String[] argTemplate = new String[parameters.length];
+                int index = 0;
+                for (Annotation[] annotations : parameters) {
+                    Arg argAnnotation = (Arg) annotations[0];
+                    argTemplate[index++] = argAnnotation.value();
+                }
+                commands.put(name, new Command(name, argTemplate, method));
+            }
+        }
     }
 
-    public void run() throws Exception {
+    public void mainLoop() throws Exception {
         while (!_stop) {
             final String input;
             _writer.flush();
@@ -139,7 +193,7 @@ public class CLI {
                 try {
                     final String[] args = list.toArray(new String[list.size()]);
                     final ArgParser ap = new ArgParser(commandName, args,
-                            command.template());
+                            command.argTemplate);
                     if (!ap.isUsageOnly()) {
                         String result = command.execute(ap);
                         if (result != null) {
@@ -171,67 +225,61 @@ public class CLI {
         }
     }
 
-    class CommandICheck extends Command {
-        String[] template() {
-            return new String[] {
-                    "volume|string|Volume name pattern",
-                    "tree|string|Tree name pattern",
-                    "_flag|r|Use regex expression",
-                    "_flag|c|Check only the currently selected volume and/or tree",
-                    "_flag|u|Don't freeze updates (Default is to freeze updates)",
-                    "_flag|h|Don't fix holes (Default is to fix index holes)",
-                    "_flag|v|Verbose results", "_flag|v|All volumes" };
+    @Cmd("icheck")
+    String icheck(
+            @Arg("volume|string|Volume name pattern") String vname,
+            @Arg("tree|string|Tree name pattern") String tname,
+            @Arg("_flag|r|Use regex expression") boolean r,
+            @Arg("_flag|c|Check only the currently selected volume and/or tree") boolean c,
+            @Arg("_flag|u|Don't freeze updates (Default is to freeze updates)") boolean u,
+            @Arg("_flag|h|Don't fix holes (Default is to fix index holes)") boolean h,
+            @Arg("_flag|v|Verbose results") boolean v,
+            @Arg("_flag|a|All volumes") boolean a) throws Exception {
+        if (_persistit == null) {
+            return "Persistit not loaded";
         }
+        final Pattern vpattern = toRegEx(vname, !r);
+        final Pattern tpattern = toRegEx(tname, !r);
+        final StringBuilder sb = new StringBuilder();
 
-        String execute(final ArgParser ap) throws Exception {
-            if (_persistit == null) {
-                return "Not initialized";
-            }
-            final Pattern vpattern = toRegEx(ap.getStringValue("volume"),
-                    !ap.isFlag('r'));
-            final Pattern tpattern = toRegEx(ap.getStringValue("tree"),
-                    !ap.isFlag('r'));
-            final StringBuilder sb = new StringBuilder();
-
-            for (final Volume volume : _persistit.getVolumes()) {
-                if (vpattern.matcher(volume.getName()).matches()
-                        && isSelected(volume, ap.isFlag('c'))) {
-                    if (sb.length() > 0) {
-                        sb.append(";");
-                    }
-                    sb.append(volume.getName());
-                    //
-                    // Add tree names only to limit the check to specific
-                    // trees. Adding only the volume name checks the entire
-                    // volume.
-                    //
-                    if (tpattern != ALL || ap.isFlag('c')) {
-                        for (final String treeName : volume.getTreeNames()) {
-                            if (tpattern.matcher(treeName).matches()) {
-                                final Tree tree = volume.getTree(treeName,
-                                        false);
-                                if (isSelected(tree, ap.isFlag('c'))) {
-                                    sb.append(",");
-                                    sb.append(tree.getName());
-                                }
+        for (final Volume volume : _persistit.getVolumes()) {
+            if (vpattern.matcher(volume.getName()).matches()
+                    && isSelected(volume, c)) {
+                if (sb.length() > 0) {
+                    sb.append(";");
+                }
+                sb.append(volume.getName());
+                //
+                // Add tree names only to limit the check to specific
+                // trees. Adding only the volume name checks the entire
+                // volume.
+                //
+                if (tpattern != ALL || c) {
+                    for (final String treeName : volume.getTreeNames()) {
+                        if (tpattern.matcher(treeName).matches()) {
+                            final Tree tree = volume.getTree(treeName, false);
+                            if (isSelected(tree, c)) {
+                                sb.append(",");
+                                sb.append(tree.getName());
                             }
                         }
                     }
                 }
             }
-
-            if (ap.isFlag('u')) {
-                sb.append(" -u");
-            }
-            if (ap.isFlag('h')) {
-                sb.append(" -h");
-            }
-            if (ap.isFlag('v')) {
-                sb.append(" -v");
-            }
-            return _persistit.getManagement().execute(
-                    "icheck trees=" + sb.toString());
         }
+
+        if (u) {
+            sb.append(" -u");
+        }
+        if (h) {
+            sb.append(" -h");
+        }
+        if (v) {
+            sb.append(" -v");
+        }
+        return _persistit.getManagement().execute(
+                "icheck trees=" + sb.toString());
+
     }
 
     private boolean isSelected(final Volume volume, final boolean isOnlyCurrent) {
@@ -250,342 +298,15 @@ public class CLI {
         }
     }
 
-    class CommandInit extends Command {
-        String[] template() {
-            return new String[] { "datapath|string|Data path",
-                    "journalpath|string|Journal path",
-                    "volumepath|string|Volume file",
-                    "rmiport|int:1099:0:99999|RMI Management port",
-                    "_flag|g|Show AdminUI",
-                    "_flag|y|Recover committed transactions" };
-        }
-
-        String execute(final ArgParser ap) throws Exception {
-            return init(ap);
-        }
-    }
-
-    class CommandList extends Command {
-        String[] template() {
-            return new String[] { "volume|string|Volume name pattern",
-                    "tree|string|Tree name pattern",
-                    "_flag|r|Use regex expression" };
-        }
-
-        String execute(final ArgParser ap) throws Exception {
-            if (_persistit == null) {
-                return "Not initialized";
-            }
-            final Pattern vpattern = toRegEx(ap.getStringValue("volume"),
-                    !ap.isFlag('r'));
-            final Pattern tpattern = toRegEx(ap.getStringValue("tree"),
-                    !ap.isFlag('r'));
-            final StringBuilder sb = new StringBuilder();
-            for (final Volume volume : _persistit.getVolumes()) {
-                if (vpattern.matcher(volume.getName()).matches()) {
-                    sb.append(volume);
-                    sb.append(Util.NEW_LINE);
-                    for (final String treeName : volume.getTreeNames()) {
-                        if (tpattern.matcher(treeName).matches()) {
-                            final Tree tree = volume.getTree(treeName, false);
-                            sb.append("   ");
-                            sb.append(tree);
-                            sb.append(Util.NEW_LINE);
-                        }
-                    }
-                }
-            }
-            return sb.toString();
-        }
-    }
-
-    class CommandJournal extends Command {
-
-        String[] template() {
-            return JournalTool.ARGS_TEMPLATE;
-        }
-
-        String execute(final ArgParser ap) throws Exception {
-            final JournalTool jt = new JournalTool(_persistit);
-            jt.init(ap);
-            jt.setWriter(_writer);
-            jt.scan();
-            return null;
-        }
-    }
-
-    class CommandSource extends Command {
-        String[] template() {
-            return new String[] { "file|string|Read commands from file" };
-        }
-
-        String execute(final ArgParser ap) throws Exception {
-            final String fileName = ap.getStringValue("file");
-            if (!fileName.isEmpty()) {
-                final FileReader in = new FileReader(fileName);
-                _sourceStack.push(new BufferedReader(new BufferedReader(in)));
-                return String.format("Source is %s", fileName);
-            } else {
-                _sourceStack.clear();
-                return "Source is console";
-            }
-        }
-    }
-
-    class CommandClose extends Command {
-        String[] template() {
-            return new String[] {};
-        }
-
-        String execute(final ArgParser ap) throws Exception {
-            return close(ap.isFlag('f'));
-        }
-    }
-
-    class CommandAdminUI extends Command {
-        String[] template() {
-            return new String[] { "_flag|x|Stop", "_flag|g|Start" };
-        }
-
-        String execute(final ArgParser ap) throws Exception {
-
-            if (ap.isFlag('g')) {
-                _persistit.setupGUI(false);
-                return "Started AdminUI";
-            }
-            if (ap.isFlag('x')) {
-                _persistit.shutdownGUI();
-                return "Stopped AdminUI";
-            }
-            return null;
-        }
-    }
-
-    class CommandSelect extends Command {
-        String[] template() {
-            return new String[] { "volume|string|Volume name",
-                    "tree|string|Tree name" };
-        }
-
-        String execute(final ArgParser ap) throws Exception {
-            if (_persistit == null) {
-                return "Not initialized";
-            }
-
-            final StringBuilder sb = new StringBuilder();
-
-            Volume selectedVolume = null;
-            Tree selectedTree = null;
-
-            boolean tooMany = false;
-
-            final Pattern vpattern = toRegEx(ap.getStringValue("volume"),
-                    !ap.isFlag('r'));
-            final Pattern tpattern = toRegEx(ap.getStringValue("tree"),
-                    !ap.isFlag('r'));
-            for (final Volume volume : _persistit.getVolumes()) {
-                if (vpattern.matcher(volume.getName()).matches()) {
-                    if (selectedVolume == null) {
-                        selectedVolume = volume;
-                    } else if (!tooMany) {
-                        tooMany = true;
-                        sb.append("Multiple volumes - select one");
-                        sb.append(Util.NEW_LINE);
-                        sb.append(selectedVolume);
-                        sb.append(Util.NEW_LINE);
-                    }
-                    sb.append(volume);
-                    sb.append(Util.NEW_LINE);
-                }
-            }
-            if (tooMany) {
-                return sb.toString();
-            }
-            if (selectedVolume != null) {
-                _currentVolume = selectedVolume;
-            }
-            if (_currentVolume == null) {
-                return "No volume selected";
-            }
-            sb.setLength(0);
-            for (final String treeName : _currentVolume.getTreeNames()) {
-                if (tpattern.matcher(treeName).matches()) {
-                    final Tree tree = _currentVolume.getTree(treeName, false);
-                    if (selectedTree == null) {
-                        selectedTree = tree;
-                    } else if (!tooMany) {
-                        tooMany = true;
-                        sb.append("Multiple trees - select one");
-                        sb.append(Util.NEW_LINE);
-                        sb.append(selectedTree);
-                        sb.append(Util.NEW_LINE);
-                    }
-                    sb.append(tree);
-                    sb.append(Util.NEW_LINE);
-                }
-            }
-            if (tooMany) {
-                return sb.toString();
-            }
-            if (selectedTree != null) {
-                _currentTree = selectedTree;
-            }
-            if (_currentTree == null) {
-                return String.format("Volume %s selected", _currentVolume);
-            } else {
-                return String.format("Volume %s tree %s selected",
-                        _currentVolume, _currentTree);
-            }
-        }
-    }
-
-    class CommandPath extends Command {
-        String[] template() {
-            return new String[] { "key|string|Key" };
-        }
-
-        String execute(final ArgParser ap) throws Exception {
-            if (_persistit == null) {
-                return "Not initialized";
-            }
-            if (_currentVolume == null || _currentTree == null) {
-                return "Tree not selected";
-            }
-            final Exchange exchange = new Exchange(_currentTree);
-            final String keyString = ap.getStringValue("key");
-            if (!keyString.isEmpty()) {
-                new KeyParser(keyString).parseKey(exchange.getKey());
-            }
-            StringBuilder sb = new StringBuilder();
-            int depth = _currentTree.getDepth();
-            for (int level = depth; --level >= 0;) {
-                Buffer copy = exchange.fetchBufferCopy(level);
-                if (sb.length() > 0) {
-                    sb.append(Util.NEW_LINE);
-                }
-                sb.append(copy);
-            }
-            return sb.toString();
-        }
-    }
-
-    class CommandView extends Command {
-        String[] template() {
-            return new String[] {
-                    "page|long:-1:-1:999999999999|Page address",
-                    "jaddr|long:-1:-1:99999999999999999|Journal address of a PA page record",
-                    "level|int:0:0:20|Tree level", "key|string|Key",
-                    "_flag|a|All lines", "_flag|s|Summary only"};
-        }
-
-        String execute(final ArgParser ap) throws Exception {
-            if (_persistit == null) {
-                return "Not initialized";
-            }
-            final Buffer buffer;
-            final long pageAddress = ap.getLongValue("page");
-            final long journalAddress = ap.getLongValue("jaddr");
-            final String keyString = ap.getStringValue("key");
-            int specified = 0;
-            if (pageAddress >= 0) {
-                specified++;
-            }
-            if (journalAddress >= 0) {
-                specified++;
-            }
-            if (!keyString.isEmpty()) {
-                specified++;
-            }
-            if (specified != 1) {
-                return "Specify one of key=<key>, page=<page address> or journal=<journal address>";
-            }
-            if (journalAddress >= 0) {
-                buffer = _persistit.getJournalManager().readPageBuffer(
-                        journalAddress);
-                if (buffer == null) {
-                    return String.format(
-                            "Journal address %,d is not a valid PA record",
-                            journalAddress);
-                }
-                buffer.setValid(true);
-            } else if (pageAddress >= 0) {
-                if (_currentVolume == null) {
-                    return "Select a volume";
-                }
-                buffer = _currentVolume.getPool().getBufferCopy(_currentVolume,
-                        pageAddress);
-            } else {
-                if (_currentTree == null) {
-                    return "Select a tree";
-                }
-                final Exchange exchange = new Exchange(_currentTree);
-                final int level = ap.getIntValue("level");
-                if (!keyString.isEmpty()) {
-                    new KeyParser(keyString).parseKey(exchange.getKey());
-                }
-                buffer = exchange.fetchBufferCopy(level);
-            }
-            if (ap.isFlag('s')) {
-                return buffer.toString();
-            }
-            String detail = buffer.toStringDetail();
-            if (ap.isFlag('a')) {
-                return detail;
-            } else {
-                int p = -1;
-                for (int i = 0; i < 20; i++) {
-                    p = detail.indexOf('\n', p + 1);
-                    if (p == -1) {
-                        return detail;
-                    }
-                }
-                return detail.substring(0, p);
-            }
-        }
-    }
-
-    class CommandHelp extends Command {
-        String[] template() {
-            return new String[0];
-        }
-
-        String execute(final ArgParser ap) throws Exception {
-            final StringBuilder sb = new StringBuilder();
-            for (final Entry<String, ? extends CLI.Command> entry : commands
-                    .entrySet()) {
-                sb.append(entry.getKey());
-                sb.append(Util.NEW_LINE);
-                sb.append(new ArgParser(entry.getKey(), new String[0], entry
-                        .getValue().template()).toString());
-                sb.append(Util.NEW_LINE);
-            }
-            return sb.toString();
-        }
-    }
-
-    private String close(final boolean flush) throws Exception {
-        if (_persistit != null) {
-            try {
-                _persistit.shutdownGUI();
-                _persistit.close(flush);
-            } catch (Exception e) {
-                return e.toString();
-            } finally {
-                _persistit = null;
-            }
-        }
-        return "ok";
-    }
-
-    private String init(final ArgParser ap) throws Exception {
-
+    @Cmd("load")
+    String load(@Arg("datapath|string|Data path") String datapath,
+            @Arg("journalpath|string|Journal path") String journalpath,
+            @Arg("volumepath|string|Volume file") String volumepath,
+            @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport,
+            @Arg("_flag|g|Show AdminUI") boolean g,
+            @Arg("_flag|y|Recover committed transactions") boolean y)
+            throws Exception {
         close(false);
-
-        String datapath = ap.getStringValue("datapath");
-        String journalpath = ap.getStringValue("journalpath");
-        String volumepath = ap.getStringValue("volumepath");
-        int rmiport = ap.getIntValue("rmiport");
-        boolean recover = ap.isFlag('y');
 
         String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath
                 : journalpath));
@@ -606,7 +327,7 @@ public class CLI {
         int index = 0;
         for (final VolumeSpecification vs : volumeSpecifications) {
             String value = vs.toString();
-            if (!recover) {
+            if (!y) {
                 value += ",readOnly";
             }
             properties.put(Persistit.VOLUME_PROPERTY_PREFIX + (++index), value);
@@ -620,13 +341,13 @@ public class CLI {
             properties.put(Persistit.RMI_REGISTRY_PORT,
                     Integer.toString(rmiport));
         }
-        if (ap.isFlag('g')) {
+        if (g) {
             properties.put(Persistit.SHOW_GUI_PROPERTY, "true");
         }
         properties.put(Persistit.JMX_PARAMS, "true");
 
         final Persistit persistit = new Persistit();
-        if (!recover) {
+        if (!y) {
             persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         }
         persistit.initialize(properties);
@@ -634,6 +355,279 @@ public class CLI {
         return "Last valid checkpoint="
                 + persistit.getRecoveryManager().getLastValidCheckpoint()
                         .toString();
+    }
+
+    @Cmd("list")
+    String list(@Arg("volume|string|Volume name") String vstring,
+            @Arg("tree|string|Tree name") String tstring,
+            @Arg("_flag|r|Regular expression") boolean r) throws Exception {
+        if (_persistit == null) {
+            return "Persistit not loaded";
+        }
+        final Pattern vpattern = toRegEx(vstring, !r);
+        final Pattern tpattern = toRegEx(vstring, !r);
+        final StringBuilder sb = new StringBuilder();
+        for (final Volume volume : _persistit.getVolumes()) {
+            if (vpattern.matcher(volume.getName()).matches()) {
+                sb.append(volume);
+                sb.append(Util.NEW_LINE);
+                for (final String treeName : volume.getTreeNames()) {
+                    if (tpattern.matcher(treeName).matches()) {
+                        final Tree tree = volume.getTree(treeName, false);
+                        sb.append("   ");
+                        sb.append(tree);
+                        sb.append(Util.NEW_LINE);
+                    }
+                }
+            }
+        }
+        return sb.toString();
+
+    }
+
+    @Cmd("journal")
+    String journal(
+            @Arg("path|string:|Journal file name") String path,
+            @Arg("start|long:0:0:10000000000000|Start journal address") long start,
+            @Arg("end|long:1000000000000000000:0:1000000000000000000|End journal address") long end,
+            @Arg("types|String:*|Selected record types, for example, \"PA,PM,CP\"") String types,
+            @Arg("pages|String:*|Selected pages, for example, \"0,1,200-299,33333-\"") String pages,
+            @Arg("timestamps|String:*|Selected timestamps, for example, \"132466-132499\"") String timestamps,
+            @Arg("maxkey|int:42:4:10000|Maximum displayed key length") int maxkey,
+            @Arg("maxvalue|int:42:4:100000|Maximum displayed value length") int maxvalue,
+            @Arg("_flag|v|Verbose dump - includes PageMap and TransactionMap details") boolean v)
+            throws Exception {
+        final JournalTool jt = new JournalTool(_persistit);
+        jt.init(path, start, end, types, pages, timestamps, maxkey, maxvalue, v);
+        jt.setWriter(_writer);
+        jt.scan();
+        return null;
+    }
+
+    @Cmd("source")
+    String source(@Arg("file|string|Read commands from file") String fileName)
+            throws Exception {
+        if (!fileName.isEmpty()) {
+            final FileReader in = new FileReader(fileName);
+            _sourceStack.push(new BufferedReader(new BufferedReader(in)));
+            return String.format("Source is %s", fileName);
+        } else {
+            _sourceStack.clear();
+            return "Source is console";
+        }
+    }
+
+    @Cmd("close")
+    String close(@Arg("_flag|f|Flush modifications to disk") boolean flush)
+            throws Exception {
+        if (_persistit != null) {
+            try {
+                _persistit.shutdownGUI();
+                _persistit.close(flush);
+            } catch (Exception e) {
+                return e.toString();
+            } finally {
+                _persistit = null;
+            }
+        }
+        return "ok";
+    }
+
+    @Cmd("adminui")
+    String adminui(@Arg("_flag|g|Start") boolean g,
+            @Arg("_flag|x|Stop") boolean x) throws Exception {
+        if (_persistit == null) {
+            return "Persistit not loaded";
+        }
+        if (g) {
+            _persistit.setupGUI(false);
+            return "Started AdminUI";
+        }
+        if (x) {
+            _persistit.shutdownGUI();
+            return "Stopped AdminUI";
+        }
+        return "No action specified";
+    }
+
+    @Cmd("select")
+    String select(@Arg("volume|string|Volume name") String vstring,
+            @Arg("tree|string|Tree name") String tstring,
+            @Arg("_flag|r|Regular expression") boolean r) throws Exception {
+        if (_persistit == null) {
+            return "Persistit not loaded";
+        }
+
+        final StringBuilder sb = new StringBuilder();
+
+        Volume selectedVolume = null;
+        Tree selectedTree = null;
+
+        boolean tooMany = false;
+
+        final Pattern vpattern = toRegEx(vstring, !r);
+        final Pattern tpattern = toRegEx(tstring, !r);
+        for (final Volume volume : _persistit.getVolumes()) {
+            if (vpattern.matcher(volume.getName()).matches()) {
+                if (selectedVolume == null) {
+                    selectedVolume = volume;
+                } else if (!tooMany) {
+                    tooMany = true;
+                    sb.append("Multiple volumes - select one");
+                    sb.append(Util.NEW_LINE);
+                    sb.append(selectedVolume);
+                    sb.append(Util.NEW_LINE);
+                }
+                sb.append(volume);
+                sb.append(Util.NEW_LINE);
+            }
+        }
+        if (tooMany) {
+            return sb.toString();
+        }
+        if (selectedVolume != null) {
+            _currentVolume = selectedVolume;
+        }
+        if (_currentVolume == null) {
+            return "No volume selected";
+        }
+        sb.setLength(0);
+        for (final String treeName : _currentVolume.getTreeNames()) {
+            if (tpattern.matcher(treeName).matches()) {
+                final Tree tree = _currentVolume.getTree(treeName, false);
+                if (selectedTree == null) {
+                    selectedTree = tree;
+                } else if (!tooMany) {
+                    tooMany = true;
+                    sb.append("Multiple trees - select one");
+                    sb.append(Util.NEW_LINE);
+                    sb.append(selectedTree);
+                    sb.append(Util.NEW_LINE);
+                }
+                sb.append(tree);
+                sb.append(Util.NEW_LINE);
+            }
+        }
+        if (tooMany) {
+            return sb.toString();
+        }
+        if (selectedTree != null) {
+            _currentTree = selectedTree;
+        }
+        if (_currentTree == null) {
+            return String.format("Volume %s selected", _currentVolume);
+        } else {
+            return String.format("Volume %s tree %s selected", _currentVolume,
+                    _currentTree);
+        }
+    }
+
+    @Cmd("path")
+    String path(@Arg("key|string|Key") String keyString) throws Exception {
+
+        if (_persistit == null) {
+            return "Persistit not loaded";
+        }
+        
+        if (_currentVolume == null || _currentTree == null) {
+            return "Tree not selected";
+        }
+        final Exchange exchange = new Exchange(_currentTree);
+        if (!keyString.isEmpty()) {
+            new KeyParser(keyString).parseKey(exchange.getKey());
+        }
+        StringBuilder sb = new StringBuilder();
+        int depth = _currentTree.getDepth();
+        for (int level = depth; --level >= 0;) {
+            Buffer copy = exchange.fetchBufferCopy(level);
+            if (sb.length() > 0) {
+                sb.append(Util.NEW_LINE);
+            }
+            sb.append(copy);
+        }
+        return sb.toString();
+    }
+
+    @Cmd("view")
+    String view(
+            @Arg("page|long:-1:-1:999999999999|Page address") long pageAddress,
+            @Arg("jaddr|long:-1:-1:99999999999999999|Journal address of a PA page record") long journalAddress,
+            @Arg("level|int:0:0:20|Tree level") int level,
+            @Arg("key|string|Key") String keyString,
+            @Arg("_flag|a|All lines") boolean allLines,
+            @Arg("_flag|s|Summary only") boolean summary) throws Exception {
+
+        if (_persistit == null) {
+            return "Persistit not loaded";
+        }
+
+        final Buffer buffer;
+        int specified = 0;
+        if (pageAddress >= 0) {
+            specified++;
+        }
+        if (journalAddress >= 0) {
+            specified++;
+        }
+        if (!keyString.isEmpty()) {
+            specified++;
+        }
+        if (specified != 1) {
+            return "Specify one of key=<key>, page=<page address> or journal=<journal address>";
+        }
+        if (journalAddress >= 0) {
+            buffer = _persistit.getJournalManager().readPageBuffer(
+                    journalAddress);
+            if (buffer == null) {
+                return String.format(
+                        "Journal address %,d is not a valid PA record",
+                        journalAddress);
+            }
+            buffer.setValid(true);
+        } else if (pageAddress >= 0) {
+            if (_currentVolume == null) {
+                return "Select a volume";
+            }
+            buffer = _currentVolume.getPool().getBufferCopy(_currentVolume,
+                    pageAddress);
+        } else {
+            if (_currentTree == null) {
+                return "Select a tree";
+            }
+            final Exchange exchange = new Exchange(_currentTree);
+
+            if (!keyString.isEmpty()) {
+                new KeyParser(keyString).parseKey(exchange.getKey());
+            }
+            buffer = exchange.fetchBufferCopy(level);
+        }
+        if (summary) {
+            return buffer.toString();
+        }
+        String detail = buffer.toStringDetail();
+        if (allLines) {
+            return detail;
+        } else {
+            int p = -1;
+            for (int i = 0; i < 20; i++) {
+                p = detail.indexOf('\n', p + 1);
+                if (p == -1) {
+                    return detail;
+                }
+            }
+            return detail.substring(0, p);
+        }
+
+    }
+
+    @Cmd("help")
+    String help() throws Exception {
+        final StringBuilder sb = new StringBuilder();
+        for (final Command command : commands.values()) {
+            sb.append(Util.NEW_LINE);
+            sb.append(command.toString());
+        }
+        return sb.toString();
     }
 
     private String journalPath(List<String> files) {

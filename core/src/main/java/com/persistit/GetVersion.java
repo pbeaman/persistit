@@ -26,6 +26,14 @@ public class GetVersion {
         System.out.println(new GetVersion("version/persistit_version"));
     }
 
+    public static String getVersionString() {
+        try {
+            return new GetVersion("version/persistit_version").toString();
+        } catch (IOException e) {
+            return "UNKNOWN: " + e;
+        }
+    }
+
     String version;
 
     public GetVersion(String jarResource) throws IOException {

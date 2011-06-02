@@ -95,7 +95,8 @@ public class JournalTool {
 
     private String _flags;
 
-    private PrintWriter _writer = new PrintWriter(new OutputStreamWriter(System.out));
+    private PrintWriter _writer = new PrintWriter(new OutputStreamWriter(
+            System.out));
 
     private final Map<Long, FileChannel> _journalFileChannels = new HashMap<Long, FileChannel>();
 
@@ -315,7 +316,7 @@ public class JournalTool {
         _action = new SimpleDumpAction();
         _selectedTypes.set(0, 65535, true);
     }
-    
+
     void init(final String[] args) {
         ArgParser ap = new ArgParser("com.persistit.JournalTool", args,
                 ARGS_TEMPLATE);
@@ -324,11 +325,20 @@ public class JournalTool {
         }
         init(ap);
     }
-    
+
     void init(final ArgParser ap) {
-        _startAddr = ap.getLongValue("start");
-        _endAddr = ap.getLongValue("end");
-        String pathName = ap.getStringValue("path");
+        init(ap.getStringValue("path"), ap.getLongValue("start"),
+                ap.getLongValue("end"), ap.getStringValue("types"),
+                ap.getStringValue("pages"), ap.getStringValue("timestamps"),
+                ap.getIntValue("maxkey"), ap.getIntValue("maxvalue"),
+                ap.isFlag('v'));
+    }
+
+    void init(String path, long start, long end, String types, String pages,
+            String timestamps, int maxkey, int maxvalue, boolean v) {
+        _startAddr = start;
+        _endAddr = end;
+        String pathName = path;
         if (pathName == null || pathName.length() == 0) {
             throw new IllegalArgumentException(
                     "The 'path' parameter must specify a valid journal path, for example, \n"
@@ -339,23 +349,22 @@ public class JournalTool {
                 pathName));
         if (generation != -1) {
             pathName = pathName.substring(0, pathName.lastIndexOf('.'));
-            if (ap.isDefault("start")) {
+            if (start == 0) {
                 _startAddr = generation * JournalManager.DEFAULT_BLOCK_SIZE;
             }
-            if (ap.isDefault("end")) {
+            if (end == 1000000000000000000l) {
                 _endAddr = (generation + 1) * JournalManager.DEFAULT_BLOCK_SIZE;
             }
         }
         _journalFilePath = pathName;
-        _flags = ap.getFlags();
         _readBuffer = ByteBuffer.allocate(_readBufferSize);
-        parseTypes(ap.getStringValue("types"));
-        _selectedPages = new RangePredicate(ap.getStringValue("pages"));
-        _selectedTimestamps = new RangePredicate(
-                ap.getStringValue("timestamps"));
-        _keyDisplayLength = ap.getIntValue("maxkey");
-        _valueDisplayLength = ap.getIntValue("maxvalue");
-        _verbose = ap.isFlag('v');
+        parseTypes(types);
+        _selectedPages = new RangePredicate(pages);
+        _selectedTimestamps = new RangePredicate(timestamps);
+        _keyDisplayLength = maxkey;
+        _valueDisplayLength = maxvalue;
+        _verbose = v;
+
     }
 
     private void parseTypes(final String types) {
@@ -450,7 +459,8 @@ public class JournalTool {
                 read(_currentAddress, recordSize);
                 final long blockSize = JH.getBlockSize(_readBuffer);
                 if (blockSize != _blockSize) {
-                    from = _currentAddress = (_currentAddress / _blockSize) * blockSize;
+                    from = _currentAddress = (_currentAddress / _blockSize)
+                            * blockSize;
                     _readBufferAddress = _currentAddress;
                     _blockSize = blockSize;
                 }
@@ -891,7 +901,6 @@ public class JournalTool {
             }
         }
 
-
         @Override
         public void cu(long address, long timestamp, int recordSize)
                 throws Exception {
@@ -912,15 +921,14 @@ public class JournalTool {
                     if (opCode == 0) {
                         appendf(" <saved>");
                     } else {
-                    final Update update = tc.createUpdate(opCode);
-                    update.readArgs(_readBuffer);
-                    appendf(" %s", update);
+                        final Update update = tc.createUpdate(opCode);
+                        update.readArgs(_readBuffer);
+                        appendf(" %s", update);
                     }
                 }
             }
             end();
         }
-
 
         @Override
         public void eof(final long address) throws Exception {
