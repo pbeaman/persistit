@@ -43,8 +43,8 @@ import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TransactionStatus;
 import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.JournalManager.VolumeDescriptor;
-import com.persistit.JournalRecord.CU;
 import com.persistit.JournalRecord.CP;
+import com.persistit.JournalRecord.CU;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.IT;
@@ -155,6 +155,8 @@ public class RecoveryManager implements RecoveryManagerMXBean,
 
     private final Map<PageNode, PageNode> _pageMap = new HashMap<PageNode, PageNode>();
 
+    private final Map<PageNode, PageNode> _branchMap = new HashMap<PageNode, PageNode>();
+
     private final Map<VolumeDescriptor, Integer> _volumeToHandleMap = new HashMap<VolumeDescriptor, Integer>();
 
     private final Map<Integer, VolumeDescriptor> _handleToVolumeMap = new HashMap<Integer, VolumeDescriptor>();
@@ -162,6 +164,8 @@ public class RecoveryManager implements RecoveryManagerMXBean,
     private final Map<TreeDescriptor, Integer> _treeToHandleMap = new HashMap<TreeDescriptor, Integer>();
 
     private final Map<Integer, TreeDescriptor> _handleToTreeMap = new HashMap<Integer, TreeDescriptor>();
+    
+    private Checkpoint _firstCheckpoint = null;
 
     private Checkpoint _lastValidCheckpoint = new Checkpoint(0, 0);
 
@@ -941,7 +945,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
             read(address, recordSize);
             final int volumeHandle = PA.getVolumeHandle(_readBuffer);
             final long pageAddress = PA.getPageAddress(_readBuffer);
-
+            
             VolumeDescriptor vd = _handleToVolumeMap.get(volumeHandle);
             if (vd == null) {
                 throw new CorruptJournalException(
@@ -1154,6 +1158,48 @@ public class RecoveryManager implements RecoveryManagerMXBean,
             }
         }
 
+        if (_firstCheckpoint == null) {
+            _firstCheckpoint = checkpoint;
+            //
+            // This is the same as the lastValidCheckpoint at which that
+            // keystone journal file was created.  Uses this checkpoint
+            // to segregate the page map nodes into the branch map when
+            // they reference pages later than the checkpoint.  The
+            // branch map is solely for the convenience of
+            // convertToLongRecord.
+            //
+            final Map<PageNode, PageNode> temp = new HashMap<PageNode, PageNode>();
+            for (final Iterator<PageNode> iterator = _pageMap.values().iterator(); iterator.hasNext();) {
+                final PageNode pageNode = iterator.next();
+                if (pageNode.getTimestamp() > timestamp) {
+                    _branchMap.put(pageNode, pageNode);
+                    iterator.remove();
+                    PageNode later = pageNode;
+                    PageNode earlier;
+                    while ((earlier = later.getPrevious()) != null) {
+                        if (earlier.getTimestamp() < timestamp) {
+                            later.setPrevious(null);
+                            temp.put(earlier, earlier);
+                        }
+                        later = earlier;
+                    }
+                }
+            }
+            _pageMap.putAll(temp);
+        } else {
+            //
+            // Remove any PageNode from the branchMap having a timestamp less
+            // than a valid checkpoint.
+            //
+            for (final Iterator<PageNode> iterator = _branchMap.values().iterator(); iterator
+                    .hasNext();) {
+                final PageNode pageNode = iterator.next();
+                if (pageNode.getTimestamp() < checkpoint.getTimestamp()) {
+                    iterator.remove();
+                }
+            }
+        }
+        
         if (_persistit.getLogBase()
                 .isLoggable(LogBase.LOG_CHECKPOINT_RECOVERED)) {
             _persistit.getLogBase().log(LogBase.LOG_CHECKPOINT_RECOVERED,
@@ -1418,6 +1464,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                 _errorCount++;
             }
         }
+        _branchMap.clear();
     }
 
     public void applyTransaction(final TransactionStatus ts,
@@ -1612,16 +1659,16 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                                 + " for transaction at "
                                 + addressToString(from, timestamp));
             }
-
-            PageNode pn = _pageMap
-                    .get(new PageNode(volumeHandle, page, -1, -1));
-            while (pn != null) {
-                if (pn.getTimestamp() <= timestamp) {
-                    break;
-                }
-                pn = pn.getPrevious();
+            //
+            // Look for the latest version of the page which precedes the 
+            // record's timestamp.
+            //
+            PageNode key = new PageNode(volumeHandle, page, -1, -1);
+            PageNode pn = lastPageNodeBefore(_branchMap.get(key), timestamp);
+            if (pn == null) {
+                pn = lastPageNodeBefore(_pageMap.get(key), timestamp);
             }
-
+            
             if (pn == null) {
                 throw new CorruptJournalException(
                         "Long record chain missing page " + page + " at count "
@@ -1709,6 +1756,17 @@ public class RecoveryManager implements RecoveryManagerMXBean,
                             + addressToString(from, timestamp));
         }
         value.setEncodedSize(size);
+    }
+    
+    private PageNode lastPageNodeBefore(final PageNode pageNode, final long timestamp) {
+        PageNode pn = pageNode;
+        while (pn != null) {
+            if (pn.getTimestamp() <= timestamp) {
+                break;
+            }
+            pn = pn.getPrevious();
+        }
+        return pn;
     }
 
     private Exchange getExchange(final int treeHandle, final long from,
