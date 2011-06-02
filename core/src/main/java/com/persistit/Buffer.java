@@ -3265,15 +3265,6 @@ public final class Buffer extends SharedResource {
             plan[index] = 0;
         }
 
-        if (KEY_BLOCK_START != KEY_BLOCK_START
-                || _keyBlockEnd < KEY_BLOCK_START || _keyBlockEnd > _bufferSize
-                || _alloc < _keyBlockEnd || _alloc > _bufferSize || _slack < 0
-                || _alloc + _slack > _bufferSize
-                || (_keyBlockEnd & ~KEYBLOCK_MASK) != 0) {
-            return new InvalidPageStructureException(
-                    "invalid start, end or size --[" + summarize() + "]");
-        }
-
         for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
             int kbData = getInt(p);
             int db = decodeKeyBlockDb(kbData);
@@ -3352,6 +3343,13 @@ public final class Buffer extends SharedResource {
                 } else
                     bitSet.set(pointer);
             }
+
+            if (_pool != null && getKeyCount() > _pool.getMaxKeys()) {
+                return new InvalidPageStructureException(
+                        "page has too many keys: has " + getKeyCount()
+                                + " but max is " + _pool.getMaxKeys());
+            }
+            
             kb[ebc] = (byte) db;
             System.arraycopy(_bytes, tail + _tailHeaderSize, kb, ebc + 1,
                     klength);
@@ -3478,7 +3476,7 @@ public final class Buffer extends SharedResource {
                     getTimestamp(), getGeneration(), getRightSibling(),
                     _pool.hashIndex(_vol, _page)));
             sb.append(String
-                    .format("/n  highestPageUsed=%,d pageCount=%,d "
+                    .format("\n  highestPageUsed=%,d pageCount=%,d "
                             + "firstAvailablePage=%,d directoryRootPage=%,d garbageRootPage=%,d id=%,d ",
                             Util.getLong(_bytes, 104),
                             Util.getLong(_bytes, 112),

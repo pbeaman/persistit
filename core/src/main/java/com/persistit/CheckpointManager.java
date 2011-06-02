@@ -145,7 +145,7 @@ public class CheckpointManager extends IOTaskRunnable {
             for (int index = outstandingCheckpoints.size(); --index >= 0;) {
                 final Checkpoint checkpoint = outstandingCheckpoints.get(index);
                 if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
-                    for (int k = index; k >= 0; --k) {
+                    for (int k = index - 1; k >= 0; --k) {
                         outstandingCheckpoints.remove(k);
                     }
                     return checkpoint;

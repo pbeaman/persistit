@@ -1533,17 +1533,10 @@ public class Exchange {
 
             buffer.setDirtyStructure();
 
-            if (_isDirectoryExchange) {
-                Tree tree = _volume.getDirectoryTree();
-                tree.changeRootPageAddr(newTopPage, 1);
-                tree.bumpGeneration();
-            } else {
-                _tree.changeRootPageAddr(newTopPage, 1);
-                _tree.bumpGeneration();
-            }
-
-            _hasDeferredTreeUpdate = true;
-
+            _tree.changeRootPageAddr(newTopPage, 1);
+            _tree.bumpGeneration();
+            _tree.commit();
+            
         } finally {
             if (buffer != null) {
                 _pool.release(buffer);
