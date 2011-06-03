@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.io.Reader;
@@ -32,6 +33,8 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -46,14 +49,70 @@ import java.util.regex.Pattern;
 
 import com.persistit.exception.PersistitException;
 
+/**
+ * Handle commands delivered interactively as command strings.  For example,
+ * the following loads a Persistit database located in directory /var/lib/data,
+ * selects a volume named xyz, and displays page 42 of that volume:
+ * <code><pre>
+ * load datapath=/var/lib/data
+ * select volume=xyz
+ * view page=42
+ * </pre></code>
+ * <p />
+ * Command lines can be entered interactively from stdin and stdout. Alternatively,
+ * CLI can set up an extremely simple network server that works with telnet or curl.
+ * The advantage is that you can then issue commands interactively
+ * from a simple network client using the full facilities of the shell, including
+ * piping the output to tools such as grep and more.
+ * <p />
+ * To run the CLI, simple execute
+ * <code><pre>
+ * java -cp persisit.jar com.persistit.CLI
+ * </pre></code>
+ * where persistit.jar contains the Persistit library. If you want to use the network
+ * version, add the argument port=NNNN to specify a port on which CLI will listen for
+ * commands. (Use a port number larger than 1024 to avoid permissions problems.)
+ * <p />
+ * Commands are defined below in methods annotated with @Cmd having parameters annotated with @Arg.
+ * The format of the argument annotation is specified in {@link ArgParser). Enter the command
+ * 'help' to see a readable list of commands and their arguments.
+ * <p />
+ * The following client script works with the network server facility:
+ * <code><pre>
+ *   #!/bin/sh
+ *   echo "$*" | curl telnet://localhost:9999
+ * </pre></code>
+ * (The echo pipeline trick does not seem to work with telnet but does work with curl.) 
+ * You can then enter command such as this at the shell:
+ * 
+ * <code><pre>
+ * pcli init datapath=/var/lib/data
+ * pcli select volume=xyz
+ * pcli view page=42
+ * </code></pre>
+ * 
+ * Note that the network server closes the client socket on each request, so a new connection
+ * is formed each time you invoke curl or telnet.
+ * 
+ * 
+ * 
+ * @author peter
+ *
+ */
 public class CLI {
 
+    /**
+     * Annotation for methods that implement commands
+     */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
     private @interface Cmd {
         String value();
     }
 
+    /**
+     * Annotation for parameters of command methods
+     */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
     private @interface Arg {
@@ -62,11 +121,19 @@ public class CLI {
 
     private final static Pattern ALL = Pattern.compile(".*");
 
+    private final static String[] ARG_TEMPLATE = { "port|int:0:0:99999|Port on which to receive command requests (default is stdin)" };
+
     public static void main(final String[] args) throws Exception {
-        final PrintWriter writer = new PrintWriter(System.out);
-        final LineReader reader = lineReader(new BufferedReader(
-                new InputStreamReader(System.in)), writer);
-        new CLI(reader, writer).mainLoop();
+        final ArgParser ap = new ArgParser("CLI", args, ARG_TEMPLATE);
+        final int port = ap.getIntValue("port");
+        final LineReader reader;
+        if (port != 0) {
+            reader = new NetworkReader(port);
+        } else {
+            reader = lineReader(new BufferedReader(new InputStreamReader(
+                    System.in)), new PrintWriter(System.out));
+        }
+        new CLI(reader).mainLoop();
     }
 
     public static long availableMemory() {
@@ -81,8 +148,8 @@ public class CLI {
 
     private static String _prompt = "Persistit CLI> ";
 
-    private final LineReader _reader;
-    private final PrintWriter _writer;
+    private LineReader _lineReader;
+    PrintWriter _writer;
     private Stack<BufferedReader> _sourceStack = new Stack<BufferedReader>();
     private Persistit _persistit;
     private boolean _stop = false;
@@ -92,6 +159,49 @@ public class CLI {
 
     interface LineReader {
         public String readLine() throws IOException;
+
+        public PrintWriter writer();
+    }
+
+    /**
+     * Implements the network server facility.  Note that readLine() accepts a
+     * new connection for each command.
+     * @author peter
+     *
+     */
+    private static class NetworkReader implements LineReader {
+
+        final ServerSocket serverSocket;
+        Socket socket;
+        PrintWriter writer;
+
+        private NetworkReader(final int port) throws IOException {
+            this.serverSocket = new ServerSocket(port);
+        }
+
+        @Override
+        public String readLine() throws IOException {
+            if (writer != null) {
+                writer.close();
+                writer = null;
+            }
+            if (socket != null) {
+                socket.close();
+                socket = null;
+            }
+            socket = serverSocket.accept();
+            final BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(socket.getInputStream()));
+            writer = new PrintWriter(new OutputStreamWriter(
+                    socket.getOutputStream()));
+            return reader.readLine();
+        }
+
+        @Override
+        public PrintWriter writer() {
+            return writer;
+        }
+
     }
 
     private class Command {
@@ -136,9 +246,8 @@ public class CLI {
         }
     }
 
-    private CLI(final LineReader reader, final PrintWriter writer) {
-        _reader = reader;
-        _writer = writer;
+    private CLI(final LineReader reader) {
+        _lineReader = reader;
 
         for (final Method method : getClass().getDeclaredMethods()) {
             if (method.isAnnotationPresent(Cmd.class)) {
@@ -158,7 +267,6 @@ public class CLI {
     public void mainLoop() throws Exception {
         while (!_stop) {
             final String input;
-            _writer.flush();
             if (!_sourceStack.isEmpty()) {
                 input = _sourceStack.peek().readLine();
                 if (input == null) {
@@ -166,62 +274,68 @@ public class CLI {
                     continue;
                 }
             } else {
-                input = _reader.readLine();
+                input = _lineReader.readLine();
             }
             if (input == null) {
                 break;
             }
-            final List<String> list = ManagementCommand.pieces(input);
-            if (list.isEmpty()) {
-                continue;
-            }
-            final String commandName = list.get(0);
-            if (commandName.startsWith("#")) {
-                continue;
-            }
+            _writer = _lineReader.writer();
+            try {
+                final List<String> list = ManagementCommand.pieces(input);
+                if (list.isEmpty()) {
+                    continue;
+                }
+                final String commandName = list.get(0);
+                if (commandName.startsWith("#")) {
+                    continue;
+                }
 
-            if ("exit".equals(commandName) || "quit".equals(commandName)) {
-                _stop = true;
-                close(false);
-                break;
-            }
+                if ("exit".equals(commandName) || "quit".equals(commandName)) {
+                    _stop = true;
+                    close(false);
+                    break;
+                }
 
-            // Handle intrinsic commands
-            final Command command = commands.get(commandName);
-            if (command != null) {
-                list.remove(0);
-                try {
-                    final String[] args = list.toArray(new String[list.size()]);
-                    final ArgParser ap = new ArgParser(commandName, args,
-                            command.argTemplate);
-                    if (!ap.isUsageOnly()) {
-                        String result = command.execute(ap);
+                // Handle intrinsic commands
+                final Command command = commands.get(commandName);
+                if (command != null) {
+                    list.remove(0);
+                    try {
+                        final String[] args = list.toArray(new String[list
+                                .size()]);
+                        final ArgParser ap = new ArgParser(commandName, args,
+                                command.argTemplate);
+                        if (!ap.isUsageOnly()) {
+                            String result = command.execute(ap);
+                            if (result != null) {
+                                _writer.println(result);
+                            }
+                        }
+                    } catch (RuntimeException e) {
+                        e.printStackTrace(_writer);
+                    } catch (Exception e) {
+                        _writer.println(e);
+                    }
+                    continue;
+                }
+
+                // Handle ManagementCommands
+                if (_persistit != null) {
+                    try {
+                        final String result = _persistit.getManagement()
+                                .execute(input);
                         if (result != null) {
                             _writer.println(result);
                         }
+                    } catch (IllegalArgumentException e) {
+                        _writer.println(e);
                     }
-                } catch (RuntimeException e) {
-                    e.printStackTrace(_writer);
-                } catch (Exception e) {
-                    _writer.println(e);
+                    continue;
                 }
-                continue;
+                _writer.println("No such command " + commandName);
+            } finally {
+                _writer.flush();
             }
-
-            // Handle ManagementCommands
-            if (_persistit != null) {
-                try {
-                    final String result = _persistit.getManagement().execute(
-                            input);
-                    if (result != null) {
-                        _writer.println(result);
-                    }
-                } catch (IllegalArgumentException e) {
-                    _writer.println(e);
-                }
-                continue;
-            }
-            _writer.println("No such command " + commandName);
         }
     }
 
@@ -528,7 +642,7 @@ public class CLI {
         if (_persistit == null) {
             return "Persistit not loaded";
         }
-        
+
         if (_currentVolume == null || _currentTree == null) {
             return "Tree not selected";
         }
@@ -751,7 +865,6 @@ public class CLI {
     private static LineReader lineReader(final Reader reader,
             final PrintWriter writer) {
         LineReader lineReader = null;
-        ;
         try {
             final Class<?> readerClass = CLI.class.getClassLoader().loadClass(
                     "jline.ConsoleReader");
@@ -771,6 +884,10 @@ public class CLI {
                         throw new RuntimeException(e);
                     }
                 }
+
+                public PrintWriter writer() {
+                    return writer;
+                }
             };
             writer.println("jline.ConsoleReader enabled");
         } catch (Exception e) {
@@ -783,6 +900,10 @@ public class CLI {
                     writer.print(_prompt);
                     writer.flush();
                     return br.readLine();
+                }
+
+                public PrintWriter writer() {
+                    return writer;
                 }
             };
         }
@@ -812,4 +933,5 @@ public class CLI {
             return Pattern.compile(pattern);
         }
     }
+
 }
