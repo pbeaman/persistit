@@ -18,7 +18,7 @@ package com.persistit;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.text.ParseException;
-import java.util.Vector;
+import java.util.ArrayList;
 
 /**
  * Parses String values as Key or KeyFilter values.
@@ -138,7 +138,7 @@ public class KeyParser {
      */
     public KeyFilter parseKeyFilter() {
         int saveIndex = _index;
-        Vector vector = new Vector(); // accumulate Terms
+        ArrayList vector = new ArrayList(); // accumulate Terms
         boolean result = false;
         boolean minDepthSet = false;
         boolean maxDepthSet = false;
@@ -339,18 +339,18 @@ public class KeyParser {
 
     private KeyFilter.Term[] parseFilterTermArray(Key workKey,
             ProtoTerm protoTerm) {
-        Vector vector = new Vector();
+        ArrayList<KeyFilter.Term> list = new ArrayList<KeyFilter.Term>();
         for (;;) {
             KeyFilter.Term term = parseFilterTerm(workKey, protoTerm);
             if (term == null)
                 return null;
-            vector.add(term);
+            list.add(term);
             int c = getNonWhiteChar();
             if (c == '}') {
                 back();
-                KeyFilter.Term[] array = new KeyFilter.Term[vector.size()];
+                KeyFilter.Term[] array = new KeyFilter.Term[list.size()];
                 for (int index = 0; index < array.length; index++) {
-                    array[index] = (KeyFilter.Term) vector.get(index);
+                    array[index] = (KeyFilter.Term) list.get(index);
                 }
                 return array;
             } else if (c != ',')

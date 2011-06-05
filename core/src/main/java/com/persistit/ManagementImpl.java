@@ -747,10 +747,10 @@ class ManagementImpl implements Management {
      * @return The array
      */
     public VolumeInfo[] getVolumeInfoArray() {
-        Volume[] volumes = _persistit.getVolumes();
-        VolumeInfo[] result = new VolumeInfo[volumes.length];
-        for (int index = 0; index < volumes.length; index++) {
-            result[index] = new VolumeInfo(volumes[index]);
+        List<Volume> volumes = _persistit.getVolumes();
+        VolumeInfo[] result = new VolumeInfo[volumes.size()];
+        for (int index = 0; index < volumes.size(); index++) {
+            result[index] = new VolumeInfo(volumes.get(index));
         }
         return result;
     }
@@ -984,20 +984,21 @@ class ManagementImpl implements Management {
      * @return Task identifier Unique ID for the running task
      * @throws RemoteException
      */
-    public long startTask(String description, String owner, String className,
-            String[] args, long maximumTime, int verbosity)
-            throws RemoteException {
+    public long startTask(String description, String owner, String commandLine,
+            long maximumTime, int verbosity) throws RemoteException {
         long taskId;
         synchronized (this) {
             taskId = ++_taskIdCounter;
         }
 
         try {
-            Class<?> clazz = Class.forName(className);
-            Task task = (Task) (clazz.newInstance());
+            Task task = CLI.parseTask(_persistit, commandLine);
+            if (task == null) {
+                throw new WrappedRemoteException(new IllegalArgumentException(
+                        "Unknown task " + commandLine));
+            }
             task.setPersistit(_persistit);
             task.setup(taskId, description, owner, maximumTime, verbosity);
-            task.setupArgs(args);
             _tasks.put(new Long(taskId), task);
             task.start();
             return taskId;
@@ -1240,17 +1241,15 @@ class ManagementImpl implements Management {
 
     public String launch(final String commandLine) {
         try {
-            final ManagementCommand command = ManagementCommand
-                    .parse(commandLine);
-            long taskId;
-
-            Task task = (Task) (command.getTaskClass().newInstance());
-            task.setPersistit(_persistit);
-            task.setupTaskWithArgParser(command.getArgs());
+            Task task = CLI.parseTask(_persistit, commandLine);
+            if (task == null) {
+                return "Invalid task " + commandLine;
+            }
             if (task.isImmediate()) {
                 task.runTask();
                 return task.getStatusDetail();
             }
+            long taskId;
             synchronized (this) {
                 taskId = ++_taskIdCounter;
             }
@@ -1265,11 +1264,10 @@ class ManagementImpl implements Management {
 
     public String execute(final String commandLine) {
         try {
-            final ManagementCommand command = ManagementCommand
-                    .parse(commandLine);
-            Task task = (Task) (command.getTaskClass().newInstance());
-            task.setPersistit(_persistit);
-            task.setupTaskWithArgParser(command.getArgs());
+            Task task = CLI.parseTask(_persistit, commandLine);
+            if (task == null) {
+                return "Invalid task " + commandLine;
+            }
             task.runTask();
             return task.getStatusDetail();
 

@@ -409,7 +409,7 @@ public class Persistit {
      * rather than reading them from a file. If Persistit has already been
      * initialized, this method does nothing. This method is threadsafe; if
      * multiple threads concurrently attempt to invoke this method, one of the
-
+     * 
      * threads will actually perform the initialization and the other threads
      * will do nothing.
      * </p>
@@ -605,17 +605,21 @@ public class Persistit {
         }
 
         try {
-            _defaultSplitPolicy = SplitPolicy.forName(getProperty(SPLIT_POLICY_PROPERTY, DEFAULT_SPLIT_POLICY.toString()));
+            _defaultSplitPolicy = SplitPolicy.forName(getProperty(
+                    SPLIT_POLICY_PROPERTY, DEFAULT_SPLIT_POLICY.toString()));
         } catch (IllegalArgumentException e) {
             if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
-                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e.getLocalizedMessage());
+                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR,
+                        e.getLocalizedMessage());
             }
         }
         try {
-            _defaultJoinPolicy = JoinPolicy.forName(getProperty(JOIN_POLICY_PROPERTY, DEFAULT_JOIN_POLICY.toString()));
+            _defaultJoinPolicy = JoinPolicy.forName(getProperty(
+                    JOIN_POLICY_PROPERTY, DEFAULT_JOIN_POLICY.toString()));
         } catch (IllegalArgumentException e) {
             if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
-                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e.getLocalizedMessage());
+                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR,
+                        e.getLocalizedMessage());
             }
         }
     }
@@ -1103,16 +1107,43 @@ public class Persistit {
     }
 
     /**
-     * Get a <code>link java.util.List</code> of all the {@link Volume}s being
-     * managed by this Persistit instance. Volumes are specified by the
-     * properties used in initializing Persistit.
+     * Get a {@link List} of all {@link Volume}s currently being managed by this
+     * Persistit instance. Volumes are specified by the properties used in
+     * initializing Persistit.
      * 
      * @return the List
      */
-    public Volume[] getVolumes() {
-        Volume[] list = new Volume[_volumes.size()];
-        for (int index = 0; index < list.length; index++) {
-            list[index] = _volumes.get(index);
+    public List<Volume> getVolumes() {
+        return new ArrayList<Volume>(_volumes);
+    }
+
+    /**
+     * Select a {@link List} of {@link Tree}s determined by the supplied
+     * {@link TreeSelector}. This method enumerates all Trees in all open
+     * Volumes and selects those which satisfy the TreeSelector. If the
+     * Volume has a Volume-only selector (no tree pattern was specified),
+     * then this method adds the Volume's directory Tree to the list.
+     * 
+     * @param selector
+     * @return the List
+     * @throws PersistitException
+     */
+    public List<Tree> getSelectedTrees(final TreeSelector selector)
+            throws PersistitException {
+        final List<Tree> list = new ArrayList<Tree>();
+        for (final Volume volume : _volumes) {
+            if (selector.isSelected(volume)) {
+                if (selector.isVolumeOnlySelection(volume.getName())) {
+                    list.add(volume.getDirectoryTree());
+                } else {
+                    for (final String treeName : volume.getTreeNames()) {
+                        if (selector.isTreeNameSelected(volume.getName(),
+                                treeName)) {
+                            list.add(volume.getTree(treeName, false));
+                        }
+                    }
+                }
+            }
         }
         return list;
     }
@@ -1595,7 +1626,7 @@ public class Persistit {
             return false;
         }
     }
-    
+
     final long earliestLiveTransaction() {
         long earliest = Long.MAX_VALUE;
         synchronized (_transactionSessionMap) {
@@ -1611,12 +1642,10 @@ public class Persistit {
     final long earliestDirtyTimestamp() {
         long earliest = Long.MAX_VALUE;
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            earliest = Math.min(earliest,
-                    pool.earliestDirtyTimestamp());
+            earliest = Math.min(earliest, pool.earliestDirtyTimestamp());
         }
         return earliest;
     }
-
 
     /**
      * Copy back all pages from the journal to their host Volumes.

@@ -16,43 +16,35 @@
 package com.persistit.unit;
 
 import java.io.File;
-import java.util.Arrays;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.junit.Test;
 
+import com.persistit.CLI;
 import com.persistit.Management;
-import com.persistit.ManagementCommand;
 import com.persistit.PersistitMap;
-import com.persistit.TaskCheck;
 
-public class ManagementCommandTest extends PersistitUnitTestCase {
+
+public class CommandLineTest extends PersistitUnitTestCase {
 
     @Test
-    public void testManagementCommandParser() throws Exception {
-
-        ManagementCommand m = ManagementCommand.parse("task taskId=12345 -v");
-        verify(m, "[taskId=12345, -v]");
-        m = ManagementCommand.parse("&task&taskId=12345&-v");
-        verify(m, "[taskId=12345, -v]");
-        m = ManagementCommand.parse("-task-taskId=12345-\\-v");
-        verify(m, "[taskId=12345, -v]");
-        m = ManagementCommand
-                .parse("--------------------task-taskId=12345-\\-v--------------------");
-        verify(m, "[taskId=12345, -v]");
-    }
-
-    private void verify(final ManagementCommand m, final String expected) {
-        assertEquals(TaskCheck.class, m.getTaskClass());
-        assertEquals(expected, Arrays.asList(m.getArgs()).toString());
+    public void testCliParser() throws Exception {
+        assertNotNull(CLI.parseTask(_persistit, "backup file=somefile -a -y -z"));
+        assertNotNull(CLI.parseTask(_persistit, "save trees=persistit file=somefile"));
+        assertNotNull(CLI.parseTask(_persistit, "load trees=persistit:*{1:2} file=somefile -t -n"));
+        assertNull(CLI.parseTask(_persistit, "open datapath=somefile"));
+        try {
+            CLI.parseTask(_persistit, "backup file=somefile -s -y -z wrong=parameter");
+            fail();
+        } catch (Exception e) {
+            // okay
+        }
     }
 
     @Test
     public void testCommands() throws Exception {
 
         final PersistitMap<Integer, String> pmap = new PersistitMap<Integer, String>(
-                _persistit.getExchange("persistit", "ManagementCommandTest",
+                _persistit.getExchange("persistit", "CommandLineTest",
                         true));
         for (int index = 0; index < 500; index++) {
             pmap.put(new Integer(index), "This is the record for index="
@@ -62,12 +54,12 @@ public class ManagementCommandTest extends PersistitUnitTestCase {
         final Management management = _persistit.getManagement();
 
         String status = management
-                .launch("icheck trees=persistit,ManagementCommandTest");
+                .launch("icheck trees=persistit:CommandLineTest");
         waitForCompletion(taskId(status));
-        final File file = File.createTempFile("ManagementCommandTest", ".sav");
+        final File file = File.createTempFile("CommandLineTest", ".sav");
         file.deleteOnExit();
         status = management.launch("save file=" + file
-                + " keyfilter={200:} trees=persistit,ManagementCommandTest");
+                + " trees=persistit:CommandLineTest{200:}");
         waitForCompletion(taskId(status));
         pmap.clear();
 
@@ -83,7 +75,7 @@ public class ManagementCommandTest extends PersistitUnitTestCase {
 
 
     private void waitForCompletion(final long taskId) throws Exception {
-        for (int waiting = 0; waiting < 20; waiting++) {
+        for (int waiting = 0; waiting < 20000; waiting++) {
             final String status = _persistit.getManagement().execute(
                     "task taskId=" + taskId);
             if (status.endsWith("done")) {

@@ -1320,9 +1320,9 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     protected void doTask(TaskSetupPanel tsp) throws RemoteException {
         Management management = getManagement();
         if (management != null) {
+            // TODO - reinstate task interface
             management.startTask(tsp.getDescriptionString(),
-                    tsp.getOwnerString(), tsp.getTaskClassName(),
-                    tsp.argStrings(), tsp.getExpirationTime(),
+                    tsp.getOwnerString(), tsp.getCommandLine(), tsp.getExpirationTime(),
                     tsp.isVerboseEnabled() ? 1 : 0);
         }
         scheduleRefresh(1000);

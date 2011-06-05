@@ -15,7 +15,7 @@
 
 package com.persistit;
 
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -151,10 +151,10 @@ public abstract class Task implements Runnable {
      */
     protected ArrayList<String> _messageLog = new ArrayList<String>();
     /**
-     * An optional PrintStream - if not null, {@link #postMessage(String, int)}
+     * An optional PrintWriter - if not null, {@link #postMessage(String, int)}
      * writes messages to it.
      */
-    protected PrintStream _messageStream;
+    protected PrintWriter _messageWriter;
 
     /**
      * The Thread created to run this task.
@@ -182,25 +182,6 @@ public abstract class Task implements Runnable {
     public void setPersistit(final Persistit persistit) {
         _persistit = persistit;
     }
-
-    /**
-     * Accept and process an array of input arguments. The number and format of
-     * arguments is task-specific.
-     * 
-     * @param args
-     * @throws Exception
-     */
-    protected abstract void setupArgs(String[] args) throws Exception;
-
-    /**
-     * Accept and process of input arguments from an {@link ArgParser} whose
-     * argument template is specified by the specific <code>Task</code>.
-     * 
-     * @param ap
-     *            The <code>ArgParser</code> holding parsed argument values.
-     * @throws Exception
-     */
-    protected abstract void setupTaskWithArgParser(String[] args) throws Exception;
 
     /**
      * Called by a newly created <code>Thread</code> to perform the task.
@@ -404,23 +385,23 @@ public abstract class Task implements Runnable {
     }
 
     /**
-     * Sets a <code>PrintStream</code> to receive posted messages.
+     * Sets a <code>PrintWriter</code> to receive posted messages.
      * 
      * @param ps
-     *            The <code>PrintStream</code>
+     *            The <code>PrintWriter</code>
      */
-    public void setMessageStream(PrintStream ps) {
-        _messageStream = ps;
+    public void setMessageWriter(PrintWriter pw) {
+        _messageWriter = pw;
     }
 
     /**
-     * Returns the current <code>PrintStream</code>, or <code>null</code> if
+     * Returns the current <code>PrintWriter</code>, or <code>null</code> if
      * there is none.
      * 
-     * @return Current <code>PrintStream</code>
+     * @return Current <code>PrintWriter</code>
      */
-    public PrintStream getMessageStream() {
-        return _messageStream;
+    public PrintWriter getMessageWriter() {
+        return _messageWriter;
     }
 
     /**
@@ -474,9 +455,9 @@ public abstract class Task implements Runnable {
                 }
                 _messageLog.add(message);
             }
-            if (_messageStream != null) {
-                _messageStream.println();
-                _messageStream.print(message);
+            if (_messageWriter != null) {
+                _messageWriter.println();
+                _messageWriter.print(message);
             }
         }
     }
@@ -500,8 +481,8 @@ public abstract class Task implements Runnable {
                     _messageLog.set(index, s);
                 }
             }
-            if (_messageStream != null) {
-                _messageStream.print(fragment);
+            if (_messageWriter != null) {
+                _messageWriter.print(fragment);
             }
         }
     }

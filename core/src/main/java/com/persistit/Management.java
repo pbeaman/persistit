@@ -581,11 +581,9 @@ public interface Management extends Remote, ManagementMXBean {
      *            Readable description of this task
      * @param owner
      *            Hostname or username of the user who requested this task
-     * @param className
-     *            Class name of task to run, e.g.,
-     *            <code>com.persistit.IntegrityCheck</code>.
-     * @param args
-     *            Task-specific parameters
+     * @param commandLine
+     *            command name followed by task-specific parameters delimited by
+     *            spaces.
      * @param maximumTime
      *            Maximum wall-clock time (in milliseconds) this Task will be
      *            allowed to run
@@ -595,9 +593,8 @@ public interface Management extends Remote, ManagementMXBean {
      * @return Task identifier Unique ID for the running task
      * @throws RemoteException
      */
-    public long startTask(String description, String owner, String className,
-            String[] args, long maximumTime, int verbosity)
-            throws RemoteException;
+    public long startTask(String description, String owner, String commandLine,
+            long maximumTime, int verbosity) throws RemoteException;
 
     /**
      * Queries the current status of one or all tasks. If the specified taskId
@@ -1688,13 +1685,13 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the path name of this Volume
+         * Return the name of this Volume
          * 
-         * @return The path name
+         * @return The name
          */
         @Override
         public String toString() {
-            return path;
+            return name;
         }
 
         /**

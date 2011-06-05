@@ -16,6 +16,7 @@
 package com.persistit;
 
 import java.io.File;
+import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Random;
@@ -39,6 +40,7 @@ public class BackupTaskTest extends PersistitUnitTestCase {
     @Test
     public void testSimpleBackup() throws Exception {
 
+        final PrintWriter writer = new PrintWriter(System.out);
         final PersistitMap<Integer, String> pmap1 = new PersistitMap<Integer, String>(
                 _persistit.getExchange("persistit", "BackupTest", true));
         for (int index = 0; index < 50000; index++) {
@@ -50,21 +52,19 @@ public class BackupTaskTest extends PersistitUnitTestCase {
                 pmap1);
         final File file = File.createTempFile("backup", ".zip");
         file.deleteOnExit();
-        final BackupTask backup1 = new BackupTask();
-        backup1.setMessageStream(System.out);
-
-        backup1.setPersistit(_persistit);
+        
+        BackupTask backup1 = (BackupTask)CLI.parseTask(_persistit, "backup -z -c file=" + file.getAbsolutePath());
+        
+        backup1.setMessageWriter(writer);
         backup1.setup(1, "backup file=" + file.getAbsolutePath(), "cli", 0, 5);
-        backup1.setupTaskWithArgParser(new String[] {
-                "file=" + file.getAbsolutePath(), "-z", "-c" });
-
         backup1.run();
+
         final Properties properties = _persistit.getProperties();
         _persistit.close();
 
         _persistit = new Persistit();
         final BackupTask backup2 = new BackupTask();
-        backup2.setMessageStream(System.out);
+        backup2.setMessageWriter(writer);
         backup2.setPersistit(_persistit);
         backup2.doRestore(file.getAbsolutePath());
 
@@ -79,6 +79,7 @@ public class BackupTaskTest extends PersistitUnitTestCase {
 
     @Test
     public void testBackupWithConcurrentTransactions() throws Exception {
+        final PrintWriter writer = new PrintWriter(System.out);
         final TransactionWriter tw = new TransactionWriter();
         final Thread twThread = new Thread(tw, "BackupTest_TW");
         twThread.start();
@@ -89,12 +90,12 @@ public class BackupTaskTest extends PersistitUnitTestCase {
 
         final File file = File.createTempFile("backup", ".zip");
         file.deleteOnExit();
-        final BackupTask backup1 = new BackupTask();
-        backup1.setMessageStream(System.out);
+        
+        BackupTask backup1 = (BackupTask)CLI.parseTask(_persistit, "backup -y -c file=" + file.getAbsolutePath());
+        
+        backup1.setMessageWriter(writer);
         backup1.setPersistit(_persistit);
         backup1.setup(1, "backup file=" + file.getAbsolutePath(), "cli", 0, 5);
-        backup1.setupTaskWithArgParser(new String[] {
-                "file=" + file.getAbsolutePath(), "-c", "-y" });
         tw.backupStarted.set(true);
         backup1.run();
         tw.stop.set(true);
@@ -107,7 +108,7 @@ public class BackupTaskTest extends PersistitUnitTestCase {
 
         _persistit = new Persistit();
         final BackupTask backup2 = new BackupTask();
-        backup2.setMessageStream(System.out);
+        backup2.setMessageWriter(writer);
         backup2.setPersistit(_persistit);
         backup2.doRestore(file.getAbsolutePath());
         properties.setProperty("appendonly", "true");

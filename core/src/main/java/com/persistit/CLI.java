@@ -101,12 +101,40 @@ import com.persistit.exception.PersistitException;
  */
 public class CLI {
 
+    private final static char DEFAULT_COMMAND_DELIMITER = ' ';
+    private final static char DEFAULT_QUOTE = '\\';
+    private final static String PROMPT = "Persistit CLI> ";
+    private final static Map<String, Command> COMMANDS = new TreeMap<String, Command>();
+
+    private final static Class<?>[] CLASSES = { CLI.class, BackupTask.class,
+            IntegrityCheck.class, StreamSaver.class, StreamLoader.class,
+            StatisticsTask.class, TaskCheck.class };
+
+    static {
+        for (final Class<?> clazz : CLASSES) {
+            for (final Method method : clazz.getDeclaredMethods()) {
+                if (method.isAnnotationPresent(Cmd.class)) {
+                    String name = method.getAnnotation(Cmd.class).value();
+                    Annotation[][] parameters = method
+                            .getParameterAnnotations();
+                    String[] argTemplate = new String[parameters.length];
+                    int index = 0;
+                    for (Annotation[] annotations : parameters) {
+                        Arg argAnnotation = (Arg) annotations[0];
+                        argTemplate[index++] = argAnnotation.value();
+                    }
+                    COMMANDS.put(name, new Command(name, argTemplate, method));
+                }
+            }
+        }
+    }
+
     /**
      * Annotation for methods that implement commands
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
-    private @interface Cmd {
+    @interface Cmd {
         String value();
     }
 
@@ -115,7 +143,7 @@ public class CLI {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
-    private @interface Arg {
+    @interface Arg {
         String value();
     }
 
@@ -133,10 +161,12 @@ public class CLI {
             reader = lineReader(new BufferedReader(new InputStreamReader(
                     System.in)), new PrintWriter(System.out));
         }
-        new CLI(reader).mainLoop();
+        CLI cli = new CLI();
+        cli.setLineReader(reader);
+        cli.commandLoop();
     }
 
-    public static long availableMemory() {
+    private static long availableMemory() {
         final MemoryUsage mu = ManagementFactory.getMemoryMXBean()
                 .getHeapMemoryUsage();
         long max = mu.getMax();
@@ -146,16 +176,82 @@ public class CLI {
         return max;
     }
 
-    private static String _prompt = "Persistit CLI> ";
+    /**
+     * Parse a command line string consisting of a command followed by flags and
+     * name=value parameters, all separate by spaces. Argument values containing
+     * spaces can be quoted by a leading backslash.
+     * 
+     * @param commandLine
+     * @return List of String values, one per command name or argument token.
+     */
+    public static List<String> pieces(final String commandLine) {
+        final StringBuilder sb = new StringBuilder();
+        final List<String> strings = new ArrayList<String>();
+        char commandDelimiter = DEFAULT_COMMAND_DELIMITER;
+        char quote = DEFAULT_QUOTE;
+
+        boolean quoted = false;
+        for (int index = 0; index < commandLine.length(); index++) {
+            char c = commandLine.charAt(index);
+            if (index == 0 && !Character.isLetter(c)) {
+                commandDelimiter = c;
+                continue;
+            }
+            if (index == 1 && commandDelimiter != DEFAULT_COMMAND_DELIMITER
+                    && !Character.isLetter(c) && c != commandDelimiter) {
+                quote = c;
+                continue;
+            }
+            if (quoted) {
+                sb.append(c);
+                quoted = false;
+                continue;
+            }
+            if (c == quote) {
+                quoted = true;
+                continue;
+            }
+            if (c == commandDelimiter) {
+                if (sb.length() > 0) {
+                    strings.add(sb.toString());
+                    sb.setLength(0);
+                }
+                continue;
+            }
+            sb.append(c);
+        }
+        if (sb.length() > 0) {
+            strings.add(sb.toString());
+        }
+        return strings;
+    }
+
+    public static Task parseTask(final Persistit persistit, final String line)
+            throws Exception {
+        List<String> pieces = pieces(line);
+        if (pieces.isEmpty()) {
+            return null;
+        }
+        final String commandName = pieces.remove(0);
+        Command command = COMMANDS.get(commandName);
+        if (command == null) {
+            return null;
+        }
+        Task task = command.createTask(new ArgParser(commandName, pieces
+                .toArray(new String[pieces.size()]), command.argTemplate));
+        if (task != null) {
+            task.setPersistit(persistit);
+        }
+        return task;
+    }
 
     private LineReader _lineReader;
-    PrintWriter _writer;
+    PrintWriter _writer = new PrintWriter(System.out);
     private Stack<BufferedReader> _sourceStack = new Stack<BufferedReader>();
     private Persistit _persistit;
     private boolean _stop = false;
     private Volume _currentVolume;
     private Tree _currentTree;
-    Map<String, Command> commands = new TreeMap<String, Command>();
 
     interface LineReader {
         public String readLine() throws IOException;
@@ -164,10 +260,11 @@ public class CLI {
     }
 
     /**
-     * Implements the network server facility.  Note that readLine() accepts a
+     * Implements the network server facility. Note that readLine() accepts a
      * new connection for each command.
+     * 
      * @author peter
-     *
+     * 
      */
     private static class NetworkReader implements LineReader {
 
@@ -204,7 +301,7 @@ public class CLI {
 
     }
 
-    private class Command {
+    private static class Command {
         final String name;
         final String[] argTemplate;
         final Method method;
@@ -216,7 +313,36 @@ public class CLI {
             this.method = method;
         }
 
-        private String execute(final ArgParser ap) throws Exception {
+        private String execute(final CLI cli, final ArgParser ap)
+                throws Exception {
+            final Object[] args = invocationArgs(ap);
+            if (method.getReturnType() == String.class) {
+                String result = (String) method.invoke(cli, args);
+                return result;
+            } else if (Task.class.isAssignableFrom(method.getReturnType())) {
+                Task task = (Task) method.invoke(cli, args);
+                task.setPersistit(cli._persistit);
+                task.setMaximumTime(-1);
+                task.setMessageWriter(cli._writer);
+                task.runTask();
+                return task.getStatus();
+            } else {
+                throw new IllegalStateException(this
+                        + " must return either a Task or a String");
+            }
+        }
+
+        private Task createTask(final ArgParser ap) throws Exception {
+            if (Task.class.isAssignableFrom(method.getReturnType())) {
+                final Object[] args = invocationArgs(ap);
+                Task task = (Task) method.invoke(null, args);
+                return task;
+            } else {
+                return null;
+            }
+        }
+
+        private Object[] invocationArgs(final ArgParser ap) {
             Class<?>[] types = method.getParameterTypes();
             final Object[] args = new Object[types.length];
             for (int index = 0; index < types.length; index++) {
@@ -234,8 +360,7 @@ public class CLI {
                             + " takes an unsupported argument type " + type);
                 }
             }
-            String result = (String) method.invoke(CLI.this, args);
-            return result;
+            return args;
         }
 
         public String toString() {
@@ -246,25 +371,23 @@ public class CLI {
         }
     }
 
-    private CLI(final LineReader reader) {
-        _lineReader = reader;
-
-        for (final Method method : getClass().getDeclaredMethods()) {
-            if (method.isAnnotationPresent(Cmd.class)) {
-                String name = method.getAnnotation(Cmd.class).value();
-                Annotation[][] parameters = method.getParameterAnnotations();
-                String[] argTemplate = new String[parameters.length];
-                int index = 0;
-                for (Annotation[] annotations : parameters) {
-                    Arg argAnnotation = (Arg) annotations[0];
-                    argTemplate[index++] = argAnnotation.value();
-                }
-                commands.put(name, new Command(name, argTemplate, method));
-            }
-        }
+    private static class NotOpenException extends Exception {
+        private static final long serialVersionUID = 1L;
     }
 
-    public void mainLoop() throws Exception {
+    private CLI() {
+        this(null);
+    }
+
+    public CLI(final Persistit persistit) {
+        _persistit = persistit;
+    }
+
+    void setLineReader(final LineReader reader) {
+        _lineReader = reader;
+    }
+
+    private void commandLoop() throws Exception {
         while (!_stop) {
             final String input;
             if (!_sourceStack.isEmpty()) {
@@ -281,7 +404,7 @@ public class CLI {
             }
             _writer = _lineReader.writer();
             try {
-                final List<String> list = ManagementCommand.pieces(input);
+                final List<String> list = pieces(input);
                 if (list.isEmpty()) {
                     continue;
                 }
@@ -297,7 +420,7 @@ public class CLI {
                 }
 
                 // Handle intrinsic commands
-                final Command command = commands.get(commandName);
+                final Command command = COMMANDS.get(commandName);
                 if (command != null) {
                     list.remove(0);
                     try {
@@ -306,11 +429,13 @@ public class CLI {
                         final ArgParser ap = new ArgParser(commandName, args,
                                 command.argTemplate);
                         if (!ap.isUsageOnly()) {
-                            String result = command.execute(ap);
+                            String result = command.execute(this, ap);
                             if (result != null) {
                                 _writer.println(result);
                             }
                         }
+                    } catch (InvocationTargetException e) {
+                        _writer.println(e.getTargetException());
                     } catch (RuntimeException e) {
                         e.printStackTrace(_writer);
                     } catch (Exception e) {
@@ -339,81 +464,14 @@ public class CLI {
         }
     }
 
-    @Cmd("icheck")
-    String icheck(
-            @Arg("volume|string|Volume name pattern") String vname,
-            @Arg("tree|string|Tree name pattern") String tname,
-            @Arg("_flag|r|Use regex expression") boolean r,
-            @Arg("_flag|c|Check only the currently selected volume and/or tree") boolean c,
-            @Arg("_flag|u|Don't freeze updates (Default is to freeze updates)") boolean u,
-            @Arg("_flag|h|Don't fix holes (Default is to fix index holes)") boolean h,
-            @Arg("_flag|v|Verbose results") boolean v,
-            @Arg("_flag|a|All volumes") boolean a) throws Exception {
+    void checkOpen() throws NotOpenException {
         if (_persistit == null) {
-            return "Persistit not loaded";
-        }
-        final Pattern vpattern = toRegEx(vname, !r);
-        final Pattern tpattern = toRegEx(tname, !r);
-        final StringBuilder sb = new StringBuilder();
-
-        for (final Volume volume : _persistit.getVolumes()) {
-            if (vpattern.matcher(volume.getName()).matches()
-                    && isSelected(volume, c)) {
-                if (sb.length() > 0) {
-                    sb.append(";");
-                }
-                sb.append(volume.getName());
-                //
-                // Add tree names only to limit the check to specific
-                // trees. Adding only the volume name checks the entire
-                // volume.
-                //
-                if (tpattern != ALL || c) {
-                    for (final String treeName : volume.getTreeNames()) {
-                        if (tpattern.matcher(treeName).matches()) {
-                            final Tree tree = volume.getTree(treeName, false);
-                            if (isSelected(tree, c)) {
-                                sb.append(",");
-                                sb.append(tree.getName());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (u) {
-            sb.append(" -u");
-        }
-        if (h) {
-            sb.append(" -h");
-        }
-        if (v) {
-            sb.append(" -v");
-        }
-        return _persistit.getManagement().execute(
-                "icheck trees=" + sb.toString());
-
-    }
-
-    private boolean isSelected(final Volume volume, final boolean isOnlyCurrent) {
-        if (isOnlyCurrent && _currentVolume != null) {
-            return volume.equals(_currentVolume);
-        } else {
-            return true;
+            throw new NotOpenException();
         }
     }
 
-    private boolean isSelected(final Tree tree, final boolean isOnlyCurrent) {
-        if (isOnlyCurrent && _currentTree != null) {
-            return tree.equals(_currentTree);
-        } else {
-            return true;
-        }
-    }
-
-    @Cmd("load")
-    String load(@Arg("datapath|string|Data path") String datapath,
+    @Cmd("open")
+    String open(@Arg("datapath|string|Data path") String datapath,
             @Arg("journalpath|string|Journal path") String journalpath,
             @Arg("volumepath|string|Volume file") String volumepath,
             @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport,
@@ -496,7 +554,6 @@ public class CLI {
             }
         }
         return sb.toString();
-
     }
 
     @Cmd("journal")
@@ -737,7 +794,7 @@ public class CLI {
     @Cmd("help")
     String help() throws Exception {
         final StringBuilder sb = new StringBuilder();
-        for (final Command command : commands.values()) {
+        for (final Command command : COMMANDS.values()) {
             sb.append(Util.NEW_LINE);
             sb.append(command.toString());
         }
@@ -821,7 +878,7 @@ public class CLI {
         }
     }
 
-    // TODO - we need to refactor Volume!
+    // TODO - we REALLY need to refactor Volume!
     //
     static class VolumeInfo {
         int _bufferSize;
@@ -875,7 +932,7 @@ public class CLI {
                 public String readLine() throws IOException {
                     try {
                         return (String) readLineMethod.invoke(consoleReader,
-                                new Object[] { _prompt });
+                                new Object[] { PROMPT });
                     } catch (IllegalArgumentException e) {
                         throw new RuntimeException(e);
                     } catch (IllegalAccessException e) {
@@ -897,7 +954,7 @@ public class CLI {
             final BufferedReader br = new BufferedReader(reader);
             lineReader = new LineReader() {
                 public String readLine() throws IOException {
-                    writer.print(_prompt);
+                    writer.print(PROMPT);
                     writer.flush();
                     return br.readLine();
                 }
@@ -910,7 +967,15 @@ public class CLI {
         return lineReader;
     }
 
-    private Pattern toRegEx(final String pattern, final boolean simple) {
+    static KeyFilter toKeyFilter(final String keyFilterString) {
+        if (keyFilterString == null || keyFilterString.isEmpty()) {
+            return new KeyFilter();
+        } else {
+            return new KeyFilter(keyFilterString);
+        }
+    }
+
+    static Pattern toRegEx(final String pattern, final boolean simple) {
         if (pattern == null || pattern.isEmpty()) {
             return ALL;
         }

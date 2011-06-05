@@ -17,7 +17,10 @@ package com.persistit;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 
+import com.persistit.CLI.Arg;
+import com.persistit.CLI.Cmd;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
@@ -48,12 +51,6 @@ public class IntegrityCheck extends Task {
     final static int MAX_FAULTS = 200;
     final static int MAX_WALK_RIGHT = 1000;
 
-    final static String COMMAND_NAME = "icheck";
-    final static String[] ARG_TEMPLATE = { "trees|string:|Tree specification",
-            "_flag|u|Don't freeze updates (Default is to freeze updates)",
-            "_flag|h|Don't fix holes (Default is to fix index holes)",
-            "_flag|v|Verbose results" };
-
     private Volume _currentVolume;
     private Tree _currentTree;
     private LongBitSet _usedPageBits = new LongBitSet();
@@ -73,7 +70,7 @@ public class IntegrityCheck extends Task {
     private Key[] _edgeKeys = new Key[Exchange.MAX_TREE_DEPTH];
     private int _depth = -1;
 
-    private Tree[] _trees;
+    private TreeSelector _treeSelector;
     private boolean _suspendUpdates;
     private boolean _fixHoles;
 
@@ -83,6 +80,22 @@ public class IntegrityCheck extends Task {
 
     // Used in checking long values
     private Value _value = new Value((Persistit) null);
+
+    @Cmd("icheck")
+    static Task icheck(
+            @Arg("trees|string|Tree selector: Volumes/Trees to check") String treeSelectorString,
+            @Arg("_flag|r|Use regex expression") boolean regex,
+            @Arg("_flag|u|Don't freeze updates (Default is to freeze updates)") boolean dontSuspendUpdates,
+            @Arg("_flag|h|Fix index holes") boolean fixHoles,
+            @Arg("_flag|v|Verbose results") boolean verbose) throws Exception {
+        final IntegrityCheck task = new IntegrityCheck();
+        task._treeSelector = TreeSelector.parseSelector(treeSelectorString,
+                regex, '\\');
+        task._fixHoles = fixHoles;
+        task._suspendUpdates = !dontSuspendUpdates;
+        task.setMessageLogVerbosity(verbose ? LOG_VERBOSE : LOG_NORMAL);
+        return task;
+    }
 
     /**
      * Package-private constructor for use in a {@link Task}.
@@ -96,25 +109,6 @@ public class IntegrityCheck extends Task {
     }
 
     @Override
-    protected void setupArgs(String[] args) throws PersistitException {
-        _trees = parseTreeList(args[0]);
-        _suspendUpdates = args.length > 1 && "true".equals(args[1]);
-        _fixHoles = args.length > 2 && "true".equals(args[2]);
-    }
-
-    @Override
-    public void setupTaskWithArgParser(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(),
-                args, ARG_TEMPLATE);
-        _trees = parseTreeList(ap.getStringValue("trees"));
-        _suspendUpdates = !ap.isFlag('u');
-        _fixHoles = !ap.isFlag('h');
-        if (ap.isFlag('v')) {
-            _messageLogVerbosity = 5;
-        }
-    }
-
-    @Override
     protected void runTask() {
         boolean freeze = !_persistit.isUpdateSuspended()
                 && (_suspendUpdates || _fixHoles);
@@ -123,26 +117,26 @@ public class IntegrityCheck extends Task {
             _persistit.setUpdateSuspended(true);
             needsToDrain = true;
         }
+        
+        
         try {
             ArrayList<Volume> volumes = new ArrayList<Volume>();
             long _totalPages = 0;
-            for (int index = 0; index < _trees.length; index++) {
-                Tree tree = _trees[index];
-                Volume volume = tree.getVolume();
-                if (!volumes.contains(volume)) {
+            
+            for (final Volume volume : _persistit.getVolumes()) {
+                if (_treeSelector.isSelected(volume)) {
                     volumes.add(volume);
                     _totalPages += volume.getMaximumPageInUse();
                 }
             }
+            
             Volume previousVolume = null;
-            for (int index = 0; index < _trees.length; index++) {
-                Tree tree = _trees[index];
+            for (final Tree tree : _persistit.getSelectedTrees(_treeSelector)) {
                 Volume volume = tree.getVolume();
                 boolean checkWholeVolume = false;
                 if (volume != previousVolume) {
                     initialize(false);
-                    if (index == _trees.length - 1
-                            || !volume.equals(_trees[index + 1].getVolume())) {
+                    if (tree == volume.getDirectoryTree()) {
                         checkWholeVolume = true;
                     }
                 }
@@ -168,10 +162,11 @@ public class IntegrityCheck extends Task {
                     postMessage(pe.toString(), LOG_NORMAL);
                 } catch (InterruptedException ie) {
                     // Just repeat the operation...
-                    index--;
                 }
             }
             postMessage(toString(), LOG_NORMAL);
+        } catch (PersistitException e) {
+            postMessage(e.toString(), LOG_NORMAL);
         } finally {
             if (freeze) {
                 _persistit.setUpdateSuspended(false);

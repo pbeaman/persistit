@@ -15,21 +15,11 @@
 
 package com.persistit;
 
+import com.persistit.CLI.Arg;
+import com.persistit.CLI.Cmd;
 import com.persistit.Management.TaskStatus;
 
 public class TaskCheck extends Task {
-
-    final static String COMMAND_NAME = "task";
-    final static String[] ARG_TEMPLATE = {
-            "taskId|long:-1:-1|Task ID to to check, or -1 for all",
-            "_flag|v|Verbose",
-            "_flag|c|Remove completed tasks",
-            "_flag|m|Remove delivered messages",
-            "_flag|k|Keep task even if completed",
-            "_flag|x|Stop the task",
-            "_flag|u|Suspend the task",
-            "_flag|r|Resume the task",
-            };
 
     private String _status = "not started";
     private long _taskId = -1;
@@ -40,30 +30,47 @@ public class TaskCheck extends Task {
     private boolean _suspend;
     private boolean _resume;
     
+    
+    @Cmd("task")
+    static Task createTaskCheckTask(
+            @Arg("taskId|long:-1:-1|Task ID to to check, or -1 for all") long taskId,
+            @Arg("_flag|v|Verbose") boolean verbose,
+            @Arg("_flag|c|Remove completed tasks") boolean removeTasks,
+            @Arg("_flag|m|Remove delivered messages") boolean removeMessages,
+            @Arg("_flag|k|Keep task even if completed") boolean keep,
+            @Arg("_flag|x|Stop the task") boolean stop,
+            @Arg("_flag|u|Suspend the task") boolean suspend,
+            @Arg("_flag|r|Resume the task") boolean resume) throws Exception {
+
+        TaskCheck task = new TaskCheck();
+        task._taskId = taskId;
+        task._details = verbose;
+        task._clearTasks = removeTasks;
+        task._clearMessages = removeMessages;
+        task._stop = stop;
+        task._suspend = suspend;
+        task._resume = resume;
+        return task;
+    }
+
+
+    
     @Override
     public boolean isImmediate() {
         return true;
     }
 
-    @Override
-    protected void setupArgs(String[] args) throws Exception {
-        if (args.length > 0) {
-            _taskId = Long.parseLong(args[0]);
-        }
+    void setArgs(final long taskId, final boolean verbose, final boolean removeTasks, final boolean removeMessages, final boolean stop, final boolean suspend, final boolean resume) {
+        _taskId = taskId;
+        _details = verbose;
+        _clearTasks = removeTasks;
+        _clearMessages = removeMessages;
+        _stop = stop;
+        _suspend = suspend;
+        _resume = resume;
     }
-
-    @Override
-    public void setupTaskWithArgParser(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
-        _taskId = ap.getLongValue("taskId");
-        _details = ap.isFlag('v');
-        _clearMessages = ap.isFlag('m');
-        _clearTasks = ap.isFlag('c');
-        _stop = ap.isFlag('x');
-        _suspend = ap.isFlag('u');
-        _resume = ap.isFlag('r');
-    }
-
+    
+    
     @Override
     protected void runTask() throws Exception {
         if (_stop) {
