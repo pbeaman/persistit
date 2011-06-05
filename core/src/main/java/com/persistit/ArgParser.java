@@ -137,7 +137,7 @@ public class ArgParser {
         _flags = flags.toString();
 
     }
-    
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();
@@ -197,7 +197,7 @@ public class ArgParser {
     public String getFlags() {
         return _flags;
     }
-    
+
     boolean booleanValue(final int index) {
         String t = _template[index];
         if (t.startsWith("_flag|")) {
@@ -228,7 +228,7 @@ public class ArgParser {
     public int getIntValue(String fieldName) {
         return (int) _longArgs[lookupName(fieldName)];
     }
-    
+
     int intValue(int index) {
         return (int) _longArgs[index];
     }
@@ -243,11 +243,11 @@ public class ArgParser {
     public long getLongValue(String fieldName) {
         return _longArgs[lookupName(fieldName)];
     }
-    
+
     long longValue(final int index) {
         return _longArgs[index];
     }
-    
+
     String stringValue(final int index) {
         return _strArgs[index];
     }
@@ -283,8 +283,8 @@ public class ArgParser {
             long lo = longVal(piece(type, ':', 2), 0);
             long hi = longVal(piece(type, ':', 3), Integer.MAX_VALUE);
             long argInt = longVal(arg, Long.MIN_VALUE);
-            if (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi
-                    || argInt > Integer.MAX_VALUE) {
+            if (!_isDefault[position]
+                    && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi || argInt > Integer.MAX_VALUE)) {
                 throw new IllegalArgumentException("Invalid argument "
                         + piece(_template[position], '|', 0) + "=" + arg);
             }
@@ -293,7 +293,8 @@ public class ArgParser {
             long lo = longVal(piece(type, ':', 2), 0);
             long hi = longVal(piece(type, ':', 3), Long.MAX_VALUE);
             long argInt = longVal(arg, Long.MIN_VALUE);
-            if (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi) {
+            if (!_isDefault[position]
+                    && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi)) {
                 throw new IllegalArgumentException("Invalid argument "
                         + piece(_template[position], '|', 0) + "=" + arg);
             }

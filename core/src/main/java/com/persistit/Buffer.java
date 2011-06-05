@@ -3349,7 +3349,7 @@ public final class Buffer extends SharedResource {
                         "page has too many keys: has " + getKeyCount()
                                 + " but max is " + _pool.getMaxKeys());
             }
-            
+
             kb[ebc] = (byte) db;
             System.arraycopy(_bytes, tail + _tailHeaderSize, kb, ebc + 1,
                     klength);
@@ -3415,7 +3415,7 @@ public final class Buffer extends SharedResource {
 
     public String toString() {
         if (_toStringDebug) {
-            return toStringDetail();
+            return toStringDetail(-1);
         }
 
         return "Page " + _page + " in Volume " + _vol + " at index "
@@ -3427,6 +3427,17 @@ public final class Buffer extends SharedResource {
      * @return a human-readable inventory of the contents of this buffer
      */
     public String toStringDetail() {
+        return toStringDetail(-1);
+    }
+
+    /**
+     * @param findPointer
+     * @return a human-readable representation of a page; if it is an index page
+     *         and findPointer >= 0, then only show the records that surround
+     *         the one that points to findPointer. This provides a way to
+     *         quickly find pointer paths in pages.
+     */
+    String toStringDetail(final long findPointer) {
         final StringBuilder sb = new StringBuilder(String.format(
                 "Page %,d in volume %s at index @%,d status %s type %s", _page,
                 _vol, _poolIndex, getStatusDisplayString(), getPageTypeName()));
@@ -3443,8 +3454,18 @@ public final class Buffer extends SharedResource {
             try {
                 final Key key = new Key((Persistit) null);
                 final Value value = new Value((Persistit) null);
-
-                for (RecordInfo r : getRecords()) {
+                final RecordInfo[] records = getRecords();
+                BitSet bits = new BitSet();
+                if (isIndexPage() && findPointer >= 0) {
+                    for (int index = 0; index < records.length; index++) {
+                        if (records[index].getPointerValue() == findPointer) {
+                            bits.set(index);
+                        }
+                    }
+                }
+                boolean elisionMarked = false;
+                for (int index = 0; index < records.length; index++) {
+                    RecordInfo r = records[index];
                     r.getKeyState().copyTo(key);
                     if (isDataPage()) {
                         r.getValueState().copyTo(value);
@@ -3456,11 +3477,32 @@ public final class Buffer extends SharedResource {
                                                 .getEncodedBytes().length,
                                         abridge(value)));
                     } else {
-                        sb.append(String.format(
-                                "\n  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d",
-                                r.getKbOffset(), r.getDb(), r.getEbc(),
-                                r.getTbOffset(), r.getKLength(), key,
-                                r.getPointerValue()));
+                        boolean selected = true;
+                        if (findPointer >= 0) {
+                            if (index > 2 && index < records.length - 2) {
+                                boolean bit = false;
+                                for (int p = index - 2; p < index + 3; p++) {
+                                    if (bits.get(p)) {
+                                        bit = true;
+                                    }
+                                }
+                                selected &= bit;
+                            }
+                        }
+                        if (selected) {
+                            sb.append(String
+                                    .format("\n  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d",
+                                            r.getKbOffset(), r.getDb(),
+                                            r.getEbc(), r.getTbOffset(),
+                                            r.getKLength(), key,
+                                            r.getPointerValue()));
+                            elisionMarked = false;
+                        } else {
+                            if (!elisionMarked) {
+                                sb.append(String.format("\n  ..."));
+                                elisionMarked = true;
+                            }
+                        }
                     }
                 }
             } catch (Exception e) {

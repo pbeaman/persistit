@@ -721,10 +721,11 @@ public class CLI {
 
     @Cmd("view")
     String view(
-            @Arg("page|long:-1:-1:999999999999|Page address") long pageAddress,
+            @Arg("page|long:-1:-1:99999999999999999|Page address") long pageAddress,
             @Arg("jaddr|long:-1:-1:99999999999999999|Journal address of a PA page record") long journalAddress,
-            @Arg("level|int:0:0:20|Tree level") int level,
+            @Arg("level|int:0:0:30|Tree level") int level,
             @Arg("key|string|Key") String keyString,
+            @Arg("find|long:-1:0:99999999999999999|Optional page pointer to find") long findPointer,
             @Arg("_flag|a|All lines") boolean allLines,
             @Arg("_flag|s|Summary only") boolean summary) throws Exception {
 
@@ -775,7 +776,7 @@ public class CLI {
         if (summary) {
             return buffer.toString();
         }
-        String detail = buffer.toStringDetail();
+        String detail = buffer.toStringDetail(findPointer);
         if (allLines) {
             return detail;
         } else {
