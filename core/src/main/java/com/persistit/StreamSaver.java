@@ -103,6 +103,7 @@ public class StreamSaver extends Task {
      */
     public final static int DEFAULT_BUFFER_SIZE = 65536;
 
+    protected String _filePath;
     protected DataOutputStream _dos;
 
     protected Key _lastKey;
@@ -163,8 +164,7 @@ public class StreamSaver extends Task {
             @Arg("_flag|r|Use regular expressions in tree selector") boolean regex)
             throws Exception {
         StreamSaver task = new StreamSaver();
-        task._dos = new DataOutputStream(new BufferedOutputStream(
-                new FileOutputStream(file), DEFAULT_BUFFER_SIZE));
+        task._filePath = file;
         task._treeSelector = TreeSelector.parseSelector(treeSelectorString,
                 regex, '\\');
         task.setVerbose(verbose);
@@ -621,6 +621,8 @@ public class StreamSaver extends Task {
 
     @Override
     protected void runTask() throws PersistitException, IOException {
+        _dos = new DataOutputStream(new BufferedOutputStream(
+                new FileOutputStream(_filePath), DEFAULT_BUFFER_SIZE));
         saveTrees(_treeSelector);
         close();
     }

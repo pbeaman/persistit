@@ -38,7 +38,7 @@ public class StreamLoader extends Task {
      * Default for BufferedInputStream buffer size.
      */
     public final static int DEFAULT_BUFFER_SIZE = 65536;
-
+    protected String _filePath;
     protected DataInputStream _dis;
 
     protected Key _key = new Key((Persistit) null);
@@ -66,8 +66,7 @@ public class StreamLoader extends Task {
             throws Exception {
 
         StreamLoader task = new StreamLoader();
-        task._dis = new DataInputStream(new BufferedInputStream(
-                new FileInputStream(file), DEFAULT_BUFFER_SIZE));
+        task._filePath = file;
         task._treeSelector = TreeSelector.parseSelector(treeSelectorString,
                 regex, '\\');
         task._createMissingVolumes = !dontCreateVolumes;
@@ -393,6 +392,8 @@ public class StreamLoader extends Task {
 
     @Override
     public void runTask() throws Exception {
+        _dis = new DataInputStream(new BufferedInputStream(
+                new FileInputStream(_filePath), DEFAULT_BUFFER_SIZE));
         load(_treeSelector, _createMissingVolumes, _createMissingTrees);
     }
 
