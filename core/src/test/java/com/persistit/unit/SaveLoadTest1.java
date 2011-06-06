@@ -45,7 +45,7 @@ public class SaveLoadTest1 extends PersistitUnitTestCase {
         saver.close();
         pmap.clear();
         final StreamLoader loader = new StreamLoader(_persistit, saveFile);
-        loader.load();
+        loader.load( null, false, false);
         final boolean comparison = pmap.equals(tmap);
         assertTrue(comparison);
         System.out.println("- done");

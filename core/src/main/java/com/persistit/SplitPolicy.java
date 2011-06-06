@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import static com.persistit.Buffer.*;
+
 import com.persistit.Exchange.Sequence;
 
 /**
@@ -28,9 +30,12 @@ public abstract class SplitPolicy {
     public final static SplitPolicy PACK_BIAS = new Pack();
     public final static SplitPolicy LEFT90 = new Left90();
     public final static SplitPolicy RIGHT90 = new Right90();
-    
-    private final static SplitPolicy[] POLICIES = {LEFT_BIAS, RIGHT_BIAS, EVEN_BIAS, NICE_BIAS, PACK_BIAS, LEFT90, RIGHT90};
-    
+
+    private final static SplitPolicy[] POLICIES = { LEFT_BIAS, RIGHT_BIAS,
+            EVEN_BIAS, NICE_BIAS, PACK_BIAS, LEFT90, RIGHT90 };
+
+    private final static float PACK_SHOULDER = 0.9f;
+
     public static SplitPolicy forName(final String name) {
         for (final SplitPolicy policy : POLICIES) {
             if (policy.toString().equalsIgnoreCase(name)) {
@@ -133,7 +138,8 @@ public abstract class SplitPolicy {
             //
             if (leftSize > capacity || rightSize > capacity)
                 return 0;
-            return capacity - (int)Math.abs(capacity * .9 - leftSize);
+            return capacity
+                    - (int) Math.abs(capacity * PACK_SHOULDER - leftSize);
         }
 
         @Override
@@ -153,7 +159,8 @@ public abstract class SplitPolicy {
             //
             if (leftSize > capacity || rightSize > capacity)
                 return 0;
-            return capacity - (int)Math.abs(capacity * .9 - rightSize);
+            return capacity
+                    - (int) Math.abs(capacity * PACK_SHOULDER - rightSize);
         }
 
         @Override
@@ -196,8 +203,9 @@ public abstract class SplitPolicy {
             // biases toward splitting 66% of the records into the
             // left page and 33% into the right page.
             //
-            if (leftSize > capacity || rightSize > capacity)
+            if (leftSize > capacity || rightSize > capacity) {
                 return 0;
+            }
             int difference = 2 * rightSize - leftSize;
             if (difference < 0) {
                 difference = -difference;
@@ -216,22 +224,46 @@ public abstract class SplitPolicy {
         public int splitFit(Buffer buffer, int kbOffset, int insertAt,
                 boolean replace, int leftSize, int rightSize, int currentSize,
                 int virtualSize, int capacity, int splitInfo, Sequence sequence) {
-            switch (sequence) {
-            case FORWARD:
-                return LEFT90.splitFit(buffer, kbOffset, insertAt, replace,
-                        leftSize, rightSize, currentSize, virtualSize,
-                        capacity, splitInfo, sequence);
-            case REVERSE:
-                return RIGHT90.splitFit(buffer, kbOffset, insertAt, replace,
-                        leftSize, rightSize, currentSize, virtualSize,
-                        capacity, splitInfo, sequence);
-            default:
-                return EVEN_BIAS.splitFit(buffer, kbOffset, insertAt, replace,
-                        leftSize, rightSize, currentSize, virtualSize,
-                        capacity, splitInfo, sequence);
+
+            //
+            // This policy is identical to Nice except when the split is caused
+            // by a sequential insertion. In the sequential case, this method
+            // attempts to bias the split toward the insertion point. For
+            // forward sequential inserts, this means the preferred location to
+            // split the page is immediately before the next key in the page
+            // after the newly inserted one. This lets subsequent sequential
+            // insertions fill up the current page without having to split it
+            // again right away.
+            //
+            // To avoid over-packing pages, we add shoulders to this behavior so
+            // that if neither portion of the page will be more than XX% full
+            // (where optimal XX is TBD).
+            //
+            if (leftSize > capacity || rightSize > capacity) {
+                return 0;
             }
+
+            if (!replace) {
+                if (sequence == Sequence.FORWARD) {
+                    int shoulder = (int) (capacity * PACK_SHOULDER);
+                    int keyOffsetCost = Math.abs(insertAt - kbOffset);
+                    if (leftSize < shoulder && rightSize < shoulder) {
+                        return capacity * 2 - keyOffsetCost;
+                    } // otherwise revert to NICE
+                } else if (sequence == Sequence.REVERSE) {
+                    int shoulder = (int) (capacity * PACK_SHOULDER);
+                    int keyOffsetCost = Math.abs(insertAt - kbOffset + KEYBLOCK_LENGTH);
+                    if (leftSize < shoulder && rightSize < shoulder) {
+                        return capacity * 2 - keyOffsetCost;
+                    } // otherwise revert to NICE
+                }
+            }
+
+            return NICE_BIAS.splitFit(buffer, kbOffset, insertAt, replace,
+                    leftSize, rightSize, currentSize, virtualSize, capacity,
+                    splitInfo, sequence);
         }
-        
+
         @Override
         public String toString() {
             return "PACK";

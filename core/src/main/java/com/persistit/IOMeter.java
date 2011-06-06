@@ -71,8 +71,9 @@ public class IOMeter implements IOMeterMXBean {
     private final static int WRITE_OTHER_TO_JOURNAL = 10;
     private final static int EVICT_PAGE_FROM_POOL = 11;
     private final static int FLUSH_JOURNAL = 12;
+    private final static int GET_PAGE = 13;
 
-    private final static int ITEM_COUNT = 13;
+    private final static int ITEM_COUNT = 14;
 
     private long _ioRate;
 
@@ -356,13 +357,19 @@ public class IOMeter implements IOMeterMXBean {
         final long time = System.nanoTime();
         log(EVICT_PAGE_FROM_POOL, time, volume, pageAddress, size, 0,
                 bufferIndex);
-        charge(time, 0, EVICT_PAGE_FROM_POOL);
     }
 
     public void chargeFlushJournal(final int size, final long journalAddress) {
         final long time = System.nanoTime();
         log(FLUSH_JOURNAL, time, null, -1, size, journalAddress, -1);
         charge(time, size, FLUSH_JOURNAL);
+    }
+
+    public void chargeGetPage(final Volume volume,
+            final long pageAddress, final int size, int bufferIndex) {
+        final long time = System.nanoTime();
+        log(GET_PAGE, time, volume, pageAddress, size, 0,
+                bufferIndex);
     }
 
     public long getCount(final String opName) {

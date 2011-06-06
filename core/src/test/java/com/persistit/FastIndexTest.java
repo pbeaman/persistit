@@ -20,11 +20,14 @@ import com.persistit.FastIndex;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class FastIndexTest extends PersistitUnitTestCase {
+    
+    private Buffer getABuffer() throws Exception {
+        final Exchange exchange = _persistit.getExchange("persistit", "FastIndexTest", true);
+        return exchange.getBufferPool().get(exchange.getVolume(), 1, false, true);
+    }
 
     public void testIndexSize() throws Exception {
-        final Buffer b1 = new Buffer(16384, 0, null, _persistit);
-        b1.init(Buffer.PAGE_TYPE_DATA);
-        b1.claim(true);
+        final Buffer b1 = getABuffer();
         FastIndex fi = b1.getFastIndex();
         /*
          * BUFFER_SIZE - HEADER_SIZE / MAX_KEY_RATIO
@@ -37,11 +40,14 @@ public class FastIndexTest extends PersistitUnitTestCase {
          */
         final int expectedSize = (16384 - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO; 
         assertEquals(expectedSize + 1, fi.size());
+        b1.release();
     }
     
     public void testIndexValidity() throws Exception {
-        final Buffer b1 = new Buffer(16384, 0, null, _persistit);
+        final Buffer b1 = getABuffer();
+        b1.init(Buffer.PAGE_TYPE_GARBAGE);
         FastIndex fi = b1.getFastIndex();
+        fi.invalidate();
         assertEquals(false, fi.isValid());
         fi.recompute();
         assertEquals(false, fi.isValid());
@@ -52,10 +58,11 @@ public class FastIndexTest extends PersistitUnitTestCase {
         fi.invalidate();
         assertEquals(false, fi.isValid());
         assertEquals(false, fi.verify());
+        b1.release();
     }
     
     public void testBitShiftFunctions() throws Exception {
-        final Buffer b1 = new Buffer(16384, 0, null, _persistit);
+        final Buffer b1 = getABuffer();
         FastIndex fi = b1.getFastIndex();
         fi.putDescriminatorByte(0, 55);
         assertEquals(55, fi.getDescriminatorByte(0));
@@ -72,6 +79,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
         assertEquals(55, fi.getDescriminatorByte(0));
         assertEquals(0, fi.getRunCount(0));
         assertEquals(0, fi.getEbc(0));
+        b1.release();
     }
     
     public void runAllTests() {

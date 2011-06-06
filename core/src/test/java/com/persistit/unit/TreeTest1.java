@@ -19,11 +19,10 @@ import java.io.IOException;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.exception.PersistitException;
 
 public class TreeTest1 extends PersistitUnitTestCase {
 
-    public void test1() throws PersistitException {
+    public void test1() throws Exception {
         System.out.print("test1 ");
         Exchange exchange = _persistit
                 .getExchange("persistit", "NewTree", true);
@@ -48,7 +47,7 @@ public class TreeTest1 extends PersistitUnitTestCase {
         System.out.println("- done");
     }
 
-    public void test2() throws PersistitException {
+    public void test2() throws Exception {
         System.out.print("test2 ");
         final Exchange[] exchanges = new Exchange[1000];
         for (int counter = 0; counter < 1000; counter++) {

@@ -24,21 +24,21 @@ public class Invariants {
      */
 
     public static void checkQueueSizes(final Persistit db) {
-        for (final BufferPool pool : db.getBufferPoolHashMap().values()) {
-            int volumes = 0;
-            // Count the Volume head pages
-            for (final Volume volume : db.getVolumes()) {
-                if (volume.getPageSize() == pool.getBufferSize()) {
-                    volumes++;
-                }
-            }
-            final int lru = pool.countLruQueueEntries();
-            final int invalid = pool.countInvalidQueueEntries();
-            if (lru + invalid + volumes != pool.getBufferCount()) {
-                throw new IllegalStateException(String.format(
-                        "lru=%d invalid=%d fixed=%d bufferCount=%d", lru,
-                        invalid, volumes, pool.getBufferCount()));
-            }
-        }
+//        for (final BufferPool pool : db.getBufferPoolHashMap().values()) {
+//            int volumes = 0;
+//            // Count the Volume head pages
+//            for (final Volume volume : db.getVolumes()) {
+//                if (volume.getPageSize() == pool.getBufferSize()) {
+//                    volumes++;
+//                }
+//            }
+//            final int lru = pool.countLruQueueEntries();
+//            final int invalid = pool.countInvalidQueueEntries();
+//            if (lru + invalid + volumes != pool.getBufferCount()) {
+//                throw new IllegalStateException(String.format(
+//                        "lru=%d invalid=%d fixed=%d bufferCount=%d", lru,
+//                        invalid, volumes, pool.getBufferCount()));
+//            }
+//        }
     }
 }

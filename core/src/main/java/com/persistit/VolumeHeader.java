@@ -33,25 +33,25 @@ public class VolumeHeader {
      * Signature value - human and machine readable confirmation that this file
      * resulted from Persistit.
      */
-    private final static byte[] SIGNATURE =
+    final static byte[] SIGNATURE =
             Util.stringToBytes("PERSISTIT VOLUME");
 
     /**
      * Current product version number.
      */
-    private final static int VERSION = 221;
+    final static int VERSION = 221;
     
     /**
      * Minimum product version that can handle Volumes created by this version.
      */
-    private final static int MIN_SUPPORTED_VERSION = 210;
+    final static int MIN_SUPPORTED_VERSION = 210;
     
     /**
      * Minimum product version that can handle Volumes created by this version.
      */
-    private final static int MAX_SUPPORTED_VERSION = 299;
+    final static int MAX_SUPPORTED_VERSION = 299;
     
-    private final static int SIZE = Buffer.MIN_BUFFER_SIZE;
+    final static int SIZE = Buffer.MIN_BUFFER_SIZE;
     
     private FileChannel channel;
     

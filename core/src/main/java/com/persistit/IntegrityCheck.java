@@ -17,7 +17,10 @@ package com.persistit;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 
+import com.persistit.CLI.Arg;
+import com.persistit.CLI.Cmd;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
@@ -47,14 +50,8 @@ import com.persistit.exception.TimeoutException;
 public class IntegrityCheck extends Task {
     final static int MAX_FAULTS = 200;
     final static int MAX_WALK_RIGHT = 1000;
-    
-    final static String COMMAND_NAME = "icheck";
-    final static String[] ARG_TEMPLATE = {
-        "trees|string:|Tree specification",
-        "_flag|u|Don't freeze updates (Default is to freeze updates)",
-        "_flag|h|Don't fix holes (Default is to fix index holes)",
-    };
 
+    private Volume _currentVolume;
     private Tree _currentTree;
     private LongBitSet _usedPageBits = new LongBitSet();
     private long _totalPages = 0;
@@ -68,12 +65,13 @@ public class IntegrityCheck extends Task {
     private long _longRecordBytesInUse = 0;
 
     private Buffer[] _edgeBuffers = new Buffer[Exchange.MAX_TREE_DEPTH];
+    private long[] _edgePages = new long[Exchange.MAX_TREE_DEPTH];
     private int[] _edgePositions = new int[Exchange.MAX_TREE_DEPTH];
     private Key[] _edgeKeys = new Key[Exchange.MAX_TREE_DEPTH];
     private int _depth = -1;
 
-    private Tree[] _trees;
-    private boolean _freezeUpdates;
+    private TreeSelector _treeSelector;
+    private boolean _suspendUpdates;
     private boolean _fixHoles;
 
     private ArrayList<Fault> _faults = new ArrayList<Fault>();
@@ -82,6 +80,22 @@ public class IntegrityCheck extends Task {
 
     // Used in checking long values
     private Value _value = new Value((Persistit) null);
+
+    @Cmd("icheck")
+    static Task icheck(
+            @Arg("trees|string|Tree selector: Volumes/Trees to check") String treeSelectorString,
+            @Arg("_flag|r|Use regex expression") boolean regex,
+            @Arg("_flag|u|Don't freeze updates (Default is to freeze updates)") boolean dontSuspendUpdates,
+            @Arg("_flag|h|Fix index holes") boolean fixHoles,
+            @Arg("_flag|v|Verbose results") boolean verbose) throws Exception {
+        final IntegrityCheck task = new IntegrityCheck();
+        task._treeSelector = TreeSelector.parseSelector(treeSelectorString,
+                regex, '\\');
+        task._fixHoles = fixHoles;
+        task._suspendUpdates = !dontSuspendUpdates;
+        task.setMessageLogVerbosity(verbose ? LOG_VERBOSE : LOG_NORMAL);
+        return task;
+    }
 
     /**
      * Package-private constructor for use in a {@link Task}.
@@ -95,46 +109,37 @@ public class IntegrityCheck extends Task {
     }
 
     @Override
-    protected void setupArgs(String[] args) throws PersistitException {
-        _trees = parseTreeList(args[0]);
-        _freezeUpdates = args.length > 1 && "true".equals(args[1]);
-        _fixHoles = args.length > 2 && "true".equals(args[2]);
-    }
-    
-    @Override
-    public void setupTaskWithArgParser(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
-        _trees = parseTreeList(ap.getStringValue("trees"));
-        _freezeUpdates = !ap.isFlag('u');
-        _fixHoles = !ap.isFlag('h');
-    }
-
-    @Override
     protected void runTask() {
         boolean freeze = !_persistit.isUpdateSuspended()
-                && (_freezeUpdates || _fixHoles);
+                && (_suspendUpdates || _fixHoles);
         boolean needsToDrain = false;
         if (freeze) {
             _persistit.setUpdateSuspended(true);
             needsToDrain = true;
         }
+        
+        
         try {
             ArrayList<Volume> volumes = new ArrayList<Volume>();
             long _totalPages = 0;
-            for (int index = 0; index < _trees.length; index++) {
-                Tree tree = _trees[index];
-                Volume volume = tree.getVolume();
-                if (!volumes.contains(volume)) {
+            
+            for (final Volume volume : _persistit.getVolumes()) {
+                if (_treeSelector.isSelected(volume)) {
                     volumes.add(volume);
                     _totalPages += volume.getMaximumPageInUse();
                 }
             }
+            
             Volume previousVolume = null;
-            for (int index = 0; index < _trees.length; index++) {
-                Tree tree = _trees[index];
+            for (final Tree tree : _persistit.getSelectedTrees(_treeSelector)) {
                 Volume volume = tree.getVolume();
-                if (volume != previousVolume)
+                boolean checkWholeVolume = false;
+                if (volume != previousVolume) {
                     initialize(false);
+                    if (tree == volume.getDirectoryTree()) {
+                        checkWholeVolume = true;
+                    }
+                }
                 previousVolume = volume;
                 try {
                     if (needsToDrain) {
@@ -143,24 +148,25 @@ public class IntegrityCheck extends Task {
                         // Delay for a few seconds to allow
                         // completion of any update operations
                         // currently in progress. We do this only if
-                        // we are going to fix holes. This is pretty
-                        // kludgey: TODO - better mechanism!
+                        // we are going to fix holes.
                         //
                         Thread.sleep(3000);
                     }
                     postMessage(
                             "Checking " + tree.getName() + " in "
                                     + volume.getPath(), LOG_VERBOSE);
-                    boolean okay = checkTree(tree);
+                    boolean okay = checkWholeVolume ? checkVolume(volume)
+                            : checkTree(tree);
                     appendMessage(okay ? " - OKAY" : " - FAULTS", LOG_VERBOSE);
                 } catch (PersistitException pe) {
                     postMessage(pe.toString(), LOG_NORMAL);
                 } catch (InterruptedException ie) {
                     // Just repeat the operation...
-                    index--;
                 }
             }
             postMessage(toString(), LOG_NORMAL);
+        } catch (PersistitException e) {
+            postMessage(e.toString(), LOG_NORMAL);
         } finally {
             if (freeze) {
                 _persistit.setUpdateSuspended(false);
@@ -168,24 +174,76 @@ public class IntegrityCheck extends Task {
         }
     }
 
+    private String resourceName() {
+        return _currentTree == null ? _currentVolume.getName() : _currentVolume
+                .getName() + "/" + _currentTree.getName();
+    }
+
     private void addFault(String description, long page, int level, int position) {
-        Fault fault = new Fault(_currentTree.getName(), this, description,
-                page, level, position);
+        Fault fault = new Fault(resourceName(), this, description, page, level,
+                position);
         if (_faults.size() < MAX_FAULTS)
             _faults.add(fault);
         postMessage(fault.toString(), LOG_VERBOSE);
     }
 
     private void initTree(Tree tree) {
+        _currentVolume = tree.getVolume();
         _currentTree = tree;
         _holeCount = 0;
         _holes.clear();
         for (int index = Exchange.MAX_TREE_DEPTH; --index >= 0;) {
             _edgeBuffers[index] = null;
+            _edgePages[index] = 0;
             _edgeKeys[index] = null;
             _edgePositions[index] = 0;
             _depth = -1;
         }
+    }
+
+    /**
+     * Indicate mode of operation. If <code>true</code> then all threads
+     * attempting to perform updates are blocked while the integrity check is in
+     * progress.
+     * 
+     * @return <code>true</code> if updates are suspended
+     */
+    public boolean isSuspendUpdates() {
+        return _suspendUpdates;
+    }
+
+    /**
+     * Control mode of operation. If <code>true</code> then all threads
+     * attempting to perform updates are blocked while the integrity check is in
+     * progress.
+     * 
+     * @param suspendUpdates
+     *            <code>true</code> to suspend updates
+     */
+    public void setSuspendUpdates(boolean suspendUpdates) {
+        _suspendUpdates = suspendUpdates;
+    }
+
+    /**
+     * Indicate whether missing index pages should be added when an index "hole"
+     * is discovered.
+     * 
+     * @return <code>true</code> if index IntegrityCheck will attempt to fix
+     *         holes.
+     */
+    public boolean isFixHoles() {
+        return _fixHoles;
+    }
+
+    /**
+     * Control whether missing index pages should be added when an index "hole"
+     * is discovered.
+     * 
+     * @param fixHoles
+     *            <code>true</code> to attempt to fix holes
+     */
+    public void setFixHoles(boolean fixHoles) {
+        _fixHoles = fixHoles;
     }
 
     /**
@@ -203,12 +261,7 @@ public class IntegrityCheck extends Task {
      * @return An array of detected Faults
      */
     public Fault[] getFaults() {
-        // Note: avoiding use of JDK 1.2 toArray method.
-        Fault[] array = new Fault[_faults.size()];
-        for (int index = 0; index < _faults.size(); index++) {
-            array[index] = _faults.get(index);
-        }
-        return array;
+        return _faults.toArray(new Fault[_faults.size()]);
     }
 
     /**
@@ -280,10 +333,25 @@ public class IntegrityCheck extends Task {
      * @return The progress indicator on a scale of 0.0 to 1.0.
      */
     public double getProgress() {
-        if (_totalPages == 0)
+        if (_totalPages == 0) {
             return 1;
-        else
+        } else {
             return ((double) _pagesVisited) / ((double) _totalPages);
+        }
+    }
+
+    @Override
+    public String getStatusDetail() {
+        if (_faults.isEmpty()) {
+            return getStatus() + " - no faults";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (final Fault fault : _faults) {
+            sb.append(fault);
+            sb.append(Util.NEW_LINE);
+        }
+        sb.append(getStatus());
+        return sb.toString();
     }
 
     /**
@@ -294,11 +362,11 @@ public class IntegrityCheck extends Task {
      */
     @Override
     public String getStatus() {
-        if (_currentTree == null)
+        if (_currentVolume == null)
             return null;
         else
-            return _pagesVisited + "/" + _totalPages + " ("
-                    + _currentTree.getName() + ")";
+            return _pagesVisited + "/" + _totalPages + " (" + resourceName()
+                    + ")";
     }
 
     /**
@@ -387,7 +455,11 @@ public class IntegrityCheck extends Task {
             _description = description;
             _path = new long[level + 1];
             for (int index = 0; index <= level; index++) {
-                _path[index] = work._edgeBuffers[index].getPageAddress();
+                if (index >= work._edgeBuffers.length) {
+                    _path[index] = 0;
+                } else {
+                    _path[index] = work._edgePages[index];
+                }
             }
             _path[level] = page;
             _level = level;
@@ -466,6 +538,7 @@ public class IntegrityCheck extends Task {
      *            <code>true</code> to reset all counters to zero.
      */
     public void initialize(boolean initCounts) {
+        _currentVolume = null;
         _currentTree = null;
         _usedPageBits = new LongBitSet();
         _totalPages = 0;
@@ -490,17 +563,21 @@ public class IntegrityCheck extends Task {
      */
     public boolean checkVolume(Volume volume) throws PersistitException {
         initialize(false);
+        _currentVolume = volume;
         String[] treeNames = volume.getTreeNames();
         // This is just for the progress counter.
         _totalPages = volume.getMaximumPageInUse();
         Tree directoryTree = volume.getDirectoryTree();
-        if (directoryTree != null)
+        if (directoryTree != null) {
             checkTree(directoryTree);
+        }
         for (int index = 0; index < treeNames.length; index++) {
             Tree tree = volume.getTree(treeNames[index], false);
             if (tree != null)
                 checkTree(tree);
         }
+        final long garbageRoot = volume.getGarbageRoot();
+        checkGarbage(garbageRoot);
         return !hasFaults();
     }
 
@@ -519,7 +596,6 @@ public class IntegrityCheck extends Task {
         if (!tree.claim(true)) {
             throw new TimeoutException(tree + " is in use");
         }
-        _persistit.getLockManager().setDisabled(true);
         try {
             while (again) {
                 try {
@@ -536,6 +612,7 @@ public class IntegrityCheck extends Task {
                         if (buffer != null) {
                             releasePage(buffer);
                             _edgeBuffers[index] = null;
+                            _edgePages[index] = 0;
                         }
                     }
                     _currentTree = null;
@@ -562,7 +639,6 @@ public class IntegrityCheck extends Task {
                 }
             }
         } finally {
-            _persistit.getLockManager().setDisabled(true);
             tree.release();
         }
         return _faults.size() == initialFaultCount;
@@ -598,6 +674,14 @@ public class IntegrityCheck extends Task {
         _pagesVisited++;
 
         try {
+            if (parent == 0 && buffer.getRightSibling() != 0) {
+                addFault("Tree root has a right sibling", page, 0, 0);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        try {
             Buffer leftSibling = null;
             Key key;
 
@@ -619,6 +703,7 @@ public class IntegrityCheck extends Task {
                 Debug.$assert(leftSibling != buffer);
 
             _edgeBuffers[level] = buffer;
+            _edgePages[level] = page;
             if (leftSibling != null)
                 releasePage(leftSibling);
             _edgeKeys[level] = key;
@@ -685,10 +770,87 @@ public class IntegrityCheck extends Task {
         } finally {
             if (buffer != null) {
                 _edgeBuffers[level] = null;
+                _edgePages[level] = 0;
                 releasePage(buffer);
             }
 
         }
+    }
+
+    private void checkGarbage(final long garbageRootPage)
+            throws PersistitException {
+        long garbagePageAddress = garbageRootPage;
+        boolean first = true;
+        while (garbagePageAddress != 0) {
+            Buffer garbageBuffer = getPage(garbagePageAddress);
+            if (first) {
+                _edgePages[0] = garbagePageAddress;
+                first = false;
+            }
+            checkGarbagePage(garbageBuffer);
+            _pagesVisited++;
+            garbagePageAddress = garbageBuffer.getRightSibling();
+            releasePage(garbageBuffer);
+        }
+        _edgePages[0] = 0;
+    }
+
+    private void checkGarbagePage(Buffer garbageBuffer)
+            throws PersistitException {
+        long page = garbageBuffer.getPageAddress();
+        if (!garbageBuffer.isGarbagePage()) {
+            addFault("Unexpected page type " + garbageBuffer.getPageType()
+                    + " expected a garbage page", page, 1, 0);
+            return;
+        }
+        if (_usedPageBits.get(page)) {
+            addFault("Garbage page is referenced by multiple parents", page, 1,
+                    0);
+            return;
+        }
+
+        int next = garbageBuffer.getAlloc();
+        int size = garbageBuffer.getBufferSize();
+        int count = (size - next) / Buffer.GARBAGE_BLOCK_SIZE;
+        if (count * Buffer.GARBAGE_BLOCK_SIZE != (size - next)) {
+            addFault("Garbage page is malformed: _alloc=" + next
+                    + " is not at a multiple of " + Buffer.GARBAGE_BLOCK_SIZE
+                    + " bytes", page, 1, 0);
+        }
+        _usedPageBits.set(page, true);
+        _edgePages[1] = page;
+        for (int p = garbageBuffer.getAlloc(); p < garbageBuffer
+                .getBufferSize(); p += Buffer.GARBAGE_BLOCK_SIZE) {
+            long left = garbageBuffer.getGarbageChainLeftPage(next);
+            long right = garbageBuffer.getGarbageChainRightPage(next);
+            _edgePositions[1] = p;
+            checkGarbageChain(left, right);
+        }
+        _edgePages[1] = 0;
+    }
+
+    private void checkGarbageChain(long left, long right)
+            throws PersistitException {
+        long page = left;
+        _edgePages[2] = page;
+        while (page != 0 && page != right) {
+            if (_usedPageBits.get(page)) {
+                addFault(
+                        "Page on garbage chain is referenced by multiple parents",
+                        page, 3, 0);
+                return;
+            }
+            Buffer buffer = getPage(page);
+            if (!buffer.isDataPage() && !buffer.isIndexPage()
+                    && !buffer.isLongRecordPage()) {
+                addFault("Page of type " + buffer.getPageTypeName()
+                        + " found on garbage page", page, 3, 0);
+            }
+            _pagesVisited++;
+            page = buffer.getRightSibling();
+            releasePage(buffer);
+        }
+        _edgePages[2] = 0;
     }
 
     private boolean checkPageType(Buffer buffer, int level, Tree tree) {
@@ -751,7 +913,6 @@ public class IntegrityCheck extends Task {
                 oldBuffer = buffer;
                 buffer = getPage(page);
                 if (oldBuffer != startingBuffer) {
-                    _persistit.getLockManager().setOffset(1);
                     releasePage(oldBuffer);
                     oldBuffer = null;
                 }
@@ -826,6 +987,7 @@ public class IntegrityCheck extends Task {
                         page, _depth, foundAt);
                 break;
             }
+            _usedPageBits.set(longPage, true);
             if (longSize <= 0) {
                 addFault("Long record chain too long at page " + longPage
                         + " pointed to by " + fromPage, page, _depth, foundAt);
@@ -896,10 +1058,9 @@ public class IntegrityCheck extends Task {
 
     private Buffer getPage(long page) throws PersistitException {
         poll();
-        BufferPool pool = _currentTree.getVolume().getPool();
+        BufferPool pool = _currentVolume.getPool();
         try {
-            Buffer buffer = pool.get(_currentTree.getVolume(), page, false,
-                    true);
+            Buffer buffer = pool.get(_currentVolume, page, false, true);
             return buffer;
         } catch (PersistitException de) {
             throw de;
@@ -907,7 +1068,7 @@ public class IntegrityCheck extends Task {
     }
 
     private void releasePage(Buffer buffer) {
-        BufferPool pool = _currentTree.getVolume().getPool();
+        BufferPool pool = _currentVolume.getPool();
         pool.release(buffer);
     }
 }

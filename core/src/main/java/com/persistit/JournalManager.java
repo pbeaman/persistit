@@ -114,8 +114,6 @@ public class JournalManager implements JournalManagerMXBean,
 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
 
-    private AtomicBoolean _backupMode = new AtomicBoolean();
-
     private String _journalFilePath;
 
     /**
@@ -257,6 +255,9 @@ public class JournalManager implements JournalManagerMXBean,
     public synchronized void populateJournalInfo(
             final Management.JournalInfo info) {
         info.closed = _closed.get();
+        if (_blockSize == 0) {
+            return;
+        }
         info.copiedPageCount = _copiedPageCount;
         info.copying = _copying.get();
         info.currentGeneration = _currentAddress;
@@ -284,7 +285,6 @@ public class JournalManager implements JournalManagerMXBean,
         info.pageMapSize = _pageMap.size();
         info.baseAddress = _baseAddress;
         info.appendOnly = _appendOnly.get();
-        info.backupMode = _backupMode.get();
         info.fastCopying = _copyFast.get();
     }
 
@@ -308,20 +308,12 @@ public class JournalManager implements JournalManagerMXBean,
         return _appendOnly.get();
     }
 
-    public boolean isBackupMode() {
-        return _backupMode.get();
-    }
-
     public boolean isCopyingFast() {
         return _copyFast.get();
     }
 
     public void setAppendOnly(boolean appendOnly) {
         _appendOnly.set(appendOnly);
-    }
-
-    public void setBackupMode(boolean backupMode) {
-        _backupMode.set(backupMode);
     }
 
     public void setCopyingFast(boolean fast) {
@@ -476,7 +468,7 @@ public class JournalManager implements JournalManagerMXBean,
     public synchronized VolumeDescriptor lookupVolumeHandle(final int handle) {
         return _handleToVolumeMap.get(Integer.valueOf(handle));
     }
-    
+
     public synchronized TreeDescriptor lookupTreeHandle(final int handle) {
         return _handleToTreeMap.get(Integer.valueOf(handle));
     }
@@ -592,7 +584,7 @@ public class JournalManager implements JournalManagerMXBean,
                     + " leftSize=" + leftSize + " bufferSize=" + bufferSize);
         }
 
-        if (pageAddress != pn.getPageAddress()) {
+        if (pageAddress != pn.getPageAddress() && pn.getPageAddress() != -1) {
             throw new CorruptJournalException("Record at "
                     + pn.toStringJournalAddress(this)
                     + " mismatched page address: expected/actual="
@@ -610,6 +602,51 @@ public class JournalManager implements JournalManagerMXBean,
         }
         bb.limit(bufferSize).position(0);
         return pageAddress;
+    }
+    
+    /**
+     * Method used by diagnostic tools to attempt to read a page from journal
+     * @param address journal address
+     * @param bb ByteBuffer in which to return the result
+     * @return pageAddress of the page at the specified location, or -1 if the
+     * address does not reference a valid page
+     * @throws PersistitException 
+     */
+    Buffer readPageBuffer(final long address) throws PersistitException {
+        ByteBuffer bb = ByteBuffer.allocate(PA.OVERHEAD);
+        readFully(bb, address);
+        if (bb.remaining() < PA.OVERHEAD) {
+            return null;
+        }
+        final int type = PA.getType(bb);
+        final int payloadSize = PA.getLength(bb) - PA.OVERHEAD;
+        final int leftSize = PA.getLeftSize(bb);
+        final int bufferSize = PA.getBufferSize(bb);
+        final long pageAddress = PA.getPageAddress(bb);
+        final int volumeHandle = PA.getVolumeHandle(bb);
+        
+        if (type != PA.TYPE || leftSize < 0 || payloadSize < leftSize || payloadSize > bufferSize) {
+            return null;
+        }
+
+        final BufferPool pool = _persistit.getBufferPool(bufferSize);
+        final Buffer buffer = new Buffer(bufferSize, -1,  pool, _persistit);
+        buffer.setPageAddressAndVolume(pageAddress, volumeForHandle(volumeHandle));
+        bb = buffer.getByteBuffer();
+        bb.limit(payloadSize).position(0);
+        readFully(bb, address + PA.OVERHEAD);
+
+        if (leftSize > 0) {
+            final int rightSize = payloadSize - leftSize;
+            System.arraycopy(bb.array(), leftSize, bb.array(), bufferSize
+                    - rightSize, rightSize);
+            Arrays.fill(bb.array(), leftSize, bufferSize - rightSize, (byte) 0);
+        }
+        bb.limit(bufferSize).position(0);
+        buffer.claim(true, 0);
+        buffer.load();
+        buffer.release();
+        return buffer;
     }
 
     private void advance(final int recordSize) {
@@ -1392,14 +1429,18 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     /**
-     * Set the copyFast flag and then wait until all pages have been copied to
-     * their respective volumes, allowing the journal files to be deleted. Note:
-     * does nothing of the <code>appendOnly</code> is set.
+     * Set the copyFast flag and then wait until all checkpointed pages have
+     * been copied to their respective volumes, allowing the journal files to be
+     * deleted. Pages modified after the last valid checkpoint cannot
+     * be copied.
+     * <p>
+     * Does nothing of the <code>appendOnly</code> is set.
      * 
      * @throws PersistitException
      */
     public void copyBack() throws PersistitException {
         if (!_appendOnly.get()) {
+            int pagesLeft = 0;
             synchronized (this) {
                 _copyFast.set(true);
                 notifyAll();
@@ -1410,9 +1451,7 @@ public class JournalManager implements JournalManagerMXBean,
                         // ignore;
                     }
                 }
-                if (Debug.ENABLED) {
-                    Debug.$assert(_pageMap.isEmpty()); // TODO - remove this
-                }
+                pagesLeft = _pageMap.size();
             }
         }
     }

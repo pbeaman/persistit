@@ -138,33 +138,36 @@ public class ArgParser {
 
     }
 
-    /**
-     * Display a description of the permissible argument values to
-     * {@link java.lang.System#out}.
-     */
-    public void usage() {
-        _usageOnly = true;
-        StringBuilder sb = new StringBuilder();
-        System.out.println();
-        System.out.println("Usage: java " + _progName + " arguments");
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
         for (int i = 0; i < _template.length; i++) {
-            sb.setLength(0);
             String t = _template[i];
             if (t.startsWith("_flag|")) {
                 sb.append("  flag -");
                 sb.append(piece(t, '|', 1));
                 tab(sb, 24);
                 sb.append(piece(t, '|', 2));
-                System.out.println(sb);
             } else {
                 sb.append("  ");
                 sb.append(piece(t, '|', 0));
                 tab(sb, 24);
                 sb.append(piece(t, '|', 2));
-                System.out.println(sb);
             }
+            sb.append(Util.NEW_LINE);
         }
+        return sb.toString();
+    }
+
+    /**
+     * Display a description of the permissible argument values to
+     * {@link java.lang.System#out}.
+     */
+    public void usage() {
+        _usageOnly = true;
         System.out.println();
+        System.out.println("Usage: java " + _progName + " arguments");
+        System.out.println(toString());
     }
 
     /**
@@ -195,6 +198,15 @@ public class ArgParser {
         return _flags;
     }
 
+    boolean booleanValue(final int index) {
+        String t = _template[index];
+        if (t.startsWith("_flag|")) {
+            return isFlag(t.charAt(6));
+        } else {
+            return false;
+        }
+    }
+
     /**
      * @param fieldName
      *            Argument name of a String value specification in the template
@@ -217,6 +229,10 @@ public class ArgParser {
         return (int) _longArgs[lookupName(fieldName)];
     }
 
+    int intValue(int index) {
+        return (int) _longArgs[index];
+    }
+
     /**
      * @param fieldName
      *            Argument name of a long value specification in the template
@@ -226,6 +242,14 @@ public class ArgParser {
      */
     public long getLongValue(String fieldName) {
         return _longArgs[lookupName(fieldName)];
+    }
+
+    long longValue(final int index) {
+        return _longArgs[index];
+    }
+
+    String stringValue(final int index) {
+        return _strArgs[index];
     }
 
     /**
@@ -259,8 +283,8 @@ public class ArgParser {
             long lo = longVal(piece(type, ':', 2), 0);
             long hi = longVal(piece(type, ':', 3), Integer.MAX_VALUE);
             long argInt = longVal(arg, Long.MIN_VALUE);
-            if (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi
-                    || argInt > Integer.MAX_VALUE) {
+            if (!_isDefault[position]
+                    && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi || argInt > Integer.MAX_VALUE)) {
                 throw new IllegalArgumentException("Invalid argument "
                         + piece(_template[position], '|', 0) + "=" + arg);
             }
@@ -269,7 +293,8 @@ public class ArgParser {
             long lo = longVal(piece(type, ':', 2), 0);
             long hi = longVal(piece(type, ':', 3), Long.MAX_VALUE);
             long argInt = longVal(arg, Long.MIN_VALUE);
-            if (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi) {
+            if (!_isDefault[position]
+                    && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi)) {
                 throw new IllegalArgumentException("Invalid argument "
                         + piece(_template[position], '|', 0) + "=" + arg);
             }
@@ -283,14 +308,15 @@ public class ArgParser {
         if (s.length() == 0)
             return dflt;
         try {
-            return Long.parseLong(s);
+            return Long.parseLong(s.replace(",", ""));
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException(s + " is not a number");
         }
     }
 
     private void tab(StringBuilder sb, int count) {
-        while (sb.length() < count) {
+        int last = sb.lastIndexOf(Util.NEW_LINE);
+        while (sb.length() - last + 1 < count) {
             sb.append(' ');
         }
     }

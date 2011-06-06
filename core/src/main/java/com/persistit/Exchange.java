@@ -17,8 +17,8 @@ package com.persistit;
 
 import static com.persistit.Buffer.EXACT_MASK;
 import static com.persistit.Buffer.HEADER_SIZE;
-import static com.persistit.Buffer.KEY_BLOCK_START;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
+import static com.persistit.Buffer.KEY_BLOCK_START;
 import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
 import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
 import static com.persistit.Buffer.LONGREC_SIZE;
@@ -41,7 +41,6 @@ import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
 
 import com.persistit.Key.Direction;
-import com.persistit.LockManager.ResourceTracker;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
@@ -160,13 +159,13 @@ public class Exchange {
     private final LevelCache[] _levelCache = new LevelCache[MAX_TREE_DEPTH];
 
     private BufferPool _pool;
-    private long _treeGeneration = -1;
     private Volume _volume;
     private Tree _tree;
 
-    private int _cacheDepth = 0;
-    private int _treeDepth = 0;
-    private long _rootPage = 0;
+    private volatile long _treeGeneration = -1;
+    private volatile int _cacheDepth = 0;
+    private volatile int _treeDepth = 0;
+    private volatile long _rootPage = 0;
 
     private boolean _exclusive;
     private Key _spareKey1;
@@ -188,6 +187,8 @@ public class Exchange {
     private long _longRecordPageAddress;
 
     private Object _appCache;
+
+    private ReentrantResourceHolder _treeHolder;
 
     public enum Sequence {
         NONE, FORWARD, REVERSE
@@ -328,6 +329,7 @@ public class Exchange {
         if (_volume != volume || _tree != tree) {
             _volume = volume;
             _tree = tree;
+            _treeHolder = new ReentrantResourceHolder(_tree);
             _treeGeneration = -1;
             initCache();
         }
@@ -340,6 +342,7 @@ public class Exchange {
         _persistit = exchange._persistit;
         _volume = exchange._volume;
         _tree = exchange._tree;
+        _treeHolder = new ReentrantResourceHolder(_tree);
         _pool = exchange._pool;
 
         _rootPage = exchange._rootPage;
@@ -371,6 +374,7 @@ public class Exchange {
         _ignoreTransactions = false;
         _splitPolicy = _persistit.getDefaultSplitPolicy();
         _joinPolicy = _persistit.getDefaultJoinPolicy();
+        _treeHolder.verifyReleased();
     }
 
     void initCache() {
@@ -962,7 +966,7 @@ public class Exchange {
         int foundAt = -1;
         boolean found = false;
 
-        if (!_tree.claim(false)) {
+        if (!_treeHolder.claim(false)) {
             if (Debug.ENABLED) {
                 Debug.debug1(true);
             }
@@ -993,7 +997,6 @@ public class Exchange {
 
                 foundAt = searchLevel(key, pageAddress, currentLevel);
                 if (oldBuffer != null) {
-                    _persistit.getLockManager().setOffset();
                     _pool.release(oldBuffer);
                     oldBuffer = null;
                 }
@@ -1050,14 +1053,10 @@ public class Exchange {
 
         } finally {
             if (oldBuffer != null) {
-                // _persistit.getLockManager().setOffset();
                 _pool.release(oldBuffer);
                 oldBuffer = null;
             }
-            if (found) {
-                _persistit.getLockManager().setOffset();
-            }
-            _tree.release();
+            _treeHolder.release();
         }
     }
 
@@ -1077,17 +1076,18 @@ public class Exchange {
             long oldPageAddress = pageAddress;
             for (int rightWalk = MAX_WALK_RIGHT; rightWalk-- > 0;) {
                 Buffer buffer = null;
-                if (pageAddress <= 0 || pageAddress > _volume.getMaximumPageInUse()) {
+                if (pageAddress <= 0
+                        || pageAddress > _volume.getMaximumPageInUse()) {
                     if (Debug.ENABLED) {
                         Debug.debug1(true);
                     }
 
-                    corrupt("Volume " + _volume + " level="
-                            + currentLevel + " page=" + pageAddress
-                            + " previousPage=" + oldPageAddress
-                            + " initialPage=" + initialPageAddress + " key=<"
-                            + key.toString() + ">" + " oldBuffer=<" + oldBuffer
-                            + ">" + " invalid page address");
+                    corrupt("Volume " + _volume + " level=" + currentLevel
+                            + " page=" + pageAddress + " previousPage="
+                            + oldPageAddress + " initialPage="
+                            + initialPageAddress + " key=<" + key.toString()
+                            + ">" + " oldBuffer=<" + oldBuffer + ">"
+                            + " invalid page address");
                 }
                 LevelCache lc = _levelCache[currentLevel];
 
@@ -1106,7 +1106,6 @@ public class Exchange {
                 // of our new buffer.
                 //
                 if (oldBuffer != null) {
-                    _persistit.getLockManager().setOffset();
                     _pool.release(oldBuffer);
                     oldBuffer = null;
                 }
@@ -1148,15 +1147,13 @@ public class Exchange {
                 Debug.debug1(true);
             }
 
-            corrupt("Volume " + _volume + " level=" + currentLevel
-                    + " page=" + oldPageAddress + " initialPage="
-                    + initialPageAddress + " key=<" + key.toString() + ">"
+            corrupt("Volume " + _volume + " level=" + currentLevel + " page="
+                    + oldPageAddress + " initialPage=" + initialPageAddress
+                    + " key=<" + key.toString() + ">"
                     + " walked right more than " + MAX_WALK_RIGHT + " pages"
                     + " last page visited=" + pageAddress);
-            
             // won't happen - here to make compiler happy.
             return -1;
-            
         } finally {
             if (oldBuffer != null) {
                 _pool.release(oldBuffer);
@@ -1176,11 +1173,10 @@ public class Exchange {
         key.testValidForStoreAndFetch(_volume.getPageSize());
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        final int lockedResourceCount = _persistit.getLockManager()
-                .getLockedResourceCount();
         storeInternal(key, value, 0, false, false);
-        _persistit.getLockManager().verifyLockedResourceCount(
-                lockedResourceCount);
+
+        _treeHolder.verifyReleased();
+
         return this;
     }
 
@@ -1203,8 +1199,6 @@ public class Exchange {
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
         boolean committed = false;
-        int lockedResourceCount = _persistit.getLockManager()
-                .getLockedResourceCount();
 
         final boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
 
@@ -1244,14 +1238,12 @@ public class Exchange {
                 if (Debug.ENABLED) {
                     Debug.$assert(buffer == null);
                 }
-                _persistit.getLockManager().verifyLockedResourceCount(
-                        lockedResourceCount);
                 if (Debug.ENABLED) {
                     Debug.suspend();
                 }
 
                 if (treeClaimRequired && !treeClaimAcquired) {
-                    if (!_tree.claim(treeWriterClaimRequired)) {
+                    if (!_treeHolder.claim(treeWriterClaimRequired)) {
                         if (Debug.ENABLED) {
                             Debug.debug1(true);
                         }
@@ -1260,14 +1252,11 @@ public class Exchange {
                                 + " failed to get reader claim on " + _tree);
                     }
                     treeClaimAcquired = true;
-                    lockedResourceCount++;
                 }
 
                 checkLevelCache();
 
                 try {
-                    _persistit.getLockManager().verifyLockedResourceCount(
-                            lockedResourceCount);
                     if (inTxn) {
                         if (value.isAtomicIncrementArmed()) {
                             long from = value.getLong();
@@ -1304,7 +1293,7 @@ public class Exchange {
                         // Need to lock the tree because we may need to change
                         // its root.
                         //
-                        if (!treeClaimAcquired || !_tree.upgradeClaim()) {
+                        if (!treeClaimAcquired || !_treeHolder.upgradeClaim()) {
                             treeClaimRequired = true;
                             treeWriterClaimRequired = true;
                             throw RetryException.SINGLE;
@@ -1344,8 +1333,8 @@ public class Exchange {
 
                     if (Debug.ENABLED) {
                         Debug.$assert(buffer != null
-                                && (buffer._status & SharedResource.WRITER_MASK) != 0
-                                && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+                                && (buffer.getStatus() & SharedResource.WRITER_MASK) != 0
+                                && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
                     }
                     if ((foundAt & EXACT_MASK) != 0) {
                         oldLongRecordPointer = buffer
@@ -1364,21 +1353,15 @@ public class Exchange {
                     } else {
                         _longRecordPageAddress = 0;
                     }
-                    final int lockedResourceCount2 = _persistit
-                            .getLockManager().getLockedResourceCount();
-                    //
                     // Here we have a buffer with a writer claim and
                     // a correct foundAt value
                     //
                     boolean splitPerformed = putLevel(lc, key, value, buffer,
                             foundAt, treeClaimAcquired);
 
-                    _persistit.getLockManager().verifyLockedResourceCount(
-                            lockedResourceCount2);
-
                     if (Debug.ENABLED) {
-                        Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
-                                && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+                        Debug.$assert((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
+                                && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
                     }
                     //
                     // If a split is required then putLevel did not change
@@ -1443,15 +1426,12 @@ public class Exchange {
                     }
 
                     if (treeClaimAcquired) {
-                        _tree.release();
+                        _treeHolder.release();
                         treeClaimAcquired = false;
-                        lockedResourceCount--;
                     }
-                    treeClaimAcquired = _tree.claim(true, dontWait ? 0
+                    treeClaimAcquired = _treeHolder.claim(true, dontWait ? 0
                             : Tree.DEFAULT_MAX_WAIT_TIME);
-                    if (treeClaimAcquired) {
-                        lockedResourceCount++;
-                    } else {
+                    if (!treeClaimAcquired) {
                         if (dontWait) {
                             throw re;
                         } else {
@@ -1465,17 +1445,14 @@ public class Exchange {
                         _pool.release(buffer);
                         buffer = null;
                     }
-                    _persistit.getLockManager().verifyLockedResourceCount(
-                            lockedResourceCount);
                 }
             }
         } finally {
             _exclusive = false;
 
             if (treeClaimAcquired) {
-                _tree.release();
+                _treeHolder.release();
                 treeClaimAcquired = false;
-                lockedResourceCount--;
             }
 
             value.changeLongRecordMode(false);
@@ -1514,22 +1491,15 @@ public class Exchange {
         if (Debug.ENABLED) {
             Debug.suspend();
         }
-        final int lockedResourceCount = _persistit.getLockManager()
-                .getLockedResourceCount();
-        for (;;) {
-            if (_hasDeferredDeallocations) {
-                _volume.commitAllDeferredDeallocations();
-                _hasDeferredDeallocations = false;
-            }
-            if (_hasDeferredTreeUpdate) {
-                _tree.commit();
-                _volume.getDirectoryTree().commit();
-                _hasDeferredTreeUpdate = false;
-            }
-            break;
+        if (_hasDeferredDeallocations) {
+            _volume.commitAllDeferredDeallocations();
+            _hasDeferredDeallocations = false;
         }
-        _persistit.getLockManager().verifyLockedResourceCount(
-                lockedResourceCount);
+        if (_hasDeferredTreeUpdate) {
+            _tree.commit();
+            _volume.getDirectoryTree().commit();
+            _hasDeferredTreeUpdate = false;
+        }
     }
 
     private void insertIndexLevel(Key key, Value value)
@@ -1563,17 +1533,10 @@ public class Exchange {
 
             buffer.setDirtyStructure();
 
-            if (_isDirectoryExchange) {
-                Tree tree = _volume.getDirectoryTree();
-                tree.changeRootPageAddr(newTopPage, 1);
-                tree.bumpGeneration();
-            } else {
-                _tree.changeRootPageAddr(newTopPage, 1);
-                _tree.bumpGeneration();
-            }
-
-            _hasDeferredTreeUpdate = true;
-
+            _tree.changeRootPageAddr(newTopPage, 1);
+            _tree.bumpGeneration();
+            _tree.commit();
+            
         } finally {
             if (buffer != null) {
                 _pool.release(buffer);
@@ -1598,8 +1561,8 @@ public class Exchange {
             throws PersistitException {
         if (Debug.ENABLED) {
             Debug.$assert(_exclusive);
-            Debug.$assert((buffer._status & SharedResource.WRITER_MASK) != 0
-                    && (buffer._status & SharedResource.CLAIMED_MASK) != 0);
+            Debug.$assert((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
+                    && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
         }
         final Sequence sequence = lc.sequence(foundAt);
         int result = buffer.putValue(key, value, foundAt, false);
@@ -1682,7 +1645,7 @@ public class Exchange {
         if (buffer == null)
             return null;
 
-        boolean available = buffer.claim(_exclusive, 0);
+        boolean available = buffer.checkedClaim(_exclusive, 0);
         if (available) {
             // Have to retest all this now that we've gotten a claim
             if (buffer.getPageAddress() == lc._page
@@ -1793,16 +1756,11 @@ public class Exchange {
     public boolean traverse(final Direction direction, final boolean deep,
             final int minimumBytes) throws PersistitException {
         _persistit.checkClosed();
-        final ResourceTracker resourceTracker = _persistit.getLockManager()
-                .getMyResourceTracker();
 
         boolean doFetch = minimumBytes > 0;
         boolean doModify = minimumBytes >= 0;
         boolean result;
-        final int lockedResourceCount = resourceTracker
-                .getLockedResourceCount();
 
-        resourceTracker.verifyLockedResourceCount(lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         Buffer buffer = null;
 
@@ -1944,7 +1902,6 @@ public class Exchange {
                             if (inTxn) {
                                 _transaction.touchedPage(this, buffer);
                             }
-                            resourceTracker.setOffset();
                             _pool.release(buffer);
                             //
                             // Reset foundAtNext to point to the first key block
@@ -2123,7 +2080,6 @@ public class Exchange {
                 _pool.release(buffer);
                 buffer = null;
             }
-            resourceTracker.verifyLockedResourceCount(lockedResourceCount);
         }
         _volume.bumpTraverseCounter();
         return result;
@@ -2453,11 +2409,7 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
         _key.testValidForStoreAndFetch(_volume.getPageSize());
-        int lockedResourceCount = _persistit.getLockManager()
-                .getLockedResourceCount();
         storeInternal(_key, _value, 0, true, false);
-        _persistit.getLockManager().verifyLockedResourceCount(
-                lockedResourceCount);
         _spareValue.copyTo(_value);
         return this;
     }
@@ -2563,11 +2515,6 @@ public class Exchange {
         _key.testValidForStoreAndFetch(_volume.getPageSize());
         if (minimumBytes < 0)
             minimumBytes = 0;
-        final int lockedResourceCount = _persistit.getLockManager()
-                .getLockedResourceCount();
-
-        _persistit.getLockManager().verifyLockedResourceCount(
-                lockedResourceCount);
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
 
         if (inTxn && _transaction.fetch(this, value, minimumBytes) != null) {
@@ -2590,8 +2537,7 @@ public class Exchange {
                 }
                 _pool.release(buffer);
             }
-            _persistit.getLockManager().verifyLockedResourceCount(
-                    lockedResourceCount);
+            _treeHolder.verifyReleased();
         }
     }
 
@@ -2715,8 +2661,6 @@ public class Exchange {
     public void removeTree() throws PersistitException {
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        final int lockedResourceCount = _persistit.getLockManager()
-                .getLockedResourceCount();
         boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         clear();
         _value.clear();
@@ -2726,8 +2670,6 @@ public class Exchange {
             _volume.removeTree(_tree);
         }
         initCache();
-        _persistit.getLockManager().verifyLockedResourceCount(
-                lockedResourceCount);
     }
 
     /**
@@ -2812,7 +2754,11 @@ public class Exchange {
             }
         }
 
-        return removeKeyRangeInternal(_spareKey1, _spareKey2, fetchFirst);
+        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2,
+                fetchFirst);
+        _treeHolder.verifyReleased();
+
+        return result;
     }
 
     /**
@@ -2858,7 +2804,11 @@ public class Exchange {
             throw new IllegalArgumentException(
                     "Second key must be larger than first");
         }
-        return removeKeyRangeInternal(_spareKey1, _spareKey2, false);
+        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2,
+                false);
+        _treeHolder.verifyReleased();
+
+        return result;
     }
 
     /**
@@ -2893,8 +2843,6 @@ public class Exchange {
         boolean deallocationRequired = true; // assume until proven false
         boolean deferredReindexRequired = false;
         boolean tryQuickDelete = true;
-        int lockedResourceCount = _persistit.getLockManager()
-                .getLockedResourceCount();
 
         // long journalId = -1;
         // if (!inTxn) {
@@ -2908,8 +2856,6 @@ public class Exchange {
             // again until the expiration time.
             //
             for (;;) {
-                _persistit.getLockManager().verifyLockedResourceCount(
-                        lockedResourceCount);
 
                 checkLevelCache();
                 int depth = _cacheDepth; // The depth to which we have
@@ -2977,7 +2923,7 @@ public class Exchange {
                     }
 
                     if (!treeClaimAcquired) {
-                        if (!_tree.claim(treeWriterClaimRequired)) {
+                        if (!_treeHolder.claim(treeWriterClaimRequired)) {
                             if (Debug.ENABLED) {
                                 Debug.debug1(true);
                             }
@@ -2986,7 +2932,6 @@ public class Exchange {
                                     + " failed to get writer claim on " + _tree);
                         }
                         treeClaimAcquired = true;
-                        lockedResourceCount++;
                         _tree.bumpGeneration();
                         // Because we actually haven't changed anything yet.
                         _treeGeneration++;
@@ -3049,7 +2994,7 @@ public class Exchange {
                             //
                             if (!treeWriterClaimRequired) {
                                 treeWriterClaimRequired = true;
-                                if (!_tree.upgradeClaim()) {
+                                if (!_treeHolder.upgradeClaim()) {
                                     throw RetryException.SINGLE;
                                 }
                             }
@@ -3249,13 +3194,12 @@ public class Exchange {
                     }
 
                     if (treeClaimAcquired) {
-                        _tree.release();
+                        _treeHolder.release();
                         treeClaimAcquired = false;
-                        lockedResourceCount--;
                     }
                 }
                 if (treeWriterClaimRequired) {
-                    if (!_tree.claim(true)) {
+                    if (!_treeHolder.claim(true)) {
                         if (Debug.ENABLED) {
                             Debug.debug1(true);
                         }
@@ -3264,7 +3208,6 @@ public class Exchange {
                                 + " failed to get reader claim on " + _tree);
                     }
                     treeClaimAcquired = true;
-                    lockedResourceCount++;
                 }
             }
             while (deallocationRequired) {
@@ -3292,7 +3235,7 @@ public class Exchange {
                         LevelCache lc = _levelCache[level];
                         if (lc._deferredReindexPage != 0) {
                             if (!treeClaimAcquired) {
-                                if (!_tree.claim(treeWriterClaimRequired)) {
+                                if (!_treeHolder.claim(treeWriterClaimRequired)) {
                                     if (Debug.ENABLED) {
                                         Debug.debug1(true);
                                     }
@@ -3302,7 +3245,6 @@ public class Exchange {
                                             + _tree);
                                 }
                                 treeClaimAcquired = true;
-                                lockedResourceCount++;
                             }
 
                             long deferredPage = lc._deferredReindexPage;
@@ -3346,13 +3288,10 @@ public class Exchange {
         } finally {
             if (treeClaimAcquired) {
                 _tree.bumpGeneration();
-                _tree.release();
-                lockedResourceCount--;
+                _treeHolder.release();
                 treeClaimAcquired = false;
             }
             _exclusive = false;
-            _persistit.getLockManager().verifyLockedResourceCount(
-                    lockedResourceCount);
         }
         // if (journalId != -1)
         // journal().completed(journalId);
@@ -3382,11 +3321,9 @@ public class Exchange {
         Buffer buffer2 = lc._rightBuffer;
 
         if (buffer2 != null && (lc._flags & RIGHT_CLAIMED) != 0) {
-            _persistit.getLockManager().setOffset(offset);
             _pool.release(buffer2);
         }
         if (buffer1 != null && (lc._flags & LEFT_CLAIMED) != 0) {
-            _persistit.getLockManager().setOffset(offset);
             _pool.release(buffer1);
         }
 
@@ -3448,18 +3385,16 @@ public class Exchange {
                 if (Debug.ENABLED) {
                     Debug.debug1(true);
                 }
-                
                 corrupt("Invalid LONG_RECORD value size=" + rawSize
-                + " but should be " + LONGREC_SIZE);
+                        + " but should be " + LONGREC_SIZE);
             }
             if ((rawBytes[0] & 0xFF) != LONGREC_TYPE) {
                 if (Debug.ENABLED) {
                     Debug.debug1(true);
                 }
-                
                 corrupt("Invalid LONG_RECORD value type="
-                                + (rawBytes[0] & 0xFF) + " but should be "
-                                + LONGREC_TYPE);
+                        + (rawBytes[0] & 0xFF) + " but should be "
+                        + LONGREC_TYPE);
             }
             int longSize = Buffer.decodeLongRecordDescriptorSize(rawBytes, 0);
             long startAtPage = Buffer.decodeLongRecordDescriptorPointer(
@@ -3489,8 +3424,8 @@ public class Exchange {
                         Debug.debug1(true);
                     }
                     corrupt("Invalid LONG_RECORD remaining size="
-                                    + remainingSize + " of " + rawSize
-                                    + " in page " + page);
+                            + remainingSize + " of " + rawSize + " in page "
+                            + page);
                 }
                 buffer = _pool.get(_volume, page, false, true);
                 if (buffer.getPageType() != PAGE_TYPE_LONG_RECORD) {
@@ -3498,7 +3433,7 @@ public class Exchange {
                         Debug.debug1(true);
                     }
                     corrupt("LONG_RECORD chain is invalid at page " + page
-                                    + " - invalid page type: " + buffer);
+                            + " - invalid page type: " + buffer);
                 }
                 int segmentSize = buffer.getBufferSize() - HEADER_SIZE;
                 if (segmentSize > remainingSize)
@@ -3520,7 +3455,7 @@ public class Exchange {
                 if (count > MAX_LONG_RECORD_CHAIN) {
                     if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
                         corrupt("LONG_RECORD chain starting at " + startAtPage
-                                        + " is too long");
+                                + " is too long");
                     }
 
                 }
@@ -3791,9 +3726,8 @@ public class Exchange {
                         Debug.debug1(true);
                     }
                     corrupt("LONG_RECORD chain starting at "
-                                    + _longRecordPageAddress
-                                    + " is invalid at page " + page
-                                    + " - invalid page type: " + buffer);
+                            + _longRecordPageAddress + " is invalid at page "
+                            + page + " - invalid page type: " + buffer);
                 }
                 if (buffer.isDirty()) {
                     buffer.writePage();
@@ -3803,7 +3737,7 @@ public class Exchange {
                 buffer = null;
                 if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
                     corrupt("LONG_RECORD chain starting at "
-                                    + _longRecordPageAddress + " is too long");
+                            + _longRecordPageAddress + " is too long");
                 }
             }
         } finally {
@@ -3857,6 +3791,7 @@ public class Exchange {
         }
         if (_tree != tree) {
             _tree = tree;
+            _treeHolder = new ReentrantResourceHolder(_tree);
             _treeGeneration = -1;
             checkLevelCache();
         }
@@ -3886,8 +3821,8 @@ public class Exchange {
      * needs exclusive access to a Tree
      */
     private void waitForTreeExclusive() throws PersistitException {
-        _tree.claim(true);
-        _tree.release();
+        _treeHolder.claim(true);
+        _treeHolder.release();
     }
 
     public KeyHistogram computeHistogram(final Key start, final Key end,
@@ -3905,8 +3840,6 @@ public class Exchange {
         }
         final KeyHistogram histogram = new KeyHistogram(getTree(), start, end,
                 sampleSize, keyDepth, treeDepth);
-        final int lockedResourceCount = _persistit.getLockManager()
-                .getLockedResourceCount();
         Buffer previousBuffer = null;
         LevelCache lc = null;
         Buffer buffer = null;
@@ -3934,7 +3867,6 @@ public class Exchange {
                     if (rightSiblingPage > 0) {
                         Buffer rightSibling = _pool.get(_volume,
                                 rightSiblingPage, _exclusive, true);
-                        _persistit.getLockManager().setOffset();
                         _pool.release(buffer);
                         //
                         // Reset foundAtNext to point to the first key block
@@ -3970,8 +3902,6 @@ public class Exchange {
                 _pool.release(buffer);
             }
         }
-        _persistit.getLockManager().verifyLockedResourceCount(
-                lockedResourceCount);
 
         histogram.cull();
         return histogram;

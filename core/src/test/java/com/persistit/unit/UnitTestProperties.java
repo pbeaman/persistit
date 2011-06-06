@@ -88,6 +88,23 @@ public class UnitTestProperties {
         return p;
     }
 
+    public static Properties getPropertiesByMemory(final boolean cleanup, final String memSpecification) {
+        if (cleanup) {
+            cleanUpDirectory(new File(DATA_PATH));
+        }
+        final Properties p = new Properties();
+        p.setProperty("datapath", DATA_PATH);
+        p.setProperty("buffer.memory.16384", memSpecification);
+        p.setProperty("volume.1", "${datapath}/persistit.v01,create,"
+                + "pageSize:16384,initialPages:100,extensionPages:100,"
+                + "maximumPages:25000");
+        p.setProperty("journalpath", "${datapath}/persistit_journal");
+        p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
+        p.setProperty("rmiport", System.getProperty("rmiport", "8081"));
+        p.setProperty("jmx", "true");
+        return p;
+    }
+
     public final static void cleanUpDirectory(final File file) {
         if (!file.exists()) {
             file.mkdirs();

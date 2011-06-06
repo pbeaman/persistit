@@ -69,23 +69,23 @@ public class Volume extends SharedResource {
     private FileChannel _channel;
     private String _path;
     private String _name;
-    private long _timestamp;
     private long _id;
+    private volatile long _timestamp;
     private long _initialPages;
     private long _maximumPages;
     private long _extensionPages;
-    private long _openTime;
-    private long _lastReadTime;
-    private long _lastWriteTime;
-    private long _lastExtensionTime;
-    private long _highestPageUsed;
-    private long _firstAvailablePage;
-    private long _createTime;
-    private long _pageCount;
-    private long _directoryRootPage;
-    private long _garbageRoot;
+    private volatile long _openTime;
+    private volatile long _lastReadTime;
+    private volatile long _lastWriteTime;
+    private volatile long _lastExtensionTime;
+    private volatile long _highestPageUsed;
+    private volatile long _firstAvailablePage;
+    private volatile long _createTime;
+    private volatile long _pageCount;
+    private volatile long _directoryRootPage;
+    private volatile long _garbageRoot;
     private int _bufferSize;
-    private boolean _loose;
+    private volatile boolean _loose;
     private AtomicReference<Object> _appCache = new AtomicReference<Object>();
 
     private AtomicLong _readCounter = new AtomicLong();
@@ -107,7 +107,7 @@ public class Volume extends SharedResource {
 
     private HashMap<String, Tree> _treeNameHashMap = new HashMap<String, Tree>();
 
-    private boolean _closed;
+    private volatile boolean _closed;
     private final Tree _directoryTree;
 
     private ArrayList<DeallocationChain> _deallocationList = new ArrayList<DeallocationChain>();
@@ -339,7 +339,7 @@ public class Volume extends SharedResource {
             _persistit.addVolume(this);
 
             _headBuffer = _pool.get(this, 0, true, false);
-            _pool.setFixed(_headBuffer, true);
+            _headBuffer.setFixed(true);
             _header = new VolumeHeader(_channel);
 
             _headBuffer.clear();
@@ -380,7 +380,7 @@ public class Volume extends SharedResource {
         } finally {
             if (_headBuffer != null) {
                 if (!open) {
-                    _pool.setFixed(_headBuffer, false);
+                    _headBuffer.setFixed(false);
                 }
                 releaseHeadBuffer();
             }
@@ -410,8 +410,8 @@ public class Volume extends SharedResource {
             _readOnly = readOnly;
             _channel = new RandomAccessFile(_path, readOnly ? "r" : "rw")
                     .getChannel();
-            
-            _header = new VolumeHeader(_channel); 
+
+            _header = new VolumeHeader(_channel);
             final ByteBuffer bb = _header.validate();
 
             //
@@ -448,7 +448,7 @@ public class Volume extends SharedResource {
                 checkpointMetaData();
             }
 
-            _pool.setFixed(_headBuffer, true);
+            _headBuffer.setFixed(true);
             releaseHeadBuffer();
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
@@ -591,10 +591,7 @@ public class Volume extends SharedResource {
      * @throws PMapException
      */
     private void checkpointMetaData() throws ReadOnlyVolumeException {
-        if (_readOnly) {
-            throw new ReadOnlyVolumeException(toString());
-        }
-        if (updateHeaderInfo(_headBuffer.getBytes())) {
+        if (!_readOnly && updateHeaderInfo(_headBuffer.getBytes())) {
             _headBuffer.setDirtyStructure();
         }
     }
@@ -644,17 +641,13 @@ public class Volume extends SharedResource {
      * @return The page address
      */
     public long getGarbageRoot() {
-        synchronized (_lock) {
-            return _garbageRoot;
-        }
+        return _garbageRoot;
     }
 
     private void setGarbageRoot(long garbagePage) throws InUseException,
             ReadOnlyVolumeException {
-        synchronized (_lock) {
-            _garbageRoot = garbagePage;
-            checkpointMetaData();
-        }
+        _garbageRoot = garbagePage;
+        checkpointMetaData();
     }
 
     /**
@@ -663,9 +656,7 @@ public class Volume extends SharedResource {
      * @return The directory <code>Tree</code>
      */
     public Tree getDirectoryTree() {
-        synchronized (_lock) {
-            return _directoryTree;
-        }
+        return _directoryTree;
     }
 
     /**
@@ -757,9 +748,7 @@ public class Volume extends SharedResource {
      * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
      */
     public long getCreateTime() {
-        synchronized (_lock) {
-            return _createTime;
-        }
+        return _createTime;
     }
 
     /**
@@ -768,9 +757,7 @@ public class Volume extends SharedResource {
      * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
      */
     public long getOpenTime() {
-        synchronized (_lock) {
-            return _openTime;
-        }
+        return _openTime;
     }
 
     /**
@@ -780,9 +767,7 @@ public class Volume extends SharedResource {
      * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
      */
     public long getLastReadTime() {
-        synchronized (_lock) {
-            return _lastReadTime;
-        }
+        return _lastReadTime;
     }
 
     /**
@@ -792,9 +777,7 @@ public class Volume extends SharedResource {
      * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
      */
     public long getLastWriteTime() {
-        synchronized (_lock) {
-            return _lastWriteTime;
-        }
+        return _lastWriteTime;
     }
 
     /**
@@ -804,9 +787,7 @@ public class Volume extends SharedResource {
      * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
      */
     public long getLastExtensionTime() {
-        synchronized (_lock) {
-            return _lastExtensionTime;
-        }
+        return _lastExtensionTime;
     }
 
     /**
@@ -856,6 +837,7 @@ public class Volume extends SharedResource {
         _readCounter.incrementAndGet();
         _lastReadTime = System.currentTimeMillis();
     }
+
     void bumpWriteCounter() {
         _writeCounter.incrementAndGet();
         _lastWriteTime = System.currentTimeMillis();
@@ -993,7 +975,7 @@ public class Volume extends SharedResource {
                 }
             }
         }
-        synchronized (_lock) {
+        synchronized (this) {
             if (Debug.ENABLED) {
                 for (int i = 0; i < _deallocationList.size(); i++) {
                     DeallocationChain chain = _deallocationList.get(i);
@@ -1038,7 +1020,7 @@ public class Volume extends SharedResource {
      */
     void commitAllDeferredDeallocations() throws PersistitException {
         final ArrayList<DeallocationChain> list;
-        synchronized (_lock) {
+        synchronized (this) {
             if (_deallocationList.size() == 0)
                 return;
             list = _deallocationList;
@@ -1071,7 +1053,7 @@ public class Volume extends SharedResource {
                 // get processed. We'll deallocate them on the next
                 // invocation.
                 //
-                synchronized (_lock) {
+                synchronized (this) {
                     if (_deallocationList.size() == 0) {
                         _deallocationList = list;
                     } else {
@@ -1160,7 +1142,7 @@ public class Volume extends SharedResource {
      */
     boolean removeTree(String treeName) throws PersistitException {
         Tree tree = null;
-        synchronized (_lock) {
+        synchronized (this) {
             tree = _treeNameHashMap.get(treeName);
         }
         if (tree != null)
@@ -1191,7 +1173,7 @@ public class Volume extends SharedResource {
             ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME)
                     .append(tree.getName()).remove();
 
-            synchronized (_lock) {
+            synchronized (this) {
                 _treeNameHashMap.remove(tree.getName());
                 tree.bumpGeneration();
                 tree.invalidate();
@@ -1282,7 +1264,7 @@ public class Volume extends SharedResource {
      * @return The array.
      */
     Tree[] getTrees() {
-        synchronized (_lock) {
+        synchronized (this) {
             int size = _treeNameHashMap.values().size();
             Tree[] trees = new Tree[size];
             int index = 0;
@@ -1388,7 +1370,7 @@ public class Volume extends SharedResource {
     }
 
     private void claimHeadBuffer() throws PersistitException {
-        if (!_headBuffer.claim(true)) {
+        if (!_headBuffer.checkedClaim(true)) {
             throw new InUseException(this + " head buffer " + _headBuffer
                     + " is unavailable");
         }
@@ -1486,7 +1468,7 @@ public class Volume extends SharedResource {
 
         // First we attempt to allocate from the uncommitted deallocation list
         DeallocationChain dc = null;
-        synchronized (_lock) {
+        synchronized (this) {
             final ArrayList<DeallocationChain> list = _deallocationList;
             if (list != null && list.size() > 0) {
                 dc = list.remove(list.size() - 1);
@@ -1507,7 +1489,7 @@ public class Volume extends SharedResource {
 
                 finally {
                     if (dc != null) {
-                        synchronized (_lock) {
+                        synchronized (this) {
                             _deallocationList.add(dc);
                         }
                     }
@@ -1591,9 +1573,9 @@ public class Volume extends SharedResource {
                                         null, null, null);
                             }
 
-                            if (Debug.ENABLED)
+                            if (Debug.ENABLED) {
                                 Debug.$assert(nextGarbagePage > 0);
-
+                            }
                             garbageBuffer.setGarbageLeftPage(nextGarbagePage);
                         }
                     }
@@ -1611,9 +1593,6 @@ public class Volume extends SharedResource {
                     return buffer;
                 } finally {
                     if (garbageBuffer != null) {
-                        if (buffer != null) {
-                            _persistit.getLockManager().setOffset();
-                        }
                         _pool.release(garbageBuffer);
                     }
                 }
@@ -1622,9 +1601,7 @@ public class Volume extends SharedResource {
                     extend();
                 }
                 long page;
-                synchronized (_lock) {
-                    page = _firstAvailablePage++;
-                }
+                page = _firstAvailablePage++;
 
                 // No need to read the prior content of the page - we trust
                 // it's never been used before.
@@ -1643,9 +1620,6 @@ public class Volume extends SharedResource {
                 return buffer;
             }
         } finally {
-            if (buffer != null) {
-                _persistit.getLockManager().setOffset();
-            }
             releaseHeadBuffer();
         }
     }
@@ -1689,10 +1663,8 @@ public class Volume extends SharedResource {
                 }
             }
 
-            synchronized (_lock) {
-                _pageCount = pageCount;
-                _lastExtensionTime = System.currentTimeMillis();
-            }
+            _pageCount = pageCount;
+            _lastExtensionTime = System.currentTimeMillis();
             checkpointMetaData();
 
         } catch (IOException ioe) {
@@ -1709,15 +1681,13 @@ public class Volume extends SharedResource {
     }
 
     void close() throws PersistitException {
-        _pool.setFixed(_headBuffer, false);
+        _headBuffer.setFixed(false);
 
         // _pool.invalidate(this);
 
         final FileChannel channelToClose;
-        synchronized (_lock) {
-            channelToClose = _channel;
-            _closed = true;
-        }
+        channelToClose = _channel;
+        _closed = true;
         try {
             if (channelToClose != null) {
                 channelToClose.close();
@@ -1726,7 +1696,7 @@ public class Volume extends SharedResource {
             throw new PersistitIOException(e);
         }
     }
-    
+
     void flush() throws PersistitException {
         claimHeadBuffer();
         commitAllTreeUpdates();
@@ -1755,7 +1725,7 @@ public class Volume extends SharedResource {
         changed |= Util.changeBytes(bytes, 0, _header.getSignature());
         changed |= Util.changeInt(bytes, 16, _header.getVersion());
         changed |= Util.changeInt(bytes, 20, _bufferSize);
-        Util.putLong(bytes, 24, _timestamp);
+        changed |= Util.changeLong(bytes, 24, _timestamp);
         changed |= Util.changeLong(bytes, 32, _id);
         changed |= Util.changeLong(bytes, 40, _readCounter.get());
         // Ugly, but the act of closing the system increments this
@@ -1837,11 +1807,11 @@ public class Volume extends SharedResource {
     public Object getAppCache() {
         return _appCache.get();
     }
-    
+
     public int getHandle() {
         return _handle.get();
     }
-    
+
     public int setHandle(final int handle) {
         _handle.set(handle);
         return handle;

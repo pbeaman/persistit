@@ -32,7 +32,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 public class TransactionalCacheTest extends PersistitUnitTestCase {
 
     private static final Random RANDOM = new Random(1);
-    
+
     private TableStatus _tableStatus = new TableStatus(_persistit);
 
     private static void randomSleep() {
@@ -57,7 +57,6 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         Map<Integer, AtomicLong> _minima = new HashMap<Integer, AtomicLong>();
         Map<Integer, AtomicLong> _maxima = new HashMap<Integer, AtomicLong>();
         Map<Integer, AtomicLong> _count = new HashMap<Integer, AtomicLong>();
-        
 
         public static class CountUpdate extends UpdateInt {
 
@@ -387,7 +386,6 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
             _persistit.checkpoint();
             _persistit.getJournalManager().force();
 
-
             for (int count = 0; count < 20; count++) {
                 transaction.begin();
                 try {
@@ -416,7 +414,6 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         }
     }
 
-
     @Override
     public void setUp() throws Exception {
         _tableStatus.register();
@@ -430,9 +427,8 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
     }
 
     private void showJournal() throws Exception {
-        JournalTool jt = new JournalTool(
-                _persistit,
-                new String[] { "path=/tmp/persistit_test_data/persistit_journal" });
+        JournalTool jt = new JournalTool(_persistit);
+        jt.init(new String[] { "path=/tmp/persistit_test_data/persistit_journal" });
         jt.scan();
     }
 }

@@ -50,19 +50,17 @@ public class StatisticsTaskTest extends PersistitUnitTestCase {
         sw.getBuffer().setLength(0);
         stat.printValue(pw, Display.RATE);
         assertEquals("    111.100", sw.toString());
-        
+
     }
-    
-    
+
     @Test
     public void testStatisticsTask() throws Exception {
-        final StatisticsTask task = new StatisticsTask();
-        task.setPersistit(_persistit);
-        task.setMessageStream(System.out);
-        task.setup(1, "stats", "cls", 0, 5);
+        
         final File file = File.createTempFile("statistics", ".log");
-//        file.deleteOnExit();
-        task.setupTaskWithArgParser(new String[] {"-a", "-r", "delay=1", "count=5", "file=" + file.getAbsolutePath()});
+        file.deleteOnExit();
+        final StatisticsTask task = (StatisticsTask)CLI.parseTask(_persistit, "stat -a -r delay=1 count=5 file=" + file.getAbsolutePath());
+        task.setMessageWriter(new PrintWriter(System.out));
+        task.setup(1, "stats", "cls", 0, 5);
         task.run();
         final BufferedReader reader = new BufferedReader(new FileReader(file));
         int lines = 0;
@@ -73,11 +71,11 @@ public class StatisticsTaskTest extends PersistitUnitTestCase {
         }
         assertEquals(5, lines);
     }
-    
+
     @Override
     public void runAllTests() throws Exception {
         // TODO Auto-generated method stub
-        
+
     }
-    
+
 }

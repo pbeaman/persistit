@@ -21,7 +21,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.List;
 
+import com.persistit.CLI.Arg;
+import com.persistit.CLI.Cmd;
 import com.persistit.exception.PersistitException;
 
 /**
@@ -33,14 +36,6 @@ import com.persistit.exception.PersistitException;
  * @version 1.0
  */
 public class StreamSaver extends Task {
-    
-    final static String COMMAND_NAME="save";
-    
-    final static String[] ARG_TEMPLATE = {
-        "file|string:|Save to file",
-        "trees|string:*|Volumes and trees to save",
-        "keyfilter|string:|KeyFilter expression to select keys to save",
-        };
 
     /**
      * Record type marker for FILL records
@@ -108,6 +103,7 @@ public class StreamSaver extends Task {
      */
     public final static int DEFAULT_BUFFER_SIZE = 65536;
 
+    protected String _filePath;
     protected DataOutputStream _dos;
 
     protected Key _lastKey;
@@ -120,8 +116,7 @@ public class StreamSaver extends Task {
     protected Exception _lastException;
     protected boolean _verbose;
     protected int _recordCount;
-    protected Tree[] _taskTrees;
-    protected KeyFilter _taskKeyFilter;
+    protected TreeSelector _treeSelector;
 
     /**
      * Package-private constructor used by {@link ManagementImpl} to instantiate
@@ -159,6 +154,21 @@ public class StreamSaver extends Task {
             throws FileNotFoundException {
         this(persistit, new DataOutputStream(new BufferedOutputStream(
                 new FileOutputStream(file), DEFAULT_BUFFER_SIZE)));
+    }
+
+    @Cmd("save")
+    static StreamSaver createTask(
+            @Arg("file|string:|Save to file") String file,
+            @Arg("trees|string:*|Tree selector - specify Volumes/Trees/Keys to save") String treeSelectorString,
+            @Arg("_flag|v|verbose") boolean verbose,
+            @Arg("_flag|r|Use regular expressions in tree selector") boolean regex)
+            throws Exception {
+        StreamSaver task = new StreamSaver();
+        task._filePath = file;
+        task._treeSelector = TreeSelector.parseSelector(treeSelectorString,
+                regex, '\\');
+        task.setVerbose(verbose);
+        return task;
     }
 
     /**
@@ -553,26 +563,42 @@ public class StreamSaver extends Task {
     }
 
     /**
-     * Saves on or more trees.
+     * Saves one or more trees.
      * 
-     * @param trees
-     *            The <code>Tree</code>s to save
+     * @param treeSelector
+     *            The <code>TreeSelector</code>s to select volumes, trees, and
+     *            KeyFilters within trees.
      * @throws PersistitException
      * @throws IOException
      */
-    public void saveTrees(Tree[] trees, KeyFilter keyFilter)
+    public void saveTrees(final TreeSelector treeSelector)
             throws PersistitException, IOException {
-        for (int index = 0; index < trees.length; index++) {
-            Tree tree = trees[index];
-            writeComment("Tree " + tree.getName() + " in "
-                    + tree.getVolume().getPath());
-            try {
-                Exchange exchange = _persistit.getExchange(tree.getVolume(),
-                        tree.getName(), false);
-                save(exchange, keyFilter);
-            } catch (PersistitException exception) {
-                _lastException = exception;
-                writeException(exception);
+        final List<Tree> trees = _persistit.getSelectedTrees(treeSelector);
+        for (final Tree tree : trees) {
+            if (tree.getVolume().getDirectoryTree() == tree) {
+                for (final String treeName : tree.getVolume().getTreeNames()) {
+                    final Tree t = tree.getVolume().getTree(treeName, false);
+                    try {
+                        writeComment("Tree " + treeName + " in "
+                                + tree.getVolume().getPath());
+                        Exchange exchange = new Exchange(t);
+                        save(exchange, null);
+                    } catch (PersistitException exception) {
+                        _lastException = exception;
+                        writeException(exception);
+                    }
+                }
+            } else {
+                try {
+                    writeComment("Tree " + tree.getName() + " in "
+                            + tree.getVolume().getPath());
+                    Exchange exchange = new Exchange(tree);
+                    save(exchange, treeSelector.keyFilter(tree.getVolume()
+                            .getName(), tree.getName()));
+                } catch (PersistitException exception) {
+                    _lastException = exception;
+                    writeException(exception);
+                }
             }
         }
     }
@@ -584,39 +610,20 @@ public class StreamSaver extends Task {
      * @throws IOException
      */
     public void saveAll() throws PersistitException, IOException {
-        Volume[] volumes = _persistit.getVolumes();
-        for (int index = 0; index < volumes.length & !_stop; index++) {
-            saveTrees(volumes[index], null);
-        }
-    }
 
-    @Override
-    protected void setupArgs(String[] args) throws PersistitException,
-            IOException {
-        _taskTrees = parseTreeList(args[0]);
-        if (args[1] != null && args[1].length() > 0) {
-            _taskKeyFilter = new KeyFilter(args[1]);
+        for (final Volume volume : _persistit.getVolumes()) {
+            if (_stop) {
+                break;
+            }
+            saveTrees(volume, null);
         }
-        _dos = new DataOutputStream(new BufferedOutputStream(
-                new FileOutputStream(args[2]), DEFAULT_BUFFER_SIZE));
-    }
-    
-    @Override
-    public void setupTaskWithArgParser(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
-        _taskTrees = parseTreeList(ap.getStringValue("trees"));
-        final String kf = ap.getStringValue("keyfilter");
-        if (kf != null && !kf.isEmpty()) {
-            _taskKeyFilter = new KeyFilter(kf);
-        }
-        _dos = new DataOutputStream(new BufferedOutputStream(
-                new FileOutputStream(ap.getStringValue("file")), DEFAULT_BUFFER_SIZE));
-        setVerbose(true);
     }
 
     @Override
     protected void runTask() throws PersistitException, IOException {
-        saveTrees(_taskTrees, _taskKeyFilter);
+        _dos = new DataOutputStream(new BufferedOutputStream(
+                new FileOutputStream(_filePath), DEFAULT_BUFFER_SIZE));
+        saveTrees(_treeSelector);
         close();
     }
 

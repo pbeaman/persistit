@@ -211,7 +211,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
     }
 
     private void selectVolume(VolumeInfo volumeInfo) {
-        String newName = volumeInfo == null ? null : volumeInfo.getPath();
+        String newName = volumeInfo == null ? null : volumeInfo.getName();
         if (!equals(newName, _selectedVolumeName)) {
             _selectedVolumeName = newName;
         }
@@ -419,7 +419,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
                 for (int volumeIndex = 0; volumeIndex < volumeCount; volumeIndex++) {
                     VolumeInfo volumeInfo = (VolumeInfo) _volumeList.getModel()
                             .getElementAt(volumeIndex);
-                    String volumeName = volumeInfo.getPath();
+                    String volumeName = volumeInfo.getName();
                     try {
                         TreeInfo[] treeInfoArray = management
                                 .getTreeInfoArray(volumeName);
@@ -441,18 +441,15 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
     }
 
     public String getTreeListString() {
-        String volumeName = null;
         StringBuilder sb = new StringBuilder();
         int size = _selectedTreeListModel.size();
         for (int index = 0; index < size; index++) {
             TreeItem item = (TreeItem) _selectedTreeListModel.elementAt(index);
-            if (volumeName == null || volumeName != item._volumeName) {
-                volumeName = item._volumeName;
-                if (sb.length() > 0)
-                    sb.append(";");
-                sb.append(quote(volumeName));
+            if (sb.length() > 0) {
+                sb.append(',');
             }
-            sb.append(",");
+            sb.append(quote(item._volumeName));
+            sb.append(':');
             sb.append(quote(item._treeName));
         }
         return sb.toString();

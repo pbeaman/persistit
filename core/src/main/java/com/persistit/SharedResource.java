@@ -17,15 +17,14 @@ package com.persistit;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import com.persistit.exception.PersistitException;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
 /**
  * @author pbeaman
  * 
  */
-class SharedResource extends WaitingThreadManager {
+class SharedResource {
 
     /**
      * Default maximum time to wait for access to this resource. Methods throw
@@ -34,7 +33,7 @@ class SharedResource extends WaitingThreadManager {
     final static long DEFAULT_MAX_WAIT_TIME = 60000L;
 
     /**
-     * Mask for count of Threads holding a reader or claim (0-32767)
+     * Mask for count of Threads holding a reader or writer claim (0-32767)
      */
     final static int CLAIMED_MASK = 0x00007FFF;
     /**
@@ -47,7 +46,7 @@ class SharedResource extends WaitingThreadManager {
     final static int DIRTY_MASK = 0x00010000;
 
     /**
-     * Status field mask for valid bit. The bit is set it if the contents of the
+     * Status field mask for valid bit. The bit is set if the contents of the
      * buffer accurately reflects the status of the page.
      */
     final static int VALID_MASK = 0x00020000;
@@ -57,11 +56,6 @@ class SharedResource extends WaitingThreadManager {
      * to a Volume that is being deleted.
      */
     final static int DELETE_MASK = 0x00040000;
-
-    /**
-     * Status field mask for resource that is enqueued to be written
-     */
-    final static int ENQUEUED_MASK = 0x00080000;
 
     /**
      * Status field mask for a resource that is dirty and must be recovered
@@ -75,6 +69,12 @@ class SharedResource extends WaitingThreadManager {
      * written with any checkpoint.
      */
     final static int TRANSIENT_MASK = 0x00400000;
+
+    /**
+     * Status field mask indicating a resource has been touched. Used by
+     * clock-based page replacement algorithm.
+     */
+    final static int TOUCHED_MASK = 0x08000000;
 
     /**
      * Mask for bit field indicating that updates are suspended
@@ -97,105 +97,209 @@ class SharedResource extends WaitingThreadManager {
      */
     final static int UNAVAILABLE_MASK = FIXED_MASK | CLAIMED_MASK | WRITER_MASK;
 
-    /**
-     * Status indicating whether this resource has been claimed. Note:
-     * subclasses can (carefully) overload this to use remaining bits.
-     */
-    protected int _status;
+    private static class Sync extends AbstractQueuedSynchronizer {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        protected boolean tryAcquire(int arg) {
+            assert arg == 1;
+            //
+            // Implement non-strict fairness doctrine, as suggested in
+            // download.oracle.com/javase/6/docs/api/java/util/concurrent/locks/AbstractQueuedSynchronizer.html
+            //
+            final Thread thisThread = Thread.currentThread();
+            for (;;) {
+                final Thread queuedThread = getFirstQueuedThread();
+                if (queuedThread != null && queuedThread != thisThread
+                        && getExclusiveOwnerThread() != thisThread) {
+                    return false;
+                }
+                int state = getState();
+                if (!isAvailable(state)) {
+                    return false;
+                } else if (compareAndSetState(state, (state | WRITER_MASK) + 1)) {
+                    setExclusiveOwnerThread(thisThread);
+                    return true;
+                }
+            }
+        }
+
+        @Override
+        protected int tryAcquireShared(int arg) {
+            assert arg == 1;
+            //
+            // Implement non-strict fairness doctrine, as suggested in
+            // download.oracle.com/javase/6/docs/api/java/util/concurrent/locks/AbstractQueuedSynchronizer.html
+            //
+            final Thread thisThread = Thread.currentThread();
+            for (;;) {
+                final Thread queuedThread = getFirstQueuedThread();
+                if (queuedThread != null && queuedThread != thisThread
+                        && getExclusiveOwnerThread() != thisThread) {
+                    return -1;
+                }
+                int state = getState();
+                if (!isAvailableShared(state)) {
+                    return -1;
+                } else if (compareAndSetState(state, state + 1)) {
+                    return CLAIMED_MASK - (state & CLAIMED_MASK) - 1;
+                }
+            }
+        }
+
+        /**
+         * Attempt to convert shared to exclusive. The caller must already have
+         * acquired shared access. This method upgrades the state to exclusive,
+         * but only if there is exactly one shared acquire.
+         * 
+         * @return
+         */
+        private boolean tryUpgrade() {
+            for (;;) {
+                int state = getState();
+                final Thread thisThread = Thread.currentThread();
+                if ((state & CLAIMED_MASK) != 1 || ((state & WRITER_MASK) != 0)
+                        && getExclusiveOwnerThread() != thisThread) {
+                    return false;
+                } else if (compareAndSetState(state, state | WRITER_MASK)) {
+                    setExclusiveOwnerThread(thisThread);
+                    return true;
+                }
+            }
+        }
+
+        @Override
+        protected boolean tryRelease(int arg) {
+            return (releaseState(arg) & WRITER_MASK) == 0;
+        }
+
+        @Override
+        protected boolean tryReleaseShared(int arg) {
+            return (releaseState(arg) & WRITER_MASK) == 0;
+        }
+
+        @Override
+        protected boolean isHeldExclusively() {
+            return (getState() & WRITER_MASK) != 0;
+        }
+
+        private boolean isAvailable(final int state) {
+            return (state & CLAIMED_MASK) < CLAIMED_MASK
+                    && ((state & CLAIMED_MASK) == 0 || getExclusiveOwnerThread() == Thread
+                            .currentThread());
+        }
+
+        private boolean isAvailableShared(final int state) {
+            return (state & CLAIMED_MASK) < CLAIMED_MASK
+                    && ((state & WRITER_MASK) == 0 || getExclusiveOwnerThread() == Thread
+                            .currentThread());
+        }
+
+        private int releaseState(final int count) {
+            assert count == 0 || count == 1;
+            for (;;) {
+                int state = getState();
+                if ((state & CLAIMED_MASK) == 1) {
+                    int newState = (state - count) & ~WRITER_MASK;
+                    // Do this first so that another thread setting
+                    // a writer claim does not lose it's copy.
+                    setExclusiveOwnerThread(null);
+                    if (compareAndSetState(state, newState)) {
+                        return newState;
+                    }
+                } else if ((state & CLAIMED_MASK) > 1) {
+                    if (count == 0) {
+                        return state;
+                    }
+                    int newState = state - 1;
+                    if (compareAndSetState(state, newState)) {
+                        return newState;
+                    }
+                } else {
+                    throw new IllegalMonitorStateException(
+                            "Unmatched attempt to release " + this);
+                }
+            }
+        }
+
+        // Visible to outer class
+        private int state() {
+            return getState();
+        }
+
+        private Thread writerThread() {
+            return getExclusiveOwnerThread();
+        }
+
+        private void setBitsInState(final int mask) {
+            for (;;) {
+                final int state = getState();
+                if (compareAndSetState(state, state | mask)) {
+                    break;
+                }
+            }
+        }
+
+        private void clearBitsInState(final int mask) {
+            for (;;) {
+                final int state = getState();
+                if (compareAndSetState(state, state & ~mask)) {
+                    break;
+                }
+            }
+        }
+
+        private boolean testBitsInState(final int mask) {
+            return (getState() & mask) != 0;
+        }
+    }
+
+    protected final Persistit _persistit;
+
+    private final Sync _sync = new Sync();
+
+    private List<Thread> _threads = new ArrayList<Thread>();
 
     /**
-     * A counter that increments every time the buffer is changed.
+     * A counter that increments every time the resource is changed.
      */
-    protected long _generation;
+    protected AtomicLong _generation = new AtomicLong();
 
-    /**
-     * The Thread that holds a writer claim on this resource.
-     */
-    private Thread _writerThread = null;
-
-    /**
-     * An Object used for synchronization
-     */
-    protected Object _lock = new Object();
-
-    SharedResource(final Persistit persistit) {
-        super(persistit);
+    protected SharedResource(final Persistit persistit) {
+        this._persistit = persistit;
     }
 
     public boolean isAvailable(boolean writer) {
-        synchronized (_lock) {
-            return isAvailableSync(writer, 0);
-        }
-    }
-
-    private boolean isAvailableSync(boolean writer, int count) {
-
-        // Available - No claims
-        if ((_status & (WRITER_MASK | CLAIMED_MASK)) == 0) {
-            return true;
-        }
-
-        // This thread already claims it
-        if (_writerThread == Thread.currentThread()
-                && (_status & CLAIMED_MASK) < CLAIMED_MASK) {
-            return true;
-        }
-
-        // Handles upgradeClaim when count > 0
-        if (writer) {
-            return ((_status & WRITER_MASK) == 0 && (_status & CLAIMED_MASK) <= count);
-        }
-
-        // Caller wants a reader claim (see if statement above), there are other
-        // readers, and either no other waiting writer, or this thread already
-        // has a reader claim
-        if (((_status & WRITER_MASK) == 0)
-                && ((_status & CLAIMED_MASK) < CLAIMED_MASK)
-                && (!isWriterWaiting() || _persistit.getLockManager().isMine(
-                        this))) {
-            return true;
-        }
-
-        return false;
-
-    }
-
-    boolean isClean() {
-        return !isDirty();
+        return writer ? _sync.isAvailable(_sync.state()) : _sync
+                .isAvailableShared(_sync.state());
     }
 
     boolean isDirty() {
-        return isSet(DIRTY_MASK);
-    }
-
-    boolean isEnqueued() {
-        return isSet(ENQUEUED_MASK);
+        return _sync.testBitsInState(DIRTY_MASK);
     }
 
     public boolean isValid() {
-        return isSet(VALID_MASK);
+        return _sync.testBitsInState(VALID_MASK);
     }
 
     public boolean isDeleted() {
-        return isSet(DELETE_MASK);
+        return _sync.testBitsInState(DELETE_MASK);
     }
 
     public boolean isStructure() {
-        return isSet(STRUCTURE_MASK);
+        return _sync.testBitsInState(STRUCTURE_MASK);
     }
 
     public boolean isTransient() {
-        return isSet(TRANSIENT_MASK);
+        return _sync.testBitsInState(TRANSIENT_MASK);
     }
 
     boolean isFixed() {
-        return isSet(FIXED_MASK);
+        return _sync.testBitsInState(FIXED_MASK);
     }
 
-    boolean isSet(final int mask) {
-        synchronized (_lock) {
-            return (_status & mask) == mask;
-        }
+    boolean isWriter() {
+        return _sync.testBitsInState(WRITER_MASK);
     }
 
     /**
@@ -204,329 +308,178 @@ class SharedResource extends WaitingThreadManager {
      * @return <i>true</i> if this Thread has a writer claim on this page.
      */
     boolean isMine() {
-        synchronized (_lock) {
-            if (Debug.ENABLED)
-                Debug.$assert(_writerThread == null
-                        || (_status & WRITER_MASK) != 0);
-            return (_writerThread == Thread.currentThread());
-        }
+        return (_sync.writerThread() == Thread.currentThread());
     }
 
     void setFixed(boolean b) {
-        synchronized (_lock) {
-            if (b) {
-                _status |= FIXED_MASK;
-            } else {
-                _status &= ~FIXED_MASK;
-            }
+        if (b) {
+            _sync.setBitsInState(FIXED_MASK);
+        } else {
+            _sync.clearBitsInState(FIXED_MASK);
         }
     }
 
-    boolean claim(boolean writer) throws PersistitException {
+    boolean claim(boolean writer) {
         return claim(writer, DEFAULT_MAX_WAIT_TIME);
     }
 
-    boolean claim(boolean writer, long timeout) throws PersistitException {
-        WaitingThread wt = null;
-
-        synchronized (_lock) {
-            if (isAvailableSync(writer, 0)) {
-                _status++;
-
+    boolean claim(boolean writer, long timeout) {
+        if (timeout == 0) {
+            if (writer) {
+                return _sync.tryAcquire(1);
+            } else {
+                return _sync.tryAcquireShared(1) >= 0;
+            }
+        } else {
+            try {
                 if (writer) {
-                    _status |= WRITER_MASK;
-                    _writerThread = Thread.currentThread();
+                    if (_sync.tryAcquireNanos(1, timeout * 1000000)) {
+                        return true;
+                    }
+                } else {
+                    if (_sync.tryAcquireSharedNanos(1, timeout * 1000000)) {
+                        return true;
+                    }
                 }
-
-                _persistit.getLockManager().register(this);
-
-                return true;
-            } else if (timeout == 0) {
-                return false;
+            } catch (InterruptedException e) {
             }
-            if (Debug.ENABLED) {
-                Debug.$assert(checkWaitQueue());
-            }
-
-            //
-            // We're committed to waiting for the page
-            // Set up a WaitingThread object so that the
-            // Thread that releases this buffer knows which
-            // other Thread to notify.
-            //
-            wt = allocateWaitingThread();
-            wt.setup(this, writer);
-
-            // Link our WaitingThread to the end of
-            // the WaitingThread queue.
-            //
-            enqueue(wt);
-            if (Debug.ENABLED)
-                Debug.$assert(checkWaitQueue());
+            Debug.debug1(true);
+            return false;
         }
-
-        // Perform this wait without synchronization on _lock
-        boolean claimed;
-        try {
-            // Normally the WaitingThread will be awakened by another
-            // thread when it performs a release() operation. Normally
-            // this call will return a value of true. There is a race
-            // condition, however, in the event that the releasing thread is
-            // attempting to wake this thread at the same time this thread's
-            // mediatedWait operation is timing out. To ensure that there
-            // there really is no release operation pending, we need to
-            // re-synchronize against _lock and reread the notified flag.
-            //
-            claimed = wt.mediatedWait(timeout);
-        } catch (InterruptedException ie) {
-            claimed = false;
-        }
-
-        if (!claimed) {
-            synchronized (_lock) {
-                claimed = wt.isNotified();
-                if (!claimed) {
-                    // Do this with synchronization against the enqueue()
-                    // operation.
-                    removeWaitingThread(wt);
-                }
-            }
-            if (!claimed) {
-                if (Debug.ENABLED) {
-                    Debug.setSuspended(true);
-                    System.out.println("*** " + Thread.currentThread()
-                            + ": claim failed on " + this + "***");
-                    Debug.setSuspended(false);
-                    Debug.debug1(true);
-                }
-            }
-        }
-
-        if (claimed) {
-            _persistit.getLockManager().register(this);
-        }
-
-        releaseWaitingThread(wt);
-        return claimed;
     }
 
-    boolean upgradeClaim() throws PersistitException {
-        synchronized (_lock) {
-            if (isAvailableSync(true, 1)) {
-                _status |= WRITER_MASK;
-                _writerThread = Thread.currentThread();
+    /**
+     * For debugging resource protocol issues only
+     */
+    synchronized void register() {
+        _threads.add(Thread.currentThread());
+    }
 
+    synchronized boolean unregister() {
+        final Thread t = Thread.currentThread();
+        for (int index = _threads.size(); --index >= 0;) {
+            if (_threads.get(index) == t) {
+                _threads.remove(index);
                 return true;
-            } else {
+            }
+        }
+        return false;
+    }
+
+    synchronized boolean verifyReleased() {
+        final Thread t = Thread.currentThread();
+        for (int index = _threads.size(); --index >= 0;) {
+            if (_threads.get(index) == t) {
+                Debug.debug1(true);
                 return false;
             }
         }
+        return true;
+    }
+
+    boolean upgradeClaim() {
+        return _sync.tryUpgrade();
     }
 
     void release() {
-        synchronized (_lock) {
-            if ((_status & CLAIMED_MASK) == 0) {
-                if (Debug.ENABLED) {
-                    Debug.debug2(true);
-                }
-                throw new IllegalStateException(
-                        "Release on unclaimed resource " + this);
-            }
-            _persistit.getLockManager().unregister(this);
-            _status--;
-
-            boolean writer = (_status & WRITER_MASK) != 0;
-            boolean free = (_status & CLAIMED_MASK) == 0;
-
-            if (writer && free) {
-                _status &= ~WRITER_MASK;
-                _writerThread = null;
-            }
-
-            //
-            // Dequeue and wake up each WaitingThread that could now execute
-            //
-            if (free) {
-                if (Debug.ENABLED) {
-                    Debug.$assert(_writerThread == null);
-                    Debug.$assert(checkWaitQueue());
-                }
-
-                while ((_status & WRITER_MASK) == 0) {
-                    WaitingThread wt = dequeue((_status & CLAIMED_MASK) == 0);
-                    if (wt == null) {
-                        break;
-                    }
-                    boolean exclusive = wt.isExclusive();
-                    // Here we post the claim on behalf of the waiting process.
-                    _status++;
-                    if (exclusive) {
-                        _status |= WRITER_MASK;
-                        if (Debug.ENABLED) {
-                            Debug.$assert(_writerThread == null);
-                        }
-                        _writerThread = wt.getThread();
-                        if (Debug.ENABLED) {
-                            Debug.$assert(_writerThread != null);
-                        }
-                    }
-                    wt.wake();
-                }
-                if (Debug.ENABLED) {
-                    Debug.$assert(checkWaitQueue());
-                }
-            }
-        }
+        _sync.release(1);
     }
 
     void releaseWriterClaim() {
-        synchronized (_lock) {
-            if ((_status & CLAIMED_MASK) == 0 || (_status & WRITER_MASK) == 0) {
-                if (Debug.ENABLED)
-                    Debug.debug2(true);
-                throw new IllegalStateException(
-                        "Release on unclaimed resource " + this);
-            }
-
-            if (Debug.ENABLED)
-                Debug.$assert((_status & CLAIMED_MASK) > 0
-                        && (_status & WRITER_MASK) != 0);
-
-            if (Debug.ENABLED)
-                Debug.$assert(checkWaitQueue());
-
-            _status &= ~WRITER_MASK;
-            _writerThread = null;
-
-            while ((_status & WRITER_MASK) == 0) {
-                WaitingThread wt = dequeue((_status & CLAIMED_MASK) == 0);
-                if (wt == null)
-                    break;
-                boolean exclusive = wt.isExclusive();
-                // Here we post the claim on behalf of the waiting process.
-                _status++;
-                if (exclusive) {
-                    _status |= WRITER_MASK;
-                    if (Debug.ENABLED) {
-                        Debug.$assert(_writerThread == null);
-                    }
-                    _writerThread = wt.getThread();
-                    if (Debug.ENABLED) {
-                        Debug.$assert(_writerThread != null);
-                    }
-                }
-                wt.wake();
-            }
-            if (Debug.ENABLED)
-                Debug.$assert(checkWaitQueue());
-        }
+        _sync.release(0);
     }
 
     void setClean() {
-        synchronized (_lock) {
-            _status &= ~(DIRTY_MASK | STRUCTURE_MASK);
-        }
+        _sync.clearBitsInState(DIRTY_MASK | STRUCTURE_MASK);
     }
 
     void setDirty() {
-        synchronized (_lock) {
-            _status |= DIRTY_MASK;
-        }
+        _sync.setBitsInState(DIRTY_MASK);
     }
 
     void setDirtyStructure() {
-        synchronized (_lock) {
-            _status |= (DIRTY_MASK | STRUCTURE_MASK);
-        }
+        _sync.setBitsInState(DIRTY_MASK | STRUCTURE_MASK);
     }
 
-    void setEnqueued() {
-        synchronized (_lock) {
-            _status |= ENQUEUED_MASK;
-        }
+    void setTouched() {
+        _sync.setBitsInState(TOUCHED_MASK);
     }
 
-    void setUnenqueued() {
-        synchronized (_lock) {
-            _status &= ~ENQUEUED_MASK;
-        }
+    void clearTouched() {
+        _sync.clearBitsInState(TOUCHED_MASK);
+    }
+
+    boolean isTouched() {
+        return _sync.testBitsInState(TOUCHED_MASK);
     }
 
     public long getGeneration() {
-        synchronized (_lock) {
-            return _generation;
+        return _generation.get();
+    }
+
+    void setTransient(final boolean b) {
+        if (b) {
+            _sync.setBitsInState(TRANSIENT_MASK);
+        } else {
+            _sync.clearBitsInState(TRANSIENT_MASK);
         }
     }
 
-    void setTransient(final boolean transientBuffer) {
-        synchronized (_lock) {
-            if (transientBuffer) {
-                _status |= TRANSIENT_MASK;
-            } else {
-                _status &= ~TRANSIENT_MASK;
-            }
-        }
-    }
-
-    void setValid(boolean valid) {
-        synchronized (_lock) {
-            if (valid) {
-                _status |= VALID_MASK;
-            } else {
-                _status &= ~VALID_MASK;
-            }
+    void setValid(boolean b) {
+        if (b) {
+            _sync.setBitsInState(VALID_MASK);
+        } else {
+            _sync.clearBitsInState(VALID_MASK);
         }
     }
 
     public boolean isAvailable() {
-        synchronized (_lock) {
-            return (_status & UNAVAILABLE_MASK) == 0;
-        }
+        return _sync.testBitsInState(UNAVAILABLE_MASK);
+
     }
 
     void bumpGeneration() {
-        synchronized (_lock) {
-            ++_generation;
-        }
+        _generation.incrementAndGet();
     }
 
     public int getStatus() {
-        synchronized (_lock) {
-            return _status;
-        }
+        return _sync.state();
+    }
+
+    /**
+     * Sets bits in the state. This method does not change the bits used by the
+     * synchronizer to maintain lock state.
+     * 
+     * @param mask
+     */
+    void setStatus(final int mask) {
+        _sync.clearBitsInState(~(WRITER_MASK | CLAIMED_MASK));
+        _sync.setBitsInState(mask & ~(WRITER_MASK | CLAIMED_MASK));
     }
 
     public String getStatusCode() {
-        final int status;
-        synchronized (_lock) {
-            status = _status;
-        }
-        return getStatusCode(status);
+        return getStatusCode(getStatus());
     }
 
     public String getStatusDisplayString() {
-        final int status;
-        synchronized (_lock) {
-            status = _status;
-        }
-        if (_writerThread == null) {
-            return getStatusCode(status);
+        Thread writerThread = _sync.writerThread();
+        int state = _sync.state();
+        if (writerThread == null) {
+            return getStatusCode(state);
         } else {
-            return getStatusCode(status) + " <" + _writerThread.getName() + ">";
+            return getStatusCode(state) + " <" + writerThread.getName() + ">";
         }
     }
 
-    public static String getStatusCode(int status) {
+    public static String getStatusCode(int state) {
         // Common cases so we don't have to construct new StringBuilders
-        switch (status) {
+        switch (state) {
         case 0:
             return "";
         case VALID_MASK:
             return "v";
         case VALID_MASK | DIRTY_MASK:
             return "vd";
-        case VALID_MASK | DIRTY_MASK | ENQUEUED_MASK:
-            return "vde";
         case VALID_MASK | 1:
             return "vr1";
         case VALID_MASK | WRITER_MASK | 1:
@@ -537,42 +490,37 @@ class SharedResource extends WaitingThreadManager {
             return "vdwr1";
         default:
             StringBuilder sb = new StringBuilder(8);
-            if ((status & SUSPENDED_MASK) != 0) {
+            if ((state & SUSPENDED_MASK) != 0) {
                 sb.append("s");
             }
-            if ((status & CLOSING_MASK) != 0) {
+            if ((state & CLOSING_MASK) != 0) {
                 sb.append("c");
             }
-            if ((status & VALID_MASK) != 0) {
+            if ((state & VALID_MASK) != 0) {
                 sb.append("v");
             }
-            if ((status & DIRTY_MASK) != 0) {
+            if ((state & DIRTY_MASK) != 0) {
                 sb.append("d");
             }
-            if ((status & ENQUEUED_MASK) != 0) {
-                sb.append("e");
-            }
-            if ((status & TRANSIENT_MASK) != 0) {
+            if ((state & TRANSIENT_MASK) != 0) {
                 sb.append("t");
             }
-            if ((status & STRUCTURE_MASK) != 0) {
+            if ((state & STRUCTURE_MASK) != 0) {
                 sb.append("s");
             }
-            if ((status & WRITER_MASK) != 0) {
+            if ((state & WRITER_MASK) != 0) {
                 sb.append("w");
             }
-            if ((status & CLAIMED_MASK) != 0) {
+            if ((state & CLAIMED_MASK) != 0) {
                 sb.append("r");
-                sb.append(status & CLAIMED_MASK);
+                sb.append(state & CLAIMED_MASK);
             }
             return sb.toString();
         }
     }
 
     public Thread getWriterThread() {
-        synchronized (_lock) {
-            return _writerThread;
-        }
+        return _sync.writerThread();
     }
 
     @Override

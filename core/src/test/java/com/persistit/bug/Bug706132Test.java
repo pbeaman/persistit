@@ -13,7 +13,7 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.persistit.unit;
+package com.persistit.bug;
 
 import java.util.Properties;
 
@@ -21,8 +21,16 @@ import org.junit.Test;
 
 import com.persistit.Exchange;
 import com.persistit.SplitPolicy;
+import com.persistit.unit.PersistitUnitTestCase;
 
-public class BufferBug706132 extends PersistitUnitTestCase {
+/*
+ * Stress10 with 1K pages exhibited a failure in which a value was simply not
+ * inserted into the page. Apparently this is due to a miscalculation of free
+ * space after a page split. I think this is probably related to, or the same
+ * bug as, the former #102 page split error.
+ */
+
+public class Bug706132Test extends PersistitUnitTestCase {
 
     /*
      * {"stress10",637545,7} {"stress10",637567,4} {"stress10",637593,11}

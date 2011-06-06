@@ -581,11 +581,9 @@ public interface Management extends Remote, ManagementMXBean {
      *            Readable description of this task
      * @param owner
      *            Hostname or username of the user who requested this task
-     * @param className
-     *            Class name of task to run, e.g.,
-     *            <code>com.persistit.IntegrityCheck</code>.
-     * @param args
-     *            Task-specific parameters
+     * @param commandLine
+     *            command name followed by task-specific parameters delimited by
+     *            spaces.
      * @param maximumTime
      *            Maximum wall-clock time (in milliseconds) this Task will be
      *            allowed to run
@@ -595,9 +593,8 @@ public interface Management extends Remote, ManagementMXBean {
      * @return Task identifier Unique ID for the running task
      * @throws RemoteException
      */
-    public long startTask(String description, String owner, String className,
-            String[] args, long maximumTime, int verbosity)
-            throws RemoteException;
+    public long startTask(String description, String owner, String commandLine,
+            long maximumTime, int verbosity) throws RemoteException;
 
     /**
      * Queries the current status of one or all tasks. If the specified taskId
@@ -1688,13 +1685,13 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the path name of this Volume
+         * Return the name of this Volume
          * 
-         * @return The path name
+         * @return The name
          */
         @Override
         public String toString() {
-            return path;
+            return name;
         }
 
         /**
@@ -2057,7 +2054,6 @@ public interface Management extends Remote, ManagementMXBean {
         boolean copying;
         boolean flushing;
         boolean appendOnly;
-        boolean backupMode;
         boolean fastCopying;
 
         public JournalInfo() {
@@ -2074,7 +2070,7 @@ public interface Management extends Remote, ManagementMXBean {
                 "journaledPageCount", "readPageCount", "copiedPageCount",
                 "recoveredCommittedTransactions",
                 "recoveredAppliedTransactions", "closed", "copying",
-                "flushing", "appendOnly", "backup", "fastCopying" })
+                "flushing", "appendOnly", "fastCopying" })
         public JournalInfo(String currentJournalFile,
                 long currentJournalAddress, long blockSize, int pageMapSize,
                 long currentGeneration, long baseAddress,
@@ -2088,7 +2084,7 @@ public interface Management extends Remote, ManagementMXBean {
                 int recoveredCommittedTransactions,
                 int recoveredAppliedTransactions, boolean closed,
                 boolean copying, boolean flushing, boolean appendOnly,
-                boolean backupMode, boolean fastCopying) {
+                boolean fastCopying) {
             super();
             this.currentJournalFile = currentJournalFile;
             this.currentJournalAddress = currentJournalAddress;
@@ -2112,7 +2108,6 @@ public interface Management extends Remote, ManagementMXBean {
             this.copying = copying;
             this.flushing = flushing;
             this.appendOnly = appendOnly;
-            this.backupMode = backupMode;
             this.fastCopying = fastCopying;
         }
 
@@ -2314,18 +2309,6 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public boolean isAppendOnly() {
             return appendOnly;
-        }
-
-        /**
-         * The backupMode flag indicates that a concurrent backup is in
-         * progress. It is similar to appendOnly, but weaker: the JOURNAL_COPIER
-         * thread continues to copy pages to the in-place Volume files, but
-         * obsolete journal files are not deleted.
-         * 
-         * @return
-         */
-        public boolean isBackupMode() {
-            return backupMode;
         }
 
         /**

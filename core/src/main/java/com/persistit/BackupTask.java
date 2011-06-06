@@ -28,6 +28,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import com.persistit.CLI.Arg;
+import com.persistit.CLI.Cmd;
 import com.persistit.Management.JournalInfo;
 import com.persistit.Management.VolumeInfo;
 import com.persistit.TimestampAllocator.Checkpoint;
@@ -57,15 +59,6 @@ import com.persistit.TimestampAllocator.Checkpoint;
  */
 public class BackupTask extends Task {
 
-    static final String COMMAND_NAME = "backup";
-    static final String[] ARG_TEMPLATE = new String[] {
-            "_flag|a|Start appendOnly mode", "_flag|e|End appendOnly mode",
-            "_flag|c|Request checkpoint before backup",
-            "_flag|z|Compress output to ZIP format",
-            "_flag|f|Emit a list of files that need to be copied",
-            "_flag|y|Copyback pages before starting",
-            "file|string|Archive file path", };
-
     private final static int BUFFER_SIZE = 1024 * 1024;
     private final static int PROGRESS_MARK_AT = 100 * 1000 * 1000;
     private boolean _start;
@@ -78,32 +71,27 @@ public class BackupTask extends Task {
     final List<String> _files = new ArrayList<String>();
     private volatile String _backupStatus;
 
-    @Override
-    protected void setupArgs(String[] args) throws Exception {
-        _toFile = args.length > 0 ? args[0] : null;
-        String flags = args.length > 1 ? args[1] : "";
-
-        _start = flags.indexOf('a') >= 0;
-        _end = flags.indexOf('e') >= 0;
-        _showFiles = flags.indexOf('f') >= 0;
-        _compressed = flags.indexOf('z') >= 0;
-        _checkpoint |= flags.indexOf('c') >= 0;
-        _copyback |= flags.indexOf('y') >= 0;
+    @Cmd("backup")
+    static Task setupTask(
+            @Arg("file|string|Archive file path") String file,
+            @Arg("_flag|a|Start appendOnly mode") boolean start,
+            @Arg("_flag|e|End appendOnly mode") boolean end,
+            @Arg("_flag|c|Request checkpoint before backup") boolean checkpoint,
+            @Arg("_flag|z|Compress output to ZIP format") boolean compressed,
+            @Arg("_flag|f|Emit a list of files that need to be copied") boolean showFiles,
+            @Arg("_flag|y|Copyback pages before starting") boolean copyback)
+            throws Exception {
+        final BackupTask task = new BackupTask();
+        task._toFile = file;
+        task._start = start;
+        task._end = end;
+        task._showFiles = showFiles;
+        task._compressed = compressed;
+        task._checkpoint = checkpoint;
+        task._copyback = copyback;
+        return task;
     }
-
-    @Override
-    public void setupTaskWithArgParser(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(),
-                args, ARG_TEMPLATE);
-        _start = ap.isFlag('a');
-        _end = ap.isFlag('e');
-        _showFiles = ap.isFlag('f');
-        _compressed = ap.isFlag('z');
-        _checkpoint = ap.isFlag('c');
-        _copyback = ap.isFlag('y');
-        _toFile = ap.getStringValue("file");
-    }
-
+    
     private void validate() {
         if (_toFile == null) {
             _toFile = "";

@@ -23,21 +23,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.persistit.CLI.Arg;
+import com.persistit.CLI.Cmd;
 import com.persistit.Management.BufferPoolInfo;
 import com.persistit.Management.JournalInfo;
 import com.persistit.Management.TransactionInfo;
 
 public class StatisticsTask extends Task {
-
-    static final String COMMAND_NAME = "stat";
-    static final String[] ARG_TEMPLATE = new String[] {
-            "delay|long:10:0:10000000|Interval in seconds between updates",
-            "count|long:1:0:|Number of updates",
-            "file|string|Output file name",
-            "_flag|a|All", "_flag|b|Buffer pool statistics",
-            "_flag|j|Journal statistics", "_flag|i|I/O Statistics",
-            "_flag|t|Transaction statistics", "_flag|r|Show rates",
-            "_flag|v|Show values" };
 
     static final long NANOS_PER_MILLI = 1000000;
     static final long NANOS_PER_SECOND = 1000000000;
@@ -124,25 +116,31 @@ public class StatisticsTask extends Task {
             return -1.0d;
         }
     }
+    
 
-    @Override
-    protected void setupArgs(String[] args) throws Exception {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    protected void setupTaskWithArgParser(String[] args) throws Exception {
-        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args,
-                ARG_TEMPLATE);
-        _delay = ap.getLongValue("delay");
-        _count = ap.getLongValue("count");
-        _fileName = ap.getStringValue("file");
-        _bpool = ap.isFlag('a') || ap.isFlag('b');
-        _journal = ap.isFlag('a') || ap.isFlag('j');
-        _io = ap.isFlag('a') || ap.isFlag('i');
-        _transactions = ap.isFlag('a') || ap.isFlag('t');
-        _showRate = ap.isFlag('r');
-        _showValue = ap.isFlag('v');
+    @Cmd("stat")
+    static Task createStatisticsTask(
+            @Arg("delay|long:10:0:10000000|Interval in seconds between updates") long delay,
+            @Arg("count|long:1:0:|Number of updates") long count,
+            @Arg("file|string|Output file name") String toFile,
+            @Arg("_flag|a|All") boolean all,
+            @Arg("_flag|b|Buffer pool statistics") boolean bstats,
+            @Arg("_flag|j|Journal statistics") boolean jstats,
+            @Arg("_flag|i|I/O Statistics") boolean istats,
+            @Arg("_flag|t|Transaction statistics") boolean tstats,
+            @Arg("_flag|r|Show rates") boolean showRates,
+            @Arg("_flag|v|Show values") boolean showValues) throws Exception {
+        StatisticsTask task = new StatisticsTask();
+        task._delay = delay;
+        task._count = count;
+        task._fileName= toFile;
+        task._bpool = bstats || all;
+        task._journal =  jstats || all;
+        task._io = istats || all;
+        task._transactions = tstats || all;
+        task._showRate = showRates;
+        task._showValue = showValues;
+        return task;
     }
 
     @Override

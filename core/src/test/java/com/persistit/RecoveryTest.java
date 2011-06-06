@@ -351,8 +351,79 @@ public class RecoveryTest extends PersistitUnitTestCase {
         // still valid.
         assertTrue(_persistit.getJournalManager().getHandleCount() > updatedHandleValue);
     }
-    
 
+    public void testIndexHoles() throws Exception {
+        _persistit.getJournalManager().setAppendOnly(true);
+        Transaction transaction = _persistit.getTransaction();
+        StringBuilder sb = new StringBuilder();
+        while (sb.length() < 1000) {
+            sb.append("The quick brown fox jumped over the lazy red dog");
+        }
+
+        String s = sb.toString();
+        for (int cycle = 0; cycle < 2; cycle++) {
+            for (int i = 1000; i < 2000; i++) {
+                final Exchange exchange = _persistit.getExchange("persistit",
+                        "RecoveryTest" + i, true);
+                transaction.begin();
+                try {
+                    exchange.getValue().put(s);
+                    for (int j = 0; j < 20; j++) {
+                        exchange.to(j).store();
+                    }
+                    transaction.commit();
+                } finally {
+                    transaction.end();
+                }
+            }
+
+            for (int j = 0; j < 20; j++) {
+                for (int i = 1000; i < 2000; i++) {
+                    final Exchange exchange = _persistit.getExchange(
+                            "persistit", "RecoveryTest" + i, true);
+                    transaction.begin();
+                    try {
+                        exchange.to(j).remove();
+                        transaction.commit();
+                    } finally {
+                        transaction.end();
+                    }
+                }
+            }
+
+            for (int i = 1000; i < 2000; i += 2) {
+                transaction.begin();
+                try {
+                    final Exchange exchange = _persistit.getExchange(
+                            "persistit", "RecoveryTest" + i, true);
+                    exchange.removeTree();
+                    transaction.commit();
+                } finally {
+                    transaction.end();
+                }
+            }
+        }
+        _persistit.crash();
+
+        final Properties saveProperties = _persistit.getProperties();
+        _persistit = new Persistit();
+        _persistit.getJournalManager().setAppendOnly(true);
+        _persistit.initialize(saveProperties);
+
+        final Volume volume = _persistit.getVolume("persistit");
+        long page = volume.getDirectoryTree().getRootPageAddr();
+        Buffer buffer = _persistit.getBufferPool(volume.getPageSize())
+                .getBufferCopy(volume, page);
+        assertEquals(0, buffer.getRightSibling());
+
+        for (final String treeName : volume.getTreeNames()) {
+            final Tree tree = volume.getTree(treeName, false);
+            page = tree.getRootPageAddr();
+            buffer = _persistit.getBufferPool(volume.getPageSize())
+                    .getBufferCopy(volume, page);
+            assertEquals(0, buffer.getRightSibling());
+        }
+    }
 
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName,

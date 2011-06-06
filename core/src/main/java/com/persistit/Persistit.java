@@ -40,7 +40,6 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.WaitingThreadManager.WaitingThread;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
@@ -92,7 +91,7 @@ public class Persistit {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = "Persistit 2.2.1"
+    public final static String VERSION = GetVersion.getVersionString()
             + (Debug.ENABLED ? "-DEBUG" : "");
     /**
      * The copyright notice
@@ -147,6 +146,16 @@ public class Persistit {
      * appended to this string, e.g., "buffer.count.8192".
      */
     public final static String BUFFERS_PROPERTY_NAME = "buffer.count.";
+    /**
+     * Property name prefix for specifying buffer memory allocation. The full
+     * property name should be one of "1024", "2048", "4096", "8192" or "16384"
+     * appended to this string, e.g., "buffer.count.8192". This property is an
+     * alternative to "buffer.count.nnnn", and only one of these may be used in
+     * a configuration per buffer size. With the buffer.memory property
+     * Persistit computes a buffer count that will consume approximately the
+     * specified memory allocation, including overhead for FastIndex elements.
+     */
+    public final static String BUFFER_MEM_PROPERTY_NAME = "buffer.memory.";
     /**
      * Property name prefix for specifying Volumes. The full property name
      * should be a unique ordinal number appended to this string, e.g.,
@@ -321,8 +330,6 @@ public class Persistit {
         }
     };
 
-    private ThreadLocal<WaitingThread> _waitingThreadLocal = new ThreadLocal<WaitingThread>();
-
     private final Map<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
 
     private ManagementImpl _management;
@@ -349,8 +356,6 @@ public class Persistit {
 
     private final SharedResource _transactionResourceB = new SharedResource(
             this);
-
-    private final LockManager _lockManager = new LockManager();
 
     private final HashMap<Long, TransactionalCache> _transactionalCaches = new HashMap<Long, TransactionalCache>();
 
@@ -414,7 +419,7 @@ public class Persistit {
      * rather than reading them from a file. If Persistit has already been
      * initialized, this method does nothing. This method is threadsafe; if
      * multiple threads concurrently attempt to invoke this method, one of the
-
+     * 
      * threads will actually perform the initialization and the other threads
      * will do nothing.
      * </p>
@@ -441,6 +446,7 @@ public class Persistit {
         startBufferPools();
         finishRecovery();
         startJournal();
+        startCheckpointManager();
         flush();
 
         _initialized.set(true);
@@ -526,17 +532,30 @@ public class Persistit {
     }
 
     void initializeBufferPools() {
-        StringBuilder sb = new StringBuilder();
         int bufferSize = Buffer.MIN_BUFFER_SIZE;
         while (bufferSize <= Buffer.MAX_BUFFER_SIZE) {
-            sb.setLength(0);
-            sb.append(BUFFERS_PROPERTY_NAME);
-            sb.append(bufferSize);
-            String propertyName = sb.toString();
-
-            int count = (int) getLongProperty(propertyName, -1,
+            String countPropertyName = BUFFERS_PROPERTY_NAME + bufferSize;
+            String memPropertyName = BUFFER_MEM_PROPERTY_NAME + bufferSize;
+            int count = (int) getLongProperty(countPropertyName, -1,
                     BufferPool.MINIMUM_POOL_COUNT,
                     BufferPool.MAXIMUM_POOL_COUNT);
+            int bufferSizeWithOverhead = Buffer
+                    .bufferSizeWithOverhead(bufferSize);
+            long mem = getLongProperty(memPropertyName, -1,
+                    (long) BufferPool.MINIMUM_POOL_COUNT
+                            * bufferSizeWithOverhead,
+                    (long) BufferPool.MAXIMUM_POOL_COUNT
+                            * bufferSizeWithOverhead);
+
+            if (count != -1 && mem != -1) {
+                throw new IllegalArgumentException("Only one of "
+                        + countPropertyName + " and " + memPropertyName
+                        + " may be specified");
+            }
+
+            if (mem != -1) {
+                count = (int) (mem / bufferSizeWithOverhead);
+            }
 
             if (count != -1) {
                 if (_logBase.isLoggable(LogBase.LOG_INIT_ALLOCATE_BUFFERS)) {
@@ -549,7 +568,6 @@ public class Persistit {
             }
             bufferSize <<= 1;
         }
-        _checkpointManager.start();
     }
 
     void initializeVolumes() throws PersistitException {
@@ -610,19 +628,27 @@ public class Persistit {
         }
 
         try {
-            _defaultSplitPolicy = SplitPolicy.forName(getProperty(SPLIT_POLICY_PROPERTY, DEFAULT_SPLIT_POLICY.toString()));
+            _defaultSplitPolicy = SplitPolicy.forName(getProperty(
+                    SPLIT_POLICY_PROPERTY, DEFAULT_SPLIT_POLICY.toString()));
         } catch (IllegalArgumentException e) {
             if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
-                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e.getLocalizedMessage());
+                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR,
+                        e.getLocalizedMessage());
             }
         }
         try {
-            _defaultJoinPolicy = JoinPolicy.forName(getProperty(JOIN_POLICY_PROPERTY, DEFAULT_JOIN_POLICY.toString()));
+            _defaultJoinPolicy = JoinPolicy.forName(getProperty(
+                    JOIN_POLICY_PROPERTY, DEFAULT_JOIN_POLICY.toString()));
         } catch (IllegalArgumentException e) {
             if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
-                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e.getLocalizedMessage());
+                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR,
+                        e.getLocalizedMessage());
             }
         }
+    }
+    
+    void startCheckpointManager() {
+        _checkpointManager.start();
     }
 
     void startBufferPools() throws PersistitException {
@@ -1108,16 +1134,43 @@ public class Persistit {
     }
 
     /**
-     * Get a <code>link java.util.List</code> of all the {@link Volume}s being
-     * managed by this Persistit instance. Volumes are specified by the
-     * properties used in initializing Persistit.
+     * Get a {@link List} of all {@link Volume}s currently being managed by this
+     * Persistit instance. Volumes are specified by the properties used in
+     * initializing Persistit.
      * 
      * @return the List
      */
-    public Volume[] getVolumes() {
-        Volume[] list = new Volume[_volumes.size()];
-        for (int index = 0; index < list.length; index++) {
-            list[index] = _volumes.get(index);
+    public List<Volume> getVolumes() {
+        return new ArrayList<Volume>(_volumes);
+    }
+
+    /**
+     * Select a {@link List} of {@link Tree}s determined by the supplied
+     * {@link TreeSelector}. This method enumerates all Trees in all open
+     * Volumes and selects those which satisfy the TreeSelector. If the Volume
+     * has a Volume-only selector (no tree pattern was specified), then this
+     * method adds the Volume's directory Tree to the list.
+     * 
+     * @param selector
+     * @return the List
+     * @throws PersistitException
+     */
+    public List<Tree> getSelectedTrees(final TreeSelector selector)
+            throws PersistitException {
+        final List<Tree> list = new ArrayList<Tree>();
+        for (final Volume volume : _volumes) {
+            if (selector.isSelected(volume)) {
+                if (selector.isVolumeOnlySelection(volume.getName())) {
+                    list.add(volume.getDirectoryTree());
+                } else {
+                    for (final String treeName : volume.getTreeNames()) {
+                        if (selector.isTreeNameSelected(volume.getName(),
+                                treeName)) {
+                            list.add(volume.getTree(treeName, false));
+                        }
+                    }
+                }
+            }
         }
         return list;
     }
@@ -1601,22 +1654,25 @@ public class Persistit {
         }
     }
 
-    final long earliestDirtyTimestamp() {
-        long earliestDirtyTimestamp = Long.MAX_VALUE;
+    final long earliestLiveTransaction() {
+        long earliest = Long.MAX_VALUE;
         synchronized (_transactionSessionMap) {
             for (final Transaction t : _transactionSessionMap.values()) {
                 if (t.getStartTimestamp() != -1 && t.getCommitTimestamp() == -1) {
-                    earliestDirtyTimestamp = Math.min(earliestDirtyTimestamp, t.getStartTimestamp());
+                    earliest = Math.min(earliest, t.getStartTimestamp());
                 }
             }
         }
-        for (final BufferPool pool : _bufferPoolTable.values()) {
-            earliestDirtyTimestamp = Math.min(earliestDirtyTimestamp,
-                    pool.earliestDirtyTimestamp());
-        }
-        return earliestDirtyTimestamp;
+        return earliest;
     }
 
+    final long earliestDirtyTimestamp() {
+        long earliest = Long.MAX_VALUE;
+        for (final BufferPool pool : _bufferPoolTable.values()) {
+            earliest = Math.min(earliest, pool.earliestDirtyTimestamp());
+        }
+        return earliest;
+    }
 
     /**
      * Copy back all pages from the journal to their host Volumes.
@@ -1821,6 +1877,7 @@ public class Persistit {
         _checkpointManager.crash();
         _closed.set(true);
         releaseAllResources();
+        shutdownGUI();
     }
 
     private void releaseAllResources() {
@@ -1828,7 +1885,6 @@ public class Persistit {
         _volumes.clear();
         _volumesById.clear();
         _bufferPoolTable.clear();
-        _waitingThreadLocal.set(null);
         _transactionalCaches.clear();
 
         if (_management != null) {
@@ -2108,12 +2164,8 @@ public class Persistit {
         return _timestampAllocator;
     }
 
-    IOMeter getIOMeter() {
+    public IOMeter getIOMeter() {
         return _ioMeter;
-    }
-
-    ThreadLocal<WaitingThread> getWaitingThreadThreadLocal() {
-        return _waitingThreadLocal;
     }
 
     SharedResource getTransactionResourceA() {
@@ -2122,10 +2174,6 @@ public class Persistit {
 
     SharedResource getTransactionResourceB() {
         return _transactionResourceB;
-    }
-
-    LockManager getLockManager() {
-        return _lockManager;
     }
 
     /**

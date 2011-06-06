@@ -39,7 +39,7 @@ import javax.swing.text.PlainDocument;
  */
 public class TaskSetupPanel extends Box {
     private AdminUI _adminUI;
-    private String _taskClassName;
+    private String _commandName;
     private String _taskName;
     private List<ParameterComponent> _generalParameterDescriptors = new ArrayList<ParameterComponent>();
     private List<ParameterComponent> _taskSpecificParameterDescriptors = new ArrayList<ParameterComponent>();
@@ -65,7 +65,7 @@ public class TaskSetupPanel extends Box {
 
         st = new StringTokenizer(taskSpecification, ",");
         _taskName = st.nextToken();
-        _taskClassName = st.nextToken();
+        _commandName = st.nextToken();
 
         while (st.hasMoreTokens()) {
             String parameterSpec = st.nextToken();
@@ -79,6 +79,7 @@ public class TaskSetupPanel extends Box {
 
     ParameterComponent taskParameterDescription(String parameterSpec) {
         StringTokenizer st2 = new StringTokenizer(parameterSpec, ":");
+        String name = st2.nextToken();
         String type = st2.nextToken();
         String caption = st2.nextToken();
         JLabel label = new JLabel(caption);
@@ -90,9 +91,8 @@ public class TaskSetupPanel extends Box {
         add(labelPanel);
 
         JPanel panel = offsetPanel(10);
-        JComponent component = null;
 
-        if ("STRING".equals(type)) {
+        if ("STRING".equals(type) || "LINE".equals(type)) {
             int columns = 50;
             if (st2.hasMoreTokens()) {
                 columns = Integer.parseInt(st2.nextToken());
@@ -105,7 +105,7 @@ public class TaskSetupPanel extends Box {
             panel.add(textField);
             panel.add(Box.createHorizontalGlue());
             add(panel);
-            return new ParameterComponent(type, textField);
+            return new ParameterComponent(name, type, textField);
         }
 
         if ("TREES".equals(type)) {
@@ -114,7 +114,7 @@ public class TaskSetupPanel extends Box {
             panel.add(tavSelector);
             add(panel);
             panel.add(Box.createHorizontalGlue());
-            return new ParameterComponent(type, tavSelector);
+            return new ParameterComponent(name, type, tavSelector);
         }
 
         if ("BOOLEAN".equals(type)) {
@@ -135,7 +135,7 @@ public class TaskSetupPanel extends Box {
             panel.add(noButton);
             panel.add(Box.createHorizontalGlue());
             add(panel);
-            return new ParameterComponent(type, yesButton);
+            return new ParameterComponent(name, type, yesButton);
         }
 
         if ("INTEGER".equals(type)) {
@@ -160,7 +160,7 @@ public class TaskSetupPanel extends Box {
             panel.add(textField);
             panel.add(Box.createHorizontalGlue());
             add(panel);
-            return new ParameterComponent(type, textField);
+            return new ParameterComponent(name, type, textField);
         }
 
         throw new RuntimeException(
@@ -178,22 +178,24 @@ public class TaskSetupPanel extends Box {
     }
 
     private static class ParameterComponent {
+        String _name;
         String _type;
         JComponent _component;
 
-        ParameterComponent(String type, JComponent component) {
+        ParameterComponent(String name, String type, JComponent component) {
+            _name = name;
             _type = type;
             _component = component;
         }
 
         void setStringValue(String s) {
-            if ("STRING".equals(_type) || "INTEGER".equals(_type)) {
+            if ("STRING".equals(_type) || "INTEGER".equals(_type) || "LINE".equals(_type)) {
                 ((JTextField) _component).setText(s);
             }
         }
 
         String getStringValue() {
-            if ("STRING".equals(_type) || "INTEGER".equals(_type)) {
+            if ("STRING".equals(_type) || "INTEGER".equals(_type) || "LINE".equals(_type)) {
                 return ((JTextField) _component).getText();
             }
 
@@ -237,8 +239,35 @@ public class TaskSetupPanel extends Box {
         return _taskName;
     }
 
-    String getTaskClassName() {
-        return _taskClassName;
+    String getCommandName() {
+        return _commandName;
+    }
+
+    String getCommandLine() {
+        StringBuilder sb = new StringBuilder(_commandName);
+        for (final ParameterComponent pc : _taskSpecificParameterDescriptors) {
+            sb.append(' ');
+            if ("BOOLEAN".equals(pc._type)) {
+                String flag = pc._name;
+                boolean invert = flag.endsWith("~");
+                if (invert ^ pc.getBooleanValue()) {
+                    sb.append("-");
+                    sb.append(flag.charAt(0));
+                }
+            } else if ("LINE".equals(pc._type)) {
+                sb.setLength(0);
+                sb.append(pc.getStringValue());
+            } else {
+                sb.append(pc._name);
+                sb.append('=');
+                if ("INTEGER".equals(pc._type)) {
+                    sb.append(pc.getIntValue());
+                } else {
+                    sb.append(pc.getStringValue());
+                }
+            }
+        }
+        return sb.toString();
     }
 
     String[] argStrings() {

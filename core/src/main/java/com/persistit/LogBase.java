@@ -133,7 +133,7 @@ public class LogBase {
             "EXTEND_LARGER");
     final static int LOG_EXTEND_IOE = addLogTemplate(SEVERE, POOL, "EXTEND_IOE");
     final static int LOG_RMI_SERVER = addLogTemplate(FINE, RMI, "RMI_SERVER");
-    final static int LOG_UNINDEXED_PAGE = addLogTemplate(INFO, PERSISTIT,
+    final static int LOG_UNINDEXED_PAGE = addLogTemplate(WARNING, PERSISTIT,
             "UNINDEXED_PAGE");
     final static int LOG_RMI_EXCEPTION = addLogTemplate(WARNING, RMI,
             "RMI_SERVER");

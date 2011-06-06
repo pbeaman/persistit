@@ -19,11 +19,10 @@ import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.regex.Pattern;
 
+import com.persistit.CLI.Arg;
+import com.persistit.CLI.Cmd;
 import com.persistit.exception.CorruptImportStreamException;
 import com.persistit.exception.PersistitException;
 
@@ -34,22 +33,12 @@ import com.persistit.exception.PersistitException;
  * @version 1.0
  */
 public class StreamLoader extends Task {
-    
-    final static String COMMAND_NAME = "load";
-    final static String[] ARG_TEMPLATE = {
-        "file|string:|Load from file path",
-        "volume|string:|Regular expression to select volume(s) by name; empty for all",
-        "tree|string:|Regular expression to select tree(s) by name; empty for all",
-        "keyfilter|string:|KeyFilter expression to select keys to load",
-        "_flag|v|Don't create missing Volumes (Default is to create them)",
-        "_flag|t|Don't create missing Trees (Default is to create them)"
-        };
-    
+
     /**
      * Default for BufferedInputStream buffer size.
      */
     public final static int DEFAULT_BUFFER_SIZE = 65536;
-
+    protected String _filePath;
     protected DataInputStream _dis;
 
     protected Key _key = new Key((Persistit) null);
@@ -62,12 +51,28 @@ public class StreamLoader extends Task {
     protected Exception _lastException;
     protected boolean _verbose;
 
-    protected String _taskSelectedVolumePattern;
-    protected String _taskSelectedTreePattern;
-    protected String _taskKeyFilterString;
-    protected boolean _taskCreateMissingVolumes;
-    protected boolean _taskCreateMissingTrees;
+    protected TreeSelector _treeSelector;
+    protected boolean _createMissingVolumes;
+    protected boolean _createMissingTrees;
     protected ImportHandler _handler;
+
+    @Cmd("load")
+    static Task createStreamLoader(
+            @Arg("file|string:|Load from file path") String file,
+            @Arg("trees|string:|Tree selector - specify Volumes/Trees/Keys to save") String treeSelectorString,
+            @Arg("_flag|r|Use regular expressions in tree selector") boolean regex,
+            @Arg("_flag|n|Don't create missing Volumes (Default is to create them)") boolean dontCreateVolumes,
+            @Arg("_flag|t|Don't create missing Trees (Default is to create them)") boolean dontCreateTrees)
+            throws Exception {
+
+        StreamLoader task = new StreamLoader();
+        task._filePath = file;
+        task._treeSelector = TreeSelector.parseSelector(treeSelectorString,
+                regex, '\\');
+        task._createMissingVolumes = !dontCreateVolumes;
+        task._createMissingTrees = !dontCreateTrees;
+        return task;
+    }
 
     /**
      * Package-private constructor for use in a {@link Task}.
@@ -81,25 +86,16 @@ public class StreamLoader extends Task {
         _dis = dis;
     }
 
-    public StreamLoader(final Persistit persistit, BufferedInputStream bos) {
-        super(persistit);
-        _dis = new DataInputStream(bos);
+    public StreamLoader(final Persistit persistit, final File file)
+            throws IOException {
+        this(persistit, new DataInputStream(new BufferedInputStream(
+                new FileInputStream(file))));
     }
 
-    public StreamLoader(final Persistit persistit, InputStream os) {
-        super(persistit);
-        _dis = new DataInputStream(new BufferedInputStream(os,
-                DEFAULT_BUFFER_SIZE));
-    }
-
-    public StreamLoader(final Persistit persistit, File file)
-            throws FileNotFoundException {
-        this(persistit, new FileInputStream(file));
-    }
-
-    public StreamLoader(final Persistit persistit, String pathName)
-            throws FileNotFoundException {
-        this(persistit, new FileInputStream(pathName));
+    public StreamLoader(final Persistit persistit, final String fileName)
+            throws IOException {
+        this(persistit, new DataInputStream(new BufferedInputStream(
+                new FileInputStream(fileName))));
     }
 
     public boolean isVerbose() {
@@ -115,43 +111,22 @@ public class StreamLoader extends Task {
     }
 
     public void load() throws IOException, PersistitException {
-        load(null, null, null, true, true);
+        load(new TreeSelector(), true, true);
     }
 
-    public void load(String volumeNamePattern) throws IOException,
-            PersistitException {
-        load(volumeNamePattern, null, null, true, true);
-    }
-
-    public void load(String volumeNamePattern, String treeNamePattern)
-            throws IOException, PersistitException {
-        load(volumeNamePattern, treeNamePattern, null, true, true);
-    }
-
-    public void load(String volumeNamePattern, String treeNamePattern,
-            String keyFilterString) throws IOException, PersistitException {
-        load(volumeNamePattern, treeNamePattern, keyFilterString, true, true);
-    }
-
-    public void load(String volumeNamePattern, String treeNamePattern,
-            String keyFilterString, boolean createMissingVolumes,
+    public void load(TreeSelector treeSelector, boolean createMissingVolumes,
             boolean createMissingTrees) throws IOException, PersistitException {
-        KeyFilter filter = null;
-
-        if (keyFilterString != null && keyFilterString.length() > 0) {
-            filter = new KeyFilter(keyFilterString);
-        }
-        _handler = new ImportHandler(_persistit, volumeNamePattern,
-                treeNamePattern, createMissingVolumes, createMissingTrees,
-                filter);
+        _handler = new ImportHandler(_persistit, treeSelector,
+                createMissingVolumes, createMissingTrees);
         load(_handler);
         close();
     }
 
     public void load(ImportHandler handler) throws IOException,
             PersistitException {
-        while (readAndDispatchOneRecord(handler))
+        while (readAndDispatchOneRecord(handler)) {
             poll();
+        }
     }
 
     private boolean readAndDispatchOneRecord(ImportHandler handler)
@@ -277,32 +252,24 @@ public class StreamLoader extends Task {
 
     public static class ImportHandler {
         protected Persistit _persistit;
-        protected Pattern _selectedVolumePattern;
-        protected Pattern _selectedTreePattern;
-        protected KeyFilter _keyFilter;
+        protected TreeSelector _treeSelector;
         protected Exchange _exchange;
         protected Volume _volume;
         protected Tree _tree;
+        protected KeyFilter _keyFilter;
         protected boolean _createMissingVolumes;
         protected boolean _createMissingTrees;
 
         public ImportHandler(Persistit persistit) {
-            this(persistit, null, null, true, true, null);
+            this(persistit, new TreeSelector(), true, true);
         }
 
-        public ImportHandler(Persistit persistit, String selectedVolumePattern,
-                String selectedTreePattern, boolean createMissingVolumes,
-                boolean createMissingTrees, KeyFilter keyFilter) {
+        public ImportHandler(Persistit persistit, TreeSelector treeSelector,
+                boolean createMissingVolumes, boolean createMissingTrees) {
             _persistit = persistit;
-            _selectedTreePattern = selectedTreePattern != null
-                    && !selectedTreePattern.isEmpty() ? Pattern
-                    .compile(selectedTreePattern) : null;
-            _selectedVolumePattern = selectedVolumePattern != null
-                    && !selectedVolumePattern.isEmpty() ? Pattern
-                    .compile(selectedVolumePattern) : null;
+            _treeSelector = treeSelector == null ? new TreeSelector() : treeSelector;
             _createMissingTrees = createMissingTrees;
             _createMissingVolumes = createMissingVolumes;
-            _keyFilter = keyFilter;
         }
 
         public void handleFillRecord() throws PersistitException {
@@ -337,8 +304,7 @@ public class StreamLoader extends Task {
             _volume = null;
             _tree = null;
 
-            if (_selectedVolumePattern != null
-                    && !_selectedVolumePattern.matcher(name).matches()) {
+            if (!_treeSelector.isVolumeNameSelected(name)) {
                 return;
             }
 
@@ -371,18 +337,23 @@ public class StreamLoader extends Task {
             Exchange oldExchange = _exchange;
             _exchange = null;
             _tree = null;
-            if (_selectedTreePattern != null
-                    && !_selectedTreePattern.matcher(treeName).matches()) {
+
+            if (_volume == null) {
                 return;
             }
 
-            if (_volume != null) {
-                _tree = _volume.getTree(treeName, _createMissingVolumes
-                        | _createMissingTrees);
+            if (!_treeSelector.isTreeNameSelected(_volume.getName(), treeName)) {
+                return;
             }
+
+            _tree = _volume.getTree(treeName, _createMissingVolumes
+                    | _createMissingTrees);
+
             if (oldExchange != null && oldExchange.getTree() == _tree) {
                 _exchange = oldExchange;
             }
+            _keyFilter = _treeSelector.keyFilter(_volume.getName(), treeName);
+
         }
 
         public void handleTimeStampRecord(long timeStamp)
@@ -420,35 +391,10 @@ public class StreamLoader extends Task {
     }
 
     @Override
-    protected void setupArgs(String[] args) throws Exception {
-        _dis = new DataInputStream(new BufferedInputStream(new FileInputStream(
-                args[0]), DEFAULT_BUFFER_SIZE));
-        _taskSelectedVolumePattern = args.length > 1 ? args[1] : null;
-        _taskSelectedTreePattern = args.length > 2 ? args[2] : null;
-        _taskKeyFilterString = args.length > 3 ? args[3] : null;
-        _taskCreateMissingVolumes = args.length > 4 && "true".equals(args[4]);
-        _taskCreateMissingTrees = args.length > 5 && "true".equals(args[5]);
-    }
-    
-    
-    @Override
-    public void setupTaskWithArgParser(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser(this.getClass().getSimpleName(), args, ARG_TEMPLATE);
-        _dis = new DataInputStream(new BufferedInputStream(new FileInputStream(
-                ap.getStringValue("file")), DEFAULT_BUFFER_SIZE));
-        _taskSelectedVolumePattern = ap.getStringValue("volume");
-        _taskSelectedTreePattern = ap.getStringValue("tree");
-        _taskKeyFilterString = ap.getStringValue("keyfilter");
-        _taskCreateMissingVolumes = !ap.isFlag('v');
-        _taskCreateMissingTrees = !ap.isFlag('t');
-        setVerbose(true);
-    }
-    
-    @Override
     public void runTask() throws Exception {
-        load(_taskSelectedVolumePattern, _taskSelectedTreePattern,
-                _taskKeyFilterString, _taskCreateMissingVolumes,
-                _taskCreateMissingTrees);
+        _dis = new DataInputStream(new BufferedInputStream(
+                new FileInputStream(_filePath), DEFAULT_BUFFER_SIZE));
+        load(_treeSelector, _createMissingVolumes, _createMissingTrees);
     }
 
     @Override
@@ -460,4 +406,5 @@ public class StreamLoader extends Task {
         return tree.getName() + " in " + tree.getVolume().getPath() + " ("
                 + _dataRecordCount + ")";
     }
+
 }
