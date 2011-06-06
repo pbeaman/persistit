@@ -361,7 +361,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
 
         String s = sb.toString();
-        for (int cycle = 0; cycle < 10; cycle++) {
+        for (int cycle = 0; cycle < 2; cycle++) {
             for (int i = 1000; i < 2000; i++) {
                 final Exchange exchange = _persistit.getExchange("persistit",
                         "RecoveryTest" + i, true);
