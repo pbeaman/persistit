@@ -34,10 +34,6 @@ public abstract class PersistitUnitTestCase extends TestCase {
         _persistit.initialize(getProperties(true));
     }
 
-    // public void setUp(final boolean cleanup) throws Exception {
-    // _persistit.initialize(getProperties(cleanup));
-    // }
-
     @Override
     public void tearDown() throws Exception {
         _persistit.close(false);

@@ -147,6 +147,16 @@ public class Persistit {
      */
     public final static String BUFFERS_PROPERTY_NAME = "buffer.count.";
     /**
+     * Property name prefix for specifying buffer memory allocation. The full
+     * property name should be one of "1024", "2048", "4096", "8192" or "16384"
+     * appended to this string, e.g., "buffer.count.8192". This property is an
+     * alternative to "buffer.count.nnnn", and only one of these may be used in
+     * a configuration per buffer size. With the buffer.memory property
+     * Persistit computes a buffer count that will consume approximately the
+     * specified memory allocation, including overhead for FastIndex elements.
+     */
+    public final static String BUFFER_MEM_PROPERTY_NAME = "buffer.memory.";
+    /**
      * Property name prefix for specifying Volumes. The full property name
      * should be a unique ordinal number appended to this string, e.g.,
      * "volume.1", "volume.2", etc.
@@ -436,6 +446,7 @@ public class Persistit {
         startBufferPools();
         finishRecovery();
         startJournal();
+        startCheckpointManager();
         flush();
 
         _initialized.set(true);
@@ -521,17 +532,30 @@ public class Persistit {
     }
 
     void initializeBufferPools() {
-        StringBuilder sb = new StringBuilder();
         int bufferSize = Buffer.MIN_BUFFER_SIZE;
         while (bufferSize <= Buffer.MAX_BUFFER_SIZE) {
-            sb.setLength(0);
-            sb.append(BUFFERS_PROPERTY_NAME);
-            sb.append(bufferSize);
-            String propertyName = sb.toString();
-
-            int count = (int) getLongProperty(propertyName, -1,
+            String countPropertyName = BUFFERS_PROPERTY_NAME + bufferSize;
+            String memPropertyName = BUFFER_MEM_PROPERTY_NAME + bufferSize;
+            int count = (int) getLongProperty(countPropertyName, -1,
                     BufferPool.MINIMUM_POOL_COUNT,
                     BufferPool.MAXIMUM_POOL_COUNT);
+            int bufferSizeWithOverhead = Buffer
+                    .bufferSizeWithOverhead(bufferSize);
+            long mem = getLongProperty(memPropertyName, -1,
+                    (long) BufferPool.MINIMUM_POOL_COUNT
+                            * bufferSizeWithOverhead,
+                    (long) BufferPool.MAXIMUM_POOL_COUNT
+                            * bufferSizeWithOverhead);
+
+            if (count != -1 && mem != -1) {
+                throw new IllegalArgumentException("Only one of "
+                        + countPropertyName + " and " + memPropertyName
+                        + " may be specified");
+            }
+
+            if (mem != -1) {
+                count = (int) (mem / bufferSizeWithOverhead);
+            }
 
             if (count != -1) {
                 if (_logBase.isLoggable(LogBase.LOG_INIT_ALLOCATE_BUFFERS)) {
@@ -544,7 +568,6 @@ public class Persistit {
             }
             bufferSize <<= 1;
         }
-        _checkpointManager.start();
     }
 
     void initializeVolumes() throws PersistitException {
@@ -622,6 +645,10 @@ public class Persistit {
                         e.getLocalizedMessage());
             }
         }
+    }
+    
+    void startCheckpointManager() {
+        _checkpointManager.start();
     }
 
     void startBufferPools() throws PersistitException {
@@ -1120,9 +1147,9 @@ public class Persistit {
     /**
      * Select a {@link List} of {@link Tree}s determined by the supplied
      * {@link TreeSelector}. This method enumerates all Trees in all open
-     * Volumes and selects those which satisfy the TreeSelector. If the
-     * Volume has a Volume-only selector (no tree pattern was specified),
-     * then this method adds the Volume's directory Tree to the list.
+     * Volumes and selects those which satisfy the TreeSelector. If the Volume
+     * has a Volume-only selector (no tree pattern was specified), then this
+     * method adds the Volume's directory Tree to the list.
      * 
      * @param selector
      * @return the List

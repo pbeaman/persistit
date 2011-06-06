@@ -241,6 +241,8 @@ public final class Buffer extends SharedResource {
     final static int DATA_PAGE_OVERHEAD = KEY_BLOCK_START + 2 * KEYBLOCK_LENGTH
             + 2 * TAILBLOCK_HDR_SIZE_DATA;
 
+    private final static int ESTIMATED_FIXED_BUFFER_OVERHEAD = 200;
+
     private final static Stack<int[]> REPACK_BUFFER_STACK = new Stack<int[]>();
 
     public final static int MAX_KEY_RATIO = 16;
@@ -333,12 +335,6 @@ public final class Buffer extends SharedResource {
      * (Maintained by BufferPool.)
      */
     private Buffer _next = null;
-
-    /**
-     * This is for the new CLOCK algorithm experiment. Bits: 1 Touched 2
-     * FastIndex touched
-     */
-    AtomicInteger _bits = new AtomicInteger();
 
     /**
      * Construct a new buffer.
@@ -3136,6 +3132,11 @@ public final class Buffer extends SharedResource {
                     "Bad LONG_RECORD descriptor type: " + type);
         }
         return Util.getLong(bytes, offset + LONGREC_PAGE_OFFSET);
+    }
+
+    static int bufferSizeWithOverhead(final int bufferSize) {
+        return bufferSize + (((bufferSize - HEADER_SIZE) / MAX_KEY_RATIO) * 4)
+                + ESTIMATED_FIXED_BUFFER_OVERHEAD;
     }
 
     /**
