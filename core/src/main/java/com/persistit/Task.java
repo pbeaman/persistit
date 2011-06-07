@@ -458,6 +458,7 @@ public abstract class Task implements Runnable {
             if (_messageWriter != null) {
                 _messageWriter.println();
                 _messageWriter.print(message);
+                _messageWriter.flush();
             }
         }
     }
@@ -483,6 +484,7 @@ public abstract class Task implements Runnable {
             }
             if (_messageWriter != null) {
                 _messageWriter.print(fragment);
+                _messageWriter.flush();
             }
         }
     }
