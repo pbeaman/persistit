@@ -41,8 +41,6 @@ public class RecoveryTest extends PersistitUnitTestCase {
      * methods used in controlling the test.
      */
 
-    private static String[] _args;
-
     private String _volumeName = "persistit";
 
     public void testRecoveryRebuildsPageMap() throws Exception {
@@ -674,7 +672,6 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     public static void main(final String[] args) throws Exception {
-        _args = args;
         new RecoveryTest().initAndRunTest();
     }
 

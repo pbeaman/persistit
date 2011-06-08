@@ -430,7 +430,6 @@ public class Volume extends SharedResource {
             //
             _headBuffer = _pool.get(this, 0, true, true);
             getHeaderInfo(_headBuffer.getBytes());
-            _persistit.getTimestampAllocator().updateTimestamp(_timestamp);
             if (id != 0 && id != _id) {
                 throw new CorruptVolumeException(
                         "Attempt to open with invalid id " + id + " (!= " + _id

@@ -74,8 +74,6 @@ public class JournalManager implements JournalManagerMXBean,
 
     private long _journalCreatedTime;
 
-    private long _currentTimestamp = 0;
-
     private final Map<PageNode, PageNode> _pageMap = new HashMap<PageNode, PageNode>();
 
     private final Map<PageNode, PageNode> _branchMap = new HashMap<PageNode, PageNode>();
@@ -238,6 +236,7 @@ public class JournalManager implements JournalManagerMXBean,
             _currentAddress = 0;
             _journalCreatedTime = System.currentTimeMillis();
         }
+        prepareWriteBuffer(JH.OVERHEAD);
         _closed.set(false);
 
     }
@@ -603,14 +602,17 @@ public class JournalManager implements JournalManagerMXBean,
         bb.limit(bufferSize).position(0);
         return pageAddress;
     }
-    
+
     /**
      * Method used by diagnostic tools to attempt to read a page from journal
-     * @param address journal address
-     * @param bb ByteBuffer in which to return the result
+     * 
+     * @param address
+     *            journal address
+     * @param bb
+     *            ByteBuffer in which to return the result
      * @return pageAddress of the page at the specified location, or -1 if the
-     * address does not reference a valid page
-     * @throws PersistitException 
+     *         address does not reference a valid page
+     * @throws PersistitException
      */
     Buffer readPageBuffer(final long address) throws PersistitException {
         ByteBuffer bb = ByteBuffer.allocate(PA.OVERHEAD);
@@ -624,14 +626,16 @@ public class JournalManager implements JournalManagerMXBean,
         final int bufferSize = PA.getBufferSize(bb);
         final long pageAddress = PA.getPageAddress(bb);
         final int volumeHandle = PA.getVolumeHandle(bb);
-        
-        if (type != PA.TYPE || leftSize < 0 || payloadSize < leftSize || payloadSize > bufferSize) {
+
+        if (type != PA.TYPE || leftSize < 0 || payloadSize < leftSize
+                || payloadSize > bufferSize) {
             return null;
         }
 
         final BufferPool pool = _persistit.getBufferPool(bufferSize);
-        final Buffer buffer = new Buffer(bufferSize, -1,  pool, _persistit);
-        buffer.setPageAddressAndVolume(pageAddress, volumeForHandle(volumeHandle));
+        final Buffer buffer = new Buffer(bufferSize, -1, pool, _persistit);
+        buffer.setPageAddressAndVolume(pageAddress,
+                volumeForHandle(volumeHandle));
         bb = buffer.getByteBuffer();
         bb.limit(payloadSize).position(0);
         readFully(bb, address + PA.OVERHEAD);
@@ -669,7 +673,7 @@ public class JournalManager implements JournalManagerMXBean,
      */
     synchronized void writeJournalHeader() throws PersistitIOException {
         JH.putType(_writeBuffer);
-        JH.putTimestamp(_writeBuffer, _currentTimestamp);
+        JH.putTimestamp(_writeBuffer, _lastValidCheckpoint.getTimestamp());
         JH.putVersion(_writeBuffer, VERSION);
         JH.putBlockSize(_writeBuffer, _blockSize);
         JH.putBaseJournalAddress(_writeBuffer, _baseAddress);
@@ -698,7 +702,7 @@ public class JournalManager implements JournalManagerMXBean,
             // the write buffer for this record.
             //
             JE.putType(_writeBuffer);
-            JE.putTimestamp(_writeBuffer, _currentTimestamp);
+            JE.putTimestamp(_writeBuffer, _persistit.getCurrentTimestamp());
             JE.putLength(_writeBuffer, JE.OVERHEAD);
             JE.putCurrentJournalAddress(_writeBuffer, _currentAddress);
             JE.putBaseAddress(_writeBuffer, _baseAddress);
@@ -730,7 +734,7 @@ public class JournalManager implements JournalManagerMXBean,
         prepareWriteBuffer(recordSize);
         PM.putType(_writeBuffer);
         PM.putLength(_writeBuffer, recordSize);
-        PM.putTimestamp(_writeBuffer, _currentTimestamp);
+        PM.putTimestamp(_writeBuffer, _lastValidCheckpoint.getTimestamp());
         advance(PM.OVERHEAD);
         int offset = 0;
         for (final PageNode lastPageNode : _pageMap.values()) {
@@ -786,7 +790,7 @@ public class JournalManager implements JournalManagerMXBean,
         prepareWriteBuffer(recordSize);
         TM.putType(_writeBuffer);
         TM.putLength(_writeBuffer, recordSize);
-        TM.putTimestamp(_writeBuffer, _currentTimestamp);
+        TM.putTimestamp(_writeBuffer, _lastValidCheckpoint.getTimestamp());
         advance(TM.OVERHEAD);
         int offset = 0;
         for (final TransactionStatus ts : _liveTransactionMap.values()) {
@@ -819,9 +823,6 @@ public class JournalManager implements JournalManagerMXBean,
         // writing this record.
         //
         force();
-        _lastValidCheckpoint = checkpoint;
-        _lastValidCheckpointJournalAddress = _currentAddress - CP.OVERHEAD;
-        _lastValidCheckpointBaseAddress = _baseAddress;
         //
         // Prepare room for CP.OVERHEAD bytes in the journal. If doing so
         // started a new journal file then there's no need to write another
@@ -848,6 +849,10 @@ public class JournalManager implements JournalManagerMXBean,
                         checkpoint, addressToFile(address), address);
             }
         }
+
+        _lastValidCheckpoint = checkpoint;
+        _lastValidCheckpointJournalAddress = _currentAddress - CP.OVERHEAD;
+        _lastValidCheckpointBaseAddress = _baseAddress;
     }
 
     void writePageToJournal(final Buffer buffer) throws PersistitIOException {
@@ -914,7 +919,7 @@ public class JournalManager implements JournalManagerMXBean,
         IV.putType(_writeBuffer);
         IV.putHandle(_writeBuffer, handle);
         IV.putVolumeId(_writeBuffer, volume.getId());
-        IV.putTimestamp(_writeBuffer, 0);
+        IV.putTimestamp(_writeBuffer, _lastValidCheckpoint.getTimestamp());
         IV.putVolumeName(_writeBuffer, volume.getName());
         final int recordSize = IV.getLength(_writeBuffer);
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize,
@@ -928,7 +933,7 @@ public class JournalManager implements JournalManagerMXBean,
         IT.putType(_writeBuffer);
         IT.putHandle(_writeBuffer, handle);
         IT.putVolumeHandle(_writeBuffer, td.getVolumeHandle());
-        IT.putTimestamp(_writeBuffer, 0);
+        IT.putTimestamp(_writeBuffer, _lastValidCheckpoint.getTimestamp());
         IT.putTreeName(_writeBuffer, td.getTreeName());
         final int recordSize = IT.getLength(_writeBuffer);
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize,
@@ -1431,8 +1436,7 @@ public class JournalManager implements JournalManagerMXBean,
     /**
      * Set the copyFast flag and then wait until all checkpointed pages have
      * been copied to their respective volumes, allowing the journal files to be
-     * deleted. Pages modified after the last valid checkpoint cannot
-     * be copied.
+     * deleted. Pages modified after the last valid checkpoint cannot be copied.
      * <p>
      * Does nothing of the <code>appendOnly</code> is set.
      * 

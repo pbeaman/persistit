@@ -686,11 +686,6 @@ public class JournalRecord {
             return getLong(bb, 16 + (index * ENTRY_SIZE));
         }
 
-        public static boolean getEntryCommitted(final ByteBuffer bb,
-                final int index) {
-            return getByte(bb, 24 + (index * ENTRY_SIZE)) != 0;
-        }
-
         public static void putEntry(final ByteBuffer bb, final int index,
                 final long startTimestamp, final long commitTimestamp,
                 final long journalAddress) {
