@@ -15,6 +15,7 @@
 
 package com.persistit.unit;
 
+import java.util.Map;
 import java.util.Properties;
 
 import junit.framework.TestCase;
@@ -31,6 +32,7 @@ public abstract class PersistitUnitTestCase extends TestCase {
 
     @Override
     public void setUp() throws Exception {
+        checkNoPersistitThreads();
         _persistit.initialize(getProperties(true));
     }
 
@@ -56,5 +58,22 @@ public abstract class PersistitUnitTestCase extends TestCase {
             tearDown();
         }
     }
+    
+    private final static String[] PERSISTIT_THREAD_NAMES = {
+        "CHECKPOINT_WRITER", "JOURNAL_COPIER", "JOURNAL_FLUSHER", "PAGE_WRITER"};
 
+    protected boolean checkNoPersistitThreads() {
+        boolean alive = false;
+        final Map<Thread, StackTraceElement[]> map = Thread.getAllStackTraces();
+        for (final Thread t : map.keySet()) {
+            String name = t.getName();
+            for (final String p : PERSISTIT_THREAD_NAMES) {
+                if (name.contains(p)) {
+                    alive=true;
+                    System.err.println("Thread " + t + " is still alive");
+                }
+            }
+        }
+        return alive;
+    }
 }

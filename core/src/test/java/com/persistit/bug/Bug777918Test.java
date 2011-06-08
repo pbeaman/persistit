@@ -15,6 +15,7 @@
 
 package com.persistit.bug;
 
+import java.io.File;
 import java.util.Properties;
 
 import org.junit.Test;
@@ -63,7 +64,6 @@ import com.persistit.unit.UnitTestProperties;
  */
 public class Bug777918Test extends PersistitUnitTestCase {
 
-
     @Override
     protected Properties getProperties(final boolean cleanup) {
         return UnitTestProperties.getBiggerProperties(cleanup);
@@ -84,11 +84,12 @@ public class Bug777918Test extends PersistitUnitTestCase {
         TestShim.rollover(_persistit.getJournalManager());
         final Properties properties = _persistit.getProperties();
         _persistit.close();
+
         _persistit = new Persistit();
         _persistit.initialize(properties);
         _persistit.checkAllVolumes();
         ex = _persistit.getExchange("persistit", "Bug777918Test", false);
-        // ensure updates after the checkpoint did make it, i.e., 
+        // ensure updates after the checkpoint did make it, i.e.,
         // were not branched
         for (int i = 0; i < 200000; i++) {
             assertEquals(true, ex.to(i).isValueDefined());
@@ -98,13 +99,12 @@ public class Bug777918Test extends PersistitUnitTestCase {
         _persistit.initialize(properties);
         _persistit.checkAllVolumes();
         ex = _persistit.getExchange("persistit", "Bug777918Test", false);
-        // ensure updates after the checkpoint did make it, i.e., 
+        // ensure updates after the checkpoint did make it, i.e.,
         // were not branched
         for (int i = 0; i < 200000; i++) {
             assertEquals(true, ex.to(i).isValueDefined());
         }
     }
-
 
     @Test
     public void testMakeBranch() throws Exception {
@@ -205,13 +205,13 @@ public class Bug777918Test extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.getRecoveryManager().setRecoveryListener(
                 new TestCrashingRecoveryListener());
-        
+
         //
-        // The recovery process deliberately crashes after applying some transactions.
+        // The recovery process deliberately crashes after applying some
+        // transactions.
         //
         _persistit.initialize(properties);
 
-        
         // This startup should divide the pages into page- and branch-map
         // and apply committed transactions using branch-map pages.
         //
@@ -220,7 +220,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
         _persistit.checkAllVolumes();
 
         ex = _persistit.getExchange("persistit", "Bug777918Test", false);
-        
+
         for (int i = 0; i < 20000; i++) {
             if (!ex.to(i).isValueDefined()) {
                 System.out.println(i + " ");
@@ -241,7 +241,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
     class TestCrashingRecoveryListener extends DefaultRecoveryListener {
         boolean checkpointed = false;
         boolean crashed = false;
-        
+
         public void startTransaction(long address, long timestamp)
                 throws PersistitException {
             if (timestamp > 50000 && !checkpointed) {

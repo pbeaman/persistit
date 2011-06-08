@@ -224,6 +224,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         jman.writeCheckpointToJournal(checkpoint1);
         _persistit.checkpoint();
         final Properties saveProperties = _persistit.getProperties();
+        _persistit.close();
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
         _persistit.getJournalManager().setAppendOnly(true);
