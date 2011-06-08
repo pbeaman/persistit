@@ -13,15 +13,15 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.persistit;
-
-import static com.persistit.Key.maxStorableKeySize;
+package com.persistit.bug;
 
 import org.junit.Test;
 
+import com.persistit.Exchange;
+import com.persistit.TestShim;
 import com.persistit.unit.PersistitUnitTestCase;
 
-public class Bug739533 extends PersistitUnitTestCase {
+public class Bug739533Test extends PersistitUnitTestCase {
 
     private String _volumeName = "persistit";
 
@@ -80,8 +80,8 @@ public class Bug739533 extends PersistitUnitTestCase {
      * @return
      */
     int maxValueSize(final Exchange exchange) {
-        return exchange.getVolume().getPageSize() - Buffer.INDEX_PAGE_OVERHEAD
-                - maxStorableKeySize(exchange.getVolume().getPageSize()) * 2;
+        return exchange.getVolume().getPageSize() - TestShim.BUFFER_INDEX_PAGE_OVERHEAD
+                - TestShim.maxStorableKeySize(exchange.getVolume().getPageSize()) * 2;
     }
 
 }

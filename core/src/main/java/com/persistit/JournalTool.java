@@ -1012,7 +1012,7 @@ public class JournalTool {
                     loaded = _readBuffer.remaining() / TM.ENTRY_SIZE;
                     if (loaded <= 0) {
                         throw new CorruptJournalException(
-                                "Could not load TramsactionMap segment in entry "
+                                "Could not load TransactionMap segment in entry "
                                         + (count - remaining + 1) + " at "
                                         + addressToString(from, timestamp));
                     }
@@ -1023,9 +1023,8 @@ public class JournalTool {
                         _readBuffer, index);
                 final long journalAddress = TM.getEntryJournalAddress(
                         _readBuffer, index);
-                final boolean isCommitted = TM.getEntryCommitted(_readBuffer,
-                        index);
-                appendf("-- commit %,12d start %,12d @%,18d %s",
+                final boolean isCommitted = commitTimestamp != startTimestamp;
+                appendf("--  start %,12d  commit %,12d  @%,18d %s",
                         commitTimestamp, startTimestamp, journalAddress,
                         isCommitted ? "committed" : "uncommitted");
                 end();

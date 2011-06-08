@@ -444,9 +444,9 @@ public class Persistit {
         initializeBufferPools();
         initializeVolumes();
         startBufferPools();
-        finishRecovery();
         startJournal();
         startCheckpointManager();
+        finishRecovery();
         flush();
 
         _initialized.set(true);

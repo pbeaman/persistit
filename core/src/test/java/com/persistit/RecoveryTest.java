@@ -41,8 +41,6 @@ public class RecoveryTest extends PersistitUnitTestCase {
      * methods used in controlling the test.
      */
 
-    private static String[] _args;
-
     private String _volumeName = "persistit";
 
     public void testRecoveryRebuildsPageMap() throws Exception {
@@ -279,10 +277,6 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     public void testLargePageMap() throws Exception {
-        JournalManager jman = new JournalManager(_persistit);
-        final String path = UnitTestProperties.DATA_PATH
-                + "/RecoveryManagerTest_journal_";
-        jman.init(null, path, 100000000);
         final VolumeDescriptor vd = new VolumeDescriptor("foo", 123);
         final Map<Integer, VolumeDescriptor> volumeMap = new TreeMap<Integer, VolumeDescriptor>();
         volumeMap.put(1, vd);
@@ -298,8 +292,14 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
             pageMap.put(lastPageNode, lastPageNode);
         }
+        JournalManager jman = new JournalManager(_persistit);
+        final String path = UnitTestProperties.DATA_PATH
+                + "/RecoveryManagerTest_journal_";
         jman.unitTestInjectVolumes(volumeMap);
         jman.unitTestInjectPageMap(pageMap);
+        // Note: moved call to init after the unitTestInject calls
+        // because init now starts a the journal file.
+        jman.init(null, path, 100000000);
         jman.writeCheckpointToJournal(new Checkpoint(500, 12345));
         jman.close();
         final RecoveryManager rman = new RecoveryManager(_persistit);
@@ -674,7 +674,6 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     public static void main(final String[] args) throws Exception {
-        _args = args;
         new RecoveryTest().initAndRunTest();
     }
 

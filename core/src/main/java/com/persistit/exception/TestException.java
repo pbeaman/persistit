@@ -16,25 +16,17 @@
 package com.persistit.exception;
 
 /**
- * The superclass for all checked Persistit&trade; Exceptions.
+ * Exception thrown by Test classes to cause internal effects such as blocking
+ * Transaction recovery.
  * 
- * @version 1.0
  */
-public abstract class PersistitException extends Exception {
+public abstract class TestException extends RuntimeException {
 
-    protected PersistitException() {
+    protected TestException() {
         super();
     }
-
-    protected PersistitException(String msg) {
+    
+    protected TestException(String msg) {
         super(msg);
-    }
-
-    protected PersistitException(Exception exception) {
-        super(exception);
-    }
-
-    protected PersistitException(String msg, Exception exception) {
-        super(msg, exception);
     }
 }

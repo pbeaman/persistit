@@ -458,6 +458,7 @@ public abstract class Task implements Runnable {
             if (_messageWriter != null) {
                 _messageWriter.println();
                 _messageWriter.print(message);
+                _messageWriter.flush();
             }
         }
     }
@@ -470,7 +471,7 @@ public abstract class Task implements Runnable {
      * @param level
      *            Indicates the verbosity level. The message is posted only if
      *            the level of the message is below the current verbosity
-     *            threshhold set through {@link #setMessageLogVerbosity(int)}.
+     *            threshold set through {@link #setMessageLogVerbosity(int)}.
      */
     protected void appendMessage(String fragment, int level) {
         if (level <= _messageLogVerbosity) {
@@ -483,6 +484,7 @@ public abstract class Task implements Runnable {
             }
             if (_messageWriter != null) {
                 _messageWriter.print(fragment);
+                _messageWriter.flush();
             }
         }
     }
