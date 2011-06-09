@@ -17,10 +17,14 @@ package com.persistit.exception;
 
 /**
  * The superclass for all checked Persistit&trade; Exceptions.
+ * This class can also serve as a wrapper for other Exception
+ * types.
  * 
  * @version 1.0
  */
-public abstract class PersistitException extends Exception {
+public class PersistitException extends Exception {
+
+    private static final long serialVersionUID = -2971539608220570084L;
 
     protected PersistitException() {
         super();
@@ -30,11 +34,11 @@ public abstract class PersistitException extends Exception {
         super(msg);
     }
 
-    protected PersistitException(Exception exception) {
+    public PersistitException(Exception exception) {
         super(exception);
     }
 
-    protected PersistitException(String msg, Exception exception) {
+    public PersistitException(String msg, Exception exception) {
         super(msg, exception);
     }
 }

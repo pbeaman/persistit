@@ -20,7 +20,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +70,7 @@ public class Volume extends SharedResource {
 
     private VolumeHeader _header;
     private FileChannel _channel;
+    private FileLock _fileLock;
     private String _path;
     private String _name;
     private long _id;
@@ -359,6 +363,7 @@ public class Volume extends SharedResource {
 
             if (!tranzient) {
                 _channel = new RandomAccessFile(_path, "rw").getChannel();
+                lockChannel();
                 _headBuffer.getByteBuffer().position(0)
                         .limit(_headBuffer.getBufferSize());
                 _channel.write(_headBuffer.getByteBuffer(), 0);
@@ -410,7 +415,7 @@ public class Volume extends SharedResource {
             _readOnly = readOnly;
             _channel = new RandomAccessFile(_path, readOnly ? "r" : "rw")
                     .getChannel();
-
+            lockChannel();
             _header = new VolumeHeader(_channel);
             final ByteBuffer bb = _header.validate();
 
@@ -430,6 +435,7 @@ public class Volume extends SharedResource {
             //
             _headBuffer = _pool.get(this, 0, true, true);
             getHeaderInfo(_headBuffer.getBytes());
+
             if (id != 0 && id != _id) {
                 throw new CorruptVolumeException(
                         "Attempt to open with invalid id " + id + " (!= " + _id
@@ -451,6 +457,20 @@ public class Volume extends SharedResource {
             releaseHeadBuffer();
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
+        }
+    }
+
+    private void lockChannel() throws InUseException, IOException {
+        try {
+            _fileLock = _channel.tryLock();
+        } catch (OverlappingFileLockException e) {
+            // Note: OverlappingFileLockException is a RuntimeException
+            throw new InUseException("Volume file " + _path
+                    + " is locked by another thread in this JVM");
+        }
+        if (_fileLock == null) {
+            throw new InUseException("Volume file " + _path
+                    + " is locked by another process");
         }
     }
 
@@ -1681,18 +1701,37 @@ public class Volume extends SharedResource {
 
     void close() throws PersistitException {
         _headBuffer.setFixed(false);
-
-        // _pool.invalidate(this);
-
-        final FileChannel channelToClose;
-        channelToClose = _channel;
         _closed = true;
+
+        PersistitException pe = null;
         try {
-            if (channelToClose != null) {
-                channelToClose.close();
+            final FileLock lock = _fileLock;
+            _fileLock = null;
+            if (lock != null) {
+                lock.release();
             }
-        } catch (IOException e) {
-            throw new PersistitIOException(e);
+        } catch (Exception e) {
+            if (_persistit.getLogBase().isLoggable(LogBase.LOG_EXCEPTION)) {
+                _persistit.getLogBase().log(LogBase.LOG_EXCEPTION, e);
+            }
+            pe = new PersistitException(e);
+        }
+        try {
+            final FileChannel channel = _channel;
+            _channel = null;
+            if (channel != null) {
+                channel.close();
+            }
+        } catch (Exception e) {
+            if (_persistit.getLogBase().isLoggable(LogBase.LOG_EXCEPTION)) {
+                _persistit.getLogBase().log(LogBase.LOG_EXCEPTION, e);
+            }
+            // has priority over Exception throw by
+            // releasing file lock.
+            pe = new PersistitException(e);
+        }
+        if (pe != null) {
+            throw pe;
         }
     }
 
