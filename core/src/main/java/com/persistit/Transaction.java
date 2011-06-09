@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -596,7 +597,7 @@ public class Transaction {
         final Integer key = Integer.valueOf(handle);
         WeakReference<Tree> ref = _treeCache.get(key);
         Tree tree = ref == null ? null : ref.get();
-        if (tree == null) {
+        if (tree == null || !tree.isValid()) {
             tree = _persistit.getJournalManager().treeForHandle(handle);
             if (tree != null) {
                 _treeCache.put(key, new WeakReference<Tree>(tree));
@@ -694,7 +695,8 @@ public class Transaction {
             if (!_persistit.getTransactionResourceA().claim(
                     _rollbacksSinceLastCommit >= _pessimisticRetryThreshold,
                     COMMIT_CLAIM_TIMEOUT)) {
-                throw new TimeoutException("Unavailable TransactionResourceA lock");
+                throw new TimeoutException(
+                        "Unavailable TransactionResourceA lock");
             }
         }
         _nestedDepth++;
@@ -1999,10 +2001,7 @@ public class Transaction {
             bb.position(bb.position() + recordSize);
         }
         bb.reset();
-
-        for (final Tree tree : removedTrees) {
-            tree.getVolume().removeTree(tree);
-        }
+        removeTrees(removedTrees);
     }
 
     private void applyUpdates() throws PersistitException {
@@ -2054,7 +2053,19 @@ public class Transaction {
                 }
             }
         }
+        removeTrees(removedTrees);
+    }
 
+    private void removeTrees(final Set<Tree> removedTrees)
+            throws PersistitException {
+        for (final Iterator<WeakReference<Tree>> iterator = _treeCache.values()
+                .iterator(); iterator.hasNext();) {
+            final WeakReference<Tree> ref = iterator.next();
+            final Tree tree = ref.get();
+            if (tree != null && removedTrees.contains(tree)) {
+                iterator.remove();
+            }
+        }
         for (final Tree tree : removedTrees) {
             tree.getVolume().removeTree(tree);
         }
