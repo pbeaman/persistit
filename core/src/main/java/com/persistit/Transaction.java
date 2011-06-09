@@ -596,7 +596,7 @@ public class Transaction {
         final Integer key = Integer.valueOf(handle);
         WeakReference<Tree> ref = _treeCache.get(key);
         Tree tree = ref == null ? null : ref.get();
-        if (tree == null) {
+        if (tree == null || !tree.isValid()) {
             tree = _persistit.getJournalManager().treeForHandle(handle);
             if (tree != null) {
                 _treeCache.put(key, new WeakReference<Tree>(tree));
