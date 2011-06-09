@@ -35,7 +35,7 @@ public class PersistitIOException extends PersistitException {
         super(msg);
     }
 
-    public PersistitIOException(String msg, Exception exception) {
+    public PersistitIOException(String msg, IOException exception) {
         super(msg, exception);
     }
 }

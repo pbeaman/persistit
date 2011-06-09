@@ -236,12 +236,14 @@ public class JournalManager implements JournalManagerMXBean,
             _currentAddress = 0;
             _journalCreatedTime = System.currentTimeMillis();
         }
-        prepareWriteBuffer(JH.OVERHEAD);
         _closed.set(false);
 
     }
 
-    public void startThreads() {
+    public void startJournal() throws PersistitIOException {
+        synchronized(this) {
+            prepareWriteBuffer(JH.OVERHEAD);
+        }
         _copier.start();
         _flusher.start();
     }

@@ -443,8 +443,8 @@ public class Persistit {
         initializeJournal();
         initializeBufferPools();
         initializeVolumes();
-        startBufferPools();
         startJournal();
+        startBufferPools();
         startCheckpointManager();
         finishRecovery();
         flush();
@@ -658,7 +658,7 @@ public class Persistit {
     }
 
     void startJournal() throws PersistitException {
-        _journalManager.startThreads();
+        _journalManager.startJournal();
     }
 
     void finishRecovery() throws PersistitException {
@@ -1866,6 +1866,14 @@ public class Persistit {
         final JournalManager journalManager = _journalManager;
         if (journalManager != null) {
             journalManager.crash();
+        }
+        
+        for (final Volume volume : _volumes) {
+            try {
+                volume.close();
+            } catch (PersistitException pe) {
+                // ignore - 
+            }
         }
         final Map<Integer, BufferPool> buffers = _bufferPoolTable;
         if (buffers != null) {
