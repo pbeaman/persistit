@@ -143,6 +143,8 @@ public class JournalManager implements JournalManagerMXBean,
 
     private long _deleteBoundaryAddress = 0;
 
+    private boolean _isNewEpoch = true;
+
     private volatile long _writePageCount = 0;
 
     private volatile long _readPageCount = 0;
@@ -241,7 +243,7 @@ public class JournalManager implements JournalManagerMXBean,
     }
 
     public void startJournal() throws PersistitIOException {
-        synchronized(this) {
+        synchronized (this) {
             prepareWriteBuffer(JH.OVERHEAD);
         }
         _copier.start();
@@ -675,7 +677,7 @@ public class JournalManager implements JournalManagerMXBean,
      */
     synchronized void writeJournalHeader() throws PersistitIOException {
         JH.putType(_writeBuffer);
-        JH.putTimestamp(_writeBuffer, _lastValidCheckpoint.getTimestamp());
+        JH.putTimestamp(_writeBuffer, epochalTimestamp());
         JH.putVersion(_writeBuffer, VERSION);
         JH.putBlockSize(_writeBuffer, _blockSize);
         JH.putBaseJournalAddress(_writeBuffer, _baseAddress);
@@ -704,7 +706,7 @@ public class JournalManager implements JournalManagerMXBean,
             // the write buffer for this record.
             //
             JE.putType(_writeBuffer);
-            JE.putTimestamp(_writeBuffer, _persistit.getCurrentTimestamp());
+            JE.putTimestamp(_writeBuffer, epochalTimestamp());
             JE.putLength(_writeBuffer, JE.OVERHEAD);
             JE.putCurrentJournalAddress(_writeBuffer, _currentAddress);
             JE.putBaseAddress(_writeBuffer, _baseAddress);
@@ -736,7 +738,7 @@ public class JournalManager implements JournalManagerMXBean,
         prepareWriteBuffer(recordSize);
         PM.putType(_writeBuffer);
         PM.putLength(_writeBuffer, recordSize);
-        PM.putTimestamp(_writeBuffer, _lastValidCheckpoint.getTimestamp());
+        PM.putTimestamp(_writeBuffer, epochalTimestamp());
         advance(PM.OVERHEAD);
         int offset = 0;
         for (final PageNode lastPageNode : _pageMap.values()) {
@@ -792,7 +794,7 @@ public class JournalManager implements JournalManagerMXBean,
         prepareWriteBuffer(recordSize);
         TM.putType(_writeBuffer);
         TM.putLength(_writeBuffer, recordSize);
-        TM.putTimestamp(_writeBuffer, _lastValidCheckpoint.getTimestamp());
+        TM.putTimestamp(_writeBuffer, epochalTimestamp());
         advance(TM.OVERHEAD);
         int offset = 0;
         for (final TransactionStatus ts : _liveTransactionMap.values()) {
@@ -921,7 +923,7 @@ public class JournalManager implements JournalManagerMXBean,
         IV.putType(_writeBuffer);
         IV.putHandle(_writeBuffer, handle);
         IV.putVolumeId(_writeBuffer, volume.getId());
-        IV.putTimestamp(_writeBuffer, _lastValidCheckpoint.getTimestamp());
+        IV.putTimestamp(_writeBuffer, epochalTimestamp());
         IV.putVolumeName(_writeBuffer, volume.getName());
         final int recordSize = IV.getLength(_writeBuffer);
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize,
@@ -935,7 +937,7 @@ public class JournalManager implements JournalManagerMXBean,
         IT.putType(_writeBuffer);
         IT.putHandle(_writeBuffer, handle);
         IT.putVolumeHandle(_writeBuffer, td.getVolumeHandle());
-        IT.putTimestamp(_writeBuffer, _lastValidCheckpoint.getTimestamp());
+        IT.putTimestamp(_writeBuffer, epochalTimestamp());
         IT.putTreeName(_writeBuffer, td.getTreeName());
         final int recordSize = IT.getLength(_writeBuffer);
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize,
@@ -1365,7 +1367,23 @@ public class JournalManager implements JournalManagerMXBean,
             _currentAddress = ((_currentAddress / _blockSize) + 1) * _blockSize;
             _writeBuffer.clear();
             _writeBufferAddress = _currentAddress;
+            _isNewEpoch = false;
         }
+    }
+
+    /**
+     * Timestamp marking the Page Map, Transaction Map and other records in the
+     * journal header. This timestamp is used to discriminate between pages in a
+     * "branch" history and the live history. See comments in
+     * {@link RecoveryManager#loadPageMap(long, long, int)} for details.
+     * 
+     * @return either the current timestamp or the timestamp of the last valid
+     *         checkpoint, depending on whether this journal file starts a new
+     *         epoch.
+     */
+    private long epochalTimestamp() {
+        return _isNewEpoch ? getLastValidCheckpointTimestamp() : _persistit
+                .getCurrentTimestamp();
     }
 
     private void startJournalFile() throws PersistitIOException {
@@ -1893,7 +1911,7 @@ public class JournalManager implements JournalManagerMXBean,
 
         synchronized (this) {
             final long timeStampUpperBound = Math.min(
-                    _lastValidCheckpoint.getTimestamp(), _copierTimestampLimit);
+                    getLastValidCheckpointTimestamp(), _copierTimestampLimit);
 
             wasUrgent = _copyFast.get();
             for (long boundary = (_baseAddress / _blockSize) * _blockSize

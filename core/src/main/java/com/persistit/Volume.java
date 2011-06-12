@@ -20,7 +20,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
@@ -462,7 +461,7 @@ public class Volume extends SharedResource {
 
     private void lockChannel() throws InUseException, IOException {
         try {
-            _fileLock = _channel.tryLock();
+            _fileLock = _channel.tryLock(0, Long.MAX_VALUE, isReadOnly());
         } catch (OverlappingFileLockException e) {
             // Note: OverlappingFileLockException is a RuntimeException
             throw new InUseException("Volume file " + _path

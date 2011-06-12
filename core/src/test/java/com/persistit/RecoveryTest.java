@@ -24,6 +24,8 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import org.junit.Test;
+
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.JournalManager.VolumeDescriptor;
@@ -42,7 +44,15 @@ public class RecoveryTest extends PersistitUnitTestCase {
      */
 
     private String _volumeName = "persistit";
+    
+    @Override
+    protected Properties getProperties(final boolean cleanup) {
+        final Properties properties = super.getProperties(cleanup);
+        properties.setProperty("journalsize", "20M");
+        return properties;
+    }
 
+    @Test
     public void testRecoveryRebuildsPageMap() throws Exception {
         _persistit.getJournalManager().setAppendOnly(true);
         store1();
@@ -56,6 +66,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         fetch1b();
     }
 
+    @Test
     public void testCopierCleansUpJournals() throws Exception {
         store1();
         JournalManager jman = _persistit.getJournalManager();
@@ -74,6 +85,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         fetch1b();
     }
 
+    @Test
     public void testRecoverCommittedTransactions() throws Exception {
         // create 10 transactions on the journal
         _persistit.getJournalManager().setAppendOnly(true);
@@ -135,6 +147,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertEquals(15, recoveryTimestamps.size());
     }
 
+    @Test
     public void testLongRecordTransactionRecovery() throws Exception {
         // create 10 transactions on the journal having long records.
         _persistit.getJournalManager().setAppendOnly(true);
@@ -154,6 +167,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         fetch3();
     }
 
+    @Test
     public void testRolloverDoesntDeleteLiveTransactions() throws Exception {
         JournalManager jman = _persistit.getJournalManager();
         final long blockSize = jman.getBlockSize();
@@ -210,6 +224,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     // Verifies that a sequence of insert and remove transactions results
     // in the correct state after recovery. Tests fix for bug 719319.
+    @Test
     public void testRecoveredTransactionsAreCorrect() throws Exception {
         SortedSet<String> keys = new TreeSet<String>();
         Exchange[] exchanges = new Exchange[5];
@@ -276,6 +291,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertTrue(keys.isEmpty());
     }
 
+    @Test
     public void testLargePageMap() throws Exception {
         final VolumeDescriptor vd = new VolumeDescriptor("foo", 123);
         final Map<Integer, VolumeDescriptor> volumeMap = new TreeMap<Integer, VolumeDescriptor>();
@@ -321,6 +337,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertEquals(1, count);
     }
 
+    @Test
     public void testVolumeMetadataValid() throws Exception {
         // create a junk volume to make sure the internal handle count is bumped
         // up
@@ -352,12 +369,13 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertTrue(_persistit.getJournalManager().getHandleCount() > updatedHandleValue);
     }
 
+    @Test
     public void testIndexHoles() throws Exception {
         _persistit.getJournalManager().setAppendOnly(true);
         Transaction transaction = _persistit.getTransaction();
         StringBuilder sb = new StringBuilder();
         while (sb.length() < 1000) {
-            sb.append("The quick brown fox jumped over the lazy red dog");
+            sb.append(RED_DOG);
         }
 
         String s = sb.toString();
@@ -424,10 +442,52 @@ public class RecoveryTest extends PersistitUnitTestCase {
             assertEquals(0, buffer.getRightSibling());
         }
     }
+    
+    @Test
+    public void testNormalRestart() throws Exception {
+        final JournalManager jman = _persistit.getJournalManager();
+        Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
+        exchange.getValue().put(RED_DOG);
+        int count = 0;
+        long checkpointAddr = 0;
+        for (; jman.getCurrentAddress() < jman.getBlockSize() * 1.25;) {
+            if (jman.getCurrentAddress() - checkpointAddr > jman.getBlockSize() * 0.8) {
+                _persistit.checkpoint();
+                checkpointAddr = jman.getCurrentAddress();
+            }
+            exchange.to(count).store();
+            count++;
+        }
+        for (int i = 0; i < count + 100; i++) {
+            assertEquals(i < count, exchange.to(i).isValueDefined());
+        }
+        final Properties properties = _persistit.getProperties();
+        _persistit.close();
+        
+        _persistit = new Persistit();
+        _persistit.initialize(properties);
+        exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
+        for (int i = 0; i < count + 100; i++) {
+            if (i < count && !exchange.to(i).isValueDefined()) {
+                System.out.println("i=" + i + " count=" + count);
+                break;
+            }
+            assertEquals(i < count, exchange.to(i).isValueDefined());
+        }
+
+        _persistit.close();
+        _persistit = new Persistit();
+        _persistit.initialize(properties);
+        exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
+        for (int i = 0; i < count + 100; i++) {
+            assertEquals(i < count, exchange.to(i).isValueDefined());
+        }
+
+    }
 
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName,
-                "SimpleTest1", true);
+                "RecoveryTest", true);
         exchange.removeAll();
         final StringBuilder sb = new StringBuilder();
 
@@ -443,7 +503,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     private void fetch1a() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName,
-                "SimpleTest1", false);
+                "RecoveryTest", false);
         final StringBuilder sb = new StringBuilder();
 
         for (int i = 1; i < 50000; i++) {
@@ -460,7 +520,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     private void fetch1b() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName,
-                "SimpleTest1", false);
+                "RecoveryTest", false);
         final StringBuilder sb = new StringBuilder();
         for (int i = 1; i < 400; i++) {
             sb.setLength(0);
