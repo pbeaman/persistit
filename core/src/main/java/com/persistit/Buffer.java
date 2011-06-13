@@ -372,7 +372,7 @@ public final class Buffer extends SharedResource {
         _rightSibling = original._rightSibling;
         _alloc = original._alloc;
         _slack = original._slack;
-        _keyBlockEnd = original._keyBlockEnd;
+        setKeyBlockEnd(original._keyBlockEnd);
         _tailHeaderSize = original._tailHeaderSize;
         System.arraycopy(original._bytes, 0, _bytes, 0, _bytes.length);
     }
@@ -382,7 +382,7 @@ public final class Buffer extends SharedResource {
      */
     void init(int type) {
         _type = type;
-        _keyBlockEnd = KEY_BLOCK_START;
+        setKeyBlockEnd(KEY_BLOCK_START);
         _tailHeaderSize = isIndexPage() ? TAILBLOCK_HDR_SIZE_INDEX
                 : TAILBLOCK_HDR_SIZE_DATA;
         _rightSibling = 0;
@@ -419,7 +419,7 @@ public final class Buffer extends SharedResource {
                 throw new InvalidPageStructureException("Invalid type " + type);
             }
             _type = type;
-            _keyBlockEnd = getChar(KEY_BLOCK_END_OFFSET);
+            setKeyBlockEnd(getChar(KEY_BLOCK_END_OFFSET));
 
             if (type == PAGE_TYPE_UNALLOCATED) {
                 _rightSibling = 0;
@@ -693,6 +693,13 @@ public final class Buffer extends SharedResource {
 
     int getKeyBlockEnd() {
         return _keyBlockEnd;
+    }
+
+    void setKeyBlockEnd(final int index) {
+        Debug.$assert(index >= KEY_BLOCK_START
+                && index <= (_pool.getMaxKeys() * KEYBLOCK_LENGTH)
+                        + KEY_BLOCK_START);
+        _keyBlockEnd = index;
     }
 
     /**
@@ -1335,13 +1342,13 @@ public final class Buffer extends SharedResource {
             //
             // Allocate space for the new tail block
             //
-            _keyBlockEnd += KEYBLOCK_LENGTH;
+            setKeyBlockEnd(getKeyBlockEnd() + KEYBLOCK_LENGTH);
 
             int newTail = allocTail(newTailSize);
             if (newTail == -1) {
                 _keyBlockEnd -= KEYBLOCK_LENGTH;
                 repack();
-                _keyBlockEnd += KEYBLOCK_LENGTH;
+                setKeyBlockEnd(getKeyBlockEnd() + KEYBLOCK_LENGTH);
                 newTail = allocTail(newTailSize);
                 if (Debug.ENABLED)
                     Debug.$assert(newTail != -1);
@@ -2009,9 +2016,9 @@ public final class Buffer extends SharedResource {
         // Set the keyblock end for the right sibling so that alloc() knows
         // its bounds.
         //
-        rightSibling._keyBlockEnd = _keyBlockEnd
-                - (splitAtPosition - KEY_BLOCK_START);
-        int rightP = rightSibling.KEY_BLOCK_START;
+        rightSibling.setKeyBlockEnd(_keyBlockEnd
+                - (splitAtPosition - KEY_BLOCK_START));
+        int rightP = KEY_BLOCK_START;
         //
         // Now move all the records from the split point forward to the
         // right page and deallocate their space in the left page.
@@ -2171,7 +2178,7 @@ public final class Buffer extends SharedResource {
             int edgeTailBlockSize = edgeKeyLength + _tailHeaderSize;
             edgeTail = allocTail(edgeTailBlockSize);
             if (edgeTail == -1) {
-                _keyBlockEnd = splitAtPosition;
+                setKeyBlockEnd(splitAtPosition);
                 repack();
                 edgeTail = allocTail(edgeTailBlockSize);
             }
@@ -2188,7 +2195,7 @@ public final class Buffer extends SharedResource {
         //
         // In any case, the new key block end is at the split position.
         //
-        _keyBlockEnd = splitAtPosition + KEYBLOCK_LENGTH;
+        setKeyBlockEnd(splitAtPosition + KEYBLOCK_LENGTH);
         //
         // If this is in index level, then set the pointer value to -1 so that
         // it does not later get confused and interpreted as a valid pointer.
@@ -2409,11 +2416,11 @@ public final class Buffer extends SharedResource {
             // Now we need to process each keyblock from the right buffer,
             // copying its tail block to the left buffer.
             //
-            _keyBlockEnd = foundAt1;
+            setKeyBlockEnd(foundAt1);
 
             moveRecords(buffer, foundAt2, buffer._keyBlockEnd, _keyBlockEnd,
                     false);
-            buffer._keyBlockEnd = KEY_BLOCK_START;
+            buffer.setKeyBlockEnd(KEY_BLOCK_START);
             //
             // unsplice the right buffer from the right sibling chain.
             //
@@ -2554,7 +2561,7 @@ public final class Buffer extends SharedResource {
                 // In this case we are moving records from the right page
                 // to the left page.
                 //
-                _keyBlockEnd = foundAt1;
+                setKeyBlockEnd(foundAt1);
                 int rightSize = buffer._keyBlockEnd - joinOffset;
 
                 moveRecords(buffer, foundAt2, joinOffset, _keyBlockEnd, true);
@@ -2564,7 +2571,7 @@ public final class Buffer extends SharedResource {
 
                 buffer.clearBytes(KEY_BLOCK_START + rightSize,
                         buffer._keyBlockEnd);
-                buffer._keyBlockEnd = KEY_BLOCK_START + rightSize;
+                buffer.setKeyBlockEnd(KEY_BLOCK_START + rightSize);
 
                 buffer.reduceEbc(KEY_BLOCK_START, 0, indexKeyBytes);
             } else {
@@ -2579,13 +2586,13 @@ public final class Buffer extends SharedResource {
                 buffer.clearBytes(KEY_BLOCK_START + rightSize,
                         buffer._keyBlockEnd);
 
-                buffer._keyBlockEnd = KEY_BLOCK_START + rightSize;
+                buffer.setKeyBlockEnd(KEY_BLOCK_START + rightSize);
 
                 if (joinOffset != foundAt1) {
                     buffer.moveRecords(this, joinOffset, foundAt1,
                             KEY_BLOCK_START, false);
                 }
-                _keyBlockEnd = joinOffset;
+                setKeyBlockEnd(joinOffset);
                 //
                 // Now set up the edge key in the left page.
                 //
@@ -2755,9 +2762,9 @@ public final class Buffer extends SharedResource {
         }
         clearBytes(insertAt, insertAt + p2 - p1);
 
-        _keyBlockEnd += p2 - p1;
+        setKeyBlockEnd(getKeyBlockEnd() + p2 - p1);
         if (includesRightEdge)
-            _keyBlockEnd += KEYBLOCK_LENGTH;
+            setKeyBlockEnd(getKeyBlockEnd() + KEYBLOCK_LENGTH);
 
         for (int p = p1; p < p2 || includesRightEdge && p == p2; p += KEYBLOCK_LENGTH) {
             int kbData = buffer.getInt(p);

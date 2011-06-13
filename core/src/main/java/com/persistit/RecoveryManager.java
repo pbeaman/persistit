@@ -1045,7 +1045,7 @@ public class RecoveryManager implements RecoveryManagerMXBean,
             // this is handled as a special case.  All pages from such journals are
             // recovered.
             //
-            if (timestamp != 0 && timestamp < pageTimestamp) {
+            if (false && timestamp != 0 && timestamp < pageTimestamp) {
                 lastPageNode = _branchMap.get(pageNode);
                 if (lastPageNode == null
                         || journalAddress > lastPageNode.getJournalAddress()) {
