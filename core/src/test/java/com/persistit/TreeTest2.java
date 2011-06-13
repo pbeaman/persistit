@@ -25,7 +25,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 public class TreeTest2 extends PersistitUnitTestCase {
 
     final static int COUNT = 10000;
-    
+
     @Test
     public void testLotsOfTrees() throws Exception {
         Volume volume = _persistit.getVolume("persistit");
@@ -41,7 +41,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
             txn.commit();
             txn.end();
         }
-        assertTrue( 1 != volume.directoryExchange().getTree().getRootPageAddr());
+        assertTrue(1 != volume.directoryExchange().getTree().getRootPageAddr());
 
         for (int counter = 0; counter < COUNT; counter++) {
             txn.begin();
@@ -51,19 +51,48 @@ public class TreeTest2 extends PersistitUnitTestCase {
             txn.commit();
             txn.end();
         }
-        
+
         Properties properties = _persistit.getProperties();
         _persistit.getJournalManager().flush();
         _persistit.crash();
         _persistit = new Persistit();
         _persistit.initialize(properties);
-        
+
         volume = _persistit.getVolume("persistit");
-        assertTrue( 1 != volume.directoryExchange().getTree().getRootPageAddr());
-        
+        assertTrue(1 != volume.directoryExchange().getTree().getRootPageAddr());
+
         String[] treeNames = volume.getTreeNames();
         for (final String t : treeNames) {
             assertTrue(!t.startsWith("TreeTest1"));
+        }
+    }
+
+    @Test
+    public void testSameTreeName() throws Exception {
+        Transaction txn = _persistit.getTransaction();
+        for (int counter = 0; counter < 100; counter++) {
+            txn.begin();
+            try {
+                final Exchange exchange = _persistit.getExchange("persistit",
+                        "TreeTest1", true);
+                exchange.getValue().put(
+                        "The quick brown fox jumped over the lazy red dog");
+                for (int k = 0; k < counter * 100; k++) {
+                    exchange.to(k).store();
+                }
+                txn.commit();
+            } finally {
+                txn.end();
+            }
+            txn.begin();
+            try {
+                final Exchange exchange = _persistit.getExchange("persistit",
+                        "TreeTest1", true);
+                exchange.removeTree();
+                txn.commit();
+            } finally {
+                txn.end();
+            }
         }
     }
 

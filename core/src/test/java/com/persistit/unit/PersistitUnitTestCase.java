@@ -24,6 +24,8 @@ import com.persistit.Persistit;
 
 public abstract class PersistitUnitTestCase extends TestCase {
 
+    protected final static String RED_DOG="The quick bronw fox jumped over the lazy red dog.";
+    
     protected Persistit _persistit = new Persistit();
 
     protected Properties getProperties(final boolean cleanup) {

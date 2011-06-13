@@ -53,42 +53,42 @@ public class FastIndex {
     }
 
     public void putDescriminatorByte(int index, int db) {
-        assert index < _findexElements.length;
+        checkBounds(index);
         _findexElements[index] = (db & FINDEX_DB_MASK)
                 | (_findexElements[index] & ~FINDEX_DB_MASK);
     }
 
     public void putRunCount(int index, int runCount) {
-        assert index < _findexElements.length;
+        checkBounds(index);
         _findexElements[index] = (runCount << FINDEX_RUNCOUNT_SHIFT)
                 | (_findexElements[index] & ~FINDEX_RUNCOUNT_MASK);
     }
 
     public void putEbc(int index, int ebc) {
-        assert index < _findexElements.length;
+        checkBounds(index);
         _findexElements[index] = ((ebc << FINDEX_EBC_SHIFT) & FINDEX_EBC_MASK)
                 | (_findexElements[index] & ~FINDEX_EBC_MASK);
     }
 
     public void putRunCountAndEbc(int index, int runCount, int ebc) {
-        assert index < _findexElements.length;
+        checkBounds(index);
         _findexElements[index] = ((ebc << FINDEX_EBC_SHIFT) & FINDEX_EBC_MASK)
                 | (runCount << FINDEX_RUNCOUNT_SHIFT)
                 | (_findexElements[index] & FINDEX_DB_MASK);
     }
 
     public void putZero(int index) {
-        assert index < _findexElements.length;
+        checkBounds(index);
         _findexElements[index] = _findexElements[index] & FINDEX_DB_MASK;
     }
 
     public int getRunCount(int index) {
-        assert index < _findexElements.length;
+        checkBounds(index);
         return _findexElements[index] >> FINDEX_RUNCOUNT_SHIFT;
     }
 
     public int getEbc(int index) {
-        assert index < _findexElements.length;
+        checkBounds(index);
         int ebc = (_findexElements[index] & FINDEX_EBC_MASK) >> FINDEX_EBC_SHIFT;
         if (ebc > 2047) {
             return ebc - 4096;
@@ -98,8 +98,16 @@ public class FastIndex {
     }
 
     public int getDescriminatorByte(int index) {
-        assert index < _findexElements.length;
+        checkBounds(index);
         return _findexElements[index] & FINDEX_DB_MASK;
+    }
+    
+    private void checkBounds(final int index) {
+        if (index < 0 || index >= _findexElements.length) {
+            System.out.println("FastIndex.checkBounds(" + index + ")");
+            System.out.println(_buffer.toStringDetail());
+            Debug.$assert(false);
+        }
     }
 
     public boolean isValid() {
@@ -148,7 +156,6 @@ public class FastIndex {
                          * If not true then the ebc for the very first KeyBlock
                          * is non-zero, which is wrong.
                          */
-                        assert i > 0;
                         putRunCountAndEbc(i - 1, crossCountFixupIndex, ebc0);
                         crossCountFixupIndex = i - 1;
                     } else { /* ebc < ebc0 */
@@ -250,7 +257,7 @@ public class FastIndex {
             recompute();
             return;
         }
-        assert _findexElements != null;
+        Debug.$assert(_findexElements != null);
         int p = foundAt & Buffer.P_MASK;
         int start = _buffer.getKeyBlockStart();
         int end = _buffer.getKeyBlockEnd();
@@ -353,11 +360,11 @@ public class FastIndex {
              * which is impossible.
              */
 
-            assert insertedEbc >= ebc;
+            Debug.$assert(insertedEbc >= ebc);
 
             if (insertedEbc > ebc) {
                 /* Can't have a fixup because the sucessor has a smaller ebc. */
-                assert !fixupSuccessor;
+                Debug.$assert(!fixupSuccessor);
                 putRunCountAndEbc(insertIndex, 0, insertedEbc);
             } else { /* insertedEbc == ebc */
                 if (fixupSuccessor) {
@@ -386,7 +393,7 @@ public class FastIndex {
         } else {
             int runCount = getRunCount(runIndex);
             int ebc = getEbc(runIndex);
-            assert runCount + runIndex + 1 >= insertIndex;
+            Debug.$assert(runCount + runIndex + 1 >= insertIndex);
             if (runCount + runIndex + 1 > insertIndex) {
                 // ///////
                 // MIDDLE
@@ -412,7 +419,7 @@ public class FastIndex {
                         putZero(insertIndex);
                     }
                 } else {
-                    assert !fixupSuccessor;
+                    Debug.$assert(!fixupSuccessor);
                     if (insertIndex - 1 > runIndex) {
                         putRunCount(runIndex, insertIndex - runIndex - 1);
                     }
@@ -435,7 +442,7 @@ public class FastIndex {
                 // The insertion is at the end of the run.
                 //
                 if (insertedEbc == ebc) {
-                    assert !fixupSuccessor;
+                    Debug.$assert(!fixupSuccessor);
                     putRunCount(runIndex, runCount + 1);
                     putZero(insertIndex);
                 } else {
@@ -443,9 +450,7 @@ public class FastIndex {
                      * If insertedEbc were less, then runIndex would have been
                      * -1.
                      */
-                    assert insertedEbc > ebc;
-                    assert !fixupSuccessor;
-                    assert getRunCount(insertIndex - 1) >= 0;
+                    Debug.$assert(insertedEbc > ebc && !fixupSuccessor && getRunCount(insertIndex - 1) >= 0);
                     putRunCountAndEbc(insertIndex - 1, -1, ebc);
                     putRunCountAndEbc(insertIndex, 0, insertedEbc);
                 }
@@ -497,7 +502,7 @@ public class FastIndex {
              * The kb that's been fixed up is the final member of a run.
              * (Otherwise we should not be here.
              */
-            assert runIndex + runCount == insertIndex;
+            Debug.$assert(runIndex + runCount == insertIndex);
             /*
              * The fixup is on the last element of the run.
              */
@@ -505,7 +510,7 @@ public class FastIndex {
 
             int successorRunCount = insertIndex + 1 < lastIndex ? getRunCount(insertIndex + 1)
                     : 0;
-            assert successorRunCount <= 0;
+            Debug.$assert(successorRunCount <= 0);
             putRunCountAndEbc(insertIndex, successorRunCount - 1, ebc);
 
             if (insertIndex + 2 < lastIndex) {
@@ -530,7 +535,7 @@ public class FastIndex {
                     putRunCount(insertIndex + 1, newCrossCount);
                 }
             } else {
-                assert insertIndex + 1 < lastIndex;
+                Debug.$assert(insertIndex + 1 < lastIndex);
                 putRunCountAndEbc(insertIndex + 1, 0, successorEbc);
             }
         }

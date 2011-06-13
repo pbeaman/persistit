@@ -73,7 +73,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
     public void testDontMakeBranch() throws Exception {
         Exchange ex = _persistit
                 .getExchange("persistit", "Bug777918Test", true);
-        ex.getValue().put("The quick brown fox jumped over the lazy red dog");
+        ex.getValue().put(RED_DOG);
         for (int i = 0; i < 100000; i++) {
             ex.to(i).store();
         }
@@ -110,7 +110,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
     public void testMakeBranch() throws Exception {
         Exchange ex = _persistit
                 .getExchange("persistit", "Bug777918Test", true);
-        ex.getValue().put("The quick brown fox jumped over the lazy red dog");
+        ex.getValue().put(RED_DOG);
         for (int i = 0; i < 100000; i++) {
             ex.to(i).store();
         }
@@ -140,7 +140,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
     public void testMakeBranchTxn() throws Exception {
         Exchange ex = _persistit
                 .getExchange("persistit", "Bug777918Test", true);
-        ex.getValue().put("The quick brown fox jumped over the lazy red dog");
+        ex.getValue().put(RED_DOG);
         for (int i = 0; i < 100000; i++) {
             ex.getTransaction().begin();
             ex.to(i).store();
@@ -178,7 +178,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
         final Properties properties = _persistit.getProperties();
 
         while (sb.length() < 20000) {
-            sb.append("The quick brown fox jumped over the lazy red dog");
+            sb.append(RED_DOG);
         }
         Exchange ex = _persistit
                 .getExchange("persistit", "Bug777918Test", true);
