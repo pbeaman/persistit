@@ -34,4 +34,12 @@ public class TestShim {
     public static int maxStorableKeySize(final int bufferSize) {
         return Key.maxStorableKeySize(bufferSize);
     }
+    
+    public static int maxKeys(final Volume volume) {
+        return volume.getPool().getMaxKeys();
+    }
+    
+    public static Buffer buffer(final Volume volume, final long page) throws Exception {
+        return volume.getPool().get(volume, page, false, true);
+    }
 }

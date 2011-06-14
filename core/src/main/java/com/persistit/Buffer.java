@@ -2478,14 +2478,14 @@ public final class Buffer extends SharedResource {
                         + ((klength + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
                         + _tailHeaderSize;
 
+                int rightKeyCount = ((buffer.getKeyBlockEnd() - foundAt2) + (foundAt1 - p))
+                        / KEYBLOCK_LENGTH;
+
                 int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1,
                         foundAt2, virtualSize, candidateLeftSize,
-                        candidateRightSize, _bufferSize - KEY_BLOCK_START /*
-                                                                           * PDB
-                                                                           * 20050902
-                                                                           */);
+                        candidateRightSize, _bufferSize - KEY_BLOCK_START);
 
-                if (joinFit > joinBest) {
+                if (joinFit > joinBest && rightKeyCount < _pool.getMaxKeys()) {
                     joinBest = joinFit;
                     joinOffset = p;
 
@@ -2535,11 +2535,14 @@ public final class Buffer extends SharedResource {
                         + ((klength + (ebc - adjustedEbc) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
                         + _tailHeaderSize + KEYBLOCK_LENGTH;
 
+                int leftKeyCount = ((foundAt1 - KEY_BLOCK_START) + (p - foundAt2))
+                        / KEYBLOCK_LENGTH;
+
                 int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1,
                         foundAt2, virtualSize, candidateLeftSize,
                         candidateRightSize, _bufferSize);
 
-                if (joinFit > joinBest) {
+                if (joinFit > joinBest && leftKeyCount < _pool.getMaxKeys()) {
                     joinBest = joinFit;
                     joinOffset = p;
                     moveLeft = true;
