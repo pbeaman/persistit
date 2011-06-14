@@ -2273,7 +2273,7 @@ public class Persistit {
      *             if the supplied String is not a valid integer representation,
      *             or is outside the supplied bounds.
      */
-    static long parseLongProperty(String propName, String str, long min,
+    public static long parseLongProperty(String propName, String str, long min,
             long max) {
         long result = Long.MIN_VALUE;
         long multiplier = 1;
@@ -2305,6 +2305,42 @@ public class Persistit {
 
         try {
             result = Long.parseLong(sstr) * multiplier;
+        }
+
+        catch (NumberFormatException nfe) {
+            invalid = true;
+        }
+        if (result < min || result > max || invalid) {
+            throw new IllegalArgumentException("Value '" + str
+                    + "' of property " + propName + " is invalid");
+        }
+        return result;
+    }
+
+    /**
+     * Parses a string as a float value
+     * 
+     * @param propName
+     *            Name of the property, used in formating the Exception if the
+     *            value is invalid.
+     * @param str
+     *            The string representation, e.g., "100K".
+     * @param min
+     *            Minimum permissible value
+     * @param max
+     *            Maximum permissible value
+     * @return The numeric value of the supplied String, as a floag.
+     * @throws IllegalArgumentException
+     *             if the supplied String is not a valid floating point representation,
+     *             or is outside the supplied bounds.
+     */
+
+    public static float parseFloatProperty(String propName, String str, float min,
+            float max) {
+        float result = Float.MIN_VALUE;
+        boolean invalid = false;
+        try {
+            result = Float.parseFloat(str);
         }
 
         catch (NumberFormatException nfe) {
