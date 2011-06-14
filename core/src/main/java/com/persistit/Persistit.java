@@ -19,6 +19,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryUsage;
 import java.rmi.RemoteException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -33,6 +35,7 @@ import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Stack;
 import java.util.WeakHashMap;
+import java.util.concurrent.ThreadPoolExecutor.AbortPolicy;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.management.InstanceNotFoundException;
@@ -536,40 +539,34 @@ public class Persistit {
         while (bufferSize <= Buffer.MAX_BUFFER_SIZE) {
             String countPropertyName = BUFFERS_PROPERTY_NAME + bufferSize;
             String memPropertyName = BUFFER_MEM_PROPERTY_NAME + bufferSize;
-            int count = (int) getLongProperty(countPropertyName, -1,
+            int byCount = (int) getLongProperty(countPropertyName, -1,
                     BufferPool.MINIMUM_POOL_COUNT,
                     BufferPool.MAXIMUM_POOL_COUNT);
-            int bufferSizeWithOverhead = Buffer
-                    .bufferSizeWithOverhead(bufferSize);
-            long mem = getLongProperty(memPropertyName, -1,
-                    (long) BufferPool.MINIMUM_POOL_COUNT
-                            * bufferSizeWithOverhead,
-                    (long) BufferPool.MAXIMUM_POOL_COUNT
-                            * bufferSizeWithOverhead);
+            int byMemory = bufferCountFromMemoryProperty(memPropertyName,
+                    getProperty(memPropertyName), bufferSize);
 
-            if (count != -1 && mem != -1) {
+            if (byCount != -1 && byMemory != -1) {
                 throw new IllegalArgumentException("Only one of "
                         + countPropertyName + " and " + memPropertyName
                         + " may be specified");
             }
 
-            if (mem != -1) {
-                count = (int) (mem / bufferSizeWithOverhead);
+            if (byMemory != -1) {
+                byCount = byMemory;
             }
 
-            if (count != -1) {
+            if (byCount != -1) {
                 if (_logBase.isLoggable(LogBase.LOG_INIT_ALLOCATE_BUFFERS)) {
-                    _logBase.log(LogBase.LOG_INIT_ALLOCATE_BUFFERS, count,
+                    _logBase.log(LogBase.LOG_INIT_ALLOCATE_BUFFERS, byCount,
                             bufferSize);
                 }
-                BufferPool pool = new BufferPool(count, bufferSize, this);
+                BufferPool pool = new BufferPool(byCount, bufferSize, this);
                 _bufferPoolTable.put(new Integer(bufferSize), pool);
                 registerBufferPoolMXBean(bufferSize);
             }
             bufferSize <<= 1;
         }
     }
-
     void initializeVolumes() throws PersistitException {
         for (Enumeration<?> enumeration = _properties.propertyNames(); enumeration
                 .hasMoreElements();) {
@@ -646,7 +643,7 @@ public class Persistit {
             }
         }
     }
-    
+
     void startCheckpointManager() {
         _checkpointManager.start();
     }
@@ -1867,12 +1864,12 @@ public class Persistit {
         if (journalManager != null) {
             journalManager.crash();
         }
-        
+
         for (final Volume volume : _volumes) {
             try {
                 volume.close();
             } catch (PersistitException pe) {
-                // ignore - 
+                // ignore -
             }
         }
         final Map<Integer, BufferPool> buffers = _bufferPoolTable;
@@ -2331,12 +2328,12 @@ public class Persistit {
      *            Maximum permissible value
      * @return The numeric value of the supplied String, as a floag.
      * @throws IllegalArgumentException
-     *             if the supplied String is not a valid floating point representation,
-     *             or is outside the supplied bounds.
+     *             if the supplied String is not a valid floating point
+     *             representation, or is outside the supplied bounds.
      */
 
-    public static float parseFloatProperty(String propName, String str, float min,
-            float max) {
+    public static float parseFloatProperty(String propName, String str,
+            float min, float max) {
         float result = Float.MIN_VALUE;
         boolean invalid = false;
         try {
@@ -2352,6 +2349,99 @@ public class Persistit {
         }
         return result;
     }
+    
+
+    /**
+     * Parses a String-valued memory allocation specification to produce a
+     * buffer count that will consume approximately the specified amount of
+     * memory.
+     * <p />
+     * The propertyValue specifies a memory specification in the form
+     * 
+     * <pre>
+     * [<i>minimum</i>[,<i>maximum</i>[,<i>reserved</i>[,<i>fraction</i>]]]]
+     * </pre>
+     * 
+     * where <i>minimum</i>, <i>maximum</i> and <i>reserved</i> specify
+     * quantities of memory, in bytes. The suffixes 'K', 'M', 'G', and 'T' can
+     * be used for scaling; see
+     * {@link #parseLongProperty(String, String, long, long)}. <i>fraction</i>
+     * is a float between 0.0f and 1.0f denoting a fraction of the total available memory
+     * to allocate fof buffers.
+     * <p />
+     * The available memory is determined by the maximum heap size. The amount
+     * of memory to be allocated to buffers is determined by the following
+     * formula:
+     * 
+     * <pre>
+     * <i>allocated</i> = (<i>available</i> - <i>reserved</i>) * (1.0 - <i>fraction</i>)
+     * </pre>
+     * 
+     * and then that result is bounded by the range (<i>minimum</i>,
+     * <i>maximum<i>). Finally, the actual buffer count returned from this
+     * method is the allocation divided by the bufferSize plus overhead for
+     * FastIndex and other structures.
+     * 
+     * @param propertyName
+     *            the property name, e.g., "buffer.memory.16384"
+     * @param propertyValue
+     *            the memory specification
+     * @param bufferSize
+     *            the buffer size
+     * @return
+     */
+    public static int bufferCountFromMemoryProperty(final String propertyName,
+            final String propertyValue, final int bufferSize) {
+        if (propertyValue == null || propertyValue.isEmpty()) {
+            return -1;
+        }
+        final MemoryUsage mu = ManagementFactory.getMemoryMXBean()
+                .getHeapMemoryUsage();
+        long available = mu.getMax();
+        if (available == -1) {
+            available = mu.getInit();
+        }
+        int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
+        long absoluteMinimum = BufferPool.MINIMUM_POOL_COUNT
+                * bufferSizeWithOverhead;
+        long absoluteMaximum = BufferPool.MAXIMUM_POOL_COUNT
+                * bufferSizeWithOverhead;
+        long minimum = absoluteMinimum;
+        long maximum = absoluteMaximum;
+        long reserved = 0;
+        float fraction = 1.0f;
+
+        final String[] terms = propertyValue.split(",", 4);
+        if (terms.length > 0) {
+            minimum = parseLongProperty(propertyName, terms[0], minimum,
+                    maximum);
+        }
+        if (terms.length > 1) {
+            maximum = parseLongProperty(propertyName, terms[1], minimum,
+                    maximum);
+        }
+        if (terms.length > 2) {
+            reserved = parseLongProperty(propertyName, terms[2], 0,
+                    Long.MAX_VALUE);
+        }
+        if (terms.length > 3) {
+            fraction = parseFloatProperty(propertyName, terms[3], 0f, 1f);
+        }
+        long allocation = (long) ((available - reserved) * (1 - fraction));
+        allocation = Math.max(minimum, allocation);
+        allocation = Math.min(maximum, allocation);
+        if (allocation < absoluteMinimum || allocation > absoluteMaximum
+                || allocation > available) {
+            throw new IllegalArgumentException(String.format(
+                    "%s=%s resulted in invalid memory "
+                            + "allocation %,d, available memory is %,d",
+                    propertyName, propertyValue, allocation, available));
+        }
+
+        return (int) (allocation / bufferSizeWithOverhead);
+    }
+
+
 
     /**
      * Parses a string value as either <i>true</i> or <i>false</i>.
