@@ -93,8 +93,6 @@ public class JournalTool {
 
     private long _endAddr;
 
-    private String _flags;
-
     private PrintWriter _writer = new PrintWriter(new OutputStreamWriter(
             System.out));
 
@@ -136,14 +134,6 @@ public class JournalTool {
 
     public void setEndAddr(long endAddr) {
         _endAddr = endAddr;
-    }
-
-    public String getFlags() {
-        return _flags;
-    }
-
-    public void setFlags(String flags) {
-        _flags = flags;
     }
 
     public PrintWriter getWriter() {
@@ -626,9 +616,6 @@ public class JournalTool {
             System.exit(1);
         }
         try {
-            if (jt._flags.indexOf('u') >= 0) {
-                persistit.initialize();
-            }
             jt.scan();
         } catch (Exception e) {
             e.printStackTrace();

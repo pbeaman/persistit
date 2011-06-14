@@ -599,6 +599,8 @@ public class CLI {
                 return e.toString();
             } finally {
                 _persistit = null;
+                _currentVolume = null;
+                _currentTree = null;
             }
         }
         return "ok";
