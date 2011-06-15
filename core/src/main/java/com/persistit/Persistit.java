@@ -20,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.rmi.RemoteException;
 import java.security.AccessController;
@@ -299,6 +300,8 @@ public class Persistit {
 
     private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
+
+    private final long _availableHeap = availableHeap();
 
     private AbstractPersistitLogger _logger;
 
@@ -2133,6 +2136,19 @@ public class Persistit {
         return _logBase;
     }
 
+    /**
+     * Available heap space at the time this Persistit instance was created.
+     * Determined by the {@link MemoryUsage#getMax()} method of
+     * {@link MemoryMXBean#getHeapMemoryUsage()} at the time this Persistit
+     * instance was created, i.e., before allocation of buffer pools and other
+     * data structures.
+     * 
+     * @return maximum available heap memory, in bytes
+     */
+    public long getAvailableHeap() {
+        return _availableHeap;
+    }
+
     ClassIndex getClassIndex() {
         return _classIndex;
     }
@@ -2389,16 +2405,15 @@ public class Persistit {
      *            the buffer size
      * @return
      */
-    static int computeBufferCountFromMemoryProperty(final String propertyName,
+    int computeBufferCountFromMemoryProperty(final String propertyName,
             final String propertyValue, final int bufferSize) {
         if (propertyValue == null || propertyValue.isEmpty()) {
             return -1;
         }
-        final long available = availableMemory();
         int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
-        long absoluteMinimum = (long)BufferPool.MINIMUM_POOL_COUNT
+        long absoluteMinimum = (long) BufferPool.MINIMUM_POOL_COUNT
                 * bufferSizeWithOverhead;
-        long absoluteMaximum = (long)BufferPool.MAXIMUM_POOL_COUNT
+        long absoluteMaximum = (long) BufferPool.MAXIMUM_POOL_COUNT
                 * bufferSizeWithOverhead;
         long minimum = absoluteMinimum;
         long maximum = absoluteMaximum;
@@ -2407,12 +2422,16 @@ public class Persistit {
 
         final String[] terms = propertyValue.split(",", 4);
         if (terms.length > 0 && !terms[0].isEmpty()) {
-            minimum = Math.max(absoluteMinimum, parseLongProperty(propertyName, terms[0], 0,
-                    absoluteMaximum));
+            minimum = Math.max(
+                    absoluteMinimum,
+                    parseLongProperty(propertyName, terms[0], 0,
+                            absoluteMaximum));
         }
         if (terms.length > 1 && !terms[1].isEmpty()) {
-            maximum = Math.max(absoluteMinimum, parseLongProperty(propertyName, terms[1], minimum,
-                    maximum));
+            maximum = Math
+                    .max(absoluteMinimum,
+                            parseLongProperty(propertyName, terms[1], minimum,
+                                    maximum));
         }
         if (terms.length > 2 && !terms[2].isEmpty()) {
             reserved = parseLongProperty(propertyName, terms[2], 0,
@@ -2422,21 +2441,22 @@ public class Persistit {
         if (terms.length > 3 && !terms[3].isEmpty()) {
             fraction = parseFloatProperty(propertyName, terms[3], 0f, 1f);
         }
-        long allocation = (long) ((available - reserved) * fraction);
+        long allocation = (long) ((getAvailableHeap() - reserved) * fraction);
         allocation = Math.max(minimum, allocation);
         allocation = Math.min(maximum, allocation);
         if (allocation < absoluteMinimum || allocation > absoluteMaximum
-                || allocation > available) {
-            throw new IllegalArgumentException(String.format(
-                    "%s=%s resulted in invalid memory "
+                || allocation > getAvailableHeap()) {
+            throw new IllegalArgumentException(
+                    String.format("%s=%s resulted in invalid memory "
                             + "allocation %,d, available memory is %,d",
-                    propertyName, propertyValue, allocation, available));
+                            propertyName, propertyValue, allocation,
+                            getAvailableHeap()));
         }
 
         return (int) (allocation / bufferSizeWithOverhead);
     }
 
-    static long availableMemory() {
+    static long availableHeap() {
         final MemoryUsage mu = ManagementFactory.getMemoryMXBean()
                 .getHeapMemoryUsage();
         long available = mu.getMax();
