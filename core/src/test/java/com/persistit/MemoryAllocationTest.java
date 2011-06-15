@@ -22,7 +22,6 @@ import org.junit.Test;
 public class MemoryAllocationTest extends TestCase {
 
     private final static long MEGA  =1024  * 1024;
-    private final static long GIGA = 1024 * MEGA;
     
     private final static String PNAME = "buffer.memory.";
 
@@ -35,20 +34,20 @@ public class MemoryAllocationTest extends TestCase {
             assertEquals(MEGA / bsize,
                     Persistit.computeBufferCountFromMemoryProperty(pname, "1M",
                             bufferSize));
-            assertEquals(GIGA / bsize,
-                    Persistit.computeBufferCountFromMemoryProperty(pname, "1G,1G",
+            assertEquals(10 * MEGA / bsize,
+                    Persistit.computeBufferCountFromMemoryProperty(pname, "10M,1G",
                             bufferSize));
             assertEquals((available - 64 * MEGA) / bsize,
-                    Persistit.computeBufferCountFromMemoryProperty(pname, "0,100G,64M",
+                    Persistit.computeBufferCountFromMemoryProperty(pname, ",100G,64M",
                             bufferSize));
             assertEquals((available / 2) / bsize,
-                    Persistit.computeBufferCountFromMemoryProperty(pname, "0,100G,0,0.5",
+                    Persistit.computeBufferCountFromMemoryProperty(pname, ",100G,0,0.5",
                             bufferSize));
             assertEquals((available / 2) / bsize,
                     Persistit.computeBufferCountFromMemoryProperty(pname, ",,,0.5",
                             bufferSize));
-            assertEquals(GIGA / bsize,
-                    Persistit.computeBufferCountFromMemoryProperty(pname, "1G,,,0.0",
+            assertEquals(10 * MEGA / bsize,
+                    Persistit.computeBufferCountFromMemoryProperty(pname, "10M,,,0.0",
                             bufferSize));
         }
     }
