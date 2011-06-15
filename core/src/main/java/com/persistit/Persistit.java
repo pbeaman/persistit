@@ -35,7 +35,6 @@ import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Stack;
 import java.util.WeakHashMap;
-import java.util.concurrent.ThreadPoolExecutor.AbortPolicy;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.management.InstanceNotFoundException;
@@ -542,8 +541,8 @@ public class Persistit {
             int byCount = (int) getLongProperty(countPropertyName, -1,
                     BufferPool.MINIMUM_POOL_COUNT,
                     BufferPool.MAXIMUM_POOL_COUNT);
-            int byMemory = bufferCountFromMemoryProperty(memPropertyName,
-                    getProperty(memPropertyName), bufferSize);
+            int byMemory = computeBufferCountFromMemoryProperty(
+                    memPropertyName, getProperty(memPropertyName), bufferSize);
 
             if (byCount != -1 && byMemory != -1) {
                 throw new IllegalArgumentException("Only one of "
@@ -567,6 +566,7 @@ public class Persistit {
             bufferSize <<= 1;
         }
     }
+
     void initializeVolumes() throws PersistitException {
         for (Enumeration<?> enumeration = _properties.propertyNames(); enumeration
                 .hasMoreElements();) {
@@ -2270,7 +2270,7 @@ public class Persistit {
      *             if the supplied String is not a valid integer representation,
      *             or is outside the supplied bounds.
      */
-    public static long parseLongProperty(String propName, String str, long min,
+    static long parseLongProperty(String propName, String str, long min,
             long max) {
         long result = Long.MIN_VALUE;
         long multiplier = 1;
@@ -2332,8 +2332,8 @@ public class Persistit {
      *             representation, or is outside the supplied bounds.
      */
 
-    public static float parseFloatProperty(String propName, String str,
-            float min, float max) {
+    static float parseFloatProperty(String propName, String str, float min,
+            float max) {
         float result = Float.MIN_VALUE;
         boolean invalid = false;
         try {
@@ -2349,7 +2349,6 @@ public class Persistit {
         }
         return result;
     }
-    
 
     /**
      * Parses a String-valued memory allocation specification to produce a
@@ -2366,15 +2365,15 @@ public class Persistit {
      * quantities of memory, in bytes. The suffixes 'K', 'M', 'G', and 'T' can
      * be used for scaling; see
      * {@link #parseLongProperty(String, String, long, long)}. <i>fraction</i>
-     * is a float between 0.0f and 1.0f denoting a fraction of the total available memory
-     * to allocate fof buffers.
+     * is a float between 0.0f and 1.0f denoting a fraction of the total
+     * available memory to allocate fof buffers.
      * <p />
      * The available memory is determined by the maximum heap size. The amount
      * of memory to be allocated to buffers is determined by the following
      * formula:
      * 
      * <pre>
-     * <i>allocated</i> = (<i>available</i> - <i>reserved</i>) * (1.0 - <i>fraction</i>)
+     * <i>allocated</i> = (<i>available</i> - <i>reserved</i>) * <i>fraction</i>
      * </pre>
      * 
      * and then that result is bounded by the range (<i>minimum</i>,
@@ -2390,44 +2389,40 @@ public class Persistit {
      *            the buffer size
      * @return
      */
-    public static int bufferCountFromMemoryProperty(final String propertyName,
+    static int computeBufferCountFromMemoryProperty(final String propertyName,
             final String propertyValue, final int bufferSize) {
         if (propertyValue == null || propertyValue.isEmpty()) {
             return -1;
         }
-        final MemoryUsage mu = ManagementFactory.getMemoryMXBean()
-                .getHeapMemoryUsage();
-        long available = mu.getMax();
-        if (available == -1) {
-            available = mu.getInit();
-        }
+        final long available = availableMemory();
         int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
-        long absoluteMinimum = BufferPool.MINIMUM_POOL_COUNT
+        long absoluteMinimum = (long)BufferPool.MINIMUM_POOL_COUNT
                 * bufferSizeWithOverhead;
-        long absoluteMaximum = BufferPool.MAXIMUM_POOL_COUNT
+        long absoluteMaximum = (long)BufferPool.MAXIMUM_POOL_COUNT
                 * bufferSizeWithOverhead;
         long minimum = absoluteMinimum;
         long maximum = absoluteMaximum;
         long reserved = 0;
-        float fraction = 1.0f;
+        float fraction = 0.0f;
 
         final String[] terms = propertyValue.split(",", 4);
-        if (terms.length > 0) {
-            minimum = parseLongProperty(propertyName, terms[0], minimum,
-                    maximum);
+        if (terms.length > 0 && !terms[0].isEmpty()) {
+            minimum = Math.max(absoluteMinimum, parseLongProperty(propertyName, terms[0], 0,
+                    absoluteMaximum));
         }
-        if (terms.length > 1) {
-            maximum = parseLongProperty(propertyName, terms[1], minimum,
-                    maximum);
+        if (terms.length > 1 && !terms[1].isEmpty()) {
+            maximum = Math.max(absoluteMinimum, parseLongProperty(propertyName, terms[1], minimum,
+                    maximum));
         }
-        if (terms.length > 2) {
+        if (terms.length > 2 && !terms[2].isEmpty()) {
             reserved = parseLongProperty(propertyName, terms[2], 0,
                     Long.MAX_VALUE);
+            fraction = 1.0f;
         }
-        if (terms.length > 3) {
+        if (terms.length > 3 && !terms[3].isEmpty()) {
             fraction = parseFloatProperty(propertyName, terms[3], 0f, 1f);
         }
-        long allocation = (long) ((available - reserved) * (1 - fraction));
+        long allocation = (long) ((available - reserved) * fraction);
         allocation = Math.max(minimum, allocation);
         allocation = Math.min(maximum, allocation);
         if (allocation < absoluteMinimum || allocation > absoluteMaximum
@@ -2441,7 +2436,15 @@ public class Persistit {
         return (int) (allocation / bufferSizeWithOverhead);
     }
 
-
+    static long availableMemory() {
+        final MemoryUsage mu = ManagementFactory.getMemoryMXBean()
+                .getHeapMemoryUsage();
+        long available = mu.getMax();
+        if (available == -1) {
+            available = mu.getInit();
+        }
+        return available;
+    }
 
     /**
      * Parses a string value as either <i>true</i> or <i>false</i>.
