@@ -45,7 +45,7 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
     @Test
     public void testBufferMemConfigurationErrors() throws Exception {
         Properties properties = UnitTestProperties.getPropertiesByMemory(true,
-                "10000");
+                "1000,999");
         try {
             _persistit.initialize(properties);
             fail("Accepted allocation 10000 bytes");

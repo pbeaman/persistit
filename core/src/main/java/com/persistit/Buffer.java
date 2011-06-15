@@ -696,9 +696,13 @@ public final class Buffer extends SharedResource {
     }
 
     void setKeyBlockEnd(final int index) {
-        Debug.$assert(index >= KEY_BLOCK_START
-                && index <= (_pool.getMaxKeys() * KEYBLOCK_LENGTH)
-                        + KEY_BLOCK_START);
+        // Diagnostic bounds-check on new value.
+        // TODO - remove this code after thorough testing.
+        if ((index < KEY_BLOCK_START
+                || index > (_pool.getMaxKeys() * KEYBLOCK_LENGTH)
+                + KEY_BLOCK_START) && (isDataPage() || isIndexPage() && isValid())) {
+            Debug.$assert(false);
+        }
         _keyBlockEnd = index;
     }
 
