@@ -2410,7 +2410,8 @@ public class Persistit {
         if (propertyValue == null || propertyValue.isEmpty()) {
             return -1;
         }
-        int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
+        int bufferSizeWithOverhead = (int) (Buffer
+                .bufferSizeWithOverhead(bufferSize));
         long absoluteMinimum = (long) BufferPool.MINIMUM_POOL_COUNT
                 * bufferSizeWithOverhead;
         long absoluteMaximum = (long) BufferPool.MAXIMUM_POOL_COUNT

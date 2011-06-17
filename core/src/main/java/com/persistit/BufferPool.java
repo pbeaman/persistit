@@ -68,7 +68,7 @@ public class BufferPool {
     /**
      * Ratio of FastIndex to buffers
      */
-    private final static float FAST_INDEX_RATIO = 0.5f;
+    final static float FAST_INDEX_RATIO = 0.5f;
 
     /**
      * The Persistit instance that references this BufferBool.
