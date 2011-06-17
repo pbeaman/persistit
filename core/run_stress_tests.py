@@ -52,7 +52,7 @@ parser.add_option(
 
 parser.add_option(
     "--jar-file",
-    default = "target/akiban-persistit-core-2.2.1-SNAPSHOT-jar-with-dependencies-and-tests.jar",
+    default = "target",
     help = "Path to JAR file to use. [default: %default]"
 )
 
@@ -85,6 +85,13 @@ if not tests:
                 tests.append(filename)
 
 jar_file = options.jar_file
+# pick up the default jar file generated if no jar file is specified
+if jar_file == "target":
+    cmd = "grep version pom.xml | grep SNAPSHOT"
+    (retcode, output) = commands.getstatusoutput(cmd)
+    version = output.lstrip()[9:output.lstrip().find('SNAPSHOT')-1]
+    jar_file = "target/akiban-persistit-core-%s-SNAPSHOT-jar-with-dependencies-and-tests.jar" % version
+
 if not os.path.isfile(jar_file):
     print "PersistIT JAR file does not exist! Did you run mvn install?"
     sys.exit(1)
