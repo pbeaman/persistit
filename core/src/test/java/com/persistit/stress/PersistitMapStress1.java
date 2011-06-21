@@ -35,12 +35,9 @@ public class PersistitMapStress1 extends StressBase {
             + "    - delete <count> sequentially ascending keys \r\n"
             + "   Optional <splay> value allows variations in key sequence: \r\n";
 
-    private final static String[] ARGS_TEMPLATE = {
-            "op|String:Cwrtd|Operations to perform",
-            "repeat|int:1:0:1000000000|Repetitions",
-            "count|int:10000:0:1000000000|Number of nodes to populate",
-            "size|int:30:1:20000|Size of each data value",
-            "splay|int:1:1:1000|Splay",
+    private final static String[] ARGS_TEMPLATE = { "op|String:Cwrtd|Operations to perform",
+            "repeat|int:1:0:1000000000|Repetitions", "count|int:10000:0:1000000000|Number of nodes to populate",
+            "size|int:30:1:20000|Size of each data value", "splay|int:1:1:1000|Splay",
             "_flag|t|Timing test on TreeMap instead of PersistitMap", };
 
     int _size;
@@ -67,8 +64,7 @@ public class PersistitMapStress1 extends StressBase {
 
     @Override
     public void setUp() {
-        _ap = new ArgParser("com.persistit.stress.PersistitMapStress2", _args,
-                ARGS_TEMPLATE);
+        _ap = new ArgParser("com.persistit.stress.PersistitMapStress2", _args, ARGS_TEMPLATE);
         _splay = _ap.getIntValue("splay");
         _opflags = _ap.getStringValue("op");
         _size = _ap.getIntValue("size");
@@ -78,8 +74,7 @@ public class PersistitMapStress1 extends StressBase {
 
         try {
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit",
-                    _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
         } catch (final Exception ex) {
             handleThrowable(ex);
         }
@@ -136,10 +131,8 @@ public class PersistitMapStress1 extends StressBase {
                     }
                 }
                 if (_dm1.size() != _total) {
-                    _result = new TestResult(false, "PersistitMap.size()="
-                            + _dm1.size() + " out of " + _total
-                            + " repetition=" + _repeat + " in thread="
-                            + _threadIndex);
+                    _result = new TestResult(false, "PersistitMap.size()=" + _dm1.size() + " out of " + _total
+                            + " repetition=" + _repeat + " in thread=" + _threadIndex);
                     println(_result);
                     forceStop();
                     break;
@@ -160,8 +153,7 @@ public class PersistitMapStress1 extends StressBase {
                     try {
                         // fetch to a different Value object so we can compare
                         // with the original.
-                        final String s2 = (String) _dm1.get(new Integer(
-                                keyInteger));
+                        final String s2 = (String) _dm1.get(new Integer(keyInteger));
                         compareStrings(s1, s2);
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -187,9 +179,8 @@ public class PersistitMapStress1 extends StressBase {
                     }
                 }
                 if (_count != _total) {
-                    _result = new TestResult(false, "Traverse count=" + _count
-                            + " out of " + _total + " repetition=" + _repeat
-                            + " in thread=" + _threadIndex);
+                    _result = new TestResult(false, "Traverse count=" + _count + " out of " + _total + " repetition="
+                            + _repeat + " in thread=" + _threadIndex);
                     println(_result);
                     forceStop();
                     break;
@@ -206,8 +197,7 @@ public class PersistitMapStress1 extends StressBase {
                     setupTestValue(_ex, _count, _size);
                     final String s1 = _sb1.toString();
                     try {
-                        final String s2 = (String) _dm1.remove(new Integer(
-                                keyInteger));
+                        final String s2 = (String) _dm1.remove(new Integer(keyInteger));
                         compareStrings(s1, s2);
                     } catch (final Exception e) {
                         handleThrowable(e);
@@ -231,9 +221,8 @@ public class PersistitMapStress1 extends StressBase {
                     }
                 }
                 if (_count != 0) {
-                    _result = new TestResult(false, "Traverse count=" + _count
-                            + " when 0 were expected" + " repetition="
-                            + _repeat + " in thread=" + _threadIndex);
+                    _result = new TestResult(false, "Traverse count=" + _count + " when 0 were expected"
+                            + " repetition=" + _repeat + " in thread=" + _threadIndex);
                     println(_result);
                     forceStop();
                     break;
@@ -262,10 +251,8 @@ public class PersistitMapStress1 extends StressBase {
                     }
                 }
                 if (_dm1.size() != 0) {
-                    _result = new TestResult(false, "PersistitMap.size()= "
-                            + _dm1.size() + " when 0 were expected"
-                            + " repetition=" + _repeat + " in thread="
-                            + _threadIndex);
+                    _result = new TestResult(false, "PersistitMap.size()= " + _dm1.size() + " when 0 were expected"
+                            + " repetition=" + _repeat + " in thread=" + _threadIndex);
                     println(_result);
                     forceStop();
                     break;
@@ -284,10 +271,8 @@ public class PersistitMapStress1 extends StressBase {
 
         }
         verboseln();
-        verboseln(" timeWrite=" + _timeWrite + " timeRead=" + _timeRead
-                + " timeIter=" + _timeIter + " timeRemove=" + _timeRemove
-                + " total="
-                + (_timeWrite + _timeRead + _timeIter + _timeRemove));
+        verboseln(" timeWrite=" + _timeWrite + " timeRead=" + _timeRead + " timeIter=" + _timeIter + " timeRemove="
+                + _timeRemove + " total=" + (_timeWrite + _timeRead + _timeIter + _timeRemove));
         verbose("done");
     }
 

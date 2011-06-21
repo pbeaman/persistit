@@ -27,8 +27,7 @@ public class KeyHistogramTest extends PersistitUnitTestCase {
     public void testCull() throws Exception {
         final int total = 1000;
         final int samples = 10;
-        final KeyHistogram histogram = new KeyHistogram(null, null, null,
-                samples, 1, 1);
+        final KeyHistogram histogram = new KeyHistogram(null, null, null, samples, 1, 1);
         final Key key = new Key((Persistit) null);
         for (int i = 0; i < total; i++) {
             key.to(i);
@@ -44,8 +43,7 @@ public class KeyHistogramTest extends PersistitUnitTestCase {
 
     @Test
     public void testGather() throws Exception {
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "HistogramTestTestGather", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "HistogramTestTestGather", true);
         final int total = 100000;
         final int samples = 10;
         exchange.removeAll();
@@ -53,8 +51,7 @@ public class KeyHistogramTest extends PersistitUnitTestCase {
             exchange.getValue().put(String.format("Record %08d", i));
             exchange.to(i).store();
         }
-        final KeyHistogram histogram = exchange.computeHistogram(null, null,
-                samples, 1, null, 1);
+        final KeyHistogram histogram = exchange.computeHistogram(null, null, samples, 1, null, 1);
         // for (final KeyCount sample : histogram.getSamples()) {
         // System.out.println(sample);
         // }
@@ -63,8 +60,7 @@ public class KeyHistogramTest extends PersistitUnitTestCase {
 
     @Test
     public void testUnequalDistribution() throws Exception {
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "HistogramTestTestUnequalDistribution", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "HistogramTestTestUnequalDistribution", true);
         final int total = 100000;
         final int samples = 10;
         exchange.removeAll();
@@ -73,8 +69,7 @@ public class KeyHistogramTest extends PersistitUnitTestCase {
             final String which = i % 100 < 10 ? "A" : i % 100 < 90 ? "B" : "C";
             exchange.clear().append(which).append(i).store();
         }
-        final KeyHistogram histogram = exchange.computeHistogram(null, null,
-                samples, 1, null, 0);
+        final KeyHistogram histogram = exchange.computeHistogram(null, null, samples, 1, null, 0);
         // for (final KeyCount sample : histogram.getSamples()) {
         // System.out.println(sample);
         // }
@@ -83,8 +78,7 @@ public class KeyHistogramTest extends PersistitUnitTestCase {
 
     @Test
     public void testFiltered() throws Exception {
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "HistogramTestTestFiltered", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "HistogramTestTestFiltered", true);
         final int total = 100000;
         final int samples = 10;
         exchange.removeAll();
@@ -96,10 +90,8 @@ public class KeyHistogramTest extends PersistitUnitTestCase {
             }
             exchange.append(i).store();
         }
-        final KeyFilter keyFilter = new KeyFilter(
-                new KeyFilter.Term[] { KeyFilter.ALL }, 0, 1);
-        final KeyHistogram histogram = exchange.computeHistogram(null, null,
-                samples, 1, keyFilter, 0);
+        final KeyFilter keyFilter = new KeyFilter(new KeyFilter.Term[] { KeyFilter.ALL }, 0, 1);
+        final KeyHistogram histogram = exchange.computeHistogram(null, null, samples, 1, keyFilter, 0);
         // for (final KeyCount sample : histogram.getSamples()) {
         // System.out.println(sample);
         // }

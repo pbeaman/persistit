@@ -42,6 +42,7 @@ public class TransactionFailedException extends PersistitException {
      * Provides an implementation for JDK1.3 and below. This simply overrides
      * the JDK1.4 implementation of this method.
      */
+    @Override
     public Throwable getCause() {
         return _cause;
     }

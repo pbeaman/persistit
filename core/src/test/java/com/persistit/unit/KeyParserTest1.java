@@ -28,11 +28,8 @@ public class KeyParserTest1 extends PersistitUnitTestCase {
 
     private static final Persistit _persistit = new Persistit();
 
-    public static String[] VALID_STRINGS = {
-            "{1}",
-            "{3.14159265,-123,-456,-7.891,-0.1,0.01,-0.01}",
-            "{(byte)123,(byte)-123,true,null,false,(char)456}",
-            "{\"abc\",\"456\",\"def\"}",
+    public static String[] VALID_STRINGS = { "{1}", "{3.14159265,-123,-456,-7.891,-0.1,0.01,-0.01}",
+            "{(byte)123,(byte)-123,true,null,false,(char)456}", "{\"abc\",\"456\",\"def\"}",
             // "{(Date)20040820082356.123-0400,(float)1.0,1.0}",
             "{\"\\b\\t\\r\\n\\\\\\\"\",\"\\\\\\\"\",\"\\u45AD\\u0000\\u0001\\u0002\"}",
     // {"\b\t\r\n\\\"","\\\"","\u45AD\U0000\U0001\u0002"}
@@ -79,6 +76,7 @@ public class KeyParserTest1 extends PersistitUnitTestCase {
         new KeyParserTest1().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
         test2();

@@ -85,8 +85,7 @@ public class BufferTest extends PersistitUnitTestCase {
         for (RecordInfo r : buffer.getRecords()) {
             r.getKeyState().copyTo(key);
             r.getValueState().copyTo(value);
-            sb.append(String.format("%5d: db=%3d ebc=%3d  %s=%s\n",
-                    r.getKbOffset(), r.getDb(), r.getEbc(), key, value));
+            sb.append(String.format("%5d: db=%3d ebc=%3d  %s=%s\n", r.getKbOffset(), r.getDb(), r.getEbc(), key, value));
         }
         return sb.toString();
     }

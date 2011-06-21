@@ -25,6 +25,7 @@ import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -57,9 +58,10 @@ class InspectorPanel extends JPanel {
 
     InspectorPanel(AdminUI ui) {
         _adminUI = ui;
-        _tabbedPane = new JTabbedPane(JTabbedPane.LEFT);
+        _tabbedPane = new JTabbedPane(SwingConstants.LEFT);
         setupTabbedPanes();
         _tabbedPane.addChangeListener(new ChangeListener() {
+            @Override
             public void stateChanged(ChangeEvent ce) {
                 handleTabChanged();
             }
@@ -72,8 +74,7 @@ class InspectorPanel extends JPanel {
 
     private void setupTabbedPanes() {
         for (int index = 0;; index++) {
-            String paneSpecification = _adminUI
-                    .getProperty("InspectorTabbedPane." + index);
+            String paneSpecification = _adminUI.getProperty("InspectorTabbedPane." + index);
             if (paneSpecification == null || paneSpecification.startsWith(".")) {
                 break;
             }
@@ -88,18 +89,15 @@ class InspectorPanel extends JPanel {
                 Class cl = Class.forName(className);
                 AbstractInspector panel = (AbstractInspector) cl.newInstance();
                 panel.setup(_adminUI, this);
-                _tabbedPane.addTab(caption, (JComponent) panel);
+                _tabbedPane.addTab(caption, panel);
             } catch (Exception e) {
                 e.printStackTrace(); // TODO
-                _adminUI.showMessage(e,
-                        _adminUI.getProperty("SetupFailedMessage"),
-                        JOptionPane.ERROR_MESSAGE);
+                _adminUI.showMessage(e, _adminUI.getProperty("SetupFailedMessage"), JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
-    void setLogicalRecord(String volumeName, String treeName,
-            Management.LogicalRecord lr) {
+    void setLogicalRecord(String volumeName, String treeName, Management.LogicalRecord lr) {
         _volumeName = volumeName;
         _treeName = treeName;
         _logicalRecord = lr;
@@ -152,37 +150,33 @@ class InspectorPanel extends JPanel {
             _logicalRecord = lr;
         }
 
+        @Override
         public void run() {
             Management management = _adminUI.getManagement();
             if (management == null)
                 return;
             try {
-                Management.LogicalRecord[] results = management
-                        .getLogicalRecordArray(getVolumeName(), getTreeName(),
-                                null, _logicalRecord.getKeyState(), Key.EQ, 1,
-                                Integer.MAX_VALUE, true
+                Management.LogicalRecord[] results = management.getLogicalRecordArray(getVolumeName(), getTreeName(),
+                        null, _logicalRecord.getKeyState(), Key.EQ, 1, Integer.MAX_VALUE, true
 
-                        );
+                );
                 if (results == null || results.length == 0) {
                     _logicalRecord = null;
                 } else {
                     Management.LogicalRecord lr = results[0];
-                    if (_logicalRecord != null
-                            && _logicalRecord.getKeyState().equals(
-                                    lr.getKeyState())
-                            && _logicalRecord.getValueState().equals(
-                                    lr.getValueState())) {
+                    if (_logicalRecord != null && _logicalRecord.getKeyState().equals(lr.getKeyState())
+                            && _logicalRecord.getValueState().equals(lr.getValueState())) {
                         return; // No need to do anything more.
                     }
                     _logicalRecord = results[0];
                 }
                 SwingUtilities.invokeLater(new Runnable() {
+                    @Override
                     public void run() {
                         if (_exception != null) {
                             _adminUI.postException(_exception);
                         } else {
-                            setLogicalRecord(getVolumeName(), getTreeName(),
-                                    _logicalRecord);
+                            setLogicalRecord(getVolumeName(), getTreeName(), _logicalRecord);
                         }
                         refreshed();
                     }
@@ -198,16 +192,15 @@ class InspectorPanel extends JPanel {
         if (newTab == _selectedTab)
             return;
         _selectedTab = newTab;
-        AbstractInspector inspector = newTab == -1 ? null
-                : (AbstractInspector) _tabbedPane.getComponent(newTab);
+        AbstractInspector inspector = newTab == -1 ? null : (AbstractInspector) _tabbedPane.getComponent(newTab);
         if (inspector != null) {
             inspector.refreshed();
         }
     }
 
     AbstractInspector getCurrentInspector() {
-        AbstractInspector inspector = _selectedTab == -1 ? null
-                : (AbstractInspector) _tabbedPane.getComponent(_selectedTab);
+        AbstractInspector inspector = _selectedTab == -1 ? null : (AbstractInspector) _tabbedPane
+                .getComponent(_selectedTab);
         return inspector;
     }
 

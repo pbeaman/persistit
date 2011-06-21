@@ -25,7 +25,7 @@ public abstract class TestException extends RuntimeException {
     protected TestException() {
         super();
     }
-    
+
     protected TestException(String msg) {
         super(msg);
     }

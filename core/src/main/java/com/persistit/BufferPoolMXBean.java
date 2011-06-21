@@ -13,13 +13,12 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
- package com.persistit;
+package com.persistit;
 
 public interface BufferPoolMXBean {
 
     public final static String MXBEAN_NAME = "com.persistit:type=Persistit,class=BufferPool";
 
-    
     /**
      * Return the size of <code>Buffer</code>s managed by this pool.
      * 
@@ -75,6 +74,7 @@ public interface BufferPoolMXBean {
      * @return The ratio
      */
     public double getHitRatio();
+
     /**
      * Get the count of valid pages in this pool.
      * 
@@ -83,8 +83,8 @@ public interface BufferPoolMXBean {
     public int getValidPageCount();
 
     /**
-     * Get the count of dirty pages (pages that contain updates not yet
-     * written to disk) in this pool.
+     * Get the count of dirty pages (pages that contain updates not yet written
+     * to disk) in this pool.
      * 
      * @return The count of dirty pages in this pool
      */
@@ -92,15 +92,15 @@ public interface BufferPoolMXBean {
 
     /**
      * Get the count of pages on which running threads have reader
-     * (non-exclusive), but <i>not</i> writer (exclusive) claims in this
-     * pool.
+     * (non-exclusive), but <i>not</i> writer (exclusive) claims in this pool.
      * 
      * @return The count of pages with reader claims
      */
     public int getReaderClaimedPageCount();
+
     /**
-     * Get the count of pages on which running threads have writer
-     * (exclusive) claims in this pool.
+     * Get the count of pages on which running threads have writer (exclusive)
+     * claims in this pool.
      * 
      * @return The count of pages with writer claims
      */

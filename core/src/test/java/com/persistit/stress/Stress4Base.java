@@ -33,10 +33,9 @@ import com.persistit.exception.PersistitException;
  * 
  */
 public abstract class Stress4Base extends StressBase {
-    protected final static String[] ARGS_TEMPLATE = {
-            "repeat|int:1:0:1000000000|Repetitions",
-            "count|int:10000:0:1000000000|Number of nodes to populate",
-            "seed|int:1:1:20000|Random seed", "splay|int:1:1:1000|Splay", };
+    protected final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Repetitions",
+            "count|int:10000:0:1000000000|Number of nodes to populate", "seed|int:1:1:20000|Random seed",
+            "splay|int:1:1:1000|Splay", };
 
     private int[] _checksum;
 
@@ -58,8 +57,7 @@ public abstract class Stress4Base extends StressBase {
 
         try {
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit",
-                    _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
             _exs = getPersistit().getExchange("persistit", "shared", true);
         } catch (final Exception ex) {
             handleThrowable(ex);
@@ -83,8 +81,7 @@ public abstract class Stress4Base extends StressBase {
 
             for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
                 verboseln();
-                verboseln("Starting cycle " + (_repeat + 1) + " of "
-                        + _repeatTotal);
+                verboseln("Starting cycle " + (_repeat + 1) + " of " + _repeatTotal);
 
                 repeatedTasks();
                 verboseln();
@@ -173,8 +170,8 @@ public abstract class Stress4Base extends StressBase {
         return true;
     }
 
-    public void writeRecords(final int to, final boolean random,
-            final int minsize, final int maxsize) throws PersistitException {
+    public void writeRecords(final int to, final boolean random, final int minsize, final int maxsize)
+            throws PersistitException {
         setPhase("w");
         for (_count = 0; (_count < to) && !isStopped(); _count++) {
             dot();
@@ -195,8 +192,8 @@ public abstract class Stress4Base extends StressBase {
         }
     }
 
-    public void readRecords(final int to, final boolean random,
-            final int minsize, final int maxsize) throws PersistitException {
+    public void readRecords(final int to, final boolean random, final int minsize, final int maxsize)
+            throws PersistitException {
         final Value value1 = _ex.getValue();
         final Value value2 = new Value(getPersistit());
         setPhase("r");
@@ -222,8 +219,7 @@ public abstract class Stress4Base extends StressBase {
         }
     }
 
-    public void removeRecords(final int to, final boolean random)
-            throws PersistitException {
+    public void removeRecords(final int to, final boolean random) throws PersistitException {
         setPhase("d");
 
         for (_count = 0; (_count < _total) && (_count < to) && !isStopped(); _count++) {
@@ -241,17 +237,14 @@ public abstract class Stress4Base extends StressBase {
         }
     }
 
-    public void writeLongKey(final int keyInteger, final int length,
-            final int valueSize) throws PersistitException {
+    public void writeLongKey(final int keyInteger, final int length, final int valueSize) throws PersistitException {
 
     }
 
-    public void readLongKey(final int keyInteger, final int length,
-            final int valueSize) throws PersistitException {
+    public void readLongKey(final int keyInteger, final int length, final int valueSize) throws PersistitException {
     }
 
-    public void removeLongKey(final int keyInteger, final int length)
-            throws PersistitException {
+    public void removeLongKey(final int keyInteger, final int length) throws PersistitException {
     }
 
     public void sleep() {

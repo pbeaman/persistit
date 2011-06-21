@@ -54,11 +54,10 @@ public interface IOMeterMXBean {
      * </dl>
      * 
      */
-    public final static String[] OPERATIONS = { "??", "RV", "RJ", "CC",
-            "WJ", "TS", "TC", "SR", "DR", "DT", "XX", "EV", "FJ", "GP" };
+    public final static String[] OPERATIONS = { "??", "RV", "RJ", "CC", "WJ", "TS", "TC", "SR", "DR", "DT", "XX", "EV",
+            "FJ", "GP" };
 
-    public final static String[] SUMMARY_ITEMS = { "CC", "RV", "RJ",
-            "WJ", "EV", "FJ" };
+    public final static String[] SUMMARY_ITEMS = { "CC", "RV", "RJ", "WJ", "EV", "FJ" };
 
     /**
      * @return the writePageSleepInterval

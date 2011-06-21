@@ -80,6 +80,5 @@ public interface ValueRenderer extends ValueCoder {
      * 
      * @throws ConversionException
      */
-    public void render(Value value, Object target, Class clazz,
-            CoderContext context) throws ConversionException;
+    public void render(Value value, Object target, Class clazz, CoderContext context) throws ConversionException;
 }

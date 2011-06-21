@@ -45,15 +45,13 @@ public class Bug706132Test extends PersistitUnitTestCase {
         p.setProperty("buffer.count.1024", "20");
         p.remove("buffer.count.8192");
         p.setProperty("volume.1", "${datapath}/persistit.v01,create,"
-                + "pageSize:1024,initialPages:100,extensionPages:100,"
-                + "maximumPages:25000");
+                + "pageSize:1024,initialPages:100,extensionPages:100," + "maximumPages:25000");
         _persistit.initialize(p);
     }
 
     @Test
     public void test1() throws Exception {
-        final Exchange ex = _persistit.getExchange("persistit", "bug70612",
-                true);
+        final Exchange ex = _persistit.getExchange("persistit", "bug70612", true);
         StringBuilder sb = new StringBuilder();
         ex.removeAll();
         ex.setSplitPolicy(SplitPolicy.LEFT_BIAS);
@@ -85,8 +83,7 @@ public class Bug706132Test extends PersistitUnitTestCase {
 
     @Test
     public void test2() throws Exception {
-        final Exchange ex = _persistit.getExchange("persistit", "bug70612",
-                true);
+        final Exchange ex = _persistit.getExchange("persistit", "bug70612", true);
         StringBuilder sb = new StringBuilder();
         ex.removeAll();
         ex.setSplitPolicy(SplitPolicy.LEFT_BIAS);

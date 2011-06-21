@@ -303,8 +303,7 @@ public class ObjectCache {
 
         // If the length of the table is already in the ballpark, just
         // leave it.
-        if (_entries.length > newSize
-                && _entries.length < newSize + DEFAULT_INITIAL_SIZE)
+        if (_entries.length > newSize && _entries.length < newSize + DEFAULT_INITIAL_SIZE)
             return;
 
         Entry[] newEntries = new Entry[newSize];

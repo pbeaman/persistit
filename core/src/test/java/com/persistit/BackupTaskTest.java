@@ -33,6 +33,7 @@ import com.persistit.unit.UnitTestProperties;
 public class BackupTaskTest extends PersistitUnitTestCase {
     private final static int TRANSACTION_COUNT = 50000;
 
+    @Override
     protected Properties getProperties(final boolean cleanup) {
         return UnitTestProperties.getBiggerProperties(cleanup);
     }
@@ -41,20 +42,18 @@ public class BackupTaskTest extends PersistitUnitTestCase {
     public void testSimpleBackup() throws Exception {
 
         final PrintWriter writer = new PrintWriter(System.out);
-        final PersistitMap<Integer, String> pmap1 = new PersistitMap<Integer, String>(
-                _persistit.getExchange("persistit", "BackupTest", true));
+        final PersistitMap<Integer, String> pmap1 = new PersistitMap<Integer, String>(_persistit.getExchange(
+                "persistit", "BackupTest", true));
         for (int index = 0; index < 50000; index++) {
-            pmap1.put(new Integer(index), "This is the record for index="
-                    + index);
+            pmap1.put(new Integer(index), "This is the record for index=" + index);
         }
 
-        final TreeMap<Integer, String> tmap = new TreeMap<Integer, String>(
-                pmap1);
+        final TreeMap<Integer, String> tmap = new TreeMap<Integer, String>(pmap1);
         final File file = File.createTempFile("backup", ".zip");
         file.deleteOnExit();
-        
-        BackupTask backup1 = (BackupTask)CLI.parseTask(_persistit, "backup -z -c file=" + file.getAbsolutePath());
-        
+
+        BackupTask backup1 = (BackupTask) CLI.parseTask(_persistit, "backup -z -c file=" + file.getAbsolutePath());
+
         backup1.setMessageWriter(writer);
         backup1.setup(1, "backup file=" + file.getAbsolutePath(), "cli", 0, 5);
         backup1.run();
@@ -71,8 +70,8 @@ public class BackupTaskTest extends PersistitUnitTestCase {
         _persistit.initialize(properties);
         _persistit.checkAllVolumes();
 
-        final PersistitMap<Integer, String> pmap2 = new PersistitMap<Integer, String>(
-                _persistit.getExchange("persistit", "BackupTest", false));
+        final PersistitMap<Integer, String> pmap2 = new PersistitMap<Integer, String>(_persistit.getExchange(
+                "persistit", "BackupTest", false));
         final boolean comparison = pmap2.equals(tmap);
         assertTrue(comparison);
     }
@@ -90,9 +89,9 @@ public class BackupTaskTest extends PersistitUnitTestCase {
 
         final File file = File.createTempFile("backup", ".zip");
         file.deleteOnExit();
-        
-        BackupTask backup1 = (BackupTask)CLI.parseTask(_persistit, "backup -y -c file=" + file.getAbsolutePath());
-        
+
+        BackupTask backup1 = (BackupTask) CLI.parseTask(_persistit, "backup -y -c file=" + file.getAbsolutePath());
+
         backup1.setMessageWriter(writer);
         backup1.setPersistit(_persistit);
         backup1.setup(1, "backup file=" + file.getAbsolutePath(), "cli", 0, 5);
@@ -103,8 +102,7 @@ public class BackupTaskTest extends PersistitUnitTestCase {
 
         final Properties properties = _persistit.getProperties();
         _persistit.crash();
-        UnitTestProperties.cleanUpDirectory(new File(
-                UnitTestProperties.DATA_PATH));
+        UnitTestProperties.cleanUpDirectory(new File(UnitTestProperties.DATA_PATH));
 
         _persistit = new Persistit();
         final BackupTask backup2 = new BackupTask();
@@ -115,8 +113,7 @@ public class BackupTaskTest extends PersistitUnitTestCase {
 
         _persistit.initialize(properties);
         _persistit.checkAllVolumes();
-        final Exchange exchange = _persistit.getExchange("persistit",
-                "BackupTest", false);
+        final Exchange exchange = _persistit.getExchange("persistit", "BackupTest", false);
         exchange.to(Key.BEFORE);
         int extras = 0;
         while (exchange.next()) {
@@ -137,10 +134,10 @@ public class BackupTaskTest extends PersistitUnitTestCase {
         final AtomicBoolean stop = new AtomicBoolean();
         final AtomicBoolean backupStarted = new AtomicBoolean();
 
+        @Override
         public void run() {
             try {
-                final Exchange ex = _persistit.getExchange("persistit",
-                        "BackupTest", true);
+                final Exchange ex = _persistit.getExchange("persistit", "BackupTest", true);
                 final Transaction transaction = ex.getTransaction();
                 while (!stop.get()) {
                     final int key = random.nextInt();

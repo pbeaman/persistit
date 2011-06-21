@@ -31,6 +31,7 @@ public class JDK14LoggerTest extends PersistitUnitTestCase {
         new JDK14LoggerTest().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
     }

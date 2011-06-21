@@ -70,8 +70,7 @@ public interface KeyCoder {
      *            operation. (See {@link CoderContext}.) The default value is
      *            <code>null</code>.
      */
-    public void appendKeySegment(Key key, Object object, CoderContext context)
-            throws ConversionException;
+    public void appendKeySegment(Key key, Object object, CoderContext context) throws ConversionException;
 
     /**
      * <p>
@@ -105,6 +104,5 @@ public interface KeyCoder {
      * @throws ConversionException
      */
 
-    public Object decodeKeySegment(Key key, Class clazz, CoderContext context)
-            throws ConversionException;
+    public Object decodeKeySegment(Key key, Class clazz, CoderContext context) throws ConversionException;
 }

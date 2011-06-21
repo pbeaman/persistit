@@ -21,6 +21,7 @@ import java.util.StringTokenizer;
 
 import javax.swing.JLabel;
 import javax.swing.JTable;
+import javax.swing.SwingConstants;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
@@ -79,8 +80,7 @@ public class ManagementTableModel extends AbstractTableModel {
      * @param clazz
      */
 
-    public ManagementTableModel(Class clazz, String className, AdminUI ui)
-            throws NoSuchMethodException {
+    public ManagementTableModel(Class clazz, String className, AdminUI ui) throws NoSuchMethodException {
         _adminUI = ui;
 
         int p = className.lastIndexOf('.');
@@ -98,8 +98,7 @@ public class ManagementTableModel extends AbstractTableModel {
         setup(clazz, columnSpecs);
     }
 
-    protected void setup(Class clazz, String[] columnSpecs)
-            throws NoSuchMethodException {
+    protected void setup(Class clazz, String[] columnSpecs) throws NoSuchMethodException {
         _columnCount = columnSpecs.length;
         _displayedColumnCount = 0;
         _displayedColumns = new boolean[_columnCount];
@@ -130,8 +129,7 @@ public class ManagementTableModel extends AbstractTableModel {
             _flags[index] = flags;
             _methods[index] = clazz.getMethod(methodName, NO_ARG_TEMPLATE);
             if (rendererName != null)
-                _renderers[index] = constructRenderer(rendererName, clazz,
-                        columnSpecs[index]);
+                _renderers[index] = constructRenderer(rendererName, clazz, columnSpecs[index]);
             _headers[index] = header;
         }
     }
@@ -161,16 +159,19 @@ public class ManagementTableModel extends AbstractTableModel {
         return _infoArray;
     }
 
+    @Override
     public int getColumnCount() {
         return _displayedColumnCount;
     }
 
+    @Override
     public int getRowCount() {
         if (_infoArray == null)
             return 0;
         return _infoArray.length;
     }
 
+    @Override
     public Object getValueAt(int row, int col) {
         if (_infoArray == null || row < 0 || row >= _infoArray.length) {
             return null;
@@ -252,6 +253,7 @@ public class ManagementTableModel extends AbstractTableModel {
         table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
     }
 
+    @Override
     public Class getColumnClass(int col) {
         int index = _displayedColumnIndex[col];
         Class clazz = _methods[index].getReturnType();
@@ -284,38 +286,39 @@ public class ManagementTableModel extends AbstractTableModel {
     class LongRenderer extends AlignedCellRenderer {
 
         public LongRenderer() {
-            super(JLabel.RIGHT);
+            super(SwingConstants.RIGHT);
         }
 
+        @Override
         public void setValue(Object value) {
-            setText((value == null) ? "" : value instanceof Long ? _adminUI
-                    .formatLong(((Long) value).longValue()) : value.toString());
+            setText((value == null) ? "" : value instanceof Long ? _adminUI.formatLong(((Long) value).longValue())
+                    : value.toString());
         }
     }
 
     class IntegerRenderer extends AlignedCellRenderer {
 
         public IntegerRenderer() {
-            super(JLabel.RIGHT);
+            super(SwingConstants.RIGHT);
         }
 
+        @Override
         public void setValue(Object value) {
-            setText((value == null) ? "" : value instanceof Integer ? _adminUI
-                    .formatInteger(((Integer) value).intValue()) : value
-                    .toString());
+            setText((value == null) ? "" : value instanceof Integer ? _adminUI.formatInteger(((Integer) value)
+                    .intValue()) : value.toString());
         }
     }
 
     class DoubleRenderer extends AlignedCellRenderer {
 
         public DoubleRenderer() {
-            super(JLabel.RIGHT);
+            super(SwingConstants.RIGHT);
         }
 
+        @Override
         public void setValue(Object value) {
-            setText((value == null) ? "" : value instanceof Double ? _adminUI
-                    .formatPercent(((Double) value).doubleValue()) : value
-                    .toString());
+            setText((value == null) ? "" : value instanceof Double ? _adminUI.formatPercent(((Double) value)
+                    .doubleValue()) : value.toString());
         }
     }
 
@@ -323,10 +326,11 @@ public class ManagementTableModel extends AbstractTableModel {
         private Key _key;
 
         public KeyStateRenderer() {
-            super(JLabel.LEFT);
+            super(SwingConstants.LEFT);
             _key = new Key((Persistit) null);
         }
 
+        @Override
         public void setValue(Object value) {
             if (value instanceof KeyState) {
                 ((KeyState) value).copyTo(_key);
@@ -340,10 +344,11 @@ public class ManagementTableModel extends AbstractTableModel {
         private Value _value;
 
         public ValueStateRenderer() {
-            super(JLabel.LEFT);
+            super(SwingConstants.LEFT);
             _value = new Value((Persistit) null);
         }
 
+        @Override
         public void setValue(Object value) {
             if (value instanceof ValueState) {
                 ((ValueState) value).copyTo(_value);
@@ -353,24 +358,19 @@ public class ManagementTableModel extends AbstractTableModel {
         }
     }
 
-    public static abstract class AbstractCustomTableCellRenderer extends
-            DefaultTableCellRenderer {
+    public static abstract class AbstractCustomTableCellRenderer extends DefaultTableCellRenderer {
 
-        protected abstract void setup(AdminUI ui, Class infClass,
-                String columnSpec);
+        protected abstract void setup(AdminUI ui, Class infClass, String columnSpec);
     }
 
-    protected TableCellRenderer constructRenderer(String rendererName,
-            Class infoClass, String columnSpec) {
+    protected TableCellRenderer constructRenderer(String rendererName, Class infoClass, String columnSpec) {
         String className = getClass().getName();
-        className = className.substring(0, className.lastIndexOf('.'))
-                + ".renderers." + rendererName;
+        className = className.substring(0, className.lastIndexOf('.')) + ".renderers." + rendererName;
         try {
             Class clazz = Class.forName(className);
             Object object = clazz.newInstance();
             if (object instanceof AbstractCustomTableCellRenderer) {
-                ((AbstractCustomTableCellRenderer) object).setup(_adminUI,
-                        infoClass, columnSpec);
+                ((AbstractCustomTableCellRenderer) object).setup(_adminUI, infoClass, columnSpec);
                 return (TableCellRenderer) object;
             }
         } catch (Exception e) {

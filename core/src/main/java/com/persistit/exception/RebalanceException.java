@@ -25,8 +25,7 @@ package com.persistit.exception;
 public class RebalanceException extends PersistitException {
     private static final long serialVersionUID = 5712813170520119517L;
 
-    public final static RebalanceException SINGLETON = new RebalanceException(
-            "Singleton");
+    public final static RebalanceException SINGLETON = new RebalanceException("Singleton");
 
     public RebalanceException() {
     }

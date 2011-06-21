@@ -23,7 +23,6 @@ import com.persistit.CLI;
 import com.persistit.Management;
 import com.persistit.PersistitMap;
 
-
 public class CommandLineTest extends PersistitUnitTestCase {
 
     @Test
@@ -43,23 +42,19 @@ public class CommandLineTest extends PersistitUnitTestCase {
     @Test
     public void testCommands() throws Exception {
 
-        final PersistitMap<Integer, String> pmap = new PersistitMap<Integer, String>(
-                _persistit.getExchange("persistit", "CommandLineTest",
-                        true));
+        final PersistitMap<Integer, String> pmap = new PersistitMap<Integer, String>(_persistit.getExchange(
+                "persistit", "CommandLineTest", true));
         for (int index = 0; index < 500; index++) {
-            pmap.put(new Integer(index), "This is the record for index="
-                    + index);
+            pmap.put(new Integer(index), "This is the record for index=" + index);
         }
 
         final Management management = _persistit.getManagement();
 
-        String status = management
-                .launch("icheck trees=persistit:CommandLineTest");
+        String status = management.launch("icheck trees=persistit:CommandLineTest");
         waitForCompletion(taskId(status));
         final File file = File.createTempFile("CommandLineTest", ".sav");
         file.deleteOnExit();
-        status = management.launch("save file=" + file
-                + " trees=persistit:CommandLineTest{200:}");
+        status = management.launch("save file=" + file + " trees=persistit:CommandLineTest{200:}");
         waitForCompletion(taskId(status));
         pmap.clear();
 
@@ -73,18 +68,15 @@ public class CommandLineTest extends PersistitUnitTestCase {
         return Long.parseLong(status);
     }
 
-
     private void waitForCompletion(final long taskId) throws Exception {
         for (int waiting = 0; waiting < 20000; waiting++) {
-            final String status = _persistit.getManagement().execute(
-                    "task taskId=" + taskId);
+            final String status = _persistit.getManagement().execute("task taskId=" + taskId);
             if (status.endsWith("done")) {
                 return;
             }
             Thread.sleep(500);
         }
-        throw new IllegalStateException("Task " + taskId
-                + " did not compelete within 10 seconds");
+        throw new IllegalStateException("Task " + taskId + " did not compelete within 10 seconds");
     }
 
     @Override

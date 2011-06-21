@@ -203,7 +203,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         assertEquals(false, ex.traverse(Key.LT, kf, 4));
         assertEquals(false, ex.traverse(Key.LTEQ, kf, 4));
     }
-    
+
     public void testKeyValues() throws PersistitException {
         Exchange ex = _persistit.getExchange("persistit", "gogo", true);
         String firstValue = new String("PADRAIG");
@@ -234,7 +234,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         ex.clear().to(1);
         ex.fetch();
         assertEquals(fourthValue, ex.getValue().getString());
-        
+
         ex.clear().append(-2);
         ex.remove();
         ex.getValue().put(-2);
@@ -251,7 +251,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         ex.remove();
         ex.getValue().put(1);
         ex.store();
-        
+
         ex.clear().to(-2);
         ex.fetch();
         assertEquals(-2, ex.getValue().getInt());
@@ -285,6 +285,7 @@ public class ExchangeTest extends PersistitUnitTestCase {
         return new String(buf);
     }
 
+    @Override
     public void runAllTests() {
     }
 

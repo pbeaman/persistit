@@ -181,12 +181,10 @@ public class BufferPool {
         int created = 0;
         _persistit = persistit;
         if (count < MINIMUM_POOL_COUNT) {
-            throw new IllegalArgumentException("Buffer pool count too small: "
-                    + count);
+            throw new IllegalArgumentException("Buffer pool count too small: " + count);
         }
         if (count > MAXIMUM_POOL_COUNT) {
-            throw new IllegalArgumentException("Buffer pool count too large: "
-                    + count);
+            throw new IllegalArgumentException("Buffer pool count too large: " + count);
         }
 
         int possibleSize = Buffer.MIN_BUFFER_SIZE;
@@ -198,8 +196,7 @@ public class BufferPool {
                 possibleSize *= 2;
         }
         if (!ok)
-            throw new IllegalArgumentException(
-                    "Invalid buffer size requested: " + size);
+            throw new IllegalArgumentException("Invalid buffer size requested: " + size);
 
         _bufferCount = count;
         _bufferSize = size;
@@ -219,8 +216,7 @@ public class BufferPool {
                 created++;
             }
         } catch (OutOfMemoryError e) {
-            System.err.println("Out of memory after creating " + created
-                    + " buffers");
+            System.err.println("Out of memory after creating " + created + " buffers");
             throw e;
         }
         _fastIndexCount = (int) (count * FAST_INDEX_RATIO);
@@ -233,8 +229,7 @@ public class BufferPool {
                 created++;
             }
         } catch (OutOfMemoryError e) {
-            System.err.println("Out of memory after creating " + created
-                    + " FastIndex instances");
+            System.err.println("Out of memory after creating " + created + " FastIndex instances");
             throw e;
         }
         _writer = new PageWriter();
@@ -283,8 +278,7 @@ public class BufferPool {
         int count = 0;
         for (int i = 0; i < _bufferCount; i++) {
             Buffer buffer = _buffers[i];
-            if ((vol == null || buffer.getVolume() == vol) && buffer.isDirty()
-                    && !buffer.isTransient()) {
+            if ((vol == null || buffer.getVolume() == vol) && buffer.isDirty() && !buffer.isTransient()) {
                 count++;
             }
         }
@@ -296,8 +290,7 @@ public class BufferPool {
         for (int i = 0; i < _bufferCount; i++) {
             Buffer buffer = _buffers[i];
             if ((vol == null || buffer.getVolume() == vol)
-                    && ((buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0 && (!writer || (buffer
-                            .getStatus() & SharedResource.WRITER_MASK) != 0))) {
+                    && ((buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0 && (!writer || (buffer.getStatus() & SharedResource.WRITER_MASK) != 0))) {
                 count++;
             }
         }
@@ -334,8 +327,7 @@ public class BufferPool {
         info.updateAcquisitonTime();
     }
 
-    int populateInfo(ManagementImpl.BufferInfo[] array, int traveralType,
-            int includeMask, int excludeMask) {
+    int populateInfo(ManagementImpl.BufferInfo[] array, int traveralType, int includeMask, int excludeMask) {
         int index = 0;
         switch (traveralType) {
         case 0:
@@ -355,8 +347,7 @@ public class BufferPool {
         return index;
     }
 
-    private static void populateInfo1(ManagementImpl.BufferInfo[] array,
-            int index, Buffer buffer) {
+    private static void populateInfo1(ManagementImpl.BufferInfo[] array, int index, Buffer buffer) {
         if (index < array.length) {
             if (array[index] == null)
                 array[index] = new ManagementImpl.BufferInfo();
@@ -449,8 +440,7 @@ public class BufferPool {
      */
     public double getHitRatio() {
         final long hitCounter = _hitCounter.get();
-        final long getCounter = hitCounter + _missCounter.get()
-                + _newCounter.get();
+        final long getCounter = hitCounter + _missCounter.get() + _newCounter.get();
         if (getCounter == 0)
             return 0.0;
         else
@@ -466,8 +456,7 @@ public class BufferPool {
     void invalidate(Volume volume) {
         for (int index = 0; index < _buffers.length; index++) {
             Buffer buffer = _buffers[index];
-            if ((buffer.getVolume() == volume || volume == null)
-                    && !buffer.isFixed() && buffer.isValid()) {
+            if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
                 invalidate(buffer);
             }
         }
@@ -507,8 +496,7 @@ public class BufferPool {
                 _hashTable[hash] = buffer.getNext();
             } else {
                 Buffer prev = _hashTable[hash];
-                for (Buffer next = prev.getNext(); next != null; next = prev
-                        .getNext()) {
+                for (Buffer next = prev.getNext(); next != null; next = prev.getNext()) {
                     if (next == buffer) {
                         prev.setNext(next.getNext());
                         break;
@@ -539,8 +527,7 @@ public class BufferPool {
      * @return Buffer The Buffer describing the buffer containing the page.
      * @throws InUseException
      */
-    Buffer get(Volume vol, long page, boolean writer, boolean wantRead)
-            throws PersistitException {
+    Buffer get(Volume vol, long page, boolean writer, boolean wantRead) throws PersistitException {
         int hash = hashIndex(vol, page);
         Buffer buffer = null;
 
@@ -557,8 +544,7 @@ public class BufferPool {
                     if (Debug.ENABLED)
                         Debug.$assert(buffer.getNext() != buffer);
 
-                    if (buffer.getPageAddress() == page
-                            && buffer.getVolume() == vol) {
+                    if (buffer.getPageAddress() == page && buffer.getVolume() == vol) {
                         //
                         // Found it - now claim it.
                         //
@@ -628,18 +614,14 @@ public class BufferPool {
                 }
                 if (mustClaim) {
                     if (!buffer.claim(writer)) {
-                        throw new InUseException("Thread "
-                                + Thread.currentThread().getName()
-                                + " failed to acquire "
-                                + (writer ? "writer" : "reader") + " claim on "
-                                + buffer);
+                        throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to acquire "
+                                + (writer ? "writer" : "reader") + " claim on " + buffer);
                     }
 
                     //
                     // Test whether the buffer we picked out is still valid
                     //
-                    if (buffer.isValid() && buffer.getPageAddress() == page
-                            && buffer.getVolume() == vol) {
+                    if (buffer.isValid() && buffer.getPageAddress() == page && buffer.getVolume() == vol) {
                         //
                         // If so, then we're done.
                         //
@@ -673,10 +655,8 @@ public class BufferPool {
                         boolean loaded = false;
                         try {
                             if (Debug.ENABLED) {
-                                Debug.$assert(buffer.getPageAddress() == page
-                                        && buffer.getVolume() == vol
-                                        && hashIndex(buffer.getVolume(),
-                                                buffer.getPageAddress()) == hash);
+                                Debug.$assert(buffer.getPageAddress() == page && buffer.getVolume() == vol
+                                        && hashIndex(buffer.getVolume(), buffer.getPageAddress()) == hash);
                             }
                             buffer.load(vol, page);
                             loaded = true;
@@ -723,9 +703,8 @@ public class BufferPool {
      * @throws RetryException
      * @throws IOException
      */
-    public Buffer getBufferCopy(Volume vol, long page)
-            throws InvalidPageAddressException, InvalidPageStructureException,
-            VolumeClosedException, TimeoutException, PersistitIOException {
+    public Buffer getBufferCopy(Volume vol, long page) throws InvalidPageAddressException,
+            InvalidPageStructureException, VolumeClosedException, TimeoutException, PersistitIOException {
         int hash = hashIndex(vol, page);
         Buffer buffer = null;
         _hashLocks[hash % HASH_LOCKS].lock();
@@ -738,8 +717,7 @@ public class BufferPool {
                 if (Debug.ENABLED)
                     Debug.$assert(buffer.getNext() != buffer);
 
-                if (buffer.getPageAddress() == page
-                        && buffer.getVolume() == vol) {
+                if (buffer.getPageAddress() == page && buffer.getVolume() == vol) {
                     if (Debug.ENABLED)
                         Debug.$assert(buffer.isValid());
                     //
@@ -785,8 +763,7 @@ public class BufferPool {
             if (buffer.isTouched()) {
                 buffer.clearTouched();
             } else {
-                if (!buffer.isFixed()
-                        && (buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0
+                if (!buffer.isFixed() && (buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0
                         && buffer.checkedClaim(true, 0)) {
                     if (buffer.isDirty()) {
                         if (!resetDirtyClock) {
@@ -799,10 +776,8 @@ public class BufferPool {
                         if (buffer.isValid() && detach(buffer)) {
                             buffer.setValid(false);
                             _evictCounter.incrementAndGet();
-                            _persistit.getIOMeter().chargeEvictPageFromPool(
-                                    buffer.getVolume(),
-                                    buffer.getPageAddress(),
-                                    buffer.getBufferSize(), buffer.getIndex());
+                            _persistit.getIOMeter().chargeEvictPageFromPool(buffer.getVolume(),
+                                    buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());
                         }
                         if (!buffer.isValid()) {
                             return buffer;
@@ -820,8 +795,7 @@ public class BufferPool {
     FastIndex allocFastIndex() {
         for (int retry = 0; retry < _fastIndexCount; retry++) {
             int clock = _fastIndexClock.get();
-            if (!_fastIndexClock.compareAndSet(clock, (clock + 1)
-                    % _fastIndexCount)) {
+            if (!_fastIndexClock.compareAndSet(clock, (clock + 1) % _fastIndexCount)) {
                 continue;
             }
             FastIndex findex = _fastIndexes[clock];
@@ -858,8 +832,7 @@ public class BufferPool {
         return earliestDirtyTimestamp;
     }
 
-    private int writeDirtyBuffers(final boolean urgent, final boolean all,
-            final long timestamp) {
+    private int writeDirtyBuffers(final boolean urgent, final boolean all, final long timestamp) {
         int unavailable = 0;
         int start = _dirtyClock.get();
         int max = all ? _bufferCount : _bufferCount / 8;
@@ -882,10 +855,8 @@ public class BufferPool {
                     } catch (Exception e) {
                         final Volume volume = buffer.getVolume();
                         final long page = buffer.getPageAddress();
-                        _persistit.getLogBase().log(
-                                LogBase.LOG_EXCEPTION,
-                                e + " while writing page " + page
-                                        + " in volume " + volume);
+                        _persistit.getLogBase().log(LogBase.LOG_EXCEPTION,
+                                e + " while writing page " + page + " in volume " + volume);
                     } finally {
                         buffer.release();
                         if (urgent) {
@@ -915,19 +886,21 @@ public class BufferPool {
             start("PAGE_WRITER:" + _bufferSize, _writerPollInterval);
         }
 
+        @Override
         public void runTask() {
             _wasClosed = _closed.get();
-            _clean = writeDirtyBuffers(_urgent.get(), _wasClosed,
-                    Long.MAX_VALUE) == 0;
+            _clean = writeDirtyBuffers(_urgent.get(), _wasClosed, Long.MAX_VALUE) == 0;
             if (_clean) {
                 _urgent.set(false);
             }
         }
 
+        @Override
         protected boolean shouldStop() {
             return _fastClose.get() || _clean && _wasClosed;
         }
 
+        @Override
         protected long pollInterval() {
             return _wasClosed || _urgent.get() ? 0 : _writerPollInterval;
         }
@@ -940,15 +913,14 @@ public class BufferPool {
 
     private Buffer trace(final Buffer buffer) {
         if (_enableTrace) {
-            _persistit.getIOMeter().chargeGetPage(buffer.getVolume(),
-                    buffer.getPageAddress(), buffer.getBufferSize(),
+            _persistit.getIOMeter().chargeGetPage(buffer.getVolume(), buffer.getPageAddress(), buffer.getBufferSize(),
                     buffer.getIndex());
         }
         return buffer;
     }
 
+    @Override
     public String toString() {
-        return "BufferPool[" + _bufferCount + "@" + _bufferSize
-                + (_closed.get() ? ":closed" : "") + "]";
+        return "BufferPool[" + _bufferCount + "@" + _bufferSize + (_closed.get() ? ":closed" : "") + "]";
     }
 }

@@ -356,70 +356,62 @@ public class Transaction {
         private ByteBuffer _bb = ByteBuffer.allocate(DEFAULT_TXN_BUFFER_SIZE);
 
         @Override
-        public boolean writeTransactionStartToJournal(long startTimestamp)
-                throws PersistitIOException {
+        public boolean writeTransactionStartToJournal(long startTimestamp) throws PersistitIOException {
             if (DISABLE_TXN_BUFFER || _bb.remaining() < TS.OVERHEAD) {
                 return false;
             }
-            _persistit.getJournalManager().writeTransactionStartToJournal(_bb,
-                    TS.OVERHEAD, startTimestamp);
+            _persistit.getJournalManager().writeTransactionStartToJournal(_bb, TS.OVERHEAD, startTimestamp);
             return true;
 
         }
 
         @Override
-        public boolean writeTransactionCommitToJournal(long timestamp,
-                long commitTimestamp) throws PersistitIOException {
+        public boolean writeTransactionCommitToJournal(long timestamp, long commitTimestamp)
+                throws PersistitIOException {
             if (DISABLE_TXN_BUFFER || _bb.remaining() < TC.OVERHEAD) {
                 return false;
             }
-            _persistit.getJournalManager().writeTransactionCommitToJournal(_bb,
-                    TC.OVERHEAD, timestamp, commitTimestamp);
+            _persistit.getJournalManager()
+                    .writeTransactionCommitToJournal(_bb, TC.OVERHEAD, timestamp, commitTimestamp);
             return true;
 
         }
 
         @Override
-        public boolean writeStoreRecordToJournal(long timestamp,
-                int treeHandle, Key key, Value value)
+        public boolean writeStoreRecordToJournal(long timestamp, int treeHandle, Key key, Value value)
                 throws PersistitIOException {
-            final int recordSize = SR.OVERHEAD + key.getEncodedSize()
-                    + value.getEncodedSize();
+            final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
             if (DISABLE_TXN_BUFFER || _bb.remaining() < recordSize) {
                 return false;
             }
-            _persistit.getJournalManager().writeStoreRecordToJournal(_bb,
-                    recordSize, timestamp, treeHandle, key, value);
+            _persistit.getJournalManager()
+                    .writeStoreRecordToJournal(_bb, recordSize, timestamp, treeHandle, key, value);
             return true;
         }
 
         @Override
-        public boolean writeDeleteRecordToJournal(long timestamp,
-                int treeHandle, Key key1, Key key2) throws PersistitIOException {
-            final int recordSize = DR.OVERHEAD + key1.getEncodedSize()
-                    + key2.getEncodedSize();
+        public boolean writeDeleteRecordToJournal(long timestamp, int treeHandle, Key key1, Key key2)
+                throws PersistitIOException {
+            final int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize();
             if (DISABLE_TXN_BUFFER || _bb.remaining() < recordSize) {
                 return false;
             }
-            _persistit.getJournalManager().writeDeleteRecordToJournal(_bb,
-                    recordSize, timestamp, treeHandle, key1, key2);
+            _persistit.getJournalManager().writeDeleteRecordToJournal(_bb, recordSize, timestamp, treeHandle, key1,
+                    key2);
             return true;
         }
 
         @Override
-        public boolean writeDeleteTreeToJournal(long timestamp, int treeHandle)
-                throws PersistitIOException {
+        public boolean writeDeleteTreeToJournal(long timestamp, int treeHandle) throws PersistitIOException {
             if (DISABLE_TXN_BUFFER || _bb.remaining() < DT.OVERHEAD) {
                 return false;
             }
-            _persistit.getJournalManager().writeDeleteTreeToJournal(_bb,
-                    DT.OVERHEAD, timestamp, treeHandle);
+            _persistit.getJournalManager().writeDeleteTreeToJournal(_bb, DT.OVERHEAD, timestamp, treeHandle);
             return true;
         }
 
         @Override
-        public boolean writeCacheUpdatesToJournal(final long timestamp,
-                final long cacheId, final List<Update> updates)
+        public boolean writeCacheUpdatesToJournal(final long timestamp, final long cacheId, final List<Update> updates)
                 throws PersistitIOException {
             int estimate = CU.OVERHEAD;
             for (int index = 0; index < updates.size(); index++) {
@@ -428,8 +420,7 @@ public class Transaction {
             if (DISABLE_TXN_BUFFER || _bb.remaining() < estimate) {
                 return false;
             }
-            _persistit.getJournalManager().writeCacheUpdatesToJournal(_bb,
-                    timestamp, cacheId, updates);
+            _persistit.getJournalManager().writeCacheUpdatesToJournal(_bb, timestamp, cacheId, updates);
             return true;
         }
 
@@ -476,10 +467,12 @@ public class Transaction {
      * 
      */
     public static class DefaultCommitListener implements CommitListener {
+        @Override
         public void committed() {
             // do nothing
         }
 
+        @Override
         public void rolledBack() {
             // do nothing
         }
@@ -503,8 +496,7 @@ public class Transaction {
 
         @Override
         public String toString() {
-            return "Touched(" + _volume.getPath() + ", page " + _pageAddr
-                    + ", timestamp=" + _timestamp + ")";
+            return "Touched(" + _volume.getPath() + ", page " + _pageAddr + ", timestamp=" + _timestamp + ")";
         }
     }
 
@@ -548,14 +540,12 @@ public class Transaction {
      * 
      * @param id
      */
-    private Transaction(final Persistit persistit, final SessionId sessionId,
-            final long id) {
+    private Transaction(final Persistit persistit, final SessionId sessionId, final long id) {
         _persistit = persistit;
         _sessionId = sessionId;
 
         _id = id;
-        _rollbackDelay = persistit.getLongProperty("rollbackDelay", 10, 0,
-                100000);
+        _rollbackDelay = persistit.getLongProperty("rollbackDelay", 10, 0, 100000);
         _rootKey = new Key(_persistit);
     }
 
@@ -569,8 +559,7 @@ public class Transaction {
         try {
             Volume txnVolume = _persistit.getTransactionVolume();
 
-            _ex1 = _persistit.getExchange(txnVolume, TRANSACTION_TREE_NAME
-                    + _id, true);
+            _ex1 = _persistit.getExchange(txnVolume, TRANSACTION_TREE_NAME + _id, true);
             _ex2 = new Exchange(_ex1);
             _ex1.ignoreTransactions();
             _ex2.ignoreTransactions();
@@ -669,8 +658,7 @@ public class Transaction {
      */
     public void begin() throws PersistitException {
         if (_commitCompleted) {
-            throw new IllegalStateException(
-                    "Attempt to begin a committed transaction");
+            throw new IllegalStateException("Attempt to begin a committed transaction");
         }
 
         _rollbackPending = false;
@@ -681,22 +669,17 @@ public class Transaction {
                 clear();
                 _commitListeners.clear();
                 _transactionCacheUpdates.clear();
-                _startTimestamp.set(_persistit.getTimestampAllocator()
-                        .updateTimestamp());
+                _startTimestamp.set(_persistit.getTimestampAllocator().updateTimestamp());
 
             } catch (PersistitException pe) {
-                if (_persistit.getLogBase().isLoggable(
-                        LogBase.LOG_TXN_EXCEPTION)) {
-                    _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe,
-                            this);
+                if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
+                    _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe, this);
                 }
                 throw pe;
             }
-            if (!_persistit.getTransactionResourceA().claim(
-                    _rollbacksSinceLastCommit >= _pessimisticRetryThreshold,
+            if (!_persistit.getTransactionResourceA().claim(_rollbacksSinceLastCommit >= _pessimisticRetryThreshold,
                     COMMIT_CLAIM_TIMEOUT)) {
-                throw new TimeoutException(
-                        "Unavailable TransactionResourceA lock");
+                throw new TimeoutException("Unavailable TransactionResourceA lock");
             }
         }
         _nestedDepth++;
@@ -721,8 +704,7 @@ public class Transaction {
     public void end() {
 
         if (_nestedDepth < 1) {
-            throw new IllegalStateException(
-                    "No transaction scope: begin() not called");
+            throw new IllegalStateException("No transaction scope: begin() not called");
         }
         _nestedDepth--;
 
@@ -731,11 +713,8 @@ public class Transaction {
             if (_rollbackException == null) {
                 _rollbackException = new RollbackException();
             }
-            if (!_rollbackPending
-                    && _persistit.getLogBase().isLoggable(
-                            LogBase.LOG_TXN_NOT_COMMITTED)) {
-                _persistit.getLogBase().log(LogBase.LOG_TXN_NOT_COMMITTED,
-                        _rollbackException);
+            if (!_rollbackPending && _persistit.getLogBase().isLoggable(LogBase.LOG_TXN_NOT_COMMITTED)) {
+                _persistit.getLogBase().log(LogBase.LOG_TXN_NOT_COMMITTED, _rollbackException);
                 _rollbackPending = true;
             }
         }
@@ -745,8 +724,7 @@ public class Transaction {
             _commitListeners.clear();
             // First release the pessimistic lock if we claimed it.
             if (Debug.ENABLED && _rollbackPending) {
-                Debug.debug1(_rollbacksSinceLastCommit
-                        - _pessimisticRetryThreshold > 20);
+                Debug.debug1(_rollbacksSinceLastCommit - _pessimisticRetryThreshold > 20);
             }
             _persistit.getTransactionResourceA().release();
             _startTimestamp.set(-1);
@@ -765,10 +743,8 @@ public class Transaction {
                         Thread.sleep(_rollbackDelay); // TODO
                     }
                 } catch (PersistitException pe) {
-                    if (_persistit.getLogBase().isLoggable(
-                            LogBase.LOG_TXN_EXCEPTION)) {
-                        _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION,
-                                pe, this);
+                    if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
+                        _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe, this);
                     }
                 } catch (InterruptedException ie) {
                 }
@@ -812,8 +788,7 @@ public class Transaction {
         }
 
         if (_nestedDepth < 1) {
-            throw new IllegalStateException(
-                    "No transaction scope: begin() not called");
+            throw new IllegalStateException("No transaction scope: begin() not called");
         }
 
         _rollbackPending = true;
@@ -824,8 +799,7 @@ public class Transaction {
             rollbackUpdates();
         } catch (PersistitException pe) {
             if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
-                _persistit.getLogBase()
-                        .log(LogBase.LOG_TXN_EXCEPTION, pe, this);
+                _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe, this);
             }
         }
 
@@ -904,12 +878,10 @@ public class Transaction {
      *             if no transaction scope is active or this transaction scope
      *             has already called <code>commit</code>.
      */
-    public void commit(boolean toDisk) throws PersistitException,
-            RollbackException {
+    public void commit(boolean toDisk) throws PersistitException, RollbackException {
 
         if (_nestedDepth < 1) {
-            throw new IllegalStateException(
-                    "No transaction scope: begin() not called");
+            throw new IllegalStateException("No transaction scope: begin() not called");
         } else if (_commitCompleted) {
             throw new IllegalStateException("Already committed");
         }
@@ -969,8 +941,8 @@ public class Transaction {
      *             if no transaction scope is active or this transaction scope
      *             has already called <code>commit</code>.
      */
-    public void commit(final CommitListener commitListener, final boolean toDisk)
-            throws PersistitException, RollbackException {
+    public void commit(final CommitListener commitListener, final boolean toDisk) throws PersistitException,
+            RollbackException {
         _commitListeners.add(commitListener);
         commit(toDisk);
     }
@@ -1062,8 +1034,8 @@ public class Transaction {
      *             cannot be completed or committed due to concurrent updated
      *             performed by other threads.
      */
-    public int run(TransactionRunnable runnable, int retryCount,
-            long retryDelay, boolean toDisk) throws PersistitException {
+    public int run(TransactionRunnable runnable, int retryCount, long retryDelay, boolean toDisk)
+            throws PersistitException {
         if (retryCount < 0)
             throw new IllegalArgumentException();
         for (int count = 1;; count++) {
@@ -1098,8 +1070,7 @@ public class Transaction {
      */
     @Override
     public String toString() {
-        return "Transaction_" + _id + " depth=" + _nestedDepth
-                + " _rollbackPending=" + _rollbackPending
+        return "Transaction_" + _id + " depth=" + _nestedDepth + " _rollbackPending=" + _rollbackPending
                 + " _commitCompleted=" + _commitCompleted;
     }
 
@@ -1220,24 +1191,19 @@ public class Transaction {
     }
 
     public void setTransactionBufferCapacity(final int capacity) {
-        if (capacity < MIN_TXN_BUFFER_CAPACITY
-                || capacity > MAX_TXN_BUFFER_CAPACITY) {
-            throw new IllegalArgumentException("Invalid request capacity: "
-                    + capacity);
+        if (capacity < MIN_TXN_BUFFER_CAPACITY || capacity > MAX_TXN_BUFFER_CAPACITY) {
+            throw new IllegalArgumentException("Invalid request capacity: " + capacity);
         }
         if (capacity != _txnBuffer.capacity()) {
             _txnBuffer.allocate(capacity);
         }
     }
 
-    void touchedPage(Exchange exchange, Buffer buffer)
-            throws PersistitException {
-        int hashCode = ((int) buffer.getVolume().getId())
-                ^ ((int) buffer.getPageAddress());
+    void touchedPage(Exchange exchange, Buffer buffer) throws PersistitException {
+        int hashCode = ((int) buffer.getVolume().getId()) ^ ((int) buffer.getPageAddress());
         TouchedPage entry = (TouchedPage) _touchedPagesSet.lookup(hashCode);
         while (entry != null) {
-            if (entry._volume == buffer.getVolume()
-                    && entry._pageAddr == buffer.getPageAddress()) {
+            if (entry._volume == buffer.getVolume() && entry._pageAddr == buffer.getPageAddress()) {
                 if (entry._timestamp != buffer.getTimestamp()) {
                     // can't actually roll back here because the context is
                     // wrong.
@@ -1291,12 +1257,10 @@ public class Transaction {
             boolean exclusiveClaim = false;
 
             try {
-                exclusiveClaim = _persistit.getTransactionResourceB().claim(
-                        true, COMMIT_CLAIM_TIMEOUT);
+                exclusiveClaim = _persistit.getTransactionResourceB().claim(true, COMMIT_CLAIM_TIMEOUT);
 
                 if (!exclusiveClaim) {
-                    throw new TimeoutException("Unable to commit transaction "
-                            + this);
+                    throw new TimeoutException("Unable to commit transaction " + this);
                 }
 
                 //
@@ -1309,8 +1273,7 @@ public class Transaction {
                 TouchedPage tp = null;
                 while ((tp = (TouchedPage) _touchedPagesSet.next(tp)) != null) {
                     BufferPool pool = tp._volume.getPool();
-                    Buffer buffer = pool.get(tp._volume, tp._pageAddr, false,
-                            true);
+                    Buffer buffer = pool.get(tp._volume, tp._pageAddr, false, true);
                     boolean changed = buffer.getTimestamp() != tp._timestamp;
                     pool.release(buffer);
 
@@ -1335,8 +1298,7 @@ public class Transaction {
                         applyUpdates();
                     }
                 }
-                _commitTimestamp.set(_persistit.getTimestampAllocator()
-                        .updateTimestamp());
+                _commitTimestamp.set(_persistit.getTimestampAllocator().updateTimestamp());
 
                 //
                 // To serialize the TransactionalCache's we run the save()
@@ -1348,10 +1310,8 @@ public class Transaction {
                 // pinned at the checkpoint's timestamp.
                 //
                 if (_transactionalCacheCheckpoint != null) {
-                    _startTimestamp.set(_transactionalCacheCheckpoint
-                            .getTimestamp() - 1);
-                    _commitTimestamp.set(_transactionalCacheCheckpoint
-                            .getTimestamp());
+                    _startTimestamp.set(_transactionalCacheCheckpoint.getTimestamp() - 1);
+                    _commitTimestamp.set(_transactionalCacheCheckpoint.getTimestamp());
                     _transactionalCacheCheckpoint = null;
                 }
 
@@ -1360,17 +1320,14 @@ public class Transaction {
                     try {
                         _commitListeners.get(index).committed();
                     } catch (RuntimeException e) {
-                        if (_persistit.getLogBase().isLoggable(
-                                LogBase.LOG_TXN_EXCEPTION)) {
-                            _persistit.getLogBase().log(
-                                    LogBase.LOG_TXN_EXCEPTION, e, this);
+                        if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
+                            _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, e, this);
                         }
                     }
                 }
 
                 if (!_transactionCacheUpdates.isEmpty()) {
-                    for (final TransactionalCache tc : _transactionCacheUpdates
-                            .keySet()) {
+                    for (final TransactionalCache tc : _transactionCacheUpdates.keySet()) {
                         enqueued |= tc.commit(this);
                     }
                 }
@@ -1393,8 +1350,7 @@ public class Transaction {
         }
     }
 
-    private void prepareTxnExchange(Tree tree, Key key, char type)
-            throws PersistitException {
+    private void prepareTxnExchange(Tree tree, Key key, char type) throws PersistitException {
         if (_ex1 == null) {
             setupExchanges();
         }
@@ -1406,10 +1362,8 @@ public class Transaction {
         Key ex1Key = _ex1.getKey();
         byte[] ex1Bytes = ex1Key.getEncodedBytes();
 
-        if (keySize > Key.MAX_KEY_LENGTH - 32
-                || keySize + _rootKey.getEncodedSize() > Key.MAX_KEY_LENGTH) {
-            throw new InvalidKeyException("Key too long for transaction "
-                    + keySize);
+        if (keySize > Key.MAX_KEY_LENGTH - 32 || keySize + _rootKey.getEncodedSize() > Key.MAX_KEY_LENGTH) {
+            throw new InvalidKeyException("Key too long for transaction " + keySize);
         }
 
         System.arraycopy(bytes, 0, ex1Bytes, _rootKey.getEncodedSize(), keySize);
@@ -1421,8 +1375,7 @@ public class Transaction {
     }
 
     private boolean sameTree() {
-        return _ex1.getKey().compareKeyFragment(_rootKey, 0,
-                _rootKey.getEncodedSize()) == 0;
+        return _ex1.getKey().compareKeyFragment(_rootKey, 0, _rootKey.getEncodedSize()) == 0;
     }
 
     private void shiftOut() {
@@ -1472,8 +1425,7 @@ public class Transaction {
      *         determined by a pending remove operation, or <code>null</code> if
      *         the pending operations do not influence the result.
      */
-    Boolean fetch(Exchange exchange, Value value, int minimumBytes)
-            throws PersistitException {
+    Boolean fetch(Exchange exchange, Value value, int minimumBytes) throws PersistitException {
         checkState();
 
         if (_pendingRemoveCount == 0 && _pendingStoreCount == 0) {
@@ -1554,8 +1506,7 @@ public class Transaction {
      * 
      * @throws PersistitException
      */
-    Boolean traverse(Tree tree, Key originalKey, Key candidateKey,
-            Key.Direction direction, boolean deep, int minBytes)
+    Boolean traverse(Tree tree, Key originalKey, Key candidateKey, Key.Direction direction, boolean deep, int minBytes)
             throws PersistitException {
         checkState();
 
@@ -1576,8 +1527,7 @@ public class Transaction {
                 shiftOut();
                 int comparison = candidateKey.compareTo(candidateKey2);
 
-                boolean reverse = (direction == Key.LT)
-                        || (direction == Key.LTEQ);
+                boolean reverse = (direction == Key.LT) || (direction == Key.LTEQ);
 
                 if (reverse && comparison <= 0 || !reverse && comparison >= 0) {
                     candidateKey2.copyTo(candidateKey);
@@ -1609,8 +1559,7 @@ public class Transaction {
         return null;
     }
 
-    void fetchFromLastTraverse(Exchange exchange, int minimumBytes)
-            throws PersistitException {
+    void fetchFromLastTraverse(Exchange exchange, int minimumBytes) throws PersistitException {
         if (_ex1.getValue().isDefined()) {
             if (minimumBytes > 0) {
                 Value value1 = _ex1.getValue();
@@ -1635,8 +1584,7 @@ public class Transaction {
      * @param value
      * @throws PersistitException
      */
-    void store(Exchange exchange, Key key, Value value)
-            throws PersistitException {
+    void store(Exchange exchange, Key key, Value value) throws PersistitException {
         checkState();
 
         Tree tree = exchange.getTree();
@@ -1651,8 +1599,7 @@ public class Transaction {
             // event the transaction gets rolled back.
             //
             Volume volume = tree.getVolume();
-            long pageAddr = Buffer.decodeLongRecordDescriptorPointer(
-                    value.getEncodedBytes(), 0);
+            long pageAddr = Buffer.decodeLongRecordDescriptorPointer(value.getEncodedBytes(), 0);
             //
             // Synchronously flush all the member pages of the long record to
             // the journal. This ensures that recovery will find them. These
@@ -1661,8 +1608,7 @@ public class Transaction {
             //
             exchange.writeLongRecordPagesToJournal();
 
-            _longRecordDeallocationList.add(new DeallocationChain(volume,
-                    pageAddr, 0));
+            _longRecordDeallocationList.add(new DeallocationChain(volume, pageAddr, 0));
 
             value.getEncodedBytes()[0] = (byte) NEUTERED_LONGREC;
 
@@ -1679,8 +1625,7 @@ public class Transaction {
         return removed;
     }
 
-    boolean remove(Exchange exchange, Key key1, Key key2, boolean fetchFirst)
-            throws PersistitException {
+    boolean remove(Exchange exchange, Key key1, Key key2, boolean fetchFirst) throws PersistitException {
         checkState();
         //
         // Remove any applicable store operations
@@ -1699,8 +1644,7 @@ public class Transaction {
         prepareTxnExchange(tree, key2, 'S');
         _ex1.getKey().copyTo(spareKey2);
 
-        boolean result1 = _ex1.removeKeyRangeInternal(spareKey1, spareKey2,
-                fetchFirst);
+        boolean result1 = _ex1.removeKeyRangeInternal(spareKey1, spareKey2, fetchFirst);
 
         if (result1 && fetchFirst) {
             _ex1.getAuxiliaryValue().copyTo(exchange.getAuxiliaryValue());
@@ -1783,8 +1727,7 @@ public class Transaction {
         return result1 || result2;
     }
 
-    boolean writeUpdatesToTransactionWriterFast(TransactionWriter tw)
-            throws PersistitException {
+    boolean writeUpdatesToTransactionWriterFast(TransactionWriter tw) throws PersistitException {
 
         final ByteBuffer bb = _txnBuffer._bb;
 
@@ -1799,30 +1742,30 @@ public class Transaction {
             switch (type) {
 
             case TS.TYPE:
-                TS.putTimestamp(bb, startTimestamp);
+                JournalRecord.putTimestamp(bb, startTimestamp);
                 break;
 
             case TC.TYPE:
-                TC.putTimestamp(bb, startTimestamp);
+                JournalRecord.putTimestamp(bb, startTimestamp);
                 TC.putCommitTimestamp(bb, commitTimestamp);
                 break;
 
             case SR.TYPE: {
-                SR.putTimestamp(bb, startTimestamp);
+                JournalRecord.putTimestamp(bb, startTimestamp);
                 break;
             }
 
             case DR.TYPE: {
-                DR.putTimestamp(bb, startTimestamp);
+                JournalRecord.putTimestamp(bb, startTimestamp);
                 break;
             }
 
             case DT.TYPE:
-                DR.putTimestamp(bb, startTimestamp);
+                JournalRecord.putTimestamp(bb, startTimestamp);
                 break;
 
             case CU.TYPE:
-                CU.putTimestamp(bb, startTimestamp);
+                JournalRecord.putTimestamp(bb, startTimestamp);
                 break;
 
             default:
@@ -1833,14 +1776,12 @@ public class Transaction {
         }
         bb.reset();
 
-        _persistit.getJournalManager().writeTransactionBufferToJournal(bb,
-                startTimestamp, commitTimestamp);
+        _persistit.getJournalManager().writeTransactionBufferToJournal(bb, startTimestamp, commitTimestamp);
         return true;
 
     }
 
-    boolean writeUpdatesToTransactionWriter(TransactionWriter tw)
-            throws PersistitException {
+    boolean writeUpdatesToTransactionWriter(TransactionWriter tw) throws PersistitException {
 
         if (tw != _txnBuffer && _txnBuffer._bb.hasRemaining()) {
             return writeUpdatesToTransactionWriterFast(tw);
@@ -1873,52 +1814,43 @@ public class Transaction {
                 int size = key1.getEncodedSize() - offset;
 
                 Key key2 = _ex2.getKey();
-                System.arraycopy(key1.getEncodedBytes(), offset,
-                        key2.getEncodedBytes(), 0, size);
+                System.arraycopy(key1.getEncodedBytes(), offset, key2.getEncodedBytes(), 0, size);
                 key2.setEncodedSize(size);
 
                 if (type == 'R') {
                     key2.copyTo(_ex2.getAuxiliaryKey1());
                     txnValue.decodeAntiValue(_ex2);
 
-                    if (!tw.writeDeleteRecordToJournal(_startTimestamp.get(),
-                            treeHandle, _ex2.getAuxiliaryKey1(),
-                            _ex2.getAuxiliaryKey2())) {
+                    if (!tw.writeDeleteRecordToJournal(_startTimestamp.get(), treeHandle, _ex2.getAuxiliaryKey1(), _ex2
+                            .getAuxiliaryKey2())) {
                         return false;
                     }
                 } else if (type == 'S') {
-                    if (txnValue.isDefined()
-                            && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
+                    if (txnValue.isDefined() && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
                             && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
                         txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
                     }
-                    if (!tw.writeStoreRecordToJournal(_startTimestamp.get(),
-                            treeHandle, key2, txnValue)) {
+                    if (!tw.writeStoreRecordToJournal(_startTimestamp.get(), treeHandle, key2, txnValue)) {
                         return false;
                     }
                 } else if (type == 'D') {
-                    if (!tw.writeDeleteTreeToJournal(_startTimestamp.get(),
-                            treeHandle)) {
+                    if (!tw.writeDeleteTreeToJournal(_startTimestamp.get(), treeHandle)) {
                         return false;
                     }
                 }
             }
         }
         if (!_transactionCacheUpdates.isEmpty()) {
-            for (final Map.Entry<TransactionalCache, List<Update>> entry : _transactionCacheUpdates
-                    .entrySet()) {
-                if (_transactionalCacheCheckpoint == null
-                        && entry.getValue().isEmpty()) {
+            for (final Map.Entry<TransactionalCache, List<Update>> entry : _transactionCacheUpdates.entrySet()) {
+                if (_transactionalCacheCheckpoint == null && entry.getValue().isEmpty()) {
                     continue;
                 }
-                if (!tw.writeCacheUpdatesToJournal(_startTimestamp.get(), entry
-                        .getKey().cacheId(), entry.getValue())) {
+                if (!tw.writeCacheUpdatesToJournal(_startTimestamp.get(), entry.getKey().cacheId(), entry.getValue())) {
                     return false;
                 }
             }
         }
-        if (!tw.writeTransactionCommitToJournal(_startTimestamp.get(),
-                _commitTimestamp.get())) {
+        if (!tw.writeTransactionCommitToJournal(_startTimestamp.get(), _commitTimestamp.get())) {
             return false;
         }
         return true;
@@ -1951,13 +1883,12 @@ public class Transaction {
                 _ex2.setTree(treeForHandle(treeHandle));
                 final Key key = _ex2.getKey();
                 final Value value = _ex2.getValue();
-                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD,
-                        key.getEncodedBytes(), 0, keySize);
+                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD, key.getEncodedBytes(), 0, keySize);
                 key.setEncodedSize(keySize);
                 final int valueSize = recordSize - SR.OVERHEAD - keySize;
                 value.ensureFit(valueSize);
-                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD
-                        + keySize, value.getEncodedBytes(), 0, valueSize);
+                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD + keySize, value.getEncodedBytes(), 0,
+                        valueSize);
                 value.setEncodedSize(valueSize);
                 _ex2.storeInternal(key, value, 0, false, false);
                 removedTrees.remove(_ex2.getTree());
@@ -1973,15 +1904,13 @@ public class Transaction {
                 }
                 final Key key1 = _ex2.getAuxiliaryKey1();
                 final Key key2 = _ex2.getAuxiliaryKey2();
-                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD,
-                        key1.getEncodedBytes(), 0, key1Size);
+                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0, key1Size);
                 key1.setEncodedSize(key1Size);
                 final int key2Size = recordSize - DR.OVERHEAD - key1Size;
-                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD
-                        + key1Size, key2.getEncodedBytes(), 0, key2Size);
+                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD + key1Size, key2.getEncodedBytes(), 0,
+                        key2Size);
                 key2.setEncodedSize(key2Size);
-                _ex2.removeKeyRangeInternal(_ex2.getAuxiliaryKey1(),
-                        _ex2.getAuxiliaryKey2(), false);
+                _ex2.removeKeyRangeInternal(_ex2.getAuxiliaryKey1(), _ex2.getAuxiliaryKey2(), false);
                 break;
             }
 
@@ -2030,19 +1959,16 @@ public class Transaction {
                 int size = key1.getEncodedSize() - offset;
 
                 Key key2 = _ex2.getKey();
-                System.arraycopy(key1.getEncodedBytes(), offset,
-                        key2.getEncodedBytes(), 0, size);
+                System.arraycopy(key1.getEncodedBytes(), offset, key2.getEncodedBytes(), 0, size);
                 key2.setEncodedSize(size);
 
                 if (type == 'R') {
                     key2.copyTo(_ex2.getAuxiliaryKey1());
                     txnValue.decodeAntiValue(_ex2);
 
-                    _ex2.removeKeyRangeInternal(_ex2.getAuxiliaryKey1(),
-                            _ex2.getAuxiliaryKey2(), false);
+                    _ex2.removeKeyRangeInternal(_ex2.getAuxiliaryKey1(), _ex2.getAuxiliaryKey2(), false);
                 } else if (type == 'S') {
-                    if (txnValue.isDefined()
-                            && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
+                    if (txnValue.isDefined() && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
                             && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
                         txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
                     }
@@ -2056,10 +1982,8 @@ public class Transaction {
         removeTrees(removedTrees);
     }
 
-    private void removeTrees(final Set<Tree> removedTrees)
-            throws PersistitException {
-        for (final Iterator<WeakReference<Tree>> iterator = _treeCache.values()
-                .iterator(); iterator.hasNext();) {
+    private void removeTrees(final Set<Tree> removedTrees) throws PersistitException {
+        for (final Iterator<WeakReference<Tree>> iterator = _treeCache.values().iterator(); iterator.hasNext();) {
             final WeakReference<Tree> ref = iterator.next();
             final Tree tree = ref.get();
             if (tree != null && removedTrees.contains(tree)) {
@@ -2096,8 +2020,7 @@ public class Transaction {
                 if (Debug.ENABLED) {
                     Volume volume = dc._volume;
                     long pageAddr = dc._leftPage;
-                    Buffer buffer = volume.getPool().get(volume, pageAddr,
-                            false, true);
+                    Buffer buffer = volume.getPool().get(volume, pageAddr, false, true);
                     Debug.$assert(buffer.isLongRecordPage());
                     volume.getPool().release(buffer);
                 }
@@ -2117,8 +2040,7 @@ public class Transaction {
         while (_ex1.traverse(Key.GT, true)) {
             Key key1 = _ex1.getKey();
             key1.reset();
-            if (key1.decodeType() != Character.class
-                    || key1.decodeChar() != 'S') {
+            if (key1.decodeType() != Character.class || key1.decodeChar() != 'S') {
                 break;
             }
 
@@ -2135,22 +2057,18 @@ public class Transaction {
                 byte[] bytes = txnValue.getEncodedBytes();
                 bytes[0] = (byte) Buffer.LONGREC_TYPE;
                 Volume volume = currentTree.getVolume();
-                long pageAddress = Buffer.decodeLongRecordDescriptorPointer(
-                        bytes, 0);
+                long pageAddress = Buffer.decodeLongRecordDescriptorPointer(bytes, 0);
 
                 if (Debug.ENABLED)
-                    Debug.$assert(pageAddress > 0
-                            && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
+                    Debug.$assert(pageAddress > 0 && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
 
                 if (Debug.ENABLED) {
-                    Buffer buffer = volume.getPool().get(volume, pageAddress,
-                            false, true);
+                    Buffer buffer = volume.getPool().get(volume, pageAddress, false, true);
                     Debug.$assert(buffer.isLongRecordPage());
                     buffer.release();
                 }
 
-                _longRecordDeallocationList.add(new DeallocationChain(volume,
-                        pageAddress, 0));
+                _longRecordDeallocationList.add(new DeallocationChain(volume, pageAddress, 0));
             }
         }
     }

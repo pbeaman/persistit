@@ -43,8 +43,8 @@ public class LogBase {
     final static int DEBUG = 0x0100;
     final static int RMI = 0x0200;
 
-    final static String[] TYPE_NAMES = { "ALL", "LIFECYCLE", "POOL", "J",
-            "GAR", "FAIL", "IO", "PERSISTIT", "TEST", "DEBUG", "RMI", };
+    final static String[] TYPE_NAMES = { "ALL", "LIFECYCLE", "POOL", "J", "GAR", "FAIL", "IO", "PERSISTIT", "TEST",
+            "DEBUG", "RMI", };
 
     private final static int FINEST = AbstractPersistitLogger.FINEST;
     private final static int FINER = AbstractPersistitLogger.FINER;
@@ -57,57 +57,33 @@ public class LogBase {
 
     private static int _logId = 0;
 
-    final static int LOG_GENERAL = addLogTemplate(INFO, LIFECYCLE,
-            "Persistit: {0}");
+    final static int LOG_GENERAL = addLogTemplate(INFO, LIFECYCLE, "Persistit: {0}");
     final static int LOG_DEBUG = addLogTemplate(INFO, DEBUG, "{0}");
-    final static int LOG_COPYRIGHT = addLogTemplate(INFO, LIFECYCLE,
-            Persistit.copyright());
+    final static int LOG_COPYRIGHT = addLogTemplate(INFO, LIFECYCLE, Persistit.copyright());
     final static int LOG_START = addLogTemplate(INFO, LIFECYCLE, "START");
     final static int LOG_END = addLogTemplate(INFO, LIFECYCLE, "END");
-    public final static int LOG_EXCEPTION = addLogTemplate(SEVERE, ALL,
-            "EXCEPTION");
-    public final static int LOG_CONFIGURATION_ERROR = addLogTemplate(WARNING,
-            LIFECYCLE, "CONFIGURATION_ERROR");
-    final static int LOG_INIT_ALLOCATE_BUFFERS = addLogTemplate(INFO,
-            LIFECYCLE, "INIT_ALLOCATE_BUFFERS");
-    final static int LOG_INIT_OPEN_VOLUME = addLogTemplate(INFO, LIFECYCLE,
-            "INIT_OPEN_VOLUME");
-    final static int LOG_JOURNAL_WRITE_ERROR = addLogTemplate(SEVERE,
-            LIFECYCLE, "JOURNAL_WRITE_ERROR");
-    final static int LOG_RECOVERY_DONE = addLogTemplate(INFO, JOURNAL,
-            "RECOVERY_DONE");
-    final static int LOG_RECOVERY_FAILURE = addLogTemplate(SEVERE, LIFECYCLE,
-            "RECOVERY_FAILURE");
-    final static int LOG_RECOVERY_RECORD = addLogTemplate(DEBUG, JOURNAL,
-            "RECOVERY_RECORD");
-    final static int LOG_RECOVERY_PLAN = addLogTemplate(INFO, JOURNAL,
-            "RECOVERY_PLAN");
-    final static int LOG_RECOVERY_PROGRESS = addLogTemplate(INFO, JOURNAL,
-            "RECOVERY_PROGRESS");
-    final static int LOG_RECOVERY_EXCEPTION = addLogTemplate(WARNING, JOURNAL,
-            "RECOVERY_EXCEPTION");
-    final static int LOG_CHECKPOINT_PROPOSED = addLogTemplate(INFO, JOURNAL,
-            "CHECKPOINT_PROPOSED");
-    final static int LOG_CHECKPOINT_WRITTEN = addLogTemplate(INFO, JOURNAL,
-            "CHECKPOINT_WRITTEN");
-    final static int LOG_CHECKPOINT_RECOVERED = addLogTemplate(INFO, JOURNAL,
-            "CHECKPOINT_RECOVERED");
-    final static int LOG_TXN_EXCEPTION = addLogTemplate(SEVERE, PERSISTIT,
-            "TXN_EXCEPTION");
-    final static int LOG_TXN_NOT_COMMITTED = addLogTemplate(FINE, PERSISTIT,
-            "TXN_NOT_COMMITTED");
-    final static int LOG_INIT_CREATE_GUI = addLogTemplate(FINE, LIFECYCLE,
-            "INIT_CREATE_GUI");
-    public final static int LOG_MBEAN_REGISTRATION = addLogTemplate(FINE,
-            LIFECYCLE, "MBEAN_REGISTRATION");
-    public final static int LOG_MBEAN_EXCEPTION = addLogTemplate(WARNING,
-            LIFECYCLE, "MBEAN_EXCEPTION");
-    final static int LOG_DEFERRED_DEALLOC_FAILED = addLogTemplate(WARNING,
-            PERSISTIT, "DEFERRED_DEALLOC_FAILED");
-    final static int LOG_PENDING_TIMEOUT = addLogTemplate(WARNING, PERSISTIT,
-            "PENDING_TIMEOUT");
-    final static int LOG_SET_GARBAGE_HEADER = addLogTemplate(FINE, GAR,
-            "SET_GARBAGE_HEADER");
+    public final static int LOG_EXCEPTION = addLogTemplate(SEVERE, ALL, "EXCEPTION");
+    public final static int LOG_CONFIGURATION_ERROR = addLogTemplate(WARNING, LIFECYCLE, "CONFIGURATION_ERROR");
+    final static int LOG_INIT_ALLOCATE_BUFFERS = addLogTemplate(INFO, LIFECYCLE, "INIT_ALLOCATE_BUFFERS");
+    final static int LOG_INIT_OPEN_VOLUME = addLogTemplate(INFO, LIFECYCLE, "INIT_OPEN_VOLUME");
+    final static int LOG_JOURNAL_WRITE_ERROR = addLogTemplate(SEVERE, LIFECYCLE, "JOURNAL_WRITE_ERROR");
+    final static int LOG_RECOVERY_DONE = addLogTemplate(INFO, JOURNAL, "RECOVERY_DONE");
+    final static int LOG_RECOVERY_FAILURE = addLogTemplate(SEVERE, LIFECYCLE, "RECOVERY_FAILURE");
+    final static int LOG_RECOVERY_RECORD = addLogTemplate(DEBUG, JOURNAL, "RECOVERY_RECORD");
+    final static int LOG_RECOVERY_PLAN = addLogTemplate(INFO, JOURNAL, "RECOVERY_PLAN");
+    final static int LOG_RECOVERY_PROGRESS = addLogTemplate(INFO, JOURNAL, "RECOVERY_PROGRESS");
+    final static int LOG_RECOVERY_EXCEPTION = addLogTemplate(WARNING, JOURNAL, "RECOVERY_EXCEPTION");
+    final static int LOG_CHECKPOINT_PROPOSED = addLogTemplate(INFO, JOURNAL, "CHECKPOINT_PROPOSED");
+    final static int LOG_CHECKPOINT_WRITTEN = addLogTemplate(INFO, JOURNAL, "CHECKPOINT_WRITTEN");
+    final static int LOG_CHECKPOINT_RECOVERED = addLogTemplate(INFO, JOURNAL, "CHECKPOINT_RECOVERED");
+    final static int LOG_TXN_EXCEPTION = addLogTemplate(SEVERE, PERSISTIT, "TXN_EXCEPTION");
+    final static int LOG_TXN_NOT_COMMITTED = addLogTemplate(FINE, PERSISTIT, "TXN_NOT_COMMITTED");
+    final static int LOG_INIT_CREATE_GUI = addLogTemplate(FINE, LIFECYCLE, "INIT_CREATE_GUI");
+    public final static int LOG_MBEAN_REGISTRATION = addLogTemplate(FINE, LIFECYCLE, "MBEAN_REGISTRATION");
+    public final static int LOG_MBEAN_EXCEPTION = addLogTemplate(WARNING, LIFECYCLE, "MBEAN_EXCEPTION");
+    final static int LOG_DEFERRED_DEALLOC_FAILED = addLogTemplate(WARNING, PERSISTIT, "DEFERRED_DEALLOC_FAILED");
+    final static int LOG_PENDING_TIMEOUT = addLogTemplate(WARNING, PERSISTIT, "PENDING_TIMEOUT");
+    final static int LOG_SET_GARBAGE_HEADER = addLogTemplate(FINE, GAR, "SET_GARBAGE_HEADER");
     final static int LOG_DEALLOCGC1 = addLogTemplate(FINER, GAR, "DEALLOCGC1");
     final static int LOG_DEALLOCGC2 = addLogTemplate(FINEST, GAR, "DEALLOCGC2");
     final static int LOG_DEALLOCGC3 = addLogTemplate(FINEST, GAR, "DEALLOCGC3");
@@ -120,29 +96,19 @@ public class LogBase {
     final static int LOG_READ_IOE = addLogTemplate(SEVERE, POOL, "READ_IOE");
     final static int LOG_WRITE_IOE = addLogTemplate(SEVERE, POOL, "WRITE_IOE");
     final static int LOG_ALLOC_RETRY = addLogTemplate(FINER, GAR, "ALLOC_RETRY");
-    final static int LOG_ALLOC_GARROOT = addLogTemplate(FINER, GAR,
-            "ALLOC_GARROOT");
+    final static int LOG_ALLOC_GARROOT = addLogTemplate(FINER, GAR, "ALLOC_GARROOT");
     final static int LOG_ALLOC_GAR = addLogTemplate(FINEST, GAR, "ALLOC_GAR");
-    final static int LOG_ALLOC_GAR_END = addLogTemplate(FINEST, GAR,
-            "ALLOC_GAR_END");
-    final static int LOG_ALLOC_GAR_UPDATE = addLogTemplate(FINEST, GAR,
-            "ALLOC_GAR_UPDATE");
-    final static int LOG_EXTEND_NORMAL = addLogTemplate(FINE, POOL,
-            "EXTEND_NORMAL");
-    final static int LOG_EXTEND_LARGER = addLogTemplate(DEBUG, POOL,
-            "EXTEND_LARGER");
+    final static int LOG_ALLOC_GAR_END = addLogTemplate(FINEST, GAR, "ALLOC_GAR_END");
+    final static int LOG_ALLOC_GAR_UPDATE = addLogTemplate(FINEST, GAR, "ALLOC_GAR_UPDATE");
+    final static int LOG_EXTEND_NORMAL = addLogTemplate(FINE, POOL, "EXTEND_NORMAL");
+    final static int LOG_EXTEND_LARGER = addLogTemplate(DEBUG, POOL, "EXTEND_LARGER");
     final static int LOG_EXTEND_IOE = addLogTemplate(SEVERE, POOL, "EXTEND_IOE");
     final static int LOG_RMI_SERVER = addLogTemplate(FINE, RMI, "RMI_SERVER");
-    final static int LOG_UNINDEXED_PAGE = addLogTemplate(WARNING, PERSISTIT,
-            "UNINDEXED_PAGE");
-    final static int LOG_RMI_EXCEPTION = addLogTemplate(WARNING, RMI,
-            "RMI_SERVER");
-    final static int LOG_SHUTDOWN_HOOK = addLogTemplate(INFO, LIFECYCLE,
-            "SHUTDOWN_HOOK");
-    final static int LOG_WAIT_FOR_CLOSE = addLogTemplate(INFO, LIFECYCLE,
-            "WAIT_FOR_CLOSE");
-    final static int LOG_STRANDED = addLogTemplate(SEVERE, LIFECYCLE,
-            "STRANDED");
+    final static int LOG_UNINDEXED_PAGE = addLogTemplate(WARNING, PERSISTIT, "UNINDEXED_PAGE");
+    final static int LOG_RMI_EXCEPTION = addLogTemplate(WARNING, RMI, "RMI_SERVER");
+    final static int LOG_SHUTDOWN_HOOK = addLogTemplate(INFO, LIFECYCLE, "SHUTDOWN_HOOK");
+    final static int LOG_WAIT_FOR_CLOSE = addLogTemplate(INFO, LIFECYCLE, "WAIT_FOR_CLOSE");
+    final static int LOG_STRANDED = addLogTemplate(SEVERE, LIFECYCLE, "STRANDED");
     final static int LOG_CORRUPT = addLogTemplate(SEVERE, PERSISTIT, "CORRUPT");
 
     private static ResourceBundle _logBundle;
@@ -159,8 +125,7 @@ public class LogBase {
     boolean isLoggable(int messageId) {
         if ((messageId & 0xFF) < _minimumLogLevel)
             return false;
-        return _persistit.getPersistitLogger().isLoggable(
-                logTemplate(messageId));
+        return _persistit.getPersistitLogger().isLoggable(logTemplate(messageId));
     }
 
     public LogTemplate logTemplate(int messageId) {
@@ -183,8 +148,7 @@ public class LogBase {
         return -1;
     }
 
-    protected static int addLogTemplate(int level, int subsystem,
-            String template) {
+    protected static int addLogTemplate(int level, int subsystem, String template) {
         int messageId;
 
         messageId = _logId++;
@@ -210,8 +174,7 @@ public class LogBase {
 
         if (messageId >= _templateArray.length) {
             LogTemplate[] newArray = new LogTemplate[messageId + 5];
-            System.arraycopy(_templateArray, 0, newArray, 0,
-                    _templateArray.length);
+            System.arraycopy(_templateArray, 0, newArray, 0, _templateArray.length);
             _templateArray = newArray;
         }
 
@@ -250,14 +213,11 @@ public class LogBase {
                 subsystem = lookup(TYPE_NAMES, st2.nextToken());
             }
             if (st2.hasMoreTokens()) {
-                level = lookup(AbstractPersistitLogger.LEVEL_NAMES,
-                        st2.nextToken());
+                level = lookup(AbstractPersistitLogger.LEVEL_NAMES, st2.nextToken());
             }
 
             if (subsystem == -1 || level == -1) {
-                throw new IllegalArgumentException(
-                        "Bad log level specifaction \"" + s + "\" in \""
-                                + flags + "\"");
+                throw new IllegalArgumentException("Bad log level specifaction \"" + s + "\" in \"" + flags + "\"");
             }
             long typeMask = 0;
             if (subsystem == 0)

@@ -54,8 +54,7 @@ class ValueInspectorTreeNode implements TreeNode {
     private Class _type;
     private ValueInspectorTreeNode[] _children;
 
-    ValueInspectorTreeNode(ValueInspectorTreeNode parent, Object object,
-            String name, Class type) {
+    ValueInspectorTreeNode(ValueInspectorTreeNode parent, Object object, String name, Class type) {
         _parent = parent;
         _object = object;
         _type = type;
@@ -68,8 +67,7 @@ class ValueInspectorTreeNode implements TreeNode {
         } else if (!type.isPrimitive()) {
             if (object != null)
                 childCount = getFields(type).length;
-            if (type.getSuperclass() != null
-                    && type.getSuperclass() != Object.class) {
+            if (type.getSuperclass() != null && type.getSuperclass() != Object.class) {
                 childCount++;
             }
         }
@@ -77,14 +75,12 @@ class ValueInspectorTreeNode implements TreeNode {
         _children = new ValueInspectorTreeNode[childCount];
     }
 
-    ValueInspectorTreeNode(ValueInspectorTreeNode parent, Object object,
-            String name, Class type, int index) {
+    ValueInspectorTreeNode(ValueInspectorTreeNode parent, Object object, String name, Class type, int index) {
         this(parent, object, name, type);
         _index = index;
     }
 
-    String displayable(String fieldName, Class type, Object object,
-            int arrayIndex) {
+    String displayable(String fieldName, Class type, Object object, int arrayIndex) {
         StringBuilder sb = new StringBuilder();
 
         if (arrayIndex >= 0) {
@@ -103,8 +99,7 @@ class ValueInspectorTreeNode implements TreeNode {
 
             sb.append(" = ");
 
-            if (type == boolean.class || type == float.class
-                    || type == double.class) {
+            if (type == boolean.class || type == float.class || type == double.class) {
                 sb.append(object.toString());
             } else if (type == byte.class) {
                 sb.append(object);
@@ -155,16 +150,13 @@ class ValueInspectorTreeNode implements TreeNode {
                 sb.append(" = null");
             } else if (object instanceof String) {
                 sb.append(" = \"");
-                Util.appendQuotedString(sb, object.toString(), 0,
-                        MAX_DISPLAYABLE_LENGTH - sb.length());
+                Util.appendQuotedString(sb, object.toString(), 0, MAX_DISPLAYABLE_LENGTH - sb.length());
                 sb.append('\"');
             } else if (object instanceof Date) {
                 sb.append(" = ");
                 sb.append(Key.SDF.format((Date) object));
-            } else if (type == Boolean.class || type == Byte.class
-                    || type == Short.class || type == Character.class
-                    || type == Integer.class || type == Long.class
-                    || type == Float.class || type == Double.class
+            } else if (type == Boolean.class || type == Byte.class || type == Short.class || type == Character.class
+                    || type == Integer.class || type == Long.class || type == Float.class || type == Double.class
                     || type == BigInteger.class || type == BigDecimal.class) {
                 sb.append(" = ");
                 sb.append(object);
@@ -235,16 +227,19 @@ class ValueInspectorTreeNode implements TreeNode {
         return 0;
     }
 
+    @Override
     public Enumeration children() {
         if (_object == null || _type.isPrimitive())
             return null;
         return new ChildEnumeration();
     }
 
+    @Override
     public boolean getAllowsChildren() {
         return true;
     }
 
+    @Override
     public TreeNode getChildAt(int childIndex) {
         if (_object == null || _type.isPrimitive())
             return null;
@@ -258,10 +253,12 @@ class ValueInspectorTreeNode implements TreeNode {
         return _children[childIndex];
     }
 
+    @Override
     public int getChildCount() {
         return _children.length;
     }
 
+    @Override
     public int getIndex(TreeNode node) {
         if (_parent == null)
             return -1;
@@ -273,14 +270,17 @@ class ValueInspectorTreeNode implements TreeNode {
         return -1;
     }
 
+    @Override
     public TreeNode getParent() {
         return _parent;
     }
 
+    @Override
     public boolean isLeaf() {
         return _children.length == 0;
     }
 
+    @Override
     public String toString() {
         if (_displayable == null) {
             _displayable = displayable(_fieldName, _type, _object, _index);
@@ -310,8 +310,7 @@ class ValueInspectorTreeNode implements TreeNode {
                     sb.append(", ");
                 if (primitive) {
                     if (elementType == boolean.class) {
-                        sb.append(((boolean[]) object)[index] ? Boolean.TRUE
-                                : Boolean.FALSE);
+                        sb.append(((boolean[]) object)[index] ? Boolean.TRUE : Boolean.FALSE);
                     } else if (elementType == byte.class) {
                         sb.append(((byte[]) object)[index]);
                     } else if (elementType == short.class) {
@@ -345,18 +344,16 @@ class ValueInspectorTreeNode implements TreeNode {
             try {
                 return object.toString();
             } catch (Throwable t) {
-                return t + " while invoking " + object.getClass().getName()
-                        + ".toString()";
+                return t + " while invoking " + object.getClass().getName() + ".toString()";
             }
         }
     }
 
     private ValueInspectorTreeNode getFieldValue(int index) {
-        if (_type.getSuperclass() != null
-                && _type.getSuperclass() != Object.class) {
+        if (_type.getSuperclass() != null && _type.getSuperclass() != Object.class) {
             if (index == 0) {
-                return new ValueInspectorTreeNode(this, _object, _type
-                        .getSuperclass().toString(), _type.getSuperclass());
+                return new ValueInspectorTreeNode(this, _object, _type.getSuperclass().toString(), _type
+                        .getSuperclass());
             } else {
                 index--;
             }
@@ -368,8 +365,7 @@ class ValueInspectorTreeNode implements TreeNode {
         } catch (IllegalAccessException iae) {
             childValue = "{{" + iae.toString() + "}}";
         }
-        return _children[index] = new ValueInspectorTreeNode(this, childValue,
-                field.getName(), field.getType());
+        return _children[index] = new ValueInspectorTreeNode(this, childValue, field.getName(), field.getType());
         // childValue.getClass());
     }
 
@@ -378,8 +374,7 @@ class ValueInspectorTreeNode implements TreeNode {
         Class elementType = _type.getComponentType();
         if (elementType.isPrimitive()) {
             if (elementType == boolean.class) {
-                element = ((boolean[]) _object)[index] ? Boolean.TRUE
-                        : Boolean.FALSE;
+                element = ((boolean[]) _object)[index] ? Boolean.TRUE : Boolean.FALSE;
             } else if (elementType == byte.class) {
                 element = new Byte(((byte[]) _object)[index]);
             } else if (elementType == short.class) {
@@ -400,11 +395,9 @@ class ValueInspectorTreeNode implements TreeNode {
             element = ((Object[]) _object)[index];
         }
 
-        Class type = elementType.isPrimitive() || element == null ? elementType
-                : element.getClass();
+        Class type = elementType.isPrimitive() || element == null ? elementType : element.getClass();
 
-        return new ValueInspectorTreeNode(this, element, "[" + index + "]",
-                type, index);
+        return new ValueInspectorTreeNode(this, element, "[" + index + "]", type, index);
     }
 
     private Field[] getFields(Class type) {
@@ -427,6 +420,7 @@ class ValueInspectorTreeNode implements TreeNode {
     }
 
     private class FieldComparator implements Comparator {
+        @Override
         public int compare(Object a, Object b) {
             Field fieldA = (Field) a;
             Field fieldB = (Field) b;
@@ -439,10 +433,12 @@ class ValueInspectorTreeNode implements TreeNode {
     private class ChildEnumeration implements Enumeration {
         int _enumerationIndex = 0;
 
+        @Override
         public boolean hasMoreElements() {
             return _enumerationIndex < _children.length;
         }
 
+        @Override
         public Object nextElement() {
             return getChildAt(_enumerationIndex++);
         }
@@ -458,12 +454,14 @@ class ValueInspectorTreeNode implements TreeNode {
             _runnable = runnable;
         }
 
+        @Override
         public void run() {
             try {
                 _toString = null;
                 Timer timer = new Timer();
 
                 timer.schedule(new TimerTask() {
+                    @Override
                     public void run() {
                         if (!_done) {
                             _toString = "???";

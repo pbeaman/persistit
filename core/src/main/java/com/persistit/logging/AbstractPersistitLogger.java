@@ -65,8 +65,7 @@ public abstract class AbstractPersistitLogger {
     public final static int SEVERE = 6;
     public final static int ALWAYS = 9;
 
-    public final static LogTemplate GENERAL_LOG_TEMPLATE = new LogTemplate(
-            ALWAYS, -1, "Persistit: {0}");
+    public final static LogTemplate GENERAL_LOG_TEMPLATE = new LogTemplate(ALWAYS, -1, "Persistit: {0}");
 
     public final static String[] LEVEL_NAMES = { "?", // 0
             "FINEST", // 1

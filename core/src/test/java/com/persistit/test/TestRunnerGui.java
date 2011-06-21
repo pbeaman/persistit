@@ -66,8 +66,7 @@ public class TestRunnerGui extends JFrame {
      */
     private static final long serialVersionUID = 1L;
 
-    private final static String[] COLUMN_NAMES = { "Index", "Unit", "Test",
-            "Progress", "Time", "Status", };
+    private final static String[] COLUMN_NAMES = { "Index", "Unit", "Test", "Progress", "Time", "Status", };
 
     Container _exchangeGui;
     TestTableModel _testTableModel;
@@ -89,27 +88,25 @@ public class TestRunnerGui extends JFrame {
         final JPanel panel = new JPanel(new BorderLayout());
         final JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         final JTable table = new JTable(_testTableModel);
-        splitPane.add(new JScrollPane(table,
-                ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
+        splitPane.add(new JScrollPane(table, ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS));
         splitPane.add(_displayPanel);
         panel.add(splitPane, BorderLayout.CENTER);
         table.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
         final ListSelectionModel lsm = table.getSelectionModel();
 
-        table.getSelectionModel().addListSelectionListener(
-                new ListSelectionListener() {
-                    public void valueChanged(final ListSelectionEvent lse) {
-                        if (!lsm.getValueIsAdjusting()) {
-                            final int index = lsm.getMinSelectionIndex();
-                            if (index != -1) {
-                                final AbstractTestRunnerItem test = _testTableModel
-                                        .getTest(index);
-                                _displayPanel.setTest(test);
-                            }
-                        }
+        table.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(final ListSelectionEvent lse) {
+                if (!lsm.getValueIsAdjusting()) {
+                    final int index = lsm.getMinSelectionIndex();
+                    if (index != -1) {
+                        final AbstractTestRunnerItem test = _testTableModel.getTest(index);
+                        _displayPanel.setTest(test);
                     }
-                });
+                }
+            }
+        });
         return panel;
     }
 
@@ -118,15 +115,13 @@ public class TestRunnerGui extends JFrame {
         private final StringBuilder _sb = new StringBuilder(100);
         private final SimpleAttributeSet _as = new SimpleAttributeSet();
 
-        public ConsoleOutputStream(final PlainDocument doc,
-                final boolean errorStream) {
+        public ConsoleOutputStream(final PlainDocument doc, final boolean errorStream) {
             _consoleDocument = doc;
             _as.addAttribute(PlainDocument.lineLimitAttribute, new Integer(120));
             _as.addAttribute(PlainDocument.tabSizeAttribute, new Integer(8));
             StyleConstants.setFontFamily(_as, "Monospaced");
             StyleConstants.setFontSize(_as, 12);
-            StyleConstants.setForeground(_as, errorStream ? Color.red
-                    : Color.black);
+            StyleConstants.setForeground(_as, errorStream ? Color.red : Color.black);
             StyleConstants.setBackground(_as, Color.white);
         }
 
@@ -164,19 +159,18 @@ public class TestRunnerGui extends JFrame {
 
         JTextArea _textArea = new JTextArea();
 
-        JScrollPane _scrollPane = new JScrollPane(_textArea,
-                ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
+        JScrollPane _scrollPane = new JScrollPane(_textArea, ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
                 ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
 
         JLabel _caption = new JLabel("No Test Selected");
 
-        JToggleButton _autoscroll = new JToggleButton(new AbstractAction(
-                "Scroll Lock") {
+        JToggleButton _autoscroll = new JToggleButton(new AbstractAction("Scroll Lock") {
             /**
                  * 
                  */
             private static final long serialVersionUID = 1L;
 
+            @Override
             public void actionPerformed(ActionEvent ae) {
                 if (!((JToggleButton) ae.getSource()).isSelected()) {
                     scrollToEnd();
@@ -185,15 +179,18 @@ public class TestRunnerGui extends JFrame {
         });
 
         DocumentListener _listener = new DocumentListener() {
+            @Override
             public void changedUpdate(DocumentEvent ev) {
             }
 
+            @Override
             public void insertUpdate(DocumentEvent ev) {
                 if (!_autoscroll.isSelected()) {
                     scrollToEnd();
                 }
             }
 
+            @Override
             public void removeUpdate(DocumentEvent ev) {
                 if (!_autoscroll.isSelected()) {
                     scrollToEnd();
@@ -203,10 +200,10 @@ public class TestRunnerGui extends JFrame {
         };
 
         Runnable _scroller = new Runnable() {
+            @Override
             public void run() {
                 int h = _textArea.getHeight();
-                _scrollPane.getViewport().scrollRectToVisible(
-                        new Rectangle(0, h - 1, 1, 1));
+                _scrollPane.getViewport().scrollRectToVisible(new Rectangle(0, h - 1, 1, 1));
             }
         };
 
@@ -219,8 +216,7 @@ public class TestRunnerGui extends JFrame {
             _textArea.repaint();
 
             _test.getDocument().addDocumentListener(_listener);
-            _caption.setText(_test.getUnitName() + ": " + _test.toString()
-                    + " (" + _test.getName() + ")");
+            _caption.setText(_test.getUnitName() + ": " + _test.toString() + " (" + _test.getName() + ")");
         }
 
         private DisplayPanel() {
@@ -240,10 +236,8 @@ public class TestRunnerGui extends JFrame {
     public void addTest(final AbstractTestRunnerItem test) {
 
         final PlainDocument doc = new PlainDocument();
-        final PrintStream ps = new PrintStream(new ConsoleOutputStream(doc,
-                false));
-        final PrintStream es = new PrintStream(new ConsoleOutputStream(doc,
-                true));
+        final PrintStream ps = new PrintStream(new ConsoleOutputStream(doc, false));
+        final PrintStream es = new PrintStream(new ConsoleOutputStream(doc, true));
         test.setDocument(doc);
         test.setOutputStream(ps);
         test.setErrorStream(es);
@@ -260,11 +254,13 @@ public class TestRunnerGui extends JFrame {
         private final ArrayList<AbstractTestRunnerItem> _list = new ArrayList<AbstractTestRunnerItem>();
 
         private final Thread _flusher = new Thread(new Runnable() {
+            @Override
             public void run() {
                 for (;;) {
                     try {
                         Thread.sleep(2000);
                         SwingUtilities.invokeLater(new Runnable() {
+                            @Override
                             public void run() {
                                 fireTableDataChanged();
                             }
@@ -286,16 +282,19 @@ public class TestRunnerGui extends JFrame {
         public void addTest(final AbstractTestRunnerItem test) {
             _list.add(test);
             SwingUtilities.invokeLater(new Runnable() {
+                @Override
                 public void run() {
                     fireTableRowsInserted(_list.size() - 1, _list.size() - 1);
                 }
             });
         }
 
+        @Override
         public int getColumnCount() {
             return COLUMN_NAMES.length;
         }
 
+        @Override
         public int getRowCount() {
             return _list.size();
         }
@@ -304,9 +303,9 @@ public class TestRunnerGui extends JFrame {
             return _list.get(row);
         }
 
+        @Override
         public Object getValueAt(final int row, final int column) {
-            final AbstractTestRunnerItem test = (AbstractTestRunnerItem) _list
-                    .get(row);
+            final AbstractTestRunnerItem test = _list.get(row);
             if (test == null) {
                 return null;
             }
@@ -375,10 +374,8 @@ public class TestRunnerGui extends JFrame {
 
     public void setupConsoleOutput(final AbstractTestRunnerItem test) {
         final PlainDocument doc = new PlainDocument();
-        final PrintStream ps = new PrintStream(new ConsoleOutputStream(doc,
-                false));
-        final PrintStream es = new PrintStream(new ConsoleOutputStream(doc,
-                true));
+        final PrintStream ps = new PrintStream(new ConsoleOutputStream(doc, false));
+        final PrintStream es = new PrintStream(new ConsoleOutputStream(doc, true));
         test.setOutputStream(ps);
         test.setErrorStream(es);
     }

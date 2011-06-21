@@ -155,8 +155,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
 
     public void runIt() {
         try {
-            final Exchange accountEx = _persistit.getExchange("persistit",
-                    "account", true);
+            final Exchange accountEx = _persistit.getExchange("persistit", "account", true);
             //
             final Random random = new Random();
             for (int iterations = 0; iterations < _iterationsPerThread; iterations++) {
@@ -174,8 +173,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 }
 
                 if (iterations % 25000 == 0) {
-                    System.out.println(this + " has finished " + iterations
-                            + " iterations");
+                    System.out.println(this + " has finished " + iterations + " iterations");
                     System.out.flush();
                 }
             }
@@ -187,8 +185,8 @@ public class TransactionTest2 extends PersistitUnitTestCase {
         }
     }
 
-    void transfer(final Exchange ex, final int accountNo1,
-            final int accountNo2, final int delta) throws PersistitException {
+    void transfer(final Exchange ex, final int accountNo1, final int accountNo2, final int delta)
+            throws PersistitException {
         //
         // A Transaction object is actually a Transaction context. You invoke
         // begin() and commit() on it to create and commit a transaction scope.
@@ -205,14 +203,12 @@ public class TransactionTest2 extends PersistitUnitTestCase {
             try {
 
                 ex.clear().append(accountNo1).fetch();
-                final int balance1 = ex.getValue().isDefined() ? ex.getValue()
-                        .getInt() : 0;
+                final int balance1 = ex.getValue().isDefined() ? ex.getValue().getInt() : 0;
                 ex.getValue().put(balance1 - delta);
                 ex.store();
 
                 ex.clear().append(accountNo2).fetch();
-                final int balance2 = ex.getValue().isDefined() ? ex.getValue()
-                        .getInt() : 0;
+                final int balance2 = ex.getValue().isDefined() ? ex.getValue().getInt() : 0;
                 ex.getValue().put(balance2 + delta);
                 ex.store();
 
@@ -264,6 +260,7 @@ public class TransactionTest2 extends PersistitUnitTestCase {
             _ex = ex;
         }
 
+        @Override
         public void runTransaction() throws PersistitException {
             _ex.clear().append(Key.BEFORE);
             _total = 0;
@@ -280,8 +277,8 @@ public class TransactionTest2 extends PersistitUnitTestCase {
 
     static final int RETRIES = 20;
 
-    void transferZZZ(final Exchange exchange, final int accountNo1,
-            final int accountNo2, final int delta) throws PersistitException {
+    void transferZZZ(final Exchange exchange, final int accountNo1, final int accountNo2, final int delta)
+            throws PersistitException {
         //
         // A Transaction object is actually a Transaction context. You invoke
         // begin() and commit() on it to create and commit a transaction scope.

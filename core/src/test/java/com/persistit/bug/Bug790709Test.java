@@ -55,75 +55,70 @@ public class Bug790709Test extends PersistitUnitTestCase {
      */
     @Test
     public void testRebalancePages1() throws Exception {
-        Exchange ex = _persistit
-                .getExchange("persistit", "Bug790709Test", true);
+        Exchange ex = _persistit.getExchange("persistit", "Bug790709Test", true);
         final int maxKeys = TestShim.maxKeys(ex.getVolume());
         //
-        // Create maxKeys keys in each of two pages.  (There are
+        // Create maxKeys keys in each of two pages. (There are
         // two because when we add the maxKey+1th key, the page
         // must split.
         //
         // On the second page the keys are a tad longer. The
-        // asymmetry is 
+        // asymmetry is
         //
         for (int i = 0; i <= maxKeys; i++) {
             ex.clear().append("a").append(i).store();
         }
-        
+
         for (int i = 0; i <= maxKeys; i++) {
             ex.clear().append("b").append(i).append("x").store();
         }
-        
+
         ex.clear().append("a");
         Buffer buffer1 = ex.fetchBufferCopy(0);
-//        System.out.println(buffer1 + " keys=" + buffer1.getKeyCount());
+        // System.out.println(buffer1 + " keys=" + buffer1.getKeyCount());
         assertTrue(buffer1.getKeyCount() <= maxKeys);
         ex.append("z");
         Buffer buffer2 = ex.fetchBufferCopy(0);
-//        System.out.println(buffer2 + " keys=" + buffer2.getKeyCount());
+        // System.out.println(buffer2 + " keys=" + buffer2.getKeyCount());
         assertTrue(buffer2.getKeyCount() <= maxKeys);
 
-        
         buffer2.getRecords()[0].getKeyState().copyTo(ex.getKey());
         ex.remove();
-        
-        
+
         ex.clear().append("a");
         buffer1 = ex.fetchBufferCopy(0);
-//        System.out.println(buffer1 + " keys=" + buffer1.getKeyCount());
+        // System.out.println(buffer1 + " keys=" + buffer1.getKeyCount());
         assertTrue(buffer1.getKeyCount() <= maxKeys);
         ex.append("z");
         buffer2 = ex.fetchBufferCopy(0);
-//        System.out.println(buffer2 + " keys=" + buffer2.getKeyCount());
+        // System.out.println(buffer2 + " keys=" + buffer2.getKeyCount());
         assertTrue(buffer2.getKeyCount() <= maxKeys);
         assertNotSame(buffer1, buffer2);
     }
-
 
     /*
      * This test succeeds prior to bug fix.
      */
     @Test
     public void testRebalancePages2() throws Exception {
-        Exchange ex = _persistit
-                .getExchange("persistit", "Bug790709Test", true);
+        Exchange ex = _persistit.getExchange("persistit", "Bug790709Test", true);
         final int maxKeys = TestShim.maxKeys(ex.getVolume());
         //
-        // Create maxKeys keys in each of two pages.  (There are
+        // Create maxKeys keys in each of two pages. (There are
         // two because when we add the maxKey+1th key, the page
         // must split.
         //
         // On the second page the keys are a tad longer. The
-        // asymmetry is 
+        // asymmetry is
         //
         for (int i = 0; i <= maxKeys; i++) {
             ex.clear().append("a").append(i).append("x").store();
         }
-        
+
         for (int i = 0; i <= maxKeys; i++) {
             ex.clear().append("b").append(i).store();
         }
-        
+
         ex.clear().append("a");
         Buffer buffer1 = ex.fetchBufferCopy(0);
         System.out.println(buffer1 + " keys=" + buffer1.getKeyCount());
@@ -133,11 +128,9 @@ public class Bug790709Test extends PersistitUnitTestCase {
         System.out.println(buffer2 + " keys=" + buffer2.getKeyCount());
         assertTrue(buffer2.getKeyCount() <= maxKeys);
 
-        
         buffer2.getRecords()[0].getKeyState().copyTo(ex.getKey());
         ex.remove();
-        
-        
+
         ex.clear().append("a");
         buffer1 = ex.fetchBufferCopy(0);
         System.out.println(buffer1 + " keys=" + buffer1.getKeyCount());
@@ -149,7 +142,6 @@ public class Bug790709Test extends PersistitUnitTestCase {
         assertNotSame(buffer1, buffer2);
     }
 
-    
     @Override
     public void runAllTests() throws Exception {
         // TODO Auto-generated method stub

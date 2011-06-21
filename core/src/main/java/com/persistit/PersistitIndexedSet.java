@@ -82,8 +82,7 @@ public class PersistitIndexedSet {
      * @throws PersistitException
      */
     private Exchange allocateExchange() throws PersistitException {
-        Exchange exchange = _persistit.getExchange(_tree.getVolume(),
-                _tree.getName(), false);
+        Exchange exchange = _persistit.getExchange(_tree.getVolume(), _tree.getName(), false);
         _keyState.copyTo(exchange.getKey());
         return exchange;
     }
@@ -258,8 +257,7 @@ public class PersistitIndexedSet {
      * 
      * @throws PersistitException
      */
-    public synchronized boolean replace(long id, Object newValue)
-            throws PersistitException {
+    public synchronized boolean replace(long id, Object newValue) throws PersistitException {
         Exchange exchange = allocateExchange();
         Transaction txn = exchange.getTransaction();
         for (int attempts = 0; attempts < 10; attempts++) {

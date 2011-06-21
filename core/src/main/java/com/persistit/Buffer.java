@@ -18,8 +18,6 @@ package com.persistit;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
 import com.persistit.TimestampAllocator.Checkpoint;
@@ -235,11 +233,9 @@ public final class Buffer extends SharedResource {
     /**
      * Implicit overhead size
      */
-    final static int INDEX_PAGE_OVERHEAD = KEY_BLOCK_START + 2
-            * KEYBLOCK_LENGTH + 2 * TAILBLOCK_HDR_SIZE_INDEX;
+    final static int INDEX_PAGE_OVERHEAD = KEY_BLOCK_START + 2 * KEYBLOCK_LENGTH + 2 * TAILBLOCK_HDR_SIZE_INDEX;
 
-    final static int DATA_PAGE_OVERHEAD = KEY_BLOCK_START + 2 * KEYBLOCK_LENGTH
-            + 2 * TAILBLOCK_HDR_SIZE_DATA;
+    final static int DATA_PAGE_OVERHEAD = KEY_BLOCK_START + 2 * KEYBLOCK_LENGTH + 2 * TAILBLOCK_HDR_SIZE_DATA;
 
     private final static int ESTIMATED_FIXED_BUFFER_OVERHEAD = 200;
 
@@ -362,8 +358,7 @@ public final class Buffer extends SharedResource {
     }
 
     Buffer(Buffer original) {
-        this(original._bufferSize, original._poolIndex, original._pool,
-                original._persistit);
+        this(original._bufferSize, original._poolIndex, original._pool, original._persistit);
         setStatus(original.getStatus() & ~(WRITER_MASK | CLAIMED_MASK));
         _type = original._type;
         _timestamp = original._timestamp;
@@ -383,8 +378,7 @@ public final class Buffer extends SharedResource {
     void init(int type) {
         _type = type;
         setKeyBlockEnd(KEY_BLOCK_START);
-        _tailHeaderSize = isIndexPage() ? TAILBLOCK_HDR_SIZE_INDEX
-                : TAILBLOCK_HDR_SIZE_DATA;
+        _tailHeaderSize = isIndexPage() ? TAILBLOCK_HDR_SIZE_INDEX : TAILBLOCK_HDR_SIZE_DATA;
         _rightSibling = 0;
         _alloc = _bufferSize;
         _slack = 0;
@@ -395,13 +389,11 @@ public final class Buffer extends SharedResource {
     /**
      * Extract fields from the buffer.
      */
-    void load(Volume vol, long page) throws PersistitIOException,
-            InvalidPageAddressException, InvalidPageStructureException,
-            VolumeClosedException {
+    void load(Volume vol, long page) throws PersistitIOException, InvalidPageAddressException,
+            InvalidPageStructureException, VolumeClosedException {
         _vol = vol;
         _page = page;
-        final boolean readFromLog = _persistit.getJournalManager()
-                .readPageFromJournal(this);
+        final boolean readFromLog = _persistit.getJournalManager().readPageFromJournal(this);
         if (!readFromLog) {
             vol.readPage(this, page);
         }
@@ -452,8 +444,7 @@ public final class Buffer extends SharedResource {
         return checkedClaim(writer, DEFAULT_MAX_WAIT_TIME);
     }
 
-    boolean checkedClaim(final boolean writer, final long timeout)
-            throws PersistitException {
+    boolean checkedClaim(final boolean writer, final long timeout) throws PersistitException {
         final boolean result = super.claim(writer, timeout);
         if (writer && result) {
             writePageOnCheckpoint();
@@ -465,8 +456,7 @@ public final class Buffer extends SharedResource {
         if (isDirty()) {
             final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
             if (getTimestamp() < checkpoint.getTimestamp()
-                    && _persistit.getCurrentTimestamp() >= checkpoint
-                            .getTimestamp()) {
+                    && _persistit.getCurrentTimestamp() >= checkpoint.getTimestamp()) {
                 writePage();
             }
         }
@@ -488,16 +478,14 @@ public final class Buffer extends SharedResource {
     void setDirty() {
         super.setDirty();
         bumpGeneration();
-        final long timestamp = _persistit.getTimestampAllocator()
-                .updateTimestamp();
+        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         _timestamp = Math.max(_timestamp, timestamp);
     }
 
     void setDirtyStructure() {
         super.setDirtyStructure();
         bumpGeneration();
-        final long timestamp = _persistit.getTimestampAllocator()
-                .updateTimestamp();
+        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         _timestamp = Math.max(_timestamp, timestamp);
     }
 
@@ -596,8 +584,7 @@ public final class Buffer extends SharedResource {
      * @return Number of remaining bytes available for allocation
      */
     public int getAvailableSize() {
-        if (_type == Buffer.PAGE_TYPE_DATA
-                || _type >= Buffer.PAGE_TYPE_INDEX_MIN
+        if (_type == Buffer.PAGE_TYPE_DATA || _type >= Buffer.PAGE_TYPE_INDEX_MIN
                 && _type <= Buffer.PAGE_TYPE_INDEX_MAX) {
             return _alloc - _keyBlockEnd + _slack;
         } else {
@@ -641,11 +628,8 @@ public final class Buffer extends SharedResource {
         if (page == 0)
             return TYPE_NAMES[PAGE_TYPE_HEAD];
 
-        if (type == Buffer.PAGE_TYPE_UNALLOCATED
-                || type == Buffer.PAGE_TYPE_DATA
-                || type >= Buffer.PAGE_TYPE_INDEX_MIN
-                && type <= Buffer.PAGE_TYPE_INDEX_MAX
-                || type == Buffer.PAGE_TYPE_GARBAGE
+        if (type == Buffer.PAGE_TYPE_UNALLOCATED || type == Buffer.PAGE_TYPE_DATA || type >= Buffer.PAGE_TYPE_INDEX_MIN
+                && type <= Buffer.PAGE_TYPE_INDEX_MAX || type == Buffer.PAGE_TYPE_GARBAGE
                 || type == Buffer.PAGE_TYPE_LONG_RECORD) {
             return TYPE_NAMES[type];
         } else
@@ -670,8 +654,7 @@ public final class Buffer extends SharedResource {
         return _rightSibling;
     }
 
-    public void setPageAddressAndVolume(final long pageAddress,
-            final Volume volume) {
+    public void setPageAddressAndVolume(final long pageAddress, final Volume volume) {
         _page = pageAddress;
         _vol = volume;
     }
@@ -698,9 +681,8 @@ public final class Buffer extends SharedResource {
     void setKeyBlockEnd(final int index) {
         // Diagnostic bounds-check on new value.
         // TODO - remove this code after thorough testing.
-        if ((index < KEY_BLOCK_START
-                || index > (_pool.getMaxKeys() * KEYBLOCK_LENGTH)
-                + KEY_BLOCK_START) && (isDataPage() || isIndexPage() && isValid())) {
+        if ((index < KEY_BLOCK_START || index > (_pool.getMaxKeys() * KEYBLOCK_LENGTH) + KEY_BLOCK_START)
+                && (isDataPage() || isIndexPage() && isValid())) {
             Debug.$assert(false);
         }
         _keyBlockEnd = index;
@@ -784,8 +766,7 @@ public final class Buffer extends SharedResource {
                         int p2 = p + (runCount << 2);
                         // p2 now points to the last key block with the same
                         // ebc in this run.
-                        int db2 = fastIndex.getDescriminatorByte(index
-                                + runCount);
+                        int db2 = fastIndex.getDescriminatorByte(index + runCount);
 
                         // For the common case that runCount == 1, we avoid
                         // setting up the binary search loop. Instead, the
@@ -914,8 +895,7 @@ public final class Buffer extends SharedResource {
                             if (kb < db) {
                                 // key is less than tail, so we return
                                 // this keyblock
-                                int result = p | (depth << DEPTH_SHIFT)
-                                        | FIXUP_MASK;
+                                int result = p | (depth << DEPTH_SHIFT) | FIXUP_MASK;
 
                                 return result;
                             }
@@ -933,8 +913,7 @@ public final class Buffer extends SharedResource {
                                 // lengths match exactly so this is an
                                 // exact match
                                 //
-                                int result = p | (depth << DEPTH_SHIFT)
-                                        | EXACT_MASK;
+                                int result = p | (depth << DEPTH_SHIFT) | EXACT_MASK;
                                 return result;
                             }
                             // key is longer, so we move to the right
@@ -943,8 +922,7 @@ public final class Buffer extends SharedResource {
                             // key is less than tail, so we return the
                             // this keyblock since it is greater than the key
                             //
-                            int result = p | (depth << DEPTH_SHIFT)
-                                    | FIXUP_MASK;
+                            int result = p | (depth << DEPTH_SHIFT) | FIXUP_MASK;
                             return result;
                         }
                     }
@@ -1008,8 +986,7 @@ public final class Buffer extends SharedResource {
             int klength = decodeTailBlockKLength(tbData);
             int size = decodeTailBlockSize(tbData);
             int valueSize = size - klength - _tailHeaderSize;
-            value.putEncodedBytes(_bytes, tail + _tailHeaderSize + klength,
-                    valueSize);
+            value.putEncodedBytes(_bytes, tail + _tailHeaderSize + klength, valueSize);
         }
         return value;
     }
@@ -1031,8 +1008,7 @@ public final class Buffer extends SharedResource {
             return 0;
         }
 
-        long pointer = getLong(tail + _tailHeaderSize + klength
-                + LONGREC_PAGE_OFFSET);
+        long pointer = getLong(tail + _tailHeaderSize + klength + LONGREC_PAGE_OFFSET);
         return pointer;
     }
 
@@ -1056,8 +1032,7 @@ public final class Buffer extends SharedResource {
      */
     int traverse(Key key, Key.Direction mode, int foundAt) {
         boolean exactMatch = (foundAt & EXACT_MASK) > 0;
-        if (mode == Key.EQ || exactMatch
-                && (mode == Key.LTEQ || mode == Key.GTEQ)) {
+        if (mode == Key.EQ || exactMatch && (mode == Key.LTEQ || mode == Key.GTEQ)) {
             return foundAt;
         }
         if (mode == Key.LT || mode == Key.LTEQ) {
@@ -1109,7 +1084,8 @@ public final class Buffer extends SharedResource {
         // we are done.
         //
         int unknown = decodeTailBlockKLength(getInt(tail)) + ebc + 1; // (+1 is
-                                                                      // for the
+                                                                      // for
+                                                                      // the
                                                                       // discriminator
                                                                       // byte)
         key.setEncodedSize(unknown);
@@ -1124,8 +1100,7 @@ public final class Buffer extends SharedResource {
                 kbytes[ebc] = (byte) decodeKeyBlockDb(kbData);
                 int more = unknown - ebc - 1;
                 if (more > 0) {
-                    System.arraycopy(_bytes, tail + _tailHeaderSize, kbytes,
-                            ebc + 1, more);
+                    System.arraycopy(_bytes, tail + _tailHeaderSize, kbytes, ebc + 1, more);
                 }
                 unknown = ebc;
             }
@@ -1172,8 +1147,7 @@ public final class Buffer extends SharedResource {
         // keyblock whose first ebc bytes match the supplied key.
         //
         kbytes[ebc] = (byte) decodeKeyBlockDb(kbData);
-        System.arraycopy(_bytes, tail + _tailHeaderSize, kbytes, ebc + 1,
-                klength);
+        System.arraycopy(_bytes, tail + _tailHeaderSize, kbytes, ebc + 1, klength);
 
         return result;
     }
@@ -1195,10 +1169,8 @@ public final class Buffer extends SharedResource {
             int klength = decodeTailBlockKLength(tbData);
             int size = decodeTailBlockSize(tbData);
             int valueSize = size - klength - _tailHeaderSize;
-            if ((valueSize > 0)
-                    && ((_bytes[tail + _tailHeaderSize + klength] & 0xFF) == LONGREC_TYPE)) {
-                value.putEncodedBytes(_bytes, tail + _tailHeaderSize + klength,
-                        valueSize);
+            if ((valueSize > 0) && ((_bytes[tail + _tailHeaderSize + klength] & 0xFF) == LONGREC_TYPE)) {
+                value.putEncodedBytes(_bytes, tail + _tailHeaderSize + klength, valueSize);
                 return p;
             }
         }
@@ -1298,8 +1270,7 @@ public final class Buffer extends SharedResource {
                 successorTailBlock = getInt(successorTail);
                 successorTailSize = decodeTailBlockSize(successorTailBlock);
                 free1 = (successorTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-                free2 = (successorTailSize - delta + ~TAILBLOCK_MASK)
-                        & TAILBLOCK_MASK;
+                free2 = (successorTailSize - delta + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
 
             } else {
                 ebcSuccessor = 0;
@@ -1308,8 +1279,7 @@ public final class Buffer extends SharedResource {
             int klength = key.getEncodedSize() - ebcNew - 1;
             int newTailSize = klength + length + _tailHeaderSize;
 
-            if (getKeyCount() >= _pool.getMaxKeys()
-                    || !willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
+            if (getKeyCount() >= _pool.getMaxKeys() || !willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
                 Debug.$assert(!postSplit);
                 return -1;
             }
@@ -1321,24 +1291,19 @@ public final class Buffer extends SharedResource {
             //
             if (fixupSuccessor && ebcNew != ebcSuccessor) {
                 int successorKeyLength = decodeTailBlockKLength(successorTailBlock);
-                int successorDb = getByte(successorTail + _tailHeaderSize
-                        + delta - 1);
+                int successorDb = getByte(successorTail + _tailHeaderSize + delta - 1);
 
                 // Write updated successor tail block
-                putInt(successorTail,
-                        encodeTailBlock(successorTailSize - delta,
-                                successorKeyLength - delta));
+                putInt(successorTail, encodeTailBlock(successorTailSize - delta, successorKeyLength - delta));
 
-                System.arraycopy(_bytes, successorTail + _tailHeaderSize
-                        + delta, _bytes, successorTail + _tailHeaderSize,
-                        successorTailSize - _tailHeaderSize - delta);
+                System.arraycopy(_bytes, successorTail + _tailHeaderSize + delta, _bytes, successorTail
+                        + _tailHeaderSize, successorTailSize - _tailHeaderSize - delta);
 
                 if (free2 < free1) {
                     deallocTail(successorTail + free2, free1 - free2);
                 }
 
-                kbSuccessor = encodeKeyBlock(ebcSuccessor, successorDb,
-                        successorTail);
+                kbSuccessor = encodeKeyBlock(ebcSuccessor, successorDb, successorTail);
 
                 putInt(p, kbSuccessor);
             }
@@ -1359,8 +1324,7 @@ public final class Buffer extends SharedResource {
             }
 
             // Shift the subsequent key blocks
-            System.arraycopy(_bytes, p, _bytes, p + KEYBLOCK_LENGTH,
-                    _keyBlockEnd - p - KEYBLOCK_LENGTH);
+            System.arraycopy(_bytes, p, _bytes, p + KEYBLOCK_LENGTH, _keyBlockEnd - p - KEYBLOCK_LENGTH);
 
             // Write new key block
             int newKeyBlock = encodeKeyBlock(ebcNew, dbNew, newTail);
@@ -1370,14 +1334,11 @@ public final class Buffer extends SharedResource {
             putInt(newTail, encodeTailBlock(newTailSize, klength));
 
             if (Debug.ENABLED) {
-                Debug.$assert(klength >= 0 && ebcNew + 1 >= 0
-                        && ebcNew + 1 + klength <= kbytes.length
-                        && newTail + _tailHeaderSize >= 0
-                        && newTail + _tailHeaderSize + klength <= _bytes.length);
+                Debug.$assert(klength >= 0 && ebcNew + 1 >= 0 && ebcNew + 1 + klength <= kbytes.length
+                        && newTail + _tailHeaderSize >= 0 && newTail + _tailHeaderSize + klength <= _bytes.length);
             }
             try {
-                System.arraycopy(kbytes, ebcNew + 1, _bytes, newTail
-                        + _tailHeaderSize, klength);
+                System.arraycopy(kbytes, ebcNew + 1, _bytes, newTail + _tailHeaderSize, klength);
             } catch (Exception e) {
                 Debug.$assert(false);
             }
@@ -1386,8 +1347,7 @@ public final class Buffer extends SharedResource {
                 int pointer = (int) value.getPointerValue();
 
                 if (Debug.ENABLED) {
-                    Debug.$assert(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0
-                            : true);
+                    Debug.$assert(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0 : true);
                     if (value != Value.EMPTY_VALUE) {
                         Debug.$assert(_type - 1 == value.getPointerPageType());
                     }
@@ -1395,8 +1355,7 @@ public final class Buffer extends SharedResource {
 
                 putInt(newTail + TAILBLOCK_POINTER, pointer);
             } else if (value != Value.EMPTY_VALUE) {
-                System.arraycopy(value.getEncodedBytes(), 0, _bytes, newTail
-                        + _tailHeaderSize + klength, length);
+                System.arraycopy(value.getEncodedBytes(), 0, _bytes, newTail + _tailHeaderSize + klength, length);
             }
 
             if (fastIndex != null) {
@@ -1453,8 +1412,7 @@ public final class Buffer extends SharedResource {
             int klength1 = decodeTailBlockKLength(tbData1);
             int db = -1;
             if (klength1 >= ebc2 - ebc1) {
-                db = _bytes[tail1 + _tailHeaderSize + ebc2 - ebc1 - 1]
-                        & DB_MASK;
+                db = _bytes[tail1 + _tailHeaderSize + ebc2 - ebc1 - 1] & DB_MASK;
                 if (db2 > db)
                     return true;
                 return false; // Can set breakpoint here
@@ -1480,8 +1438,7 @@ public final class Buffer extends SharedResource {
         } else {
             if (value.isAtomicIncrementArmed()) {
                 length = oldTailSize - klength - _tailHeaderSize;
-                value.putEncodedBytes(_bytes, tail + _tailHeaderSize + klength,
-                        length);
+                value.putEncodedBytes(_bytes, tail + _tailHeaderSize + klength, length);
                 value.performAtomicIncrement();
             } else {
                 length = value.getEncodedSize();
@@ -1515,24 +1472,22 @@ public final class Buffer extends SharedResource {
         }
         putInt(newTail, encodeTailBlock(newTailSize, klength));
         if (newTail != tail) {
-            System.arraycopy(key.getEncodedBytes(), key.getEncodedSize()
-                    - klength, _bytes, newTail + _tailHeaderSize, klength);
+            System.arraycopy(key.getEncodedBytes(), key.getEncodedSize() - klength, _bytes, newTail + _tailHeaderSize,
+                    klength);
         }
 
         if (isIndexPage()) {
             // TODO - allow larger pointer size
             long pointer = value.getPointerValue();
             if (Debug.ENABLED) {
-                Debug.$assert(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0
-                        : pointer == -1);
+                Debug.$assert(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0 : pointer == -1);
                 if (value != Value.EMPTY_VALUE) {
                     Debug.$assert(_type - 1 == value.getPointerPageType());
                 }
             }
             putInt(newTail + TAILBLOCK_POINTER, (int) pointer);
         } else if (value != Value.EMPTY_VALUE) {
-            System.arraycopy(value.getEncodedBytes(), 0, _bytes, newTail
-                    + _tailHeaderSize + klength, length);
+            System.arraycopy(value.getEncodedBytes(), 0, _bytes, newTail + _tailHeaderSize + klength, length);
         }
         if (Debug.ENABLED)
             assertVerify();
@@ -1565,10 +1520,8 @@ public final class Buffer extends SharedResource {
         if ((foundAt2 & EXACT_MASK) != 0)
             p2 += KEYBLOCK_LENGTH;
 
-        if (p1 < KEY_BLOCK_START || p1 > _keyBlockEnd || p2 < KEY_BLOCK_START
-                || p2 > _keyBlockEnd) {
-            throw new IllegalArgumentException("p1=" + p1 + " p2=" + p2
-                    + " in " + summarize());
+        if (p1 < KEY_BLOCK_START || p1 > _keyBlockEnd || p2 < KEY_BLOCK_START || p2 > _keyBlockEnd) {
+            throw new IllegalArgumentException("p1=" + p1 + " p2=" + p2 + " in " + summarize());
         }
         if (p2 <= p1)
             return false;
@@ -1588,12 +1541,10 @@ public final class Buffer extends SharedResource {
             int klength = decodeTailBlockKLength(tbData);
             spareBytes[ebcCandidate] = (byte) db;
             if (klength > 0) {
-                System.arraycopy(_bytes, tail + _tailHeaderSize, spareBytes,
-                        ebcCandidate + 1, klength);
+                System.arraycopy(_bytes, tail + _tailHeaderSize, spareBytes, ebcCandidate + 1, klength);
             }
             keySize = klength + ebcCandidate + 1;
-            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK)
-                    & TAILBLOCK_MASK;
+            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
             deallocTail(tail, size);
         }
         spareKey.setEncodedSize(keySize);
@@ -1623,11 +1574,9 @@ public final class Buffer extends SharedResource {
                 int tbNext = getInt(tailNext);
                 int nextTailSize = decodeTailBlockSize(tbNext);
 
-                int nextTailBlockSize = (nextTailSize + ~TAILBLOCK_MASK)
-                        & TAILBLOCK_MASK;
+                int nextTailBlockSize = (nextTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
 
-                int newNextTailBlockSize = (nextTailSize + ebcNext - ebc + ~TAILBLOCK_MASK)
-                        & TAILBLOCK_MASK;
+                int newNextTailBlockSize = (nextTailSize + ebcNext - ebc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
 
                 int delta = newNextTailBlockSize - nextTailBlockSize;
                 boolean freeNextTailBlock = false;
@@ -1660,16 +1609,10 @@ public final class Buffer extends SharedResource {
                         freeNextTailBlock = true;
                     }
                     if (newNextTail == -1) {
-                        throw new IllegalStateException(
-                                "Can't wedge enough space in " + this
-                                        + " foundAt1=" + foundAt1
-                                        + " foundAt2=" + foundAt2
-                                        + " spareKey=" + spareKey
-                                        + " nextTailBlockSize="
-                                        + nextTailBlockSize
-                                        + " newNextTailBlockSize="
-                                        + newNextTailBlockSize + " ebc=" + ebc
-                                        + " ebcNext=" + ebcNext);
+                        throw new IllegalStateException("Can't wedge enough space in " + this + " foundAt1=" + foundAt1
+                                + " foundAt2=" + foundAt2 + " spareKey=" + spareKey + " nextTailBlockSize="
+                                + nextTailBlockSize + " newNextTailBlockSize=" + newNextTailBlockSize + " ebc=" + ebc
+                                + " ebcNext=" + ebcNext);
                     }
                 }
                 //
@@ -1680,13 +1623,14 @@ public final class Buffer extends SharedResource {
                 // location.
                 //
                 if (isIndexPage()) {
-                    putInt(newNextTail + TAILBLOCK_POINTER, getInt(tailNext
-                            + TAILBLOCK_POINTER)); // TODO - allow larger
+                    putInt(newNextTail + TAILBLOCK_POINTER, getInt(tailNext + TAILBLOCK_POINTER)); // TODO
+                                                                                                   // -
+                                                                                                   // allow
+                                                                                                   // larger
                     // pointer size
                 }
-                System.arraycopy(_bytes, tailNext + _tailHeaderSize, _bytes,
-                        newNextTail + _tailHeaderSize + ebcNext - ebc,
-                        nextTailSize - _tailHeaderSize);
+                System.arraycopy(_bytes, tailNext + _tailHeaderSize, _bytes, newNextTail + _tailHeaderSize + ebcNext
+                        - ebc, nextTailSize - _tailHeaderSize);
 
                 _bytes[newNextTail + _tailHeaderSize + ebcNext - ebc - 1] = (byte) dbNext;
 
@@ -1694,26 +1638,21 @@ public final class Buffer extends SharedResource {
                 // Next copy copy the additional bytes of key that are to be
                 // removed.
                 //
-                System.arraycopy(spareBytes, ebc + 1, _bytes, newNextTail
-                        + _tailHeaderSize, ebcNext - ebc - 1);
+                System.arraycopy(spareBytes, ebc + 1, _bytes, newNextTail + _tailHeaderSize, ebcNext - ebc - 1);
                 //
                 // Now construct the new tail block
                 //
-                int newNextKLength = decodeTailBlockKLength(tbNext) + ebcNext
-                        - ebc;
+                int newNextKLength = decodeTailBlockKLength(tbNext) + ebcNext - ebc;
                 int newNextTailSize = nextTailSize + ebcNext - ebc;
-                putInt(newNextTail,
-                        encodeTailBlock(newNextTailSize, newNextKLength));
+                putInt(newNextTail, encodeTailBlock(newNextTailSize, newNextKLength));
                 if (freeNextTailBlock) {
-                    int toFree = (nextTailSize + ~TAILBLOCK_MASK)
-                            & TAILBLOCK_MASK;
+                    int toFree = (nextTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
                     deallocTail(tailNext, toFree);
                 }
                 //
                 // Fix up the successor key block
                 //
-                int kbNewNext = encodeKeyBlock(ebc, spareBytes[ebc],
-                        newNextTail);
+                int kbNewNext = encodeKeyBlock(ebc, spareBytes[ebc], newNextTail);
                 putInt(p1, kbNewNext);
             }
         }
@@ -1743,9 +1682,7 @@ public final class Buffer extends SharedResource {
             return tail;
         }
         if (delta < 0) {
-            throw new IllegalArgumentException(
-                    "wedgeTail delta must be positive: " + delta
-                            + " is invalid");
+            throw new IllegalArgumentException("wedgeTail delta must be positive: " + delta + " is invalid");
         }
         if (_alloc - _keyBlockEnd < delta) {
             return -1;
@@ -1785,9 +1722,8 @@ public final class Buffer extends SharedResource {
      *            The SplitPolicy for this insertion
      * @throws PersistitException
      */
-    final int split(Buffer rightSibling, Key key, Value value, int foundAt,
-            Key indexKey, Sequence sequence, SplitPolicy policy)
-            throws PersistitException {
+    final int split(Buffer rightSibling, Key key, Value value, int foundAt, Key indexKey, Sequence sequence,
+            SplitPolicy policy) throws PersistitException {
         // Make sure the right sibling page is empty.
 
         if (Debug.ENABLED) {
@@ -1799,8 +1735,7 @@ public final class Buffer extends SharedResource {
         // First we calculate how large the virtual page containing the
         // modified or inserted key/value pair would be.
         //
-        int currentSize = _bufferSize - _alloc - _slack + _keyBlockEnd
-                - KEY_BLOCK_START;
+        int currentSize = _bufferSize - _alloc - _slack + _keyBlockEnd - KEY_BLOCK_START;
 
         int foundAtPosition = foundAt & P_MASK;
         boolean exact = (foundAt & EXACT_MASK) != 0;
@@ -1824,8 +1759,7 @@ public final class Buffer extends SharedResource {
             deltaSuccessorEbc = ebcSuccessor - ebcNew;
 
             int oldSize = (tbSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-            int newSize = (tbSize - deltaSuccessorEbc + ~TAILBLOCK_MASK)
-                    & TAILBLOCK_MASK;
+            int newSize = (tbSize - deltaSuccessorEbc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
 
             // This is the number of bytes by which the successor tail block
             // can be reduced (because its elision count has increased.)
@@ -1840,19 +1774,18 @@ public final class Buffer extends SharedResource {
         if (exact) {
             int kbData = getInt(foundAtPosition);
             int tbData = getInt(decodeKeyBlockTail(kbData));
-            oldTailBlockSize = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK)
-                    & TAILBLOCK_MASK;
+            oldTailBlockSize = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
             keyBlockSizeDelta = 0;
             // PDB 20050802 - because when replacing a keyblock we
             // leave the ebc unchanged.
             ebcNew = decodeKeyBlockEbc(kbData);
         }
-        newTailBlockSize = ((isIndexPage() ? 0 : value.getEncodedSize())
-                + _tailHeaderSize + key.getEncodedSize() - ebcNew - 1 + ~TAILBLOCK_MASK)
+        newTailBlockSize = ((isIndexPage() ? 0 : value.getEncodedSize()) + _tailHeaderSize + key.getEncodedSize()
+                - ebcNew - 1 + ~TAILBLOCK_MASK)
                 & TAILBLOCK_MASK;
 
-        int virtualSize = currentSize + newTailBlockSize - oldTailBlockSize
-                + keyBlockSizeDelta - deltaSuccessorTailSize;
+        int virtualSize = currentSize + newTailBlockSize - oldTailBlockSize + keyBlockSizeDelta
+                - deltaSuccessorTailSize;
 
         int splitBest = 0; // Maximal fitness measure
         int splitAt = 0; // Offset to first keyblock in right sibling
@@ -1886,18 +1819,15 @@ public final class Buffer extends SharedResource {
                 int tbSizeDelta = ((tbSize + ebc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
                         - ((tbSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
 
-                int edgeTailBlockSize = (decodeTailBlockKLength(tbData)
-                        - deltaSuccessorEbc + _tailHeaderSize + ~TAILBLOCK_MASK)
+                int edgeTailBlockSize = (decodeTailBlockKLength(tbData) - deltaSuccessorEbc + _tailHeaderSize + ~TAILBLOCK_MASK)
                         & TAILBLOCK_MASK;
 
                 if (p < rightKeyBlock) {
                     int rightSize = virtualSize - leftSize + tbSizeDelta;
 
-                    splitCandidate = policy.splitFit(this, p, foundAtPosition,
-                            exact, leftSize + KEYBLOCK_LENGTH
-                                    + edgeTailBlockSize, rightSize,
-                            currentSize, virtualSize, _bufferSize
-                                    - KEY_BLOCK_START, splitBest, sequence);
+                    splitCandidate = policy.splitFit(this, p, foundAtPosition, exact, leftSize + KEYBLOCK_LENGTH
+                            + edgeTailBlockSize, rightSize, currentSize, virtualSize, _bufferSize - KEY_BLOCK_START,
+                            splitBest, sequence);
                     if (splitCandidate > splitBest) {
                         splitBest = splitCandidate;
                         splitAt = p | EXACT_MASK;
@@ -1910,20 +1840,18 @@ public final class Buffer extends SharedResource {
                 int kbData = getInt(p);
                 int tbData = getInt(decodeKeyBlockTail(kbData));
                 int tbSizeDelta;
-                int tailBlockSize = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK)
-                        & TAILBLOCK_MASK;
+                int tailBlockSize = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
                 leftSize += tailBlockSize + KEYBLOCK_LENGTH;
 
                 p += KEYBLOCK_LENGTH;
                 int edgeTailBlockSize;
 
                 if (p == foundAtPosition && armed) {
-                    tbSizeDelta = (((isIndexPage() ? 0 : value.getEncodedSize())
-                            + _tailHeaderSize + key.getEncodedSize() + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
+                    tbSizeDelta = (((isIndexPage() ? 0 : value.getEncodedSize()) + _tailHeaderSize
+                            + key.getEncodedSize() + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
                             - newTailBlockSize;
 
-                    edgeTailBlockSize = (key.getEncodedSize() - depth
-                            + _tailHeaderSize + ~TAILBLOCK_MASK)
+                    edgeTailBlockSize = (key.getEncodedSize() - depth + _tailHeaderSize + ~TAILBLOCK_MASK)
                             & TAILBLOCK_MASK;
                 } else {
                     kbData = getInt(p);
@@ -1934,19 +1862,16 @@ public final class Buffer extends SharedResource {
                     tbSizeDelta = ((tbSize + ebc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
                             - ((tbSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
 
-                    edgeTailBlockSize = (decodeTailBlockKLength(tbData)
-                            + _tailHeaderSize + ~TAILBLOCK_MASK)
+                    edgeTailBlockSize = (decodeTailBlockKLength(tbData) + _tailHeaderSize + ~TAILBLOCK_MASK)
                             & TAILBLOCK_MASK;
                 }
 
                 if (p < rightKeyBlock) {
                     int rightSize = virtualSize - leftSize + tbSizeDelta;
 
-                    splitCandidate = policy.splitFit(this, p, foundAtPosition,
-                            exact, leftSize + KEYBLOCK_LENGTH
-                                    + edgeTailBlockSize, rightSize,
-                            currentSize, virtualSize, _bufferSize
-                                    - KEY_BLOCK_START, splitBest, sequence);
+                    splitCandidate = policy.splitFit(this, p, foundAtPosition, exact, leftSize + KEYBLOCK_LENGTH
+                            + edgeTailBlockSize, rightSize, currentSize, virtualSize, _bufferSize - KEY_BLOCK_START,
+                            splitBest, sequence);
                     if (splitCandidate > splitBest) {
                         splitBest = splitCandidate;
                         splitAt = p;
@@ -1961,10 +1886,9 @@ public final class Buffer extends SharedResource {
         }
 
         if (splitBest == 0) {
-            throw new InvalidPageStructureException("Can't split page " + this
-                    + " exact=" + exact + " insertAt=" + foundAtPosition
-                    + " currentSize=" + currentSize + " virtualSize="
-                    + virtualSize + " leftSize=" + leftSize);
+            throw new InvalidPageStructureException("Can't split page " + this + " exact=" + exact + " insertAt="
+                    + foundAtPosition + " currentSize=" + currentSize + " virtualSize=" + virtualSize + " leftSize="
+                    + leftSize);
         }
         //
         // Now move the keys and records.
@@ -1986,8 +1910,7 @@ public final class Buffer extends SharedResource {
             //
             scanStart = foundAtPosition;
             indexKeyDepth = key.getEncodedSize();
-            System.arraycopy(key.getEncodedBytes(), 0, indexKeyBytes, 0,
-                    indexKeyDepth);
+            System.arraycopy(key.getEncodedBytes(), 0, indexKeyBytes, 0, indexKeyDepth);
         }
         //
         // If we are inserting the new key as the first key of the right
@@ -2001,8 +1924,7 @@ public final class Buffer extends SharedResource {
                 int db = decodeKeyBlockDb(kbData);
                 int tail = decodeKeyBlockTail(kbData);
                 if (ebc > indexKeyDepth) {
-                    throw new InvalidPageStructureException("ebc at " + p
-                            + " ebc=" + ebc + " > indexKeyDepth="
+                    throw new InvalidPageStructureException("ebc at " + p + " ebc=" + ebc + " > indexKeyDepth="
                             + indexKeyDepth);
                 }
                 indexKeyDepth = ebc;
@@ -2010,8 +1932,7 @@ public final class Buffer extends SharedResource {
                 int tbData = getInt(tail);
                 int klength = decodeTailBlockKLength(tbData);
 
-                System.arraycopy(_bytes, tail + _tailHeaderSize, indexKeyBytes,
-                        indexKeyDepth, klength);
+                System.arraycopy(_bytes, tail + _tailHeaderSize, indexKeyBytes, indexKeyDepth, klength);
                 indexKeyDepth += klength;
             }
         }
@@ -2020,8 +1941,7 @@ public final class Buffer extends SharedResource {
         // Set the keyblock end for the right sibling so that alloc() knows
         // its bounds.
         //
-        rightSibling.setKeyBlockEnd(_keyBlockEnd
-                - (splitAtPosition - KEY_BLOCK_START));
+        rightSibling.setKeyBlockEnd(_keyBlockEnd - (splitAtPosition - KEY_BLOCK_START));
         int rightP = KEY_BLOCK_START;
         //
         // Now move all the records from the split point forward to the
@@ -2069,54 +1989,43 @@ public final class Buffer extends SharedResource {
             //
             int newTailBlock = rightSibling.allocTail(newTailBlockSize);
             if (Debug.ENABLED) {
-                Debug.$assert(newTailBlock >= 0
-                        && newTailBlock < rightSibling._bufferSize);
+                Debug.$assert(newTailBlock >= 0 && newTailBlock < rightSibling._bufferSize);
                 Debug.$assert(newTailBlock != -1);
             }
 
-            rightSibling.putInt(newTailBlock,
-                    encodeTailBlock(newTailBlockSize, newKeyLength));
+            rightSibling.putInt(newTailBlock, encodeTailBlock(newTailBlockSize, newKeyLength));
             if (isIndexPage()) {
-                rightSibling.putInt(newTailBlock + TAILBLOCK_POINTER,
-                        getInt(tail + TAILBLOCK_POINTER));
+                rightSibling.putInt(newTailBlock + TAILBLOCK_POINTER, getInt(tail + TAILBLOCK_POINTER));
             }
             if (p == splitAtPosition && ebc > 0) {
-                System.arraycopy(indexKeyBytes,
-                        1, // Note: byte 0 is the discriminator byte
-                        rightSibling._bytes, newTailBlock + _tailHeaderSize,
-                        ebc - 1);
+                System.arraycopy(indexKeyBytes, 1, // Note: byte 0 is the
+                                                   // discriminator byte
+                        rightSibling._bytes, newTailBlock + _tailHeaderSize, ebc - 1);
 
-                rightSibling.putByte(newTailBlock + _tailHeaderSize + ebc - 1,
-                        db);
+                rightSibling.putByte(newTailBlock + _tailHeaderSize + ebc - 1, db);
 
-                System.arraycopy(_bytes, tail + _tailHeaderSize,
-                        rightSibling._bytes, newTailBlock + _tailHeaderSize
-                                + ebc, klength);
+                System.arraycopy(_bytes, tail + _tailHeaderSize, rightSibling._bytes, newTailBlock + _tailHeaderSize
+                        + ebc, klength);
             } else {
-                System.arraycopy(_bytes, tail + _tailHeaderSize,
-                        rightSibling._bytes, newTailBlock + _tailHeaderSize,
+                System.arraycopy(_bytes, tail + _tailHeaderSize, rightSibling._bytes, newTailBlock + _tailHeaderSize,
                         klength);
             }
 
             if (isDataPage()) {
                 if (exact && foundAtPosition == p) {
                     if (value != Value.EMPTY_VALUE) {
-                        System.arraycopy(value.getEncodedBytes(), 0,
-                                rightSibling._bytes, newTailBlock
-                                        + _tailHeaderSize + newKeyLength,
-                                newDataSize);
+                        System.arraycopy(value.getEncodedBytes(), 0, rightSibling._bytes, newTailBlock
+                                + _tailHeaderSize + newKeyLength, newDataSize);
                     }
                 } else {
-                    System.arraycopy(_bytes, tail + _tailHeaderSize + klength,
-                            rightSibling._bytes, newTailBlock + _tailHeaderSize
-                                    + newKeyLength, newDataSize);
+                    System.arraycopy(_bytes, tail + _tailHeaderSize + klength, rightSibling._bytes, newTailBlock
+                            + _tailHeaderSize + newKeyLength, newDataSize);
                 }
             }
             //
             // Put the key block into the right page.
             //
-            rightSibling.putInt(rightP,
-                    encodeKeyBlock(newEbc, newDb, newTailBlock));
+            rightSibling.putInt(rightP, encodeKeyBlock(newEbc, newDb, newTailBlock));
             rightP += KEYBLOCK_LENGTH;
             //
             // Deallocate the tailblock from the left page. If this is the
@@ -2143,16 +2052,13 @@ public final class Buffer extends SharedResource {
                 // insert key will be the first key of the right sibling.
                 //
                 if (isDataPage()) {
-                    currentSize = (tailBlockSize + ~TAILBLOCK_MASK)
-                            & TAILBLOCK_MASK;
+                    currentSize = (tailBlockSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
 
-                    int newSize = (tailBlockSize - dataSize + ~TAILBLOCK_MASK)
-                            & TAILBLOCK_MASK;
+                    int newSize = (tailBlockSize - dataSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
                     if (newSize != currentSize) {
                         deallocTail(tail + newSize, currentSize - newSize);
                     }
-                    putInt(tail,
-                            encodeTailBlock(_tailHeaderSize + klength, klength));
+                    putInt(tail, encodeTailBlock(_tailHeaderSize + klength, klength));
                 } else {
                     // edge key for index block. We destroy the pointer value
                     // so that we don't get confused later.
@@ -2191,8 +2097,7 @@ public final class Buffer extends SharedResource {
                 Debug.$assert(edgeTail != -1);
             putInt(edgeTail, encodeTailBlock(edgeTailBlockSize, edgeKeyLength));
 
-            System.arraycopy(indexKeyBytes, depth + 1, _bytes, edgeTail
-                    + _tailHeaderSize, edgeKeyLength);
+            System.arraycopy(indexKeyBytes, depth + 1, _bytes, edgeTail + _tailHeaderSize, edgeKeyLength);
 
             putInt(splitAtPosition, encodeKeyBlock(depth, db, edgeTail));
         }
@@ -2213,17 +2118,14 @@ public final class Buffer extends SharedResource {
         rightSibling.invalidateFastIndex();
 
         if (Debug.ENABLED) {
-            Debug.$assert(rightSibling._keyBlockEnd > rightSibling.KEY_BLOCK_START
-                    + KEYBLOCK_LENGTH ? rightSibling
+            Debug.$assert(rightSibling._keyBlockEnd > rightSibling.KEY_BLOCK_START + KEYBLOCK_LENGTH ? rightSibling
                     .adjacentKeyCheck(rightSibling.KEY_BLOCK_START) : true);
         }
         if (!exact) {
-            if (foundAtPosition >= splitAtPosition
-                    && (!lastLeft || foundAtPosition > splitAtPosition)) {
+            if (foundAtPosition >= splitAtPosition && (!lastLeft || foundAtPosition > splitAtPosition)) {
                 foundAt -= (splitAtPosition - KEY_BLOCK_START);
                 if (firstRight && !fixupSuccessor) {
-                    foundAt = (foundAt & P_MASK) | FIXUP_MASK
-                            | (ebc << DEPTH_SHIFT);
+                    foundAt = (foundAt & P_MASK) | FIXUP_MASK | (ebc << DEPTH_SHIFT);
                 }
                 final int t = rightSibling.putValue(key, value, foundAt, true);
                 whereInserted = -foundAt;
@@ -2246,8 +2148,7 @@ public final class Buffer extends SharedResource {
                     Debug.$assert(p > 0);
                 }
                 if (p <= 0) {
-                    throw new IllegalStateException("p = " + p
-                            + " foundAtPosition=" + foundAtPosition
+                    throw new IllegalStateException("p = " + p + " foundAtPosition=" + foundAtPosition
                             + " splitAtPosition=" + splitAtPosition);
                 }
             }
@@ -2302,19 +2203,17 @@ public final class Buffer extends SharedResource {
      * @throws PersistitException
      */
 
-    final boolean join(Buffer buffer, int foundAt1, int foundAt2, Key indexKey,
-            Key spareKey, JoinPolicy policy) throws PersistitException {
+    final boolean join(Buffer buffer, int foundAt1, int foundAt2, Key indexKey, Key spareKey, JoinPolicy policy)
+            throws PersistitException {
         foundAt1 &= P_MASK;
         foundAt2 &= P_MASK;
 
-        if (buffer == this || foundAt1 <= KEY_BLOCK_START
-                || foundAt1 >= _keyBlockEnd || foundAt2 <= KEY_BLOCK_START
+        if (buffer == this || foundAt1 <= KEY_BLOCK_START || foundAt1 >= _keyBlockEnd || foundAt2 <= KEY_BLOCK_START
                 || foundAt2 >= buffer._keyBlockEnd /*- KEYBLOCK_LENGTH */) {
             if (Debug.ENABLED)
                 Debug.debug2(true);
-            throw new IllegalArgumentException("foundAt1=" + foundAt1
-                    + " foundAt2=" + foundAt2 + " _keyBlockEnd=" + _keyBlockEnd
-                    + " buffer._keyBlockEnd=" + buffer._keyBlockEnd);
+            throw new IllegalArgumentException("foundAt1=" + foundAt1 + " foundAt2=" + foundAt2 + " _keyBlockEnd="
+                    + _keyBlockEnd + " buffer._keyBlockEnd=" + buffer._keyBlockEnd);
         }
 
         if (Debug.ENABLED)
@@ -2333,8 +2232,7 @@ public final class Buffer extends SharedResource {
         int tail = decodeKeyBlockTail(kbData);
         int tbData = buffer.getInt(tail);
         int klength = decodeTailBlockKLength(tbData);
-        System.arraycopy(buffer._bytes, tail + _tailHeaderSize, indexKeyBytes,
-                1, klength);
+        System.arraycopy(buffer._bytes, tail + _tailHeaderSize, indexKeyBytes, 1, klength);
         //
         // Start by assuming all the records will fit into one page. Compute
         // the ebc of the first key after the deletion range. This will be
@@ -2352,8 +2250,7 @@ public final class Buffer extends SharedResource {
                 newEbc = ebc;
             tail = decodeKeyBlockTail(kbData);
             tbData = getInt(tail);
-            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK)
-                    & TAILBLOCK_MASK;
+            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
             deallocTail(tail, size);
         }
         for (int index = KEY_BLOCK_START; index < foundAt2; index += KEYBLOCK_LENGTH) {
@@ -2363,8 +2260,7 @@ public final class Buffer extends SharedResource {
                 newEbc = ebc;
             tail = decodeKeyBlockTail(kbData);
             tbData = buffer.getInt(tail);
-            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK)
-                    & TAILBLOCK_MASK;
+            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
             buffer.deallocTail(tail, size);
         }
         if (Debug.ENABLED)
@@ -2398,13 +2294,11 @@ public final class Buffer extends SharedResource {
         // Compute the size of the page that would result from combining the
         // two pages into one.
         //
-        int virtualSize = foundAt1 + (buffer._keyBlockEnd - foundAt2)
-                + (_bufferSize - _alloc) - _slack
+        int virtualSize = foundAt1 + (buffer._keyBlockEnd - foundAt2) + (_bufferSize - _alloc) - _slack
                 + (buffer._bufferSize - buffer._alloc) - buffer._slack;
-        final int virtualKeyCount = ((foundAt1 - KEY_BLOCK_START) + (buffer
-                .getKeyBlockEnd() - foundAt2)) / KEYBLOCK_LENGTH;
-        boolean okayToRejoin = virtualKeyCount < _pool.getMaxKeys()
-                && policy.acceptJoin(this, virtualSize);
+        final int virtualKeyCount = ((foundAt1 - KEY_BLOCK_START) + (buffer.getKeyBlockEnd() - foundAt2))
+                / KEYBLOCK_LENGTH;
+        boolean okayToRejoin = virtualKeyCount < _pool.getMaxKeys() && policy.acceptJoin(this, virtualSize);
         boolean result;
 
         if (okayToRejoin) {
@@ -2422,8 +2316,7 @@ public final class Buffer extends SharedResource {
             //
             setKeyBlockEnd(foundAt1);
 
-            moveRecords(buffer, foundAt2, buffer._keyBlockEnd, _keyBlockEnd,
-                    false);
+            moveRecords(buffer, foundAt2, buffer._keyBlockEnd, _keyBlockEnd, false);
             buffer.setKeyBlockEnd(KEY_BLOCK_START);
             //
             // unsplice the right buffer from the right sibling chain.
@@ -2469,8 +2362,7 @@ public final class Buffer extends SharedResource {
                 klength = decodeTailBlockKLength(tbData);
 
                 spareKeyBytes[ebc] = (byte) db;
-                System.arraycopy(_bytes, tail + _tailHeaderSize, spareKeyBytes,
-                        ebc + 1, klength);
+                System.arraycopy(_bytes, tail + _tailHeaderSize, spareKeyBytes, ebc + 1, klength);
                 int keySize = ebc + klength + 1;
 
                 int delta = ((size + ebc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
@@ -2478,15 +2370,12 @@ public final class Buffer extends SharedResource {
 
                 int candidateRightSize = virtualSize - leftSize + delta;
 
-                int candidateLeftSize = leftSize + KEYBLOCK_LENGTH
-                        + ((klength + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
+                int candidateLeftSize = leftSize + KEYBLOCK_LENGTH + ((klength + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
                         + _tailHeaderSize;
 
-                int rightKeyCount = ((buffer.getKeyBlockEnd() - foundAt2) + (foundAt1 - p))
-                        / KEYBLOCK_LENGTH;
+                int rightKeyCount = ((buffer.getKeyBlockEnd() - foundAt2) + (foundAt1 - p)) / KEYBLOCK_LENGTH;
 
-                int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1,
-                        foundAt2, virtualSize, candidateLeftSize,
+                int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1, foundAt2, virtualSize, candidateLeftSize,
                         candidateRightSize, _bufferSize - KEY_BLOCK_START);
 
                 if (joinFit > joinBest && rightKeyCount < _pool.getMaxKeys()) {
@@ -2495,12 +2384,10 @@ public final class Buffer extends SharedResource {
 
                     indexKeySize = keySize;
 
-                    System.arraycopy(spareKeyBytes, 0, indexKeyBytes, 0,
-                            indexKeySize);
+                    System.arraycopy(spareKeyBytes, 0, indexKeyBytes, 0, indexKeySize);
                 }
 
-                leftSize += KEYBLOCK_LENGTH
-                        + ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
+                leftSize += KEYBLOCK_LENGTH + ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
             }
 
             //
@@ -2516,8 +2403,7 @@ public final class Buffer extends SharedResource {
                 klength = decodeTailBlockKLength(tbData);
 
                 spareKeyBytes[ebc] = (byte) db;
-                System.arraycopy(buffer._bytes, tail + _tailHeaderSize,
-                        spareKeyBytes, ebc + 1, klength);
+                System.arraycopy(buffer._bytes, tail + _tailHeaderSize, spareKeyBytes, ebc + 1, klength);
 
                 int keySize = ebc + klength + 1;
                 //
@@ -2535,15 +2421,12 @@ public final class Buffer extends SharedResource {
 
                 int candidateRightSize = virtualSize - leftSize + delta;
 
-                int candidateLeftSize = leftSize
-                        + ((klength + (ebc - adjustedEbc) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
+                int candidateLeftSize = leftSize + ((klength + (ebc - adjustedEbc) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
                         + _tailHeaderSize + KEYBLOCK_LENGTH;
 
-                int leftKeyCount = ((foundAt1 - KEY_BLOCK_START) + (p - foundAt2))
-                        / KEYBLOCK_LENGTH;
+                int leftKeyCount = ((foundAt1 - KEY_BLOCK_START) + (p - foundAt2)) / KEYBLOCK_LENGTH;
 
-                int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1,
-                        foundAt2, virtualSize, candidateLeftSize,
+                int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1, foundAt2, virtualSize, candidateLeftSize,
                         candidateRightSize, _bufferSize);
 
                 if (joinFit > joinBest && leftKeyCount < _pool.getMaxKeys()) {
@@ -2553,12 +2436,10 @@ public final class Buffer extends SharedResource {
 
                     indexKeySize = keySize;
 
-                    System.arraycopy(spareKeyBytes, 0, indexKeyBytes, 0,
-                            indexKeySize);
+                    System.arraycopy(spareKeyBytes, 0, indexKeyBytes, 0, indexKeySize);
                 }
 
-                leftSize += KEYBLOCK_LENGTH
-                        + ((ebc - adjustedEbc + size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
+                leftSize += KEYBLOCK_LENGTH + ((ebc - adjustedEbc + size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
             }
 
             if (joinBest <= 0)
@@ -2573,11 +2454,9 @@ public final class Buffer extends SharedResource {
 
                 moveRecords(buffer, foundAt2, joinOffset, _keyBlockEnd, true);
 
-                System.arraycopy(buffer._bytes, joinOffset, buffer._bytes,
-                        KEY_BLOCK_START, rightSize);
+                System.arraycopy(buffer._bytes, joinOffset, buffer._bytes, KEY_BLOCK_START, rightSize);
 
-                buffer.clearBytes(KEY_BLOCK_START + rightSize,
-                        buffer._keyBlockEnd);
+                buffer.clearBytes(KEY_BLOCK_START + rightSize, buffer._keyBlockEnd);
                 buffer.setKeyBlockEnd(KEY_BLOCK_START + rightSize);
 
                 buffer.reduceEbc(KEY_BLOCK_START, 0, indexKeyBytes);
@@ -2587,24 +2466,20 @@ public final class Buffer extends SharedResource {
                 //
                 int rightSize = buffer._keyBlockEnd - foundAt2;
 
-                System.arraycopy(buffer._bytes, foundAt2, buffer._bytes,
-                        KEY_BLOCK_START, rightSize);
+                System.arraycopy(buffer._bytes, foundAt2, buffer._bytes, KEY_BLOCK_START, rightSize);
 
-                buffer.clearBytes(KEY_BLOCK_START + rightSize,
-                        buffer._keyBlockEnd);
+                buffer.clearBytes(KEY_BLOCK_START + rightSize, buffer._keyBlockEnd);
 
                 buffer.setKeyBlockEnd(KEY_BLOCK_START + rightSize);
 
                 if (joinOffset != foundAt1) {
-                    buffer.moveRecords(this, joinOffset, foundAt1,
-                            KEY_BLOCK_START, false);
+                    buffer.moveRecords(this, joinOffset, foundAt1, KEY_BLOCK_START, false);
                 }
                 setKeyBlockEnd(joinOffset);
                 //
                 // Now set up the edge key in the left page.
                 //
-                moveRecords(buffer, KEY_BLOCK_START, KEY_BLOCK_START,
-                        joinOffset, true);
+                moveRecords(buffer, KEY_BLOCK_START, KEY_BLOCK_START, joinOffset, true);
 
                 buffer.reduceEbc(KEY_BLOCK_START, 0, indexKeyBytes);
             }
@@ -2687,8 +2562,7 @@ public final class Buffer extends SharedResource {
         if (newEbc == oldEbc)
             return;
         if (newEbc > oldEbc) {
-            throw new IllegalArgumentException("newEbc=" + newEbc
-                    + " must be less than oldEbc=" + oldEbc);
+            throw new IllegalArgumentException("newEbc=" + newEbc + " must be less than oldEbc=" + oldEbc);
         }
 
         int delta = ((size + oldEbc - newEbc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
@@ -2713,8 +2587,7 @@ public final class Buffer extends SharedResource {
                     newTail = wedgeTail(tail, delta);
 
                     if (newTail == -1) {
-                        throw new IllegalStateException(
-                                "Can't wedge enough space");
+                        throw new IllegalStateException("Can't wedge enough space");
                     }
                 }
                 wedged = true;
@@ -2724,16 +2597,14 @@ public final class Buffer extends SharedResource {
         if (newTail != tail && isIndexPage()) {
             // TODO - allow larger pointer size
             //
-            putInt(newTail + TAILBLOCK_POINTER,
-                    getInt(tail + TAILBLOCK_POINTER));
+            putInt(newTail + TAILBLOCK_POINTER, getInt(tail + TAILBLOCK_POINTER));
         }
-        System.arraycopy(_bytes, tail + _tailHeaderSize, _bytes, newTail
-                + _tailHeaderSize + oldEbc - newEbc, size - _tailHeaderSize);
+        System.arraycopy(_bytes, tail + _tailHeaderSize, _bytes, newTail + _tailHeaderSize + oldEbc - newEbc, size
+                - _tailHeaderSize);
 
         _bytes[newTail + _tailHeaderSize + oldEbc - newEbc - 1] = (byte) oldDb;
 
-        System.arraycopy(indexKeyBytes, newEbc + 1, _bytes, newTail
-                + _tailHeaderSize, oldEbc - newEbc - 1);
+        System.arraycopy(indexKeyBytes, newEbc + 1, _bytes, newTail + _tailHeaderSize, oldEbc - newEbc - 1);
 
         if (newTail != tail && !wedged) {
             deallocTail(tail, size);
@@ -2757,14 +2628,12 @@ public final class Buffer extends SharedResource {
      * @param insertAt
      * @param includeRightEdge
      */
-    private void moveRecords(Buffer buffer, int p1, int p2, int insertAt,
-            boolean includesRightEdge) {
+    private void moveRecords(Buffer buffer, int p1, int p2, int insertAt, boolean includesRightEdge) {
         if (p2 - p1 + _keyBlockEnd > _alloc) {
             repack();
         }
         if (insertAt < _keyBlockEnd) {
-            System.arraycopy(_bytes, insertAt, _bytes, insertAt + p2 - p1,
-                    _keyBlockEnd - insertAt);
+            System.arraycopy(_bytes, insertAt, _bytes, insertAt + p2 - p1, _keyBlockEnd - insertAt);
 
         }
         clearBytes(insertAt, insertAt + p2 - p1);
@@ -2797,8 +2666,7 @@ public final class Buffer extends SharedResource {
             if (Debug.ENABLED)
                 Debug.$assert(newTail != -1);
 
-            System.arraycopy(buffer._bytes, tail + 4, _bytes, newTail + 4,
-                    newSize - 4);
+            System.arraycopy(buffer._bytes, tail + 4, _bytes, newTail + 4, newSize - 4);
 
             putInt(newTail, encodeTailBlock(newSize, klength));
 
@@ -2846,8 +2714,7 @@ public final class Buffer extends SharedResource {
         size = (size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
 
         if (Debug.ENABLED) {
-            Debug.$assert((size > 0 && size <= _bufferSize - _alloc)
-                    && (tail >= _alloc && tail < _bufferSize)
+            Debug.$assert((size > 0 && size <= _bufferSize - _alloc) && (tail >= _alloc && tail < _bufferSize)
                     && (tail + size <= _bufferSize));
         }
 
@@ -2861,8 +2728,7 @@ public final class Buffer extends SharedResource {
                 if ((kbNext & TAILBLOCK_INUSE_MASK) == 0) {
                     int sizeNext = decodeTailBlockSize(kbNext);
                     if (Debug.ENABLED) {
-                        Debug.$assert((sizeNext & ~TAILBLOCK_MASK) == 0
-                                && sizeNext != 0);
+                        Debug.$assert((sizeNext & ~TAILBLOCK_MASK) == 0 && sizeNext != 0);
                     }
                     _slack -= sizeNext;
                     putInt(tail + size, 0);
@@ -2897,8 +2763,7 @@ public final class Buffer extends SharedResource {
         for (int tail = _alloc; tail < _bufferSize;) {
             int tbData = getInt(tail);
 
-            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK)
-                    & TAILBLOCK_MASK;
+            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
 
             if ((tbData & TAILBLOCK_INUSE_MASK) != 0) {
                 plan[tail / TAILBLOCK_FACTOR] = (back << 16) | free;
@@ -2927,8 +2792,7 @@ public final class Buffer extends SharedResource {
             plan[tail / TAILBLOCK_FACTOR] = free + tail;
             int deltaFree = planData & 0xFFFF;
             if (deltaFree > 0 && moveSize > 0 && free > 0) {
-                System.arraycopy(_bytes, moveFrom, _bytes, moveFrom + free,
-                        moveSize);
+                System.arraycopy(_bytes, moveFrom, _bytes, moveFrom + free, moveSize);
                 moveSize = 0;
             }
 
@@ -2936,8 +2800,7 @@ public final class Buffer extends SharedResource {
             tail = planData >>> 16;
         }
         if (moveSize > 0 && free > 0) {
-            System.arraycopy(_bytes, moveFrom, _bytes, moveFrom + free,
-                    moveSize);
+            System.arraycopy(_bytes, moveFrom, _bytes, moveFrom + free, moveSize);
         }
         _alloc = alloc;
         _slack = 0;
@@ -2986,8 +2849,7 @@ public final class Buffer extends SharedResource {
      */
     boolean isAfterRightEdge(int foundAt) {
         int p = foundAt & P_MASK;
-        return (p >= _keyBlockEnd)
-                || ((p == _keyBlockEnd - KEYBLOCK_LENGTH && (foundAt & EXACT_MASK) != 0));
+        return (p >= _keyBlockEnd) || ((p == _keyBlockEnd - KEYBLOCK_LENGTH && (foundAt & EXACT_MASK) != 0));
     }
 
     /**
@@ -3019,35 +2881,25 @@ public final class Buffer extends SharedResource {
 
     int getInt(int index) {
         if (Persistit.BIG_ENDIAN) {
-            return (_bytes[index + 3] & 0xFF) | (_bytes[index + 2] & 0xFF) << 8
-                    | (_bytes[index + 1] & 0xFF) << 16
+            return (_bytes[index + 3] & 0xFF) | (_bytes[index + 2] & 0xFF) << 8 | (_bytes[index + 1] & 0xFF) << 16
                     | (_bytes[index] & 0xFF) << 24;
         } else {
-            return (_bytes[index] & 0xFF) | (_bytes[index + 1] & 0xFF) << 8
-                    | (_bytes[index + 2] & 0xFF) << 16
+            return (_bytes[index] & 0xFF) | (_bytes[index + 1] & 0xFF) << 8 | (_bytes[index + 2] & 0xFF) << 16
                     | (_bytes[index + 3] & 0xFF) << 24;
         }
     }
 
     long getLong(int index) {
         if (Persistit.BIG_ENDIAN) {
-            return (long) (_bytes[index + 7] & 0xFF)
-                    | (long) (_bytes[index + 6] & 0xFF) << 8
-                    | (long) (_bytes[index + 5] & 0xFF) << 16
-                    | (long) (_bytes[index + 4] & 0xFF) << 24
-                    | (long) (_bytes[index + 3] & 0xFF) << 32
-                    | (long) (_bytes[index + 2] & 0xFF) << 40
-                    | (long) (_bytes[index + 1] & 0xFF) << 48
-                    | (long) (_bytes[index] & 0xFF) << 56;
+            return (long) (_bytes[index + 7] & 0xFF) | (long) (_bytes[index + 6] & 0xFF) << 8
+                    | (long) (_bytes[index + 5] & 0xFF) << 16 | (long) (_bytes[index + 4] & 0xFF) << 24
+                    | (long) (_bytes[index + 3] & 0xFF) << 32 | (long) (_bytes[index + 2] & 0xFF) << 40
+                    | (long) (_bytes[index + 1] & 0xFF) << 48 | (long) (_bytes[index] & 0xFF) << 56;
         } else {
-            return (long) (_bytes[index] & 0xFF)
-                    | (long) (_bytes[index + 1] & 0xFF) << 8
-                    | (long) (_bytes[index + 2] & 0xFF) << 16
-                    | (long) (_bytes[index + 3] & 0xFF) << 24
-                    | (long) (_bytes[index + 4] & 0xFF) << 32
-                    | (long) (_bytes[index + 5] & 0xFF) << 40
-                    | (long) (_bytes[index + 6] & 0xFF) << 48
-                    | (long) (_bytes[index + 7] & 0xFF) << 56;
+            return (long) (_bytes[index] & 0xFF) | (long) (_bytes[index + 1] & 0xFF) << 8
+                    | (long) (_bytes[index + 2] & 0xFF) << 16 | (long) (_bytes[index + 3] & 0xFF) << 24
+                    | (long) (_bytes[index + 4] & 0xFF) << 32 | (long) (_bytes[index + 5] & 0xFF) << 40
+                    | (long) (_bytes[index + 6] & 0xFF) << 48 | (long) (_bytes[index + 7] & 0xFF) << 56;
         }
     }
 
@@ -3120,8 +2972,7 @@ public final class Buffer extends SharedResource {
 
     static void writeLongRecordDescriptor(byte[] bytes, int size, long pageAddr) {
         if (bytes.length != LONGREC_SIZE) {
-            throw new IllegalArgumentException(
-                    "Bad LONG_RECORD descriptor size: " + size);
+            throw new IllegalArgumentException("Bad LONG_RECORD descriptor size: " + size);
         }
         bytes[0] = (byte) LONGREC_TYPE;
         bytes[1] = (byte) 0;
@@ -3133,8 +2984,7 @@ public final class Buffer extends SharedResource {
     static int decodeLongRecordDescriptorSize(byte[] bytes, int offset) {
         int type;
         if ((type = (bytes[offset] & 0xFF)) != LONGREC_TYPE) {
-            throw new IllegalArgumentException(
-                    "Bad LONG_RECORD descriptor type: " + type);
+            throw new IllegalArgumentException("Bad LONG_RECORD descriptor type: " + type);
         }
         return (int) Util.getLong(bytes, offset + LONGREC_SIZE_OFFSET);
     }
@@ -3142,15 +2992,13 @@ public final class Buffer extends SharedResource {
     static long decodeLongRecordDescriptorPointer(byte[] bytes, int offset) {
         int type;
         if ((type = (bytes[offset] & 0xFF)) != LONGREC_TYPE) {
-            throw new IllegalArgumentException(
-                    "Bad LONG_RECORD descriptor type: " + type);
+            throw new IllegalArgumentException("Bad LONG_RECORD descriptor type: " + type);
         }
         return Util.getLong(bytes, offset + LONGREC_PAGE_OFFSET);
     }
 
     static int bufferSizeWithOverhead(final int bufferSize) {
-        return bufferSize + (((bufferSize - HEADER_SIZE) / MAX_KEY_RATIO) * 4)
-                + ESTIMATED_FIXED_BUFFER_OVERHEAD;
+        return bufferSize + (((bufferSize - HEADER_SIZE) / MAX_KEY_RATIO) * 4) + ESTIMATED_FIXED_BUFFER_OVERHEAD;
     }
 
     /**
@@ -3197,8 +3045,7 @@ public final class Buffer extends SharedResource {
     }
 
     static int encodeKeyBlock(int ebc, int db, int tail) {
-        return ((ebc << EBC_SHIFT) & EBC_MASK)
-                | ((db /* << DB_SHIFT */) & DB_MASK)
+        return ((ebc << EBC_SHIFT) & EBC_MASK) | ((db /* << DB_SHIFT */) & DB_MASK)
                 | ((tail << TAIL_SHIFT) & TAIL_MASK);
     }
 
@@ -3207,8 +3054,10 @@ public final class Buffer extends SharedResource {
     }
 
     static int encodeTailBlock(int size, int klength) {
-        return ((klength << TAILBLOCK_KLENGTH_SHIFT) & TAILBLOCK_KLENGTH_MASK)
-                | ((size /* << TAILBLOCK_SIZE_SHIFT */) & TAILBLOCK_SIZE_MASK)
+        return ((klength << TAILBLOCK_KLENGTH_SHIFT) & TAILBLOCK_KLENGTH_MASK) | ((size /*
+                                                                                         * <<
+                                                                                         * TAILBLOCK_SIZE_SHIFT
+                                                                                         */) & TAILBLOCK_SIZE_MASK)
                 | TAILBLOCK_INUSE_MASK;
     }
 
@@ -3261,12 +3110,10 @@ public final class Buffer extends SharedResource {
 
     InvalidPageStructureException verify(Key key) {
         if (_page == 0) {
-            return new InvalidPageStructureException(
-                    "head page is neither a data page nor an index page");
+            return new InvalidPageStructureException("head page is neither a data page nor an index page");
         }
         if (!isIndexPage() && !isDataPage()) {
-            return new InvalidPageStructureException("page type " + _type
-                    + " is neither data page nor an index page");
+            return new InvalidPageStructureException("page type " + _type + " is neither data page nor an index page");
         }
         BitSet bitSet = null;
         if (isIndexPage())
@@ -3287,26 +3134,20 @@ public final class Buffer extends SharedResource {
             int tail = decodeKeyBlockTail(kbData);
 
             if (p == KEY_BLOCK_START && ebc != 0) {
-                return new InvalidPageStructureException("invalid initial ebc "
-                        + ebc + " for keyblock at " + p + " --[" + summarize()
-                        + "]");
+                return new InvalidPageStructureException("invalid initial ebc " + ebc + " for keyblock at " + p
+                        + " --[" + summarize() + "]");
             }
 
-            if (tail < _keyBlockEnd || tail < _alloc
-                    || tail > _bufferSize - _tailHeaderSize
+            if (tail < _keyBlockEnd || tail < _alloc || tail > _bufferSize - _tailHeaderSize
                     || (tail & ~TAILBLOCK_MASK) != 0) {
-                return new InvalidPageStructureException(
-                        "invalid tail block offset " + tail
-                                + " for keyblock at " + p + " --["
-                                + summarize() + "]");
+                return new InvalidPageStructureException("invalid tail block offset " + tail + " for keyblock at " + p
+                        + " --[" + summarize() + "]");
             }
             int tbData = getInt(tail);
             int klength = decodeTailBlockKLength(tbData);
             if ((tbData & TAILBLOCK_INUSE_MASK) == 0) {
-                return new InvalidPageStructureException(
-                        "not in-use tail block offset " + tail
-                                + " for keyblock at " + p + " --["
-                                + summarize() + "]");
+                return new InvalidPageStructureException("not in-use tail block offset " + tail + " for keyblock at "
+                        + p + " --[" + summarize() + "]");
             }
             // Verify that first key in this pages matches the final key
             // of the preceding page.
@@ -3318,24 +3159,20 @@ public final class Buffer extends SharedResource {
                     size = klength + 1;
                 compare = (kb[0] & 0xFF) - db;
                 while (compare == 0 && ++index < size) {
-                    compare = (kb[index] & 0xFF)
-                            - (_bytes[tail + _tailHeaderSize + index - 1] & 0xFF);
+                    compare = (kb[index] & 0xFF) - (_bytes[tail + _tailHeaderSize + index - 1] & 0xFF);
                 }
                 if (compare != 0) {
                     String s = compare < 0 ? "too big" : "too small";
-                    return new InvalidPageStructureException("initial key " + s
-                            + " at offset " + index + " for keyblock at " + p
-                            + " --[" + summarize() + "]");
+                    return new InvalidPageStructureException("initial key " + s + " at offset " + index
+                            + " for keyblock at " + p + " --[" + summarize() + "]");
                 }
             }
             // Verify that successor keys follow in sequence.
             if (p > KEY_BLOCK_START && ebc < key.getEncodedSize()) {
                 int dbPrev = kb[ebc] & 0xFF;
                 if (db < dbPrev) {
-                    return new InvalidPageStructureException(
-                            "db not greater: db=" + db + " dbPrev=" + dbPrev
-                                    + " for keyblock at " + p + " --["
-                                    + summarize() + "]");
+                    return new InvalidPageStructureException("db not greater: db=" + db + " dbPrev=" + dbPrev
+                            + " for keyblock at " + p + " --[" + summarize() + "]");
                 }
             }
             //
@@ -3345,29 +3182,23 @@ public final class Buffer extends SharedResource {
                 int pointer = getInt(tail + 4); // TODO - long pointers
                 if (pointer == -1) {
                     if (p + KEYBLOCK_LENGTH != _keyBlockEnd) {
-                        return new InvalidPageStructureException(
-                                "index pointer has pointer to -1 "
-                                        + " for keyblock at " + p + " --["
-                                        + summarize() + "]");
+                        return new InvalidPageStructureException("index pointer has pointer to -1 "
+                                + " for keyblock at " + p + " --[" + summarize() + "]");
                     }
                 } else if (bitSet.get(pointer)) {
-                    return new InvalidPageStructureException(
-                            "index page has multiple keys pointing to same page "
-                                    + " for keyblock at " + p + " --["
-                                    + summarize() + "]");
+                    return new InvalidPageStructureException("index page has multiple keys pointing to same page "
+                            + " for keyblock at " + p + " --[" + summarize() + "]");
                 } else
                     bitSet.set(pointer);
             }
 
             if (_pool != null && getKeyCount() > _pool.getMaxKeys()) {
-                return new InvalidPageStructureException(
-                        "page has too many keys: has " + getKeyCount()
-                                + " but max is " + _pool.getMaxKeys());
+                return new InvalidPageStructureException("page has too many keys: has " + getKeyCount()
+                        + " but max is " + _pool.getMaxKeys());
             }
 
             kb[ebc] = (byte) db;
-            System.arraycopy(_bytes, tail + _tailHeaderSize, kb, ebc + 1,
-                    klength);
+            System.arraycopy(_bytes, tail + _tailHeaderSize, kb, ebc + 1, klength);
             key.setEncodedSize(ebc + klength + 1);
             plan[tail / TAILBLOCK_FACTOR] = p;
         }
@@ -3377,36 +3208,29 @@ public final class Buffer extends SharedResource {
         int formerBlock = _alloc;
         for (int tail = _alloc; tail < _bufferSize;) {
             if ((tail & ~TAILBLOCK_MASK) != 0 || tail < 0 || tail > _bufferSize) {
-                return new InvalidPageStructureException("Tail block at "
-                        + formerBlock + " is invalid");
+                return new InvalidPageStructureException("Tail block at " + formerBlock + " is invalid");
             }
             int tbData = getInt(tail);
             int size = decodeTailBlockSize(tbData);
             if (size <= ~TAILBLOCK_MASK || size >= _bufferSize - _keyBlockEnd) {
-                return new InvalidPageStructureException("Tailblock at " + tail
-                        + " has invalid size=" + size);
+                return new InvalidPageStructureException("Tailblock at " + tail + " has invalid size=" + size);
             }
             if ((tbData & TAILBLOCK_INUSE_MASK) != 0) {
                 if (plan[tail / TAILBLOCK_FACTOR] == 0) {
-                    return new InvalidPageStructureException("Tailblock at "
-                            + tail + " is in use, but no key "
+                    return new InvalidPageStructureException("Tailblock at " + tail + " is in use, but no key "
                             + " block points to it.");
                 }
                 int klength = decodeTailBlockKLength(tbData);
                 {
                     if (klength + _tailHeaderSize > size) {
-                        return new InvalidPageStructureException(
-                                "Tailblock at " + tail + " has klength="
-                                        + klength + " longer than size=" + size
-                                        + " - headerSize=" + _tailHeaderSize);
+                        return new InvalidPageStructureException("Tailblock at " + tail + " has klength=" + klength
+                                + " longer than size=" + size + " - headerSize=" + _tailHeaderSize);
                     }
                 }
             } else {
                 if (plan[tail / TAILBLOCK_FACTOR] != 0) {
-                    return new InvalidPageStructureException("Tailblock at "
-                            + tail + " is marked free, but the "
-                            + " key block at " + plan[tail / TAILBLOCK_FACTOR]
-                            + " points to it.");
+                    return new InvalidPageStructureException("Tailblock at " + tail + " is marked free, but the "
+                            + " key block at " + plan[tail / TAILBLOCK_FACTOR] + " points to it.");
                 }
             }
             tail += ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
@@ -3420,12 +3244,10 @@ public final class Buffer extends SharedResource {
      *         this <code>Buffer</code>.
      */
     public String summarize() {
-        return "page=" + _page + " type=" + getPageTypeName()
-                + " rightSibling=" + _rightSibling + " status="
-                + getStatusDisplayString() + " start=" + KEY_BLOCK_START
-                + " end=" + _keyBlockEnd + " size=" + _bufferSize + " alloc="
-                + _alloc + " slack=" + _slack + " index=" + _poolIndex
-                + " timestamp=" + _timestamp + " generation=" + _generation;
+        return "page=" + _page + " type=" + getPageTypeName() + " rightSibling=" + _rightSibling + " status="
+                + getStatusDisplayString() + " start=" + KEY_BLOCK_START + " end=" + _keyBlockEnd + " size="
+                + _bufferSize + " alloc=" + _alloc + " slack=" + _slack + " index=" + _poolIndex + " timestamp="
+                + _timestamp + " generation=" + _generation;
     }
 
     public String toString() {
@@ -3433,9 +3255,8 @@ public final class Buffer extends SharedResource {
             return toStringDetail(-1);
         }
 
-        return "Page " + _page + " in Volume " + _vol + " at index "
-                + _poolIndex + " status=" + getStatusDisplayString() + " type="
-                + getPageTypeName();
+        return "Page " + _page + " in Volume " + _vol + " at index " + _poolIndex + " status="
+                + getStatusDisplayString() + " type=" + getPageTypeName();
     }
 
     /**
@@ -3454,17 +3275,14 @@ public final class Buffer extends SharedResource {
      */
     String toStringDetail(final long findPointer) {
         final StringBuilder sb = new StringBuilder(String.format(
-                "Page %,d in volume %s at index @%,d status %s type %s", _page,
-                _vol, _poolIndex, getStatusDisplayString(), getPageTypeName()));
+                "Page %,d in volume %s at index @%,d status %s type %s", _page, _vol, _poolIndex,
+                getStatusDisplayString(), getPageTypeName()));
         if (!isValid()) {
             sb.append(" - invalid");
         } else if (isDataPage() || isIndexPage()) {
-            sb.append(String.format("\n  type=%,d  alloc=%,d  slack=%,d  "
-                    + "keyBlockStart=%,d  keyBlockEnd=%,d "
-                    + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
-                    _alloc, _slack, KEY_BLOCK_START, _keyBlockEnd,
-                    getTimestamp(), getGeneration(), getRightSibling(),
-                    _pool.hashIndex(_vol, _page)));
+            sb.append(String.format("\n  type=%,d  alloc=%,d  slack=%,d  " + "keyBlockStart=%,d  keyBlockEnd=%,d "
+                    + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type, _alloc, _slack, KEY_BLOCK_START,
+                    _keyBlockEnd, getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
 
             try {
                 final Key key = new Key((Persistit) null);
@@ -3484,13 +3302,9 @@ public final class Buffer extends SharedResource {
                     r.getKeyState().copyTo(key);
                     if (isDataPage()) {
                         r.getValueState().copyTo(value);
-                        sb.append(String
-                                .format("\n   %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s",
-                                        r.getKbOffset(), r.getDb(), r.getEbc(),
-                                        r.getTbOffset(), r.getKLength(), key, r
-                                                .getValueState()
-                                                .getEncodedBytes().length,
-                                        abridge(value)));
+                        sb.append(String.format("\n   %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s=[%,d]%s", r.getKbOffset(), r
+                                .getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), key, r.getValueState()
+                                .getEncodedBytes().length, abridge(value)));
                     } else {
                         boolean selected = true;
                         if (findPointer >= 0) {
@@ -3505,12 +3319,8 @@ public final class Buffer extends SharedResource {
                             }
                         }
                         if (selected) {
-                            sb.append(String
-                                    .format("\n  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d",
-                                            r.getKbOffset(), r.getDb(),
-                                            r.getEbc(), r.getTbOffset(),
-                                            r.getKLength(), key,
-                                            r.getPointerValue()));
+                            sb.append(String.format("\n  %5d: db=%3d ebc=%3d tb=%,5d [%,d]%s->%,d", r.getKbOffset(), r
+                                    .getDb(), r.getEbc(), r.getTbOffset(), r.getKLength(), key, r.getPointerValue()));
                             elisionMarked = false;
                         } else {
                             if (!elisionMarked) {
@@ -3528,33 +3338,22 @@ public final class Buffer extends SharedResource {
             // TODO - Desperately needs to be refactored so that Volume and this
             // method don't need all these constant byte references.
             //
-            sb.append(String.format("\n  type=%,d  "
-                    + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
-                    getTimestamp(), getGeneration(), getRightSibling(),
-                    _pool.hashIndex(_vol, _page)));
-            sb.append(String
-                    .format("\n  highestPageUsed=%,d pageCount=%,d "
-                            + "firstAvailablePage=%,d directoryRootPage=%,d garbageRootPage=%,d id=%,d ",
-                            Util.getLong(_bytes, 104),
-                            Util.getLong(_bytes, 112),
-                            Util.getLong(_bytes, 136),
-                            Util.getLong(_bytes, 144),
-                            Util.getLong(_bytes, 152), Util.getLong(_bytes, 32)));
+            sb.append(String.format("\n  type=%,d  " + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
+                    getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
+            sb.append(String.format("\n  highestPageUsed=%,d pageCount=%,d "
+                    + "firstAvailablePage=%,d directoryRootPage=%,d garbageRootPage=%,d id=%,d ", Util.getLong(_bytes,
+                    104), Util.getLong(_bytes, 112), Util.getLong(_bytes, 136), Util.getLong(_bytes, 144), Util
+                    .getLong(_bytes, 152), Util.getLong(_bytes, 32)));
         } else if (isGarbagePage()) {
-            sb.append(String.format("\n  type=%,d  "
-                    + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
-                    getTimestamp(), getGeneration(), getRightSibling(),
-                    _pool.hashIndex(_vol, _page)));
+            sb.append(String.format("\n  type=%,d  " + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
+                    getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
             for (int p = _alloc; p < _bufferSize; p += GARBAGE_BLOCK_SIZE) {
-                sb.append(String.format("\n  garbage chain @%,6d : %,d -> %,d",
-                        p, getLong(p + GARBAGE_BLOCK_LEFT_PAGE), getLong(p
-                                + GARBAGE_BLOCK_RIGHT_PAGE)));
+                sb.append(String.format("\n  garbage chain @%,6d : %,d -> %,d", p,
+                        getLong(p + GARBAGE_BLOCK_LEFT_PAGE), getLong(p + GARBAGE_BLOCK_RIGHT_PAGE)));
             }
         } else {
-            sb.append(String.format("\n  type=%,d  "
-                    + "timestamp=%,d generation=%,d right=%,d hash=%,d\n",
-                    _type, getTimestamp(), getGeneration(), getRightSibling(),
-                    _pool.hashIndex(_vol, _page)));
+            sb.append(String.format("\n  type=%,d  " + "timestamp=%,d generation=%,d right=%,d hash=%,d\n", _type,
+                    getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
         }
         return sb.toString();
     }
@@ -3628,8 +3427,7 @@ public final class Buffer extends SharedResource {
 
                 byte[] kbytes = key.getEncodedBytes();
                 kbytes[ebc] = (byte) db;
-                System.arraycopy(_bytes, tail + _tailHeaderSize, kbytes,
-                        ebc + 1, klength);
+                System.arraycopy(_bytes, tail + _tailHeaderSize, kbytes, ebc + 1, klength);
                 key.setEncodedSize(ebc + 1 + klength);
                 rec._key = new KeyState(key);
 
@@ -3640,10 +3438,8 @@ public final class Buffer extends SharedResource {
                     int vsize = size - _tailHeaderSize - klength;
                     if (vsize < 0)
                         vsize = 0;
-                    value.putEncodedBytes(_bytes, tail + _tailHeaderSize
-                            + klength, vsize);
-                    if (value.isDefined()
-                            && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE) {
+                    value.putEncodedBytes(_bytes, tail + _tailHeaderSize + klength, vsize);
+                    if (value.isDefined() && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE) {
                         value.setLongRecordMode(true);
                     } else {
                         value.setLongRecordMode(false);
@@ -3677,8 +3473,7 @@ public final class Buffer extends SharedResource {
 
     boolean addGarbageChain(long left, long right, long expectedCount) {
         if (Debug.ENABLED)
-            Debug.$assert(left > 0 && left <= MAX_VALID_PAGE_ADDR
-                    && left != _page && right != _page && isGarbagePage());
+            Debug.$assert(left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page && right != _page && isGarbagePage());
 
         if (_alloc - GARBAGE_BLOCK_SIZE < _keyBlockEnd) {
             return false;
@@ -3710,8 +3505,7 @@ public final class Buffer extends SharedResource {
             return -1;
         long page = getLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE);
         if (Debug.ENABLED)
-            Debug.$assert(page > 0 && page <= MAX_VALID_PAGE_ADDR
-                    && page != _page);
+            Debug.$assert(page > 0 && page <= MAX_VALID_PAGE_ADDR && page != _page);
         return page;
     }
 
@@ -3727,8 +3521,7 @@ public final class Buffer extends SharedResource {
     long getGarbageChainLeftPage(int p) {
         long page = getLong(p + GARBAGE_BLOCK_LEFT_PAGE);
         if (Debug.ENABLED)
-            Debug.$assert(page > 0 && page <= MAX_VALID_PAGE_ADDR
-                    && page != _page);
+            Debug.$assert(page > 0 && page <= MAX_VALID_PAGE_ADDR && page != _page);
         return page;
     }
 
@@ -3752,8 +3545,7 @@ public final class Buffer extends SharedResource {
         Debug.$assert(isMine());
         if (Debug.ENABLED) {
             if (Debug.ENABLED)
-                Debug.$assert(left > 0 && left <= MAX_VALID_PAGE_ADDR
-                        && left != _page);
+                Debug.$assert(left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page);
             Debug.$assert(isGarbagePage());
             Debug.$assert(_alloc + GARBAGE_BLOCK_SIZE <= _bufferSize);
             Debug.$assert(_alloc >= _keyBlockEnd);

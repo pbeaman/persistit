@@ -76,8 +76,7 @@ public class TreeSelector {
         V, T, K, C
     }
 
-    public static TreeSelector parseSelector(final String spec,
-            final boolean regex, final char quote) {
+    public static TreeSelector parseSelector(final String spec, final boolean regex, final char quote) {
         TreeSelector treeSelector = new TreeSelector();
         Selector s = new Selector();
         State state = State.V;
@@ -89,8 +88,7 @@ public class TreeSelector {
             if (quoted) {
                 sb.append(c);
                 quoted = false;
-            } else if (c == quote && index < size - 2
-                    && CAN_BE_QUOTED.indexOf(spec.charAt(index + 1)) > 0) {
+            } else if (c == quote && index < size - 2 && CAN_BE_QUOTED.indexOf(spec.charAt(index + 1)) > 0) {
                 quoted = true;
             } else {
                 switch (state) {
@@ -137,8 +135,7 @@ public class TreeSelector {
                 case K:
                     sb.append(c);
                     if (c == RBRACE || c == NUL) {
-                        s._keyFilter = new KeyParser(sb.toString())
-                                .parseKeyFilter();
+                        s._keyFilter = new KeyParser(sb.toString()).parseKeyFilter();
                         treeSelector._terms.add(s);
                         s = new Selector();
                         sb.setLength(0);
@@ -180,8 +177,7 @@ public class TreeSelector {
             return true;
         }
         for (final Selector selector : _terms) {
-            if (selector._vpattern == null
-                    || selector._vpattern.matcher(volumeName).matches()) {
+            if (selector._vpattern == null || selector._vpattern.matcher(volumeName).matches()) {
                 return true;
             }
         }
@@ -193,26 +189,21 @@ public class TreeSelector {
             return true;
         }
         for (final Selector selector : _terms) {
-            if ((selector._vpattern == null || selector._vpattern.matcher(
-                    volumeName).matches())
-                    && selector._tpattern == null
-                    && selector._keyFilter == null) {
+            if ((selector._vpattern == null || selector._vpattern.matcher(volumeName).matches())
+                    && selector._tpattern == null && selector._keyFilter == null) {
                 return true;
             }
         }
         return false;
     }
 
-    public boolean isTreeNameSelected(final String volumeName,
-            final String treeName) {
+    public boolean isTreeNameSelected(final String volumeName, final String treeName) {
         if (_terms.isEmpty()) {
             return true;
         }
         for (final Selector selector : _terms) {
-            if ((selector._vpattern == null || selector._vpattern.matcher(
-                    volumeName).matches())
-                    && (selector._tpattern == null || selector._tpattern
-                            .matcher(treeName).matches())) {
+            if ((selector._vpattern == null || selector._vpattern.matcher(volumeName).matches())
+                    && (selector._tpattern == null || selector._tpattern.matcher(treeName).matches())) {
                 return true;
             }
         }
@@ -222,19 +213,15 @@ public class TreeSelector {
     public KeyFilter keyFilter(final String volumeName, final String treeName) {
         KeyFilter kf = null;
         for (final Selector selector : _terms) {
-            if ((selector._vpattern == null || selector._vpattern.matcher(
-                    volumeName).matches())
-                    && (selector._tpattern == null || selector._tpattern
-                            .matcher(treeName).matches())) {
+            if ((selector._vpattern == null || selector._vpattern.matcher(volumeName).matches())
+                    && (selector._tpattern == null || selector._tpattern.matcher(treeName).matches())) {
                 if (kf == null) {
                     kf = selector._keyFilter;
                     if (kf == null) {
                         kf = new KeyFilter();
                     }
                 } else {
-                    throw new IllegalStateException(
-                            "Non-unique KeyFilters for tree " + volumeName
-                                    + "/" + treeName);
+                    throw new IllegalStateException("Non-unique KeyFilters for tree " + volumeName + "/" + treeName);
                 }
             }
         }

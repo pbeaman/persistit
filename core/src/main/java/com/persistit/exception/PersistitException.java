@@ -16,9 +16,8 @@
 package com.persistit.exception;
 
 /**
- * The superclass for all checked Persistit&trade; Exceptions.
- * This class can also serve as a wrapper for other Exception
- * types.
+ * The superclass for all checked Persistit&trade; Exceptions. This class can
+ * also serve as a wrapper for other Exception types.
  * 
  * @version 1.0
  */

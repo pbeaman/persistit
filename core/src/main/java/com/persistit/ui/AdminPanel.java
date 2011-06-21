@@ -22,8 +22,7 @@ import javax.swing.JPanel;
 
 public abstract class AdminPanel extends JPanel {
 
-    protected abstract void setup(AdminUI ui) throws NoSuchMethodException,
-            RemoteException;
+    protected abstract void setup(AdminUI ui) throws NoSuchMethodException, RemoteException;
 
     protected abstract void refresh(boolean reset) throws RemoteException;
 

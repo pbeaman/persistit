@@ -269,8 +269,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
 
             if (_tabbedPane != null) {
                 try {
-                    AdminPanel mp = (AdminPanel) _tabbedPane
-                            .getSelectedComponent();
+                    AdminPanel mp = (AdminPanel) _tabbedPane.getSelectedComponent();
                     mp.refresh(reset || management == null);
                 } catch (Exception e) {
                     postException(e);
@@ -402,8 +401,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     }
 
     public String formatFileLocation(final String path, final long address) {
-        return path == null ? "" : String.format(_fileLocationFormat, path,
-                address);
+        return path == null ? "" : String.format(_fileLocationFormat, path, address);
     }
 
     private void setFrameTitle(String hostName) {
@@ -441,17 +439,14 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                     if (propName.startsWith("lnf.")) {
                         String propValue = _bundle.getString(propName);
                         if (setPropertyMethod == null) {
-                            setPropertyMethod = lnfClass.getMethod(
-                                    "setProperty", new Class[] { String.class,
-                                            String.class });
+                            setPropertyMethod = lnfClass.getMethod("setProperty", new Class[] { String.class,
+                                    String.class });
                         }
 
-                        setPropertyMethod.invoke(null, new Object[] { propName,
-                                propValue });
+                        setPropertyMethod.invoke(null, new Object[] { propName, propValue });
                     }
                 }
-                javax.swing.LookAndFeel lnf = (javax.swing.LookAndFeel) lnfClass
-                        .newInstance();
+                javax.swing.LookAndFeel lnf = (javax.swing.LookAndFeel) lnfClass.newInstance();
 
                 javax.swing.UIManager.setLookAndFeel(lnf);
                 lafLoaded = true;
@@ -463,8 +458,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
 
         if (!lafLoaded) {
             try {
-                UIManager.setLookAndFeel(UIManager
-                        .getSystemLookAndFeelClassName());
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             } catch (Exception e) {
                 // Ignore exception
             }
@@ -517,8 +511,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         setFrameTitle(null);
         _frame.pack();
-        _frame.setLocation((screenSize.width - _frame.getWidth()) / 2,
-                (screenSize.height - _frame.getHeight()) / 2);
+        _frame.setLocation((screenSize.width - _frame.getWidth()) / 2, (screenSize.height - _frame.getHeight()) / 2);
         _frame.setVisible(true);
     }
 
@@ -543,8 +536,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         }
     }
 
-    JComponent[] createMenuArray(AdminCommand command, String basePropertyName,
-            String actionName) {
+    JComponent[] createMenuArray(AdminCommand command, String basePropertyName, String actionName) {
         ArrayList list = new ArrayList();
         for (int index = 0;; index++) {
             String propName = basePropertyName + "." + actionName + "." + index;
@@ -582,8 +574,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 panel.setup(this);
                 _tabbedPane.addTab(caption, (JComponent) panel);
             } catch (Exception e) {
-                showMessage(e, getProperty("SetupFailedMessage"),
-                        JOptionPane.ERROR_MESSAGE);
+                showMessage(e, getProperty("SetupFailedMessage"), JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -594,10 +585,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         if (oldTab == newTab)
             return;
         _selectedTab = newTab;
-        AdminPanel oldPanel = oldTab == -1 ? null : (AdminPanel) _tabbedPane
-                .getComponent(oldTab);
-        AdminPanel newPanel = newTab == -1 ? null : (AdminPanel) _tabbedPane
-                .getComponent(newTab);
+        AdminPanel oldPanel = oldTab == -1 ? null : (AdminPanel) _tabbedPane.getComponent(oldTab);
+        AdminPanel newPanel = newTab == -1 ? null : (AdminPanel) _tabbedPane.getComponent(newTab);
         if (oldPanel != null) {
             oldPanel.setIsShowing(false);
             changeMenuMap(oldPanel.getMenuMap(), false);
@@ -664,8 +653,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         }
     }
 
-    JComponent addLabeledField(JPanel panel, GridBagConstraints gbc,
-            JComponent component, String propertyName, boolean newLine) {
+    JComponent addLabeledField(JPanel panel, GridBagConstraints gbc, JComponent component, String propertyName,
+            boolean newLine) {
         String prop = getProperty(propertyName);
         StringTokenizer st = new StringTokenizer(prop, ":");
         String caption = st.nextToken();
@@ -705,10 +694,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         if (component instanceof JTextField) {
             JTextField textField = (JTextField) component;
             textField.setColumns(Integer.parseInt(widthStr));
-            textField
-                    .setHorizontalAlignment(alignment.equals("R") ? SwingConstants.TRAILING
-                            : alignment.equals("C") ? SwingConstants.CENTER
-                                    : SwingConstants.LEADING);
+            textField.setHorizontalAlignment(alignment.equals("R") ? SwingConstants.TRAILING
+                    : alignment.equals("C") ? SwingConstants.CENTER : SwingConstants.LEADING);
             textField.setEditable(false);
             textField.setEnabled(true);
             textField.setBackground(Color.white);
@@ -720,15 +707,13 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             textArea.setEnabled(true);
             textArea.setBackground(Color.white);
             wrappedComponent = new JScrollPane(textArea);
-            wrappedComponent.setMinimumSize(textArea
-                    .getPreferredScrollableViewportSize());
+            wrappedComponent.setMinimumSize(textArea.getPreferredScrollableViewportSize());
             registerTextComponent(textArea);
         }
         gbc.weightx = 1.0;
         panel.add(wrappedComponent, gbc);
 
-        if (newLine || gbc.gridwidth == GridBagConstraints.REMAINDER
-                || gbc.gridwidth == GridBagConstraints.RELATIVE) {
+        if (newLine || gbc.gridwidth == GridBagConstraints.REMAINDER || gbc.gridwidth == GridBagConstraints.RELATIVE) {
             gbc.gridy++;
             gbc.gridx = 0;
         } else {
@@ -770,16 +755,13 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         if (caption != null) {
             mnemonicIndex = caption.indexOf('&');
             if (mnemonicIndex >= 0) {
-                caption = caption.substring(0, mnemonicIndex)
-                        + caption.substring(mnemonicIndex + 1);
+                caption = caption.substring(0, mnemonicIndex) + caption.substring(mnemonicIndex + 1);
             }
 
             int acceleratorIndex = caption.indexOf('^');
-            if (acceleratorIndex >= 0
-                    && acceleratorIndex + 1 < caption.length()) {
+            if (acceleratorIndex >= 0 && acceleratorIndex + 1 < caption.length()) {
                 acceleratorChar = caption.charAt(acceleratorIndex + 1);
-                caption = caption.substring(0, acceleratorIndex)
-                        + caption.substring(acceleratorIndex + 2);
+                caption = caption.substring(0, acceleratorIndex) + caption.substring(acceleratorIndex + 2);
             }
         }
 
@@ -789,8 +771,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         } else if (iconName == null || iconName.length() == 0) {
             action = new AdminAction(command, actionName, caption);
         } else {
-            action = new AdminAction(command, actionName, caption,
-                    new ImageIcon(iconName));
+            action = new AdminAction(command, actionName, caption, new ImageIcon(iconName));
         }
         action._isToggle = isToggle;
         action._isRadio = isRadio;
@@ -815,15 +796,12 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         if (caption == null || caption.length() == 0)
             caption = " ";
 
-        return BorderFactory.createTitledBorder(
-                BorderFactory.createEmptyBorder(10, 2, 2, 2), caption,
-                TitledBorder.LEADING, TitledBorder.DEFAULT_POSITION, _boldFont,
-                _persistitAccentColor);
+        return BorderFactory.createTitledBorder(BorderFactory.createEmptyBorder(10, 2, 2, 2), caption,
+                TitledBorder.LEADING, TitledBorder.DEFAULT_POSITION, _boldFont, _persistitAccentColor);
     }
 
     private void connectDialog(String defaultHost) {
-        final Object value = JOptionPane.showInputDialog(_frame,
-                "RMI Registry", "Connection Specification",
+        final Object value = JOptionPane.showInputDialog(_frame, "RMI Registry", "Connection Specification",
                 JOptionPane.QUESTION_MESSAGE, null, null, defaultHost);
         if (value instanceof String) {
             Thread thread = new Thread() {
@@ -839,15 +817,13 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
     private boolean connect(String rmiHost) {
         try {
             _rmiHost = rmiHost;
-            Management management = (Management) Naming.lookup("//" + rmiHost
-                    + "/PersistitManagementServer");
+            Management management = (Management) Naming.lookup("//" + rmiHost + "/PersistitManagementServer");
             setManagement(management);
             setFrameTitle(rmiHost);
             return true;
         } catch (Exception e) {
             setManagement(null);
-            showMessage(e, getProperty("ConnectionFailedMessage"),
-                    JOptionPane.ERROR_MESSAGE);
+            showMessage(e, getProperty("ConnectionFailedMessage"), JOptionPane.ERROR_MESSAGE);
             return false;
         }
     }
@@ -895,8 +871,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             _command = command;
         }
 
-        AdminAction(AdminCommand command, String actionName, String caption,
-                Icon icon) {
+        AdminAction(AdminCommand command, String actionName, String caption, Icon icon) {
             super(caption, icon);
             _name = actionName;
             _caption = caption;
@@ -939,7 +914,6 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
 
         public ArrayList getButtonList() {
 
-
             return _buttonList;
         }
 
@@ -951,10 +925,8 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 char mnemonicChar = _caption.charAt(_mnemonicIndex);
                 button.setMnemonic((int) mnemonicChar);
             }
-            if (_acceleratorChar > 0 && button instanceof JMenuItem
-                    && !(button instanceof JMenu)) {
-                KeyStroke accelerator = KeyStroke.getKeyStroke(
-                        _acceleratorChar, InputEvent.CTRL_MASK);
+            if (_acceleratorChar > 0 && button instanceof JMenuItem && !(button instanceof JMenu)) {
+                KeyStroke accelerator = KeyStroke.getKeyStroke(_acceleratorChar, InputEvent.CTRL_MASK);
                 ((JMenuItem) button).setAccelerator(accelerator);
             }
         }
@@ -996,8 +968,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                         if (u == null)
                             break;
                         AdminAction action = createAction(command, u);
-                        AbstractButton subItem = action.menuItem(command,
-                                subName);
+                        AbstractButton subItem = action.menuItem(command, subName);
                         item.add(subItem);
                         if (subItem instanceof JRadioButtonMenuItem) {
                             boolean first = bg == null;
@@ -1049,8 +1020,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             if (name.startsWith("REFRESH")) {
                 int interval = 0;
                 if (name.startsWith("REFRESH_")) {
-                    interval = Integer.parseInt(name.substring("REFRESH_"
-                            .length()));
+                    interval = Integer.parseInt(name.substring("REFRESH_".length()));
                 }
                 scheduleRefresh(interval);
             } else if ("EXIT".equals(name)) {
@@ -1071,8 +1041,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 boolean state = ((AbstractButton) ae.getSource()).isSelected();
                 if (management != null && management.isInitialized()) {
                     if (state) {
-                        int confirm = JOptionPane.showConfirmDialog(_frame,
-                                getProperty("ssusp.confirm"));
+                        int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("ssusp.confirm"));
 
                         if (confirm != JOptionPane.YES_OPTION) {
                             state = false;
@@ -1089,8 +1058,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 if (management != null && management.isInitialized()) {
                     if (state) {
 
-                        int confirm = JOptionPane.showConfirmDialog(_frame,
-                                getProperty("ususp.confirm"));
+                        int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("ususp.confirm"));
 
                         if (confirm != JOptionPane.YES_OPTION) {
                             state = false;
@@ -1106,8 +1074,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 if (management != null && management.isInitialized()) {
                     if (state) {
 
-                        int confirm = JOptionPane.showConfirmDialog(_frame,
-                                getProperty("aonly.confirm"));
+                        int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("aonly.confirm"));
 
                         if (confirm != JOptionPane.YES_OPTION) {
                             state = false;
@@ -1123,8 +1090,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 if (management != null && management.isInitialized()) {
                     if (state) {
 
-                        int confirm = JOptionPane.showConfirmDialog(_frame,
-                                getProperty("jcopy.confirm"));
+                        int confirm = JOptionPane.showConfirmDialog(_frame, getProperty("jcopy.confirm"));
 
                         if (confirm != JOptionPane.YES_OPTION) {
                             state = false;
@@ -1166,18 +1132,14 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 _fixedFontMode = true;
                 textModeChanged = true;
             } else if (name.startsWith("TASK.")) {
-                String taskDescriptorPropName = "TaskDescriptor."
-                        + name.substring(5);
+                String taskDescriptorPropName = "TaskDescriptor." + name.substring(5);
                 String taskDescriptorString = getProperty(taskDescriptorPropName);
-                TaskSetupPanel tsp = new TaskSetupPanel(this,
-                        taskDescriptorString);
+                TaskSetupPanel tsp = new TaskSetupPanel(this, taskDescriptorString);
 
-                JOptionPane optionPane = new JOptionPane(tsp,
-                        JOptionPane.QUESTION_MESSAGE,
+                JOptionPane optionPane = new JOptionPane(tsp, JOptionPane.QUESTION_MESSAGE,
                         JOptionPane.OK_CANCEL_OPTION);
 
-                JDialog dialog = optionPane.createDialog(_frame,
-                        tsp.getTaskName());
+                JDialog dialog = optionPane.createDialog(_frame, tsp.getTaskName());
                 dialog.setResizable(true);
 
                 tsp.refresh(false);
@@ -1186,13 +1148,11 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 dialog.setVisible(true);
 
                 Object value = optionPane.getValue();
-                if (value != null && value instanceof Integer
-                        && ((Integer) value).intValue() == 0) {
+                if (value != null && value instanceof Integer && ((Integer) value).intValue() == 0) {
                     doTask(tsp);
                 }
             } else if ("START_NEW_TASK".equals(name)) {
-                JPopupMenu popup = new JPopupMenu(
-                        getProperty("SelectNewTaskMessage"));
+                JPopupMenu popup = new JPopupMenu(getProperty("SelectNewTaskMessage"));
                 for (int index = 0;; index++) {
                     AdminAction taskAction = getAction("TASK." + index);
                     if (taskAction == null)
@@ -1261,11 +1221,9 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
                 try {
                     // Use reflection so this will compile and run (but not
                     // report the cause correctly) in JDK 1.3
-                    Method method = throwable.getClass().getMethod("getCause",
-                            new Class[0]);
+                    Method method = throwable.getClass().getMethod("getCause", new Class[0]);
                     if (method != null) {
-                        cause = (Throwable) method.invoke(throwable,
-                                new Object[0]);
+                        cause = (Throwable) method.invoke(throwable, new Object[0]);
                     }
                 } catch (NoSuchMethodException e) {
                     // ignore for JDK 1.3
@@ -1274,11 +1232,9 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
             if (cause != null)
                 throwable = cause;
             if (throwable instanceof Management.WrappedRemoteException) {
-                throwable = ((Management.WrappedRemoteException) throwable)
-                        .getCause();
+                throwable = ((Management.WrappedRemoteException) throwable).getCause();
             }
-            showMessage(throwable, getProperty("ExceptionMessage"),
-                    JOptionPane.ERROR_MESSAGE);
+            showMessage(throwable, getProperty("ExceptionMessage"), JOptionPane.ERROR_MESSAGE);
         } catch (Exception e) {
             System.out.println("Exception while reporting throwable:");
             e.printStackTrace();
@@ -1310,8 +1266,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         if (interval >= 0)
             _refreshInterval = interval;
         if (_refreshInterval > 0) {
-            _refreshTimer.schedule(_refreshTimerTask, 0,
-                    _refreshInterval * 1000);
+            _refreshTimer.schedule(_refreshTimerTask, 0, _refreshInterval * 1000);
         } else {
             _refreshTimer.schedule(_refreshTimerTask, 0);
         }
@@ -1321,27 +1276,26 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         Management management = getManagement();
         if (management != null) {
             // TODO - reinstate task interface
-            management.startTask(tsp.getDescriptionString(),
-                    tsp.getOwnerString(), tsp.getCommandLine(), tsp.getExpirationTime(),
-                    tsp.isVerboseEnabled() ? 1 : 0);
+            management.startTask(tsp.getDescriptionString(), tsp.getOwnerString(), tsp.getCommandLine(), tsp
+                    .getExpirationTime(), tsp.isVerboseEnabled() ? 1 : 0);
         }
         scheduleRefresh(1000);
     }
 
     private synchronized void showHelp(ActionEvent ae) {
-	// disabled and removed for now
-	// 
+        // disabled and removed for now
+        //
         // if (_javaHelpAdapter == null) {
-        //    try {
-        //        JavaHelpAdapter adapter = new JavaHelpAdapterImpl();
-        //        adapter.create(HELP_SET_NAME, ae);
-        //    } catch (Exception e) {
-        //        showMessage(e, "Exception while launching Help",
-        //                JOptionPane.ERROR_MESSAGE);
-        //    }
-        //} else {
-        //    _javaHelpAdapter.showHelp(ae);
-        //}
+        // try {
+        // JavaHelpAdapter adapter = new JavaHelpAdapterImpl();
+        // adapter.create(HELP_SET_NAME, ae);
+        // } catch (Exception e) {
+        // showMessage(e, "Exception while launching Help",
+        // JOptionPane.ERROR_MESSAGE);
+        // }
+        // } else {
+        // _javaHelpAdapter.showHelp(ae);
+        // }
     }
 
     private class SplashWindow extends JWindow {
@@ -1368,8 +1322,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
 
             setSize(width, height);
             Dimension screenDim = Toolkit.getDefaultToolkit().getScreenSize();
-            setLocation((screenDim.width - width) / 2,
-                    (screenDim.height - height) / 2);
+            setLocation((screenDim.width - width) / 2, (screenDim.height - height) / 2);
             addMouseListener(new MouseAdapter() {
                 public void mouseClicked(MouseEvent evt) {
                     setVisible(false);

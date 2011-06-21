@@ -43,8 +43,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
         long now = System.currentTimeMillis();
         if (_recent.getAcquisitionTime() < now - MAX_STALE) {
             try {
-                BufferPoolInfo[] array = _persistit.getManagement()
-                        .getBufferPoolInfoArray();
+                BufferPoolInfo[] array = _persistit.getManagement().getBufferPoolInfoArray();
                 for (BufferPoolInfo info : array) {
                     if (info.getBufferSize() == _bufferSize) {
                         _recent = info;
@@ -66,6 +65,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
      * 
      * @return The size in bytes of each buffer in this pool
      */
+    @Override
     public int getBufferSize() {
         return recent().getBufferSize();
     }
@@ -75,6 +75,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
      * 
      * @return The count
      */
+    @Override
     public int getBufferCount() {
         return recent().getBufferCount();
     }
@@ -86,6 +87,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
      * 
      * @return The get count
      */
+    @Override
     public long getMissCount() {
         return recent().getMissCount();
     }
@@ -98,6 +100,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
      * 
      * @return The hit count
      */
+    @Override
     public long getHitCount() {
         return recent().getHitCount();
     }
@@ -105,6 +108,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
     /**
      * @return Count of pages newly created in this <code>BufferPool</code>.
      */
+    @Override
     public long getNewCount() {
         return recent().getNewCount();
     }
@@ -115,6 +119,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
      * 
      * @return The evicted page count
      */
+    @Override
     public long getEvictCount() {
         return recent().getEvictCount();
     }
@@ -127,6 +132,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
      * 
      * @return The ratio
      */
+    @Override
     public double getHitRatio() {
         return recent().getHitRatio();
     }
@@ -136,6 +142,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
      * 
      * @return The count of valid pages in this pool
      */
+    @Override
     public int getValidPageCount() {
         return recent().getValidPageCount();
     }
@@ -146,6 +153,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
      * 
      * @return The count of dirty pages in this pool
      */
+    @Override
     public int getDirtyPageCount() {
         return recent().getDirtyPageCount();
     }
@@ -156,6 +164,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
      * 
      * @return The count of pages with reader claims
      */
+    @Override
     public int getReaderClaimedPageCount() {
         return recent().getReaderClaimedPageCount();
     }
@@ -166,6 +175,7 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
      * 
      * @return The count of pages with writer claims
      */
+    @Override
     public int getWriterClaimedPageCount() {
         return recent().getWriterClaimedPageCount();
     }

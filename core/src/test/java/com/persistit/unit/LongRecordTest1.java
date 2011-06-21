@@ -31,6 +31,7 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         new LongRecordTest1().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
         test2();
@@ -40,8 +41,7 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
 
     public void test1() throws PersistitException {
         System.out.print("test1");
-        final Exchange ex = _persistit.getExchange("persistit",
-                "LongRecordTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "LongRecordTest1", true);
         ex.removeAll();
         ex.getValue().setMaximumSize(8 * 1024 * 1024);
 
@@ -75,8 +75,7 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
 
     public void test2() throws PersistitException {
         System.out.print("test2");
-        final Exchange ex = _persistit.getExchange("persistit",
-                "LongRecordTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "LongRecordTest1", true);
         ex.removeAll();
         final StringBuilder sb1 = new StringBuilder(1000000);
         final StringBuilder sb2 = new StringBuilder(1000000);
@@ -98,8 +97,7 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
 
     public void test3() throws PersistitException {
         System.out.print("test3");
-        final Exchange ex = _persistit.getExchange("persistit",
-                "LongRecordTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "LongRecordTest1", true);
         ex.removeAll();
         final StringBuilder sb1 = new StringBuilder(1000000);
         final StringBuilder sb2 = new StringBuilder(1000000);
@@ -118,8 +116,7 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         }
     }
 
-    void store(final Exchange ex, final int size, final StringBuilder sb1)
-            throws PersistitException {
+    void store(final Exchange ex, final int size, final StringBuilder sb1) throws PersistitException {
         sb1.setLength(0);
         for (int counter = 0; counter < size; counter += 10) {
             Util.fill(sb1, counter, 10);
@@ -131,8 +128,8 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         ex.store();
     }
 
-    void check(final Exchange ex, final int size, final StringBuilder sb1,
-            final StringBuilder sb2) throws PersistitException {
+    void check(final Exchange ex, final int size, final StringBuilder sb1, final StringBuilder sb2)
+            throws PersistitException {
         sb1.setLength(0);
         for (int counter = 0; counter < size; counter += 10) {
             Util.fill(sb1, counter, 10);

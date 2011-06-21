@@ -36,8 +36,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
     public void test1() throws PersistitException {
         System.out.print("test1 ");
 
-        final Exchange ex = _persistit.getExchange("persistit",
-                "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
         ex.removeAll();
 
         final Transaction txn = ex.getTransaction();
@@ -62,8 +61,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                 assertTrue(!ex.getValue().isDefined());
             } else {
                 assertTrue(ex.getValue().isDefined());
-                assertEquals(ex.getValue().get(), "String value #" + i
-                        + " for test1");
+                assertEquals(ex.getValue().get(), "String value #" + i + " for test1");
             }
         }
 
@@ -100,8 +98,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
     @Test
     public void test2() throws PersistitException {
         System.out.print("test2 ");
-        final Exchange ex = _persistit.getExchange("persistit",
-                "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
         ex.removeAll();
 
         for (int i = 0; i < 10; i++) {
@@ -125,8 +122,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
             if ((i < 0) || (i >= 10) || ((i != 0) && ((i % 3) == 0))) {
                 assertTrue(!ex.getValue().isDefined());
             } else {
-                assertEquals(ex.getValue().get(), "String value #" + i
-                        + " for test1");
+                assertEquals(ex.getValue().get(), "String value #" + i + " for test1");
             }
         }
         System.out.println("- done");
@@ -135,8 +131,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
     @Test
     public void test3() throws PersistitException {
         System.out.print("test3 ");
-        final Exchange ex = _persistit.getExchange("persistit",
-                "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
         ex.removeAll();
 
         for (int i = 0; i < 10; i++) {
@@ -164,8 +159,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
             if ((i < 0) || (i >= 10)) {
                 assertTrue(!ex.getValue().isDefined());
             } else {
-                assertEquals(ex.getValue().get(), "String value #" + i
-                        + " for test1");
+                assertEquals(ex.getValue().get(), "String value #" + i + " for test1");
             }
         }
         System.out.println("- done");
@@ -174,8 +168,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
     @Test
     public void test4() throws PersistitException {
         System.out.print("test4 ");
-        final Exchange ex = _persistit.getExchange("persistit",
-                "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
         ex.removeAll();
 
         final StringBuilder sb = new StringBuilder();
@@ -215,8 +208,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
     @Test
     public void test5() throws PersistitException {
         System.out.print("test5 ");
-        final Exchange ex = _persistit.getExchange("persistit",
-                "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
         ex.removeAll();
         final StringBuilder sb = new StringBuilder();
         for (int i = 10000; i < 15000; i++) {
@@ -258,8 +250,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
     @Test
     public void test6() throws PersistitException {
         System.out.print("test6 ");
-        final Exchange ex = _persistit.getExchange("persistit",
-                "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
         ex.removeAll();
         ex.getValue().put("record b");
         ex.clear().append("b").store();
@@ -352,8 +343,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
 
     @Test
     public void test7() throws PersistitException {
-        final Exchange ex = _persistit.getExchange("persistit",
-                "TransactionTest1", true);
+        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
         ex.removeAll();
         ex.clear();
 
@@ -388,8 +378,8 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         traverseTest7(remainingKeys, ex, kf);
     }
 
-    private void traverseTest7(final Set<Integer> remainingKeys,
-            final Exchange ex, KeyFilter kf) throws PersistitException {
+    private void traverseTest7(final Set<Integer> remainingKeys, final Exchange ex, KeyFilter kf)
+            throws PersistitException {
         remainingKeys.clear();
         ex.clear().append(Key.BEFORE);
         while (ex.traverse(Key.GT, true, Integer.MAX_VALUE)) {
@@ -438,8 +428,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
 
     }
 
-    private void checkTest7(final Set<Integer> remainingKeys, final Exchange ex)
-            throws PersistitException {
+    private void checkTest7(final Set<Integer> remainingKeys, final Exchange ex) throws PersistitException {
         int k = ex.getKey().reset().decodeInt();
         remainingKeys.add(k);
         assertTrue(ex.traverse(Key.GTEQ, true, Integer.MAX_VALUE));
@@ -459,6 +448,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         new TransactionTest1().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
         test2();

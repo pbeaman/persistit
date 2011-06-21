@@ -108,8 +108,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
      * @param clazz
      */
 
-    public ManagementSlidingTableModel(Class clazz, String className, AdminUI ui)
-            throws NoSuchMethodException {
+    public ManagementSlidingTableModel(Class clazz, String className, AdminUI ui) throws NoSuchMethodException {
         super(clazz, className, ui);
     }
 
@@ -135,10 +134,12 @@ class ManagementSlidingTableModel extends ManagementTableModel {
         return _deletingRows;
     }
 
+    @Override
     public int getRowCount() {
         return _currentRowCount;
     }
 
+    @Override
     public Object getValueAt(int row, int col) {
         // if ((row % 1000) == 0 && col == 0) System.out.println("Getting row "
         // + row);
@@ -194,8 +195,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
         // ",fromOffset=" + fromOffset + ",requestedCount=" + requestedCount +
         // ",skipCount=" + skipCount + "): _offset=" + _offset +
         // " and _valid=" + _valid);
-        Fetcher fetcher = new Fetcher(forward, fromOffset, requestedCount,
-                skipCount);
+        Fetcher fetcher = new Fetcher(forward, fromOffset, requestedCount, skipCount);
         new Thread(fetcher).start();
         return _adminUI.getWaitingMessage();
     }
@@ -257,8 +257,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
                 }
                 newValid = _rowCacheSize;
             }
-            System.arraycopy(fetcher._resultRows, cut, _infoArray, kept, count
-                    - cut);
+            System.arraycopy(fetcher._resultRows, cut, _infoArray, kept, count - cut);
 
             firstUpdatedRow = newOffset + kept;
             lastUpdatedRow = firstUpdatedRow + count - cut - 1;
@@ -279,8 +278,7 @@ class ManagementSlidingTableModel extends ManagementTableModel {
                 lost = newValid - _rowCacheSize;
                 if (lost < _valid) {
                     kept = _valid - lost;
-                    System.arraycopy(_infoArray, 0, _infoArray, _valid - kept,
-                            kept);
+                    System.arraycopy(_infoArray, 0, _infoArray, _valid - kept, kept);
                 } else {
                     cut = lost - _valid;
                     kept = 0;
@@ -303,14 +301,12 @@ class ManagementSlidingTableModel extends ManagementTableModel {
 
         if (!_definite) {
             int receivedRowCount = newOffset + newValid;
-            int estimatedRowCount = (newOffset + _valid)
-                    * SCROLL_BAR_ESTIMATE_MULTIPLIER;
+            int estimatedRowCount = (newOffset + _valid) * SCROLL_BAR_ESTIMATE_MULTIPLIER;
             if (estimatedRowCount - receivedRowCount > MAXIMUM_GROWTH_ESTIMATE) {
                 estimatedRowCount = receivedRowCount + MAXIMUM_GROWTH_ESTIMATE;
             }
 
-            if (_currentRowCount < estimatedRowCount
-                    && _offset + _valid > _currentRowCount) {
+            if (_currentRowCount < estimatedRowCount && _offset + _valid > _currentRowCount) {
                 changeRowCount(estimatedRowCount, false);
             }
         }
@@ -358,40 +354,36 @@ class ManagementSlidingTableModel extends ManagementTableModel {
             _skipCount = skipCount;
         }
 
+        @Override
         public void run() {
             Management.LogicalRecord rec = null;
             if (_from != -1) {
                 rec = (Management.LogicalRecord) _infoArray[_from - _offset];
             }
-            KeyState ks = rec == null ? KeyState.LEFT_GUARD_KEYSTATE : rec
-                    .getKeyState();
+            KeyState ks = rec == null ? KeyState.LEFT_GUARD_KEYSTATE : rec.getKeyState();
             Management management = _adminUI.getManagement();
             _resultRows = new Management.LogicalRecord[0];
             if (management != null) {
                 try {
                     if (_skipCount > 0) {
-                        LogicalRecordCount lrc = management
-                                .getLogicalRecordCount(_volumeName, _treeName,
-                                        _keyFilterString, ks, _forward ? Key.GT
-                                                : Key.LT, _skipCount);
+                        LogicalRecordCount lrc = management.getLogicalRecordCount(_volumeName, _treeName,
+                                _keyFilterString, ks, _forward ? Key.GT : Key.LT, _skipCount);
                         int skipped = lrc.getCount();
                         if (skipped > 0) {
                             ks = lrc.getKeyState();
-                            _from = _forward ? _from + skipped : _from
-                                    - skipped;
+                            _from = _forward ? _from + skipped : _from - skipped;
                         }
                     }
 
-                    _resultRows = management.getLogicalRecordArray(_volumeName,
-                            _treeName, _keyFilterString, ks, _forward ? Key.GT
-                                    : Key.LT, _requestedCount, _maxValueSize,
-                            true);
+                    _resultRows = management.getLogicalRecordArray(_volumeName, _treeName, _keyFilterString, ks,
+                            _forward ? Key.GT : Key.LT, _requestedCount, _maxValueSize, true);
                 } catch (RemoteException remoteException) {
                     // TODO
                     _exception = remoteException;
                 }
             }
             SwingUtilities.invokeLater(new Runnable() {
+                @Override
                 public void run() {
                     receiveData(Fetcher.this);
                 }

@@ -15,7 +15,6 @@
 
 package com.persistit.bug;
 
-import java.io.File;
 import java.util.Properties;
 
 import org.junit.Test;
@@ -71,9 +70,8 @@ public class Bug777918Test extends PersistitUnitTestCase {
 
     @Test
     public void testDontMakeBranch() throws Exception {
-        Exchange ex = _persistit
-                .getExchange("persistit", "Bug777918Test", true);
-        ex.getValue().put(RED_DOG);
+        Exchange ex = _persistit.getExchange("persistit", "Bug777918Test", true);
+        ex.getValue().put(RED_FOX);
         for (int i = 0; i < 100000; i++) {
             ex.to(i).store();
         }
@@ -108,9 +106,8 @@ public class Bug777918Test extends PersistitUnitTestCase {
 
     @Test
     public void testMakeBranch() throws Exception {
-        Exchange ex = _persistit
-                .getExchange("persistit", "Bug777918Test", true);
-        ex.getValue().put(RED_DOG);
+        Exchange ex = _persistit.getExchange("persistit", "Bug777918Test", true);
+        ex.getValue().put(RED_FOX);
         for (int i = 0; i < 100000; i++) {
             ex.to(i).store();
         }
@@ -138,9 +135,8 @@ public class Bug777918Test extends PersistitUnitTestCase {
 
     @Test
     public void testMakeBranchTxn() throws Exception {
-        Exchange ex = _persistit
-                .getExchange("persistit", "Bug777918Test", true);
-        ex.getValue().put(RED_DOG);
+        Exchange ex = _persistit.getExchange("persistit", "Bug777918Test", true);
+        ex.getValue().put(RED_FOX);
         for (int i = 0; i < 100000; i++) {
             ex.getTransaction().begin();
             ex.to(i).store();
@@ -178,10 +174,9 @@ public class Bug777918Test extends PersistitUnitTestCase {
         final Properties properties = _persistit.getProperties();
 
         while (sb.length() < 20000) {
-            sb.append(RED_DOG);
+            sb.append(RED_FOX);
         }
-        Exchange ex = _persistit
-                .getExchange("persistit", "Bug777918Test", true);
+        Exchange ex = _persistit.getExchange("persistit", "Bug777918Test", true);
         ex.getValue().put(sb.toString());
         for (int i = 0; i < 10000; i++) {
             ex.getTransaction().begin();
@@ -203,8 +198,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
         _persistit.crash();
 
         _persistit = new Persistit();
-        _persistit.getRecoveryManager().setRecoveryListener(
-                new TestCrashingRecoveryListener());
+        _persistit.getRecoveryManager().setRecoveryListener(new TestCrashingRecoveryListener());
 
         //
         // The recovery process deliberately crashes after applying some
@@ -226,8 +220,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
                 System.out.println(i + " ");
             }
             assertEquals(true, ex.to(i).isValueDefined());
-            assertEquals(sb.length(), ex.to(i).fetch().getValue().getString()
-                    .length());
+            assertEquals(sb.length(), ex.to(i).fetch().getValue().getString().length());
         }
     }
 
@@ -242,8 +235,8 @@ public class Bug777918Test extends PersistitUnitTestCase {
         boolean checkpointed = false;
         boolean crashed = false;
 
-        public void startTransaction(long address, long timestamp)
-                throws PersistitException {
+        @Override
+        public void startTransaction(long address, long timestamp) throws PersistitException {
             if (timestamp > 50000 && !checkpointed) {
                 _persistit.checkpoint();
                 checkpointed = true;

@@ -39,6 +39,7 @@ class VTComboBoxModel extends AbstractListModel implements ComboBoxModel {
         _management = management;
     }
 
+    @Override
     public Object getElementAt(int index) {
         populateList();
         if (index >= 0 && index < _cachedList.size()) {
@@ -47,15 +48,18 @@ class VTComboBoxModel extends AbstractListModel implements ComboBoxModel {
         return null;
     }
 
+    @Override
     public int getSize() {
         populateList();
         return _cachedList.size();
     }
 
+    @Override
     public void setSelectedItem(Object item) {
         _selectedItem = item;
     }
 
+    @Override
     public Object getSelectedItem() {
         return _selectedItem;
     }

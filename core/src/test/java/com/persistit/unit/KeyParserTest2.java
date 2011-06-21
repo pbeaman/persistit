@@ -26,10 +26,8 @@ public class KeyParserTest2 extends PersistitUnitTestCase {
     @Test
     public void test1() {
         System.out.print("test1 ");
-        final KeyFilter filter = new KeyFilter(new KeyFilter.Term[] {
-                KeyFilter.rangeTerm("a", "b"),
-                KeyFilter.rangeTerm(new Double(1.234), new Double(2.345)),
-                KeyFilter.simpleTerm("{{{,,,}}}") });
+        final KeyFilter filter = new KeyFilter(new KeyFilter.Term[] { KeyFilter.rangeTerm("a", "b"),
+                KeyFilter.rangeTerm(new Double(1.234), new Double(2.345)), KeyFilter.simpleTerm("{{{,,,}}}") });
 
         final String string1 = filter.toString();
         // System.out.println();
@@ -51,9 +49,8 @@ public class KeyParserTest2 extends PersistitUnitTestCase {
                 KeyFilter.rangeTerm(new Double(1.234), new Double(2.345)),
                 KeyFilter.simpleTerm("{{{,,,}}}"),
                 KeyFilter.orTerm(new KeyFilter.Term[] {
-                        KeyFilter.rangeTerm(new Long(Long.MIN_VALUE), new Long(
-                                Long.MAX_VALUE)), KeyFilter.simpleTerm("1st"),
-                        KeyFilter.simpleTerm("2nd"), }) }, 3, 7);
+                        KeyFilter.rangeTerm(new Long(Long.MIN_VALUE), new Long(Long.MAX_VALUE)),
+                        KeyFilter.simpleTerm("1st"), KeyFilter.simpleTerm("2nd"), }) }, 3, 7);
 
         final String string1 = filter.toString();
         // System.out.println();
@@ -75,9 +72,8 @@ public class KeyParserTest2 extends PersistitUnitTestCase {
                 KeyFilter.rangeTerm(new Double(1.234), new Double(2.345)),
                 KeyFilter.simpleTerm("{{{,,,}}}"),
                 KeyFilter.orTerm(new KeyFilter.Term[] {
-                        KeyFilter.rangeTerm(new Long(Long.MIN_VALUE), new Long(
-                                Long.MAX_VALUE)), KeyFilter.simpleTerm("1st"),
-                        KeyFilter.simpleTerm("2nd"), }) }, 3, 7);
+                        KeyFilter.rangeTerm(new Long(Long.MIN_VALUE), new Long(Long.MAX_VALUE)),
+                        KeyFilter.simpleTerm("1st"), KeyFilter.simpleTerm("2nd"), }) }, 3, 7);
 
         final String string1 = filter.toString();
         // System.out.println();
@@ -100,8 +96,7 @@ public class KeyParserTest2 extends PersistitUnitTestCase {
         assertEquals(filter.getMaximumDepth(), 3);
         assertEquals(filter.size(), 3);
         assertEquals(filter.getTerm(0), KeyFilter.ALL);
-        assertEquals(filter.getTerm(1),
-                KeyFilter.rangeTerm(new Integer(100), new Integer(200)));
+        assertEquals(filter.getTerm(1), KeyFilter.rangeTerm(new Integer(100), new Integer(200)));
         assertEquals(filter.getTerm(2), KeyFilter.ALL);
         final Key key = new Key(_persistit);
         assertTrue(!filter.selected(key));
@@ -128,6 +123,7 @@ public class KeyParserTest2 extends PersistitUnitTestCase {
         new KeyParserTest2().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         setUp();
         test1();

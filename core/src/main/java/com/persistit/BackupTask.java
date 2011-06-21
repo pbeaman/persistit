@@ -72,15 +72,12 @@ public class BackupTask extends Task {
     private volatile String _backupStatus;
 
     @Cmd("backup")
-    static Task setupTask(
-            @Arg("file|string|Archive file path") String file,
-            @Arg("_flag|a|Start appendOnly mode") boolean start,
-            @Arg("_flag|e|End appendOnly mode") boolean end,
+    static Task setupTask(@Arg("file|string|Archive file path") String file,
+            @Arg("_flag|a|Start appendOnly mode") boolean start, @Arg("_flag|e|End appendOnly mode") boolean end,
             @Arg("_flag|c|Request checkpoint before backup") boolean checkpoint,
             @Arg("_flag|z|Compress output to ZIP format") boolean compressed,
             @Arg("_flag|f|Emit a list of files that need to be copied") boolean showFiles,
-            @Arg("_flag|y|Copyback pages before starting") boolean copyback)
-            throws Exception {
+            @Arg("_flag|y|Copyback pages before starting") boolean copyback) throws Exception {
         final BackupTask task = new BackupTask();
         task._toFile = file;
         task._start = start;
@@ -91,7 +88,7 @@ public class BackupTask extends Task {
         task._copyback = copyback;
         return task;
     }
-    
+
     private void validate() {
         if (_toFile == null) {
             _toFile = "";
@@ -130,19 +127,18 @@ public class BackupTask extends Task {
         } catch (Exception e) {
             _backupStatus = "Failed: " + e;
         } finally {
-            management.setAppendOnly(_start ? true : _end ? false
-                    : wasAppendOnly);
+            management.setAppendOnly(_start ? true : _end ? false : wasAppendOnly);
         }
     }
 
+    @Override
     protected void postMessage(final String message, int level) {
         super.postMessage(message, level);
         _backupStatus = message;
     }
 
     private void populateBackupFiles() throws Exception {
-        final VolumeInfo[] volumes = _persistit.getManagement()
-                .getVolumeInfoArray();
+        final VolumeInfo[] volumes = _persistit.getManagement().getVolumeInfoArray();
         for (final VolumeInfo info : volumes) {
             if (!info.isTransient()) {
                 _files.add(info.getPath());
@@ -152,10 +148,8 @@ public class BackupTask extends Task {
         final long baseAddress = info.getBaseAddress();
         final long currentAddress = info.getCurrentJournalAddress();
         final long blockSize = info.getBlockSize();
-        String path = JournalManager.fileToPath(new File(info
-                .getCurrentJournalFile()));
-        for (long generation = baseAddress / blockSize; generation <= currentAddress
-                / blockSize; generation++) {
+        String path = JournalManager.fileToPath(new File(info.getCurrentJournalFile()));
+        for (long generation = baseAddress / blockSize; generation <= currentAddress / blockSize; generation++) {
             File file = JournalManager.generationToFile(path, generation);
             _files.add(file.getAbsolutePath());
         }
@@ -175,32 +169,26 @@ public class BackupTask extends Task {
      * @throws Exception
      */
     private void doBackup() throws Exception {
-        final ZipOutputStream zos = new ZipOutputStream(
-                new BufferedOutputStream(new FileOutputStream(_toFile),
-                        BUFFER_SIZE));
+        final ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(_toFile),
+                BUFFER_SIZE));
         try {
             final byte[] buffer = new byte[65536];
-            zos.setLevel(_compressed ? ZipOutputStream.DEFLATED
-                    : ZipOutputStream.STORED);
+            zos.setLevel(_compressed ? ZipOutputStream.DEFLATED : ZipOutputStream.STORED);
             long size = 0;
             for (final String file : _files) {
                 size += new File(file).length();
             }
-            postMessage("Total size of files in backup set: "
-                    + formatedSize(size), 0);
+            postMessage("Total size of files in backup set: " + formatedSize(size), 0);
             for (final String path : _files) {
                 final File file = new File(path);
-                postMessage(
-                        "Backing up " + path + " size="
-                                + formatedSize(file.length()), 1);
+                postMessage("Backing up " + path + " size=" + formatedSize(file.length()), 1);
                 final ZipEntry ze = new ZipEntry(path);
                 ze.setSize(file.length());
                 ze.setTime(file.lastModified());
                 zos.putNextEntry(ze);
                 long progress = 0;
                 long fileSize = 0;
-                final BufferedInputStream is = new BufferedInputStream(
-                        new FileInputStream(file), BUFFER_SIZE);
+                final BufferedInputStream is = new BufferedInputStream(new FileInputStream(file), BUFFER_SIZE);
                 try {
                     int readCount = 0;
                     while ((readCount = is.read(buffer, 0, buffer.length)) != -1) {
@@ -209,8 +197,7 @@ public class BackupTask extends Task {
                         fileSize += readCount;
                         if (progress > PROGRESS_MARK_AT) {
                             progress -= PROGRESS_MARK_AT;
-                            appendMessage(" (" + formatedSize(fileSize) + ")",
-                                    1);
+                            appendMessage(" (" + formatedSize(fileSize) + ")", 1);
                         }
                         poll();
                     }
@@ -218,8 +205,7 @@ public class BackupTask extends Task {
                     is.close();
                 }
             }
-            postMessage("Backup of " + _files.size() + " files to " + _toFile
-                    + " completed", 0);
+            postMessage("Backup of " + _files.size() + " files to " + _toFile + " completed", 0);
         } finally {
             zos.close();
         }
@@ -235,10 +221,9 @@ public class BackupTask extends Task {
     public void doRestore(final String path) throws Exception {
         final File zipFile = new File(path);
         final byte[] buffer = new byte[65536];
-        postMessage("Unzipping files from " + zipFile + " size="
-                + formatedSize(zipFile.length()), 0);
-        final ZipInputStream zis = new ZipInputStream(new BufferedInputStream(
-                new FileInputStream(zipFile), BUFFER_SIZE));
+        postMessage("Unzipping files from " + zipFile + " size=" + formatedSize(zipFile.length()), 0);
+        final ZipInputStream zis = new ZipInputStream(
+                new BufferedInputStream(new FileInputStream(zipFile), BUFFER_SIZE));
         ZipEntry ze;
         while ((ze = zis.getNextEntry()) != null) {
             postMessage("Unzipping " + ze, 0);
@@ -248,8 +233,7 @@ public class BackupTask extends Task {
             }
             long progress = 0;
             long fileSize = 0;
-            final OutputStream os = new BufferedOutputStream(
-                    new FileOutputStream(file, false));
+            final OutputStream os = new BufferedOutputStream(new FileOutputStream(file, false));
             int writeCount = 0;
             while ((writeCount = zis.read(buffer)) != -1) {
                 os.write(buffer, 0, writeCount);
@@ -267,8 +251,7 @@ public class BackupTask extends Task {
 
     private void rename(final File file) throws Exception {
         for (int k = 0; k < 1000; k++) {
-            final String candidate = k == 0 ? file.getAbsolutePath() + "~"
-                    : file.getAbsoluteFile() + "~" + k;
+            final String candidate = k == 0 ? file.getAbsolutePath() + "~" : file.getAbsoluteFile() + "~" + k;
             final File newFile = new File(candidate);
             if (!newFile.exists()) {
                 file.renameTo(newFile);
@@ -285,8 +268,7 @@ public class BackupTask extends Task {
             value = (value + 499) / 1000;
             scale++;
         }
-        return String.format("%,d", value)
-                + " KMGTPE".substring(scale, scale + 1);
+        return String.format("%,d", value) + " KMGTPE".substring(scale, scale + 1);
     }
 
     @Override

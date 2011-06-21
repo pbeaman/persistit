@@ -153,8 +153,7 @@ public class Tree extends SharedResource {
         int nameLength = Util.getShort(encoded, 30);
         final String name = new String(encoded, 32, nameLength);
         if (!_name.equals(name)) {
-            throw new IllegalStateException("Invalid tree name recorded: "
-                    + name + " for tree " + _name);
+            throw new IllegalStateException("Invalid tree name recorded: " + name + " for tree " + _name);
         }
         _rootPageAddr = Util.getLong(encoded, 0);
         _depth = Util.getShort(encoded, 12);
@@ -175,8 +174,7 @@ public class Tree extends SharedResource {
         // Derive the index depth
         Buffer buffer = null;
         try {
-            buffer = getVolume().getPool().get(getVolume(), rootPageAddr,
-                    false, true);
+            buffer = getVolume().getPool().get(getVolume(), rootPageAddr, false, true);
             int type = buffer.getPageType();
             _depth = type - Buffer.PAGE_TYPE_DATA + 1;
         } finally {
@@ -203,8 +201,8 @@ public class Tree extends SharedResource {
      */
     @Override
     public String toString() {
-        return "<Tree " + _name + " rootPageAddr=" + _rootPageAddr + " depth="
-                + _depth + " status=" + getStatusDisplayString() + ">";
+        return "<Tree " + _name + " rootPageAddr=" + _rootPageAddr + " depth=" + _depth + " status="
+                + getStatusDisplayString() + ">";
     }
 
     /**
@@ -232,5 +230,5 @@ public class Tree extends SharedResource {
         _handle.set(handle);
         return handle;
     }
-    
+
 }

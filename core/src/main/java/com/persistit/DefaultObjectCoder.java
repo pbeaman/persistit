@@ -141,8 +141,7 @@ import com.persistit.exception.ConversionException;
  * 
  * @version 1.1
  */
-public class DefaultObjectCoder extends DefaultValueCoder implements
-        KeyRenderer {
+public class DefaultObjectCoder extends DefaultValueCoder implements KeyRenderer {
 
     private Builder _keyBuilder;
 
@@ -152,8 +151,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
     private HashMap _secondaryKeyTupleMap;
     private ArrayList _secondaryKeyTupleList;
 
-    private DefaultObjectCoder(Persistit persistit, Class clientClass,
-            Builder valueBuilder) {
+    private DefaultObjectCoder(Persistit persistit, Class clientClass, Builder valueBuilder) {
         super(persistit, clientClass, valueBuilder);
     }
 
@@ -191,9 +189,8 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
      * 
      * @throws IntrospectionException
      */
-    public synchronized static void registerObjectCoderFromBean(
-            Persistit persistit, Class clientClass, String[] keyPropertyNames)
-            throws IntrospectionException {
+    public synchronized static void registerObjectCoderFromBean(Persistit persistit, Class clientClass,
+            String[] keyPropertyNames) throws IntrospectionException {
         BeanInfo beanInfo = Introspector.getBeanInfo(clientClass);
         PropertyDescriptor[] descriptors = beanInfo.getPropertyDescriptors();
         boolean isKeyProperty[] = new boolean[descriptors.length];
@@ -209,26 +206,22 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
                 }
             }
             if (!found) {
-                throw new IllegalArgumentException("Bean for class "
-                        + clientClass.getName() + " has no property named "
-                        + name);
+                throw new IllegalArgumentException("Bean for class " + clientClass.getName()
+                        + " has no property named " + name);
             }
         }
 
         int count = 0;
-        String[] valuePropertyNames = new String[descriptors.length
-                - keyPropertyNames.length];
+        String[] valuePropertyNames = new String[descriptors.length - keyPropertyNames.length];
         for (int j = 0; j < descriptors.length; j++) {
             if (!isKeyProperty[j]) {
                 valuePropertyNames[count] = descriptors[j].getName();
                 count++;
             }
         }
-        Builder valueBuilder = new Builder("value", valuePropertyNames,
-                clientClass);
+        Builder valueBuilder = new Builder("value", valuePropertyNames, clientClass);
 
-        DefaultObjectCoder coder = new DefaultObjectCoder(persistit,
-                clientClass, valueBuilder);
+        DefaultObjectCoder coder = new DefaultObjectCoder(persistit, clientClass, valueBuilder);
 
         CoderManager cm = null;
         cm = persistit.getCoderManager();
@@ -318,17 +311,13 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
      *            Array of names of properties that constitute the value of
      *            stored instances of the <code>clientClass</code>.
      */
-    public synchronized static void registerObjectCoder(Persistit persistit,
-            Class clientClass, String[] keyAccessorNames,
-            String[] valueAccessorNames) {
-        Builder keyBuilder = new Builder("primaryKey", keyAccessorNames,
-                clientClass);
+    public synchronized static void registerObjectCoder(Persistit persistit, Class clientClass,
+            String[] keyAccessorNames, String[] valueAccessorNames) {
+        Builder keyBuilder = new Builder("primaryKey", keyAccessorNames, clientClass);
 
-        Builder valueBuilder = new Builder("value", valueAccessorNames,
-                clientClass);
+        Builder valueBuilder = new Builder("value", valueAccessorNames, clientClass);
 
-        DefaultObjectCoder coder = new DefaultObjectCoder(persistit,
-                clientClass, valueBuilder);
+        DefaultObjectCoder coder = new DefaultObjectCoder(persistit, clientClass, valueBuilder);
 
         coder._keyBuilder = keyBuilder;
 
@@ -361,8 +350,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
      *            The property and/or field names
      * @return The newly constructed Builder
      */
-    public synchronized Builder addSecondaryIndexBuilder(String name,
-            String[] keyAccessorNames) {
+    public synchronized Builder addSecondaryIndexBuilder(String name, String[] keyAccessorNames) {
         Builder builder = new Builder(name, keyAccessorNames, getClientClass());
         if (_secondaryKeyTupleMap == null) {
             _secondaryKeyTupleMap = new HashMap();
@@ -401,8 +389,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
      * @return The Builder
      */
     public synchronized Builder getSecondaryIndexBuilder(int index) {
-        if (_secondaryKeyTupleList != null && index >= 0
-                && index < _secondaryKeyTupleList.size()) {
+        if (_secondaryKeyTupleList != null && index >= 0 && index < _secondaryKeyTupleList.size()) {
             return (Builder) _secondaryKeyTupleList.get(index);
         }
         throw new IndexOutOfBoundsException("No such secondary index: " + index);
@@ -470,8 +457,8 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
      *            operation. (See {@link CoderContext}.) The default value is
      *            <code>null</code>.
      */
-    public void appendKeySegment(Key key, Object object, CoderContext context)
-            throws ConversionException {
+    @Override
+    public void appendKeySegment(Key key, Object object, CoderContext context) throws ConversionException {
         Accessor accessor = null;
         checkKeyAccessors();
         Builder keyBuilder = getKeyBuilder(context);
@@ -482,8 +469,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
                 accessor.toKey(object, key);
             }
         } catch (Exception e) {
-            throw new ConversionException("Encoding " + accessor.toString()
-                    + " for " + getClientClass(), e);
+            throw new ConversionException("Encoding " + accessor.toString() + " for " + getClientClass(), e);
         }
     }
 
@@ -519,19 +505,16 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
      * @throws ConversionException
      */
 
-    public Object decodeKeySegment(Key key, Class clazz, CoderContext context)
-            throws ConversionException {
+    @Override
+    public Object decodeKeySegment(Key key, Class clazz, CoderContext context) throws ConversionException {
         if (clazz != getClientClass())
-            throw new ClassCastException("Client class "
-                    + getClientClass().getName()
+            throw new ClassCastException("Client class " + getClientClass().getName()
                     + " does not match requested class " + clazz.getName());
         Object instance;
         try {
             instance = getClientClass().newInstance();
         } catch (Exception e) {
-            throw new ConversionException(
-                    "Unable to instantiate an instance of " + getClientClass(),
-                    e);
+            throw new ConversionException("Unable to instantiate an instance of " + getClientClass(), e);
 
         }
         renderKeySegment(key, instance, clazz, context);
@@ -569,11 +552,10 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
      * 
      * @throws ConversionException
      */
-    public void renderKeySegment(Key key, Object target, Class clazz,
-            CoderContext context) throws ConversionException {
+    @Override
+    public void renderKeySegment(Key key, Object target, Class clazz, CoderContext context) throws ConversionException {
         if (clazz != getClientClass())
-            throw new ClassCastException("Client class "
-                    + getClientClass().getName()
+            throw new ClassCastException("Client class " + getClientClass().getName()
                     + " does not match requested class " + clazz.getName());
 
         checkKeyAccessors();
@@ -586,8 +568,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
                 accessor.fromKey(target, key);
             }
         } catch (Exception e) {
-            throw new ConversionException("Decoding " + accessor.toString()
-                    + " for " + getClientClass(), e);
+            throw new ConversionException("Decoding " + accessor.toString() + " for " + getClientClass(), e);
         }
     }
 
@@ -608,8 +589,7 @@ public class DefaultObjectCoder extends DefaultValueCoder implements
 
     private void checkKeyAccessors() {
         if (_keyBuilder.getSize() == 0) {
-            throw new ConversionException("ObjectCoder for class "
-                    + getClientClass().getName()
+            throw new ConversionException("ObjectCoder for class " + getClientClass().getName()
                     + " has no Key fields or properties");
         }
     }

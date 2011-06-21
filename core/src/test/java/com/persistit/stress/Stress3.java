@@ -38,12 +38,9 @@ public class Stress3 extends StressBase {
 
     private final static String DEFAULT_PATH = "../../";
 
-    private final static String[] ARGS_TEMPLATE = {
-            "op|String:wrd|Operations to perform",
-            "repeat|int:1:0:1000000000|Repetitions",
-            "count|int:10000:0:1000000000|Number of nodes to populate",
-            "seed|int:1:1:20000|Random seed",
-            "size|int:3000:1:20000|Maximum record size",
+    private final static String[] ARGS_TEMPLATE = { "op|String:wrd|Operations to perform",
+            "repeat|int:1:0:1000000000|Repetitions", "count|int:10000:0:1000000000|Number of nodes to populate",
+            "seed|int:1:1:20000|Random seed", "size|int:3000:1:20000|Maximum record size",
             "path|String:" + DEFAULT_PATH, };
 
     static String[] _fileNames = null;
@@ -76,8 +73,7 @@ public class Stress3 extends StressBase {
 
         try {
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit",
-                    _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
         } catch (final Exception ex) {
             handleThrowable(ex);
         }
@@ -95,7 +91,7 @@ public class Stress3 extends StressBase {
         final List<String> list = new ArrayList<String>(50000);
         try {
             initializeDir(new File(fileName), list);
-            _fileNames = (String[]) list.toArray(new String[0]);
+            _fileNames = list.toArray(new String[0]);
         } catch (final Exception e) {
             _fileNames = new String[] { "foo", "bar" };
         }
@@ -166,10 +162,8 @@ public class Stress3 extends StressBase {
                         long atomic;
 
                         ex1.clear().append("byName").append(s).fetch();
-                        if (!ex1.getValue().isDefined()
-                                || ex1.getValue().isNull()) {
-                            atomic = _ex.clear().append("counter")
-                                    .incrementValue();
+                        if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
+                            atomic = _ex.clear().append("counter").incrementValue();
                             ex1.getValue().put(atomic);
                             ex1.store();
                         } else {
@@ -177,8 +171,7 @@ public class Stress3 extends StressBase {
                         }
 
                         setupTestValue(ex2, _count, random(30, _size));
-                        sizeArray[(int) atomic] = ex2.getValue()
-                                .getEncodedSize();
+                        sizeArray[(int) atomic] = ex2.getValue().getEncodedSize();
                         ex2.clear().append("byCounter").append(atomic).store();
 
                         _sb1.setLength(0);
@@ -186,8 +179,7 @@ public class Stress3 extends StressBase {
                         _sb1.reverse();
 
                         ex3.getValue().put(atomic);
-                        ex3.clear().append("byReversedName").append(_sb1)
-                                .store();
+                        ex3.clear().append("byReversedName").append(_sb1).store();
                     } catch (final Throwable t) {
                         handleThrowable(t);
                     }
@@ -208,44 +200,34 @@ public class Stress3 extends StressBase {
                         final String s = _fileNames[keyInteger];
 
                         ex1.clear().append("byName").append(s).fetch();
-                        if (!ex1.getValue().isDefined()
-                                || ex1.getValue().isNull()) {
-                            throw new RuntimeException("Expected filename <"
-                                    + s + "> was not found - key="
+                        if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
+                            throw new RuntimeException("Expected filename <" + s + "> was not found - key="
                                     + ex1.getKey());
                         }
                         final long atomic = ex1.getValue().getLong();
 
                         setupTestValue(ex2, _count, random(30, _size));
-                        ex2.clear().append("byCounter").append(atomic)
-                                .fetch(value2);
+                        ex2.clear().append("byCounter").append(atomic).fetch(value2);
 
                         if (!value2.isDefined() || value2.isNull()) {
-                            throw new RuntimeException(
-                                    "Expected value for byCounter " + atomic
-                                            + " was not found - key="
-                                            + ex2.getKey());
+                            throw new RuntimeException("Expected value for byCounter " + atomic
+                                    + " was not found - key=" + ex2.getKey());
                         }
                         final int size2 = value2.getEncodedSize();
                         final int size1 = sizeArray[(int) atomic];
                         if (size1 != size2) {
-                            throw new RuntimeException("Value is size " + size2
-                                    + ", should be " + size1 + " key="
+                            throw new RuntimeException("Value is size " + size2 + ", should be " + size1 + " key="
                                     + ex2.getKey());
                         }
 
                         _sb1.setLength(0);
                         _sb1.append(s);
                         _sb1.reverse();
-                        ex3.clear().append("byReversedName").append(_sb1)
-                                .fetch();
-                        if (!ex3.getValue().isDefined()
-                                || ex3.getValue().isNull()
+                        ex3.clear().append("byReversedName").append(_sb1).fetch();
+                        if (!ex3.getValue().isDefined() || ex3.getValue().isNull()
                                 || (ex3.getValue().getLong() != atomic)) {
-                            throw new RuntimeException(
-                                    "Missing or incorrect value "
-                                            + ex3.getValue() + " should be "
-                                            + atomic + " key=" + ex3.getKey());
+                            throw new RuntimeException("Missing or incorrect value " + ex3.getValue() + " should be "
+                                    + atomic + " key=" + ex3.getKey());
                         }
                     } catch (final Throwable t) {
                         handleThrowable(t);
@@ -289,28 +271,21 @@ public class Stress3 extends StressBase {
                             final String s = _fileNames[keyInteger];
 
                             ex1.clear().append("byName").append(s).fetch();
-                            if (!ex1.getValue().isDefined()
-                                    || ex1.getValue().isNull()) {
-                                _result = new TestResult(false,
-                                        "Expected filename <" + s
-                                                + "> was not found - key="
-                                                + ex1.getKey() + " keyInteger="
-                                                + keyInteger + " at counter="
-                                                + _count);
+                            if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
+                                _result = new TestResult(false, "Expected filename <" + s + "> was not found - key="
+                                        + ex1.getKey() + " keyInteger=" + keyInteger + " at counter=" + _count);
                                 println(_result);
                                 forceStop();
                                 break;
                             }
                             final long atomic = ex1.getValue().getLong();
                             ex1.remove();
-                            ex2.clear().append("byCounter").append(atomic)
-                                    .remove();
+                            ex2.clear().append("byCounter").append(atomic).remove();
                             sizeArray[(int) atomic] = 0;
                             _sb1.setLength(0);
                             _sb1.append(s);
                             _sb1.reverse();
-                            ex3.clear().append("byReversedName").append(_sb1)
-                                    .remove();
+                            ex3.clear().append("byReversedName").append(_sb1).remove();
                         } catch (final Throwable t) {
                             handleThrowable(t);
                         }

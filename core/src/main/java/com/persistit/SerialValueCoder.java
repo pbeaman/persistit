@@ -57,8 +57,7 @@ public final class SerialValueCoder implements ValueCoder {
     public SerialValueCoder(Class clazz) {
         _classDescriptor = ObjectStreamClass.lookup(clazz);
         if (_classDescriptor == null) {
-            throw new ConversionException("Not Serializable: "
-                    + clazz.getName());
+            throw new ConversionException("Not Serializable: " + clazz.getName());
         }
     }
 
@@ -93,10 +92,10 @@ public final class SerialValueCoder implements ValueCoder {
      * 
      * @throws ConversionException
      */
+    @Override
     public Object get(Value value, Class clazz, CoderContext context) {
         try {
-            ObjectInputStream stream = new Value.OldValueInputStream(value,
-                    _classDescriptor);
+            ObjectInputStream stream = new Value.OldValueInputStream(value, _classDescriptor);
             Object object = stream.readObject();
             stream.close();
             return object;
@@ -139,10 +138,10 @@ public final class SerialValueCoder implements ValueCoder {
      *            <code>null</code>. For <code>SerialValueCoder</code> this
      *            parameter is always ignored.
      */
+    @Override
     public void put(Value value, Object object, CoderContext context) {
         try {
-            ObjectOutputStream stream = new Value.OldValueOutputStream(value,
-                    _classDescriptor);
+            ObjectOutputStream stream = new Value.OldValueOutputStream(value, _classDescriptor);
             stream.writeObject(object);
             stream.close();
         } catch (Exception e) {

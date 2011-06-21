@@ -77,51 +77,46 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
 
     private long _selectedTaskId = -1;
 
-    protected void setup(AdminUI ui) throws NoSuchMethodException,
-            RemoteException {
+    @Override
+    protected void setup(AdminUI ui) throws NoSuchMethodException, RemoteException {
         _adminUI = ui;
         _taskListPanel = new JPanel(new BorderLayout());
 
-        _taskStatusArrayModel = new ManagementTableModel(TaskStatus.class,
-                "TaskStatus", ui);
+        _taskStatusArrayModel = new ManagementTableModel(TaskStatus.class, "TaskStatus", ui);
 
-        _menuMap.put("TASK.1",
-                _adminUI.createMenuArray(this, "TaskPanelMenu", "TASK"));
+        _menuMap.put("TASK.1", _adminUI.createMenuArray(this, "TaskPanelMenu", "TASK"));
 
         _taskTable = new JTable(_taskStatusArrayModel);
         _taskTable.setAutoCreateRowSorter(true);
         _taskTable.setPreferredScrollableViewportSize(new Dimension(800, 100));
         _taskTable.setAutoCreateColumnsFromModel(false);
-        _taskTable
-                .setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        _taskTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         _taskStatusArrayModel.formatColumns(_taskTable, null);
 
-        _taskTable.getSelectionModel().addListSelectionListener(
-                new ListSelectionListener() {
-                    public void valueChanged(ListSelectionEvent lse) {
-                        int[] selectedRows = _taskTable.getSelectedRows();
-                        if (!lse.getValueIsAdjusting() && !_refreshing) {
-                            if (selectedRows.length == 1) {
-                                int index = selectedRows[0];
-                                TaskStatus[] array = (TaskStatus[]) _taskStatusArrayModel
-                                        .getInfoArray();
-                                if (array != null && index < array.length) {
-                                    selectTask(array[index]);
-                                } else {
-                                    selectTask(null);
-                                }
-                            } else {
-                                selectTask(null);
-                            }
-                            setTaskActionEnabledState(selectedRows.length > 0);
+        _taskTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent lse) {
+                int[] selectedRows = _taskTable.getSelectedRows();
+                if (!lse.getValueIsAdjusting() && !_refreshing) {
+                    if (selectedRows.length == 1) {
+                        int index = selectedRows[0];
+                        TaskStatus[] array = (TaskStatus[]) _taskStatusArrayModel.getInfoArray();
+                        if (array != null && index < array.length) {
+                            selectTask(array[index]);
+                        } else {
+                            selectTask(null);
                         }
+                    } else {
+                        selectTask(null);
                     }
-                });
+                    setTaskActionEnabledState(selectedRows.length > 0);
+                }
+            }
+        });
 
         JScrollPane treeScrollPane = new JScrollPane(_taskTable);
         treeScrollPane.setBorder(null);
-        _taskListPanel
-                .setBorder(_adminUI.createTitledBorder("TaskPanel.tasks"));
+        _taskListPanel.setBorder(_adminUI.createTitledBorder("TaskPanel.tasks"));
 
         JPanel buttonPanel = new JPanel();
         buttonPanel.add(new JButton(ui.getAction("START_NEW_TASK")));
@@ -141,35 +136,31 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
         gbc.fill = GridBagConstraints.BOTH;
 
         _detailPanel = new JPanel(new GridBagLayout());
-        _detailPanel.setBorder(_adminUI
-                .createTitledBorder("TaskPanel.taskDetail"));
+        _detailPanel.setBorder(_adminUI.createTitledBorder("TaskPanel.taskDetail"));
 
-        _taskIdField = (JTextField) ui.addLabeledField(_detailPanel, gbc,
-                new JTextField(), "TaskPanel.taskId", false);
-        _stateField = (JTextField) ui.addLabeledField(_detailPanel, gbc,
-                new JTextField(), "TaskPanel.state", false);
-        _descriptionField = (JTextField) ui.addLabeledField(_detailPanel, gbc,
-                new JTextField(), "TaskPanel.description", true);
+        _taskIdField = (JTextField) ui.addLabeledField(_detailPanel, gbc, new JTextField(), "TaskPanel.taskId", false);
+        _stateField = (JTextField) ui.addLabeledField(_detailPanel, gbc, new JTextField(), "TaskPanel.state", false);
+        _descriptionField = (JTextField) ui.addLabeledField(_detailPanel, gbc, new JTextField(),
+                "TaskPanel.description", true);
 
-        _ownerField = (JTextField) ui.addLabeledField(_detailPanel, gbc,
-                new JTextField(), "TaskPanel.owner", true);
+        _ownerField = (JTextField) ui.addLabeledField(_detailPanel, gbc, new JTextField(), "TaskPanel.owner", true);
 
-        _startTimeField = (JTextField) ui.addLabeledField(_detailPanel, gbc,
-                new JTextField(), "TaskPanel.startTime", false);
-        _endTimeField = (JTextField) ui.addLabeledField(_detailPanel, gbc,
-                new JTextField(), "TaskPanel.endTime", false);
-        _expirationTimeField = (JTextField) ui.addLabeledField(_detailPanel,
-                gbc, new JTextField(), "TaskPanel.expirationTime", true);
+        _startTimeField = (JTextField) ui.addLabeledField(_detailPanel, gbc, new JTextField(), "TaskPanel.startTime",
+                false);
+        _endTimeField = (JTextField) ui
+                .addLabeledField(_detailPanel, gbc, new JTextField(), "TaskPanel.endTime", false);
+        _expirationTimeField = (JTextField) ui.addLabeledField(_detailPanel, gbc, new JTextField(),
+                "TaskPanel.expirationTime", true);
 
-        _lastExceptionField = (JTextField) ui.addLabeledField(_detailPanel,
-                gbc, new JTextField(), "TaskPanel.lastException", true);
+        _lastExceptionField = (JTextField) ui.addLabeledField(_detailPanel, gbc, new JTextField(),
+                "TaskPanel.lastException", true);
 
-        _statusDetailArea = (JTextArea) ui.addLabeledField(_detailPanel, gbc,
-                new JTextArea(), "TaskPanel.statusDetail", true);
+        _statusDetailArea = (JTextArea) ui.addLabeledField(_detailPanel, gbc, new JTextArea(),
+                "TaskPanel.statusDetail", true);
         gbc.gridheight = GridBagConstraints.REMAINDER;
         gbc.weighty = 1.0;
-        _messageLogArea = (JTextArea) ui.addLabeledField(_detailPanel, gbc,
-                new JTextArea(), "TaskPanel.messageLog", true);
+        _messageLogArea = (JTextArea) ui.addLabeledField(_detailPanel, gbc, new JTextArea(), "TaskPanel.messageLog",
+                true);
 
         JSplitPane mainSplitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         mainSplitPane.setResizeWeight(MAIN_SPLITPANE_RESIZE_WEIGHT);
@@ -187,6 +178,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
         _adminUI.scheduleRefresh(-1);
     }
 
+    @Override
     public void actionPerformed(AdminAction action, ActionEvent ae) {
         Management management = _adminUI.getManagement();
         if (management == null)
@@ -203,8 +195,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
                 TaskStatus[] tsArray = new TaskStatus[selectedRows.length];
                 for (int index = 0; index < tsArray.length; index++) {
                     int row = selectedRows[index];
-                    TaskStatus ts = (TaskStatus) _taskStatusArrayModel
-                            .getValueAt(row, -1);
+                    TaskStatus ts = (TaskStatus) _taskStatusArrayModel.getValueAt(row, -1);
                     tsArray[index] = ts;
                 }
                 for (int index = 0; index < tsArray.length; index++) {
@@ -242,8 +233,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
             updateDetailedTaskStatus(null);
         } else {
             try {
-                TaskStatus[] array = management.queryTaskStatus(
-                        _selectedTaskId, true, false);
+                TaskStatus[] array = management.queryTaskStatus(_selectedTaskId, true, false);
                 if (array.length == 1) {
                     updateDetailedTaskStatus(array[0]);
                 }
@@ -267,19 +257,14 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
             _messageLogArea.setText("");
         } else {
             _taskIdField.setText(Long.toString(taskStatus.getTaskId()));
-            _stateField.setText(_adminUI.getTaskStateString(taskStatus
-                    .getState()));
+            _stateField.setText(_adminUI.getTaskStateString(taskStatus.getState()));
             _descriptionField.setText(taskStatus.getDescription());
             _ownerField.setText(taskStatus.getOwner());
-            _startTimeField.setText(_adminUI.formatDate(taskStatus
-                    .getStartTime()));
-            _endTimeField.setText(_adminUI.formatDate(taskStatus
-                    .getFinishTime()));
-            _expirationTimeField.setText(_adminUI.formatDate(taskStatus
-                    .getExpirationTime()));
-            _lastExceptionField
-                    .setText(taskStatus.getLastException() == null ? ""
-                            : taskStatus.getLastException().toString());
+            _startTimeField.setText(_adminUI.formatDate(taskStatus.getStartTime()));
+            _endTimeField.setText(_adminUI.formatDate(taskStatus.getFinishTime()));
+            _expirationTimeField.setText(_adminUI.formatDate(taskStatus.getExpirationTime()));
+            _lastExceptionField.setText(taskStatus.getLastException() == null ? "" : taskStatus.getLastException()
+                    .toString());
             _statusDetailArea.setText(taskStatus.getStatusDetail());
 
             StringBuilder sb = new StringBuilder();
@@ -318,6 +303,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
             action.setEnabled(enabled);
     }
 
+    @Override
     protected void refresh(boolean reset) {
         synchronized (this) {
             if (_refreshing)
@@ -329,8 +315,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
             boolean stillSelected = false;
             Management management = _adminUI.getManagement();
             if (management != null) {
-                TaskStatus[] taskStatusArray = management.queryTaskStatus(-1,
-                        false, false);
+                TaskStatus[] taskStatusArray = management.queryTaskStatus(-1, false, false);
                 _taskStatusArrayModel.setInfoArray(taskStatusArray);
                 setTaskActionEnabledState(_taskTable.getSelectedRowCount() > 0);
                 for (int index = 0; index < taskStatusArray.length; index++) {
@@ -354,10 +339,10 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
         }
     }
 
+    @Override
     public void setIsShowing(boolean isShowing) {
         if (_fastRefreshIntervalSet) {
-            _adminUI.scheduleRefresh(isShowing ? FAST_REFRESH_INTERVAL
-                    : _savedRefreshInterval);
+            _adminUI.scheduleRefresh(isShowing ? FAST_REFRESH_INTERVAL : _savedRefreshInterval);
         }
     }
 
@@ -372,10 +357,12 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
         }
     }
 
+    @Override
     protected Map getMenuMap() {
         return _menuMap;
     }
 
+    @Override
     protected void setDefaultButton() {
     }
 }

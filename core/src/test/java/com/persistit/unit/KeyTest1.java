@@ -37,30 +37,21 @@ public class KeyTest1 extends PersistitUnitTestCase {
     private double dv1;
     private double dv2;
 
-    long[] TEST_LONGS = { 0, 1, 2, 3, 123, 126, 127, 128, 129, 130, 131, 132,
-            250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 4094, 4095,
-            4096, 4097, 4098, 16383, 16384, 16385, Integer.MAX_VALUE - 2,
-            Integer.MAX_VALUE - 1, Integer.MAX_VALUE + 0,
-            Integer.MAX_VALUE + 1, Integer.MAX_VALUE + 2,
-            Integer.MAX_VALUE + 3, Long.MIN_VALUE, Long.MIN_VALUE + 1,
-            Long.MIN_VALUE + 2, Long.MAX_VALUE, Long.MAX_VALUE - 1,
-            Long.MAX_VALUE - 2, };
+    long[] TEST_LONGS = { 0, 1, 2, 3, 123, 126, 127, 128, 129, 130, 131, 132, 250, 251, 252, 253, 254, 255, 256, 257,
+            258, 259, 260, 4094, 4095, 4096, 4097, 4098, 16383, 16384, 16385, Integer.MAX_VALUE - 2,
+            Integer.MAX_VALUE - 1, Integer.MAX_VALUE + 0, Integer.MAX_VALUE + 1, Integer.MAX_VALUE + 2,
+            Integer.MAX_VALUE + 3, Long.MIN_VALUE, Long.MIN_VALUE + 1, Long.MIN_VALUE + 2, Long.MAX_VALUE,
+            Long.MAX_VALUE - 1, Long.MAX_VALUE - 2, };
 
-    float[] TEST_FLOATS = { 0.0F, 1.0F, 2.0F, 12345.0F, 0.0003F, 1.2345E-10F,
-            1.12345E-20F, 0.0F, -1.0F, -2.0F, -12345.0F, -0.0003F,
-            -1.2345E-10F, -1.12345E-20F, Float.MAX_VALUE, Float.MIN_VALUE,
-            Float.MAX_VALUE / 2.0F, Float.MAX_VALUE / 3.0F,
-            Float.MAX_VALUE / 4.0F, Float.MIN_VALUE / 2.0F,
-            Float.MIN_VALUE / 3.0F, Float.MIN_VALUE / 4.0F, Float.NaN,
-            Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY };
+    float[] TEST_FLOATS = { 0.0F, 1.0F, 2.0F, 12345.0F, 0.0003F, 1.2345E-10F, 1.12345E-20F, 0.0F, -1.0F, -2.0F,
+            -12345.0F, -0.0003F, -1.2345E-10F, -1.12345E-20F, Float.MAX_VALUE, Float.MIN_VALUE, Float.MAX_VALUE / 2.0F,
+            Float.MAX_VALUE / 3.0F, Float.MAX_VALUE / 4.0F, Float.MIN_VALUE / 2.0F, Float.MIN_VALUE / 3.0F,
+            Float.MIN_VALUE / 4.0F, Float.NaN, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY };
 
-    double[] TEST_DOUBLES = { 0.0, 1.0, 2.0, 12345.0, 0.0003, 1.2345E-10,
-            1.12345E-20, 0.0, -1.0, -2.0, -12345.0, -0.0003, -1.2345E-10,
-            -1.12345E-20, Double.MAX_VALUE, Double.MIN_VALUE,
-            Double.MAX_VALUE / 2.0, Double.MAX_VALUE / 3.0,
-            Double.MAX_VALUE / 4.0, Double.MIN_VALUE / 2.0,
-            Double.MIN_VALUE / 3.0, Double.MIN_VALUE / 4.0, Double.NaN,
-            Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY };
+    double[] TEST_DOUBLES = { 0.0, 1.0, 2.0, 12345.0, 0.0003, 1.2345E-10, 1.12345E-20, 0.0, -1.0, -2.0, -12345.0,
+            -0.0003, -1.2345E-10, -1.12345E-20, Double.MAX_VALUE, Double.MIN_VALUE, Double.MAX_VALUE / 2.0,
+            Double.MAX_VALUE / 3.0, Double.MAX_VALUE / 4.0, Double.MIN_VALUE / 2.0, Double.MIN_VALUE / 3.0,
+            Double.MIN_VALUE / 4.0, Double.NaN, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY };
 
     @Test
     public void test1() {
@@ -127,8 +118,8 @@ public class KeyTest1 extends PersistitUnitTestCase {
         if (_key1.indexTo(0).decodeLong() != lv) {
             return "long " + lv;
         }
-        if (!(new Long((long) lv)).equals(_key1.indexTo(0).decode())) {
-            return "Long " + (long) lv;
+        if (!(new Long(lv)).equals(_key1.indexTo(0).decode())) {
+            return "Long " + lv;
         }
 
         return null;
@@ -155,8 +146,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     _key2.append(lv2);
                     final int compare = _key1.compareTo(_key2);
 
-                    final boolean result = ((compare == 0) && (lv1 == lv2))
-                            || ((compare > 0) && (lv1 > lv2))
+                    final boolean result = ((compare == 0) && (lv1 == lv2)) || ((compare > 0) && (lv1 > lv2))
                             || ((compare < 0) && (lv1 < lv2));
 
                     debugAssert(result);
@@ -215,8 +205,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     final Float f2 = new Float(fv2);
 
                     final boolean result = ((compare == 0) && (f1.compareTo(f2) == 0))
-                            || ((compare > 0) && (f1.compareTo(f2) > 0))
-                            || ((compare < 0) && (f1.compareTo(f2) < 0));
+                            || ((compare > 0) && (f1.compareTo(f2) > 0)) || ((compare < 0) && (f1.compareTo(f2) < 0));
 
                     debugAssertFloat(result);
                 }
@@ -284,8 +273,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     final Double d2 = new Double(dv2);
 
                     final boolean result = ((compare == 0) && (d1.compareTo(d2) == 0))
-                            || ((compare > 0) && (d1.compareTo(d2) > 0))
-                            || ((compare < 0) && (d1.compareTo(d2) < 0));
+                            || ((compare > 0) && (d1.compareTo(d2) > 0)) || ((compare < 0) && (d1.compareTo(d2) < 0));
 
                     debugAssertDouble(result);
                 }
@@ -339,7 +327,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertTrue(_key2.compareTo(_key1) > 0);
 
         _key1.to((char) 1);
-        _key2.to((int) 1);
+        _key2.to(1);
         assertTrue(_key2.compareTo(_key1) > 0);
 
         _key1.to((int) 1);
@@ -489,8 +477,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     _key2.append(biv2);
                     final int compare = _key1.compareTo(_key2);
 
-                    final boolean result = ((compare == 0) && (lv1 == lv2))
-                            || ((compare > 0) && (lv1 > lv2))
+                    final boolean result = ((compare == 0) && (lv1 == lv2)) || ((compare > 0) && (lv1 > lv2))
                             || ((compare < 0) && (lv1 < lv2));
 
                     debugAssert(result);
@@ -664,12 +651,8 @@ public class KeyTest1 extends PersistitUnitTestCase {
         if (!condition) {
             System.out.println();
             System.out.println(" lv1=" + lv1 + " lv2=" + lv2);
-            System.out.println(" key1="
-                    + Util.hexDump(_key1.getEncodedBytes(), 0,
-                            _key1.getEncodedSize()));
-            System.out.println(" key2="
-                    + Util.hexDump(_key2.getEncodedBytes(), 0,
-                            _key2.getEncodedSize()));
+            System.out.println(" key1=" + Util.hexDump(_key1.getEncodedBytes(), 0, _key1.getEncodedSize()));
+            System.out.println(" key2=" + Util.hexDump(_key2.getEncodedBytes(), 0, _key2.getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);
@@ -678,14 +661,10 @@ public class KeyTest1 extends PersistitUnitTestCase {
     public void debugAssertFloat(boolean condition) {
         if (!condition) {
             System.out.println();
-            System.out.println(" fv1=" + fv1 + " (" + floatBits(fv1) + ")"
-                    + " fv2=" + fv2 + " (" + floatBits(fv2) + ")");
-            System.out.println(" key1="
-                    + Util.hexDump(_key1.getEncodedBytes(), 0,
-                            _key1.getEncodedSize()));
-            System.out.println(" key2="
-                    + Util.hexDump(_key2.getEncodedBytes(), 0,
-                            _key2.getEncodedSize()));
+            System.out.println(" fv1=" + fv1 + " (" + floatBits(fv1) + ")" + " fv2=" + fv2 + " (" + floatBits(fv2)
+                    + ")");
+            System.out.println(" key1=" + Util.hexDump(_key1.getEncodedBytes(), 0, _key1.getEncodedSize()));
+            System.out.println(" key2=" + Util.hexDump(_key2.getEncodedBytes(), 0, _key2.getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);
@@ -694,14 +673,10 @@ public class KeyTest1 extends PersistitUnitTestCase {
     public void debugAssertDouble(boolean condition) {
         if (!condition) {
             System.out.println();
-            System.out.println(" dv1=" + dv1 + " (" + doubleBits(dv1) + ")"
-                    + " dv2=" + dv2 + " (" + doubleBits(dv2) + ")");
-            System.out.println(" key1="
-                    + Util.hexDump(_key1.getEncodedBytes(), 0,
-                            _key1.getEncodedSize()));
-            System.out.println(" key2="
-                    + Util.hexDump(_key2.getEncodedBytes(), 0,
-                            _key2.getEncodedSize()));
+            System.out.println(" dv1=" + dv1 + " (" + doubleBits(dv1) + ")" + " dv2=" + dv2 + " (" + doubleBits(dv2)
+                    + ")");
+            System.out.println(" key1=" + Util.hexDump(_key1.getEncodedBytes(), 0, _key1.getEncodedSize()));
+            System.out.println(" key2=" + Util.hexDump(_key2.getEncodedBytes(), 0, _key2.getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);

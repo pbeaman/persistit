@@ -222,8 +222,7 @@ public class Debug {
     public static void debugPause(boolean condition, double probability) {
         if (_random == null)
             _random = new Random(1000);
-        if (condition && probability >= 1.0
-                || _random.nextFloat() < probability) {
+        if (condition && probability >= 1.0 || _random.nextFloat() < probability) {
             try {
                 Thread.sleep(500);
             } catch (InterruptedException ie) {

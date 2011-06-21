@@ -34,8 +34,7 @@ public class UnitTestRunner extends AbstractTestRunnerItem {
         try {
             System.out.println("Running Unit Test " + _className);
             final Class cl = Class.forName(_className);
-            final PersistitUnitTestCase testCase = (PersistitUnitTestCase) cl
-                    .newInstance();
+            final PersistitUnitTestCase testCase = (PersistitUnitTestCase) cl.newInstance();
             testCase.setPersistit(_persistit);
             testCase.runAllTests();
             _done = true;

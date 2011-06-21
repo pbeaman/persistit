@@ -34,8 +34,7 @@ public class KeyFilterTest2 extends PersistitUnitTestCase {
     @Test
     public void test1() throws PersistitException {
         System.out.print("test1 ");
-        final Exchange ex = _persistit.getExchange("persistit", "KeyFilter2",
-                true);
+        final Exchange ex = _persistit.getExchange("persistit", "KeyFilter2", true);
         final Key key = ex.getKey();
         ex.removeAll();
         for (int i = 0; i < 1000; i++) {
@@ -44,29 +43,26 @@ public class KeyFilterTest2 extends PersistitUnitTestCase {
             ex.clear().append(2).append(ks(i / 100));
             ex.store();
             // 100 unique keys
-            ex.clear().append(2).append(ks(i / 100)).append(3)
-                    .append(ks((i / 10) % 10));
+            ex.clear().append(2).append(ks(i / 100)).append(3).append(ks((i / 10) % 10));
             ex.store();
             if ((i % 2) == 0) {
                 // 500 unique keys
-                ex.clear().append(2).append(ks(i / 100)).append(3)
-                        .append(ks((i / 10) % 10)).append(4).append(ks(i % 10));
+                ex.clear().append(2).append(ks(i / 100)).append(3).append(ks((i / 10) % 10)).append(4).append(
+                        ks(i % 10));
                 ex.store();
                 // 500 unique keys
-                ex.clear().append(2).append(ks(i / 100)).append(3)
-                        .append(ks((i / 10) % 10)).append(5).append(ks(i % 10));
+                ex.clear().append(2).append(ks(i / 100)).append(3).append(ks((i / 10) % 10)).append(5).append(
+                        ks(i % 10));
                 ex.store();
                 // 500 unique keys
-                ex.clear().append(2).append(ks(i / 100)).append(3)
-                        .append(ks((i / 10) % 10)).append(4).append(ks(i % 10))
-                        .append(5).append("x");
+                ex.clear().append(2).append(ks(i / 100)).append(3).append(ks((i / 10) % 10)).append(4).append(
+                        ks(i % 10)).append(5).append("x");
                 ex.store();
             }
         }
 
         ex.clear();
-        assertTrue(ex.traverse(Key.GT, new KeyFilter(
-                "{2,*,3,*,4,>[\"a\":\"e\"]<}"), 0));
+        assertTrue(ex.traverse(Key.GT, new KeyFilter("{2,*,3,*,4,>[\"a\":\"e\"]<}"), 0));
         assertEquals("{2,\"a\",3,\"a\",4,\"a\"}", ex.getKey().toString());
 
         assertEquals(600, countKeys(ex, "{2,*,>3,*,4,*<}"));
@@ -78,15 +74,13 @@ public class KeyFilterTest2 extends PersistitUnitTestCase {
         assertEquals(0, countKeys(ex, "{3,*,>3,*,4,*<}"));
         assertEquals(0, countKeys(ex, "{2,*,3,*,>6,*<}"));
         assertEquals(500, countKeys(ex, "{2,\"a\":\"z\",3,*,4,*,5,>\"x\"}"));
-        assertEquals(90,
-                countKeys(ex, "{2,{\"a\",\"b\",\"c\"},3,*,4,>[\"a\":\"e\"]<}"));
+        assertEquals(90, countKeys(ex, "{2,{\"a\",\"b\",\"c\"},3,*,4,>[\"a\":\"e\"]<}"));
         assertEquals(300, countKeys(ex, "{2,*,3,*,4,>[\"a\":\"e\"]<}"));
 
         System.out.println("- done");
     }
 
-    private int countKeys(final Exchange ex, String kfString)
-            throws PersistitException {
+    private int countKeys(final Exchange ex, String kfString) throws PersistitException {
         ex.clear();
         int count = 0;
         final KeyFilter kf = new KeyFilter(kfString);
@@ -101,6 +95,7 @@ public class KeyFilterTest2 extends PersistitUnitTestCase {
         new KeyFilterTest2().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
 

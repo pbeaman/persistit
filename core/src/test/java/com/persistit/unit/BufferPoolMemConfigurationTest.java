@@ -30,11 +30,9 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
 
     @Test
     public void testBufferMemConfiguration() throws Exception {
-        final Properties properties = UnitTestProperties.getPropertiesByMemory(
-                true, "1M");
+        final Properties properties = UnitTestProperties.getPropertiesByMemory(true, "1M");
         _persistit.initialize(properties);
-        BufferPoolInfo[] infoArray = _persistit.getManagement()
-                .getBufferPoolInfoArray();
+        BufferPoolInfo[] infoArray = _persistit.getManagement().getBufferPoolInfoArray();
         assertEquals(1, infoArray.length);
         int bufferSize = infoArray[0].getBufferSize();
         int bufferCount = infoArray[0].getBufferCount();
@@ -44,8 +42,7 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
 
     @Test
     public void testBufferMemConfigurationErrors() throws Exception {
-        Properties properties = UnitTestProperties.getPropertiesByMemory(true,
-                "1000,999");
+        Properties properties = UnitTestProperties.getPropertiesByMemory(true, "1000,999");
         try {
             _persistit.initialize(properties);
             fail("Accepted allocation 10000 bytes");

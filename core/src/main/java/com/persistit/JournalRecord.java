@@ -380,7 +380,8 @@ import java.nio.charset.Charset;
  * <table>
  * <tr valign="top">
  * <td>+16</td>
- * <td>cacheId (long) - unique identifier of <code>TransactionalCache</code> instance</td>
+ * <td>cacheId (long) - unique identifier of <code>TransactionalCache</code>
+ * instance</td>
  * </tr>
  * <tr valign="top">
  * <td>+24</td>
@@ -400,9 +401,8 @@ public class JournalRecord {
 
     public final static int OVERHEAD = 16;
 
-    public final static int[] TYPES = new int[] { JE.TYPE, JH.TYPE, PA.TYPE,
-            PM.TYPE, SR.TYPE, DR.TYPE, DT.TYPE, TM.TYPE, TS.TYPE, TC.TYPE,
-            CP.TYPE, IV.TYPE, IT.TYPE, CU.TYPE };
+    public final static int[] TYPES = new int[] { JE.TYPE, JH.TYPE, PA.TYPE, PM.TYPE, SR.TYPE, DR.TYPE, DT.TYPE,
+            TM.TYPE, TS.TYPE, TC.TYPE, CP.TYPE, IV.TYPE, IT.TYPE, CU.TYPE };
 
     public static boolean isValidType(final int t) {
         for (int type : TYPES) {
@@ -415,15 +415,13 @@ public class JournalRecord {
 
     public static String str(final int t) {
         if (isValidType(t)) {
-            return new String(new char[] { (char) ((t >>> 8) & 0xFF),
-                    (char) (t & 0xFF) });
+            return new String(new char[] { (char) ((t >>> 8) & 0xFF), (char) (t & 0xFF) });
         } else {
             return "??";
         }
     }
 
-    private static void putByte(final ByteBuffer bb, final int offset,
-            final int value) {
+    private static void putByte(final ByteBuffer bb, final int offset, final int value) {
         Util.putByte(bb.array(), bb.position() + offset, value);
     }
 
@@ -496,8 +494,7 @@ public class JournalRecord {
             return getLong(bb, 16);
         }
 
-        public static void putCurrentJournalAddress(final ByteBuffer bb,
-                final long address) {
+        public static void putCurrentJournalAddress(final ByteBuffer bb, final long address) {
             putLong(bb, 16, address);
         }
 
@@ -505,8 +502,7 @@ public class JournalRecord {
             return getLong(bb, 24);
         }
 
-        public static void putBaseAddress(final ByteBuffer bb,
-                final long address) {
+        public static void putBaseAddress(final ByteBuffer bb, final long address) {
             putLong(bb, 24, address);
         }
 
@@ -514,8 +510,7 @@ public class JournalRecord {
             return getLong(bb, 32);
         }
 
-        public static void putJournalCreatedTime(final ByteBuffer bb,
-                final long time) {
+        public static void putJournalCreatedTime(final ByteBuffer bb, final long time) {
             putLong(bb, 32, time);
         }
     }
@@ -547,8 +542,7 @@ public class JournalRecord {
             return getLong(bb, 24);
         }
 
-        public static void putBaseJournalAddress(final ByteBuffer bb,
-                final long address) {
+        public static void putBaseJournalAddress(final ByteBuffer bb, final long address) {
             putLong(bb, 24, address);
         }
 
@@ -556,8 +550,7 @@ public class JournalRecord {
             return getLong(bb, 32);
         }
 
-        public static void putCurrentJournalAddress(final ByteBuffer bb,
-                final long address) {
+        public static void putCurrentJournalAddress(final ByteBuffer bb, final long address) {
             putLong(bb, 32, address);
         }
 
@@ -565,8 +558,7 @@ public class JournalRecord {
             return getLong(bb, 40);
         }
 
-        public static void putJournalCreatedTime(final ByteBuffer bb,
-                final long time) {
+        public static void putJournalCreatedTime(final ByteBuffer bb, final long time) {
             putLong(bb, 40, time);
         }
 
@@ -574,8 +566,7 @@ public class JournalRecord {
             return getLong(bb, 48);
         }
 
-        public static void putFileCreatedTime(final ByteBuffer bb,
-                final long time) {
+        public static void putFileCreatedTime(final ByteBuffer bb, final long time) {
             putLong(bb, 48, time);
         }
 
@@ -589,14 +580,12 @@ public class JournalRecord {
 
         public static String getPath(final ByteBuffer bb) {
             final int length = getLength(bb) - OVERHEAD;
-            return new String(bb.array(), bb.position() + OVERHEAD, length,
-                    UTF8);
+            return new String(bb.array(), bb.position() + OVERHEAD, length, UTF8);
         }
 
         public static void putPath(final ByteBuffer bb, final String path) {
             final byte[] stringBytes = path.getBytes(UTF8);
-            System.arraycopy(stringBytes, 0, bb.array(), bb.position()
-                    + OVERHEAD, stringBytes.length);
+            System.arraycopy(stringBytes, 0, bb.array(), bb.position() + OVERHEAD, stringBytes.length);
             putLength(bb, OVERHEAD + stringBytes.length);
         }
     }
@@ -621,29 +610,24 @@ public class JournalRecord {
             return length / ENTRY_SIZE;
         }
 
-        public static long getEntryTimestamp(final ByteBuffer bb,
-                final int index) {
+        public static long getEntryTimestamp(final ByteBuffer bb, final int index) {
             return getLong(bb, (index * ENTRY_SIZE));
         }
 
-        public static long getEntryJournalAddress(final ByteBuffer bb,
-                final int index) {
+        public static long getEntryJournalAddress(final ByteBuffer bb, final int index) {
             return getLong(bb, 8 + (index * ENTRY_SIZE));
         }
 
-        public static int getEntryVolumeHandle(final ByteBuffer bb,
-                final int index) {
+        public static int getEntryVolumeHandle(final ByteBuffer bb, final int index) {
             return getInt(bb, 16 + (index * ENTRY_SIZE));
         }
 
-        public static long getEntryPageAddress(final ByteBuffer bb,
-                final int index) {
+        public static long getEntryPageAddress(final ByteBuffer bb, final int index) {
             return getLong(bb, 20 + (index * ENTRY_SIZE));
         }
 
-        public static void putEntry(final ByteBuffer bb, final int index,
-                final long timestamp, final long journalAddress,
-                final int volumeHandle, final long pageAddress) {
+        public static void putEntry(final ByteBuffer bb, final int index, final long timestamp,
+                final long journalAddress, final int volumeHandle, final long pageAddress) {
             putLong(bb, 0 + (index * ENTRY_SIZE), timestamp);
             putLong(bb, 8 + (index * ENTRY_SIZE), journalAddress);
             putInt(bb, 16 + (index * ENTRY_SIZE), volumeHandle);
@@ -671,24 +655,20 @@ public class JournalRecord {
             return length / ENTRY_SIZE;
         }
 
-        public static long getEntryStartTimestamp(final ByteBuffer bb,
-                final int index) {
+        public static long getEntryStartTimestamp(final ByteBuffer bb, final int index) {
             return getLong(bb, (index * ENTRY_SIZE));
         }
 
-        public static long getEntryCommitTimestamp(final ByteBuffer bb,
-                final int index) {
+        public static long getEntryCommitTimestamp(final ByteBuffer bb, final int index) {
             return getLong(bb, 8 + (index * ENTRY_SIZE));
         }
 
-        public static long getEntryJournalAddress(final ByteBuffer bb,
-                final int index) {
+        public static long getEntryJournalAddress(final ByteBuffer bb, final int index) {
             return getLong(bb, 16 + (index * ENTRY_SIZE));
         }
 
-        public static void putEntry(final ByteBuffer bb, final int index,
-                final long startTimestamp, final long commitTimestamp,
-                final long journalAddress) {
+        public static void putEntry(final ByteBuffer bb, final int index, final long startTimestamp,
+                final long commitTimestamp, final long journalAddress) {
             putLong(bb, 0 + (index * ENTRY_SIZE), startTimestamp);
             putLong(bb, 8 + (index * ENTRY_SIZE), commitTimestamp);
             putLong(bb, 16 + (index * ENTRY_SIZE), journalAddress);
@@ -729,15 +709,12 @@ public class JournalRecord {
 
         public static String getVolumeName(final ByteBuffer bb) {
             final int length = getLength(bb) - OVERHEAD;
-            return new String(bb.array(), bb.position() + OVERHEAD, length,
-                    UTF8);
+            return new String(bb.array(), bb.position() + OVERHEAD, length, UTF8);
         }
 
-        public static void putVolumeName(final ByteBuffer bb,
-                final String volumeName) {
+        public static void putVolumeName(final ByteBuffer bb, final String volumeName) {
             final byte[] stringBytes = volumeName.getBytes(UTF8);
-            System.arraycopy(stringBytes, 0, bb.array(), bb.position()
-                    + OVERHEAD, stringBytes.length);
+            System.arraycopy(stringBytes, 0, bb.array(), bb.position() + OVERHEAD, stringBytes.length);
             putLength(bb, OVERHEAD + stringBytes.length);
         }
     }
@@ -769,22 +746,18 @@ public class JournalRecord {
             return getInt(bb, 20);
         }
 
-        public static void putVolumeHandle(final ByteBuffer bb,
-                final int volumeHandle) {
+        public static void putVolumeHandle(final ByteBuffer bb, final int volumeHandle) {
             putInt(bb, 20, volumeHandle);
         }
 
         public static String getTreeName(final ByteBuffer bb) {
             final int length = getLength(bb) - OVERHEAD;
-            return new String(bb.array(), bb.position() + OVERHEAD, length,
-                    UTF8);
+            return new String(bb.array(), bb.position() + OVERHEAD, length, UTF8);
         }
 
-        public static void putTreeName(final ByteBuffer bb,
-                final String treeName) {
+        public static void putTreeName(final ByteBuffer bb, final String treeName) {
             final byte[] stringBytes = treeName.getBytes(UTF8);
-            System.arraycopy(stringBytes, 0, bb.array(), bb.position()
-                    + OVERHEAD, stringBytes.length);
+            System.arraycopy(stringBytes, 0, bb.array(), bb.position() + OVERHEAD, stringBytes.length);
             putLength(bb, OVERHEAD + stringBytes.length);
         }
     }
@@ -806,8 +779,7 @@ public class JournalRecord {
             return getInt(bb, 16);
         }
 
-        public static void putVolumeHandle(final ByteBuffer bb,
-                final int volumeHandle) {
+        public static void putVolumeHandle(final ByteBuffer bb, final int volumeHandle) {
             putInt(bb, 16, volumeHandle);
         }
 
@@ -815,8 +787,7 @@ public class JournalRecord {
             return getLong(bb, 20);
         }
 
-        public static void putPageAddress(final ByteBuffer bb,
-                final long pageAddress) {
+        public static void putPageAddress(final ByteBuffer bb, final long pageAddress) {
             putLong(bb, 20, pageAddress);
         }
 
@@ -832,8 +803,7 @@ public class JournalRecord {
             return getInt(bb, 32);
         }
 
-        public static void putBufferSize(final ByteBuffer bb,
-                final int bufferSize) {
+        public static void putBufferSize(final ByteBuffer bb, final int bufferSize) {
             putInt(bb, 32, (char) bufferSize);
         }
 
@@ -856,8 +826,7 @@ public class JournalRecord {
             return getLong(bb, 16);
         }
 
-        public static void putSystemTimeMillis(final ByteBuffer bb,
-                final long systemTimeMillis) {
+        public static void putSystemTimeMillis(final ByteBuffer bb, final long systemTimeMillis) {
             putLong(bb, 16, systemTimeMillis);
         }
 
@@ -898,8 +867,7 @@ public class JournalRecord {
             putType(bb, TYPE);
         }
 
-        public static void putCommitTimestamp(final ByteBuffer bb,
-                final long commitTimestamp) {
+        public static void putCommitTimestamp(final ByteBuffer bb, final long commitTimestamp) {
             putLong(bb, 16, commitTimestamp);
         }
 
@@ -1012,5 +980,5 @@ public class JournalRecord {
             return getLong(bb, 16);
         }
     }
-    
+
 }

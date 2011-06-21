@@ -59,8 +59,7 @@ public class VolumeSpecification {
     private long extensionSize = -1;
     private long maximumSize = -1;
 
-    public VolumeSpecification(final String specification)
-            throws InvalidVolumeSpecificationException {
+    public VolumeSpecification(final String specification) throws InvalidVolumeSpecificationException {
         StringTokenizer mainTokenizer = new StringTokenizer(specification, ",");
         try {
             path = mainTokenizer.nextToken().trim();
@@ -87,13 +86,10 @@ public class VolumeSpecification {
                 } else {
                     String valueString = innerTokenizer.nextToken().trim();
                     boolean bad = false;
-                    long value = Persistit.parseLongProperty(attr, valueString,
-                            0, Long.MAX_VALUE);
+                    long value = Persistit.parseLongProperty(attr, valueString, 0, Long.MAX_VALUE);
 
-                    if (ATTR_PAGE_SIZE.equals(attr)
-                            || ATTR_PAGE2_SIZE.equals(attr)) {
-                        bufferSize = (value > Integer.MAX_VALUE) ? Integer.MAX_VALUE
-                                : (int) value;
+                    if (ATTR_PAGE_SIZE.equals(attr) || ATTR_PAGE2_SIZE.equals(attr)) {
+                        bufferSize = (value > Integer.MAX_VALUE) ? Integer.MAX_VALUE : (int) value;
                     } else if (ATTR_ID.equals(attr)) {
                         id = value;
                     } else if (ATTR_INITIAL_PAGES.equals(attr)) {
@@ -111,9 +107,8 @@ public class VolumeSpecification {
                     } else
                         bad = true;
                     if (bad || innerTokenizer.hasMoreTokens()) {
-                        throw new InvalidVolumeSpecificationException(
-                                "Unknown attribute " + attr + " in "
-                                        + specification);
+                        throw new InvalidVolumeSpecificationException("Unknown attribute " + attr + " in "
+                                + specification);
                     }
                 }
             }
@@ -128,13 +123,11 @@ public class VolumeSpecification {
                 n++;
             }
             if (n > 1) {
-                throw new InvalidVolumeSpecificationException(specification
-                        + ": readOnly, create and createOnly "
+                throw new InvalidVolumeSpecificationException(specification + ": readOnly, create and createOnly "
                         + "attributes are mutually exclusive");
             }
             if (readOnly && tranzient) {
-                throw new InvalidVolumeSpecificationException(specification
-                        + ": readOnly and transient attributes "
+                throw new InvalidVolumeSpecificationException(specification + ": readOnly and transient attributes "
                         + "are mutually exclusive");
             }
             //
@@ -142,24 +135,19 @@ public class VolumeSpecification {
             //
             if (bufferSize > 0) {
                 if (initialPages == -1 && initialSize > 0) {
-                    initialPages = (initialSize + (bufferSize - 1))
-                            / bufferSize;
+                    initialPages = (initialSize + (bufferSize - 1)) / bufferSize;
                 }
                 if (extensionPages == -1 && extensionSize > 0) {
-                    extensionPages = (extensionSize + (bufferSize - 1))
-                            / bufferSize;
+                    extensionPages = (extensionSize + (bufferSize - 1)) / bufferSize;
                 }
                 if (maximumPages == -1 && maximumSize > 0) {
-                    maximumPages = (maximumSize + (bufferSize - 1))
-                            / bufferSize;
+                    maximumPages = (maximumSize + (bufferSize - 1)) / bufferSize;
                 }
             }
         } catch (NumberFormatException nfe) {
-            throw new InvalidVolumeSpecificationException(specification
-                    + ": invalid number");
+            throw new InvalidVolumeSpecificationException(specification + ": invalid number");
         } catch (NoSuchElementException nste) {
-            throw new InvalidVolumeSpecificationException(specification + ": "
-                    + nste);
+            throw new InvalidVolumeSpecificationException(specification + ": " + nste);
         }
     }
 
@@ -231,22 +219,20 @@ public class VolumeSpecification {
         }
     }
 
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(path);
         sb.append(',').append(ATTR_ID).append(':').append(id);
         sb.append(',').append(ATTR_PAGE_SIZE).append(':').append(bufferSize);
         if (initialPages >= 0) {
-            sb.append(',').append(ATTR_INITIAL_PAGES).append(':')
-                    .append(initialPages);
+            sb.append(',').append(ATTR_INITIAL_PAGES).append(':').append(initialPages);
         }
         if (maximumPages >= 0) {
-            sb.append(',').append(ATTR_MAXIMUM_PAGES).append(':')
-                    .append(maximumPages);
+            sb.append(',').append(ATTR_MAXIMUM_PAGES).append(':').append(maximumPages);
         }
         if (extensionPages >= 0) {
-            sb.append(',').append(ATTR_EXTENSION_PAGES).append(':')
-                    .append(extensionPages);
+            sb.append(',').append(ATTR_EXTENSION_PAGES).append(':').append(extensionPages);
         }
         if (name != null) {
             sb.append(',').append(ATTR_ALIAS).append(':').append(name);

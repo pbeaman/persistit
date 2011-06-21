@@ -24,8 +24,8 @@ import com.persistit.Persistit;
 
 public abstract class PersistitUnitTestCase extends TestCase {
 
-    protected final static String RED_DOG="The quick bronw fox jumped over the lazy red dog.";
-    
+    protected final static String RED_FOX = "The quick red fox jumped over the lazy brown dog.";
+
     protected Persistit _persistit = new Persistit();
 
     protected Properties getProperties(final boolean cleanup) {
@@ -60,9 +60,9 @@ public abstract class PersistitUnitTestCase extends TestCase {
             tearDown();
         }
     }
-    
-    private final static String[] PERSISTIT_THREAD_NAMES = {
-        "CHECKPOINT_WRITER", "JOURNAL_COPIER", "JOURNAL_FLUSHER", "PAGE_WRITER"};
+
+    private final static String[] PERSISTIT_THREAD_NAMES = { "CHECKPOINT_WRITER", "JOURNAL_COPIER", "JOURNAL_FLUSHER",
+            "PAGE_WRITER" };
 
     protected boolean checkNoPersistitThreads() {
         boolean alive = false;
@@ -71,7 +71,7 @@ public abstract class PersistitUnitTestCase extends TestCase {
             String name = t.getName();
             for (final String p : PERSISTIT_THREAD_NAMES) {
                 if (name.contains(p)) {
-                    alive=true;
+                    alive = true;
                     System.err.println("Thread " + t + " is still alive");
                 }
             }

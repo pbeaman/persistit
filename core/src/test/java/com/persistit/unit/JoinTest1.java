@@ -35,8 +35,7 @@ public class JoinTest1 extends PersistitUnitTestCase {
         System.out.print("test1 ");
 
         final StringBuilder sb = new StringBuilder(4000);
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "SimpleTest1BadJoin", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "SimpleTest1BadJoin", true);
         exchange.removeAll();
         final Key key = exchange.getKey();
         final Value value = exchange.getValue();
@@ -66,9 +65,8 @@ public class JoinTest1 extends PersistitUnitTestCase {
         value.putString(sb);
         exchange.store();
 
-        key.clear()
-                .append("B")
-                .append("... a pretty long key value. The goal is to get the the record "
+        key.clear().append("B").append(
+                "... a pretty long key value. The goal is to get the the record "
                         + "for this key into the penultimate slot of the left page, followed "
                         + "by a short key on the edge.  Then delete that short key, so that"
                         + "this becomes the edge key.");
@@ -191,6 +189,7 @@ public class JoinTest1 extends PersistitUnitTestCase {
         new JoinTest1().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
     }

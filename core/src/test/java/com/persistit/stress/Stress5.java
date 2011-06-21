@@ -38,12 +38,9 @@ public class Stress5 extends StressBase {
         return LONG_DESCRIPTION;
     }
 
-    private final static String[] ARGS_TEMPLATE = {
-            "repeat|int:1:0:1000000000|Repetitions",
-            "count|int:10000:0:1000000000|Number of nodes to populate",
-            "size|int:4029:10:10000000|Data record size",
-            "splay0|int:12:1:1000|Splay 0", "splay1|int:3:1:1000|Splay 1",
-            "splay2|int:7:1:1000|Splay 2", };
+    private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Repetitions",
+            "count|int:10000:0:1000000000|Number of nodes to populate", "size|int:4029:10:10000000|Data record size",
+            "splay0|int:12:1:1000|Splay 0", "splay1|int:3:1:1000|Splay 1", "splay2|int:7:1:1000|Splay 2", };
 
     int _splay0;
     int _splay1;
@@ -66,8 +63,7 @@ public class Stress5 extends StressBase {
 
         try {
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit",
-                    _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
             _exs = getPersistit().getExchange("persistit", "shared", true);
         } catch (final Exception ex) {
             handleThrowable(ex);
@@ -90,8 +86,7 @@ public class Stress5 extends StressBase {
             try {
                 verboseln();
                 verboseln();
-                verboseln("Starting test cycle " + _repeat + " at "
-                        + tsString());
+                verboseln("Starting test cycle " + _repeat + " at " + tsString());
                 describeTest("Deleting all records");
                 setPhase("@");
                 _ex.clear().remove(Key.GTEQ);
@@ -113,10 +108,8 @@ public class Stress5 extends StressBase {
                 describeTest("Creating eliding keys");
                 setPhase("b");
                 int depth;
-                for (_count = 0, depth = maxDepth; (depth > minDepth)
-                        && !isStopped(); depth -= _splay1, _count++) {
-                    setupKey(_ex, keyLength, depth, minDepth
-                            + (depth % _splay0), 55555 + depth, '5');
+                for (_count = 0, depth = maxDepth; (depth > minDepth) && !isStopped(); depth -= _splay1, _count++) {
+                    setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 + depth, '5');
                     setupTestValue(_ex, 55555 + depth, _size);
                     _ex.store();
                     dot();
@@ -127,10 +120,8 @@ public class Stress5 extends StressBase {
                 }
 
                 setPhase("c");
-                for (_count = 0, depth = maxDepth; (depth > minDepth)
-                        && !isStopped(); depth -= _splay2, _count++) {
-                    setupKey(_ex, keyLength, depth, minDepth
-                            + (depth % _splay0), 55555 - depth, '5');
+                for (_count = 0, depth = maxDepth; (depth > minDepth) && !isStopped(); depth -= _splay2, _count++) {
+                    setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 - depth, '5');
                     setupTestValue(_ex, 55555 - depth, _size);
                     _ex.store();
                     dot();
@@ -142,10 +133,8 @@ public class Stress5 extends StressBase {
 
                 describeTest("Verifying and removing eliding keys");
                 setPhase("d");
-                for (_count = 0, depth = maxDepth; (depth > minDepth)
-                        && !isStopped(); depth -= _splay1, _count++) {
-                    setupKey(_ex, keyLength, depth, minDepth
-                            + (depth % _splay0), 55555 + depth, '5');
+                for (_count = 0, depth = maxDepth; (depth > minDepth) && !isStopped(); depth -= _splay1, _count++) {
+                    setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 + depth, '5');
                     setupTestValue(_ex, 55555 + depth, _size);
                     _ex.fetch(value);
                     compareValues(_ex.getValue(), value);
@@ -161,10 +150,8 @@ public class Stress5 extends StressBase {
                 }
 
                 setPhase("e");
-                for (_count = 0, depth = maxDepth; (depth > minDepth)
-                        && !isStopped(); depth -= _splay2, _count++) {
-                    setupKey(_ex, keyLength, depth, minDepth
-                            + (depth % _splay0), 55555 - depth, '5');
+                for (_count = 0, depth = maxDepth; (depth > minDepth) && !isStopped(); depth -= _splay2, _count++) {
+                    setupKey(_ex, keyLength, depth, minDepth + (depth % _splay0), 55555 - depth, '5');
                     setupTestValue(_ex, 55555 - depth, _size);
                     _ex.fetch(value);
                     compareValues(_ex.getValue(), value);
@@ -172,8 +159,7 @@ public class Stress5 extends StressBase {
                         break;
                     }
                     if (!_ex.remove()) {
-                        _result = new TestResult(false,
-                                "Failed to remove depth=" + depth);
+                        _result = new TestResult(false, "Failed to remove depth=" + depth);
                         forceStop();
                         break;
                     }
@@ -210,8 +196,8 @@ public class Stress5 extends StressBase {
         }
     }
 
-    private void setupKey(final Exchange ex, final int length, final int depth,
-            final int a, final int b, final char fill) {
+    private void setupKey(final Exchange ex, final int length, final int depth, final int a, final int b,
+            final char fill) {
         _sb1.setLength(0);
         for (int i = 0; i < length; i++) {
             _sb1.append(fill);

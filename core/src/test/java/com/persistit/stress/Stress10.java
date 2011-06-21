@@ -27,12 +27,9 @@ public class Stress10 extends StressBase {
     private final static String LONG_DESCRIPTION = "   Simple stress test that randomly inserts, reads, traverses and\r\n"
             + "   deletes records\r\n";
 
-    private final static String[] ARGS_TEMPLATE = {
-            "op|String:wrtd|Operations to perform",
-            "repeat|int:1:0:1000000000|Repetitions",
-            "count|int:100000:0:1000000000|Number of nodes to populate",
-            "size|int:500:1:200000|Size of each data value",
-            "seed|int:1:1:20000|Random seed", };
+    private final static String[] ARGS_TEMPLATE = { "op|String:wrtd|Operations to perform",
+            "repeat|int:1:0:1000000000|Repetitions", "count|int:100000:0:1000000000|Number of nodes to populate",
+            "size|int:500:1:200000|Size of each data value", "seed|int:1:1:20000|Random seed", };
 
     int _size;
     int _splay;
@@ -62,8 +59,7 @@ public class Stress10 extends StressBase {
 
         try {
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit",
-                    _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
             _exs = getPersistit().getExchange("persistit", "shared", true);
         } catch (final Exception ex) {
             handleThrowable(ex);
@@ -106,8 +102,7 @@ public class Stress10 extends StressBase {
                 case 0: {
                     // write a record
 
-                    _exs.clear().append("stress10").append(keyInteger)
-                            .append(_threadIndex);
+                    _exs.clear().append("stress10").append(keyInteger).append(_threadIndex);
                     setupTestValue(_exs, keyInteger, random(20, _size));
 
                     _ex.clear().append(keyInteger);
@@ -125,22 +120,19 @@ public class Stress10 extends StressBase {
                 case 1: {
                     // fetch a record
 
-                    _exs.clear().append("stress10").append(keyInteger)
-                            .append(_threadIndex);
+                    _exs.clear().append("stress10").append(keyInteger).append(_threadIndex);
                     setupTestValue(_exs, keyInteger, random(20, _size));
                     _ex.clear().append(keyInteger);
                     try {
                         _ex.fetch();
                         int size1 = 0;
-                        if (_ex.getValue().isDefined()
-                                && !_ex.getValue().isNull()) {
+                        if (_ex.getValue().isDefined() && !_ex.getValue().isNull()) {
                             size1 = _ex.getValue().getInt();
                         }
                         _exs.fetch();
                         final int size2 = _exs.getValue().getEncodedSize();
                         if (size2 != size1) {
-                            _result = new TestResult(false, "Value is size "
-                                    + size2 + ", should be " + size1 + " key="
+                            _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1 + " key="
                                     + _ex.getKey());
                             println(_result);
                             Debug.debug1(true);
@@ -155,15 +147,13 @@ public class Stress10 extends StressBase {
                     // traverse up to 1000 records
 
                     _exs.clear().append("stress10").append(keyInteger);
-                    for (int count = 0; (count < random(10, 1000))
-                            && !isStopped(); count++) {
+                    for (int count = 0; (count < random(10, 1000)) && !isStopped(); count++) {
                         dot();
                         try {
                             if (!_exs.next()) {
                                 break;
                             }
-                            final int curKeyInteger = _exs.getKey().indexTo(1)
-                                    .decodeInt();
+                            final int curKeyInteger = _exs.getKey().indexTo(1).decodeInt();
                             _exs.append(_threadIndex).fetch().getValue();
                             final int size2 = _exs.getValue().getEncodedSize();
                             _ex.clear().append(curKeyInteger).fetch();
@@ -172,10 +162,8 @@ public class Stress10 extends StressBase {
                                 size1 = _ex.getValue().getInt();
                             }
                             if (size2 != size1) {
-                                _result = new TestResult(false,
-                                        "Value is size " + size2
-                                                + ", should be " + size1
-                                                + " key=" + _ex.getKey());
+                                _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1
+                                        + " key=" + _ex.getKey());
                                 println(_result);
                                 Debug.debug1(true);
                                 forceStop();
@@ -190,8 +178,7 @@ public class Stress10 extends StressBase {
                 case 3: {
                     // delete a record
 
-                    _exs.clear().append("stress10").append(keyInteger)
-                            .append(_threadIndex);
+                    _exs.clear().append("stress10").append(keyInteger).append(_threadIndex);
                     _ex.clear().append(keyInteger);
                     try {
                         _exs.remove();

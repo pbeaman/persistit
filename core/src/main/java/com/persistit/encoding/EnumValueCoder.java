@@ -51,8 +51,8 @@ public class EnumValueCoder implements ValueCoder {
      *            operation. (See {@link CoderContext}.) The default value is
      *            <code>null</code>.
      */
-    public void put(Value value, Object object, CoderContext context)
-            throws ConversionException {
+    @Override
+    public void put(Value value, Object object, CoderContext context) throws ConversionException {
         String name = ((Enum) object).name();
         value.put(name);
     }
@@ -82,8 +82,8 @@ public class EnumValueCoder implements ValueCoder {
      *         <code>clazz</code> parameter.
      * @throws ConversionException
      */
-    public Object get(Value value, Class clazz, CoderContext context)
-            throws ConversionException {
+    @Override
+    public Object get(Value value, Class clazz, CoderContext context) throws ConversionException {
         String name = value.getString();
         while (clazz.getSuperclass() != Enum.class) {
             clazz = clazz.getSuperclass();

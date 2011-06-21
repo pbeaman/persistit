@@ -88,11 +88,11 @@ public class StatisticsTask extends Task {
                 throw new IllegalStateException();
             }
         }
-        
+
         public void printHeader(final PrintWriter pw) throws IOException {
             pw.print(String.format(" %10s", _name));
         }
-        
+
         public void printValue(final PrintWriter pw, final Display display) throws IOException {
             switch (display) {
             case TOTAL:
@@ -111,31 +111,25 @@ public class StatisticsTask extends Task {
 
         public double rate() {
             if (_interval > 0) {
-                return ((double)_change * NANOS_PER_SECOND) / (double)_interval;
+                return ((double) _change * NANOS_PER_SECOND) / _interval;
             }
             return -1.0d;
         }
     }
-    
 
     @Cmd("stat")
-    static Task createStatisticsTask(
-            @Arg("delay|long:10:0:10000000|Interval in seconds between updates") long delay,
-            @Arg("count|long:1:0:|Number of updates") long count,
-            @Arg("file|string|Output file name") String toFile,
-            @Arg("_flag|a|All") boolean all,
-            @Arg("_flag|b|Buffer pool statistics") boolean bstats,
-            @Arg("_flag|j|Journal statistics") boolean jstats,
-            @Arg("_flag|i|I/O Statistics") boolean istats,
-            @Arg("_flag|t|Transaction statistics") boolean tstats,
-            @Arg("_flag|r|Show rates") boolean showRates,
+    static Task createStatisticsTask(@Arg("delay|long:10:0:10000000|Interval in seconds between updates") long delay,
+            @Arg("count|long:1:0:|Number of updates") long count, @Arg("file|string|Output file name") String toFile,
+            @Arg("_flag|a|All") boolean all, @Arg("_flag|b|Buffer pool statistics") boolean bstats,
+            @Arg("_flag|j|Journal statistics") boolean jstats, @Arg("_flag|i|I/O Statistics") boolean istats,
+            @Arg("_flag|t|Transaction statistics") boolean tstats, @Arg("_flag|r|Show rates") boolean showRates,
             @Arg("_flag|v|Show values") boolean showValues) throws Exception {
         StatisticsTask task = new StatisticsTask();
         task._delay = delay;
         task._count = count;
-        task._fileName= toFile;
+        task._fileName = toFile;
         task._bpool = bstats || all;
-        task._journal =  jstats || all;
+        task._journal = jstats || all;
         task._io = istats || all;
         task._transactions = tstats || all;
         task._showRate = showRates;
@@ -178,8 +172,7 @@ public class StatisticsTask extends Task {
             }
             updateStatistics(now);
             sb.setLength(0);
-            Display d = _showRate ? Display.RATE
-                    : count == 0 ? Display.TOTAL : Display.CHANGE;
+            Display d = _showRate ? Display.RATE : count == 0 ? Display.TOTAL : Display.CHANGE;
             if (count > 0 || !_showRate) {
                 for (final Stat stat : _statsList) {
                     if (sb.length() > 0) {
@@ -203,7 +196,7 @@ public class StatisticsTask extends Task {
                     _pw.printf("%,12d ", _persistit.elapsedTime());
                     for (final Stat stat : _statsList) {
                         stat.printValue(_pw, d);
-                     }
+                    }
                     _pw.print(' ');
                     _pw.println(d.toString());
                     _pw.flush();
@@ -216,7 +209,7 @@ public class StatisticsTask extends Task {
             }
         }
     }
-    
+
     private Stat stat(final String name) {
         Stat stat = _statsMap.get(name);
         if (stat == null) {
@@ -243,8 +236,7 @@ public class StatisticsTask extends Task {
         }
     }
 
-    private void updateBPoolStatistics(final Management management,
-            final long time) throws Exception {
+    private void updateBPoolStatistics(final Management management, final long time) throws Exception {
         final BufferPoolInfo[] array = management.getBufferPoolInfoArray();
         long hits = 0;
         long misses = 0;
@@ -262,23 +254,20 @@ public class StatisticsTask extends Task {
         stat("evict").update(time, evictions);
     }
 
-    private void updateJournalStatistics(final Management management,
-            final long time) throws Exception {
+    private void updateJournalStatistics(final Management management, final long time) throws Exception {
         final JournalInfo info = management.getJournalInfo();
         stat("jwrite").update(time, info.getJournaledPageCount());
         stat("jread").update(time, info.getReadPageCount());
         stat("jcopy").update(time, info.getCopiedPageCount());
     }
 
-    private void updateTransactionStatistics(final Management management,
-            final long time) throws Exception {
+    private void updateTransactionStatistics(final Management management, final long time) throws Exception {
         final TransactionInfo info = management.getTransactionInfo();
         stat("tcommit").update(time, info.getCommitCount());
         stat("troll").update(time, info.getRollbackCount());
     }
 
-    private void updateIOStatistics(final Management management, final long time)
-            throws Exception {
+    private void updateIOStatistics(final Management management, final long time) throws Exception {
         final IOMeterMXBean ioMeter = _persistit.getIOMeter();
         final String[] items = IOMeterMXBean.SUMMARY_ITEMS;
         long size = 0;

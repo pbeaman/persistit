@@ -32,8 +32,7 @@ public class SaveLoadTest1 extends PersistitUnitTestCase {
         final PersistitMap<Integer, String> pmap = new PersistitMap<Integer, String>(_persistit.getExchange(
                 "persistit", "SaveLoadTest1", true));
         for (int index = 0; index < 500; index++) {
-            tmap.put(new Integer(index), "This is the record for index="
-                    + index);
+            tmap.put(new Integer(index), "This is the record for index=" + index);
         }
         pmap.clear();
         pmap.putAll(tmap);
@@ -45,7 +44,7 @@ public class SaveLoadTest1 extends PersistitUnitTestCase {
         saver.close();
         pmap.clear();
         final StreamLoader loader = new StreamLoader(_persistit, saveFile);
-        loader.load( null, false, false);
+        loader.load(null, false, false);
         final boolean comparison = pmap.equals(tmap);
         assertTrue(comparison);
         System.out.println("- done");
@@ -55,6 +54,7 @@ public class SaveLoadTest1 extends PersistitUnitTestCase {
         new SaveLoadTest1().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
     }

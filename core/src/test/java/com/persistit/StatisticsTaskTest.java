@@ -55,10 +55,11 @@ public class StatisticsTaskTest extends PersistitUnitTestCase {
 
     @Test
     public void testStatisticsTask() throws Exception {
-        
+
         final File file = File.createTempFile("statistics", ".log");
         file.deleteOnExit();
-        final StatisticsTask task = (StatisticsTask)CLI.parseTask(_persistit, "stat -a -r delay=1 count=5 file=" + file.getAbsolutePath());
+        final StatisticsTask task = (StatisticsTask) CLI.parseTask(_persistit, "stat -a -r delay=1 count=5 file="
+                + file.getAbsolutePath());
         task.setMessageWriter(new PrintWriter(System.out));
         task.setup(1, "stats", "cls", 0, 5);
         task.run();

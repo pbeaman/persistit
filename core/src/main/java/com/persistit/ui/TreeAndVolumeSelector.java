@@ -84,23 +84,19 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
         _parentAdminCommand = command;
     }
 
+    @Override
     public void setup(AdminUI ui) {
         _adminUI = ui;
 
-        _addSelectedAction = ui.createAction(this,
-                _adminUI.getProperty("TVSelector.AddSelected"));
+        _addSelectedAction = ui.createAction(this, _adminUI.getProperty("TVSelector.AddSelected"));
 
-        _removeSelectedAction = ui.createAction(this,
-                _adminUI.getProperty("TVSelector.RemoveSelected"));
+        _removeSelectedAction = ui.createAction(this, _adminUI.getProperty("TVSelector.RemoveSelected"));
 
-        _addAllAction = ui.createAction(this,
-                _adminUI.getProperty("TVSelector.AddAll"));
+        _addAllAction = ui.createAction(this, _adminUI.getProperty("TVSelector.AddAll"));
 
-        _addAllAllAction = ui.createAction(this,
-                _adminUI.getProperty("TVSelector.AddAllAll"));
+        _addAllAllAction = ui.createAction(this, _adminUI.getProperty("TVSelector.AddAllAll"));
 
-        _removeAllAction = ui.createAction(this,
-                _adminUI.getProperty("TVSelector.RemoveAll"));
+        _removeAllAction = ui.createAction(this, _adminUI.getProperty("TVSelector.RemoveAll"));
 
         _addAllAllButton = new JButton(_addAllAllAction);
         _addSelectedButton = new JButton(_addSelectedAction);
@@ -114,42 +110,37 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
 
         _treeList = new JList(_treeListModel);
         _treeList.setPrototypeCellValue(PROTOTYPE_TREE_NAME);
-        _treeList
-                .setCellRenderer(new TreeItemListCellRenderer(true, _treeList));
+        _treeList.setCellRenderer(new TreeItemListCellRenderer(true, _treeList));
 
         _selectedTreeList = new JList(_selectedTreeListModel);
         _selectedTreeList.setPrototypeCellValue(PROTOTYPE_TREE_NAME);
-        _selectedTreeList.setCellRenderer(new TreeItemListCellRenderer(false,
-                _selectedTreeList));
+        _selectedTreeList.setCellRenderer(new TreeItemListCellRenderer(false, _selectedTreeList));
 
         _volumeList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        _volumeList.getSelectionModel().addListSelectionListener(
-                new ListSelectionListener() {
-                    public void valueChanged(ListSelectionEvent lse) {
-                        int index = _volumeList.getSelectedIndex();
-                        if (!lse.getValueIsAdjusting() && !_refreshing
-                                && index >= 0) {
-                            VolumeInfo[] array = (VolumeInfo[]) _volumeInfoArrayModel
-                                    .getInfoArray();
-                            if (array != null && index < array.length) {
-                                selectVolume(array[index]);
-                            } else {
-                                selectVolume(null);
-                            }
-                            refresh(false);
-                        }
+        _volumeList.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent lse) {
+                int index = _volumeList.getSelectedIndex();
+                if (!lse.getValueIsAdjusting() && !_refreshing && index >= 0) {
+                    VolumeInfo[] array = (VolumeInfo[]) _volumeInfoArrayModel.getInfoArray();
+                    if (array != null && index < array.length) {
+                        selectVolume(array[index]);
+                    } else {
+                        selectVolume(null);
                     }
-                });
+                    refresh(false);
+                }
+            }
+        });
 
-        _treeList
-                .setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
-        _treeList.getSelectionModel().addListSelectionListener(
-                new ListSelectionListener() {
-                    public void valueChanged(ListSelectionEvent lse) {
-                        if (!lse.getValueIsAdjusting() && !_refreshing) {
-                        }
-                    }
-                });
+        _treeList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        _treeList.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent lse) {
+                if (!lse.getValueIsAdjusting() && !_refreshing) {
+                }
+            }
+        });
 
         _volumeList.setVisibleRowCount(VISIBLE_ROW_COUNT);
         _treeList.setVisibleRowCount(VISIBLE_ROW_COUNT);
@@ -217,6 +208,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
         }
     }
 
+    @Override
     protected void refresh(boolean reset) {
         synchronized (this) {
             if (_refreshing)
@@ -237,8 +229,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
 
             TreeInfo[] treeInfoArray = null;
             if (management != null && _selectedVolumeName != null) {
-                treeInfoArray = management
-                        .getTreeInfoArray(_selectedVolumeName);
+                treeInfoArray = management.getTreeInfoArray(_selectedVolumeName);
             }
             updateTreeListModel(_selectedVolumeName, treeInfoArray);
         } catch (RemoteException re) {
@@ -262,8 +253,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
             int selectedSize = _selectedTreeListModel.size();
             boolean alreadySelected = false;
             for (int selectedIndex = 0; selectedIndex < selectedSize; selectedIndex++) {
-                if (_selectedTreeListModel.getElementAt(selectedIndex).equals(
-                        item)) {
+                if (_selectedTreeListModel.getElementAt(selectedIndex).equals(item)) {
                     alreadySelected = true;
                     break;
                 }
@@ -278,17 +268,16 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
         String _volumeName;
         boolean _selected;
 
+        @Override
         public boolean equals(Object obj) {
             if (!(obj instanceof TreeItem))
                 return false;
             TreeItem ti = (TreeItem) obj;
-            return ti._treeName.equals(_treeName)
-                    && ti._volumeName.equals(_volumeName);
+            return ti._treeName.equals(_treeName) && ti._volumeName.equals(_volumeName);
         }
     }
 
-    private static class TreeItemListCellRenderer extends
-            DefaultListCellRenderer implements ListCellRenderer {
+    private static class TreeItemListCellRenderer extends DefaultListCellRenderer implements ListCellRenderer {
         boolean _supplySide;
         StringBuilder sb = new StringBuilder();
 
@@ -319,16 +308,15 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
 
         }
 
-        public Component getListCellRendererComponent(JList list, Object value,
-                int index, boolean isSelected, boolean cellHasFocus) {
+        @Override
+        public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected,
+                boolean cellHasFocus) {
             if (!(value instanceof TreeItem)) {
                 setText(value.toString());
 
-                setBackground(isSelected ? _enabledSelectedBackground
-                        : _defaultBackground);
+                setBackground(isSelected ? _enabledSelectedBackground : _defaultBackground);
 
-                setForeground(isSelected ? _enabledSelectedForeground
-                        : _defaultForeground);
+                setForeground(isSelected ? _enabledSelectedForeground : _defaultForeground);
             } else {
                 TreeItem item = (TreeItem) value;
                 sb.setLength(0);
@@ -340,12 +328,10 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
 
                 boolean enabled = item._selected ^ _supplySide;
 
-                Color background = isSelected ? (enabled ? _enabledSelectedBackground
-                        : _disabledSelectedBackground)
+                Color background = isSelected ? (enabled ? _enabledSelectedBackground : _disabledSelectedBackground)
                         : (enabled ? _defaultBackground : _disabledBackground);
 
-                Color foreground = isSelected ? (enabled ? _enabledSelectedForeground
-                        : _disabledSelectedForeground)
+                Color foreground = isSelected ? (enabled ? _enabledSelectedForeground : _disabledSelectedForeground)
                         : (enabled ? _defaultForeground : _disabledForeground);
 
                 setBackground(background);
@@ -355,21 +341,23 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
         }
     }
 
+    @Override
     public Map getMenuMap() {
         return Collections.EMPTY_MAP;
     }
 
+    @Override
     public void setDefaultButton() {
     }
 
+    @Override
     public void actionPerformed(AdminAction action, ActionEvent ae) {
         String name = action.getName();
         if ("ADD_SELECTED".equals(name)) {
             int[] selected = _treeList.getSelectedIndices();
             for (int index = 0; index < selected.length; index++) {
                 int itemIndex = selected[index];
-                TreeItem item = (TreeItem) _treeListModel
-                        .getElementAt(itemIndex);
+                TreeItem item = (TreeItem) _treeListModel.getElementAt(itemIndex);
                 if (!item._selected) {
                     item._selected = true;
                     _selectedTreeListModel.addElement(item);
@@ -380,8 +368,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
             int[] selected = _selectedTreeList.getSelectedIndices();
             for (int index = selected.length; --index >= 0;) {
                 int itemIndex = selected[index];
-                TreeItem item = (TreeItem) _selectedTreeListModel
-                        .getElementAt(itemIndex);
+                TreeItem item = (TreeItem) _selectedTreeListModel.getElementAt(itemIndex);
                 if (item._selected) {
                     item._selected = false;
                     _selectedTreeListModel.removeElementAt(itemIndex);
@@ -401,8 +388,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
         } else if ("REMOVE_ALL".equals(name)) {
             int size = _selectedTreeListModel.size();
             for (int index = size; --index >= 0;) {
-                TreeItem item = (TreeItem) _selectedTreeListModel
-                        .getElementAt(index);
+                TreeItem item = (TreeItem) _selectedTreeListModel.getElementAt(index);
                 if (item._selected) {
                     item._selected = false;
                     _selectedTreeListModel.removeElementAt(index);
@@ -417,12 +403,10 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
             Management management = _adminUI.getManagement();
             if (management != null) {
                 for (int volumeIndex = 0; volumeIndex < volumeCount; volumeIndex++) {
-                    VolumeInfo volumeInfo = (VolumeInfo) _volumeList.getModel()
-                            .getElementAt(volumeIndex);
+                    VolumeInfo volumeInfo = (VolumeInfo) _volumeList.getModel().getElementAt(volumeIndex);
                     String volumeName = volumeInfo.getName();
                     try {
-                        TreeInfo[] treeInfoArray = management
-                                .getTreeInfoArray(volumeName);
+                        TreeInfo[] treeInfoArray = management.getTreeInfoArray(volumeName);
 
                         for (int treeIndex = 0; treeIndex < treeInfoArray.length; treeIndex++) {
                             TreeItem item = new TreeItem();

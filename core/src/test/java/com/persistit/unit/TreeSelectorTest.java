@@ -13,8 +13,8 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-
 package com.persistit.unit;
+
 import static junit.framework.Assert.*;
 
 import org.junit.Test;
@@ -31,7 +31,7 @@ public class TreeSelectorTest {
         assertTrue(ts.isTreeNameSelected("mydata", "anindex"));
         assertFalse(ts.isTreeNameSelected("mydata", "anxedni"));
     }
-    
+
     @Test
     public void simpleSelectorWithKeyFilter() throws Exception {
         TreeSelector ts = TreeSelector.parseSelector("*data:*index{1:2}", false, '\\');
@@ -42,8 +42,8 @@ public class TreeSelectorTest {
         assertNotNull(ts.keyFilter("mydata", "anindex"));
         assertNull(ts.keyFilter("mydata", "someothertree"));
     }
-    
-    @Test 
+
+    @Test
     public void complexCase() throws Exception {
         TreeSelector ts = TreeSelector.parseSelector("v1:t1{1:10,\"a\"},v?:t?{10:20},x*:other*", false, '\\');
         assertTrue(ts.isVolumeNameSelected("v1"));
@@ -59,7 +59,7 @@ public class TreeSelectorTest {
             // okay
         }
     }
-    
+
     @Test
     public void emptyCase() throws Exception {
         TreeSelector ts = TreeSelector.parseSelector("", false, '\\');

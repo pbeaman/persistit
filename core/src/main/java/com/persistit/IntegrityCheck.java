@@ -17,8 +17,6 @@ package com.persistit;
 
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.List;
-
 import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
 import com.persistit.exception.InvalidPageStructureException;
@@ -82,15 +80,13 @@ public class IntegrityCheck extends Task {
     private Value _value = new Value((Persistit) null);
 
     @Cmd("icheck")
-    static Task icheck(
-            @Arg("trees|string|Tree selector: Volumes/Trees to check") String treeSelectorString,
+    static Task icheck(@Arg("trees|string|Tree selector: Volumes/Trees to check") String treeSelectorString,
             @Arg("_flag|r|Use regex expression") boolean regex,
             @Arg("_flag|u|Don't freeze updates (Default is to freeze updates)") boolean dontSuspendUpdates,
-            @Arg("_flag|h|Fix index holes") boolean fixHoles,
-            @Arg("_flag|v|Verbose results") boolean verbose) throws Exception {
+            @Arg("_flag|h|Fix index holes") boolean fixHoles, @Arg("_flag|v|Verbose results") boolean verbose)
+            throws Exception {
         final IntegrityCheck task = new IntegrityCheck();
-        task._treeSelector = TreeSelector.parseSelector(treeSelectorString,
-                regex, '\\');
+        task._treeSelector = TreeSelector.parseSelector(treeSelectorString, regex, '\\');
         task._fixHoles = fixHoles;
         task._suspendUpdates = !dontSuspendUpdates;
         task.setMessageLogVerbosity(verbose ? LOG_VERBOSE : LOG_NORMAL);
@@ -110,26 +106,24 @@ public class IntegrityCheck extends Task {
 
     @Override
     protected void runTask() {
-        boolean freeze = !_persistit.isUpdateSuspended()
-                && (_suspendUpdates || _fixHoles);
+        boolean freeze = !_persistit.isUpdateSuspended() && (_suspendUpdates || _fixHoles);
         boolean needsToDrain = false;
         if (freeze) {
             _persistit.setUpdateSuspended(true);
             needsToDrain = true;
         }
-        
-        
+
         try {
             ArrayList<Volume> volumes = new ArrayList<Volume>();
             long _totalPages = 0;
-            
+
             for (final Volume volume : _persistit.getVolumes()) {
                 if (_treeSelector.isSelected(volume)) {
                     volumes.add(volume);
                     _totalPages += volume.getMaximumPageInUse();
                 }
             }
-            
+
             Volume previousVolume = null;
             for (final Tree tree : _persistit.getSelectedTrees(_treeSelector)) {
                 Volume volume = tree.getVolume();
@@ -152,11 +146,8 @@ public class IntegrityCheck extends Task {
                         //
                         Thread.sleep(3000);
                     }
-                    postMessage(
-                            "Checking " + tree.getName() + " in "
-                                    + volume.getPath(), LOG_VERBOSE);
-                    boolean okay = checkWholeVolume ? checkVolume(volume)
-                            : checkTree(tree);
+                    postMessage("Checking " + tree.getName() + " in " + volume.getPath(), LOG_VERBOSE);
+                    boolean okay = checkWholeVolume ? checkVolume(volume) : checkTree(tree);
                     appendMessage(okay ? " - OKAY" : " - FAULTS", LOG_VERBOSE);
                 } catch (PersistitException pe) {
                     postMessage(pe.toString(), LOG_NORMAL);
@@ -175,13 +166,12 @@ public class IntegrityCheck extends Task {
     }
 
     private String resourceName() {
-        return _currentTree == null ? _currentVolume.getName() : _currentVolume
-                .getName() + "/" + _currentTree.getName();
+        return _currentTree == null ? _currentVolume.getName() : _currentVolume.getName() + "/"
+                + _currentTree.getName();
     }
 
     private void addFault(String description, long page, int level, int position) {
-        Fault fault = new Fault(resourceName(), this, description, page, level,
-                position);
+        Fault fault = new Fault(resourceName(), this, description, page, level, position);
         if (_faults.size() < MAX_FAULTS)
             _faults.add(fault);
         postMessage(fault.toString(), LOG_VERBOSE);
@@ -365,8 +355,7 @@ public class IntegrityCheck extends Task {
         if (_currentVolume == null)
             return null;
         else
-            return _pagesVisited + "/" + _totalPages + " (" + resourceName()
-                    + ")";
+            return _pagesVisited + "/" + _totalPages + " (" + resourceName() + ")";
     }
 
     /**
@@ -449,8 +438,7 @@ public class IntegrityCheck extends Task {
         int _depth;
         int _position;
 
-        Fault(String treeName, IntegrityCheck work, String description,
-                long page, int level, int position) {
+        Fault(String treeName, IntegrityCheck work, String description, long page, int level, int position) {
             _treeName = treeName;
             _description = description;
             _path = new long[level + 1];
@@ -512,8 +500,7 @@ public class IntegrityCheck extends Task {
 
         public void set(long index, boolean value) {
             if (index > Integer.MAX_VALUE) {
-                throw new RuntimeException(
-                        "Large page addresses not implemented yet.");
+                throw new RuntimeException("Large page addresses not implemented yet.");
             }
             if (value)
                 _bitSet.set((int) index);
@@ -523,8 +510,7 @@ public class IntegrityCheck extends Task {
 
         public boolean get(long index) {
             if (index > Integer.MAX_VALUE) {
-                throw new RuntimeException(
-                        "Large page addresses not implemented yet.");
+                throw new RuntimeException("Large page addresses not implemented yet.");
             }
             return _bitSet.get((int) index);
         }
@@ -601,8 +587,7 @@ public class IntegrityCheck extends Task {
                 try {
                     again = false;
                     initTree(tree);
-                    checkTree(new Key(_persistit), 0, tree.getRootPageAddr(),
-                            0, tree);
+                    checkTree(new Key(_persistit), 0, tree.getRootPageAddr(), 0, tree);
                 } finally {
                     //
                     // Release all the buffers.
@@ -619,11 +604,8 @@ public class IntegrityCheck extends Task {
                 }
                 if (_holeCount > 0) {
                     if (_fixHoles) {
-                        postMessage("Fixing " + _holes.size()
-                                + " unindexed page"
-                                + (_holeCount > 1 ? "s" : "") + " in tree "
-                                + tree.getName() + " in volume "
-                                + tree.getVolume().getPath(), LOG_NORMAL);
+                        postMessage("Fixing " + _holes.size() + " unindexed page" + (_holeCount > 1 ? "s" : "")
+                                + " in tree " + tree.getName() + " in volume " + tree.getVolume().getPath(), LOG_NORMAL);
 
                         fixIndexHoles();
 
@@ -631,10 +613,8 @@ public class IntegrityCheck extends Task {
                             again = true;
                         }
                     } else {
-                        postMessage("Tree " + tree.getName() + " in volume "
-                                + tree.getVolume().getPath() + " has "
-                                + _holeCount + " unindexed page"
-                                + (_holeCount > 1 ? "s" : ""), LOG_NORMAL);
+                        postMessage("Tree " + tree.getName() + " in volume " + tree.getVolume().getPath() + " has "
+                                + _holeCount + " unindexed page" + (_holeCount > 1 ? "s" : ""), LOG_NORMAL);
                     }
                 }
             }
@@ -655,8 +635,7 @@ public class IntegrityCheck extends Task {
      * @param work
      * @throws PersistitException
      */
-    private void checkTree(Key parentKey, long parent, long page, int level,
-            Tree tree) throws PersistitException {
+    private void checkTree(Key parentKey, long parent, long page, int level, Tree tree) throws PersistitException {
         if (level >= Exchange.MAX_TREE_DEPTH) {
             addFault("Tree is too deep", page, level, 0);
         }
@@ -690,8 +669,7 @@ public class IntegrityCheck extends Task {
                 leftSibling = walkRight(level, page, key);
                 int compare = key.compareTo(parentKey);
                 if (compare != 0) {
-                    addFault("left sibling final key is "
-                            + (compare < 0 ? "less than" : "greater than")
+                    addFault("left sibling final key is " + (compare < 0 ? "less than" : "greater than")
                             + " parent key", page, level, 0);
                 }
             } else {
@@ -708,16 +686,14 @@ public class IntegrityCheck extends Task {
                 releasePage(leftSibling);
             _edgeKeys[level] = key;
 
-            if (checkPageType(buffer, level, tree)
-                    && verifyPage(buffer, page, level, key)) {
+            if (checkPageType(buffer, level, tree) && verifyPage(buffer, page, level, key)) {
                 if (buffer.isDataPage()) {
                     if (_depth >= 0 & _depth != level) {
                         addFault("Data page at wrong level", page, level, 0);
                     }
                     _depth = level;
                     _dataPageCount++;
-                    _dataBytesInUse += (buffer.getBufferSize()
-                            - buffer.getAvailableSize() - Buffer.DATA_PAGE_OVERHEAD);
+                    _dataBytesInUse += (buffer.getBufferSize() - buffer.getAvailableSize() - Buffer.DATA_PAGE_OVERHEAD);
 
                     for (int p = Buffer.KEY_BLOCK_START;; p += Buffer.KEYBLOCK_LENGTH) {
                         p = buffer.nextLongRecord(_value, p);
@@ -727,8 +703,7 @@ public class IntegrityCheck extends Task {
                     }
                 } else if (buffer.isIndexPage()) {
                     _indexPageCount++;
-                    _indexBytesInUse += (buffer.getBufferSize()
-                            - buffer.getAvailableSize() - Buffer.INDEX_PAGE_OVERHEAD);
+                    _indexBytesInUse += (buffer.getBufferSize() - buffer.getAvailableSize() - Buffer.INDEX_PAGE_OVERHEAD);
                     //
                     // Resetting the key because we are going to re-traverse
                     // the same page, now handling each downpointer.
@@ -748,8 +723,7 @@ public class IntegrityCheck extends Task {
                             break;
                         }
                         if (child <= 0 || child > Buffer.MAX_VALID_PAGE_ADDR) {
-                            addFault("Invalid index pointer value " + child,
-                                    page, level, foundAt);
+                            addFault("Invalid index pointer value " + child, page, level, foundAt);
                         }
 
                         // Recursively check the subtree.
@@ -777,8 +751,7 @@ public class IntegrityCheck extends Task {
         }
     }
 
-    private void checkGarbage(final long garbageRootPage)
-            throws PersistitException {
+    private void checkGarbage(final long garbageRootPage) throws PersistitException {
         long garbagePageAddress = garbageRootPage;
         boolean first = true;
         while (garbagePageAddress != 0) {
@@ -795,17 +768,14 @@ public class IntegrityCheck extends Task {
         _edgePages[0] = 0;
     }
 
-    private void checkGarbagePage(Buffer garbageBuffer)
-            throws PersistitException {
+    private void checkGarbagePage(Buffer garbageBuffer) throws PersistitException {
         long page = garbageBuffer.getPageAddress();
         if (!garbageBuffer.isGarbagePage()) {
-            addFault("Unexpected page type " + garbageBuffer.getPageType()
-                    + " expected a garbage page", page, 1, 0);
+            addFault("Unexpected page type " + garbageBuffer.getPageType() + " expected a garbage page", page, 1, 0);
             return;
         }
         if (_usedPageBits.get(page)) {
-            addFault("Garbage page is referenced by multiple parents", page, 1,
-                    0);
+            addFault("Garbage page is referenced by multiple parents", page, 1, 0);
             return;
         }
 
@@ -813,14 +783,12 @@ public class IntegrityCheck extends Task {
         int size = garbageBuffer.getBufferSize();
         int count = (size - next) / Buffer.GARBAGE_BLOCK_SIZE;
         if (count * Buffer.GARBAGE_BLOCK_SIZE != (size - next)) {
-            addFault("Garbage page is malformed: _alloc=" + next
-                    + " is not at a multiple of " + Buffer.GARBAGE_BLOCK_SIZE
-                    + " bytes", page, 1, 0);
+            addFault("Garbage page is malformed: _alloc=" + next + " is not at a multiple of "
+                    + Buffer.GARBAGE_BLOCK_SIZE + " bytes", page, 1, 0);
         }
         _usedPageBits.set(page, true);
         _edgePages[1] = page;
-        for (int p = garbageBuffer.getAlloc(); p < garbageBuffer
-                .getBufferSize(); p += Buffer.GARBAGE_BLOCK_SIZE) {
+        for (int p = garbageBuffer.getAlloc(); p < garbageBuffer.getBufferSize(); p += Buffer.GARBAGE_BLOCK_SIZE) {
             long left = garbageBuffer.getGarbageChainLeftPage(next);
             long right = garbageBuffer.getGarbageChainRightPage(next);
             _edgePositions[1] = p;
@@ -829,22 +797,17 @@ public class IntegrityCheck extends Task {
         _edgePages[1] = 0;
     }
 
-    private void checkGarbageChain(long left, long right)
-            throws PersistitException {
+    private void checkGarbageChain(long left, long right) throws PersistitException {
         long page = left;
         _edgePages[2] = page;
         while (page != 0 && page != right) {
             if (_usedPageBits.get(page)) {
-                addFault(
-                        "Page on garbage chain is referenced by multiple parents",
-                        page, 3, 0);
+                addFault("Page on garbage chain is referenced by multiple parents", page, 3, 0);
                 return;
             }
             Buffer buffer = getPage(page);
-            if (!buffer.isDataPage() && !buffer.isIndexPage()
-                    && !buffer.isLongRecordPage()) {
-                addFault("Page of type " + buffer.getPageTypeName()
-                        + " found on garbage page", page, 3, 0);
+            if (!buffer.isDataPage() && !buffer.isIndexPage() && !buffer.isLongRecordPage()) {
+                addFault("Page of type " + buffer.getPageTypeName() + " found on garbage page", page, 3, 0);
             }
             _pagesVisited++;
             page = buffer.getRightSibling();
@@ -858,16 +821,14 @@ public class IntegrityCheck extends Task {
         int type = buffer.getPageType();
 
         if (type != Buffer.PAGE_TYPE_DATA + expectedDepth) {
-            addFault("Unexpected page type " + type, buffer.getPageAddress(),
-                    level, 0);
+            addFault("Unexpected page type " + type, buffer.getPageAddress(), level, 0);
             return false;
         } else {
             return true;
         }
     }
 
-    private Buffer walkRight(int level, long toPage, Key key)
-            throws PersistitException {
+    private Buffer walkRight(int level, long toPage, Key key) throws PersistitException {
         Buffer startingBuffer = _edgeBuffers[level];
         if (startingBuffer == null)
             return null;
@@ -897,15 +858,13 @@ public class IntegrityCheck extends Task {
                 }
 
                 if (page <= 0 || page > Buffer.MAX_VALID_PAGE_ADDR) {
-                    addFault("Invalid right sibling address",
-                            buffer.getPageAddress(), level, 0);
+                    addFault("Invalid right sibling address", buffer.getPageAddress(), level, 0);
                     key.clear();
                     oldBuffer = buffer;
                     return startingBuffer;
                 }
                 if (walkCount-- <= 0) {
-                    addFault("More than " + Exchange.MAX_WALK_RIGHT
-                            + " unindexed siblings", page, level, 0);
+                    addFault("More than " + Exchange.MAX_WALK_RIGHT + " unindexed siblings", page, level, 0);
                     key.clear();
                     oldBuffer = buffer;
                     return startingBuffer;
@@ -940,8 +899,7 @@ public class IntegrityCheck extends Task {
 
     private boolean verifyPage(Buffer buffer, long page, int level, Key key) {
         if (buffer.getPageAddress() != page) {
-            addFault("Buffer contains wrong page " + buffer.getPageAddress(),
-                    page, level, 0);
+            addFault("Buffer contains wrong page " + buffer.getPageAddress(), page, level, 0);
             return false;
         }
 
@@ -956,25 +914,21 @@ public class IntegrityCheck extends Task {
         return true;
     }
 
-    private boolean verifyLongRecord(Value value, long page, int foundAt)
-            throws PersistitException {
+    private boolean verifyLongRecord(Value value, long page, int foundAt) throws PersistitException {
         int size = value.getEncodedSize();
         byte[] bytes = value.getEncodedBytes();
         if (size != Buffer.LONGREC_SIZE) {
-            addFault("Invalid long record stub size (" + size + ")", page,
-                    _depth, foundAt);
+            addFault("Invalid long record stub size (" + size + ")", page, _depth, foundAt);
             return false;
         }
         int longSize = Buffer.decodeLongRecordDescriptorSize(bytes, 0);
         long pointer = Buffer.decodeLongRecordDescriptorPointer(bytes, 0);
 
         if (longSize < Buffer.LONGREC_PREFIX_SIZE) {
-            addFault("Invalid long record size (" + longSize + ")", page,
-                    _depth, foundAt);
+            addFault("Invalid long record size (" + longSize + ")", page, _depth, foundAt);
         }
         if (pointer <= 0 || pointer > Buffer.MAX_VALID_PAGE_ADDR) {
-            addFault("Invalid long record pointer (" + pointer + ")", page,
-                    _depth, foundAt);
+            addFault("Invalid long record pointer (" + pointer + ")", page, _depth, foundAt);
         }
 
         long fromPage = page;
@@ -982,28 +936,24 @@ public class IntegrityCheck extends Task {
 
         for (long longPage = pointer; longPage != 0;) {
             if (_usedPageBits.get(longPage)) {
-                addFault(
-                        "Long record page " + longPage + " is multiply linked",
-                        page, _depth, foundAt);
+                addFault("Long record page " + longPage + " is multiply linked", page, _depth, foundAt);
                 break;
             }
             _usedPageBits.set(longPage, true);
             if (longSize <= 0) {
-                addFault("Long record chain too long at page " + longPage
-                        + " pointed to by " + fromPage, page, _depth, foundAt);
+                addFault("Long record chain too long at page " + longPage + " pointed to by " + fromPage, page, _depth,
+                        foundAt);
                 break;
             }
             Buffer longBuffer = null;
             try {
                 longBuffer = getPage(longPage);
                 if (!longBuffer.isLongRecordPage()) {
-                    addFault("Invalid long record page " + longPage + ": type="
-                            + longBuffer.getPageTypeName(), page, _depth,
-                            foundAt);
+                    addFault("Invalid long record page " + longPage + ": type=" + longBuffer.getPageTypeName(), page,
+                            _depth, foundAt);
                     break;
                 }
-                int segmentSize = longBuffer.getBufferSize()
-                        - Buffer.HEADER_SIZE;
+                int segmentSize = longBuffer.getBufferSize() - Buffer.HEADER_SIZE;
                 if (segmentSize > longSize)
                     segmentSize = longSize;
                 longSize -= segmentSize;
@@ -1031,8 +981,7 @@ public class IntegrityCheck extends Task {
             if (hole._tree != tree) {
                 tree = hole._tree;
                 volume = tree.getVolume();
-                exchange = _persistit
-                        .getExchange(volume, tree.getName(), false);
+                exchange = _persistit.getExchange(volume, tree.getName(), false);
             }
             Key spareKey2 = exchange.getAuxiliaryKey2();
             long page = hole._page;
@@ -1045,8 +994,7 @@ public class IntegrityCheck extends Task {
                 _value.setPointerValue(page);
                 _value.setPointerPageType(buffer.getPageType());
 
-                exchange.storeInternal(spareKey2, _value, level + 1, false,
-                        true);
+                exchange.storeInternal(spareKey2, _value, level + 1, false, true);
             } finally {
                 if (buffer != null) {
                     volume.getPool().release(buffer);

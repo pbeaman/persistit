@@ -106,10 +106,8 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
 
         _key1.reset();
         final String toString = _key1.toString();
-        assertEquals(
-                toString,
-                "{\"a\",(java.net.URL){\"http\",\"w\",-1,\"/z\"},\"b\","
-                        + "(java.net.URL){\"http\",\"w\",8080,\"/z?userid=pb\"},\"c\"}");
+        assertEquals(toString, "{\"a\",(java.net.URL){\"http\",\"w\",-1,\"/z\"},\"b\","
+                + "(java.net.URL){\"http\",\"w\",8080,\"/z?userid=pb\"},\"c\"}");
         System.out.println("- done");
     }
 
@@ -117,6 +115,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
         new KeyCoderTest1().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
         test2();
@@ -125,12 +124,8 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
     public void debugAssert(boolean condition) {
         if (!condition) {
             System.out.println();
-            System.out.println(" key1="
-                    + Util.hexDump(_key1.getEncodedBytes(), 0,
-                            _key1.getEncodedSize()));
-            System.out.println(" key2="
-                    + Util.hexDump(_key2.getEncodedBytes(), 0,
-                            _key2.getEncodedSize()));
+            System.out.println(" key1=" + Util.hexDump(_key1.getEncodedBytes(), 0, _key1.getEncodedSize()));
+            System.out.println(" key2=" + Util.hexDump(_key2.getEncodedBytes(), 0, _key2.getEncodedSize()));
             System.out.println("Assertion failure breakpoint");
         }
         Assert.assertTrue(condition);
@@ -145,8 +140,8 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
 
     public static class TestKeyRenderer implements KeyRenderer {
 
-        public void appendKeySegment(final Key key, final Object object,
-                final CoderContext context) {
+        @Override
+        public void appendKeySegment(final Key key, final Object object, final CoderContext context) {
             final URL url = (URL) object;
             key.append(url.getProtocol());
             key.append(url.getHost());
@@ -154,8 +149,8 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
             key.append(url.getFile());
         }
 
-        public Object decodeKeySegment(final Key key, final Class cl,
-                final CoderContext context) {
+        @Override
+        public Object decodeKeySegment(final Key key, final Class cl, final CoderContext context) {
             final String protocol = key.decodeString();
             final String host = key.decodeString();
             final int port = key.decodeInt();
@@ -167,8 +162,8 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
             }
         }
 
-        public void renderKeySegment(final Key key, final Object target,
-                final Class cl, final CoderContext context) {
+        @Override
+        public void renderKeySegment(final Key key, final Object target, final Class cl, final CoderContext context) {
             final StringBuilder sb = (StringBuilder) target;
             key.decodeString(sb);
             sb.append("://");
@@ -183,8 +178,8 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
     }
 
     public static class TestStringCoder implements KeyStringCoder {
-        public void appendKeySegment(final Key key, final Object object,
-                final CoderContext context) {
+        @Override
+        public void appendKeySegment(final Key key, final Object object, final CoderContext context) {
             if (object instanceof CharSequence) {
                 final CharSequence s = (CharSequence) object;
                 final byte[] bytes = key.getEncodedBytes();
@@ -207,8 +202,8 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
             }
         }
 
-        public Object decodeKeySegment(final Key key, final Class cl,
-                final CoderContext context) {
+        @Override
+        public Object decodeKeySegment(final Key key, final Class cl, final CoderContext context) {
             final StringBuilder sb = new StringBuilder();
             renderKeySegment(key, sb, cl, context);
             if (cl == StringBuilder.class) {
@@ -217,12 +212,11 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
             if (cl == String.class) {
                 return sb.toString();
             }
-            throw new ConversionException("String conversion to class "
-                    + cl.getName() + " is not supported");
+            throw new ConversionException("String conversion to class " + cl.getName() + " is not supported");
         }
 
-        public void renderKeySegment(final Key key, final Object target,
-                final Class cl, final CoderContext context) {
+        @Override
+        public void renderKeySegment(final Key key, final Object target, final Class cl, final CoderContext context) {
             final StringBuilder sb = (StringBuilder) target;
             final byte[] bytes = key.getEncodedBytes();
             final int start = key.getIndex();

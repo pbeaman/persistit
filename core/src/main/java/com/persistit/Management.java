@@ -19,7 +19,6 @@ import java.beans.ConstructorProperties;
 import java.io.Serializable;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.util.Arrays;
 import java.util.Date;
 
 import com.persistit.encoding.CoderContext;
@@ -99,8 +98,7 @@ public interface Management extends Remote, ManagementMXBean {
      * @return the array Array of <code>RecordInfo</code> objects containing
      *         detailed information about the records on the specified page.
      */
-    public RecordInfo[] getRecordInfoArray(String volumeName, long pageAddress)
-            throws RemoteException;
+    public RecordInfo[] getRecordInfoArray(String volumeName, long pageAddress) throws RemoteException;
 
     /**
      * <p>
@@ -163,10 +161,9 @@ public interface Management extends Remote, ManagementMXBean {
      * 
      * @throws RemoteException
      */
-    public LogicalRecord[] getLogicalRecordArray(String volumeName,
-            String treeName, String keyFilterString, KeyState fromKey,
-            Key.Direction direction, int maxRecordCount, int maxValueBytes,
-            boolean decodeStrings) throws RemoteException;
+    public LogicalRecord[] getLogicalRecordArray(String volumeName, String treeName, String keyFilterString,
+            KeyState fromKey, Key.Direction direction, int maxRecordCount, int maxValueBytes, boolean decodeStrings)
+            throws RemoteException;
 
     /**
      * Return a {@link JournalInfo} structure describing the current state of
@@ -240,9 +237,8 @@ public interface Management extends Remote, ManagementMXBean {
      * @throws RemoteException
      */
 
-    public LogicalRecordCount getLogicalRecordCount(String volumeName,
-            String treeName, String keyFilterString, KeyState fromKey,
-            Key.Direction direction, int maximumCount) throws RemoteException;
+    public LogicalRecordCount getLogicalRecordCount(String volumeName, String treeName, String keyFilterString,
+            KeyState fromKey, Key.Direction direction, int maximumCount) throws RemoteException;
 
     /**
      * <p>
@@ -307,8 +303,8 @@ public interface Management extends Remote, ManagementMXBean {
      * 
      * @return the array
      */
-    public BufferInfo[] getBufferInfoArray(int bufferSize, int traversalType,
-            String includeMask, String excludeMask) throws RemoteException;
+    public BufferInfo[] getBufferInfoArray(int bufferSize, int traversalType, String includeMask, String excludeMask)
+            throws RemoteException;
 
     /**
      * Return a <code>BufferInfo</code> reflecting the status of the buffer
@@ -326,8 +322,7 @@ public interface Management extends Remote, ManagementMXBean {
      * @return the BufferInfo for the buffer containing the designated page, of
      *         <code>null</code> if there is none.
      */
-    public BufferInfo getBufferInfo(String volumeName, long pageAddress)
-            throws RemoteException;
+    public BufferInfo getBufferInfo(String volumeName, long pageAddress) throws RemoteException;
 
     /**
      * Return a <code>BufferInfo</code> reflecting the state of a page
@@ -356,8 +351,7 @@ public interface Management extends Remote, ManagementMXBean {
      *         <code>null</code> if the specified tree does not exist.
      * @throws RemoteException
      */
-    public BufferInfo getBufferInfo(String volumeName, String treeName,
-            KeyState key, int level) throws RemoteException;
+    public BufferInfo getBufferInfo(String volumeName, String treeName, KeyState key, int level) throws RemoteException;
 
     /**
      * <p>
@@ -433,9 +427,8 @@ public interface Management extends Remote, ManagementMXBean {
      * 
      * @return the array
      */
-    public int populateBufferInfoArray(BufferInfo[] results, int bufferSize,
-            int traversalType, String includeMask, String excludeMask)
-            throws RemoteException;
+    public int populateBufferInfoArray(BufferInfo[] results, int bufferSize, int traversalType, String includeMask,
+            String excludeMask) throws RemoteException;
 
     /**
      * Return an array containing a <code>VolumeInfo</code> element for each
@@ -486,8 +479,7 @@ public interface Management extends Remote, ManagementMXBean {
      * 
      * @return The array
      */
-    public TreeInfo[] getTreeInfoArray(String volumeName)
-            throws RemoteException;
+    public TreeInfo[] getTreeInfoArray(String volumeName) throws RemoteException;
 
     /**
      * Return a <code>TreeInfo</code> for a specified <code>Volume</code> and
@@ -503,8 +495,7 @@ public interface Management extends Remote, ManagementMXBean {
      * 
      * @return the <code>TreeInfo</code>
      */
-    public TreeInfo getTreeInfo(String volumeName, String treeName)
-            throws RemoteException;
+    public TreeInfo getTreeInfo(String volumeName, String treeName) throws RemoteException;
 
     /**
      * Parse the supply String to determine whether it is a valid
@@ -519,8 +510,7 @@ public interface Management extends Remote, ManagementMXBean {
      * 
      * @throws RemoteException
      */
-    public int parseKeyFilterString(String keyFilterString)
-            throws RemoteException;
+    public int parseKeyFilterString(String keyFilterString) throws RemoteException;
 
     /**
      * <p>
@@ -549,8 +539,7 @@ public interface Management extends Remote, ManagementMXBean {
      * @return Array of zero or more decoded objects
      * @throws RemoteException
      */
-    public Object[] decodeValueObjects(ValueState valueState,
-            CoderContext context) throws RemoteException;
+    public Object[] decodeValueObjects(ValueState valueState, CoderContext context) throws RemoteException;
 
     /**
      * Decodes the content of the supplied <code>KeyState</code> as an array of
@@ -567,8 +556,7 @@ public interface Management extends Remote, ManagementMXBean {
      * 
      * @throws RemoteException
      */
-    public Object[] decodeKeyObjects(KeyState keyState, CoderContext context)
-            throws RemoteException;
+    public Object[] decodeKeyObjects(KeyState keyState, CoderContext context) throws RemoteException;
 
     /**
      * Starts a long-running utility task, such as the integrity checker. The
@@ -593,8 +581,8 @@ public interface Management extends Remote, ManagementMXBean {
      * @return Task identifier Unique ID for the running task
      * @throws RemoteException
      */
-    public long startTask(String description, String owner, String commandLine,
-            long maximumTime, int verbosity) throws RemoteException;
+    public long startTask(String description, String owner, String commandLine, long maximumTime, int verbosity)
+            throws RemoteException;
 
     /**
      * Queries the current status of one or all tasks. If the specified taskId
@@ -614,8 +602,7 @@ public interface Management extends Remote, ManagementMXBean {
      *         selected task(s).
      * @throws RemoteException
      */
-    public TaskStatus[] queryTaskStatus(long taskId, boolean details,
-            boolean clear) throws RemoteException;
+    public TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clear) throws RemoteException;
 
     /**
      * Suspend or resume the task(s) identified by <code>taskId</code>. If
@@ -628,8 +615,7 @@ public interface Management extends Remote, ManagementMXBean {
      *            allow it to resume.
      * @throws RemoteException
      */
-    public void setTaskSuspended(long taskId, boolean suspend)
-            throws RemoteException;
+    public void setTaskSuspended(long taskId, boolean suspend) throws RemoteException;
 
     /**
      * Stops and optionally removes a task specified by its id value. If the
@@ -658,8 +644,7 @@ public interface Management extends Remote, ManagementMXBean {
 
     public DisplayFilter getDisplayFilter() throws RemoteException;
 
-    public void setDisplayFilter(DisplayFilter displayFilter)
-            throws RemoteException;
+    public void setDisplayFilter(DisplayFilter displayFilter) throws RemoteException;
 
     /**
      * A DisplayFilter formats the String value presented in the Tree tab of the
@@ -683,8 +668,7 @@ public interface Management extends Remote, ManagementMXBean {
      * {@link #getLogicalRecordArray} method returns an array of
      * <code>LogicalRecordInfo</code> elements for a specified page.
      */
-    public static class LogicalRecord extends AcquisitionTimeBase implements
-            Serializable {
+    public static class LogicalRecord extends AcquisitionTimeBase implements Serializable {
 
         public static final long serialVersionUID = -2767943138077168919L;
 
@@ -717,8 +701,7 @@ public interface Management extends Remote, ManagementMXBean {
      * A structure that returns the result of the {@link #getLogicalRecordCount}
      * method.
      */
-    public static class LogicalRecordCount extends AcquisitionTimeBase
-            implements Serializable {
+    public static class LogicalRecordCount extends AcquisitionTimeBase implements Serializable {
 
         public static final long serialVersionUID = 6028974382268205702L;
 
@@ -748,8 +731,7 @@ public interface Management extends Remote, ManagementMXBean {
      * {@link #getRecordInfoArray} method returns an array of
      * <code>RecordInfo</code> elements for a specified page.
      */
-    public static class RecordInfo extends AcquisitionTimeBase implements
-            Serializable {
+    public static class RecordInfo extends AcquisitionTimeBase implements Serializable {
         public final static long serialVersionUID = -3236497038293928535L;
         //
         // Only used for index and data pages.
@@ -866,8 +848,7 @@ public interface Management extends Remote, ManagementMXBean {
      * method returns an array containing BufferPoolInfo elements for each
      * buffer size.
      */
-    public static class BufferPoolInfo extends AcquisitionTimeBase implements
-            Serializable {
+    public static class BufferPoolInfo extends AcquisitionTimeBase implements Serializable {
         public final static long serialVersionUID = 9044282840712593435L;
 
         int bufferSize;
@@ -885,14 +866,11 @@ public interface Management extends Remote, ManagementMXBean {
 
         }
 
-        @ConstructorProperties({ "bufferSize", "bufferCount", "missCount",
-                "hitCount", "newCount", "evictCount", "validPageCount",
-                "dirtyPageCount", "readerClaimedPageCount",
-                "writerClaimedPageCount" })
-        public BufferPoolInfo(int bufferSize, int bufferCount, long missCount,
-                long hitCount, long newCount, long evictCount,
-                long readCounter, int validPageCount, int dirtyPageCount,
-                int readerClaimedPageCount, int writerClaimedPageCount) {
+        @ConstructorProperties({ "bufferSize", "bufferCount", "missCount", "hitCount", "newCount", "evictCount",
+                "validPageCount", "dirtyPageCount", "readerClaimedPageCount", "writerClaimedPageCount" })
+        public BufferPoolInfo(int bufferSize, int bufferCount, long missCount, long hitCount, long newCount,
+                long evictCount, long readCounter, int validPageCount, int dirtyPageCount, int readerClaimedPageCount,
+                int writerClaimedPageCount) {
             super();
             this.bufferSize = bufferSize;
             this.bufferCount = bufferCount;
@@ -1036,8 +1014,7 @@ public interface Management extends Remote, ManagementMXBean {
      * at the acquisition time.
      * </p>
      */
-    public static class BufferInfo extends AcquisitionTimeBase implements
-            Serializable {
+    public static class BufferInfo extends AcquisitionTimeBase implements Serializable {
         public final static long serialVersionUID = -7847730868509629017L;
 
         int poolIndex;
@@ -1062,16 +1039,13 @@ public interface Management extends Remote, ManagementMXBean {
 
         }
 
-        @ConstructorProperties({ "poolIndex", "type", "typeName", "status",
-                "statusName", "writerThreadName", "pageAddress",
-                "rightSiblingAddress", "volumeName", "volumeId", "timestamp",
-                "bufferSize", "availableBytes", "alloc", "slack",
-                "keyBlockStart", "keyBlockEnd" })
-        public BufferInfo(int poolIndex, int type, String typeName, int status,
-                String statusName, String writerThreadName, long pageAddress,
-                long rightSiblingAddress, String volumeName, long volumeId,
-                long timestamp, int bufferSize, int availableBytes, int alloc,
-                int slack, int keyBlockStart, int keyBlockEnd) {
+        @ConstructorProperties({ "poolIndex", "type", "typeName", "status", "statusName", "writerThreadName",
+                "pageAddress", "rightSiblingAddress", "volumeName", "volumeId", "timestamp", "bufferSize",
+                "availableBytes", "alloc", "slack", "keyBlockStart", "keyBlockEnd" })
+        public BufferInfo(int poolIndex, int type, String typeName, int status, String statusName,
+                String writerThreadName, long pageAddress, long rightSiblingAddress, String volumeName, long volumeId,
+                long timestamp, int bufferSize, int availableBytes, int alloc, int slack, int keyBlockStart,
+                int keyBlockEnd) {
             super();
             this.poolIndex = poolIndex;
             this.type = type;
@@ -1119,8 +1093,7 @@ public interface Management extends Remote, ManagementMXBean {
          *         <code>false</code>.
          */
         public boolean isIndexPage() {
-            return type >= Buffer.PAGE_TYPE_INDEX_MIN
-                    && type <= Buffer.PAGE_TYPE_INDEX_MAX;
+            return type >= Buffer.PAGE_TYPE_INDEX_MIN && type <= Buffer.PAGE_TYPE_INDEX_MAX;
         }
 
         /**
@@ -1346,12 +1319,9 @@ public interface Management extends Remote, ManagementMXBean {
          * @return a one-line displayable summary
          */
         public String displayableSummary() {
-            return "page=" + pageAddress + " type=" + typeName
-                    + " rightSibling=" + rightSiblingAddress + " status="
-                    + statusName + " start=" + keyBlockStart + " end="
-                    + keyBlockEnd + " size=" + bufferSize + " alloc=" + alloc
-                    + " slack=" + slack + " index=" + poolIndex
-                    + " change count=" + timestamp;
+            return "page=" + pageAddress + " type=" + typeName + " rightSibling=" + rightSiblingAddress + " status="
+                    + statusName + " start=" + keyBlockStart + " end=" + keyBlockEnd + " size=" + bufferSize
+                    + " alloc=" + alloc + " slack=" + slack + " index=" + poolIndex + " change count=" + timestamp;
         }
     }
 
@@ -1360,8 +1330,7 @@ public interface Management extends Remote, ManagementMXBean {
      * returns information about all open Volumes in an array of
      * <code>VolumeInfo</code> elements.
      */
-    public static class VolumeInfo extends AcquisitionTimeBase implements
-            Serializable {
+    public static class VolumeInfo extends AcquisitionTimeBase implements Serializable {
         public final static long serialVersionUID = -1231320633942497896L;
 
         int pageSize;
@@ -1417,21 +1386,15 @@ public interface Management extends Remote, ManagementMXBean {
             name = vol.getName();
         }
 
-        @ConstructorProperties({ "pageSize", "path", "name", "id",
-                "createTime", "openTime", "generation", "getCounter",
-                "readCounter", "writeCounter", "lastRead", "lastWrite",
-                "lastExtension", "maximumPage", "currentPageCount",
-                "maximumPageCount", "extensionPageCount", "garbageRootPage",
-                "fetchCounter", "traverseCounter", "storeCounter",
-                "removeCounter", "isTransient", "isLoose" })
-        public VolumeInfo(int pageSize, String path, String name, long id,
-                long createTime, long openTime, long generation,
-                long getCounter, long readCounter, long writeCounter,
-                long lastRead, long lastWrite, long lastExtension,
-                long maximumPage, long currentPageCount, long maximumPageCount,
-                long extensionPageCount, long garbageRootPage,
-                long fetchCounter, long traverseCounter, long storeCounter,
-                long removeCounter, boolean isTransient, boolean isLoose) {
+        @ConstructorProperties({ "pageSize", "path", "name", "id", "createTime", "openTime", "generation",
+                "getCounter", "readCounter", "writeCounter", "lastRead", "lastWrite", "lastExtension", "maximumPage",
+                "currentPageCount", "maximumPageCount", "extensionPageCount", "garbageRootPage", "fetchCounter",
+                "traverseCounter", "storeCounter", "removeCounter", "isTransient", "isLoose" })
+        public VolumeInfo(int pageSize, String path, String name, long id, long createTime, long openTime,
+                long generation, long getCounter, long readCounter, long writeCounter, long lastRead, long lastWrite,
+                long lastExtension, long maximumPage, long currentPageCount, long maximumPageCount,
+                long extensionPageCount, long garbageRootPage, long fetchCounter, long traverseCounter,
+                long storeCounter, long removeCounter, boolean isTransient, boolean isLoose) {
             super();
             this.pageSize = pageSize;
             this.path = path;
@@ -1702,8 +1665,7 @@ public interface Management extends Remote, ManagementMXBean {
          */
         @Override
         public boolean equals(Object object) {
-            return object instanceof VolumeInfo
-                    && ((VolumeInfo) object).getId() == id
+            return object instanceof VolumeInfo && ((VolumeInfo) object).getId() == id
                     && ((VolumeInfo) object).getPath().equals(path);
         }
     }
@@ -1711,8 +1673,7 @@ public interface Management extends Remote, ManagementMXBean {
     /**
      * Exposes information about a Persistit <code>Tree</code>.
      */
-    public static class TreeInfo extends AcquisitionTimeBase implements
-            Serializable {
+    public static class TreeInfo extends AcquisitionTimeBase implements Serializable {
         public final static long serialVersionUID = -8707513438024673939L;
 
         String name;
@@ -1733,10 +1694,10 @@ public interface Management extends Remote, ManagementMXBean {
             writerThreadName = thread == null ? null : thread.getName();
         }
 
-        @ConstructorProperties({ "name", "index", "rootPageAddress", "depth",
-                "volumePathName", "status", "writerThreadName" })
-        public TreeInfo(String name, long rootPageAddress, int depth,
-                String volumePathName, String status, String writerThreadName) {
+        @ConstructorProperties({ "name", "index", "rootPageAddress", "depth", "volumePathName", "status",
+                "writerThreadName" })
+        public TreeInfo(String name, long rootPageAddress, int depth, String volumePathName, String status,
+                String writerThreadName) {
             super();
             this.name = name;
             this.rootPageAddress = rootPageAddress;
@@ -1820,8 +1781,7 @@ public interface Management extends Remote, ManagementMXBean {
          */
         @Override
         public boolean equals(Object object) {
-            return object instanceof TreeInfo
-                    && ((TreeInfo) object).getName().equals(name);
+            return object instanceof TreeInfo && ((TreeInfo) object).getName().equals(name);
         }
     }
 
@@ -1829,8 +1789,7 @@ public interface Management extends Remote, ManagementMXBean {
      * Structure that describes the current status of a long-running utility
      * task. See {@link #queryTaskStatus} for further information.
      */
-    public static class TaskStatus extends AcquisitionTimeBase implements
-            Serializable {
+    public static class TaskStatus extends AcquisitionTimeBase implements Serializable {
         public static final long serialVersionUID = 8913876646811877035L;
 
         long taskId;
@@ -1850,13 +1809,11 @@ public interface Management extends Remote, ManagementMXBean {
 
         }
 
-        @ConstructorProperties({ "taskId", "description", "owner", "state",
-                "stateName", "startTime", "finishTime", "expirationTime",
-                "statusSummary", "statusDetail", "newMessages", "lastException" })
-        public TaskStatus(long taskId, String description, String owner,
-                int state, String stateName, long startTime, long finishTime,
-                long expirationTime, String statusSummary, String statusDetail,
-                String[] newMessages, String lastException) {
+        @ConstructorProperties({ "taskId", "description", "owner", "state", "stateName", "startTime", "finishTime",
+                "expirationTime", "statusSummary", "statusDetail", "newMessages", "lastException" })
+        public TaskStatus(long taskId, String description, String owner, int state, String stateName, long startTime,
+                long finishTime, long expirationTime, String statusSummary, String statusDetail, String[] newMessages,
+                String lastException) {
             super();
             this.taskId = taskId;
             this.description = description;
@@ -2002,8 +1959,7 @@ public interface Management extends Remote, ManagementMXBean {
         public String toString(boolean details) {
             if (details) {
                 final StringBuilder sb = new StringBuilder(String.format(
-                        "%d: %s start=%s finish=%s status=%s exception=%s",
-                        taskId, stateName, Util.date(startTime),
+                        "%d: %s start=%s finish=%s status=%s exception=%s", taskId, stateName, Util.date(startTime),
                         Util.date(finishTime), statusDetail, lastException));
                 for (final String message : newMessages) {
                     sb.append(Util.NEW_LINE);
@@ -2024,8 +1980,7 @@ public interface Management extends Remote, ManagementMXBean {
          */
         @Override
         public boolean equals(Object object) {
-            return object instanceof TaskStatus
-                    && ((TaskStatus) object).getTaskId() == taskId;
+            return object instanceof TaskStatus && ((TaskStatus) object).getTaskId() == taskId;
         }
     }
 
@@ -2060,31 +2015,19 @@ public interface Management extends Remote, ManagementMXBean {
 
         }
 
-        @ConstructorProperties({ "currentJournalFile", "currentJournalAddress",
-                "blockSize", "pageMapSize", "currentGeneration", "baseAddress",
-                "lastValidCheckpointTimestamp",
-                "lastValidCheckpointSystemTime",
-                "lastValidCheckpointJournalFile",
-                "lastValidCheckpointJournalAddress", "recoveryJournalFile",
-                "recoveryJournalAddress", "recoveryStatus",
-                "journaledPageCount", "readPageCount", "copiedPageCount",
-                "recoveredCommittedTransactions",
-                "recoveredAppliedTransactions", "closed", "copying",
-                "flushing", "appendOnly", "fastCopying" })
-        public JournalInfo(String currentJournalFile,
-                long currentJournalAddress, long blockSize, int pageMapSize,
-                long currentGeneration, long baseAddress,
-                long lastValidCheckpointTimestamp,
-                long lastValidCheckpointSystemTime,
-                String lastValidCheckpointJournalFile,
-                long lastValidCheckpointJournalAddress,
-                String recoveryJournalFile, long recoveryJournalAddress,
-                long recoveryStatus, long journaledPageCount,
-                long readPageCount, long copiedPageCount,
-                int recoveredCommittedTransactions,
-                int recoveredAppliedTransactions, boolean closed,
-                boolean copying, boolean flushing, boolean appendOnly,
-                boolean fastCopying) {
+        @ConstructorProperties({ "currentJournalFile", "currentJournalAddress", "blockSize", "pageMapSize",
+                "currentGeneration", "baseAddress", "lastValidCheckpointTimestamp", "lastValidCheckpointSystemTime",
+                "lastValidCheckpointJournalFile", "lastValidCheckpointJournalAddress", "recoveryJournalFile",
+                "recoveryJournalAddress", "recoveryStatus", "journaledPageCount", "readPageCount", "copiedPageCount",
+                "recoveredCommittedTransactions", "recoveredAppliedTransactions", "closed", "copying", "flushing",
+                "appendOnly", "fastCopying" })
+        public JournalInfo(String currentJournalFile, long currentJournalAddress, long blockSize, int pageMapSize,
+                long currentGeneration, long baseAddress, long lastValidCheckpointTimestamp,
+                long lastValidCheckpointSystemTime, String lastValidCheckpointJournalFile,
+                long lastValidCheckpointJournalAddress, String recoveryJournalFile, long recoveryJournalAddress,
+                long recoveryStatus, long journaledPageCount, long readPageCount, long copiedPageCount,
+                int recoveredCommittedTransactions, int recoveredAppliedTransactions, boolean closed, boolean copying,
+                boolean flushing, boolean appendOnly, boolean fastCopying) {
             super();
             this.currentJournalFile = currentJournalFile;
             this.currentJournalAddress = currentJournalAddress;
@@ -2349,27 +2292,17 @@ public interface Management extends Remote, ManagementMXBean {
 
         }
 
-        @ConstructorProperties({ "keystoneJournalFile",
-                "keystoneJournalAddress", "blockSize", "pageMapSize",
-                "baseAddress", "currentAddress",
-                "lastValidCheckpointTimestamp",
-                "lastValidCheckpointSystemTime",
-                "lastValidCheckpointJournalFile",
-                "lastValidCheckpointJournalAddress", "committedTransactions",
-                "uncommittedTransactions", "errorCount", "appliedTransactions",
-                "recoveryStatus", "recoveryEndAddress", "recoveryException",
-                "copySuspended", "copyFast" })
-        public RecoveryInfo(String keystoneJournalFile,
-                long keystoneJournalAddress, long blockSize, int pageMapSize,
-                long baseAddress, long currentAddress,
-                long lastValidCheckpointTimestamp,
-                long lastValidCheckpointSystemTime,
-                String lastValidCheckpointJournalFile,
-                long lastValidCheckpointJournalAddress,
-                int committedTransactions, int uncommittedTransactions,
-                int errorCount, int appliedTransactions, long recoveryStatus,
-                long recoveryEndAddress, String recoveryException,
-                boolean copySuspended, boolean copyFast) {
+        @ConstructorProperties({ "keystoneJournalFile", "keystoneJournalAddress", "blockSize", "pageMapSize",
+                "baseAddress", "currentAddress", "lastValidCheckpointTimestamp", "lastValidCheckpointSystemTime",
+                "lastValidCheckpointJournalFile", "lastValidCheckpointJournalAddress", "committedTransactions",
+                "uncommittedTransactions", "errorCount", "appliedTransactions", "recoveryStatus", "recoveryEndAddress",
+                "recoveryException", "copySuspended", "copyFast" })
+        public RecoveryInfo(String keystoneJournalFile, long keystoneJournalAddress, long blockSize, int pageMapSize,
+                long baseAddress, long currentAddress, long lastValidCheckpointTimestamp,
+                long lastValidCheckpointSystemTime, String lastValidCheckpointJournalFile,
+                long lastValidCheckpointJournalAddress, int committedTransactions, int uncommittedTransactions,
+                int errorCount, int appliedTransactions, long recoveryStatus, long recoveryEndAddress,
+                String recoveryException, boolean copySuspended, boolean copyFast) {
             super();
             this.keystoneJournalFile = keystoneJournalFile;
             this.keystoneJournalAddress = keystoneJournalAddress;
@@ -2556,10 +2489,8 @@ public interface Management extends Remote, ManagementMXBean {
 
         }
 
-        @ConstructorProperties({ "commitCount", "rollbackCount",
-                "rollbackSinceCommitCount" })
-        public TransactionInfo(final long commitCount,
-                final long rollbackCount, final long rollbackSinceCommitCount) {
+        @ConstructorProperties({ "commitCount", "rollbackCount", "rollbackSinceCommitCount" })
+        public TransactionInfo(final long commitCount, final long rollbackCount, final long rollbackSinceCommitCount) {
             this.commitCount = commitCount;
             this.rollbackCount = rollbackCount;
             this.rollbackSinceCommitCount = rollbackSinceCommitCount;

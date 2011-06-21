@@ -26,11 +26,9 @@ import java.io.Serializable;
 public class KeyState implements Comparable, Serializable {
     public static final long serialVersionUID = 107136093587833709L;
 
-    public final static KeyState LEFT_GUARD_KEYSTATE = new KeyState(
-            Key.LEFT_GUARD_KEY);
+    public final static KeyState LEFT_GUARD_KEYSTATE = new KeyState(Key.LEFT_GUARD_KEY);
 
-    public final static KeyState RIGHT_GUARD_KEYSTATE = new KeyState(
-            Key.RIGHT_GUARD_KEY);
+    public final static KeyState RIGHT_GUARD_KEYSTATE = new KeyState(Key.RIGHT_GUARD_KEY);
 
     private byte[] _bytes;
     private int _hashCode = -1;
@@ -138,6 +136,7 @@ public class KeyState implements Comparable, Serializable {
      *             if the supplied object is neither a <code>Key</code> nor a
      *             <code>KeyState</code>
      */
+    @Override
     public int compareTo(Object obj) {
         int size;
         byte[] bytes;

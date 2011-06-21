@@ -49,18 +49,15 @@ import com.persistit.unit.PersistitUnitTestCase;
  *   persistit.splitpolicy=NICE
  */
 
-
 public class Bug708592Test extends PersistitUnitTestCase {
 
     @Test
     public void test1() throws Exception {
-        final Exchange ex = _persistit.getExchange("persistit", "bug708592",
-                true);
+        final Exchange ex = _persistit.getExchange("persistit", "bug708592", true);
         ex.clear();
         ex.setSplitPolicy(SplitPolicy.LEFT_BIAS);
-        final BufferedReader reader = new BufferedReader(new InputStreamReader(
-                getClass().getClassLoader().getResourceAsStream(
-                        "Bug780592_data.txt")));
+        final BufferedReader reader = new BufferedReader(new InputStreamReader(getClass().getClassLoader()
+                .getResourceAsStream("Bug780592_data.txt")));
         String line = null;
         while ((line = reader.readLine()) != null) {
             if (line.startsWith("{")) {
@@ -74,6 +71,7 @@ public class Bug708592Test extends PersistitUnitTestCase {
             }
         }
     }
+
     @Override
     public void runAllTests() throws Exception {
         test1();

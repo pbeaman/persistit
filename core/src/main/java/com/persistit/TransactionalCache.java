@@ -177,8 +177,7 @@ public abstract class TransactionalCache {
          * @param bb
          * @throws IOException
          */
-        protected abstract void writeArgs(final ByteBuffer bb)
-                throws IOException;
+        protected abstract void writeArgs(final ByteBuffer bb) throws IOException;
 
         /**
          * Deserialize the argument value from the supplied ByteBuffer.
@@ -186,8 +185,7 @@ public abstract class TransactionalCache {
          * @param bb
          * @throws IOException
          */
-        protected abstract void readArgs(final ByteBuffer bb)
-                throws IOException;
+        protected abstract void readArgs(final ByteBuffer bb) throws IOException;
 
         /**
          * Attempt to combine this Update with a previously recorded update. For
@@ -243,6 +241,7 @@ public abstract class TransactionalCache {
          * 
          * @return number of bytes to reserve for serialization.
          */
+        @Override
         protected abstract int size();
 
         /**
@@ -254,6 +253,7 @@ public abstract class TransactionalCache {
          * @param bb
          * @throws IOException
          */
+        @Override
         protected void writeArgs(final ByteBuffer bb) throws IOException {
             Serializable s = (Serializable) getArg();
             new ObjectOutputStream(new OutputStream() {
@@ -264,8 +264,7 @@ public abstract class TransactionalCache {
                 }
 
                 @Override
-                public void write(byte[] src, int offset, int length)
-                        throws IOException {
+                public void write(byte[] src, int offset, int length) throws IOException {
                     bb.put(src, offset, length);
                 }
 
@@ -281,6 +280,7 @@ public abstract class TransactionalCache {
          * @param bb
          * @throws IOException
          */
+        @Override
         protected void readArgs(final ByteBuffer bb) throws IOException {
             try {
                 setArg(new ObjectInputStream(new InputStream() {
@@ -291,8 +291,7 @@ public abstract class TransactionalCache {
                     }
 
                     @Override
-                    public int read(final byte[] bytes, final int offset,
-                            final int length) throws IOException {
+                    public int read(final byte[] bytes, final int offset, final int length) throws IOException {
                         bb.get(bytes, offset, length);
                         return length;
                     }
@@ -438,6 +437,7 @@ public abstract class TransactionalCache {
             }
         };
 
+        @Override
         protected int size() {
             return _args.length + 2;
         }
@@ -537,7 +537,7 @@ public abstract class TransactionalCache {
         protected int size() {
             return 0;
         }
-        
+
         @Override
         protected boolean combine(final Update update) {
             if (update instanceof ReloadUpdate) {
@@ -552,18 +552,18 @@ public abstract class TransactionalCache {
             // reload from saved checkpoint during recovery
         }
     }
-    
+
     @Override
     public boolean equals(final Object object) {
         if (object instanceof TransactionalCache) {
-            return ((TransactionalCache)object).cacheId() == cacheId();
+            return ((TransactionalCache) object).cacheId() == cacheId();
         }
         return false;
     }
-    
+
     @Override
     public int hashCode() {
-        return (int)(cacheId() >>> 32) ^ (int)(cacheId());
+        return (int) (cacheId() >>> 32) ^ (int) (cacheId());
     }
 
     /**
@@ -590,8 +590,7 @@ public abstract class TransactionalCache {
     protected final void update(final Update update) {
         final Transaction transaction = _persistit.getTransaction();
         if (!transaction.isActive()) {
-            throw new IllegalStateException(
-                    "TransactionalCache may be updated only within a transaction");
+            throw new IllegalStateException("TransactionalCache may be updated only within a transaction");
         }
         final List<Update> updates = transaction.updateList(this);
         if (!updates.isEmpty()) {
@@ -615,6 +614,7 @@ public abstract class TransactionalCache {
             _checkpoint = checkpoint;
         }
     }
+
     /**
      * Commit all the {@link TransactionalCache#Update} records. As a
      * side-effect, this method may create a pre-checkpoint copy of this
@@ -688,10 +688,9 @@ public abstract class TransactionalCache {
         TransactionalCache newer = null;
         while (tc != null) {
             if (tc._checkpoint != null
-                    // The checkpoint value in a TransactionalCache version is the 
-                    // beginning, not the end of its era.
-                    && tc._checkpoint.getTimestamp() < checkpoint
-                            .getTimestamp()) {
+            // The checkpoint value in a TransactionalCache version is the
+            // beginning, not the end of its era.
+                    && tc._checkpoint.getTimestamp() < checkpoint.getTimestamp()) {
                 tc.save();
                 update(SAVED);
                 if (newer != null) {

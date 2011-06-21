@@ -66,8 +66,8 @@ public abstract class Task implements Runnable {
      */
     public final static int STATE_EXPIRED = 6;
 
-    public final static String[] STATE_NAMES = { "notStarted", "running",
-            "suspended", "done", "failed", "ended", "expired", };
+    public final static String[] STATE_NAMES = { "notStarted", "running", "suspended", "done", "failed", "ended",
+            "expired", };
 
     /**
      * Indicates normal level of message logging
@@ -162,8 +162,8 @@ public abstract class Task implements Runnable {
     protected Thread _thread;
 
     static boolean isFinalStatus(final int statusCode) {
-        return statusCode == STATE_DONE || statusCode == STATE_ENDED
-                || statusCode == STATE_EXPIRED || statusCode == STATE_FAILED;
+        return statusCode == STATE_DONE || statusCode == STATE_ENDED || statusCode == STATE_EXPIRED
+                || statusCode == STATE_FAILED;
     }
 
     protected Task() {
@@ -238,8 +238,7 @@ public abstract class Task implements Runnable {
      *            The list of Volume/Tree pairs, specified as a String
      * @return Array of Trees specified by the list.
      */
-    protected Tree[] parseTreeList(String specification)
-            throws PersistitException {
+    protected Tree[] parseTreeList(String specification) throws PersistitException {
         List<Tree> list = new ArrayList<Tree>();
         StringBuilder sb = new StringBuilder();
         Volume volume = null;
@@ -268,7 +267,7 @@ public abstract class Task implements Runnable {
                 sb.append((char) c);
         }
 
-        Tree[] result = (Tree[]) list.toArray(new Tree[list.size()]);
+        Tree[] result = list.toArray(new Tree[list.size()]);
         return result;
     }
 
@@ -299,8 +298,7 @@ public abstract class Task implements Runnable {
      *            retained in the message log.
      * @throws Exception
      */
-    public void setup(long taskId, String description, String owner,
-            long maxTime, int verbosity) throws Exception {
+    public void setup(long taskId, String description, String owner, long maxTime, int verbosity) throws Exception {
         _taskId = taskId;
         _description = description;
         _owner = owner;
@@ -478,7 +476,7 @@ public abstract class Task implements Runnable {
             synchronized (_messageLog) {
                 int index = _messageLog.size() - 1;
                 if (index >= 0) {
-                    String s = (String) _messageLog.get(index) + fragment;
+                    String s = _messageLog.get(index) + fragment;
                     _messageLog.set(index, s);
                 }
             }
@@ -499,7 +497,7 @@ public abstract class Task implements Runnable {
             return _messageLog.size();
         }
     }
-    
+
     /**
      * Get all the messages, starting from a specified index.
      * 
@@ -517,7 +515,7 @@ public abstract class Task implements Runnable {
                 size = 0;
             String[] results = new String[size];
             for (int index = 0; index < size; index++) {
-                results[index] = (String) _messageLog.get(index + from);
+                results[index] = _messageLog.get(index + from);
             }
             return results;
         }
@@ -546,6 +544,7 @@ public abstract class Task implements Runnable {
     /**
      * Implementation of <code>Runnable</code>.
      */
+    @Override
     public void run() {
         _startTime = now();
         try {
@@ -573,8 +572,7 @@ public abstract class Task implements Runnable {
      * @param clearMessages
      *            <code>true</code> to cull the messages being returned
      */
-    public void populateTaskStatus(Management.TaskStatus ts, boolean details,
-            boolean clearMessages) {
+    public void populateTaskStatus(Management.TaskStatus ts, boolean details, boolean clearMessages) {
         ts.taskId = _taskId;
         ts.state = _state;
         ts.stateName = STATE_NAMES[_state];
@@ -583,8 +581,7 @@ public abstract class Task implements Runnable {
         ts.startTime = _startTime;
         ts.finishTime = _finishTime;
         ts.expirationTime = _expirationTime;
-        ts.lastException = _lastException == null ? "none" : _lastException
-                .toString();
+        ts.lastException = _lastException == null ? "none" : _lastException.toString();
         ts.statusSummary = getStatus();
         if (details) {
             ts.newMessages = getMessages(0);

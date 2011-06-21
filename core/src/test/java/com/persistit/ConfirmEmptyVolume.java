@@ -89,14 +89,12 @@ public class ConfirmEmptyVolume extends AbstractTestRunnerItem {
                             sb.append(treeNames[i]);
                             sb.append(" ");
                         }
-                        results[resultCount] = new TestResult(false,
-                                sb.toString());
+                        results[resultCount] = new TestResult(false, sb.toString());
                         passed = false;
                     }
                     resultCount++;
                 } else {
-                    _result = new TestResult(false, "Volume name "
-                            + _args[index] + " not found");
+                    _result = new TestResult(false, "Volume name " + _args[index] + " not found");
                     results[index] = _result;
                     resultCount++;
                 }

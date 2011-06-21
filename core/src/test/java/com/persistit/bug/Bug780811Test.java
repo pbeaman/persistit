@@ -84,7 +84,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 public class Bug780811Test extends PersistitUnitTestCase {
 
     private final AtomicBoolean done = new AtomicBoolean();
-    
+
     @Override
     public void runAllTests() throws Exception {
         // TODO Auto-generated method stub
@@ -95,6 +95,7 @@ public class Bug780811Test extends PersistitUnitTestCase {
         final Persistit db = _persistit;
 
         final Thread thread = new Thread(new Runnable() {
+            @Override
             public void run() {
                 final Transaction t = db.getTransaction();
                 t.setPessimisticRetryThreshold(0);
@@ -115,7 +116,7 @@ public class Bug780811Test extends PersistitUnitTestCase {
             }
         });
         thread.start();
-        
+
         Thread.sleep(1000);
         Transaction t = db.getTransaction();
         boolean okay = false;

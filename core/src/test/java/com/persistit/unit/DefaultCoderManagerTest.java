@@ -25,8 +25,7 @@ import org.junit.Test;
 import com.persistit.DefaultCoderManager;
 import com.persistit.exception.PersistitException;
 
-public class DefaultCoderManagerTest extends PersistitUnitTestCase implements
-        Serializable {
+public class DefaultCoderManagerTest extends PersistitUnitTestCase implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -48,8 +47,7 @@ public class DefaultCoderManagerTest extends PersistitUnitTestCase implements
         assertTrue(!cm.isSerialOverride(SimpleDateFormat.class));
         assertTrue(!cm.isSerialOverride(DefaultCoderManagerTest.class));
 
-        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit,
-                "**"));
+        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit, "**"));
         assertTrue(cm.isSerialOverride(Number.class));
         assertTrue(cm.isSerialOverride(String.class));
         assertTrue(cm.isSerialOverride(HashMap.class));
@@ -57,8 +55,7 @@ public class DefaultCoderManagerTest extends PersistitUnitTestCase implements
         assertTrue(cm.isSerialOverride(SimpleDateFormat.class));
         assertTrue(cm.isSerialOverride(DefaultCoderManagerTest.class));
 
-        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit,
-                "java.lang.*,java.util.*"));
+        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit, "java.lang.*,java.util.*"));
         assertTrue(cm.isSerialOverride(Number.class));
         assertTrue(cm.isSerialOverride(String.class));
         assertTrue(cm.isSerialOverride(HashMap.class));
@@ -66,8 +63,7 @@ public class DefaultCoderManagerTest extends PersistitUnitTestCase implements
         assertTrue(!cm.isSerialOverride(SimpleDateFormat.class));
         assertTrue(!cm.isSerialOverride(DefaultCoderManagerTest.class));
 
-        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit,
-                "java.lang.**,java.util.*"));
+        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit, "java.lang.**,java.util.*"));
         assertTrue(cm.isSerialOverride(Number.class));
         assertTrue(cm.isSerialOverride(String.class));
         assertTrue(cm.isSerialOverride(HashMap.class));
@@ -77,8 +73,7 @@ public class DefaultCoderManagerTest extends PersistitUnitTestCase implements
         assertTrue(!cm.isSerialOverride(SimpleDateFormat.class));
         assertTrue(!cm.isSerialOverride(DefaultCoderManagerTest.class));
 
-        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit,
-                "java.**"));
+        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit, "java.**"));
         assertTrue(cm.isSerialOverride(Number.class));
         assertTrue(cm.isSerialOverride(String.class));
         assertTrue(cm.isSerialOverride(HashMap.class));
@@ -88,8 +83,7 @@ public class DefaultCoderManagerTest extends PersistitUnitTestCase implements
         assertTrue(cm.isSerialOverride(SimpleDateFormat.class));
         assertTrue(!cm.isSerialOverride(DefaultCoderManagerTest.class));
 
-        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit,
-                "java.**Map"));
+        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit, "java.**Map"));
         assertTrue(!cm.isSerialOverride(Number.class));
         assertTrue(!cm.isSerialOverride(String.class));
         assertTrue(cm.isSerialOverride(HashMap.class));
@@ -97,8 +91,8 @@ public class DefaultCoderManagerTest extends PersistitUnitTestCase implements
         assertTrue(!cm.isSerialOverride(SimpleDateFormat.class));
         assertTrue(!cm.isSerialOverride(DefaultCoderManagerTest.class));
 
-        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit,
-                "java.util.*," + DefaultCoderManagerTest.class.getName()));
+        _persistit.setCoderManager(cm = new DefaultCoderManager(_persistit, "java.util.*,"
+                + DefaultCoderManagerTest.class.getName()));
 
         assertTrue(!cm.isSerialOverride(Number.class));
         assertTrue(!cm.isSerialOverride(String.class));
@@ -116,6 +110,7 @@ public class DefaultCoderManagerTest extends PersistitUnitTestCase implements
         new DefaultCoderManagerTest().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         test1();
     }

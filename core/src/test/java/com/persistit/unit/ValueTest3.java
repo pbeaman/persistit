@@ -124,8 +124,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             super(persistit, TTT.class);
         }
 
-        public Object get(final Value value, final Class clazz,
-                final CoderContext context) {
+        public Object get(final Value value, final Class clazz, final CoderContext context) {
             _getCounter++;
             final TTT ttt = new TTT("x", "y");
             value.registerEncodedObject(ttt);
@@ -140,13 +139,11 @@ public class ValueTest3 extends PersistitUnitTestCase {
 
         private final static long serialVersionUID = 1L;
 
-        public void readObject(final ObjectInputStream ois) throws IOException,
-                ClassNotFoundException {
+        public void readObject(final ObjectInputStream ois) throws IOException, ClassNotFoundException {
             ois.defaultReadObject();
         }
 
-        public void writeObject(final ObjectOutputStream oos)
-                throws IOException {
+        public void writeObject(final ObjectOutputStream oos) throws IOException {
             oos.defaultWriteObject();
         }
 
@@ -203,8 +200,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
             _h = "Field h";
         }
 
-        private static final ObjectStreamField[] serialPersistentFields = { new ObjectStreamField(
-                "_g", String.class), };
+        private static final ObjectStreamField[] serialPersistentFields = { new ObjectStreamField("_g", String.class), };
 
         public String toString() {
             return "S" + super.toString() + _g + _h + _ff;
@@ -324,8 +320,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        _exchange = _persistit.getExchange("persistit", getClass()
-                .getSimpleName(), true);
+        _exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
     }
 
     @Override
@@ -477,8 +472,7 @@ public class ValueTest3 extends PersistitUnitTestCase {
         System.out.print("test12 ");
         final CoderManager cm = _persistit.getCoderManager();
         final ValueCoder defaultCoder = cm.getValueCoder(SSSS.class);
-        _persistit.getCoderManager().registerValueCoder(SSSS.class,
-                new SerialValueCoder(SSSS.class));
+        _persistit.getCoderManager().registerValueCoder(SSSS.class, new SerialValueCoder(SSSS.class));
         final SSSS ssss = new SSSS();
         ssss._a = "Field a";
         ssss._b = "Field b";

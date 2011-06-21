@@ -15,8 +15,6 @@
 
 package com.persistit;
 
-import java.util.regex.Pattern;
-
 import javax.management.MXBean;
 
 import com.persistit.exception.PersistitException;
@@ -97,7 +95,7 @@ public interface JournalManagerMXBean {
      * copying starts to increase.
      */
     final static int DEFAULT_PAGE_MAP_SIZE_BASE = 250000;
-    
+
     final static int MAX_CONCURRENT_TRANSACTIONS = 10000;
 
     public int getPageMapSize();

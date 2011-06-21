@@ -43,8 +43,7 @@ public class KeyParser {
             if (_rightBytes == null) {
                 return new KeyFilter.SimpleTerm(_leftBytes);
             } else {
-                return new KeyFilter.RangeTerm(_leftBytes, _rightBytes,
-                        _leftInclusive, _rightInclusive);
+                return new KeyFilter.RangeTerm(_leftBytes, _rightBytes, _leftInclusive, _rightInclusive);
             }
         }
     }
@@ -168,16 +167,14 @@ public class KeyParser {
                         c = getNonWhiteChar();
                     }
                     if (c == '{') {
-                        KeyFilter.Term[] array = parseFilterTermArray(workKey,
-                                protoTerm);
+                        KeyFilter.Term[] array = parseFilterTermArray(workKey, protoTerm);
                         if (array == null || !matchNonWhiteChar('}'))
                             break;
                         else
                             vector.add(KeyFilter.orTerm(array));
                     } else {
                         back();
-                        KeyFilter.Term term = parseFilterTerm(workKey,
-                                protoTerm);
+                        KeyFilter.Term term = parseFilterTerm(workKey, protoTerm);
                         if (term == null)
                             break;
                         vector.add(term);
@@ -275,27 +272,23 @@ public class KeyParser {
                         key.append(Double.parseDouble(_sb.toString()));
                         result = true;
                     }
-                } else if (matchExactString(Key.PREFIX_BIG_INTEGER)
-                        || matchExactString(Key.PREFIX_BIG_INTEGER0)) {
+                } else if (matchExactString(Key.PREFIX_BIG_INTEGER) || matchExactString(Key.PREFIX_BIG_INTEGER0)) {
                     if (matchNumber(false, false)) {
                         key.append(new BigInteger(_sb.toString()));
                         result = true;
                     }
-                } else if (matchExactString(Key.PREFIX_BIG_DECIMAL)
-                        || matchExactString(Key.PREFIX_BIG_DECIMAL0)) {
+                } else if (matchExactString(Key.PREFIX_BIG_DECIMAL) || matchExactString(Key.PREFIX_BIG_DECIMAL0)) {
                     if (matchNumber(true, false)) {
                         key.append(new BigDecimal(_sb.toString()));
                         result = true;
                     }
-                } else if (matchExactString(Key.PREFIX_STRING)
-                        || matchExactString(Key.PREFIX_STRING0)) {
+                } else if (matchExactString(Key.PREFIX_STRING) || matchExactString(Key.PREFIX_STRING0)) {
                     c = getNonWhiteChar();
                     if (c == '\"' && matchQuotedStringTail()) {
                         key.append(_sb);
                         result = true;
                     }
-                } else if (matchExactString(Key.PREFIX_DATE)
-                        || matchExactString(Key.PREFIX_DATE0)) {
+                } else if (matchExactString(Key.PREFIX_DATE) || matchExactString(Key.PREFIX_DATE0)) {
                     if (matchNumber(true, true)) {
                         key.append(Key.SDF.parse(_sb.toString()));
                         result = true;
@@ -337,8 +330,7 @@ public class KeyParser {
         return result;
     }
 
-    private KeyFilter.Term[] parseFilterTermArray(Key workKey,
-            ProtoTerm protoTerm) {
+    private KeyFilter.Term[] parseFilterTermArray(Key workKey, ProtoTerm protoTerm) {
         ArrayList<KeyFilter.Term> list = new ArrayList<KeyFilter.Term>();
         for (;;) {
             KeyFilter.Term term = parseFilterTerm(workKey, protoTerm);
@@ -350,7 +342,7 @@ public class KeyParser {
                 back();
                 KeyFilter.Term[] array = new KeyFilter.Term[list.size()];
                 for (int index = 0; index < array.length; index++) {
-                    array[index] = (KeyFilter.Term) list.get(index);
+                    array[index] = list.get(index);
                 }
                 return array;
             } else if (c != ',')
@@ -468,8 +460,7 @@ public class KeyParser {
             decimalPoint = false;
             _dp = true;
         }
-        while ((c = getChar()) >= '0' && c <= '9' || (decimalPoint && c == '.')
-                || (tzsign & (c == '-' || c == '+'))) {
+        while ((c = getChar()) >= '0' && c <= '9' || (decimalPoint && c == '.') || (tzsign & (c == '-' || c == '+'))) {
             _sb.append((char) c);
             if (c == '.') {
                 decimalPoint = false;
