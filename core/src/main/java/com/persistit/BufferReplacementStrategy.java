@@ -18,20 +18,21 @@ package com.persistit;
 import com.persistit.exception.PersistitException;
 
 /**
- * This interface defines the replacement policy used by the persistit buffer 
+ * This interface defines the replacement policy used by the persistit buffer
  * pool.
  */
 public interface BufferReplacementStrategy {
-    
+
     /**
-     * Find a buffer in the given list of buffers starting at
-     * a certain point in the list indicated by the bucket parameter
+     * Find a buffer in the given list of buffers starting at a certain point in
+     * the list indicated by the bucket parameter
      * 
-     * @param bufferList a doubly-linked list of Buffer objects
-     * @param bucket area of the list to start the search
+     * @param bufferList
+     *            a doubly-linked list of Buffer objects
+     * @param bucket
+     *            area of the list to start the search
      * @return a clean replaceable Buffer object if found; otherwise null
      */
-    public Buffer getBuffer(final Buffer[] bufferList, final int bucket)
-        throws PersistitException;
+    public Buffer getBuffer(final Buffer[] bufferList, final int bucket) throws PersistitException;
 
 }

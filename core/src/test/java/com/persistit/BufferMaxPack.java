@@ -36,7 +36,7 @@ public class BufferMaxPack {
                 break;
             }
         }
-        
+
         assertTrue(b1.getFastIndex() != null);
         b1.getFastIndex().invalidate();
         b1.getFastIndex().recompute();

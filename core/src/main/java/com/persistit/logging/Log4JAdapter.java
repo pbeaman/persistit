@@ -77,6 +77,7 @@ public class Log4JAdapter extends AbstractPersistitLogger {
      * @param lt
      *            The <code>LogTemplate</code>
      */
+    @Override
     public boolean isLoggable(LogTemplate lt) {
         return _logger.isEnabledFor(getLevel(lt));
     }
@@ -90,6 +91,7 @@ public class Log4JAdapter extends AbstractPersistitLogger {
      * @param message
      *            The message to write to the log.
      */
+    @Override
     public void log(LogTemplate lt, String message) {
         _logger.log(getLevel(lt), message);
     }

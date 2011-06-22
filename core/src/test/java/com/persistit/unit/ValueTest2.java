@@ -36,8 +36,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        _exchange = _persistit.getExchange("persistit", getClass()
-                .getSimpleName(), true);
+        _exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
     }
 
     @Override
@@ -201,13 +200,13 @@ public class ValueTest2 extends PersistitUnitTestCase {
         assertEquals(value.getDouble(), 678, 0.0001f);
         assertEquals(value.get(), new Double(678));
 
-        value.put(new Double((double) 678));
+        value.put(new Double(678));
         assertEquals(value.getType(), Double.class);
         assertEquals(value.isNull(), false);
         assertEquals(value.isDefined(), true);
         value.trim(100);
-        assertEquals(value.getDouble(), (double) 678, 0.0001f);
-        assertEquals(value.get(), new Double((double) 678));
+        assertEquals(value.getDouble(), 678, 0.0001f);
+        assertEquals(value.get(), new Double(678));
 
         final Value value2 = new Value(value);
         assertTrue(value.equals(value2));
@@ -396,7 +395,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
 
         final Integer[] b1 = new Integer[10];
         for (int i = 0; i < 10; i++) {
-            b1[i] = new Integer((int) i);
+            b1[i] = new Integer(i);
         }
         value.putObjectArray(b1);
         assertEquals(Integer[].class, value.getType());
@@ -434,7 +433,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
 
         final Long[] b1 = new Long[10];
         for (int i = 0; i < 10; i++) {
-            b1[i] = new Long((long) i);
+            b1[i] = new Long(i);
         }
         value.putObjectArray(b1);
         assertEquals(Long[].class, value.getType());
@@ -472,7 +471,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
 
         final Float[] b1 = new Float[10];
         for (int i = 0; i < 10; i++) {
-            b1[i] = new Float((float) i);
+            b1[i] = new Float(i);
         }
         value.putObjectArray(b1);
         assertEquals(Float[].class, value.getType());
@@ -510,7 +509,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
 
         final Double[] b1 = new Double[10];
         for (int i = 0; i < 10; i++) {
-            b1[i] = new Double((double) i);
+            b1[i] = new Double(i);
         }
         value.putObjectArray(b1);
         assertEquals(Double[].class, value.getType());
@@ -554,8 +553,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
 
         assertEquals(3, value.getArrayLength());
 
-        final String[] s1 = new String[] { "a", "b", "c", "d", "e", "f", "g",
-                "h", "i", "j" };
+        final String[] s1 = new String[] { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j" };
         final String[][] ss1 = new String[][] { s1, s1, s1 };
         final String[][][] sss1 = new String[][][] { ss1, ss1, ss1 };
 
@@ -588,10 +586,8 @@ public class ValueTest2 extends PersistitUnitTestCase {
         final String[] strings = new String[20];
         for (int iter = 0; iter < 10000; iter++) {
             if ((iter % 2000) == 0) {
-                final long inUseMem = Runtime.getRuntime().totalMemory()
-                        - Runtime.getRuntime().freeMemory();
-                System.out.println("ValueTest2.test5: memory in use="
-                        + inUseMem);
+                final long inUseMem = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
+                System.out.println("ValueTest2.test5: memory in use=" + inUseMem);
             }
             for (int i = 0; i < 20; i++) {
                 if (i >= 10) {
@@ -617,8 +613,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         final String a1 = "a1";
         final String a2 = "a2";
         final String a3 = "a3";
-        _persistit.getCoderManager().registerValueCoder(CustomSet.class,
-                new CollectionValueCoder());
+        _persistit.getCoderManager().registerValueCoder(CustomSet.class, new CollectionValueCoder());
         final Value value = _exchange.getValue();
         final Map map1 = new TreeMap();
         final CustomSet cs1 = new CustomSet();
@@ -751,9 +746,8 @@ public class ValueTest2 extends PersistitUnitTestCase {
         System.out.print("test9 ");
         final String[] strings = { "a", "b", "c" };
         final HashMap map = new HashMap();
-        final Object[] example = new Object[] { new Byte((byte) 1),
-                new Integer(2), new Long(3L), new Float(4.0F), new Double(5.0),
-                new Date(), "a", strings, "a", strings, null, map, };
+        final Object[] example = new Object[] { new Byte((byte) 1), new Integer(2), new Long(3L), new Float(4.0F),
+                new Double(5.0), new Date(), "a", strings, "a", strings, null, map, };
 
         example[11] = example;
         map.put("aKey", "aValue");
@@ -785,6 +779,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         new ValueTest2().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         // try {
         // // Enable the security manager
@@ -817,8 +812,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
             if (!b.getClass().isArray()) {
                 return false;
             }
-            if (a.getClass().getComponentType() != b.getClass()
-                    .getComponentType()) {
+            if (a.getClass().getComponentType() != b.getClass().getComponentType()) {
                 return false;
             }
             if (Array.getLength(a) != Array.getLength(b)) {
@@ -856,8 +850,7 @@ public class ValueTest2 extends PersistitUnitTestCase {
         private Person() {
         }
 
-        Person(final String lastName, final String firstName, final Date dob,
-                final long salary) {
+        Person(final String lastName, final String firstName, final Date dob, final long salary) {
             this.lastName = lastName;
             this.firstName = firstName;
             this.dob = dob;

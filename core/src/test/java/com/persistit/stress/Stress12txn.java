@@ -33,11 +33,9 @@ public class Stress12txn extends StressBase {
             + "    Increments one of several values in a B-Tree and keeps a copy in memory.\r\n"
             + "    Verifies the in-memory copy with the transactionally stored value.\r\n";
 
-    private final static String[] ARGS_TEMPLATE = {
-            "repeat|int:1:0:1000000000|Number of cycles",
+    private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Number of cycles",
             "count|int:1000:1:100000000|Number Repetitions per cycle",
-            "size|int:1:1:100000|Number of nodes to populate",
-            "seed|int:1:1:20000|Random seed", };
+            "size|int:1:1:100000|Number of nodes to populate", "seed|int:1:1:20000|Random seed", };
 
     @Override
     public String shortDescription() {
@@ -112,15 +110,12 @@ public class Stress12txn extends StressBase {
 
                                 @Override
                                 public void committed() {
-                                    final long check = _counters[keyInteger]
-                                            .incrementAndGet();
+                                    final long check = _counters[keyInteger].incrementAndGet();
                                     if (check != currentValue + 1) {
-                                        _result = new TestResult(
-                                                false,
-                                                String.format(
-                                                        "Count mismatch in commit listener:"
-                                                                + " counter is %d, value in B-Tree is %d",
-                                                        check, currentValue + 1));
+                                        _result = new TestResult(false, String.format(
+                                                "Count mismatch in commit listener:"
+                                                        + " counter is %d, value in B-Tree is %d", check,
+                                                currentValue + 1));
                                         forceStop();
                                     }
                                 }

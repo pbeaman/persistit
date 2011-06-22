@@ -68,8 +68,7 @@ public class JournalTool {
 
     private final static int EOJ = -2;
 
-    final static String[] ARGS_TEMPLATE = {
-            "path|string:|Journal file name",
+    final static String[] ARGS_TEMPLATE = { "path|string:|Journal file name",
             "start|long:0:0:10000000000000|Start journal address",
             "end|long:1000000000000000000:0:1000000000000000000|End journal address",
             "types|String:*|Selected record types, for example, \"PA,PM,CP\"",
@@ -80,8 +79,7 @@ public class JournalTool {
             "timestamps|String:*|Selected timestamps, for example, \"132466-132499\"",
             "_flag|v|Verbose dump - includes PageMap and TransactionMap details" };
 
-    private final static SimpleDateFormat SDF = new SimpleDateFormat(
-            "yyyy/MM/dd HH:mm:ss.SSS");
+    private final static SimpleDateFormat SDF = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
 
     private final Persistit _persistit;
 
@@ -93,8 +91,7 @@ public class JournalTool {
 
     private long _endAddr;
 
-    private PrintWriter _writer = new PrintWriter(new OutputStreamWriter(
-            System.out));
+    private PrintWriter _writer = new PrintWriter(new OutputStreamWriter(System.out));
 
     private final Map<Long, FileChannel> _journalFileChannels = new HashMap<Long, FileChannel>();
 
@@ -193,47 +190,33 @@ public class JournalTool {
     }
 
     interface Action {
-        public void je(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void je(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void jh(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void jh(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void iv(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void iv(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void it(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void it(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void cp(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void cp(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void ts(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void ts(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void tc(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void tc(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void sr(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void sr(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void dr(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void dr(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void dt(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void dt(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void pa(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void pa(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void pm(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void pm(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void tm(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void tm(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void cu(final long address, final long timestamp,
-                final int recordSize) throws Exception;
+        public void cu(final long address, final long timestamp, final int recordSize) throws Exception;
 
         public void eof(final long address) throws Exception;
     }
@@ -280,8 +263,7 @@ public class JournalTool {
                         okay = false;
                     }
                     if (!okay) {
-                        throw new IllegalArgumentException("Invalid term "
-                                + terms[index] + " in range specification "
+                        throw new IllegalArgumentException("Invalid term " + terms[index] + " in range specification "
                                 + ps);
                     }
                 }
@@ -308,8 +290,7 @@ public class JournalTool {
     }
 
     void init(final String[] args) {
-        ArgParser ap = new ArgParser("com.persistit.JournalTool", args,
-                ARGS_TEMPLATE);
+        ArgParser ap = new ArgParser("com.persistit.JournalTool", args, ARGS_TEMPLATE);
         if (ap.isUsageOnly()) {
             return;
         }
@@ -317,33 +298,29 @@ public class JournalTool {
     }
 
     void init(final ArgParser ap) {
-        init(ap.getStringValue("path"), ap.getLongValue("start"),
-                ap.getLongValue("end"), ap.getStringValue("types"),
-                ap.getStringValue("pages"), ap.getStringValue("timestamps"),
-                ap.getIntValue("maxkey"), ap.getIntValue("maxvalue"),
-                ap.isFlag('v'));
+        init(ap.getStringValue("path"), ap.getLongValue("start"), ap.getLongValue("end"), ap.getStringValue("types"),
+                ap.getStringValue("pages"), ap.getStringValue("timestamps"), ap.getIntValue("maxkey"), ap
+                        .getIntValue("maxvalue"), ap.isFlag('v'));
     }
 
-    void init(String path, long start, long end, String types, String pages,
-            String timestamps, int maxkey, int maxvalue, boolean v) {
+    void init(String path, long start, long end, String types, String pages, String timestamps, int maxkey,
+            int maxvalue, boolean v) {
         _startAddr = start;
         _endAddr = end;
         String pathName = path;
         if (pathName == null || pathName.length() == 0) {
             throw new IllegalArgumentException(
                     "The 'path' parameter must specify a valid journal path, for example, \n"
-                            + " /xxx/yyy/jjj where journal file names "
-                            + "are like jjj.000000001234");
+                            + " /xxx/yyy/jjj where journal file names " + "are like jjj.000000001234");
         }
-        final long generation = JournalManager.fileToGeneration(new File(
-                pathName));
+        final long generation = JournalManager.fileToGeneration(new File(pathName));
         if (generation != -1) {
             pathName = pathName.substring(0, pathName.lastIndexOf('.'));
             if (start == 0) {
-                _startAddr = generation * JournalManager.DEFAULT_BLOCK_SIZE;
+                _startAddr = generation * JournalManagerMXBean.DEFAULT_BLOCK_SIZE;
             }
             if (end == 1000000000000000000l) {
-                _endAddr = (generation + 1) * JournalManager.DEFAULT_BLOCK_SIZE;
+                _endAddr = (generation + 1) * JournalManagerMXBean.DEFAULT_BLOCK_SIZE;
             }
         }
         _journalFilePath = pathName;
@@ -363,8 +340,7 @@ public class JournalTool {
             _selectedTypes.set(0, _selectedTypes.size(), false);
             for (final String typeString : types.split(",")) {
                 if (typeString.length() == 2) {
-                    final int t = (typeString.charAt(0) << 8)
-                            | typeString.charAt(1);
+                    final int t = (typeString.charAt(0) << 8) | typeString.charAt(1);
                     if (JournalRecord.isValidType(t)) {
                         _selectedTypes.set(t, true);
                     } else {
@@ -376,9 +352,8 @@ public class JournalTool {
             }
         }
         if (!okay) {
-            throw new IllegalArgumentException(
-                    "The 'types' parameter must specify either \"*\" or a "
-                            + "comma-separated list of valid record type names");
+            throw new IllegalArgumentException("The 'types' parameter must specify either \"*\" or a "
+                    + "comma-separated list of valid record type names");
         }
     }
 
@@ -433,8 +408,7 @@ public class JournalTool {
         final long timestamp = getTimestamp(_readBuffer);
 
         if (recordSize >= _blockSize || recordSize < OVERHEAD) {
-            throw new CorruptJournalException("Bad JournalRecord length "
-                    + recordSize + " at position "
+            throw new CorruptJournalException("Bad JournalRecord length " + recordSize + " at position "
                     + addressToString(from, timestamp));
         }
 
@@ -449,8 +423,7 @@ public class JournalTool {
                 read(_currentAddress, recordSize);
                 final long blockSize = JH.getBlockSize(_readBuffer);
                 if (blockSize != _blockSize) {
-                    from = _currentAddress = (_currentAddress / _blockSize)
-                            * blockSize;
+                    from = _currentAddress = (_currentAddress / _blockSize) * blockSize;
                     _readBufferAddress = _currentAddress;
                     _blockSize = blockSize;
                 }
@@ -525,8 +498,7 @@ public class JournalTool {
             default:
                 if (!isValidType(type)) {
                     _currentAddress -= OVERHEAD;
-                    throw new CorruptJournalException("Invalid record type "
-                            + type + " at " + addressToString(from));
+                    throw new CorruptJournalException("Invalid record type " + type + " at " + addressToString(from));
                 }
             }
         }
@@ -538,14 +510,12 @@ public class JournalTool {
         return ((address / _blockSize) + 1) * _blockSize;
     }
 
-    private synchronized FileChannel getFileChannel(long address)
-            throws PersistitIOException {
+    private synchronized FileChannel getFileChannel(long address) throws PersistitIOException {
         final long generation = address / _blockSize;
         FileChannel channel = _journalFileChannels.get(generation);
         if (channel == null) {
             try {
-                final RandomAccessFile raf = new RandomAccessFile(
-                        addressToFile(address), "r");
+                final RandomAccessFile raf = new RandomAccessFile(addressToFile(address), "r");
                 channel = raf.getChannel();
                 _journalFileChannels.put(generation, channel);
             } catch (IOException ioe) {
@@ -556,12 +526,10 @@ public class JournalTool {
     }
 
     File addressToFile(final long address) {
-        return JournalManager.generationToFile(_journalFilePath, address
-                / _blockSize);
+        return JournalManager.generationToFile(_journalFilePath, address / _blockSize);
     }
 
-    private void read(final long address, final int size)
-            throws PersistitIOException {
+    private void read(final long address, final int size) throws PersistitIOException {
         if (_readBufferAddress >= 0 && address >= _readBufferAddress
                 && size + address - _readBufferAddress <= _readBuffer.limit()) {
             _readBuffer.position((int) (address - _readBufferAddress));
@@ -569,14 +537,12 @@ public class JournalTool {
             try {
                 final FileChannel fc = getFileChannel(address);
                 _readBuffer.clear();
-                final int maxSize = Math.min(_readBuffer.capacity(),
-                        (int) (addressUp(address) - address));
+                final int maxSize = Math.min(_readBuffer.capacity(), (int) (addressUp(address) - address));
                 _readBuffer.limit(maxSize);
                 // Try to read up to maxSize bytes into _readBuffer
                 int offset = 0;
                 while (_readBuffer.remaining() > 0) {
-                    int readSize = fc.read(_readBuffer, offset + address
-                            % _blockSize);
+                    int readSize = fc.read(_readBuffer, offset + address % _blockSize);
                     if (readSize < 0) {
                         break;
                     }
@@ -585,12 +551,10 @@ public class JournalTool {
                 _readBufferAddress = address;
                 _readBuffer.flip();
                 if (_readBuffer.remaining() < size) {
-                    throw new CorruptJournalException("End of file at "
-                            + addressToString(address));
+                    throw new CorruptJournalException("End of file at " + addressToString(address));
                 }
             } catch (IOException e) {
-                throw new PersistitIOException("Exception while reading from "
-                        + addressToString(address), e);
+                throw new PersistitIOException("Exception while reading from " + addressToString(address), e);
             }
         }
     }
@@ -636,11 +600,9 @@ public class JournalTool {
 
         final Value value = new Value(_persistit);
 
-        private void start(long address, long timestamp, String type,
-                int recordSize) {
+        private void start(long address, long timestamp, String type, int recordSize) {
             sb.setLength(0);
-            sb.append(String.format("%,18d%,16d %2s (%8d) ", address,
-                    timestamp, type, recordSize));
+            sb.append(String.format("%,18d%,16d %2s (%8d) ", address, timestamp, type, recordSize));
         }
 
         private void appendf(final String format, final Object... args) {
@@ -662,12 +624,9 @@ public class JournalTool {
             try {
                 if (value.getEncodedSize() >= Buffer.LONGREC_SIZE
                         && (value.getEncodedBytes()[0] & 0xFF) == Buffer.LONGREC_TYPE) {
-                    long page = Buffer.decodeLongRecordDescriptorPointer(
-                            value.getEncodedBytes(), 0);
-                    int size = Buffer.decodeLongRecordDescriptorSize(
-                            value.getEncodedBytes(), 0);
-                    s = String.format("LONG_REC size %,8d page %12d", size,
-                            page);
+                    long page = Buffer.decodeLongRecordDescriptorPointer(value.getEncodedBytes(), 0);
+                    int size = Buffer.decodeLongRecordDescriptorSize(value.getEncodedBytes(), 0);
+                    s = String.format("LONG_REC size %,8d page %12d", size, page);
                 } else {
                     s = value.toString();
                 }
@@ -696,42 +655,34 @@ public class JournalTool {
         // -----------------------
 
         @Override
-        public void jh(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void jh(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             final long baseAddress = JH.getBaseJournalAddress(_readBuffer);
             final long blockSize = JH.getBlockSize(_readBuffer);
-            final String fileCreated = SDF.format(new Date(JH
-                    .getFileCreatedTime(_readBuffer)));
-            final String journalCreated = SDF.format(new Date(JH
-                    .getJournalCreatedTime(_readBuffer)));
+            final String fileCreated = SDF.format(new Date(JH.getFileCreatedTime(_readBuffer)));
+            final String journalCreated = SDF.format(new Date(JH.getJournalCreatedTime(_readBuffer)));
             final long version = JH.getVersion(_readBuffer);
             start(address, timestamp, "JH", recordSize);
-            appendf(" version %,3d blockSize %,14d baseAddress %,18d journalCreated %24s fileCreated %24s",
-                    version, blockSize, baseAddress, journalCreated,
-                    fileCreated);
+            appendf(" version %,3d blockSize %,14d baseAddress %,18d journalCreated %24s fileCreated %24s", version,
+                    blockSize, baseAddress, journalCreated, fileCreated);
             _blockSize = blockSize;
             end();
         }
 
         @Override
-        public void je(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void je(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             start(address, timestamp, "JE", recordSize);
             final long baseAddress = JE.getBaseAddress(_readBuffer);
-            final long currentAddress = JE
-                    .getCurrentJournalAddress(_readBuffer);
-            final String journalCreated = SDF.format(new Date(JE
-                    .getJournalCreatedTime(_readBuffer)));
-            appendf(" baseAddress %,18d currentAddress %,18d journalCreated %24s",
-                    baseAddress, currentAddress, journalCreated);
+            final long currentAddress = JE.getCurrentJournalAddress(_readBuffer);
+            final String journalCreated = SDF.format(new Date(JE.getJournalCreatedTime(_readBuffer)));
+            appendf(" baseAddress %,18d currentAddress %,18d journalCreated %24s", baseAddress, currentAddress,
+                    journalCreated);
             end();
         }
 
         @Override
-        public void iv(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void iv(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             final int handle = IV.getHandle(_readBuffer);
             final long id = IV.getVolumeId(_readBuffer);
@@ -742,41 +693,35 @@ public class JournalTool {
         }
 
         @Override
-        public void it(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void it(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             int handle = IT.getHandle(_readBuffer);
             int vhandle = IT.getVolumeHandle(_readBuffer);
             final String treeName = IT.getTreeName(_readBuffer);
             start(address, timestamp, "IT", recordSize);
-            appendf(" handle %05d volume %05d treeName %s", handle, vhandle,
-                    treeName);
+            appendf(" handle %05d volume %05d treeName %s", handle, vhandle, treeName);
             end();
         }
 
         @Override
-        public void cp(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void cp(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             final long baseAddress = CP.getBaseAddress(_readBuffer);
-            final String wallTime = SDF.format(new Date(CP
-                    .getSystemTimeMillis(_readBuffer)));
+            final String wallTime = SDF.format(new Date(CP.getSystemTimeMillis(_readBuffer)));
             start(address, timestamp, "CP", recordSize);
             appendf(" baseAddress %,18d at %24s", baseAddress, wallTime);
             end();
         }
 
         @Override
-        public void ts(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void ts(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             start(address, timestamp, "TS", recordSize);
             end();
         }
 
         @Override
-        public void tc(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void tc(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             final long commitTimestamp = TC.getCommitTimestamp(_readBuffer);
             start(address, timestamp, "TC", recordSize);
@@ -785,22 +730,19 @@ public class JournalTool {
         }
 
         @Override
-        public void dr(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void dr(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             final int thandle = DR.getTreeHandle(_readBuffer);
             final int key1Size = DR.getKey1Size(_readBuffer);
             final int key2Size = recordSize - key1Size - DR.OVERHEAD;
-            System.arraycopy(_readBuffer.array(), _readBuffer.position()
-                    + DR.OVERHEAD, key1.getEncodedBytes(), 0, key1Size);
+            System.arraycopy(_readBuffer.array(), _readBuffer.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0,
+                    key1Size);
             key1.setEncodedSize(key1Size);
-            System.arraycopy(_readBuffer.array(), _readBuffer.position()
-                    + DR.OVERHEAD + key1Size, key2.getEncodedBytes(), 0,
-                    key2Size);
+            System.arraycopy(_readBuffer.array(), _readBuffer.position() + DR.OVERHEAD + key1Size, key2
+                    .getEncodedBytes(), 0, key2Size);
             key2.setEncodedSize(key2Size);
             start(address, timestamp, "DR", recordSize);
-            appendf(" tree %05d key1Size %,5d key2Size %,5d  ", thandle,
-                    key1Size, key2Size);
+            appendf(" tree %05d key1Size %,5d key2Size %,5d  ", thandle, key1Size, key2Size);
             keyf(key1);
             sb.append("->");
             keyf(key2);
@@ -808,23 +750,20 @@ public class JournalTool {
         }
 
         @Override
-        public void sr(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void sr(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             final int thandle = SR.getTreeHandle(_readBuffer);
             final int keySize = SR.getKeySize(_readBuffer);
             final int valueSize = recordSize - keySize - SR.OVERHEAD;
-            System.arraycopy(_readBuffer.array(), _readBuffer.position()
-                    + SR.OVERHEAD, key1.getEncodedBytes(), 0, keySize);
+            System.arraycopy(_readBuffer.array(), _readBuffer.position() + SR.OVERHEAD, key1.getEncodedBytes(), 0,
+                    keySize);
             key1.setEncodedSize(keySize);
             value.ensureFit(valueSize);
-            System.arraycopy(_readBuffer.array(), _readBuffer.position()
-                    + SR.OVERHEAD + keySize, value.getEncodedBytes(), 0,
-                    valueSize);
+            System.arraycopy(_readBuffer.array(), _readBuffer.position() + SR.OVERHEAD + keySize, value
+                    .getEncodedBytes(), 0, valueSize);
             value.setEncodedSize(valueSize);
             start(address, timestamp, "SR", recordSize);
-            appendf(" tree %05d keySize %,5d valueSize %,5d  ", thandle,
-                    keySize, valueSize);
+            appendf(" tree %05d keySize %,5d valueSize %,5d  ", thandle, keySize, valueSize);
             keyf(key1);
             sb.append(" : ");
             valuef(value);
@@ -832,8 +771,7 @@ public class JournalTool {
         }
 
         @Override
-        public void dt(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void dt(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, DT.OVERHEAD);
             final int thandle = DT.getTreeHandle(_readBuffer);
             start(address, timestamp, "DT", recordSize);
@@ -842,8 +780,7 @@ public class JournalTool {
         }
 
         @Override
-        public void pa(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void pa(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
             final long pageAddress = PA.getPageAddress(_readBuffer);
             final int volumeHandle = PA.getVolumeHandle(_readBuffer);
@@ -851,20 +788,16 @@ public class JournalTool {
                 return;
             }
             start(address, timestamp, "PA", recordSize);
-            final int type = JournalRecord.getByte(_readBuffer, PA.OVERHEAD
-                    + Buffer.TYPE_OFFSET);
+            final int type = JournalRecord.getByte(_readBuffer, PA.OVERHEAD + Buffer.TYPE_OFFSET);
             final String typeString = Buffer.getPageTypeName(pageAddress, type);
-            final long rightSibling = pageAddress == 0 ? 0 : JournalRecord
-                    .getLong(_readBuffer, PA.OVERHEAD
-                            + Buffer.RIGHT_SIBLING_OFFSET);
-            appendf(" page %5d:%,12d type %10s right %,12d", volumeHandle,
-                    pageAddress, typeString, rightSibling);
+            final long rightSibling = pageAddress == 0 ? 0 : JournalRecord.getLong(_readBuffer, PA.OVERHEAD
+                    + Buffer.RIGHT_SIBLING_OFFSET);
+            appendf(" page %5d:%,12d type %10s right %,12d", volumeHandle, pageAddress, typeString, rightSibling);
             end();
         }
 
         @Override
-        public void pm(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void pm(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, PM.OVERHEAD);
             start(address, timestamp, "PM", recordSize);
             final int count = PM.getEntryCount(_readBuffer);
@@ -876,8 +809,7 @@ public class JournalTool {
         }
 
         @Override
-        public void tm(final long address, final long timestamp,
-                final int recordSize) throws Exception {
+        public void tm(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, TM.OVERHEAD);
             start(address, timestamp, "TM", recordSize);
             final int count = TM.getEntryCount(_readBuffer);
@@ -889,14 +821,12 @@ public class JournalTool {
         }
 
         @Override
-        public void cu(long address, long timestamp, int recordSize)
-                throws Exception {
+        public void cu(long address, long timestamp, int recordSize) throws Exception {
             read(address, recordSize);
             start(address, timestamp, "CU", recordSize);
             int start = _readBuffer.position();
             final long cacheId = CU.getCacheId(_readBuffer);
-            final TransactionalCache tc = _persistit
-                    .getTransactionalCache(cacheId);
+            final TransactionalCache tc = _persistit.getTransactionalCache(cacheId);
             if (tc == null) {
                 appendf(" cacheId %d is undefined", cacheId);
             } else {
@@ -923,12 +853,10 @@ public class JournalTool {
             end();
         }
 
-        void dumpPageMap(final int count, final long from,
-                final long timestamp, final int recordSize)
+        void dumpPageMap(final int count, final long from, final long timestamp, final int recordSize)
                 throws PersistitIOException {
             if (count * PM.ENTRY_SIZE + PM.OVERHEAD != recordSize) {
-                throw new CorruptJournalException("Invalid record size "
-                        + recordSize + " for PM record at "
+                throw new CorruptJournalException("Invalid record size " + recordSize + " for PM record at "
                         + addressToString(from, timestamp));
             }
 
@@ -939,30 +867,22 @@ public class JournalTool {
             long lastPage = Long.MAX_VALUE;
             for (int remaining = count; remaining > 0; remaining--) {
                 if (index == loaded) {
-                    final int loadedSize = Math.min(
-                            (_readBuffer.capacity() / PM.ENTRY_SIZE)
-                                    * PM.ENTRY_SIZE, remaining * PM.ENTRY_SIZE);
+                    final int loadedSize = Math.min((_readBuffer.capacity() / PM.ENTRY_SIZE) * PM.ENTRY_SIZE, remaining
+                            * PM.ENTRY_SIZE);
                     read(address, loadedSize);
                     address += loadedSize;
                     index = 0;
                     loaded = loadedSize / PM.ENTRY_SIZE;
                     if (loaded <= 0) {
-                        throw new CorruptJournalException(
-                                "Could not load PageMap segment in entry "
-                                        + (count - remaining + 1) + " at "
-                                        + addressToString(from, timestamp));
+                        throw new CorruptJournalException("Could not load PageMap segment in entry "
+                                + (count - remaining + 1) + " at " + addressToString(from, timestamp));
                     }
                 }
-                final int volumeHandle = PM.getEntryVolumeHandle(_readBuffer,
-                        index);
-                final long pageAddress = PM.getEntryPageAddress(_readBuffer,
-                        index);
-                final long pageTimestamp = PM.getEntryTimestamp(_readBuffer,
-                        index);
-                final long journalAddress = PM.getEntryJournalAddress(
-                        _readBuffer, index);
-                if (_selectedPages.isSelected(pageAddress)
-                        && _selectedTimestamps.isSelected(pageTimestamp)) {
+                final int volumeHandle = PM.getEntryVolumeHandle(_readBuffer, index);
+                final long pageAddress = PM.getEntryPageAddress(_readBuffer, index);
+                final long pageTimestamp = PM.getEntryTimestamp(_readBuffer, index);
+                final long journalAddress = PM.getEntryJournalAddress(_readBuffer, index);
+                if (_selectedPages.isSelected(pageAddress) && _selectedTimestamps.isSelected(pageTimestamp)) {
                     if (pageAddress != lastPage) {
                         if (sb.length() > 0) {
                             end();
@@ -977,12 +897,10 @@ public class JournalTool {
             }
         }
 
-        void dumpTransactionMap(final int count, final long from,
-                final long timestamp, final int recordSize)
+        void dumpTransactionMap(final int count, final long from, final long timestamp, final int recordSize)
                 throws PersistitIOException {
             if (count * TM.ENTRY_SIZE + TM.OVERHEAD != recordSize) {
-                throw new CorruptJournalException("Invalid record size "
-                        + recordSize + " for TM record at "
+                throw new CorruptJournalException("Invalid record size " + recordSize + " for TM record at "
                         + addressToString(from, timestamp));
             }
             long address = from + TM.OVERHEAD;
@@ -991,28 +909,20 @@ public class JournalTool {
             sb.setLength(0);
             for (int remaining = count; remaining > 0; remaining--) {
                 if (index == loaded) {
-                    read(address,
-                            Math.min(_readBuffer.capacity(), remaining
-                                    * TM.ENTRY_SIZE));
+                    read(address, Math.min(_readBuffer.capacity(), remaining * TM.ENTRY_SIZE));
                     address += _readBuffer.remaining();
                     index = 0;
                     loaded = _readBuffer.remaining() / TM.ENTRY_SIZE;
                     if (loaded <= 0) {
-                        throw new CorruptJournalException(
-                                "Could not load TransactionMap segment in entry "
-                                        + (count - remaining + 1) + " at "
-                                        + addressToString(from, timestamp));
+                        throw new CorruptJournalException("Could not load TransactionMap segment in entry "
+                                + (count - remaining + 1) + " at " + addressToString(from, timestamp));
                     }
                 }
-                final long startTimestamp = TM.getEntryStartTimestamp(
-                        _readBuffer, index);
-                final long commitTimestamp = TM.getEntryCommitTimestamp(
-                        _readBuffer, index);
-                final long journalAddress = TM.getEntryJournalAddress(
-                        _readBuffer, index);
+                final long startTimestamp = TM.getEntryStartTimestamp(_readBuffer, index);
+                final long commitTimestamp = TM.getEntryCommitTimestamp(_readBuffer, index);
+                final long journalAddress = TM.getEntryJournalAddress(_readBuffer, index);
                 final boolean isCommitted = commitTimestamp != startTimestamp;
-                appendf("--  start %,12d  commit %,12d  @%,18d %s",
-                        commitTimestamp, startTimestamp, journalAddress,
+                appendf("--  start %,12d  commit %,12d  @%,18d %s", commitTimestamp, startTimestamp, journalAddress,
                         isCommitted ? "committed" : "uncommitted");
                 end();
                 sb.setLength(0);

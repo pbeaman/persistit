@@ -49,8 +49,7 @@ class InnerJarClassLoader extends ClassLoader {
     }
 
     public void addJar(InputStream is) throws IOException {
-        JarInputStream jis = new JarInputStream(new BufferedInputStream(is,
-                32768));
+        JarInputStream jis = new JarInputStream(new BufferedInputStream(is, 32768));
 
         byte[] hbytes = new byte[65536];
         for (;;) {
@@ -77,6 +76,7 @@ class InnerJarClassLoader extends ClassLoader {
         }
     }
 
+    @Override
     public Class findClass(String className) throws ClassNotFoundException {
         String fileName = className.replace('.', '/') + ".class";
         byte[] bytes = (byte[]) _resourceMap.get(fileName);
@@ -86,6 +86,7 @@ class InnerJarClassLoader extends ClassLoader {
             throw new ClassNotFoundException(className);
     }
 
+    @Override
     public InputStream getResourceAsStream(String name) {
         byte[] bytes = (byte[]) _resourceMap.get(name);
         if (bytes != null)

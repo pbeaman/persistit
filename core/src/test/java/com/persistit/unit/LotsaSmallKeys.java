@@ -28,15 +28,14 @@ public class LotsaSmallKeys extends PersistitUnitTestCase {
     private String _volumeName = "persistit";
 
     /**
-     * Tests bug 775752.  Logic to limit the key count was missing
-     * in the delete case.  This caused an AIOOBE in 
-     * Buffer#recomputeFindex.
+     * Tests bug 775752. Logic to limit the key count was missing in the delete
+     * case. This caused an AIOOBE in Buffer#recomputeFindex.
+     * 
      * @throws PersistitException
      */
     @Test
     public void testInsertAndDeleteSmallRecords() throws PersistitException {
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "LotsOfSmallKeys", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "LotsOfSmallKeys", true);
         exchange.removeAll();
         exchange.setSplitPolicy(SplitPolicy.LEFT_BIAS);
         exchange.getValue().clear();
@@ -55,6 +54,7 @@ public class LotsaSmallKeys extends PersistitUnitTestCase {
         return UnitTestProperties.getBiggerProperties(cleanup);
     }
 
+    @Override
     public void runAllTests() throws Exception {
         testInsertAndDeleteSmallRecords();
     }

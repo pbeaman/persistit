@@ -57,8 +57,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         value.put(new byte[] { 1, 2, 3, 4, 5 });
         assertEquals(value.getType(), byte[].class);
         assertTrue(equals((byte[]) value.get(), new byte[] { 1, 2, 3, 4, 5 }));
-        assertTrue(equals((byte[]) value.getByteArray(), new byte[] { 1, 2, 3,
-                4, 5 }));
+        assertTrue(equals((byte[]) value.getByteArray(), new byte[] { 1, 2, 3, 4, 5 }));
         final byte[] target = new byte[2];
         value.getByteArray(target, 2, 0, 3);
         assertTrue(equals(target, new byte[] { 3, 4 }));
@@ -101,10 +100,8 @@ public class ValueTest1 extends PersistitUnitTestCase {
         final byte[] b1 = { -3, -2, -1, 0, 1, 2, 3 };
         final short[] s1 = { 1, 2, 3, -1, -2, -3 };
         final char[] c1 = { 1, 2, 3, 65533, 65534, 65535 };
-        final int[] i1 = { Integer.MIN_VALUE, -2, -1, 0, 1, 2,
-                Integer.MAX_VALUE };
-        final boolean[] bo1 = new boolean[] { true, true, false, true, false,
-                false };
+        final int[] i1 = { Integer.MIN_VALUE, -2, -1, 0, 1, 2, Integer.MAX_VALUE };
+        final boolean[] bo1 = new boolean[] { true, true, false, true, false, false };
         final float[] f1 = { 1.1F, 1.2F, 1.3F, -1.1F, -1.2F, -1.3F };
         final double[] d1 = { 1.1, 1.2, 1.3, -1.1, -1.2, -1.3 };
 
@@ -177,8 +174,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
     public void test6() {
         System.out.print("test6 ");
         final Value value = new Value(_persistit);
-        final byte[][] ba1 = { { 1, 2, 3 }, { -4, -5, -6 }, null,
-                { 7, 8, 9, 10, 11, 12 } };
+        final byte[][] ba1 = { { 1, 2, 3 }, { -4, -5, -6 }, null, { 7, 8, 9, 10, 11, 12 } };
         value.put(ba1);
         final byte[][] ba2 = (byte[][]) value.get();
 
@@ -197,16 +193,11 @@ public class ValueTest1 extends PersistitUnitTestCase {
     public void test7() {
         System.out.print("test7 ");
         final Value value = new Value(_persistit);
-        final String[][] sa1 = { { "a", "bb", "ccc", "dddd", "eeeee" },
-                { "a", "bb", "ccc", "dddd", "eeeee" },
-                { "A", "BB", "CCC", "DDDD", "EEEEE", "FFFFFF" },
-                { "a", "bb", "ccc", "dddd", "eeeee" },
-                { "A", "BB", "CCC", "DDDD", "EEEEE", "GGGGGG" },
-                { "a", "bb", "ccc", "dddd", "eeeee" },
-                { "A", "BB", "CCC", "DDDD", "EEEEE", "HHHHHH" },
-                { "a", "bb", "ccc", "dddd", "eeeee" },
-                { "A", "BB", "CCC", "DDDD", "EEEEE", "IIIIII" },
-                { "a", "bb", "ccc", "dddd", "eeeee" },
+        final String[][] sa1 = { { "a", "bb", "ccc", "dddd", "eeeee" }, { "a", "bb", "ccc", "dddd", "eeeee" },
+                { "A", "BB", "CCC", "DDDD", "EEEEE", "FFFFFF" }, { "a", "bb", "ccc", "dddd", "eeeee" },
+                { "A", "BB", "CCC", "DDDD", "EEEEE", "GGGGGG" }, { "a", "bb", "ccc", "dddd", "eeeee" },
+                { "A", "BB", "CCC", "DDDD", "EEEEE", "HHHHHH" }, { "a", "bb", "ccc", "dddd", "eeeee" },
+                { "A", "BB", "CCC", "DDDD", "EEEEE", "IIIIII" }, { "a", "bb", "ccc", "dddd", "eeeee" },
                 { "A", "BB", "CCC", "DDDD", "EEEEE", "JJJJJJ" }, {} };
         value.put(sa1);
 
@@ -247,8 +238,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
         final Date[] dates2 = (Date[]) value.get();
         assertTrue(equals(dates2, dates));
 
-        final BigInteger[] bis = new BigInteger[] { new BigInteger("1"),
-                new BigInteger("2"), };
+        final BigInteger[] bis = new BigInteger[] { new BigInteger("1"), new BigInteger("2"), };
         value.put(bis);
         final BigInteger[] bis2 = (BigInteger[]) value.get();
         assertTrue(equals(bis2, bis));
@@ -267,18 +257,12 @@ public class ValueTest1 extends PersistitUnitTestCase {
         objects[0] = new Date();
         objects[1] = new TreeMap();
         objects[2] = new BigInteger("39852357023498572034958723495872349582305");
-        objects[3] = new BigInteger(
-                "-39852357023498572034958723495872349582305");
+        objects[3] = new BigInteger("-39852357023498572034958723495872349582305");
         objects[4] = new BigDecimal("-991231.2123123123123123122349872e123");
-        objects[5] = new BigInteger[] {
-                new BigInteger("-39852357023498572034958723495872349582305"),
+        objects[5] = new BigInteger[] { new BigInteger("-39852357023498572034958723495872349582305"),
                 new BigInteger("3498572034958723495872349582305"),
-                new BigInteger(
-                        "1239123912392339852357023498572034958723495872349582305"),
-                new BigInteger("44"), };
-        objects[6] = new BigDecimal[] {
-                new BigDecimal("3.14159265"),
-                new BigDecimal("0"),
+                new BigInteger("1239123912392339852357023498572034958723495872349582305"), new BigInteger("44"), };
+        objects[6] = new BigDecimal[] { new BigDecimal("3.14159265"), new BigDecimal("0"),
                 new BigDecimal("-9999999999999999999999999999999999.999999e999") };
 
         objects[7] = "The End";
@@ -333,8 +317,7 @@ public class ValueTest1 extends PersistitUnitTestCase {
             if (!b.getClass().isArray()) {
                 return false;
             }
-            if (a.getClass().getComponentType() != b.getClass()
-                    .getComponentType()) {
+            if (a.getClass().getComponentType() != b.getClass().getComponentType()) {
                 return false;
             }
             if (Array.getLength(a) != Array.getLength(b)) {

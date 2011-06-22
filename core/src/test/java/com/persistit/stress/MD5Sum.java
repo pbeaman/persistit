@@ -72,19 +72,15 @@ public class MD5Sum extends AbstractTestRunnerItem {
         final String[] treeNames = volume.getTreeNames();
         long pairs = 0;
         for (int index = 0; index < treeNames.length; index++) {
-            final Exchange exchange = _persistit.getExchange(volume,
-                    treeNames[index], false);
+            final Exchange exchange = _persistit.getExchange(volume, treeNames[index], false);
             exchange.clear().append(Key.BEFORE);
             while (exchange.next(true)) {
-                update(md, exchange.getKey().getEncodedBytes(), exchange
-                        .getKey().getEncodedSize());
-                update(md, exchange.getValue().getEncodedBytes(), exchange
-                        .getValue().getEncodedSize());
+                update(md, exchange.getKey().getEncodedBytes(), exchange.getKey().getEncodedSize());
+                update(md, exchange.getValue().getEncodedBytes(), exchange.getValue().getEncodedSize());
                 pairs++;
                 if (pairs % 10000 == 0) {
-                    progress = String.format(
-                            "%,10d pairs scanned.  Tree %3d of %4d: %s", pairs,
-                            index, treeNames.length, treeNames[index]);
+                    progress = String.format("%,10d pairs scanned.  Tree %3d of %4d: %s", pairs, index,
+                            treeNames.length, treeNames[index]);
                 }
             }
         }
@@ -92,8 +88,7 @@ public class MD5Sum extends AbstractTestRunnerItem {
         progress = Util.bytesToHex(digest);
     }
 
-    private void update(final MessageDigest md, final byte[] bytes,
-            final int length) throws DigestException {
+    private void update(final MessageDigest md, final byte[] bytes, final int length) throws DigestException {
         md.update(bytes, 0, length);
     }
 

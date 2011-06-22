@@ -433,49 +433,40 @@ public final class Value {
     // private final static int SIZE3 = 0xE0;
     private final static int SIZE5 = 0xF0;
 
-    private final static int[] ENCODED_SIZE_BITS = { -1, 0x00, 0x10, 0x20, -1,
-            0x30 };
+    private final static int[] ENCODED_SIZE_BITS = { -1, 0x00, 0x10, 0x20, -1, 0x30 };
 
     private final static Class[] CLASSES = {
             null, // 0
-            Void.TYPE, Boolean.TYPE,
-            Byte.TYPE,
+            Void.TYPE, Boolean.TYPE, Byte.TYPE,
             null, // reserved for .net unsigned byte
             Short.TYPE,
             null, // reserved for .net unsigned short
-            Character.TYPE,
-            Integer.TYPE,
+            Character.TYPE, Integer.TYPE,
             null, // reserved for .net unsigned int
             Long.TYPE,
             null, // reserved for .net unsigned long
             null, // reserved for .net decimal
-            Float.TYPE, Double.TYPE,
-            null,
+            Float.TYPE, Double.TYPE, null,
 
             null, // 16
-            Void.class, Boolean.class,
-            Byte.class,
+            Void.class, Boolean.class, Byte.class,
             null, // reserved for .net unsigned byte
             Short.class,
             null, // reserved for .net unsigned short
-            Character.class,
-            Integer.class,
+            Character.class, Integer.class,
             null, // reserved for .net unsigned int
             Long.class,
             null, // reserved for .net unsigned long
             null, // reserved for .net decimal
-            Float.class, Double.class,
-            Object.class,
+            Float.class, Double.class, Object.class,
 
             String.class, // 32
-            Date.class, BigInteger.class, BigDecimal.class, null, null, null,
-            null, null, null, null, null, null, null, null, null,
+            Date.class, BigInteger.class, BigDecimal.class, null, null, null, null, null, null, null, null, null, null,
+            null, null,
 
             null, // 48
-            null,
-            Object.class, // 50 Reference to previously encoded Object,
-            null, null, null, null, null, null, null, null, null,
-            Serializable.class, // 60
+            null, Object.class, // 50 Reference to previously encoded Object,
+            null, null, null, null, null, null, null, null, null, Serializable.class, // 60
             Serializable.class, // 61
 
     };
@@ -592,8 +583,7 @@ public final class Value {
      * @param maximumSize
      *            Maximum size of the encoded value buffer.
      */
-    public Value(final Persistit persistit, final int initialSize,
-            final int maximumSize) {
+    public Value(final Persistit persistit, final int initialSize, final int maximumSize) {
         _persistit = persistit;
         _bytes = new byte[initialSize];
         _maximumSize = maximumSize;
@@ -761,13 +751,11 @@ public final class Value {
         int newSize = _size + length;
         if (_size + length <= _bytes.length)
             return false;
-        newSize = ((newSize + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY)
-                * SIZE_GRANULARITY;
+        newSize = ((newSize + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY) * SIZE_GRANULARITY;
         if (newSize > _maximumSize)
             newSize = _maximumSize;
         if (newSize < length + _size) {
-            throw new ConversionException("Requested size=" + length
-                    + " exceeds maximum size=" + _maximumSize);
+            throw new ConversionException("Requested size=" + length + " exceeds maximum size=" + _maximumSize);
         }
         byte[] bytes = new byte[newSize];
         System.arraycopy(_bytes, 0, bytes, 0, _size);
@@ -847,8 +835,7 @@ public final class Value {
      */
     public void setEncodedSize(int size) {
         if (size < 0 || size > _bytes.length) {
-            throw new IllegalArgumentException("Size " + size
-                    + " exceeds capacity");
+            throw new IllegalArgumentException("Size " + size + " exceeds capacity");
         }
         _size = size;
         _depth = 0;
@@ -877,12 +864,10 @@ public final class Value {
      */
     public void setMaximumSize(int size) {
         if (size < _size) {
-            throw new IllegalArgumentException(
-                    "Value is larger than new maximum size");
+            throw new IllegalArgumentException("Value is larger than new maximum size");
         }
         if (size > MAXIMUM_SIZE) {
-            throw new IllegalArgumentException(
-                    "Value is larger than absolute limit " + MAXIMUM_SIZE);
+            throw new IllegalArgumentException("Value is larger than absolute limit " + MAXIMUM_SIZE);
         }
         trim(size);
         _maximumSize = size;
@@ -956,8 +941,7 @@ public final class Value {
             return "undefined";
         }
 
-        if (_longMode && (_bytes[0] & 0xFF) == Buffer.LONGREC_TYPE
-                && (_size >= Buffer.LONGREC_SIZE)) {
+        if (_longMode && (_bytes[0] & 0xFF) == Buffer.LONGREC_TYPE && (_size >= Buffer.LONGREC_SIZE)) {
             return toStringLongMode();
         }
 
@@ -978,12 +962,10 @@ public final class Value {
             }
         } catch (ConversionException e) {
             int truncatedSize = Math.min(_size - _next, 256);
-            sb.append("ConversionException " + e.getCause() + " index=" + _next
-                    + " size=" + (_size - _next) + ": "
+            sb.append("ConversionException " + e.getCause() + " index=" + _next + " size=" + (_size - _next) + ": "
                     + Util.hexDump(_bytes, 0, truncatedSize));
         } catch (Exception e) {
-            sb.append("Exception " + e + " while decoding value at index="
-                    + _next + ": " + e);
+            sb.append("Exception " + e + " while decoding value at index=" + _next + ": " + e);
         } finally {
             _atomicIncrementArmed = saveAtomic;
             _end = saveEnd;
@@ -1038,8 +1020,7 @@ public final class Value {
      *            A <code>CoderContext</code> to be passed to any underlying
      *            {@link ValueDisplayer}.
      */
-    public void decodeDisplayable(boolean quoted, StringBuilder sb,
-            CoderContext context) {
+    public void decodeDisplayable(boolean quoted, StringBuilder sb, CoderContext context) {
         checkSize(1);
 
         int start = _next;
@@ -1219,8 +1200,7 @@ public final class Value {
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(",");
-                        float f = Float.intBitsToFloat(Util.getInt(_bytes,
-                                _next));
+                        float f = Float.intBitsToFloat(Util.getInt(_bytes, _next));
                         sb.append(f);
                         _next += 4;
                     }
@@ -1233,8 +1213,7 @@ public final class Value {
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(",");
-                        double d = Double.longBitsToDouble(Util.getLong(_bytes,
-                                _next));
+                        double d = Double.longBitsToDouble(Util.getLong(_bytes, _next));
                         sb.append(d);
                         _next += 8;
                     }
@@ -1274,8 +1253,7 @@ public final class Value {
             _depth++;
             try {
                 Object object = get(null, context);
-                getValueCache().store(currentItemCount,
-                        new DisplayMarker(sb.length()));
+                getValueCache().store(currentItemCount, new DisplayMarker(sb.length()));
                 appendDisplayable(sb, object, quoted, false);
             } catch (Exception e) {
                 sb.setLength(length);
@@ -1295,8 +1273,7 @@ public final class Value {
                     Class clazz = _persistit.classForHandle(classHandle);
                     ValueCoder coder = null;
                     _depth++;
-                    getValueCache().store(currentItemCount,
-                            new DisplayMarker(sb.length()));
+                    getValueCache().store(currentItemCount, new DisplayMarker(sb.length()));
 
                     _serializedItemCount++;
 
@@ -1305,15 +1282,13 @@ public final class Value {
                     }
                     if (coder instanceof ValueDisplayer) {
                         appendParenthesizedFriendlyClassName(sb, clazz);
-                        ((ValueDisplayer) coder).display(this, sb, clazz,
-                                context);
+                        ((ValueDisplayer) coder).display(this, sb, clazz, context);
                     } else if (coder instanceof SerialValueCoder) {
                         int length = sb.length();
                         try {
                             _next = start;
                             Object object = get(null, context);
-                            getValueCache().store(currentItemCount,
-                                    new DisplayMarker(sb.length()));
+                            getValueCache().store(currentItemCount, new DisplayMarker(sb.length()));
                             appendDisplayable(sb, object, quoted, false);
                         } catch (Exception e) {
                             sb.setLength(length);
@@ -1344,8 +1319,7 @@ public final class Value {
                 try {
                     _next = start;
                     Object value = get(null, context);
-                    getValueCache().store(currentItemCount,
-                            new DisplayMarker(sb.length()));
+                    getValueCache().store(currentItemCount, new DisplayMarker(sb.length()));
                     appendDisplayable(sb, value, quoted, false);
                 } catch (Throwable t) {
                     sb.append("<<" + t + ">>");
@@ -1359,19 +1333,16 @@ public final class Value {
         }
     }
 
-    private void decodeDisplayableMultiArray(boolean quoted, StringBuilder sb,
-            CoderContext context, Class prototype) {
+    private void decodeDisplayableMultiArray(boolean quoted, StringBuilder sb, CoderContext context, Class prototype) {
         int start = _next;
         int type = nextType(CLASS_MULTI_ARRAY, CLASS_REREF);
         if (type == CLASS_REREF) {
             _next = start;
             Object array = get(null, null);
-            if (array == null || array instanceof DisplayMarker
-                    || array.getClass().isArray()) {
+            if (array == null || array instanceof DisplayMarker || array.getClass().isArray()) {
                 appendDisplayable(sb, array, quoted, true);
             } else {
-                throw new ConversionException(
-                        "Referenced object is not an array");
+                throw new ConversionException("Referenced object is not an array");
             }
         } else {
             try {
@@ -1380,9 +1351,7 @@ public final class Value {
                 checkSize(1);
                 int dimensions = _bytes[_next++] & 0xFF;
                 if (prototype == null) {
-                    prototype = Array.newInstance(
-                            classForHandle(componentClassHandle),
-                            new int[dimensions]).getClass();
+                    prototype = Array.newInstance(classForHandle(componentClassHandle), new int[dimensions]).getClass();
                 }
                 int length = decodeElementCount();
 
@@ -1394,8 +1363,7 @@ public final class Value {
                     for (int index = 0; index < length; index++) {
                         if (index > 0)
                             sb.append(',');
-                        decodeDisplayableMultiArray(quoted, sb, context,
-                                componentType);
+                        decodeDisplayableMultiArray(quoted, sb, context, componentType);
                     }
                 } else {
                     for (int index = 0; index < length; index++) {
@@ -1432,8 +1400,7 @@ public final class Value {
             sb.append("String");
         } else if (cl == Date.class) {
             sb.append("Date");
-        } else if (Number.class.isAssignableFrom(cl)
-                && cl.getName().startsWith("java.lang.")
+        } else if (Number.class.isAssignableFrom(cl) && cl.getName().startsWith("java.lang.")
                 || cl.getName().startsWith("java.math.")) {
             sb.append(cl.getName().substring(10));
         } else {
@@ -1441,8 +1408,7 @@ public final class Value {
         }
     }
 
-    private void appendDisplayable(StringBuilder sb, Object value,
-            boolean quoted, boolean reference) {
+    private void appendDisplayable(StringBuilder sb, Object value, boolean quoted, boolean reference) {
         if (value == null) {
             sb.append("null");
         } else {
@@ -1470,8 +1436,7 @@ public final class Value {
                 sb.append(Key.SDF.format((Date) value));
             } else if (value instanceof Number) {
                 sb.append('(');
-                sb.append(className.startsWith("java.lang.") ? className
-                        .substring(10) : className);
+                sb.append(className.startsWith("java.lang.") ? className.substring(10) : className);
                 sb.append(')');
                 sb.append(value);
             } else if (value instanceof DisplayMarker) {
@@ -1515,8 +1480,7 @@ public final class Value {
         int saveEnd = _end;
         try {
             int classHandle = nextType();
-            if (classHandle > 0 && classHandle < CLASSES.length
-                    && CLASSES[classHandle] != null) {
+            if (classHandle > 0 && classHandle < CLASSES.length && CLASSES[classHandle] != null) {
                 return CLASSES[classHandle];
             } else if (classHandle == CLASS_ARRAY) {
                 _depth++;
@@ -1527,8 +1491,7 @@ public final class Value {
                 int componentClassHandle = nextType();
                 checkSize(1);
                 int dimensions = _bytes[_next++] & 0xFF;
-                return arrayClass(classForHandle(componentClassHandle),
-                        dimensions);
+                return arrayClass(classForHandle(componentClassHandle), dimensions);
             }
 
             else
@@ -1542,8 +1505,7 @@ public final class Value {
     }
 
     private Class arrayClass(Class componentClass, int dimensions) {
-        Class[] arraysByDimension = (Class[]) _arrayTypeCache
-                .get(componentClass);
+        Class[] arraysByDimension = (Class[]) _arrayTypeCache.get(componentClass);
         Class result = null;
         if (arraysByDimension != null && arraysByDimension.length > dimensions)
             result = arraysByDimension[dimensions];
@@ -1554,13 +1516,11 @@ public final class Value {
             result = Array.newInstance(componentClass, 0).getClass();
 
         else
-            result = Array.newInstance(componentClass, new int[dimensions])
-                    .getClass();
+            result = Array.newInstance(componentClass, new int[dimensions]).getClass();
         if (arraysByDimension != null) {
             if (arraysByDimension.length <= dimensions) {
                 Class[] temp = new Class[dimensions + 2];
-                System.arraycopy(arraysByDimension, 0, temp, 0,
-                        arraysByDimension.length);
+                System.arraycopy(arraysByDimension, 0, temp, 0, arraysByDimension.length);
                 arraysByDimension = temp;
                 _arrayTypeCache.put(componentClass, arraysByDimension);
             }
@@ -2101,8 +2061,7 @@ public final class Value {
                 case TYPE_SHORT: {
                     short[] result = new short[arraySize(_end, _next, 2)];
                     for (int index = 0; index < result.length; index++) {
-                        result[index] = (short) Util.getShort(_bytes, _next
-                                + (index * 2));
+                        result[index] = (short) Util.getShort(_bytes, _next + (index * 2));
                     }
                     object = result;
                     break;
@@ -2111,8 +2070,7 @@ public final class Value {
                 case TYPE_CHAR: {
                     char[] result = new char[arraySize(_end, _next, 2)];
                     for (int index = 0; index < result.length; index++) {
-                        result[index] = (char) Util.getChar(_bytes, _next
-                                + (index * 2));
+                        result[index] = (char) Util.getChar(_bytes, _next + (index * 2));
                     }
                     object = result;
                     break;
@@ -2121,8 +2079,7 @@ public final class Value {
                 case TYPE_INT: {
                     int[] result = new int[arraySize(_end, _next, 4)];
                     for (int index = 0; index < result.length; index++) {
-                        result[index] = (int) Util.getInt(_bytes, _next
-                                + (index * 4));
+                        result[index] = (int) Util.getInt(_bytes, _next + (index * 4));
                     }
                     object = result;
                     break;
@@ -2131,8 +2088,7 @@ public final class Value {
                 case TYPE_LONG: {
                     long[] result = new long[arraySize(_end, _next, 8)];
                     for (int index = 0; index < result.length; index++) {
-                        result[index] = (long) Util.getLong(_bytes, _next
-                                + (index * 8));
+                        result[index] = (long) Util.getLong(_bytes, _next + (index * 8));
                     }
                     object = result;
                     break;
@@ -2141,8 +2097,7 @@ public final class Value {
                 case TYPE_FLOAT: {
                     float[] result = new float[arraySize(_end, _next, 4)];
                     for (int index = 0; index < result.length; index++) {
-                        result[index] = Float.intBitsToFloat(Util.getInt(
-                                _bytes, _next + (index * 4)));
+                        result[index] = Float.intBitsToFloat(Util.getInt(_bytes, _next + (index * 4)));
                     }
                     object = result;
                     break;
@@ -2151,8 +2106,7 @@ public final class Value {
                 case TYPE_DOUBLE: {
                     double[] result = new double[arraySize(_end, _next, 8)];
                     for (int index = 0; index < result.length; index++) {
-                        result[index] = Double.longBitsToDouble(Util.getLong(
-                                _bytes, _next + (index * 8)));
+                        result[index] = Double.longBitsToDouble(Util.getLong(_bytes, _next + (index * 8)));
                     }
                     object = result;
                     break;
@@ -2171,8 +2125,7 @@ public final class Value {
                 default: {
                     Class componentClass = classForHandle(componentClassHandle);
                     int length = decodeElementCount();
-                    Object[] result = (Object[]) Array.newInstance(
-                            componentClass, length);
+                    Object[] result = (Object[]) Array.newInstance(componentClass, length);
                     getValueCache().store(currentItemCount, result);
                     for (int index = 0; index < length; index++) {
                         Array.set(result, index, get(null, null));
@@ -2201,8 +2154,7 @@ public final class Value {
                 ObjectInputStream ois = new OldValueInputStream(this);
                 object = ois.readObject();
                 if (_next != _end) {
-                    throw new ConversionException(
-                            "Invalid serialized Object at index=" + _next);
+                    throw new ConversionException("Invalid serialized Object at index=" + _next);
                 }
                 closeVariableLengthItem();
             } catch (IOException ioe) {
@@ -2235,16 +2187,13 @@ public final class Value {
                     }
 
                     else if (coder instanceof ValueRenderer) {
-                        ((ValueRenderer) coder).render(this, target, cl,
-                                context);
+                        ((ValueRenderer) coder).render(this, target, cl, context);
                         object = target;
                     } else {
-                        throw new ConversionException(
-                                "No ValueRenderer for class " + cl.getName());
+                        throw new ConversionException("No ValueRenderer for class " + cl.getName());
                     }
                 } else {
-                    throw new ConversionException("No ValueCoder for class "
-                            + cl.getName());
+                    throw new ConversionException("No ValueCoder for class " + cl.getName());
                 }
             } finally {
                 _depth = saveDepth;
@@ -2315,8 +2264,7 @@ public final class Value {
                 if (((b2 & 0xC0) != 0x80) || ((b3 & 0xC0) != 0x80)) {
                     throw new ConversionException();
                 }
-                sab[counter++] = (char) (((b & 0x0F) << 12)
-                        | ((b2 & 0x3F) << 6) | ((b3 & 0x3F) << 0));
+                sab[counter++] = (char) (((b & 0x0F) << 12) | ((b2 & 0x3F) << 6) | ((b3 & 0x3F) << 0));
                 break;
 
             default:
@@ -2356,8 +2304,7 @@ public final class Value {
      */
     private void registerEncodedObject(int index) {
         if (_depth > 0) {
-            getValueCache().store(_serializedItemCount - 1,
-                    new DisplayMarker(index));
+            getValueCache().store(_serializedItemCount - 1, new DisplayMarker(index));
         }
     }
 
@@ -2459,8 +2406,7 @@ public final class Value {
             if (type == CLASS_MULTI_ARRAY)
                 _next++; // skip the dimension count.
             int length = _end - _next;
-            if (type == CLASS_ARRAY && componentClassHandle > 0
-                    && componentClassHandle <= TYPE_DOUBLE
+            if (type == CLASS_ARRAY && componentClassHandle > 0 && componentClassHandle <= TYPE_DOUBLE
                     && FIXED_ENCODING_SIZES[componentClassHandle] > 0) {
                 result = length / FIXED_ENCODING_SIZES[componentClassHandle];
             } else {
@@ -2488,8 +2434,7 @@ public final class Value {
         if (object == null || object.getClass().isArray()) {
             return object;
         }
-        throw new ConversionException("Expected an array but value is a "
-                + object.getClass().getName());
+        throw new ConversionException("Expected an array but value is a " + object.getClass().getName());
     }
 
     /**
@@ -2521,8 +2466,7 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getBooleanArray(boolean[] array, int fromOffset, int toOffset,
-            int length) {
+    public int getBooleanArray(boolean[] array, int fromOffset, int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
@@ -2573,8 +2517,7 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getByteArray(byte[] array, int fromOffset, int toOffset,
-            int length) {
+    public int getByteArray(byte[] array, int fromOffset, int toOffset, int length) {
         _serializedItemCount++;
         if (array == _bytes) {
             throw new IllegalArgumentException("Can't overwrite encoded bytes");
@@ -2590,8 +2533,7 @@ public final class Value {
             if (length > array.length - toOffset)
                 length = array.length - toOffset;
             if (length > 0)
-                System.arraycopy(_bytes, _next + fromOffset, array, toOffset,
-                        length);
+                System.arraycopy(_bytes, _next + fromOffset, array, toOffset, length);
             closeVariableLengthItem();
             return length;
         } finally {
@@ -2628,8 +2570,7 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getShortArray(short[] array, int fromOffset, int toOffset,
-            int length) {
+    public int getShortArray(short[] array, int fromOffset, int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
@@ -2642,8 +2583,7 @@ public final class Value {
             if (length > array.length - toOffset)
                 length = array.length - toOffset;
             for (int index = 0; index < length; index++) {
-                array[toOffset + index] = (short) Util.getShort(_bytes, _next
-                        + (index + fromOffset) * 2);
+                array[toOffset + index] = (short) Util.getShort(_bytes, _next + (index + fromOffset) * 2);
             }
             closeVariableLengthItem();
             return length;
@@ -2681,8 +2621,7 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getCharArray(char[] array, int fromOffset, int toOffset,
-            int length) {
+    public int getCharArray(char[] array, int fromOffset, int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
@@ -2695,8 +2634,7 @@ public final class Value {
             if (length > array.length - toOffset)
                 length = array.length - toOffset;
             for (int index = 0; index < length; index++) {
-                array[toOffset + index] = (char) Util.getChar(_bytes, _next
-                        + (index + fromOffset) * 2);
+                array[toOffset + index] = (char) Util.getChar(_bytes, _next + (index + fromOffset) * 2);
             }
             closeVariableLengthItem();
             return length;
@@ -2747,8 +2685,7 @@ public final class Value {
             if (length > array.length - toOffset)
                 length = array.length - toOffset;
             for (int index = 0; index < length; index++) {
-                array[toOffset + index] = (int) Util.getInt(_bytes, _next
-                        + (index + fromOffset) * 4);
+                array[toOffset + index] = (int) Util.getInt(_bytes, _next + (index + fromOffset) * 4);
             }
             closeVariableLengthItem();
             return length;
@@ -2786,8 +2723,7 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getLongArray(long[] array, int fromOffset, int toOffset,
-            int length) {
+    public int getLongArray(long[] array, int fromOffset, int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
@@ -2801,8 +2737,7 @@ public final class Value {
             if (length > array.length - toOffset)
                 length = array.length - toOffset;
             for (int index = 0; index < length; index++) {
-                array[toOffset + index] = (long) Util.getLong(_bytes, _next
-                        + (index + fromOffset) * 8);
+                array[toOffset + index] = (long) Util.getLong(_bytes, _next + (index + fromOffset) * 8);
             }
             closeVariableLengthItem();
             return length;
@@ -2840,8 +2775,7 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getFloatArray(float[] array, int fromOffset, int toOffset,
-            int length) {
+    public int getFloatArray(float[] array, int fromOffset, int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
@@ -2854,8 +2788,7 @@ public final class Value {
             if (length > array.length - toOffset)
                 length = array.length - toOffset;
             for (int index = 0; index < length; index++) {
-                array[toOffset + index] = Float.intBitsToFloat(Util.getInt(
-                        _bytes, _next + (index + fromOffset) * 4));
+                array[toOffset + index] = Float.intBitsToFloat(Util.getInt(_bytes, _next + (index + fromOffset) * 4));
             }
             closeVariableLengthItem();
             return length;
@@ -2893,8 +2826,7 @@ public final class Value {
      * @return The number of elements actually copied, or -1 if the
      *         <code>Value</code> object represents <code>null</code>.
      */
-    public int getDoubleArray(double[] array, int fromOffset, int toOffset,
-            int length) {
+    public int getDoubleArray(double[] array, int fromOffset, int toOffset, int length) {
         _serializedItemCount++;
         if (nextType(CLASS_ARRAY) == TYPE_NULL)
             return -1;
@@ -2907,8 +2839,8 @@ public final class Value {
             if (length > array.length - toOffset)
                 length = array.length - toOffset;
             for (int index = 0; index < length; index++) {
-                array[toOffset + index] = Double.longBitsToDouble(Util.getLong(
-                        _bytes, _next + (index + fromOffset) * 8));
+                array[toOffset + index] = Double.longBitsToDouble(Util
+                        .getLong(_bytes, _next + (index + fromOffset) * 8));
             }
             closeVariableLengthItem();
             return length;
@@ -3132,8 +3064,7 @@ public final class Value {
             return;
         }
         if (_shared) {
-            int serializationHandle = getValueCache().put(currentItemCount,
-                    object);
+            int serializationHandle = getValueCache().put(currentItemCount, object);
             if (serializationHandle != -1) {
                 ensureFit(5);
                 _bytes[_size++] = (byte) CLASS_REREF;
@@ -3182,8 +3113,7 @@ public final class Value {
         else if (cl == Boolean.class) {
             ensureFit(2);
             _bytes[_size++] = (byte) CLASS_BOOLEAN;
-            _bytes[_size++] = (byte) (((Boolean) object).booleanValue() ? TRUE_CHAR
-                    : FALSE_CHAR);
+            _bytes[_size++] = (byte) (((Boolean) object).booleanValue() ? TRUE_CHAR : FALSE_CHAR);
         } else if (cl == Byte.class) {
             ensureFit(2);
             _bytes[_size++] = (byte) CLASS_BYTE;
@@ -3211,14 +3141,12 @@ public final class Value {
         } else if (cl == Float.class) {
             ensureFit(5);
             _bytes[_size++] = (byte) CLASS_FLOAT;
-            Util.putInt(_bytes, _size,
-                    Float.floatToRawIntBits(((Float) object).floatValue()));
+            Util.putInt(_bytes, _size, Float.floatToRawIntBits(((Float) object).floatValue()));
             _size += 4;
         } else if (cl == Double.class) {
             ensureFit(9);
             _bytes[_size++] = (byte) CLASS_DOUBLE;
-            Util.putLong(_bytes, _size,
-                    Double.doubleToRawLongBits(((Double) object).doubleValue()));
+            Util.putLong(_bytes, _size, Double.doubleToRawLongBits(((Double) object).doubleValue()));
             _size += 8;
         } else if (cl.isArray()) {
             Class componentClass = cl.getComponentType();
@@ -3257,8 +3185,7 @@ public final class Value {
                 ValueCoder coder = getValueCoder(cl);
 
                 while (coder instanceof DefaultObjectCoder) {
-                    Object replacement = ((DefaultObjectCoder) coder)
-                            .writeReplace(this, object);
+                    Object replacement = ((DefaultObjectCoder) coder).writeReplace(this, object);
 
                     if (replacement == object)
                         break;
@@ -3282,12 +3209,10 @@ public final class Value {
                     if (cl == Object.class) {
                         handle = CLASS_OBJECT;
                     } else
-                        handle = _persistit.getClassIndex().lookupByClass(cl)
-                                .getHandle();
+                        handle = _persistit.getClassIndex().lookupByClass(cl).getHandle();
 
                     if (coder != null) {
-                        _size += encodeVariableLengthInt(CLASS1, _size, handle
-                                - CLASS1);
+                        _size += encodeVariableLengthInt(CLASS1, _size, handle - CLASS1);
 
                         coder.put(this, object, context);
                         end = _size;
@@ -3517,8 +3442,7 @@ public final class Value {
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_BOOLEAN;
         for (int index = 0; index < length; index++) {
-            Util.putByte(_bytes, _size, array[index + offset] ? TRUE_CHAR
-                    : FALSE_CHAR);
+            Util.putByte(_bytes, _size, array[index + offset] ? TRUE_CHAR : FALSE_CHAR);
             _size++;
         }
         endVariableSizeItem(length + 2);
@@ -3765,8 +3689,7 @@ public final class Value {
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_FLOAT;
         for (int index = 0; index < length; index++) {
-            Util.putInt(_bytes, _size,
-                    Float.floatToRawIntBits(array[index + offset]));
+            Util.putInt(_bytes, _size, Float.floatToRawIntBits(array[index + offset]));
             _size += 4;
         }
         endVariableSizeItem((length * 4) + 2);
@@ -3808,8 +3731,7 @@ public final class Value {
         _bytes[_size++] = CLASS_ARRAY;
         _bytes[_size++] = TYPE_DOUBLE;
         for (int index = 0; index < length; index++) {
-            Util.putLong(_bytes, _size,
-                    Double.doubleToRawLongBits(array[index + offset]));
+            Util.putLong(_bytes, _size, Double.doubleToRawLongBits(array[index + offset]));
             _size += 8;
         }
         endVariableSizeItem((length * 8) + 2);
@@ -3929,8 +3851,7 @@ public final class Value {
         checkArrayLength(length, offset, array.length);
         int start = _size;
         ensureFit(12);
-        _bytes[_size++] = (byte) (dimensions == 1 ? CLASS_ARRAY
-                : CLASS_MULTI_ARRAY);
+        _bytes[_size++] = (byte) (dimensions == 1 ? CLASS_ARRAY : CLASS_MULTI_ARRAY);
         encodeClass(componentType);
         if (dimensions != 1) {
             _bytes[_size++] = (byte) dimensions;
@@ -3983,8 +3904,7 @@ public final class Value {
             break;
         }
         default: {
-            throw new ConversionException(
-                    "Existing value is not numeric. Type=" + type);
+            throw new ConversionException("Existing value is not numeric. Type=" + type);
         }
         }
     }
@@ -4100,12 +4020,10 @@ public final class Value {
     private void checkSize(int size) {
         if (_next + size != _size) {
             if (_next + size >= _size) {
-                throw new MalformedValueException(
-                        "Not enough bytes in Value at index=" + (_next - 1));
+                throw new MalformedValueException("Not enough bytes in Value at index=" + (_next - 1));
             }
             if (_depth == 0) {
-                throw new MalformedValueException(
-                        "Too many bytes in Value at index=" + (_next - 1));
+                throw new MalformedValueException("Too many bytes in Value at index=" + (_next - 1));
             }
         }
     }
@@ -4141,8 +4059,7 @@ public final class Value {
 
     private int type() {
         if (_next >= _end) {
-            throw new ConversionException("No more data at index=" + _next
-                    + " end=" + _end);
+            throw new ConversionException("No more data at index=" + _next + " end=" + _end);
         }
         return _bytes[_next] & 0xFF;
     }
@@ -4172,8 +4089,7 @@ public final class Value {
             releaseValueCache();
             if (_level != 0) {
                 _level = 0;
-                if (_endArray != null
-                        && _endArray.length > TOO_MANY_LEVELS_THRESHOLD) {
+                if (_endArray != null && _endArray.length > TOO_MANY_LEVELS_THRESHOLD) {
                     _endArray = null;
                 }
             }
@@ -4194,8 +4110,7 @@ public final class Value {
         if (type == expectedType || type == TYPE_NULL)
             return type;
 
-        throw new ConversionException("Expected a "
-                + classForHandle(expectedType) + " but value is a "
+        throw new ConversionException("Expected a " + classForHandle(expectedType) + " but value is a "
                 + classForHandle(type));
     }
 
@@ -4204,8 +4119,7 @@ public final class Value {
         if (type == expectedType1 || type == expectedType2 || type == TYPE_NULL)
             return type;
 
-        throw new ConversionException("Expected a "
-                + classForHandle(expectedType1) + " but value is a "
+        throw new ConversionException("Expected a " + classForHandle(expectedType1) + " but value is a "
                 + classForHandle(type));
     }
 
@@ -4214,8 +4128,8 @@ public final class Value {
         if (object == null || type.isAssignableFrom(object.getClass())) {
             return object;
         } else {
-            throw new ConversionException("Expected a " + type.getName()
-                    + " but value is a " + object.getClass().getName());
+            throw new ConversionException("Expected a " + type.getName() + " but value is a "
+                    + object.getClass().getName());
         }
     }
 
@@ -4229,13 +4143,11 @@ public final class Value {
         if (Debug.ENABLED)
             Debug.$assert((base & 0x3F) == 0);
 
-        int encodingSize = value < 0x00000010 ? 1 : value < 0x00001000 ? 2
-                : value < 0x10000000 ? 3 : 5;
+        int encodingSize = value < 0x00000010 ? 1 : value < 0x00001000 ? 2 : value < 0x10000000 ? 3 : 5;
 
         if (_size > index) {
             ensureFit(encodingSize);
-            System.arraycopy(_bytes, index, _bytes, index + encodingSize, _size
-                    - index);
+            System.arraycopy(_bytes, index, _bytes, index + encodingSize, _size - index);
         }
         base |= ENCODED_SIZE_BITS[encodingSize];
         switch (encodingSize) {
@@ -4266,8 +4178,7 @@ public final class Value {
     private int decodeElementCount() {
         int base = _bytes[_next] & 0xFF;
         if (base < COUNT1 || base > COUNT5) {
-            throw new MalformedValueException(
-                    "Invalid element count introducer " + base + " at " + _next);
+            throw new MalformedValueException("Invalid element count introducer " + base + " at " + _next);
         }
         _next++;
         return decodeVariableLengthInt(base);
@@ -4303,8 +4214,7 @@ public final class Value {
             _bytes[_size++] = (byte) classHandle;
         } else {
             ensureFit(5);
-            _size += encodeVariableLengthInt(CLASS1, _size, classHandle
-                    - CLASS1);
+            _size += encodeVariableLengthInt(CLASS1, _size, classHandle - CLASS1);
         }
     }
 
@@ -4332,13 +4242,11 @@ public final class Value {
         if (ci != null) {
             return ci.getHandle();
         }
-        throw new ConversionException("Class not mapped to handle "
-                + cl.getName());
+        throw new ConversionException("Class not mapped to handle " + cl.getName());
     }
 
     private Class classForHandle(int classHandle) {
-        if (classHandle > 0 && classHandle < CLASSES.length
-                && CLASSES[classHandle] != null) {
+        if (classHandle > 0 && classHandle < CLASSES.length && CLASSES[classHandle] != null) {
             return CLASSES[classHandle];
         } else if (classHandle == CLASS_ARRAY) {
             return Object[].class;
@@ -4350,8 +4258,7 @@ public final class Value {
     }
 
     private ClassInfo classInfoForHandle(int classHandle) {
-        ClassInfo classInfo = _persistit.getClassIndex().lookupByHandle(
-                classHandle);
+        ClassInfo classInfo = _persistit.getClassIndex().lookupByHandle(classHandle);
         if (classInfo == null) {
             throw new ConversionException("Unknown class handle " + classHandle);
         }
@@ -4364,8 +4271,8 @@ public final class Value {
             return true;
         if (ch == FALSE_CHAR)
             return false;
-        throw new ConversionException("Expected a Boolean " + " but value "
-                + ch + " is neither 'T' nor 'F' at index=" + index);
+        throw new ConversionException("Expected a Boolean " + " but value " + ch + " is neither 'T' nor 'F' at index="
+                + index);
     }
 
     private Object getMultiArray(Class prototype) {
@@ -4377,8 +4284,7 @@ public final class Value {
             if (array == null || array.getClass().isArray()) {
                 return array;
             } else {
-                throw new ConversionException(
-                        "Referenced object is not an array");
+                throw new ConversionException("Referenced object is not an array");
             }
         }
         Object result;
@@ -4388,9 +4294,7 @@ public final class Value {
             checkSize(1);
             int dimensions = _bytes[_next++] & 0xFF;
             if (prototype == null) {
-                prototype = Array.newInstance(
-                        classForHandle(componentClassHandle),
-                        new int[dimensions]).getClass();
+                prototype = Array.newInstance(classForHandle(componentClassHandle), new int[dimensions]).getClass();
             }
             int length = decodeElementCount();
             result = Array.newInstance(prototype.getComponentType(), length);
@@ -4419,8 +4323,7 @@ public final class Value {
         nextType(CLASS_ANTIVALUE);
         int length = _end - _next;
         int elisionCount = Util.getShort(_bytes, _next);
-        AntiValue.fixupKeys(exchange, elisionCount, _bytes, _next + 2,
-                length - 2);
+        AntiValue.fixupKeys(exchange, elisionCount, _bytes, _next + 2, length - 2);
         _next += length;
         closeVariableLengthItem();
     }
@@ -4435,8 +4338,7 @@ public final class Value {
      * 
      * @return The <code>ObjectOutputStream</code>
      */
-    public ObjectOutputStream getObjectOutputStream()
-            throws ConversionException {
+    public ObjectOutputStream getObjectOutputStream() throws ConversionException {
         if (_vos == null) {
             _vos = (ValueObjectOutputStream) getPrivilegedStream(true);
         }
@@ -4462,19 +4364,17 @@ public final class Value {
     private Object getPrivilegedStream(final boolean output) {
         try {
             final Value value = this;
-            return AccessController
-                    .doPrivileged(new PrivilegedExceptionAction() {
-                        public Object run() throws IOException {
-                            if (output)
-                                return new ValueObjectOutputStream(value);
-                            else
-                                return new ValueObjectInputStream(value);
-                        }
-                    });
+            return AccessController.doPrivileged(new PrivilegedExceptionAction() {
+                public Object run() throws IOException {
+                    if (output)
+                        return new ValueObjectOutputStream(value);
+                    else
+                        return new ValueObjectInputStream(value);
+                }
+            });
         } catch (PrivilegedActionException pae) {
             throw new ConversionException("While creating "
-                    + (output ? "ValueObjectOutputStream"
-                            : "ValueObjectInputStream"), pae.getException());
+                    + (output ? "ValueObjectOutputStream" : "ValueObjectInputStream"), pae.getException());
         }
     }
 
@@ -4575,8 +4475,7 @@ public final class Value {
             if (_value._currentCoder == null || _value._currentObject == null) {
                 throw new NotActiveException("not in call to writeObject");
             }
-            _value._currentCoder
-                    .putDefaultFields(_value, _value._currentObject);
+            _value._currentCoder.putDefaultFields(_value, _value._currentObject);
         }
     }
 
@@ -4648,8 +4547,7 @@ public final class Value {
             read(b, 0, b.length);
         }
 
-        public void readFully(byte[] b, int offset, int length)
-                throws IOException {
+        public void readFully(byte[] b, int offset, int length) throws IOException {
             read(b, offset, length);
         }
 
@@ -4687,8 +4585,7 @@ public final class Value {
             if (_value._currentCoder == null || _value._currentObject == null) {
                 throw new ConversionException("not in call to readObject");
             }
-            _value._currentCoder.renderDefaultFields(_value,
-                    _value._currentObject);
+            _value._currentCoder.renderDefaultFields(_value, _value._currentObject);
         }
 
     }
@@ -4706,8 +4603,7 @@ public final class Value {
         int _mark = -1;
         ObjectStreamClass _classDescriptor;
 
-        OldValueInputStream(final Value value, ObjectStreamClass classDescriptor)
-                throws IOException {
+        OldValueInputStream(final Value value, ObjectStreamClass classDescriptor) throws IOException {
             this(value);
             if (classDescriptor == null) {
                 throw new ConversionException("Null class descriptor");
@@ -4737,8 +4633,7 @@ public final class Value {
                     if (size <= 0) {
                         size = -1;
                     } else {
-                        Util.arraycopy(value._bytes, value._next, bytes,
-                                offset, size);
+                        Util.arraycopy(value._bytes, value._next, bytes, offset, size);
 
                         value._next += size;
                     }
@@ -4746,8 +4641,7 @@ public final class Value {
                 }
 
                 public long skip(long lsize) {
-                    int size = lsize > Integer.MAX_VALUE ? Integer.MAX_VALUE
-                            : (int) lsize;
+                    int size = lsize > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) lsize;
                     if (size < 0)
                         return 0;
                     if (value._next + size > value._end) {
@@ -4768,8 +4662,7 @@ public final class Value {
             _value = value;
         }
 
-        protected final ObjectStreamClass readClassDescriptor()
-                throws IOException, ClassNotFoundException {
+        protected final ObjectStreamClass readClassDescriptor() throws IOException, ClassNotFoundException {
             if (_classDescriptor == null) {
                 return super.readClassDescriptor();
             } else if (_innerClassDescriptor) {
@@ -4780,8 +4673,7 @@ public final class Value {
                     classDescriptor = classInfo.getClassDescriptor();
                 }
                 if (classDescriptor == null) {
-                    throw new ConversionException("Unknown class handle "
-                            + handle);
+                    throw new ConversionException("Unknown class handle " + handle);
                 }
                 return classDescriptor;
             } else {
@@ -4815,11 +4707,9 @@ public final class Value {
          * Override the default implementation because we want to use the
          * application's ClassLoader, not necessarily the bootstrap loader.
          */
-        protected Class resolveClass(ObjectStreamClass desc)
-                throws ClassNotFoundException {
+        protected Class resolveClass(ObjectStreamClass desc) throws ClassNotFoundException {
             String name = desc.getName();
-            return Class.forName(name, false, Thread.currentThread()
-                    .getContextClassLoader());
+            return Class.forName(name, false, Thread.currentThread().getContextClassLoader());
         }
     }
 
@@ -4835,8 +4725,7 @@ public final class Value {
         ObjectStreamClass _classDescriptor;
         boolean _innerClassDescriptor;
 
-        OldValueOutputStream(final Value value,
-                ObjectStreamClass classDescriptor) throws IOException {
+        OldValueOutputStream(final Value value, ObjectStreamClass classDescriptor) throws IOException {
             this(value);
             if (classDescriptor == null) {
                 throw new ConversionException("Null class descriptor");
@@ -4857,16 +4746,14 @@ public final class Value {
 
                 public void write(byte[] bytes, int offset, int size) {
                     value.ensureFit(size);
-                    Util.arraycopy(bytes, offset, value._bytes, value._size,
-                            size);
+                    Util.arraycopy(bytes, offset, value._bytes, value._size, size);
                     value._size += size;
                 }
             });
             _value = value;
         }
 
-        protected final void writeClassDescriptor(
-                ObjectStreamClass classDescriptor) throws IOException {
+        protected final void writeClassDescriptor(ObjectStreamClass classDescriptor) throws IOException {
             if (_classDescriptor == null) {
                 super.writeClassDescriptor(classDescriptor);
             } else if (_innerClassDescriptor) {
@@ -5051,8 +4938,7 @@ public final class Value {
         }
 
         private int hashIndex(Object object) {
-            return (System.identityHashCode(object) & 0x7FFFFFFF)
-                    % _hashTable.length;
+            return (System.identityHashCode(object) & 0x7FFFFFFF) % _hashTable.length;
         }
     }
 

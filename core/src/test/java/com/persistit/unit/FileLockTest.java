@@ -23,11 +23,11 @@ import com.persistit.Persistit;
 import com.persistit.exception.PersistitException;
 
 /**
- * Test simple scenario to ensure a second Persistit instance referring to
- * the same volumes can't start.
+ * Test simple scenario to ensure a second Persistit instance referring to the
+ * same volumes can't start.
  * 
  * @author peter
- *
+ * 
  */
 public class FileLockTest extends PersistitUnitTestCase {
 
@@ -47,17 +47,15 @@ public class FileLockTest extends PersistitUnitTestCase {
         _persistit.close(false);
         // now this should succeed.
         try {
-        p2.initialize(properties);
+            p2.initialize(properties);
         } finally {
             p2.close(false);
         }
     }
-    
-    
-    
+
     @Override
     public void runAllTests() throws Exception {
         testOverlap();
     }
-    
+
 }

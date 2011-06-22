@@ -150,23 +150,18 @@ public class StreamSaver extends Task {
      *            The File to which data will be saved
      * @throws FileNotFoundException
      */
-    public StreamSaver(final Persistit persistit, final File file)
-            throws FileNotFoundException {
-        this(persistit, new DataOutputStream(new BufferedOutputStream(
-                new FileOutputStream(file), DEFAULT_BUFFER_SIZE)));
+    public StreamSaver(final Persistit persistit, final File file) throws FileNotFoundException {
+        this(persistit, new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file), DEFAULT_BUFFER_SIZE)));
     }
 
     @Cmd("save")
-    static StreamSaver createTask(
-            @Arg("file|string:|Save to file") String file,
+    static StreamSaver createTask(@Arg("file|string:|Save to file") String file,
             @Arg("trees|string:*|Tree selector - specify Volumes/Trees/Keys to save") String treeSelectorString,
             @Arg("_flag|v|verbose") boolean verbose,
-            @Arg("_flag|r|Use regular expressions in tree selector") boolean regex)
-            throws Exception {
+            @Arg("_flag|r|Use regular expressions in tree selector") boolean regex) throws Exception {
         StreamSaver task = new StreamSaver();
         task._filePath = file;
-        task._treeSelector = TreeSelector.parseSelector(treeSelectorString,
-                regex, '\\');
+        task._treeSelector = TreeSelector.parseSelector(treeSelectorString, regex, '\\');
         task.setVerbose(verbose);
         return task;
     }
@@ -179,10 +174,9 @@ public class StreamSaver extends Task {
      *            The path name of the file to which data will be saved
      * @throws FileNotFoundException
      */
-    public StreamSaver(final Persistit persistit, final String pathName)
-            throws FileNotFoundException {
-        this(persistit, new DataOutputStream(new BufferedOutputStream(
-                new FileOutputStream(pathName), DEFAULT_BUFFER_SIZE)));
+    public StreamSaver(final Persistit persistit, final String pathName) throws FileNotFoundException {
+        this(persistit, new DataOutputStream(new BufferedOutputStream(new FileOutputStream(pathName),
+                DEFAULT_BUFFER_SIZE)));
     }
 
     /**
@@ -195,10 +189,8 @@ public class StreamSaver extends Task {
      *            The buffer size
      * @throws FileNotFoundException
      */
-    public StreamSaver(final Persistit persistit, final File file,
-            int bufferSize) throws FileNotFoundException {
-        this(persistit, new DataOutputStream(new BufferedOutputStream(
-                new FileOutputStream(file), bufferSize)));
+    public StreamSaver(final Persistit persistit, final File file, int bufferSize) throws FileNotFoundException {
+        this(persistit, new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file), bufferSize)));
     }
 
     /**
@@ -211,10 +203,8 @@ public class StreamSaver extends Task {
      *            The buffer size
      * @throws FileNotFoundException
      */
-    public StreamSaver(final Persistit persistit, final String pathName,
-            int bufferSize) throws FileNotFoundException {
-        this(persistit, new DataOutputStream(new BufferedOutputStream(
-                new FileOutputStream(pathName), bufferSize)));
+    public StreamSaver(final Persistit persistit, final String pathName, int bufferSize) throws FileNotFoundException {
+        this(persistit, new DataOutputStream(new BufferedOutputStream(new FileOutputStream(pathName), bufferSize)));
     }
 
     /**
@@ -323,8 +313,7 @@ public class StreamSaver extends Task {
         _dos.writeShort(key.getEncodedSize());
         _dos.writeShort(elisionCount);
         _dos.writeInt(value.getEncodedSize());
-        _dos.write(key.getEncodedBytes(), elisionCount, key.getEncodedSize()
-                - elisionCount);
+        _dos.write(key.getEncodedBytes(), elisionCount, key.getEncodedSize() - elisionCount);
         _dos.write(value.getEncodedBytes(), 0, value.getEncodedSize());
 
         _dataRecordCount++;
@@ -345,8 +334,7 @@ public class StreamSaver extends Task {
      * 
      * @throws IOException
      */
-    protected void writeRecordCount(long dataRecordCount, long otherRecordCount)
-            throws IOException {
+    protected void writeRecordCount(long dataRecordCount, long otherRecordCount) throws IOException {
         _dos.writeChar(RECORD_TYPE_FILL);
         _dos.writeChar(RECORD_TYPE_FILL);
         _dos.writeChar(RECORD_TYPE_FILL);
@@ -474,16 +462,10 @@ public class StreamSaver extends Task {
      * @throws PersistitException
      * @throws IOException
      */
-    public void save(Exchange exchange, KeyFilter filter)
-            throws PersistitException, IOException {
+    public void save(Exchange exchange, KeyFilter filter) throws PersistitException, IOException {
         if (_verbose) {
-            postMessage(
-                    "Saving Tree "
-                            + exchange.getTree().getName()
-                            + " in volume "
-                            + exchange.getVolume().getPath()
-                            + (filter == null ? "" : " using KeyFilter: "
-                                    + filter.toString()), LOG_VERBOSE);
+            postMessage("Saving Tree " + exchange.getTree().getName() + " in volume " + exchange.getVolume().getPath()
+                    + (filter == null ? "" : " using KeyFilter: " + filter.toString()), LOG_VERBOSE);
         }
 
         writeTimestamp();
@@ -515,8 +497,7 @@ public class StreamSaver extends Task {
      * @throws PersistitException
      * @throws IOException
      */
-    public void saveTrees(String volumeName, String[] selectedTreeNames)
-            throws PersistitException, IOException {
+    public void saveTrees(String volumeName, String[] selectedTreeNames) throws PersistitException, IOException {
         Volume volume = _persistit.getVolume(volumeName);
         if (volume != null)
             saveTrees(volume, selectedTreeNames);
@@ -532,15 +513,13 @@ public class StreamSaver extends Task {
      * @throws PersistitException
      * @throws IOException
      */
-    public void saveTrees(Volume volume, String[] selectedTreeNames)
-            throws PersistitException, IOException {
+    public void saveTrees(Volume volume, String[] selectedTreeNames) throws PersistitException, IOException {
         String[] treeNames = volume.getTreeNames();
         writeComment("Volume " + volume.getPath());
         for (int index = 0; index < treeNames.length & !_stop; index++) {
             boolean selected = true;
             if (selectedTreeNames != null) {
-                for (int index2 = 0; selected
-                        && index2 < selectedTreeNames.length; index2++) {
+                for (int index2 = 0; selected && index2 < selectedTreeNames.length; index2++) {
                     if (!selectedTreeNames[index2].equals(treeNames[index])) {
                         selected = false;
                     }
@@ -551,8 +530,7 @@ public class StreamSaver extends Task {
             } else {
                 writeComment("Tree " + treeNames[index]);
                 try {
-                    Exchange exchange = _persistit.getExchange(volume,
-                            treeNames[index], false);
+                    Exchange exchange = _persistit.getExchange(volume, treeNames[index], false);
                     save(exchange, null);
                 } catch (PersistitException exception) {
                     _lastException = exception;
@@ -571,16 +549,14 @@ public class StreamSaver extends Task {
      * @throws PersistitException
      * @throws IOException
      */
-    public void saveTrees(final TreeSelector treeSelector)
-            throws PersistitException, IOException {
+    public void saveTrees(final TreeSelector treeSelector) throws PersistitException, IOException {
         final List<Tree> trees = _persistit.getSelectedTrees(treeSelector);
         for (final Tree tree : trees) {
             if (tree.getVolume().getDirectoryTree() == tree) {
                 for (final String treeName : tree.getVolume().getTreeNames()) {
                     final Tree t = tree.getVolume().getTree(treeName, false);
                     try {
-                        writeComment("Tree " + treeName + " in "
-                                + tree.getVolume().getPath());
+                        writeComment("Tree " + treeName + " in " + tree.getVolume().getPath());
                         Exchange exchange = new Exchange(t);
                         save(exchange, null);
                     } catch (PersistitException exception) {
@@ -590,11 +566,9 @@ public class StreamSaver extends Task {
                 }
             } else {
                 try {
-                    writeComment("Tree " + tree.getName() + " in "
-                            + tree.getVolume().getPath());
+                    writeComment("Tree " + tree.getName() + " in " + tree.getVolume().getPath());
                     Exchange exchange = new Exchange(tree);
-                    save(exchange, treeSelector.keyFilter(tree.getVolume()
-                            .getName(), tree.getName()));
+                    save(exchange, treeSelector.keyFilter(tree.getVolume().getName(), tree.getName()));
                 } catch (PersistitException exception) {
                     _lastException = exception;
                     writeException(exception);
@@ -621,8 +595,7 @@ public class StreamSaver extends Task {
 
     @Override
     protected void runTask() throws PersistitException, IOException {
-        _dos = new DataOutputStream(new BufferedOutputStream(
-                new FileOutputStream(_filePath), DEFAULT_BUFFER_SIZE));
+        _dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(_filePath), DEFAULT_BUFFER_SIZE));
         saveTrees(_treeSelector);
         close();
     }
@@ -632,8 +605,7 @@ public class StreamSaver extends Task {
         if (_lastTree == null) {
             return null;
         } else {
-            return "Saving " + _lastTree.getName() + " in "
-                    + _lastTree.getVolume().getPath() + " (" + _recordCount
+            return "Saving " + _lastTree.getName() + " in " + _lastTree.getVolume().getPath() + " (" + _recordCount
                     + ")";
         }
     }

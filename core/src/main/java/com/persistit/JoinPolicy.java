@@ -38,9 +38,8 @@ public class JoinPolicy {
      */
     public final static JoinPolicy EVEN_BIAS = new JoinPolicy(0, "EVEN");
 
-    
-    private final static JoinPolicy[] POLICIES = {LEFT_BIAS, RIGHT_BIAS, EVEN_BIAS};
-    
+    private final static JoinPolicy[] POLICIES = { LEFT_BIAS, RIGHT_BIAS, EVEN_BIAS };
+
     public static JoinPolicy forName(final String name) {
         for (final JoinPolicy policy : POLICIES) {
             if (policy.toString().equalsIgnoreCase(name)) {
@@ -50,7 +49,6 @@ public class JoinPolicy {
         throw new IllegalArgumentException("No such SplitPolicy " + name);
     }
 
-    
     String _name;
     int _bias;
 
@@ -88,9 +86,8 @@ public class JoinPolicy {
      *         largest such measure for the best split point
      */
 
-    public int rebalanceFit(Buffer leftBuffer, Buffer rightBuffer,
-            int kbOffset, int foundAt1, int foundAt2, int virtualSize,
-            int leftSize, int rightSize, int capacity) {
+    public int rebalanceFit(Buffer leftBuffer, Buffer rightBuffer, int kbOffset, int foundAt1, int foundAt2,
+            int virtualSize, int leftSize, int rightSize, int capacity) {
         //
         // This implementation minimizes the difference -- i.e., attempts
         // to join the page into equally sized siblings.

@@ -54,14 +54,12 @@ public class FastIndex {
 
     public void putDescriminatorByte(int index, int db) {
         checkBounds(index);
-        _findexElements[index] = (db & FINDEX_DB_MASK)
-                | (_findexElements[index] & ~FINDEX_DB_MASK);
+        _findexElements[index] = (db & FINDEX_DB_MASK) | (_findexElements[index] & ~FINDEX_DB_MASK);
     }
 
     public void putRunCount(int index, int runCount) {
         checkBounds(index);
-        _findexElements[index] = (runCount << FINDEX_RUNCOUNT_SHIFT)
-                | (_findexElements[index] & ~FINDEX_RUNCOUNT_MASK);
+        _findexElements[index] = (runCount << FINDEX_RUNCOUNT_SHIFT) | (_findexElements[index] & ~FINDEX_RUNCOUNT_MASK);
     }
 
     public void putEbc(int index, int ebc) {
@@ -72,8 +70,7 @@ public class FastIndex {
 
     public void putRunCountAndEbc(int index, int runCount, int ebc) {
         checkBounds(index);
-        _findexElements[index] = ((ebc << FINDEX_EBC_SHIFT) & FINDEX_EBC_MASK)
-                | (runCount << FINDEX_RUNCOUNT_SHIFT)
+        _findexElements[index] = ((ebc << FINDEX_EBC_SHIFT) & FINDEX_EBC_MASK) | (runCount << FINDEX_RUNCOUNT_SHIFT)
                 | (_findexElements[index] & FINDEX_DB_MASK);
     }
 
@@ -101,7 +98,7 @@ public class FastIndex {
         checkBounds(index);
         return _findexElements[index] & FINDEX_DB_MASK;
     }
-    
+
     private void checkBounds(final int index) {
         if (index < 0 || index >= _findexElements.length) {
             System.out.println("FastIndex.checkBounds(" + index + ")");
@@ -219,9 +216,8 @@ public class FastIndex {
         for (int i = 0, p = start; p < end; i++, p += Buffer.KEYBLOCK_LENGTH) {
             ebc0 = ebc;
             ebc = ebc2;
-            ebc2 = p + Buffer.KEYBLOCK_LENGTH < end ? Buffer
-                    .decodeKeyBlockEbc(_buffer.getInt(p
-                            + Buffer.KEYBLOCK_LENGTH)) : 0;
+            ebc2 = p + Buffer.KEYBLOCK_LENGTH < end ? Buffer.decodeKeyBlockEbc(_buffer.getInt(p
+                    + Buffer.KEYBLOCK_LENGTH)) : 0;
             if (ebc2 > ebc) {
                 if (getRunCount(i) >= 0) {
                     if (faultAt < 0) {
@@ -248,8 +244,7 @@ public class FastIndex {
      * newly inserted keyblock, prior to the insertion. (Inserting the new
      * keyblock may cause ebc2 to change.)
      */
-    public synchronized void insertKeyBlock(int foundAt, int insertedEbc,
-            boolean fixupSuccessor) {
+    public synchronized void insertKeyBlock(int foundAt, int insertedEbc, boolean fixupSuccessor) {
         if (_findexElements == null) {
             return;
         }
@@ -271,8 +266,7 @@ public class FastIndex {
         /*
          * Insert the associated Findex element.
          */
-        System.arraycopy(_findexElements, insertIndex, _findexElements,
-                insertIndex + 1, lastIndex - insertIndex - 1);
+        System.arraycopy(_findexElements, insertIndex, _findexElements, insertIndex + 1, lastIndex - insertIndex - 1);
 
         int kbData = _buffer.getInt(p);
         putDescriminatorByte(insertIndex, Buffer.decodeKeyBlockDb(kbData));
@@ -372,13 +366,11 @@ public class FastIndex {
                      * This is a tricky case because the successor KeyBlock is
                      * changing level.
                      */
-                    int successorEbc = Buffer.decodeKeyBlockEbc(_buffer
-                            .getInt(p + Buffer.KEYBLOCK_LENGTH));
+                    int successorEbc = Buffer.decodeKeyBlockEbc(_buffer.getInt(p + Buffer.KEYBLOCK_LENGTH));
                     if (runCount < 0) {
                         runCount = 0;
                     }
-                    fixupSuccessor(lastIndex, insertIndex, insertIndex,
-                            runCount, ebc, successorEbc);
+                    fixupSuccessor(lastIndex, insertIndex, insertIndex, runCount, ebc, successorEbc);
                 } else {
                     if (insertIndex + 1 >= lastIndex) {
                         putRunCountAndEbc(insertIndex, 0, ebc);
@@ -409,11 +401,9 @@ public class FastIndex {
                          * This is a tricky case because the successor KeyBlock
                          * is changing level.
                          */
-                        int successorEbc = Buffer.decodeKeyBlockEbc(_buffer
-                                .getInt(p + Buffer.KEYBLOCK_LENGTH));
+                        int successorEbc = Buffer.decodeKeyBlockEbc(_buffer.getInt(p + Buffer.KEYBLOCK_LENGTH));
 
-                        fixupSuccessor(lastIndex, insertIndex, runIndex,
-                                runCount, ebc, successorEbc);
+                        fixupSuccessor(lastIndex, insertIndex, runIndex, runCount, ebc, successorEbc);
                     } else {
                         putRunCount(runIndex, runCount + 1);
                         putZero(insertIndex);
@@ -427,8 +417,7 @@ public class FastIndex {
                     putRunCountAndEbc(insertIndex, 0, insertedEbc);
 
                     if (runIndex + runCount > insertIndex) {
-                        putRunCountAndEbc(insertIndex + 1, runCount
-                                - (insertIndex - runIndex), ebc);
+                        putRunCountAndEbc(insertIndex + 1, runCount - (insertIndex - runIndex), ebc);
                     } else {
                         putEbc(insertIndex + 1, ebc);
                     }
@@ -471,10 +460,8 @@ public class FastIndex {
      * @param ebc
      * @param successorEbc
      */
-    private void fixupSuccessor(int lastIndex, int insertIndex, int runIndex,
-            int runCount, int ebc, int successorEbc) {
-        int p = _buffer.getKeyBlockStart() + (insertIndex + 1)
-                * Buffer.KEYBLOCK_LENGTH;
+    private void fixupSuccessor(int lastIndex, int insertIndex, int runIndex, int runCount, int ebc, int successorEbc) {
+        int p = _buffer.getKeyBlockStart() + (insertIndex + 1) * Buffer.KEYBLOCK_LENGTH;
         int kbData = _buffer.getInt(p);
         putDescriminatorByte(insertIndex + 1, Buffer.decodeKeyBlockDb(kbData));
 
@@ -508,8 +495,7 @@ public class FastIndex {
              */
             putRunCount(insertIndex, runCount - 1);
 
-            int successorRunCount = insertIndex + 1 < lastIndex ? getRunCount(insertIndex + 1)
-                    : 0;
+            int successorRunCount = insertIndex + 1 < lastIndex ? getRunCount(insertIndex + 1) : 0;
             Debug.$assert(successorRunCount <= 0);
             putRunCountAndEbc(insertIndex, successorRunCount - 1, ebc);
 
@@ -522,16 +508,15 @@ public class FastIndex {
                      */
                     int secondSuccessorRunCount = getRunCount(insertIndex + 2);
                     if (secondSuccessorRunCount >= 0) {
-                        putRunCountAndEbc(insertIndex + 1,
-                                secondSuccessorRunCount + 1, successorEbc);
+                        putRunCountAndEbc(insertIndex + 1, secondSuccessorRunCount + 1, successorEbc);
                         putZero(insertIndex + 2);
                     } else {
                         putRunCountAndEbc(insertIndex + 1, 1, successorEbc);
                     }
                 } else {
                     putEbc(insertIndex + 1, successorEbc);
-                    int newCrossCount = successorEbc < secondSuccessorEbc ? computeCrossCount(
-                            successorEbc, insertIndex + 1, lastIndex) : 0;
+                    int newCrossCount = successorEbc < secondSuccessorEbc ? computeCrossCount(successorEbc,
+                            insertIndex + 1, lastIndex) : 0;
                     putRunCount(insertIndex + 1, newCrossCount);
                 }
             } else {

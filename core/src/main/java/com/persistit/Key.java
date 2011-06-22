@@ -494,8 +494,7 @@ public final class Key implements Comparable<Object> {
      * so that the precise stored representation of a date used as a key can be
      * represented exactly, but readably, in the displayable version.
      */
-    public final static SimpleDateFormat SDF = new SimpleDateFormat(
-            "yyyyMMddHHmmss.SSSZ");
+    public final static SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMddHHmmss.SSSZ");
 
     /**
      * Displayable prefix for boolean values (optional for input, implied and
@@ -869,8 +868,7 @@ public final class Key implements Comparable<Object> {
 
     // The constants are used in converting BigInteger and BigDecimal values.
     //
-    private final static BigInteger BIG_INT_DIVISOR = BigInteger
-            .valueOf(10000000000000000L);
+    private final static BigInteger BIG_INT_DIVISOR = BigInteger.valueOf(10000000000000000L);
 
     static {
         LEFT_GUARD_KEY.setLeftEdge();
@@ -991,8 +989,7 @@ public final class Key implements Comparable<Object> {
             throw new IllegalArgumentException("Key length must be positive");
         }
         if (maxLength > MAX_KEY_LENGTH) {
-            throw new IllegalArgumentException("Key length must be less than "
-                    + MAX_KEY_LENGTH);
+            throw new IllegalArgumentException("Key length must be less than " + MAX_KEY_LENGTH);
         }
         _maxSize = maxLength;
         _bytes = new byte[maxLength + 1];
@@ -1092,8 +1089,7 @@ public final class Key implements Comparable<Object> {
     public Key setIndex(int index) {
         notLeftOrRightGuard();
         if (index < 0 || index > _size) {
-            throw new IllegalArgumentException("index=" + index + " _size="
-                    + _size);
+            throw new IllegalArgumentException("index=" + index + " _size=" + _size);
         }
         _index = index;
         return this;
@@ -1438,8 +1434,7 @@ public final class Key implements Comparable<Object> {
         for (int i = 0; i < count && index > 0; i++) {
             index = previousElementIndex(index);
             if (index == -1) {
-                throw new IllegalArgumentException(
-                        "Attempting to remove missing elements");
+                throw new IllegalArgumentException("Attempting to remove missing elements");
             }
         }
         if (index <= 0) {
@@ -1473,7 +1468,7 @@ public final class Key implements Comparable<Object> {
         int index = _index;
         _index = 0;
         byte save = 0;
-        
+
         Nudged nudged = Nudged.NO;
         if (_size >= 2) {
             byte z0 = _bytes[_size - 2];
@@ -1489,8 +1484,8 @@ public final class Key implements Comparable<Object> {
                 save = _bytes[_size];
                 _bytes[_size] = (byte) 0;
                 _size++;
-//                _bytes[_size - 2]++;
-//                _bytes[_size - 1] = (byte) 0;
+                // _bytes[_size - 2]++;
+                // _bytes[_size - 1] = (byte) 0;
             }
         }
 
@@ -1546,8 +1541,7 @@ public final class Key implements Comparable<Object> {
     public Key append(boolean v) {
         testValidForAppend();
         int size = _size;
-        _bytes[size++] = v ? (byte) TYPE_BOOLEAN_TRUE
-                : (byte) TYPE_BOOLEAN_FALSE;
+        _bytes[size++] = v ? (byte) TYPE_BOOLEAN_TRUE : (byte) TYPE_BOOLEAN_FALSE;
 
         return endSegment(size);
     }
@@ -2083,8 +2077,7 @@ public final class Key implements Comparable<Object> {
             }
         }
 
-        throw new ConversionException("Object class "
-                + object.getClass().getName() + " can't be used in a Key");
+        throw new ConversionException("Object class " + object.getClass().getName() + " can't be used in a Key");
     }
 
     /**
@@ -2525,9 +2518,7 @@ public final class Key implements Comparable<Object> {
                 if (b == 0)
                     break;
                 if (shift == 0) {
-                    throw new ConversionException(
-                            "Unexpected float byte value " + b + " at "
-                                    + (index - 1));
+                    throw new ConversionException("Unexpected float byte value " + b + " at " + (index - 1));
                 }
                 if (shift > 7) {
                     bits = (bits << 7) | (b & 0x7F);
@@ -2546,8 +2537,7 @@ public final class Key implements Comparable<Object> {
             }
             result = Float.intBitsToFloat(bits);
         } else {
-            throw new ConversionException("Mismatched type " + type
-                    + " is not TYPE_FLOAT at " + _index);
+            throw new ConversionException("Mismatched type " + type + " is not TYPE_FLOAT at " + _index);
         }
         _index = index;
         return result;
@@ -2575,9 +2565,7 @@ public final class Key implements Comparable<Object> {
                 if (b == 0)
                     break;
                 if (shift == 0) {
-                    throw new ConversionException(
-                            "Unexpected float byte value " + b + " at "
-                                    + (index - 1));
+                    throw new ConversionException("Unexpected float byte value " + b + " at " + (index - 1));
                 }
                 if (shift > 7) {
                     bits = (bits << 7) | (b & 0x7FL);
@@ -2596,8 +2584,7 @@ public final class Key implements Comparable<Object> {
             }
             result = Double.longBitsToDouble(bits);
         } else {
-            throw new ConversionException("Mismatched type " + type
-                    + " is not TYPE_DOUBLE at " + _index);
+            throw new ConversionException("Mismatched type " + type + " is not TYPE_DOUBLE at " + _index);
         }
         _index = index;
         return result;
@@ -2688,8 +2675,8 @@ public final class Key implements Comparable<Object> {
             int type = getTypeCode();
             _index++;
             if (type != TYPE_DATE) {
-                throw new ConversionException("Invalid Date lead-in byte ("
-                        + type + ") at position " + _index + " in key");
+                throw new ConversionException("Invalid Date lead-in byte (" + type + ") at position " + _index
+                        + " in key");
             }
             Date result = new Date(decodeLongInternal());
             index = decodeEnd(_index);
@@ -2711,8 +2698,8 @@ public final class Key implements Comparable<Object> {
         int index = _index;
         int type = getTypeCode();
         if (type != TYPE_BIG_INTEGER) {
-            throw new ConversionException("Invalid String lead-in byte ("
-                    + type + ") at position " + _index + " in key");
+            throw new ConversionException("Invalid String lead-in byte (" + type + ") at position " + _index
+                    + " in key");
         }
         _index++;
         try {
@@ -2737,8 +2724,8 @@ public final class Key implements Comparable<Object> {
         int index = _index;
         int type = getTypeCode();
         if (type != TYPE_BIG_DECIMAL) {
-            throw new ConversionException("Invalid String lead-in byte ("
-                    + type + ") at position " + _index + " in key");
+            throw new ConversionException("Invalid String lead-in byte (" + type + ") at position " + _index
+                    + " in key");
         }
         _index++;
         try {
@@ -2769,8 +2756,8 @@ public final class Key implements Comparable<Object> {
         int type = getTypeCode();
         try {
             if (type != TYPE_BYTE_ARRAY) {
-                throw new ConversionException("Invalid String lead-in byte ("
-                        + type + ") at position " + _index + " in key");
+                throw new ConversionException("Invalid String lead-in byte (" + type + ") at position " + _index
+                        + " in key");
             }
             int size = unquoteNulls(index + 1);
             byte[] result = new byte[size];
@@ -2915,8 +2902,7 @@ public final class Key implements Comparable<Object> {
             return decodeByKeyCoder(target, context);
         }
 
-        throw new ConversionException("Invalid type " + type + " at index "
-                + (index - 1));
+        throw new ConversionException("Invalid type " + type + " at index " + (index - 1));
     }
 
     /**
@@ -2933,8 +2919,7 @@ public final class Key implements Comparable<Object> {
             int index = _index;
             try {
                 int handle = decodeHandle();
-                return _persistit.getClassIndex().lookupByHandle(handle)
-                        .getDescribedClass();
+                return _persistit.getClassIndex().lookupByHandle(handle).getDescribedClass();
             } finally {
                 _index = index;
             }
@@ -3003,8 +2988,7 @@ public final class Key implements Comparable<Object> {
      * @throws ConversionException
      *             if the next key segment value is not a boolean.
      */
-    public void decodeDisplayable(boolean quoted, StringBuilder sb,
-            CoderContext context) {
+    public void decodeDisplayable(boolean quoted, StringBuilder sb, CoderContext context) {
         if (_index >= _size)
             return;
 
@@ -3251,8 +3235,7 @@ public final class Key implements Comparable<Object> {
         if (b == TYPE_BEFORE || b == TYPE_AFTER) {
             throw new IllegalArgumentException("append to BEFORE key or AFTER");
         } else {
-            throw new IllegalArgumentException(
-                    "append to invalid final key segment: " + (b & 0xFF));
+            throw new IllegalArgumentException("append to invalid final key segment: " + (b & 0xFF));
         }
     }
 
@@ -3264,11 +3247,9 @@ public final class Key implements Comparable<Object> {
         }
         int b = _bytes[_size - 1] & 0xFF;
         if (b == TYPE_BEFORE || b == TYPE_AFTER) {
-            throw new InvalidKeyException(
-                    "BEFORE key or AFTER key not permitted");
+            throw new InvalidKeyException("BEFORE key or AFTER key not permitted");
         } else if (b != 0) {
-            throw new InvalidKeyException("Invalid key segment terminator "
-                    + (b & 0xFF));
+            throw new InvalidKeyException("Invalid key segment terminator " + (b & 0xFF));
         }
     }
 
@@ -3305,8 +3286,8 @@ public final class Key implements Comparable<Object> {
      */
     void nudgeLeft() {
         if (_size >= 2 && _bytes[_size - 1] == 0 && _bytes[_size - 2] != 0) {
-//            _bytes[_size - 2]--;
-//            _bytes[_size - 1] = (byte) 0xFF;
+            // _bytes[_size - 2]--;
+            // _bytes[_size - 1] = (byte) 0xFF;
             _size--;
             bumpGeneration();
         }
@@ -3336,7 +3317,7 @@ public final class Key implements Comparable<Object> {
     boolean isSpecial() {
         return isSegmentSpecial(_size);
     }
-    
+
     boolean isSegmentSpecial(final int size) {
         if (size < 2) {
             return true;
@@ -3371,8 +3352,7 @@ public final class Key implements Comparable<Object> {
         testValidForAppend();
         int strlen = s.length();
         if (strlen > _maxSize) {
-            throw new ConversionException("Requested size=" + strlen
-                    + " exceeds maximum size=" + _maxSize);
+            throw new ConversionException("Requested size=" + strlen + " exceeds maximum size=" + _maxSize);
         }
         int size = _size;
         _bytes[size++] = (byte) TYPE_STRING;
@@ -3473,12 +3453,10 @@ public final class Key implements Comparable<Object> {
         return endSegment(size);
     }
 
-    private Key appendByKeyCoder(Object object, Class cl, KeyCoder coder,
-            CoderContext context) {
+    private Key appendByKeyCoder(Object object, Class cl, KeyCoder coder, CoderContext context) {
         int size = _size;
         try {
-            int handle = _persistit.getClassIndex().lookupByClass(cl)
-                    .getHandle();
+            int handle = _persistit.getClassIndex().lookupByClass(cl).getHandle();
 
             _size += encodeHandle(handle);
             int begin = _size;
@@ -3505,13 +3483,11 @@ public final class Key implements Comparable<Object> {
             int handle = decodeHandle();
             clazz = _persistit.classForHandle(handle);
             if (clazz == null) {
-                throw new ConversionException(
-                        "No class information for handle " + handle);
+                throw new ConversionException("No class information for handle " + handle);
             }
             KeyCoder coder = _persistit.lookupKeyCoder(clazz);
             if (coder == null) {
-                throw new ConversionException("No KeyCoder for class "
-                        + clazz.getName());
+                throw new ConversionException("No KeyCoder for class " + clazz.getName());
             }
             segmentSize = unquoteNulls(index);
             unquoted = true;
@@ -3521,12 +3497,10 @@ public final class Key implements Comparable<Object> {
                 return coder.decodeKeySegment(this, clazz, context);
             } else {
                 if (coder instanceof KeyRenderer) {
-                    ((KeyRenderer) coder).renderKeySegment(this, target, clazz,
-                            context);
+                    ((KeyRenderer) coder).renderKeySegment(this, target, clazz, context);
                     return target;
                 } else {
-                    throw new ConversionException("No KeyRenderer for class "
-                            + clazz.getName());
+                    throw new ConversionException("No KeyRenderer for class " + clazz.getName());
                 }
             }
         } finally {
@@ -3539,8 +3513,7 @@ public final class Key implements Comparable<Object> {
         }
     }
 
-    private void decodeDisplayableByKeyCoder(boolean quoted, StringBuilder sb,
-            CoderContext context) {
+    private void decodeDisplayableByKeyCoder(boolean quoted, StringBuilder sb, CoderContext context) {
         int index = _index;
         int size = _size;
         Class clazz;
@@ -3566,8 +3539,7 @@ public final class Key implements Comparable<Object> {
 
             _size = index + segmentSize;
             if (coder instanceof KeyDisplayer) {
-                ((KeyDisplayer) coder).displayKeySegment(this, sb, clazz,
-                        context);
+                ((KeyDisplayer) coder).displayKeySegment(this, sb, clazz, context);
             } else {
                 sb.append("{");
                 for (int depth = 0; _index < _size; depth++) {
@@ -3663,8 +3635,7 @@ public final class Key implements Comparable<Object> {
 
     private int getTypeCode() {
         if (_index >= _size) {
-            throw new MissingKeySegmentException("index=" + _index + " size="
-                    + _size);
+            throw new MissingKeySegmentException("index=" + _index + " size=" + _size);
         }
         return _bytes[_index] & 0xFF;
     }
@@ -3675,23 +3646,20 @@ public final class Key implements Comparable<Object> {
      * @param quoted
      * @param sb
      */
-    private void decodeString(boolean quoted, StringBuilder sb,
-            CoderContext context) {
+    private void decodeString(boolean quoted, StringBuilder sb, CoderContext context) {
         int index = _index;
         int c1 = _bytes[index++] & 0xFF;
         if (c1 != TYPE_STRING) {
-            throw new ConversionException("Invalid String lead-in byte (" + c1
-                    + ") at position " + (index - 1) + " in key");
+            throw new ConversionException("Invalid String lead-in byte (" + c1 + ") at position " + (index - 1)
+                    + " in key");
         }
         if (_stringCoder != null) {
             try {
                 _index = index;
                 index--;
-                _stringCoder.renderKeySegment(this, sb, StringBuilder.class,
-                        context);
+                _stringCoder.renderKeySegment(this, sb, StringBuilder.class, context);
                 if (_bytes[_index++] != 0) {
-                    throw new ConversionException(_stringCoder.getClass()
-                            .getName() + " returned incorrect length");
+                    throw new ConversionException(_stringCoder.getClass().getName() + " returned incorrect length");
                 }
                 index = _index;
             } finally {
@@ -3706,9 +3674,7 @@ public final class Key implements Comparable<Object> {
                     if (c2 >= 0x0020 && c2 <= 0x0021) {
                         c = (char) (c2 - 0x0020);
                     } else {
-                        throw new ConversionException(
-                                "String decoding exception at position "
-                                        + (index - 1));
+                        throw new ConversionException("String decoding exception at position " + (index - 1));
                     }
                 }
 
@@ -3722,9 +3688,7 @@ public final class Key implements Comparable<Object> {
                     if (c2 >= 0x80 && c2 <= 0xBF) {
                         c = (char) (((c1 & 0x1F) << 6) | ((c2 & 0x3F) << 0));
                     } else {
-                        throw new ConversionException(
-                                "String decoding exception at position "
-                                        + (index - 1));
+                        throw new ConversionException("String decoding exception at position " + (index - 1));
                     }
                 } else if (c1 >= 0xE0 && c1 <= 0xEF) {
                     int c2 = _bytes[index++] & 0xFF;
@@ -3733,9 +3697,7 @@ public final class Key implements Comparable<Object> {
                         c = (char) (((c1 & 0x0F) << 12) | ((c2 & 0x3F) << 6) | ((c3 & 0x3F) << 0));
                     }
                 } else {
-                    throw new ConversionException(
-                            "String decoding exception at position "
-                                    + (index - 1));
+                    throw new ConversionException("String decoding exception at position " + (index - 1));
                 }
                 if (quoted) {
                     Util.appendQuotedChar(sb, c);
@@ -3928,8 +3890,7 @@ public final class Key implements Comparable<Object> {
                 c = _bytes[i + 1];
                 if (c == 32 || c == 33) {
                     _bytes[i] = (byte) (c - 32);
-                    System.arraycopy(_bytes, i + 2, _bytes, i + 1, _size
-                            - (i + 2));
+                    System.arraycopy(_bytes, i + 2, _bytes, i + 1, _size - (i + 2));
                     _size--;
                 }
             }
@@ -3952,8 +3913,7 @@ public final class Key implements Comparable<Object> {
 
     private void notLeftOrRightGuard() {
         if (this == LEFT_GUARD_KEY || this == RIGHT_GUARD_KEY) {
-            throw new IllegalArgumentException(
-                    "Operation not permitted on a guard key");
+            throw new IllegalArgumentException("Operation not permitted on a guard key");
         }
     }
 
@@ -4113,8 +4073,7 @@ public final class Key implements Comparable<Object> {
         int start = _index;
         int signum = (_bytes[_index++] & 0xFF) - 0x40;
         if (signum < -1 || signum > 1) {
-            throw new ConversionException(
-                    "Invalid BigInteger signum at offset " + (start));
+            throw new ConversionException("Invalid BigInteger signum at offset " + (start));
         }
         if (signum == 0) {
             bis._bigInteger = BigInteger.ZERO;
@@ -4182,9 +4141,7 @@ public final class Key implements Comparable<Object> {
                     else
                         b = b - 0x11;
                     if (((b >>> 4) & 0x0F) > 9 || (b & 0x0F) > 9) {
-                        throw new ConversionException(
-                                "Invalid BigInteger encoding at index "
-                                        + (_index - 1));
+                        throw new ConversionException("Invalid BigInteger encoding at index " + (_index - 1));
                     }
                     if (chunk == 1) {
                         int digit = (b >>> 4) & 0x0F;
@@ -4208,8 +4165,7 @@ public final class Key implements Comparable<Object> {
             if (bis._bigInteger == null) {
                 bis._bigInteger = BigInteger.valueOf(lowBits);
             } else if (!dontAccumulate) {
-                bis._bigInteger = bis._bigInteger.multiply(BIG_INT_DIVISOR)
-                        .add(BigInteger.valueOf(lowBits));
+                bis._bigInteger = bis._bigInteger.multiply(BIG_INT_DIVISOR).add(BigInteger.valueOf(lowBits));
             }
         }
         while (exp > 0) {

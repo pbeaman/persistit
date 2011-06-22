@@ -57,15 +57,11 @@ public class TestRunner {
     private final static int CODE_WAIT_IF = 10;
 
     private final static String SPACES = "                                   ";
-    private final static SimpleDateFormat SDF = new SimpleDateFormat(
-            "yyyyMMddHHmm");
-    private final static SimpleDateFormat SDF_EXTERNAL = new SimpleDateFormat(
-            "dd-MMM-yyyy HH:mm:ss");
+    private final static SimpleDateFormat SDF = new SimpleDateFormat("yyyyMMddHHmm");
+    private final static SimpleDateFormat SDF_EXTERNAL = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss");
 
-    private final static String[] ARGS_TEMPLATE = { "script|String:",
-            "logpath|String:", "datapath|String:", "select|String:*",
-            "_flag|v|Verbose log to console",
-            "_flag|g|Launch AdminUI on Persistit init",
+    private final static String[] ARGS_TEMPLATE = { "script|String:", "logpath|String:", "datapath|String:",
+            "select|String:*", "_flag|v|Verbose log to console", "_flag|g|Launch AdminUI on Persistit init",
             "_flag|e|Exit with error on failure", };
 
     private final static String[] EMPTY_STRING_ARRAY = new String[0];
@@ -118,7 +114,7 @@ public class TestRunner {
 
         new ProgressLogger().start();
         for (int index = 0; !_stopAll && (index < count); index++) {
-            final TestUnit unit = (TestUnit) _units.get(index);
+            final TestUnit unit = _units.get(index);
             logMessage();
             logMessage("Unit " + unit._name + " started");
             final TestResult result = unit.execute();
@@ -141,8 +137,7 @@ public class TestRunner {
     }
 
     public void parseScript(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser("com.persistit.TestRunner", args,
-                ARGS_TEMPLATE);
+        final ArgParser ap = new ArgParser("com.persistit.TestRunner", args, ARGS_TEMPLATE);
 
         _verbose = ap.isFlag('v');
         _verboseGui = ap.isFlag('g');
@@ -150,8 +145,7 @@ public class TestRunner {
         _logPath = ap.getStringValue("logpath");
         _scriptPath = ap.getStringValue("script");
 
-        final BufferedReader script = new BufferedReader(new FileReader(
-                ap.getStringValue("script")));
+        final BufferedReader script = new BufferedReader(new FileReader(ap.getStringValue("script")));
 
         TestUnit unit = new TestUnit("#0 initialize", 0);
         _units.add(unit);
@@ -190,8 +184,7 @@ public class TestRunner {
             // test unit identifier
             if (line.startsWith("#")) {
                 if (concurrentCommands != null) {
-                    unit._commands.add(new Command(CODE_MULTI,
-                            concurrentCommands));
+                    unit._commands.add(new Command(CODE_MULTI, concurrentCommands));
                     concurrentCommands = null;
                 }
 
@@ -345,8 +338,7 @@ public class TestRunner {
         return list.toArray(EMPTY_STRING_ARRAY);
     }
 
-    private void scriptError(final String msg, final int lineNumber,
-            final String line) {
+    private void scriptError(final String msg, final int lineNumber, final String line) {
         System.out.println(msg + " on line " + lineNumber + ":");
         System.out.println("  " + line);
         System.out.println();
@@ -360,6 +352,7 @@ public class TestRunner {
             this._test = test;
         }
 
+        @Override
         public void run() {
             _test.runIt();
         }
@@ -381,8 +374,7 @@ public class TestRunner {
             _args = args;
         }
 
-        Command(final int code, final String[] args,
-                final AbstractTestRunnerItem test) {
+        Command(final int code, final String[] args, final AbstractTestRunnerItem test) {
             _code = code;
             _args = args;
             _test = test;
@@ -424,14 +416,12 @@ public class TestRunner {
                 }
 
                 case CODE_MULTI: {
-                    final int threadCount = _concurrentTests == null ? 0
-                            : _concurrentTests.size();
+                    final int threadCount = _concurrentTests == null ? 0 : _concurrentTests.size();
 
                     final Thread[] threads = new Thread[threadCount];
 
                     for (int index = 0; index < threadCount; index++) {
-                        final Command command = (Command) _concurrentTests
-                                .get(index);
+                        final Command command = _concurrentTests.get(index);
                         final AbstractTestRunnerItem test = command._test;
                         test.initialize(index);
                         test._args = command._args;
@@ -440,8 +430,7 @@ public class TestRunner {
                         }
                     }
                     for (int index = 0; index < threadCount; index++) {
-                        final Command command = (Command) _concurrentTests
-                                .get(index);
+                        final Command command = _concurrentTests.get(index);
                         final AbstractTestRunnerItem test = command._test;
                         _allTests.add(test);
                         threads[index] = new TestThread(test);
@@ -453,8 +442,7 @@ public class TestRunner {
                     final TestResult[] results = new TestResult[threadCount];
                     boolean pass = true;
                     for (int index = 0; index < threadCount; index++) {
-                        final Command command = (Command) _concurrentTests
-                                .get(index);
+                        final Command command = _concurrentTests.get(index);
                         final TestResult result = command._test.getResult();
                         results[index] = result;
                         if ((result != null) && !result._passed) {
@@ -504,8 +492,7 @@ public class TestRunner {
 
                 case CODE_LOGPATH: {
                     final String logFileName = args[0];
-                    final PrintWriter logWriter = new PrintWriter(
-                            new FileWriter(logFileName));
+                    final PrintWriter logWriter = new PrintWriter(new FileWriter(logFileName));
                     if (_logWriter != null) {
                         _logWriter.close();
                     }
@@ -534,8 +521,7 @@ public class TestRunner {
                     int index = 0;
                     try {
                         if (args.length > 0) {
-                            expiration = Long.parseLong(args[0])
-                                    + System.currentTimeMillis();
+                            expiration = Long.parseLong(args[0]) + System.currentTimeMillis();
                             index++;
                         }
                     } catch (final NumberFormatException nfe) {
@@ -584,6 +570,7 @@ public class TestRunner {
             setDaemon(true);
         }
 
+        @Override
         public void run() {
             final StringBuilder sb = new StringBuilder();
             boolean changed = true;
@@ -651,8 +638,7 @@ public class TestRunner {
         return sb.toString();
     }
 
-    private void substitute(final StringBuilder sb, final String from,
-            final String to) {
+    private void substitute(final StringBuilder sb, final String from, final String to) {
         int index = -1;
         int offset = 0;
         final String s = sb.toString();
@@ -663,20 +649,16 @@ public class TestRunner {
     }
 
     private void startLog() throws Exception {
-        _logWriter.println("Persistit Test Run "
-                + SDF_EXTERNAL.format(new Date()));
+        _logWriter.println("Persistit Test Run " + SDF_EXTERNAL.format(new Date()));
         _logWriter.println("Persistit version " + Persistit.version());
-        _logWriter.println("JVM " + System.getProperty("java.vm.name") + " "
-                + System.getProperty("java.vm.vendor") + " "
-                + System.getProperty("java.vm.version"));
-        _logWriter.println(" OS " + System.getProperty("os.name") + " "
-                + System.getProperty("os.version") + " "
+        _logWriter.println("JVM " + System.getProperty("java.vm.name") + " " + System.getProperty("java.vm.vendor")
+                + " " + System.getProperty("java.vm.version"));
+        _logWriter.println(" OS " + System.getProperty("os.name") + " " + System.getProperty("os.version") + " "
                 + System.getProperty("os.arch"));
         _logWriter.println();
         _logWriter.println("Test Script");
         _logWriter.println("=====================");
-        final BufferedReader script = new BufferedReader(new FileReader(
-                _scriptPath));
+        final BufferedReader script = new BufferedReader(new FileReader(_scriptPath));
         for (;;) {
             final String line = script.readLine();
             if (line == null) {
@@ -707,8 +689,7 @@ public class TestRunner {
         }
     }
 
-    private static void logMessage(final String message, final PrintWriter pw,
-            final int depth) {
+    private static void logMessage(final String message, final PrintWriter pw, final int depth) {
         if (message == null) {
             pw.println();
         } else {
@@ -749,8 +730,7 @@ public class TestRunner {
             if (file.isDirectory()) {
                 final File[] files = file.listFiles();
                 for (final File child : files) {
-                    if (child.getPath().startsWith(
-                            pattern.substring(0, pattern.length() - 1))) {
+                    if (child.getPath().startsWith(pattern.substring(0, pattern.length() - 1))) {
                         child.delete();
                         logMessage("deleted " + child.toString());
                     }

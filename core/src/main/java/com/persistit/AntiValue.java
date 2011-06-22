@@ -40,17 +40,15 @@ class AntiValue {
         value.putAntiValue((short) elisionCount, bytes);
     }
 
-    static void fixupKeys(Exchange exchange, int elisionCount, byte[] bytes,
-            int offset, int length) throws InvalidKeyException {
+    static void fixupKeys(Exchange exchange, int elisionCount, byte[] bytes, int offset, int length)
+            throws InvalidKeyException {
         Key spareKey1 = exchange.getAuxiliaryKey1();
         Key spareKey2 = exchange.getAuxiliaryKey2();
         spareKey1.copyTo(spareKey2);
         byte[] baseBytes = spareKey2.getEncodedBytes();
         int baseSize = spareKey2.getEncodedSize();
-        if (baseSize < elisionCount
-                || elisionCount + length > Key.MAX_KEY_LENGTH) {
-            throw new InvalidKeyException(
-                    "Key encoding in transaction is invalid");
+        if (baseSize < elisionCount || elisionCount + length > Key.MAX_KEY_LENGTH) {
+            throw new InvalidKeyException("Key encoding in transaction is invalid");
         }
         System.arraycopy(bytes, offset, baseBytes, elisionCount, length);
         spareKey2.setEncodedSize(elisionCount + length);

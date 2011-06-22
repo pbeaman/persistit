@@ -110,31 +110,27 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      *            operation. (See {@link CoderContext}.) The default value is
      *            <code>null</code>.
      */
-    public void put(Value value, Object object, CoderContext context)
-            throws ConversionException {
+    @Override
+    public void put(Value value, Object object, CoderContext context) throws ConversionException {
         if (object instanceof Map) {
-            for (Iterator iter = ((Map) object).entrySet().iterator(); iter
-                    .hasNext();) {
+            for (Iterator iter = ((Map) object).entrySet().iterator(); iter.hasNext();) {
                 Map.Entry entry = (Map.Entry) iter.next();
                 value.put(entry.getKey(), context);
                 value.put(entry.getValue(), context);
             }
-        } else if (object instanceof List
-                && !(object instanceof AbstractSequentialList)) {
+        } else if (object instanceof List && !(object instanceof AbstractSequentialList)) {
             List list = (List) object;
             int size = list.size();
             for (int index = 0; index < size; index++) {
                 value.put(list.get(index), context);
             }
         } else if (object instanceof Collection) {
-            for (Iterator iter = ((Collection) object).iterator(); iter
-                    .hasNext();) {
+            for (Iterator iter = ((Collection) object).iterator(); iter.hasNext();) {
                 value.put(iter.next(), context);
             }
         } else {
-            throw new ConversionException(
-                    "CollectionValueCoder cannot encode an object of type "
-                            + object.getClass().getName());
+            throw new ConversionException("CollectionValueCoder cannot encode an object of type "
+                    + object.getClass().getName());
         }
     }
 
@@ -163,19 +159,17 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      *         <code>clazz</code> parameter.
      * @throws ConversionException
      */
-    public Object get(Value value, Class clazz, CoderContext context)
-            throws ConversionException {
+    @Override
+    public Object get(Value value, Class clazz, CoderContext context) throws ConversionException {
         try {
             Object target = clazz.newInstance();
             value.registerEncodedObject(target);
             render(value, target, clazz, context);
             return target;
         } catch (InstantiationException ce) {
-            throw new ConversionException(ce
-                    + " while decoding a Collection value");
+            throw new ConversionException(ce + " while decoding a Collection value");
         } catch (IllegalAccessException iae) {
-            throw new ConversionException(iae
-                    + " while decoding a Collection value");
+            throw new ConversionException(iae + " while decoding a Collection value");
         }
     }
 
@@ -209,8 +203,8 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      * 
      * @throws ConversionException
      */
-    public void render(Value value, Object target, Class clazz,
-            CoderContext context) throws ConversionException {
+    @Override
+    public void render(Value value, Object target, Class clazz, CoderContext context) throws ConversionException {
         if (target instanceof Map) {
             if (Map.class.isAssignableFrom(clazz)) {
                 Map map = (Map) target;
@@ -220,15 +214,13 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
                     }
                     Object itemKey = value.get(null, context);
                     if (!value.hasMoreItems()) {
-                        throw new ConversionException(
-                                "Encoded Map entry has missing value");
+                        throw new ConversionException("Encoded Map entry has missing value");
                     }
                     Object itemValue = value.get(null, context);
                     map.put(itemKey, itemValue);
                 }
             } else
-                throw new ConversionException("Cannot convert a "
-                        + clazz.getName() + " to a Map");
+                throw new ConversionException("Cannot convert a " + clazz.getName() + " to a Map");
         } else if (target instanceof Collection) {
             if (Collection.class.isAssignableFrom(clazz)) {
                 Collection collection = (Collection) target;
@@ -240,13 +232,11 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
                     collection.add(itemValue);
                 }
             } else
-                throw new ConversionException("Cannot convert "
-                        + clazz.getName() + " to a Collection");
+                throw new ConversionException("Cannot convert " + clazz.getName() + " to a Collection");
 
         } else
-            throw new ConversionException(
-                    "CollectionValueCoder cannot render to an object of class "
-                            + target.getClass().getName());
+            throw new ConversionException("CollectionValueCoder cannot render to an object of class "
+                    + target.getClass().getName());
     }
 
     /**
@@ -284,8 +274,9 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      * 
      * @throws ConversionException
      */
-    public void display(Value value, StringBuilder target, Class clazz,
-            CoderContext context) throws ConversionException {
+    @Override
+    public void display(Value value, StringBuilder target, Class clazz, CoderContext context)
+            throws ConversionException {
         if (Map.class.isAssignableFrom(clazz)) {
             target.append('[');
             boolean first = true;
@@ -303,8 +294,7 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
                 target.append("->");
 
                 if (!value.hasMoreItems()) {
-                    throw new ConversionException(
-                            "Encoded Map entry has missing value");
+                    throw new ConversionException("Encoded Map entry has missing value");
                 }
 
                 value.decodeDisplayable(true, target);
@@ -328,8 +318,7 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
             }
             target.append(']');
         } else
-            throw new ConversionException(
-                    "Cannot display value that is neither a Map nor a Collection");
+            throw new ConversionException("Cannot display value that is neither a Map nor a Collection");
     }
 
 }

@@ -144,15 +144,13 @@ public abstract class AbstractTestRunnerItem {
         _started = true;
         _startTime = TestRunner.ts();
 
-        println("Starting unit=" + getUnitName() + " test=" + getTestName()
-                + " " + getName() + " at ts=" + _startTime);
+        println("Starting unit=" + getUnitName() + " test=" + getTestName() + " " + getName() + " at ts=" + _startTime);
         verboseln();
         try {
             setUp();
             executeTest();
         } catch (final Throwable t) {
-            if ((t instanceof RuntimeException)
-                    && "STOPPED".equals(t.getMessage())) {
+            if ((t instanceof RuntimeException) && "STOPPED".equals(t.getMessage())) {
                 println();
                 println("STOPPED");
                 if (_result == null) {
@@ -173,14 +171,12 @@ public abstract class AbstractTestRunnerItem {
             }
         }
         _finishTime = TestRunner.ts();
-        println("Finished unit=" + getUnitName() + " test=" + getTestName()
-                + " " + getName() + " at ts=" + _finishTime + " - elapsed="
-                + (_finishTime - _startTime) + " - "
+        println("Finished unit=" + getUnitName() + " test=" + getTestName() + " " + getName() + " at ts=" + _finishTime
+                + " - elapsed=" + (_finishTime - _startTime) + " - "
                 + (_result == null ? "PASSED" : _result.toString()));
         verboseln();
         if ((_result != null) && !_result._passed) {
-            TestRunner.logMessage("Failed test unit=" + getUnitName()
-                    + " test=" + getTestName() + " " + getName());
+            TestRunner.logMessage("Failed test unit=" + getUnitName() + " test=" + getTestName() + " " + getName());
             _result.logFailure();
         }
         _finished = true;
@@ -263,6 +259,7 @@ public abstract class AbstractTestRunnerItem {
         println();
     }
 
+    @Override
     public String toString() {
         return _name;
     }

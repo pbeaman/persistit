@@ -62,8 +62,7 @@ public abstract class StressBase extends AbstractTestRunnerItem {
 
     @Override
     public String getProgressString() {
-        return _repeat + "/" + _repeatTotal + " " + _phase + ":" + _count + "/"
-                + _total;
+        return _repeat + "/" + _repeatTotal + " " + _phase + ":" + _count + "/" + _total;
     }
 
     protected void setPhase(final String phase) {
@@ -90,8 +89,7 @@ public abstract class StressBase extends AbstractTestRunnerItem {
         return _random.nextInt(max - min) + min;
     }
 
-    protected void setupTestValue(final Exchange ex, final int counter,
-            final int length) {
+    protected void setupTestValue(final Exchange ex, final int counter, final int length) {
         _sb1.setLength(0);
         _sb1.append(_rootName);
         _sb1.append(" length=");
@@ -112,8 +110,7 @@ public abstract class StressBase extends AbstractTestRunnerItem {
             _result = new TestResult(false, "value not expected to be null");
             ok = false;
         } else if (!value1.equals(value2)) {
-            final String difference = displayDifference(value1.getString(),
-                    value2.getString());
+            final String difference = displayDifference(value1.getString(), value2.getString());
             _result = new TestResult(false, "Values differ: " + difference);
             ok = false;
         }
@@ -139,16 +136,14 @@ public abstract class StressBase extends AbstractTestRunnerItem {
 
     protected String displayDifference(final String s1, final String s2) {
         if (s1 == null) {
-            return "\r\n  value1=null" + "\r\n  value2=\""
-                    + (s2.length() < 100 ? s2 : summaryOfLongString(s2)) + "\"";
+            return "\r\n  value1=null" + "\r\n  value2=\"" + (s2.length() < 100 ? s2 : summaryOfLongString(s2)) + "\"";
         }
 
         if ((s1.length() < 100) && (s2.length() < 100)) {
-            return "\r\n  value1=\"" + s1 + "\"" + "\r\n  value2=\"" + s2
-                    + "\"";
+            return "\r\n  value1=\"" + s1 + "\"" + "\r\n  value2=\"" + s2 + "\"";
         } else if (s1.length() != s2.length()) {
-            return "\r\n  value1=\"" + summaryOfLongString(s1) + "\""
-                    + "\r\n  value2=\"" + summaryOfLongString(s2) + "\"";
+            return "\r\n  value1=\"" + summaryOfLongString(s1) + "\"" + "\r\n  value2=\"" + summaryOfLongString(s2)
+                    + "\"";
 
         }
         int p, q;
@@ -163,8 +158,7 @@ public abstract class StressBase extends AbstractTestRunnerItem {
             }
         }
 
-        return "\r\n  value1=\"" + summaryOfLongString(s1) + "\""
-                + "\r\n  value2=\"" + summaryOfLongString(s2) + "\""
+        return "\r\n  value1=\"" + summaryOfLongString(s1) + "\"" + "\r\n  value2=\"" + summaryOfLongString(s2) + "\""
                 + " first,last differences at (" + p + "," + q + ")";
 
     }
@@ -196,8 +190,7 @@ public abstract class StressBase extends AbstractTestRunnerItem {
         fillLong(v2, i, length - i, true);
     }
 
-    protected void fillLong(long value, final int offset, final int length,
-            boolean leadZeroes) {
+    protected void fillLong(long value, final int offset, final int length, boolean leadZeroes) {
         if (_sb1.length() < offset + length) {
             _sb1.setLength(offset + length);
         }
@@ -225,8 +218,7 @@ public abstract class StressBase extends AbstractTestRunnerItem {
         }
         if (isVerbose()) {
             final int i = _count;
-            if ((i > 0) && (_dotGranularity > 0)
-                    && ((i % _dotGranularity) == 0)) {
+            if ((i > 0) && (_dotGranularity > 0) && ((i % _dotGranularity) == 0)) {
                 if ((i % (_dotGranularity * 10)) == 0) {
                     print(Integer.toString(i));
                 } else {

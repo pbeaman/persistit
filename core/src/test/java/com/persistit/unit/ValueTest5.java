@@ -43,6 +43,7 @@ public class ValueTest5 extends PersistitUnitTestCase {
             _yourJob = y;
         }
 
+        @Override
         public String toString() {
             return _myJob + ":" + _yourJob;
         }
@@ -52,8 +53,7 @@ public class ValueTest5 extends PersistitUnitTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();
-        _exchange = _persistit.getExchange("persistit", getClass()
-                .getSimpleName(), true);
+        _exchange = _persistit.getExchange("persistit", getClass().getSimpleName(), true);
     }
 
     @Override
@@ -77,6 +77,7 @@ public class ValueTest5 extends PersistitUnitTestCase {
         new ValueTest5().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         _exchange = _persistit.getExchange("persistit", "ValueTest5", true);
         CoderManager cm = _persistit.getCoderManager();

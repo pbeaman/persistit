@@ -114,20 +114,17 @@ public class ClassIndex {
                 String storedName = value.getString();
                 long storedSuid = value.getLong();
                 if (storedId != handle) {
-                    throw new IllegalStateException(
-                            "ClassInfo stored for handle=" + handle
-                                    + " has invalid stored handle=" + storedId);
+                    throw new IllegalStateException("ClassInfo stored for handle=" + handle
+                            + " has invalid stored handle=" + storedId);
                 }
-                Class cl = Class.forName(storedName, false, Thread
-                        .currentThread().getContextClassLoader());
+                Class cl = Class.forName(storedName, false, Thread.currentThread().getContextClassLoader());
 
                 long suid = 0;
                 ObjectStreamClass osc = ObjectStreamClass.lookup(cl);
                 if (osc != null)
                     suid = osc.getSerialVersionUID();
                 if (storedSuid != suid) {
-                    throw new ConversionException("Class " + cl.getName()
-                            + " persistent SUID=" + storedSuid
+                    throw new ConversionException("Class " + cl.getName() + " persistent SUID=" + storedSuid
                             + " does not match current class SUID=" + suid);
                 }
                 ClassInfo ci = new ClassInfo(cl, suid, handle, osc);
@@ -195,8 +192,7 @@ public class ClassIndex {
             ClassInfo ci = null;
             int handle = 0;
             Value value = ex.getValue();
-            ex.clear().append(BY_NAME).append(clazz.getName()).append(suid)
-                    .fetch();
+            ex.clear().append(BY_NAME).append(clazz.getName()).append(suid).fetch();
 
             if (value.isDefined()) {
                 value.setStreamMode(true);
@@ -206,8 +202,7 @@ public class ClassIndex {
                 long storedSuid = value.getLong();
 
                 if (storedSuid != suid || !clazz.getName().equals(storedName)) {
-                    throw new ConversionException("Class " + clazz.getName()
-                            + " persistent SUID=" + storedSuid
+                    throw new ConversionException("Class " + clazz.getName() + " persistent SUID=" + storedSuid
                             + " does not match current class SUID=" + suid);
                 }
                 ci = new ClassInfo(clazz, suid, handle, osc);
@@ -224,8 +219,7 @@ public class ClassIndex {
                 value.put(clazz.getName());
                 value.put(suid);
 
-                ex.clear().append(BY_NAME).append(clazz.getName()).append(suid)
-                        .store();
+                ex.clear().append(BY_NAME).append(clazz.getName()).append(suid).store();
 
                 ex.clear().append(BY_HANDLE).append(handle).store();
 

@@ -37,8 +37,7 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
 
     private void checkEmpty() throws PersistitException {
         System.out.print("test1_0 ");
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1", true);
         exchange.append(Key.BEFORE);
         final boolean empty = !exchange.traverse(Key.GT, true);
         assertTrue(empty);
@@ -47,8 +46,7 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
 
     private void store1() throws PersistitException {
         System.out.print("test1_1 ");
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1", true);
         exchange.removeAll();
         final StringBuilder sb = new StringBuilder();
 
@@ -63,8 +61,7 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
     }
 
     private void fetch1a() throws PersistitException {
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1", false);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1", false);
         final StringBuilder sb = new StringBuilder();
 
         for (int i = 1; i < 400; i++) {
@@ -80,8 +77,7 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
     }
 
     private void fetch1b() throws PersistitException {
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1", false);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1", false);
         final StringBuilder sb = new StringBuilder();
         for (int i = 1; i < 400; i++) {
             sb.setLength(0);
@@ -103,8 +99,7 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
 
     private void store2() throws PersistitException {
         System.out.print("test4 ");
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1LongRecord", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1LongRecord", true);
         exchange.getValue().setMaximumSize(32 * 1024 * 1024);
         final StringBuilder sb = new StringBuilder();
         int length = 19;
@@ -126,8 +121,7 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
 
     private void fetch2() throws PersistitException {
         System.out.print("test5 ");
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1LongRecord", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1LongRecord", true);
         exchange.getValue().setMaximumSize(32 * 1024 * 1024);
         final StringBuilder sb = new StringBuilder();
         final StringBuilder sb2 = new StringBuilder();
@@ -153,8 +147,7 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
         System.out.print("test3 ");
 
         final StringBuilder sb = new StringBuilder(4000);
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1BadSplit", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1BadSplit", true);
         exchange.removeAll();
         final Key key = exchange.getKey();
         final Value value = exchange.getValue();
@@ -213,8 +206,7 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
         System.out.print("test4 ");
 
         final StringBuilder sb = new StringBuilder(4000);
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1BadJoin", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1BadJoin", true);
         exchange.removeAll();
         final Key key = exchange.getKey();
         final Value value = exchange.getValue();
@@ -234,9 +226,8 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
         value.putString(sb);
         exchange.store();
 
-        key.clear()
-                .append("B")
-                .append("... a pretty long key value. The goal is to get the the record "
+        key.clear().append("B").append(
+                "... a pretty long key value. The goal is to get the the record "
                         + "for this key into the penultimate slot of the left page, followed "
                         + "by a short key on the edge.  Then delete that short key, so that"
                         + "this becomes the edge key.");
@@ -323,8 +314,8 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
         final StringBuilder sb = new StringBuilder(1024 * 1024 * 16);
         final StringBuilder sb2 = new StringBuilder(1024 * 1024 * 16);
 
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1BadStoreOverLengthRecord", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1BadStoreOverLengthRecord",
+                true);
         exchange.removeAll();
         final Key key = exchange.getKey();
         final Value value = exchange.getValue();
@@ -346,10 +337,8 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
 
     public void test6() throws PersistitException {
         System.out.print("test6 ");
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1_1M records", true);
-        exchange.getValue()
-                .put("Now is the time for all good men to come to the aid of their party");
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1_1M records", true);
+        exchange.getValue().put("Now is the time for all good men to come to the aid of their party");
         for (int i = 0; i < 1000000; i++) {
             exchange.getKey().clear().append(i);
             exchange.store();
@@ -362,10 +351,8 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
 
     public void test7() throws PersistitException {
         System.out.print("test7 ");
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "TransientVolumeTest1_10M records", true);
-        exchange.getValue()
-                .put("Now is the time for all good men to come to the aid of their party");
+        final Exchange exchange = _persistit.getExchange(_volumeName, "TransientVolumeTest1_10M records", true);
+        exchange.getValue().put("Now is the time for all good men to come to the aid of their party");
         for (int i = 0; i < 1000000; i++) {
             exchange.getKey().clear().append(i);
             exchange.store();
@@ -407,6 +394,7 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
         return UnitTestProperties.getBiggerProperties(cleanup);
     }
 
+    @Override
     public void runAllTests() throws Exception {
         String protocol = "none";
         if (_args.length > 1) {
@@ -419,8 +407,7 @@ public class TransientVolumeTest1 extends PersistitUnitTestCase {
                     _volumeName = "transient";
                 }
 
-                System.out
-                        .println("TransientVolumeTest1 protocol: " + protocol);
+                System.out.println("TransientVolumeTest1 protocol: " + protocol);
                 if (protocol.equals("p")) {
                     store1();
                     fetch1a();

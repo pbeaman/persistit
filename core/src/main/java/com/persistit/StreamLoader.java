@@ -57,8 +57,7 @@ public class StreamLoader extends Task {
     protected ImportHandler _handler;
 
     @Cmd("load")
-    static Task createStreamLoader(
-            @Arg("file|string:|Load from file path") String file,
+    static Task createStreamLoader(@Arg("file|string:|Load from file path") String file,
             @Arg("trees|string:|Tree selector - specify Volumes/Trees/Keys to save") String treeSelectorString,
             @Arg("_flag|r|Use regular expressions in tree selector") boolean regex,
             @Arg("_flag|n|Don't create missing Volumes (Default is to create them)") boolean dontCreateVolumes,
@@ -67,8 +66,7 @@ public class StreamLoader extends Task {
 
         StreamLoader task = new StreamLoader();
         task._filePath = file;
-        task._treeSelector = TreeSelector.parseSelector(treeSelectorString,
-                regex, '\\');
+        task._treeSelector = TreeSelector.parseSelector(treeSelectorString, regex, '\\');
         task._createMissingVolumes = !dontCreateVolumes;
         task._createMissingTrees = !dontCreateTrees;
         return task;
@@ -86,16 +84,12 @@ public class StreamLoader extends Task {
         _dis = dis;
     }
 
-    public StreamLoader(final Persistit persistit, final File file)
-            throws IOException {
-        this(persistit, new DataInputStream(new BufferedInputStream(
-                new FileInputStream(file))));
+    public StreamLoader(final Persistit persistit, final File file) throws IOException {
+        this(persistit, new DataInputStream(new BufferedInputStream(new FileInputStream(file))));
     }
 
-    public StreamLoader(final Persistit persistit, final String fileName)
-            throws IOException {
-        this(persistit, new DataInputStream(new BufferedInputStream(
-                new FileInputStream(fileName))));
+    public StreamLoader(final Persistit persistit, final String fileName) throws IOException {
+        this(persistit, new DataInputStream(new BufferedInputStream(new FileInputStream(fileName))));
     }
 
     public boolean isVerbose() {
@@ -114,23 +108,20 @@ public class StreamLoader extends Task {
         load(new TreeSelector(), true, true);
     }
 
-    public void load(TreeSelector treeSelector, boolean createMissingVolumes,
-            boolean createMissingTrees) throws IOException, PersistitException {
-        _handler = new ImportHandler(_persistit, treeSelector,
-                createMissingVolumes, createMissingTrees);
+    public void load(TreeSelector treeSelector, boolean createMissingVolumes, boolean createMissingTrees)
+            throws IOException, PersistitException {
+        _handler = new ImportHandler(_persistit, treeSelector, createMissingVolumes, createMissingTrees);
         load(_handler);
         close();
     }
 
-    public void load(ImportHandler handler) throws IOException,
-            PersistitException {
+    public void load(ImportHandler handler) throws IOException, PersistitException {
         while (readAndDispatchOneRecord(handler)) {
             poll();
         }
     }
 
-    private boolean readAndDispatchOneRecord(ImportHandler handler)
-            throws PersistitException, IOException {
+    private boolean readAndDispatchOneRecord(ImportHandler handler) throws PersistitException, IOException {
         int b1 = _dis.read();
         if (b1 == -1)
             return false;
@@ -149,8 +140,7 @@ public class StreamLoader extends Task {
             int elisionCount = _dis.readShort();
             int valueSize = _dis.readInt();
             _value.ensureFit(valueSize);
-            _dis.read(_key.getEncodedBytes(), elisionCount, keySize
-                    - elisionCount);
+            _dis.read(_key.getEncodedBytes(), elisionCount, keySize - elisionCount);
             _key.setEncodedSize(keySize);
             _dis.read(_value.getEncodedBytes(), 0, valueSize);
             _value.setEncodedSize(valueSize);
@@ -172,8 +162,7 @@ public class StreamLoader extends Task {
             int bufferSize = _dis.readInt();
             String path = _dis.readUTF();
             String name = _dis.readUTF();
-            handler.handleVolumeIdRecord(id, initialPages, extensionPages,
-                    maximumPages, bufferSize, path, name);
+            handler.handleVolumeIdRecord(id, initialPages, extensionPages, maximumPages, bufferSize, path, name);
             _otherRecordCount++;
             break;
         }
@@ -236,13 +225,9 @@ public class StreamLoader extends Task {
             return false;
         }
         default: {
-            throw new CorruptImportStreamException("Invalid record type "
-                    + recordType
-                    + " ("
-                    + Util.bytesToHex(new byte[] { (byte) (recordType >>> 8),
-                            (byte) recordType }) + " after reading "
-                    + _dataRecordCount + " data records" + " and "
-                    + _otherRecordCount + " other records");
+            throw new CorruptImportStreamException("Invalid record type " + recordType + " ("
+                    + Util.bytesToHex(new byte[] { (byte) (recordType >>> 8), (byte) recordType }) + " after reading "
+                    + _dataRecordCount + " data records" + " and " + _otherRecordCount + " other records");
         }
         }
         if ((_dataRecordCount + _otherRecordCount) % 100 == 0)
@@ -264,8 +249,8 @@ public class StreamLoader extends Task {
             this(persistit, new TreeSelector(), true, true);
         }
 
-        public ImportHandler(Persistit persistit, TreeSelector treeSelector,
-                boolean createMissingVolumes, boolean createMissingTrees) {
+        public ImportHandler(Persistit persistit, TreeSelector treeSelector, boolean createMissingVolumes,
+                boolean createMissingTrees) {
             _persistit = persistit;
             _treeSelector = treeSelector == null ? new TreeSelector() : treeSelector;
             _createMissingTrees = createMissingTrees;
@@ -275,14 +260,12 @@ public class StreamLoader extends Task {
         public void handleFillRecord() throws PersistitException {
         }
 
-        public void handleDataRecord(Key key, Value value)
-                throws PersistitException {
+        public void handleDataRecord(Key key, Value value) throws PersistitException {
             if (_keyFilter == null || _keyFilter.selected(key)) {
                 if (_volume == null || _tree == null)
                     return;
                 if (_exchange == null) {
-                    _exchange = _persistit.getExchange(_volume,
-                            _tree.getName(), false);
+                    _exchange = _persistit.getExchange(_volume, _tree.getName(), false);
                 }
                 key.copyTo(_exchange.getKey());
                 _exchange.setSplitPolicy(SplitPolicy.PACK_BIAS);
@@ -292,13 +275,11 @@ public class StreamLoader extends Task {
             }
         }
 
-        public void handleKeyFilterRecord(String keyFilterString)
-                throws PersistitException {
+        public void handleKeyFilterRecord(String keyFilterString) throws PersistitException {
         }
 
-        public void handleVolumeIdRecord(long volumeId, long initialPages,
-                long extensionPages, long maximumPages, int bufferSize,
-                String path, String name) throws PersistitException {
+        public void handleVolumeIdRecord(long volumeId, long initialPages, long extensionPages, long maximumPages,
+                int bufferSize, String path, String name) throws PersistitException {
             Exchange oldExchange = _exchange;
             _exchange = null;
             _volume = null;
@@ -323,17 +304,15 @@ public class StreamLoader extends Task {
             }
 
             if (_volume == null && _createMissingVolumes) {
-                _volume = Volume.create(_persistit, path, name, volumeId,
-                        bufferSize, initialPages, extensionPages, maximumPages,
-                        false, false, false);
+                _volume = Volume.create(_persistit, path, name, volumeId, bufferSize, initialPages, extensionPages,
+                        maximumPages, false, false, false);
             }
             if (oldExchange != null && oldExchange.getVolume().equals(_volume)) {
                 _exchange = oldExchange;
             }
         }
 
-        public void handleTreeIdRecord(String treeName)
-                throws PersistitException {
+        public void handleTreeIdRecord(String treeName) throws PersistitException {
             Exchange oldExchange = _exchange;
             _exchange = null;
             _tree = null;
@@ -346,8 +325,7 @@ public class StreamLoader extends Task {
                 return;
             }
 
-            _tree = _volume.getTree(treeName, _createMissingVolumes
-                    | _createMissingTrees);
+            _tree = _volume.getTree(treeName, _createMissingVolumes | _createMissingTrees);
 
             if (oldExchange != null && oldExchange.getTree() == _tree) {
                 _exchange = oldExchange;
@@ -356,23 +334,19 @@ public class StreamLoader extends Task {
 
         }
 
-        public void handleTimeStampRecord(long timeStamp)
-                throws PersistitException {
+        public void handleTimeStampRecord(long timeStamp) throws PersistitException {
         }
 
-        public void handleHostNameRecord(String hostName)
-                throws PersistitException {
+        public void handleHostNameRecord(String hostName) throws PersistitException {
         }
 
         public void handleUserRecord(String userName) throws PersistitException {
         }
 
-        public void handleCommentRecord(String comment)
-                throws PersistitException {
+        public void handleCommentRecord(String comment) throws PersistitException {
         }
 
-        public void handleCountRecord(long keyValueRecords, long otherRecords)
-                throws PersistitException {
+        public void handleCountRecord(long keyValueRecords, long otherRecords) throws PersistitException {
         }
 
         public void handleStartRecord() throws PersistitException {
@@ -381,8 +355,7 @@ public class StreamLoader extends Task {
         public void handleEndRecord() throws PersistitException {
         }
 
-        public void handleExceptionRecord(String exceptionString)
-                throws PersistitException {
+        public void handleExceptionRecord(String exceptionString) throws PersistitException {
         }
 
         public void handleCompletionRecord() throws PersistitException {
@@ -392,8 +365,7 @@ public class StreamLoader extends Task {
 
     @Override
     public void runTask() throws Exception {
-        _dis = new DataInputStream(new BufferedInputStream(
-                new FileInputStream(_filePath), DEFAULT_BUFFER_SIZE));
+        _dis = new DataInputStream(new BufferedInputStream(new FileInputStream(_filePath), DEFAULT_BUFFER_SIZE));
         load(_treeSelector, _createMissingVolumes, _createMissingTrees);
     }
 
@@ -403,8 +375,7 @@ public class StreamLoader extends Task {
             return null;
         }
         Tree tree = _handler._tree;
-        return tree.getName() + " in " + tree.getVolume().getPath() + " ("
-                + _dataRecordCount + ")";
+        return tree.getName() + " in " + tree.getVolume().getPath() + " (" + _dataRecordCount + ")";
     }
 
 }

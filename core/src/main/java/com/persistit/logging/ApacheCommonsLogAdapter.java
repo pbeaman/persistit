@@ -53,6 +53,7 @@ public class ApacheCommonsLogAdapter extends AbstractPersistitLogger {
      * @param lt
      *            The <code>LogTemplate</code>
      */
+    @Override
     public boolean isLoggable(LogTemplate lt) {
         int level = lt.getLevel();
         switch (level) {
@@ -91,6 +92,7 @@ public class ApacheCommonsLogAdapter extends AbstractPersistitLogger {
      * @param message
      *            The message to write to the log.
      */
+    @Override
     public void log(LogTemplate lt, String message) {
         int level = lt.getLevel();
         switch (level) {

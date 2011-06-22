@@ -42,8 +42,7 @@ public class PersistitTableModel extends AbstractTableModel {
     private final static int ROW_CACHE_SIZE = 100;
     private final static int INITIAL_ROW_COUNT_ESTIMATE = 10000;
 
-    private final static String[] COLUMN_HEADER_NAMES = { "Index", "Key",
-            "Type", "Value", };
+    private final static String[] COLUMN_HEADER_NAMES = { "Index", "Key", "Type", "Value", };
 
     private final static int[] COLUMN_HEADER_WIDTHS = { 50, 450, 50, 450, };
 
@@ -100,6 +99,7 @@ public class PersistitTableModel extends AbstractTableModel {
         return _exchange;
     }
 
+    @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
         if (rowIndex < 0) {
             throw new IllegalArgumentException("rowIndex=" + rowIndex);
@@ -171,8 +171,7 @@ public class PersistitTableModel extends AbstractTableModel {
                 } else
                     _rowCache.put(index, row);
             }
-            if (_rowCountActual < 0
-                    && _rowCountEstimate - rowIndex < SCROLL_EXTRA) {
+            if (_rowCountActual < 0 && _rowCountEstimate - rowIndex < SCROLL_EXTRA) {
                 int previousEstimate = _rowCountEstimate;
                 _rowCountEstimate = (int) ((_rowCountEstimate + SCROLL_EXTRA) * SCROLL_FACTOR);
                 fireSizeChanged(previousEstimate);
@@ -183,10 +182,12 @@ public class PersistitTableModel extends AbstractTableModel {
         }
     }
 
+    @Override
     public int getRowCount() {
         return _rowCountEstimate;
     }
 
+    @Override
     public int getColumnCount() {
         return COLUMN_COUNT;
     }
@@ -259,8 +260,7 @@ public class PersistitTableModel extends AbstractTableModel {
             }
             int keyBytesSize = key.getEncodedSize() - _rootKey.getEncodedSize();
             byte[] keyBytes = new byte[keyBytesSize];
-            System.arraycopy(key.getEncodedBytes(), _rootKey.getEncodedSize(),
-                    keyBytes, 0, keyBytesSize);
+            System.arraycopy(key.getEncodedBytes(), _rootKey.getEncodedSize(), keyBytes, 0, keyBytesSize);
             return new Row(keyBytes);
         }
 
@@ -316,17 +316,15 @@ public class PersistitTableModel extends AbstractTableModel {
         private Exchange setupExchange() {
             Exchange ex = PersistitTableModel.this.getExchange();
             Key key = ex.getKey();
-            System.arraycopy(_rootKey.getEncodedBytes(), 0,
-                    key.getEncodedBytes(), 0, _rootKey.getEncodedSize());
-            System.arraycopy(_keyBytes, 0, key.getEncodedBytes(),
-                    _rootKey.getEncodedSize(), _keyBytes.length);
+            System.arraycopy(_rootKey.getEncodedBytes(), 0, key.getEncodedBytes(), 0, _rootKey.getEncodedSize());
+            System.arraycopy(_keyBytes, 0, key.getEncodedBytes(), _rootKey.getEncodedSize(), _keyBytes.length);
             key.setEncodedSize(_rootKey.getEncodedSize() + _keyBytes.length);
             return ex;
         }
 
+        @Override
         public String toString() {
-            return _index + ": " + setupExchange().getKey().toString() + "-->"
-                    + getValueString();
+            return _index + ": " + setupExchange().getKey().toString() + "-->" + getValueString();
         }
     }
 
@@ -422,19 +420,18 @@ public class PersistitTableModel extends AbstractTableModel {
         }
     }
 
-    private static class ExchangeTableCellRenderer extends
-            DefaultTableCellRenderer {
+    private static class ExchangeTableCellRenderer extends DefaultTableCellRenderer {
         private ExchangeTableCellRenderer() {
             setFont(new Font("Lucida", Font.PLAIN, 13));
             setBorder(BorderFactory.createEmptyBorder(1, 4, 1, 4));
         }
 
-        public Component getTableCellRendererComponent(JTable table,
-                Object value, boolean isSelected, boolean hasFocus,
-                int rowIndex, int columnIndex) {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                boolean hasFocus, int rowIndex, int columnIndex) {
 
-            JLabel label = (JLabel) super.getTableCellRendererComponent(table,
-                    value, isSelected, hasFocus, rowIndex, columnIndex);
+            JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, rowIndex,
+                    columnIndex);
 
             Row row = (Row) value;
             if (row == null) {
@@ -470,6 +467,7 @@ public class PersistitTableModel extends AbstractTableModel {
             return label;
         }
 
+        @Override
         protected void setValue(Object value) {
         }
 
@@ -486,6 +484,7 @@ public class PersistitTableModel extends AbstractTableModel {
             super(dtm);
         }
 
+        @Override
         public String getToolTipText(MouseEvent me) {
             int row = rowAtPoint(me.getPoint());
             int col = columnAtPoint(me.getPoint());
@@ -493,8 +492,7 @@ public class PersistitTableModel extends AbstractTableModel {
                 Object value = getModel().getValueAt(row, col);
                 if (value != null) {
                     TableCellRenderer tcr = getCellRenderer(row, col);
-                    Component rc = tcr.getTableCellRendererComponent(this,
-                            value, false, false, row, col);
+                    Component rc = tcr.getTableCellRendererComponent(this, value, false, false, row, col);
                     if (rc instanceof JLabel) {
                         String s = ((JLabel) rc).getText();
                         if (s.length() > 20)

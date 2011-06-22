@@ -62,17 +62,15 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
     private JPanel _poolInfoPanel;
     private JPanel _poolDetailPanel;
 
-    protected void setup(AdminUI ui) throws NoSuchMethodException,
-            RemoteException {
+    @Override
+    protected void setup(AdminUI ui) throws NoSuchMethodException, RemoteException {
         _adminUI = ui;
         _poolInfoPanel = new JPanel(new BorderLayout());
         _poolDetailPanel = new JPanel(new BorderLayout());
 
-        _bufferPoolInfoArrayModel = new ManagementTableModel(
-                Management.BufferPoolInfo.class, "BufferPoolInfo", ui);
+        _bufferPoolInfoArrayModel = new ManagementTableModel(Management.BufferPoolInfo.class, "BufferPoolInfo", ui);
 
-        _bufferInfoArrayModel = new ManagementTableModel(
-                Management.BufferInfo.class, "BufferInfo", ui);
+        _bufferInfoArrayModel = new ManagementTableModel(Management.BufferInfo.class, "BufferInfo", ui);
 
         final JTable table1 = new JTable(_bufferPoolInfoArrayModel);
         table1.setAutoCreateRowSorter(true);
@@ -89,16 +87,13 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
         table2.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         _bufferInfoArrayModel.formatColumns(table2, _detailMask);
 
-        _poolInfoPanel.setBorder(_adminUI
-                .createTitledBorder("BufferPanel.summaryCaption"));
+        _poolInfoPanel.setBorder(_adminUI.createTitledBorder("BufferPanel.summaryCaption"));
 
         _poolInfoPanel.add(new JScrollPane(table1), BorderLayout.CENTER);
 
-        _poolDetailBorderPattern = _adminUI
-                .getProperty("BufferPanel.detailCaption");
+        _poolDetailBorderPattern = _adminUI.getProperty("BufferPanel.detailCaption");
 
-        _poolDetailBorder = _adminUI
-                .createTitledBorder("BufferPanel.detailCaptionEmpty");
+        _poolDetailBorder = _adminUI.createTitledBorder("BufferPanel.detailCaptionEmpty");
 
         _poolDetailPanel.setBorder(_poolDetailBorder);
         _poolDetailPanel.add(new JScrollPane(table2), BorderLayout.CENTER);
@@ -112,17 +107,16 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
 
         add(createBufferSelectorPanel(), BorderLayout.SOUTH);
 
-        table1.getSelectionModel().addListSelectionListener(
-                new ListSelectionListener() {
-                    public void valueChanged(ListSelectionEvent lse) {
-                        int index = table1.getSelectedRow();
-                        if (!_refreshing && !lse.getValueIsAdjusting()
-                                && index >= 0) {
-                            _bufferPoolIndex = index;
-                            _adminUI.scheduleRefresh(-1);
-                        }
-                    }
-                });
+        table1.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent lse) {
+                int index = table1.getSelectedRow();
+                if (!_refreshing && !lse.getValueIsAdjusting() && index >= 0) {
+                    _bufferPoolIndex = index;
+                    _adminUI.scheduleRefresh(-1);
+                }
+            }
+        });
 
         _adminUI.scheduleRefresh(-1);
     }
@@ -172,6 +166,7 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
         return panel;
     }
 
+    @Override
     public void actionPerformed(AdminUI.AdminAction action, ActionEvent ae) {
         String name = action.getName();
         Object source = ae.getSource();
@@ -188,20 +183,17 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
         // _modeCombo.setSelectedIndex(mode);
         // }
         // else
-        if ("VALID".equals(name) || "DIRTY".equals(name)
-                || "READER".equals(name) || "WRITER".equals(name)) {
+        if ("VALID".equals(name) || "DIRTY".equals(name) || "READER".equals(name) || "WRITER".equals(name)) {
             boolean selected = ((JToggleButton) source).isSelected();
             char selectionChar = name.toLowerCase().charAt(0);
-            int p = _selectedIncludeMask == null ? -1 : _selectedIncludeMask
-                    .indexOf(selectionChar);
+            int p = _selectedIncludeMask == null ? -1 : _selectedIncludeMask.indexOf(selectionChar);
             if (selected && p < 0) {
                 if (_selectedIncludeMask == null)
                     _selectedIncludeMask = "";
                 _selectedIncludeMask += selectionChar;
             }
             if (!selected && p >= 0) {
-                _selectedIncludeMask = new StringBuilder(_selectedIncludeMask)
-                        .deleteCharAt(p).toString();
+                _selectedIncludeMask = new StringBuilder(_selectedIncludeMask).deleteCharAt(p).toString();
                 if (_selectedIncludeMask.length() == 0) {
                     _selectedIncludeMask = null;
                 }
@@ -210,6 +202,7 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
         }
     }
 
+    @Override
     protected void refresh(boolean reset) {
         synchronized (this) {
             if (_refreshing)
@@ -225,8 +218,7 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
                 _selectedTraversalType = 0;
                 if (_toggleList != null) {
                     for (int index = 0; index < _toggleList.size(); index++) {
-                        JToggleButton toggle = (JToggleButton) _toggleList
-                                .get(index);
+                        JToggleButton toggle = (JToggleButton) _toggleList.get(index);
                         toggle.setSelected(false);
                     }
                 }
@@ -236,29 +228,24 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
                 // }
             }
 
-            Management.BufferPoolInfo[] bufferPoolInfoArray = management == null ? null
-                    : management.getBufferPoolInfoArray();
+            Management.BufferPoolInfo[] bufferPoolInfoArray = management == null ? null : management
+                    .getBufferPoolInfoArray();
 
             _bufferPoolInfoArrayModel.setInfoArray(bufferPoolInfoArray);
 
             if (_bufferPoolIndex < 0)
                 _bufferPoolIndex = 0;
-            if (_bufferPoolIndex >= 0 && bufferPoolInfoArray != null
-                    && _bufferPoolIndex < bufferPoolInfoArray.length) {
-                int bufferSize = bufferPoolInfoArray[_bufferPoolIndex]
-                        .getBufferSize();
-                _bufferInfoArrayModel.setInfoArray(management
-                        .getBufferInfoArray(bufferSize, _selectedTraversalType,
-                                _selectedIncludeMask, _selectedExcludeMask));
+            if (_bufferPoolIndex >= 0 && bufferPoolInfoArray != null && _bufferPoolIndex < bufferPoolInfoArray.length) {
+                int bufferSize = bufferPoolInfoArray[_bufferPoolIndex].getBufferSize();
+                _bufferInfoArrayModel.setInfoArray(management.getBufferInfoArray(bufferSize, _selectedTraversalType,
+                        _selectedIncludeMask, _selectedExcludeMask));
 
-                _poolDetailBorder.setTitle(MessageFormat.format(
-                        _poolDetailBorderPattern,
-                        new Object[] { _adminUI.formatInteger(bufferSize) }));
+                _poolDetailBorder.setTitle(MessageFormat.format(_poolDetailBorderPattern, new Object[] { _adminUI
+                        .formatInteger(bufferSize) }));
                 _poolDetailPanel.repaint(0, 0, 1000, 30);
             } else {
                 _bufferInfoArrayModel.setInfoArray(null);
-                _poolDetailBorder.setTitle(_adminUI
-                        .getProperty("BufferPanel.detailCaptionEmpty"));
+                _poolDetailBorder.setTitle(_adminUI.getProperty("BufferPanel.detailCaptionEmpty"));
             }
         } catch (RemoteException re) {
             _adminUI.postException(re);
@@ -269,10 +256,12 @@ public class AdminUIBufferPanel extends AdminPanel implements AdminCommand {
         }
     }
 
+    @Override
     protected Map getMenuMap() {
         return _menuMap;
     }
 
+    @Override
     protected void setDefaultButton() {
         getRootPane().setDefaultButton(null);
     }

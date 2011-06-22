@@ -78,6 +78,7 @@ public class JDK14LoggingAdapter extends AbstractPersistitLogger {
      * @param lt
      *            The <code>LogTemplate</code>
      */
+    @Override
     public boolean isLoggable(LogTemplate lt) {
         return _logger.isLoggable(getLevel(lt));
     }
@@ -91,6 +92,7 @@ public class JDK14LoggingAdapter extends AbstractPersistitLogger {
      * @param message
      *            The message to write to the log.
      */
+    @Override
     public void log(LogTemplate lt, String message) {
         _logger.log(getLevel(lt), message);
     }

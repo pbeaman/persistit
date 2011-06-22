@@ -96,6 +96,7 @@ public abstract class AbstractWeakReference implements PersistitReference {
      * 
      * @return The referent object.
      */
+    @Override
     public Object get() {
         if (_id == null) {
             throw new IllegalStateException("identifier not initialized");

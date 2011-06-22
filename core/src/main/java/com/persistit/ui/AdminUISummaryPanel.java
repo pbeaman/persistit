@@ -111,8 +111,8 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
     private Map _menuMap = new HashMap();
     private String _selectedVolumeName;
 
-    protected void setup(AdminUI ui) throws NoSuchMethodException,
-            RemoteException {
+    @Override
+    protected void setup(AdminUI ui) throws NoSuchMethodException, RemoteException {
         _adminUI = ui;
         setLayout(new BorderLayout());
         _summaryPanel = new JPanel(new GridBagLayout());
@@ -128,122 +128,99 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.BOTH;
 
-        _version = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.version", false);
-        _started = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.started", false);
-        _elapsed = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.elapsed", true);
+        _version = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.version", false);
+        _started = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.started", false);
+        _elapsed = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.elapsed", true);
 
-        _copyright = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.copyright", true);
+        _copyright = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.copyright",
+                true);
 
-        _totalWrites = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.writes", false);
-        _totalReads = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.reads", false);
-        _totalGets = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.gets", false);
-        _hitRatio = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.ratio", true);
+        _totalWrites = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.writes",
+                false);
+        _totalReads = (JTextField) ui
+                .addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.reads", false);
+        _totalGets = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.gets", false);
+        _hitRatio = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.ratio", true);
 
-        _commits = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.commits", false);
-        _rollbacks = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.rollbacks", false);
-        _rollbacksSinceLastCommit = (JTextField) ui.addLabeledField(
-                _summaryPanel, gbc, new JTextField(),
+        _commits = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.commits", false);
+        _rollbacks = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(), "SummaryPanel.rollbacks",
+                false);
+        _rollbacksSinceLastCommit = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(),
                 "SummaryPanel.rollbacksSinceLastCommit", true);
 
-        _frozenUpdates = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.update_suspended", false);
-        _frozenShutdown = (JTextField) ui.addLabeledField(_summaryPanel, gbc,
-                new JTextField(), "SummaryPanel.shutdown_suspended", true);
+        _frozenUpdates = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(),
+                "SummaryPanel.update_suspended", false);
+        _frozenShutdown = (JTextField) ui.addLabeledField(_summaryPanel, gbc, new JTextField(),
+                "SummaryPanel.shutdown_suspended", true);
 
-        _journalCurLocation = (JTextField) ui.addLabeledField(_journalPanel,
-                gbc, new JTextField(), "JournalPanel.journal_current_location",
-                false);
-        _journalBaseAddress = (JTextField) ui.addLabeledField(_journalPanel,
-                gbc, new JTextField(), "JournalPanel.journal_base_address",
-                false);
-        _journalBlockSize = (JTextField) ui.addLabeledField(_journalPanel, gbc,
-                new JTextField(), "JournalPanel.journal_block_size", true);
+        _journalCurLocation = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_current_location", false);
+        _journalBaseAddress = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_base_address", false);
+        _journalBlockSize = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_block_size", true);
 
-        _journalPageMapSize = (JTextField) ui.addLabeledField(_journalPanel,
-                gbc, new JTextField(), "JournalPanel.journal_page_map_size",
-                false);
-        _journalPageCount = (JTextField) ui.addLabeledField(_journalPanel, gbc,
-                new JTextField(), "JournalPanel.journal_page_count", false);
+        _journalPageMapSize = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_page_map_size", false);
+        _journalPageCount = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_page_count", false);
 
-        _journalCopiedPageCount = (JTextField) ui.addLabeledField(
-                _journalPanel, gbc, new JTextField(),
+        _journalCopiedPageCount = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
                 "JournalPanel.journal_copy_count", false);
 
-        _journalReadPageCount = (JTextField) ui.addLabeledField(_journalPanel,
-                gbc, new JTextField(), "JournalPanel.journal_read_count", true);
+        _journalReadPageCount = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_read_count", true);
 
-        _journalValidCkptLocation = (JTextField) ui.addLabeledField(
-                _journalPanel, gbc, new JTextField(),
+        _journalValidCkptLocation = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
                 "JournalPanel.journal_ckpt_location", false);
 
-        _journalValidCkptTimestamp = (JTextField) ui.addLabeledField(
-                _journalPanel, gbc, new JTextField(),
+        _journalValidCkptTimestamp = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
                 "JournalPanel.journal_ckpt_timestamp", true);
 
-        _journalValidCkptTime = (JTextField) ui.addLabeledField(_journalPanel,
-                gbc, new JTextField(), "JournalPanel.journal_ckpt_time", false);
+        _journalValidCkptTime = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_ckpt_time", false);
 
-        _journalValidCkptAgo = (JTextField) ui.addLabeledField(_journalPanel,
-                gbc, new JTextField(), "JournalPanel.journal_ckpt_ago", true);
+        _journalValidCkptAgo = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_ckpt_ago", true);
 
-        _journalAppendOnly = (JTextField) ui.addLabeledField(_journalPanel,
-                gbc, new JTextField(), "JournalPanel.journal_append_only",
-                false);
+        _journalAppendOnly = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_append_only", false);
 
-        _journalCopyFast = (JTextField) ui.addLabeledField(_journalPanel, gbc,
-                new JTextField(), "JournalPanel.journal_copy_fast", true);
+        _journalCopyFast = (JTextField) ui.addLabeledField(_journalPanel, gbc, new JTextField(),
+                "JournalPanel.journal_copy_fast", true);
 
-        _recoveryKeystone = (JTextField) ui
-                .addLabeledField(_recoveryPanel, gbc, new JTextField(),
-                        "RecoveryPanel.recovery_location", false);
+        _recoveryKeystone = (JTextField) ui.addLabeledField(_recoveryPanel, gbc, new JTextField(),
+                "RecoveryPanel.recovery_location", false);
 
-        _recoveryBaseAddress = (JTextField) ui.addLabeledField(_recoveryPanel,
-                gbc, new JTextField(), "RecoveryPanel.recovery_base", false);
+        _recoveryBaseAddress = (JTextField) ui.addLabeledField(_recoveryPanel, gbc, new JTextField(),
+                "RecoveryPanel.recovery_base", false);
 
-        _recoveryEndAddress = (JTextField) ui.addLabeledField(_recoveryPanel,
-                gbc, new JTextField(), "RecoveryPanel.recovery_ended", true);
+        _recoveryEndAddress = (JTextField) ui.addLabeledField(_recoveryPanel, gbc, new JTextField(),
+                "RecoveryPanel.recovery_ended", true);
 
-        _recoveryCkptLocation = (JTextField) ui.addLabeledField(_recoveryPanel,
-                gbc, new JTextField(), "RecoveryPanel.recovery_ckpt_location",
-                false);
+        _recoveryCkptLocation = (JTextField) ui.addLabeledField(_recoveryPanel, gbc, new JTextField(),
+                "RecoveryPanel.recovery_ckpt_location", false);
 
-        _recoveryCkptTimestamp = (JTextField) ui.addLabeledField(
-                _recoveryPanel, gbc, new JTextField(),
+        _recoveryCkptTimestamp = (JTextField) ui.addLabeledField(_recoveryPanel, gbc, new JTextField(),
                 "RecoveryPanel.recovery_ckpt_timestamp", false);
 
-        _recoveryCkptTime = (JTextField) ui
-                .addLabeledField(_recoveryPanel, gbc, new JTextField(),
-                        "RecoveryPanel.recovery_ckpt_time", true);
+        _recoveryCkptTime = (JTextField) ui.addLabeledField(_recoveryPanel, gbc, new JTextField(),
+                "RecoveryPanel.recovery_ckpt_time", true);
 
-        _recoveryCommitted = (JTextField) ui.addLabeledField(_recoveryPanel,
-                gbc, new JTextField(), "RecoveryPanel.recovery_committed",
-                false);
+        _recoveryCommitted = (JTextField) ui.addLabeledField(_recoveryPanel, gbc, new JTextField(),
+                "RecoveryPanel.recovery_committed", false);
 
-        _recoveryUncommitted = (JTextField) ui.addLabeledField(_recoveryPanel,
-                gbc, new JTextField(), "RecoveryPanel.recovery_uncommitted",
-                false);
+        _recoveryUncommitted = (JTextField) ui.addLabeledField(_recoveryPanel, gbc, new JTextField(),
+                "RecoveryPanel.recovery_uncommitted", false);
 
-        _recoveryApplied = (JTextField) ui.addLabeledField(_recoveryPanel, gbc,
-                new JTextField(), "RecoveryPanel.recovery_applied", true);
+        _recoveryApplied = (JTextField) ui.addLabeledField(_recoveryPanel, gbc, new JTextField(),
+                "RecoveryPanel.recovery_applied", true);
 
-        _recoveryException = (JTextField) ui.addLabeledField(_recoveryPanel,
-                gbc, new JTextField(), "RecoveryPanel.recovery_exception",
-                false);
+        _recoveryException = (JTextField) ui.addLabeledField(_recoveryPanel, gbc, new JTextField(),
+                "RecoveryPanel.recovery_exception", false);
 
-        _frozenTrueCaption = _adminUI
-                .getProperty("SummaryPanel.suspendedTrueCaption");
-        _frozenFalseCaption = _adminUI
-                .getProperty("SummaryPanel.suspendedFalseCaption");
+        _frozenTrueCaption = _adminUI.getProperty("SummaryPanel.suspendedTrueCaption");
+        _frozenFalseCaption = _adminUI.getProperty("SummaryPanel.suspendedFalseCaption");
 
         _enabledCaption = _adminUI.getProperty("SummaryPanel.enabledCaption");
         _disabledCaption = _adminUI.getProperty("SummaryPanel.disabledCaption");
@@ -256,8 +233,7 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
         gbc.fill = GridBagConstraints.WEST;
         add(new JLabel(_adminUI.getProperty("volumes")));
 
-        _volumeInfoArrayModel = new ManagementTableModel(
-                Management.VolumeInfo.class, "VolumeInfo", ui);
+        _volumeInfoArrayModel = new ManagementTableModel(Management.VolumeInfo.class, "VolumeInfo", ui);
 
         final JTable volumeTable = new JTable(_volumeInfoArrayModel);
         volumeTable.setAutoCreateRowSorter(true);
@@ -266,28 +242,26 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
         volumeTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         _volumeInfoArrayModel.formatColumns(volumeTable, null);
 
-        volumeTable.getSelectionModel().addListSelectionListener(
-                new ListSelectionListener() {
-                    public void valueChanged(ListSelectionEvent lse) {
-                        int index = volumeTable.getSelectedRow();
-                        if (!lse.getValueIsAdjusting() && index >= 0) {
-                            Management.VolumeInfo[] array = (Management.VolumeInfo[]) _volumeInfoArrayModel
-                                    .getInfoArray();
-                            if (array != null && index < array.length) {
-                                _selectedVolumeName = array[index].getPath();
-                            } else {
-                                _selectedVolumeName = null;
-                            }
-                            _adminUI.scheduleRefresh(-1);
-                        }
+        volumeTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent lse) {
+                int index = volumeTable.getSelectedRow();
+                if (!lse.getValueIsAdjusting() && index >= 0) {
+                    Management.VolumeInfo[] array = (Management.VolumeInfo[]) _volumeInfoArrayModel.getInfoArray();
+                    if (array != null && index < array.length) {
+                        _selectedVolumeName = array[index].getPath();
+                    } else {
+                        _selectedVolumeName = null;
                     }
-                });
+                    _adminUI.scheduleRefresh(-1);
+                }
+            }
+        });
 
         JScrollPane volumeScrollPane = new JScrollPane(volumeTable);
 
         JPanel volumePanel = new JPanel(new BorderLayout());
-        volumePanel.setBorder(_adminUI
-                .createTitledBorder("SummaryPanel.volumes"));
+        volumePanel.setBorder(_adminUI.createTitledBorder("SummaryPanel.volumes"));
         volumePanel.add(volumeScrollPane, BorderLayout.CENTER);
 
         JSplitPane splitter1 = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
@@ -300,14 +274,11 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
 
         _normalForegroundColor = _frozenUpdates.getForeground();
 
-        _summaryPanel.setBorder(_adminUI
-                .createTitledBorder("SummaryPanel.status"));
+        _summaryPanel.setBorder(_adminUI.createTitledBorder("SummaryPanel.status"));
 
-        _journalPanel.setBorder(_adminUI
-                .createTitledBorder("JournalPanel.journal_status"));
+        _journalPanel.setBorder(_adminUI.createTitledBorder("JournalPanel.journal_status"));
 
-        _recoveryPanel.setBorder(_adminUI
-                .createTitledBorder("RecoveryPanel.recovery_status"));
+        _recoveryPanel.setBorder(_adminUI.createTitledBorder("RecoveryPanel.recovery_status"));
 
         JPanel panel = new JPanel(new GridBagLayout());
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -323,12 +294,14 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
         refresh(false);
     }
 
+    @Override
     public void actionPerformed(AdminUI.AdminAction action, ActionEvent ae) {
         //
         // Currently no actions created by this panel
         //
     }
 
+    @Override
     protected void refresh(boolean reset) {
         try {
             Management management = _adminUI.getManagement();
@@ -383,95 +356,56 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
 
                 _started.setText(_adminUI.formatDate(management.getStartTime()));
 
-                _elapsed.setText(_adminUI.formatTime(management
-                        .getElapsedTime()));
+                _elapsed.setText(_adminUI.formatTime(management.getElapsedTime()));
 
-                _frozenUpdates
-                        .setText(management.isUpdateSuspended() ? _frozenTrueCaption
-                                : _frozenFalseCaption);
+                _frozenUpdates.setText(management.isUpdateSuspended() ? _frozenTrueCaption : _frozenFalseCaption);
 
-                _frozenUpdates
-                        .setForeground(management.isUpdateSuspended() ? Color.red
-                                : _normalForegroundColor);
+                _frozenUpdates.setForeground(management.isUpdateSuspended() ? Color.red : _normalForegroundColor);
 
-                _frozenShutdown
-                        .setText(management.isShutdownSuspended() ? _frozenTrueCaption
-                                : _frozenFalseCaption);
+                _frozenShutdown.setText(management.isShutdownSuspended() ? _frozenTrueCaption : _frozenFalseCaption);
 
-                _frozenShutdown
-                        .setForeground(management.isShutdownSuspended() ? Color.red
-                                : _normalForegroundColor);
+                _frozenShutdown.setForeground(management.isShutdownSuspended() ? Color.red : _normalForegroundColor);
 
-                final Management.JournalInfo jinfo = management
-                        .getJournalInfo();
-                _journalCurLocation.setText(_adminUI.formatFileLocation(
-                        jinfo.getCurrentJournalFile(),
-                        jinfo.getCurrentJournalAddress()));
-                _journalBlockSize.setText(_adminUI.formatLong(jinfo
-                        .getBlockSize()));
+                final Management.JournalInfo jinfo = management.getJournalInfo();
+                _journalCurLocation.setText(_adminUI.formatFileLocation(jinfo.getCurrentJournalFile(), jinfo
+                        .getCurrentJournalAddress()));
+                _journalBlockSize.setText(_adminUI.formatLong(jinfo.getBlockSize()));
 
-                _journalBaseAddress.setText(_adminUI.formatLong(jinfo
-                        .getBaseAddress()));
+                _journalBaseAddress.setText(_adminUI.formatLong(jinfo.getBaseAddress()));
 
-                _journalPageMapSize.setText(_adminUI.formatLong(jinfo
-                        .getPageMapSize()));
-                _journalPageCount.setText(_adminUI.formatLong(jinfo
-                        .getJournaledPageCount()));
-                _journalCopiedPageCount.setText(_adminUI.formatLong(jinfo
-                        .getCopiedPageCount()));
-                _journalReadPageCount.setText(_adminUI.formatLong(jinfo
-                        .getReadPageCount()));
+                _journalPageMapSize.setText(_adminUI.formatLong(jinfo.getPageMapSize()));
+                _journalPageCount.setText(_adminUI.formatLong(jinfo.getJournaledPageCount()));
+                _journalCopiedPageCount.setText(_adminUI.formatLong(jinfo.getCopiedPageCount()));
+                _journalReadPageCount.setText(_adminUI.formatLong(jinfo.getReadPageCount()));
 
                 if (jinfo.getLastValidCheckpointSystemTime() != 0) {
-                    _journalValidCkptTime.setText(_adminUI.formatDate(jinfo
-                            .getLastValidCheckpointSystemTime()));
-                    _journalValidCkptAgo.setText(_adminUI.formatLong(jinfo
-                            .getLastValidCheckpointAge()));
-                    _journalValidCkptTimestamp
-                            .setText(_adminUI.formatLong(jinfo
-                                    .getLastValidCheckpointTimestamp()));
-                    _journalValidCkptLocation.setText(_adminUI
-                            .formatFileLocation(jinfo
-                                    .getLastValidCheckpointJournalFile(), jinfo
-                                    .getLastValidCheckpointJournalAddress()));
+                    _journalValidCkptTime.setText(_adminUI.formatDate(jinfo.getLastValidCheckpointSystemTime()));
+                    _journalValidCkptAgo.setText(_adminUI.formatLong(jinfo.getLastValidCheckpointAge()));
+                    _journalValidCkptTimestamp.setText(_adminUI.formatLong(jinfo.getLastValidCheckpointTimestamp()));
+                    _journalValidCkptLocation.setText(_adminUI.formatFileLocation(jinfo
+                            .getLastValidCheckpointJournalFile(), jinfo.getLastValidCheckpointJournalAddress()));
                 }
 
-                _journalAppendOnly
-                        .setText(jinfo.isAppendOnly() ? _enabledCaption
-                                : _disabledCaption);
+                _journalAppendOnly.setText(jinfo.isAppendOnly() ? _enabledCaption : _disabledCaption);
 
-                _journalCopyFast
-                        .setText(jinfo.isFastCopying() ? _enabledCaption
-                                : _disabledCaption);
+                _journalCopyFast.setText(jinfo.isFastCopying() ? _enabledCaption : _disabledCaption);
 
-                final Management.RecoveryInfo rinfo = management
-                        .getRecoveryInfo();
+                final Management.RecoveryInfo rinfo = management.getRecoveryInfo();
 
-                _recoveryApplied.setText(_adminUI.formatInteger(rinfo
-                        .getAppliedTransactions()));
-                _recoveryBaseAddress.setText(_adminUI.formatLong(rinfo
-                        .getBaseAddress()));
-                _recoveryCkptLocation.setText(_adminUI.formatLong(rinfo
-                        .getLastValidCheckpointJournalAddress()));
-                _recoveryCkptTime.setText(_adminUI.formatDate(rinfo
-                        .getLastValidCheckpointSystemTime()));
-                _recoveryCkptTimestamp.setText(_adminUI.formatLong(rinfo
-                        .getLastValidCheckpointTimestamp()));
-                _recoveryCommitted.setText(_adminUI.formatInteger(rinfo
-                        .getCommittedTransactions()));
-                _recoveryEndAddress.setText(_adminUI.formatLong(rinfo
-                        .getRecoveryEndAddress()));
-                _recoveryException
-                        .setText(rinfo.getRecoveryEndedException() == null ? "none"
-                                : rinfo.getRecoveryEndedException());
-                _recoveryKeystone.setText(_adminUI.formatFileLocation(
-                        rinfo.getKeystoneJournalFile(),
-                        rinfo.getKeystoneJournalAddress()));
-                _recoveryUncommitted.setText(_adminUI.formatInteger(rinfo
-                        .getUncommittedTransactions()));
+                _recoveryApplied.setText(_adminUI.formatInteger(rinfo.getAppliedTransactions()));
+                _recoveryBaseAddress.setText(_adminUI.formatLong(rinfo.getBaseAddress()));
+                _recoveryCkptLocation.setText(_adminUI.formatLong(rinfo.getLastValidCheckpointJournalAddress()));
+                _recoveryCkptTime.setText(_adminUI.formatDate(rinfo.getLastValidCheckpointSystemTime()));
+                _recoveryCkptTimestamp.setText(_adminUI.formatLong(rinfo.getLastValidCheckpointTimestamp()));
+                _recoveryCommitted.setText(_adminUI.formatInteger(rinfo.getCommittedTransactions()));
+                _recoveryEndAddress.setText(_adminUI.formatLong(rinfo.getRecoveryEndAddress()));
+                _recoveryException.setText(rinfo.getRecoveryEndedException() == null ? "none" : rinfo
+                        .getRecoveryEndedException());
+                _recoveryKeystone.setText(_adminUI.formatFileLocation(rinfo.getKeystoneJournalFile(), rinfo
+                        .getKeystoneJournalAddress()));
+                _recoveryUncommitted.setText(_adminUI.formatInteger(rinfo.getUncommittedTransactions()));
 
-                final Management.BufferPoolInfo[] bpia = management
-                        .getBufferPoolInfoArray();
+                final Management.BufferPoolInfo[] bpia = management.getBufferPoolInfoArray();
 
                 long reads = 0;
                 long writes = 0;
@@ -499,19 +433,14 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
                 _totalReads.setText(_adminUI.formatLong(reads));
                 _totalWrites.setText(_adminUI.formatLong(writes));
                 _totalGets.setText(_adminUI.formatLong(misses));
-                _hitRatio.setText(misses + hits + creates > 0 ? _adminUI
-                        .formatPercent((double) hits / (double) (misses + hits + creates)) : "n/a");
+                _hitRatio.setText(misses + hits + creates > 0 ? _adminUI.formatPercent((double) hits
+                        / (double) (misses + hits + creates)) : "n/a");
                 _volumeInfoArrayModel.setInfoArray(via);
 
-                Management.TransactionInfo transactionInfo = management
-                        .getTransactionInfo();
-                _commits.setText(_adminUI.formatLong(transactionInfo
-                        .getCommitCount()));
-                _rollbacks.setText(_adminUI.formatLong(transactionInfo
-                        .getRollbackCount()));
-                _rollbacksSinceLastCommit.setText(_adminUI
-                        .formatLong(transactionInfo
-                                .getRollbackSinceCommitCount()));
+                Management.TransactionInfo transactionInfo = management.getTransactionInfo();
+                _commits.setText(_adminUI.formatLong(transactionInfo.getCommitCount()));
+                _rollbacks.setText(_adminUI.formatLong(transactionInfo.getRollbackCount()));
+                _rollbacksSinceLastCommit.setText(_adminUI.formatLong(transactionInfo.getRollbackSinceCommitCount()));
 
             }
         } catch (RemoteException re) {
@@ -532,10 +461,12 @@ public class AdminUISummaryPanel extends AdminPanel implements AdminCommand {
         return _adminUI.formatLong(status);
     }
 
+    @Override
     protected Map getMenuMap() {
         return _menuMap;
     }
 
+    @Override
     protected void setDefaultButton() {
         getRootPane().setDefaultButton(null);
     }

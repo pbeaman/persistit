@@ -29,7 +29,7 @@ public class ScriptedKeyFilterTest {
     enum KW {
         KEY, KF, LTEQ, GTEQ, LT, GT, NUDGE
     }
-    
+
     enum Nudge {
         RIGHT, LEFT, DEEPER, BEFORE, AFTER
     }
@@ -39,8 +39,8 @@ public class ScriptedKeyFilterTest {
         KeyFilter kf = null;
         Key key = new Key((Persistit) null);
         boolean okay = true;
-        final BufferedReader reader = new BufferedReader(new InputStreamReader(
-                ScriptedKeyFilterTest.class.getResourceAsStream(SCRIPT_NAME)));
+        final BufferedReader reader = new BufferedReader(new InputStreamReader(ScriptedKeyFilterTest.class
+                .getResourceAsStream(SCRIPT_NAME)));
         String line;
         int lineCount = 0;
         while ((line = reader.readLine()) != null) {
@@ -63,8 +63,7 @@ public class ScriptedKeyFilterTest {
                 case KEY:
                     key.clear();
                     if (!new KeyParser(arg).parseKey(key)) {
-                        System.out.println("Failed line: " + lineCount + ": "
-                                + line + "  parse returned false");
+                        System.out.println("Failed line: " + lineCount + ": " + line + "  parse returned false");
                         okay = false;
                     }
                     break;
@@ -91,17 +90,16 @@ public class ScriptedKeyFilterTest {
             } catch (Exception e) {
                 okay = false;
                 System.out.println();
-                System.out.println("Exception " + e + " on line " + lineCount
-                        + ": " + line);
+                System.out.println("Exception " + e + " on line " + lineCount + ": " + line);
                 e.printStackTrace();
             }
 
         }
         assertTrue(okay);
     }
-    
+
     private void nudge(final Key key, final String arg) {
-        switch(Nudge.valueOf(arg)) {
+        switch (Nudge.valueOf(arg)) {
         case LEFT:
             key.nudgeLeft();
             break;
@@ -120,24 +118,22 @@ public class ScriptedKeyFilterTest {
         }
     }
 
-    private boolean check(final Key key, final KeyFilter kf,
-            final Key.Direction direction, final String expected,
+    private boolean check(final Key key, final KeyFilter kf, final Key.Direction direction, final String expected,
             final int lineCount) {
         boolean result = kf.next(key, direction);
         if (result) {
             if (expected.equals(key.toString())) {
                 return true;
             } else {
-                System.out.println("Failed line " + lineCount + ": expected="
-                        + expected + "  actual=" + key.toString());
+                System.out
+                        .println("Failed line " + lineCount + ": expected=" + expected + "  actual=" + key.toString());
                 return false;
             }
         } else {
             if ("<false>".equals(expected)) {
                 return true;
             } else {
-                System.out.println("Failed line " + lineCount + ": expected="
-                        + expected + "  actual=<false>");
+                System.out.println("Failed line " + lineCount + ": expected=" + expected + "  actual=<false>");
                 return false;
             }
         }

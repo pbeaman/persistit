@@ -46,8 +46,7 @@ public class TaskSetupPanel extends Box {
     private String _yesMessage;
     private String _noMessage;
 
-    public TaskSetupPanel(AdminUI ui, String taskSpecification)
-            throws Exception {
+    public TaskSetupPanel(AdminUI ui, String taskSpecification) throws Exception {
         super(BoxLayout.Y_AXIS);
         _adminUI = ui;
         _yesMessage = ui.getProperty("YesMessage");
@@ -145,8 +144,8 @@ public class TaskSetupPanel extends Box {
             }
             JTextField textField = new JTextField(10);
             textField.setDocument(new PlainDocument() {
-                public void insertString(int offs, String str, AttributeSet a)
-                        throws BadLocationException {
+                @Override
+                public void insertString(int offs, String str, AttributeSet a) throws BadLocationException {
                     boolean okay = true;
                     for (int index = 0; index < str.length() && okay; index++) {
                         if (!Character.isDigit(str.charAt(index)))
@@ -163,9 +162,7 @@ public class TaskSetupPanel extends Box {
             return new ParameterComponent(name, type, textField);
         }
 
-        throw new RuntimeException(
-                "Misconfigured admin properties: no such task parameter type "
-                        + type);
+        throw new RuntimeException("Misconfigured admin properties: no such task parameter type " + type);
 
     }
 
@@ -200,8 +197,7 @@ public class TaskSetupPanel extends Box {
             }
 
             if ("BOOLEAN".equals(_type)) {
-                return (((JRadioButton) _component).isSelected()) ? Boolean.TRUE
-                        .toString() : Boolean.FALSE.toString();
+                return (((JRadioButton) _component).isSelected()) ? Boolean.TRUE.toString() : Boolean.FALSE.toString();
             }
 
             if ("TREES".equals(_type)) {
@@ -227,8 +223,7 @@ public class TaskSetupPanel extends Box {
 
     void refresh(boolean reset) throws RemoteException {
         for (int index = 0; index < _taskSpecificParameterDescriptors.size(); index++) {
-            ParameterComponent pc = (ParameterComponent) _taskSpecificParameterDescriptors
-                    .get(index);
+            ParameterComponent pc = _taskSpecificParameterDescriptors.get(index);
             if (pc._component instanceof AdminPanel) {
                 ((AdminPanel) pc._component).refresh(reset);
             }
@@ -273,46 +268,39 @@ public class TaskSetupPanel extends Box {
     String[] argStrings() {
         String[] results = new String[_taskSpecificParameterDescriptors.size()];
         for (int index = 0; index < results.length; index++) {
-            ParameterComponent pc = (ParameterComponent) _taskSpecificParameterDescriptors
-                    .get(index);
+            ParameterComponent pc = _taskSpecificParameterDescriptors.get(index);
             results[index] = pc.getStringValue();
         }
         return results;
     }
 
     String getDescriptionString() {
-        ParameterComponent pc = (ParameterComponent) _generalParameterDescriptors
-                .get(0);
+        ParameterComponent pc = _generalParameterDescriptors.get(0);
         return pc.getStringValue();
     }
 
     void setDescriptionString(String description) {
-        ParameterComponent pc = (ParameterComponent) _generalParameterDescriptors
-                .get(0);
+        ParameterComponent pc = _generalParameterDescriptors.get(0);
         pc.setStringValue(description);
     }
 
     String getOwnerString() {
-        ParameterComponent pc = (ParameterComponent) _generalParameterDescriptors
-                .get(1);
+        ParameterComponent pc = _generalParameterDescriptors.get(1);
         return pc.getStringValue();
     }
 
     void setOwnerString(String owner) {
-        ParameterComponent pc = (ParameterComponent) _generalParameterDescriptors
-                .get(1);
+        ParameterComponent pc = _generalParameterDescriptors.get(1);
         pc.setStringValue(owner);
     }
 
     boolean isVerboseEnabled() {
-        ParameterComponent pc = (ParameterComponent) _generalParameterDescriptors
-                .get(2);
+        ParameterComponent pc = _generalParameterDescriptors.get(2);
         return pc.getBooleanValue();
     }
 
     long getExpirationTime() {
-        ParameterComponent pc = (ParameterComponent) _generalParameterDescriptors
-                .get(3);
-        return (long) pc.getIntValue() * 1000L;
+        ParameterComponent pc = _generalParameterDescriptors.get(3);
+        return pc.getIntValue() * 1000L;
     }
 }

@@ -46,8 +46,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         }
     }
 
-    public static class TableStatus extends TransactionalCache implements
-            Serializable {
+    public static class TableStatus extends TransactionalCache implements Serializable {
 
         private static final long serialVersionUID = 2823468378367226075L;
         private final static byte COUNT = 1;
@@ -177,12 +176,10 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
             return ts;
         }
 
-        private Map<Integer, AtomicLong> copyMap(
-                final Map<Integer, AtomicLong> map) {
+        private Map<Integer, AtomicLong> copyMap(final Map<Integer, AtomicLong> map) {
             Map<Integer, AtomicLong> newMap = new HashMap<Integer, AtomicLong>();
             for (final Entry<Integer, AtomicLong> entry : map.entrySet()) {
-                newMap.put(entry.getKey(), new AtomicLong(entry.getValue()
-                        .longValue()));
+                newMap.put(entry.getKey(), new AtomicLong(entry.getValue().longValue()));
             }
             return newMap;
         }
@@ -190,8 +187,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         @Override
         public void save() {
             try {
-                final Exchange exchange = _persistit.getExchange("persistit",
-                        "TableStatus", true);
+                final Exchange exchange = _persistit.getExchange("persistit", "TableStatus", true);
                 exchange.append(_checkpoint.getTimestamp());
                 exchange.remove(Key.GTEQ);
                 saveMap(exchange, "count", _count);
@@ -202,8 +198,8 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
             }
         }
 
-        private void saveMap(final Exchange exchange, final String category,
-                final Map<Integer, AtomicLong> map) throws PersistitException {
+        private void saveMap(final Exchange exchange, final String category, final Map<Integer, AtomicLong> map)
+                throws PersistitException {
             exchange.append(category);
             for (final Entry<Integer, AtomicLong> entry : map.entrySet()) {
                 randomSleep(); // Try to induce interference from other threads.
@@ -218,11 +214,9 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
         @Override
         public void load() {
             try {
-                final Exchange exchange = _persistit.getExchange("persistit",
-                        "TableStatus", true);
+                final Exchange exchange = _persistit.getExchange("persistit", "TableStatus", true);
                 if (exchange.append(Key.AFTER).previous()) {
-                    final long timestamp = exchange.getKey().reset()
-                            .decodeLong();
+                    final long timestamp = exchange.getKey().reset().decodeLong();
                     _checkpoint = new Checkpoint(timestamp, 0);
                     loadMap(exchange, "count", _count);
                     loadMap(exchange, "minima", _minima);
@@ -234,14 +228,13 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
 
         }
 
-        private void loadMap(final Exchange exchange, final String category,
-                final Map<Integer, AtomicLong> map) throws PersistitException {
+        private void loadMap(final Exchange exchange, final String category, final Map<Integer, AtomicLong> map)
+                throws PersistitException {
             map.clear();
             exchange.append(category).append(Key.BEFORE);
             while (exchange.next()) {
                 final int tableId = exchange.getKey().indexTo(-1).decodeInt();
-                map.put(Integer.valueOf(tableId), new AtomicLong(exchange
-                        .getValue().getLong()));
+                map.put(Integer.valueOf(tableId), new AtomicLong(exchange.getValue().getLong()));
             }
             exchange.cut().cut();
         }
@@ -287,8 +280,7 @@ public class TransactionalCacheTest extends PersistitUnitTestCase {
 
         @Override
         public String toString() {
-            return String.format("TableStatus counts=%s, maxima=%s, minima=%s",
-                    _count, _maxima, _minima);
+            return String.format("TableStatus counts=%s, maxima=%s, minima=%s", _count, _maxima, _minima);
         }
 
     }

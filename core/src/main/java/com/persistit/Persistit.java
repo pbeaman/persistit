@@ -94,8 +94,7 @@ public class Persistit {
     /**
      * This version of Persistit
      */
-    public final static String VERSION = GetVersion.getVersionString()
-            + (Debug.ENABLED ? "-DEBUG" : "");
+    public final static String VERSION = GetVersion.getVersionString() + (Debug.ENABLED ? "-DEBUG" : "");
     /**
      * The copyright notice
      */
@@ -117,8 +116,7 @@ public class Persistit {
     /**
      * Name of utility GUI class.
      */
-    private final static String PERSISTIT_GUI_CLASS_NAME = SYSTEM_PROPERTY_PREFIX
-            + "ui.AdminUI";
+    private final static String PERSISTIT_GUI_CLASS_NAME = SYSTEM_PROPERTY_PREFIX + "ui.AdminUI";
 
     /**
      * Default suffix for properties file name
@@ -282,12 +280,10 @@ public class Persistit {
     /**
      * Minimal command line documentation
      */
-    private final static String[] USAGE = {
-            "java.persistit.Persistit [options] [property_file_name]", "",
+    private final static String[] USAGE = { "java.persistit.Persistit [options] [property_file_name]", "",
             " where flags are", "  -g           to show the Admin UI",
             "  -i           to perform integrity checks on all volumes",
-            "  -w           to wait for the Admin UI to connect",
-            "  -? or -help  to show this help message", };
+            "  -w           to wait for the Admin UI to connect", "  -? or -help  to show this help message", };
 
     private final static long KILO = 1024;
     private final static long MEGA = KILO * KILO;
@@ -330,6 +326,7 @@ public class Persistit {
     private CoderManager _coderManager;
     private ClassIndex _classIndex = new ClassIndex(this);
     private ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
+        @Override
         protected SessionId initialValue() {
             return new SessionId();
         }
@@ -345,8 +342,7 @@ public class Persistit {
 
     private final TimestampAllocator _timestampAllocator = new TimestampAllocator();
 
-    private final CheckpointManager _checkpointManager = new CheckpointManager(
-            this);
+    private final CheckpointManager _checkpointManager = new CheckpointManager(this);
 
     private final IOMeter _ioMeter = new IOMeter();
 
@@ -356,11 +352,9 @@ public class Persistit {
 
     private long _defaultTimeout;
 
-    private final SharedResource _transactionResourceA = new SharedResource(
-            this);
+    private final SharedResource _transactionResourceA = new SharedResource(this);
 
-    private final SharedResource _transactionResourceB = new SharedResource(
-            this);
+    private final SharedResource _transactionResourceB = new SharedResource(this);
 
     private final HashMap<Long, TransactionalCache> _transactionalCaches = new HashMap<Long, TransactionalCache>();
 
@@ -458,19 +452,16 @@ public class Persistit {
         _closed.set(false);
     }
 
-    Properties parseProperties(final String propertiesFileName)
-            throws PersistitException {
+    Properties parseProperties(final String propertiesFileName) throws PersistitException {
         Properties properties = new Properties();
         try {
             if (propertiesFileName.contains(DEFAULT_PROPERTIES_FILE_SUFFIX)
                     || propertiesFileName.contains(File.separator)) {
                 properties.load(new FileInputStream(propertiesFileName));
             } else {
-                ResourceBundle bundle = ResourceBundle
-                        .getBundle(propertiesFileName);
-                for (Enumeration<String> e = bundle.getKeys(); e
-                        .hasMoreElements();) {
-                    final String key = (String) e.nextElement();
+                ResourceBundle bundle = ResourceBundle.getBundle(propertiesFileName);
+                for (Enumeration<String> e = bundle.getKeys(); e.hasMoreElements();) {
+                    final String key = e.nextElement();
                     properties.put(key, bundle.getString(key));
                 }
             }
@@ -488,8 +479,7 @@ public class Persistit {
         _properties = properties;
 
         _readRetryEnabled = getBooleanProperty(READ_RETRY_PROPERTY, true);
-        _defaultTimeout = getLongProperty(TIMEOUT_PROPERTY,
-                DEFAULT_TIMEOUT_VALUE, 0, MAXIMUM_TIMEOUT_VALUE);
+        _defaultTimeout = getLongProperty(TIMEOUT_PROPERTY, DEFAULT_TIMEOUT_VALUE, 0, MAXIMUM_TIMEOUT_VALUE);
     }
 
     void initializeLogging() throws PersistitException {
@@ -506,8 +496,7 @@ public class Persistit {
         String logSpecification = getProperty(LOGGING_PROPERTIES);
         if (logSpecification != null) {
             try {
-                _logBase.setLogEnabled(logSpecification,
-                        AbstractPersistitLogger.INFO);
+                _logBase.setLogEnabled(logSpecification, AbstractPersistitLogger.INFO);
             } catch (Exception e) {
                 throw new LogInitializationException(e);
             }
@@ -515,20 +504,16 @@ public class Persistit {
     }
 
     void initializeRecovery() throws PersistitException {
-        String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME,
-                DEFAULT_JOURNAL_PATH);
+        String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME, DEFAULT_JOURNAL_PATH);
         _recoveryManager.init(journalPath);
         _recoveryManager.buildRecoveryPlan();
     }
 
     void initializeJournal() throws PersistitException {
-        String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME,
-                DEFAULT_JOURNAL_PATH);
-        int journalSize = (int) getLongProperty(
-                JOURNAL_BLOCKSIZE_PROPERTY_NAME,
-                JournalManager.DEFAULT_BLOCK_SIZE,
-                JournalManager.MINIMUM_BLOCK_SIZE,
-                JournalManager.MAXIMUM_BLOCK_SIZE);
+        String journalPath = getProperty(JOURNAL_PATH_PROPERTY_NAME, DEFAULT_JOURNAL_PATH);
+        int journalSize = (int) getLongProperty(JOURNAL_BLOCKSIZE_PROPERTY_NAME,
+                JournalManagerMXBean.DEFAULT_BLOCK_SIZE, JournalManagerMXBean.MINIMUM_BLOCK_SIZE,
+                JournalManagerMXBean.MAXIMUM_BLOCK_SIZE);
 
         _journalManager.init(_recoveryManager, journalPath, journalSize);
         if (getBooleanProperty(APPEND_ONLY_PROPERTY, false)) {
@@ -541,15 +526,13 @@ public class Persistit {
         while (bufferSize <= Buffer.MAX_BUFFER_SIZE) {
             String countPropertyName = BUFFERS_PROPERTY_NAME + bufferSize;
             String memPropertyName = BUFFER_MEM_PROPERTY_NAME + bufferSize;
-            int byCount = (int) getLongProperty(countPropertyName, -1,
-                    BufferPool.MINIMUM_POOL_COUNT,
+            int byCount = (int) getLongProperty(countPropertyName, -1, BufferPool.MINIMUM_POOL_COUNT,
                     BufferPool.MAXIMUM_POOL_COUNT);
-            int byMemory = computeBufferCountFromMemoryProperty(
-                    memPropertyName, getProperty(memPropertyName), bufferSize);
+            int byMemory = computeBufferCountFromMemoryProperty(memPropertyName, getProperty(memPropertyName),
+                    bufferSize);
 
             if (byCount != -1 && byMemory != -1) {
-                throw new IllegalArgumentException("Only one of "
-                        + countPropertyName + " and " + memPropertyName
+                throw new IllegalArgumentException("Only one of " + countPropertyName + " and " + memPropertyName
                         + " may be specified");
             }
 
@@ -559,8 +542,7 @@ public class Persistit {
 
             if (byCount != -1) {
                 if (_logBase.isLoggable(LogBase.LOG_INIT_ALLOCATE_BUFFERS)) {
-                    _logBase.log(LogBase.LOG_INIT_ALLOCATE_BUFFERS, byCount,
-                            bufferSize);
+                    _logBase.log(LogBase.LOG_INIT_ALLOCATE_BUFFERS, byCount, bufferSize);
                 }
                 BufferPool pool = new BufferPool(byCount, bufferSize, this);
                 _bufferPoolTable.put(new Integer(bufferSize), pool);
@@ -571,24 +553,20 @@ public class Persistit {
     }
 
     void initializeVolumes() throws PersistitException {
-        for (Enumeration<?> enumeration = _properties.propertyNames(); enumeration
-                .hasMoreElements();) {
+        for (Enumeration<?> enumeration = _properties.propertyNames(); enumeration.hasMoreElements();) {
             String key = (String) enumeration.nextElement();
             if (key.startsWith(VOLUME_PROPERTY_PREFIX)) {
                 boolean isOne = true;
                 try {
-                    Integer.parseInt(key.substring(VOLUME_PROPERTY_PREFIX
-                            .length()));
+                    Integer.parseInt(key.substring(VOLUME_PROPERTY_PREFIX.length()));
                 } catch (NumberFormatException nfe) {
                     isOne = false;
                 }
                 if (isOne) {
-                    VolumeSpecification volumeSpecification = new VolumeSpecification(
-                            getProperty(key));
+                    VolumeSpecification volumeSpecification = new VolumeSpecification(getProperty(key));
 
                     if (_logBase.isLoggable(LogBase.LOG_INIT_OPEN_VOLUME)) {
-                        _logBase.log(LogBase.LOG_INIT_OPEN_VOLUME,
-                                volumeSpecification.describe());
+                        _logBase.log(LogBase.LOG_INIT_OPEN_VOLUME, volumeSpecification.describe());
                     }
                     Volume.loadVolume(this, volumeSpecification);
                 }
@@ -613,8 +591,7 @@ public class Persistit {
     void initializeOther() {
         // Set up the parent CoderManager for this instance.
         String serialOverridePatterns = getProperty(Persistit.SERIAL_OVERRIDE_PROPERTY);
-        DefaultCoderManager cm = new DefaultCoderManager(this,
-                serialOverridePatterns);
+        DefaultCoderManager cm = new DefaultCoderManager(this, serialOverridePatterns);
         _coderManager = cm;
 
         if (getBooleanProperty(SHOW_GUI_PROPERTY, false)) {
@@ -628,21 +605,18 @@ public class Persistit {
         }
 
         try {
-            _defaultSplitPolicy = SplitPolicy.forName(getProperty(
-                    SPLIT_POLICY_PROPERTY, DEFAULT_SPLIT_POLICY.toString()));
+            _defaultSplitPolicy = SplitPolicy.forName(getProperty(SPLIT_POLICY_PROPERTY, DEFAULT_SPLIT_POLICY
+                    .toString()));
         } catch (IllegalArgumentException e) {
             if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
-                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR,
-                        e.getLocalizedMessage());
+                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e.getLocalizedMessage());
             }
         }
         try {
-            _defaultJoinPolicy = JoinPolicy.forName(getProperty(
-                    JOIN_POLICY_PROPERTY, DEFAULT_JOIN_POLICY.toString()));
+            _defaultJoinPolicy = JoinPolicy.forName(getProperty(JOIN_POLICY_PROPERTY, DEFAULT_JOIN_POLICY.toString()));
         } catch (IllegalArgumentException e) {
             if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
-                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR,
-                        e.getLocalizedMessage());
+                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e.getLocalizedMessage());
             }
         }
     }
@@ -662,16 +636,13 @@ public class Persistit {
     }
 
     void finishRecovery() throws PersistitException {
-        _recoveryManager.applyAllCommittedTransactions(_recoveryManager
-                .getDefaultRecoveryListener());
+        _recoveryManager.applyAllCommittedTransactions(_recoveryManager.getDefaultRecoveryListener());
         _recoveryManager.close();
         flush();
         checkpoint();
         if (_logBase.isLoggable(LogBase.LOG_RECOVERY_DONE)) {
-            _logBase.log(LogBase.LOG_RECOVERY_DONE,
-                    _journalManager.getPageMapSize(),
-                    _recoveryManager.getAppliedTransactionCount(),
-                    _recoveryManager.getErrorCount());
+            _logBase.log(LogBase.LOG_RECOVERY_DONE, _journalManager.getPageMapSize(), _recoveryManager
+                    .getAppliedTransactionCount(), _recoveryManager.getErrorCount());
         }
 
     }
@@ -686,17 +657,12 @@ public class Persistit {
      *            "true" to enable the PersistitOpenMBean, else "false".
      */
     private void registerMXBeans() {
-        MBeanServer server = java.lang.management.ManagementFactory
-                .getPlatformMBeanServer();
+        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         try {
-            server.registerMBean((ManagementMXBean) getManagement(),
-                    new ObjectName(ManagementMXBean.MXBEAN_NAME));
-            server.registerMBean((IOMeterMXBean) _ioMeter, new ObjectName(
-                    IOMeterMXBean.MXBEAN_NAME));
-            server.registerMBean((JournalManagerMXBean) _journalManager,
-                    new ObjectName(JournalManagerMXBean.MXBEAN_NAME));
-            server.registerMBean((RecoveryManagerMXBean) _recoveryManager,
-                    new ObjectName(RecoveryManagerMXBean.MXBEAN_NAME));
+            server.registerMBean(getManagement(), new ObjectName(ManagementMXBean.MXBEAN_NAME));
+            server.registerMBean(_ioMeter, new ObjectName(IOMeterMXBean.MXBEAN_NAME));
+            server.registerMBean(_journalManager, new ObjectName(JournalManagerMXBean.MXBEAN_NAME));
+            server.registerMBean(_recoveryManager, new ObjectName(RecoveryManagerMXBean.MXBEAN_NAME));
         } catch (Exception exception) {
             if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
                 _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
@@ -705,12 +671,10 @@ public class Persistit {
     }
 
     private void registerBufferPoolMXBean(final int bufferSize) {
-        MBeanServer server = java.lang.management.ManagementFactory
-                .getPlatformMBeanServer();
+        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         try {
             BufferPoolMXBean bean = new BufferPoolMXBeanImpl(this, bufferSize);
-            server.registerMBean(bean,
-                    new ObjectName(BufferPoolMXBeanImpl.mbeanName(bufferSize)));
+            server.registerMBean(bean, new ObjectName(BufferPoolMXBeanImpl.mbeanName(bufferSize)));
         } catch (Exception exception) {
             if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
                 _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
@@ -719,13 +683,10 @@ public class Persistit {
     }
 
     private void unregisterMXBeans() {
-        MBeanServer server = java.lang.management.ManagementFactory
-                .getPlatformMBeanServer();
+        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         try {
-            server.unregisterMBean(new ObjectName(
-                    RecoveryManagerMXBean.MXBEAN_NAME));
-            server.unregisterMBean(new ObjectName(
-                    JournalManagerMXBean.MXBEAN_NAME));
+            server.unregisterMBean(new ObjectName(RecoveryManagerMXBean.MXBEAN_NAME));
+            server.unregisterMBean(new ObjectName(JournalManagerMXBean.MXBEAN_NAME));
             server.unregisterMBean(new ObjectName(IOMeterMXBean.MXBEAN_NAME));
             server.unregisterMBean(new ObjectName(ManagementMXBean.MXBEAN_NAME));
         } catch (InstanceNotFoundException exception) {
@@ -738,11 +699,9 @@ public class Persistit {
     }
 
     private void unregisterBufferPoolMXBean(final int bufferSize) {
-        MBeanServer server = java.lang.management.ManagementFactory
-                .getPlatformMBeanServer();
+        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         try {
-            server.unregisterMBean(new ObjectName(BufferPoolMXBeanImpl
-                    .mbeanName(bufferSize)));
+            server.unregisterMBean(new ObjectName(BufferPoolMXBeanImpl.mbeanName(bufferSize)));
         } catch (InstanceNotFoundException exception) {
             // ignore
         } catch (Exception exception) {
@@ -752,19 +711,15 @@ public class Persistit {
         }
     }
 
-    synchronized void addVolume(Volume volume)
-            throws VolumeAlreadyExistsException {
+    synchronized void addVolume(Volume volume) throws VolumeAlreadyExistsException {
         Long idKey = new Long(volume.getId());
         Volume otherVolume = _volumesById.get(idKey);
         if (otherVolume != null) {
-            throw new VolumeAlreadyExistsException("Volume " + otherVolume
-                    + " has same ID");
+            throw new VolumeAlreadyExistsException("Volume " + otherVolume + " has same ID");
         }
         otherVolume = getVolume(volume.getPath());
-        if (otherVolume != null
-                && volume.getPath().equals(otherVolume.getPath())) {
-            throw new VolumeAlreadyExistsException("Volume " + otherVolume
-                    + " has same path");
+        if (otherVolume != null && volume.getPath().equals(otherVolume.getPath())) {
+            throw new VolumeAlreadyExistsException("Volume " + otherVolume + " has same path");
         }
         _volumes.add(volume);
         _volumesById.put(idKey, volume);
@@ -817,15 +772,12 @@ public class Persistit {
                     // sanity check to prevent stack overflow
                     // due to infinite loop
                     if (depth > 20)
-                        throw new IllegalArgumentException("property "
-                                + propertyName
+                        throw new IllegalArgumentException("property " + propertyName
                                 + " substitution cycle is too deep");
-                    String propertyValue = getProperty(propertyName, depth + 1,
-                            properties);
+                    String propertyValue = getProperty(propertyName, depth + 1, properties);
                     if (propertyValue == null)
                         propertyValue = "";
-                    text = text.substring(0, p - 2) + propertyValue
-                            + text.substring(q + 1);
+                    text = text.substring(0, p - 2) + propertyValue + text.substring(q + 1);
                 } else
                     break;
             } else {
@@ -913,8 +865,7 @@ public class Persistit {
         return value == null ? defaultValue : value;
     }
 
-    private String getProperty(String propertyName, int depth,
-            Properties properties) {
+    private String getProperty(String propertyName, int depth, Properties properties) {
         String value = null;
 
         value = getSystemProperty(SYSTEM_PROPERTY_PREFIX + propertyName);
@@ -989,8 +940,7 @@ public class Persistit {
      * 
      * @throws PersistitException
      */
-    public Exchange getExchange(Volume volume, String treeName, boolean create)
-            throws PersistitException {
+    public Exchange getExchange(Volume volume, String treeName, boolean create) throws PersistitException {
         if (volume == null)
             throw new VolumeNotFoundException();
         List<Exchange> stack;
@@ -1051,8 +1001,7 @@ public class Persistit {
      * 
      * @throws PersistitException
      */
-    public Exchange getExchange(String volumeName, String treeName,
-            boolean create) throws PersistitException {
+    public Exchange getExchange(String volumeName, String treeName, boolean create) throws PersistitException {
         Volume volume = getVolume(volumeName);
         if (volume == null)
             throw new VolumeNotFoundException(volumeName);
@@ -1155,8 +1104,7 @@ public class Persistit {
      * @return the List
      * @throws PersistitException
      */
-    public List<Tree> getSelectedTrees(final TreeSelector selector)
-            throws PersistitException {
+    public List<Tree> getSelectedTrees(final TreeSelector selector) throws PersistitException {
         final List<Tree> list = new ArrayList<Tree>();
         for (final Volume volume : _volumes) {
             if (selector.isSelected(volume)) {
@@ -1164,8 +1112,7 @@ public class Persistit {
                     list.add(volume.getDirectoryTree());
                 } else {
                     for (final String treeName : volume.getTreeNames()) {
-                        if (selector.isTreeNameSelected(volume.getName(),
-                                treeName)) {
+                        if (selector.isTreeNameSelected(volume.getName(), treeName)) {
                             list.add(volume.getTree(treeName, false));
                         }
                     }
@@ -1186,8 +1133,7 @@ public class Persistit {
      * @return The Volume.
      * @throws PersistitException
      */
-    public Volume openVolume(final String pathName, final boolean ro)
-            throws PersistitException {
+    public Volume openVolume(final String pathName, final boolean ro) throws PersistitException {
         return openVolume(pathName, null, 0, ro);
     }
 
@@ -1216,8 +1162,8 @@ public class Persistit {
      * 
      * @throws PersistitException
      */
-    public Volume openVolume(final String pathName, final String alias,
-            final long id, final boolean ro) throws PersistitException {
+    public Volume openVolume(final String pathName, final String alias, final long id, final boolean ro)
+            throws PersistitException {
         File file = new File(pathName);
         if (file.exists() && file.isFile()) {
             return Volume.openVolume(this, pathName, alias, id, ro);
@@ -1295,8 +1241,7 @@ public class Persistit {
      * @throws PersistitException
      */
     public Volume loadVolume(final String vstring) throws PersistitException {
-        final VolumeSpecification volumeSpec = new VolumeSpecification(
-                substituteProperties(vstring, _properties, 0));
+        final VolumeSpecification volumeSpec = new VolumeSpecification(substituteProperties(vstring, _properties, 0));
         return loadVolume(volumeSpec);
     }
 
@@ -1314,8 +1259,7 @@ public class Persistit {
      * 
      * @throws PersistitException
      */
-    public Volume loadVolume(final VolumeSpecification volumeSpec)
-            throws PersistitException {
+    public Volume loadVolume(final VolumeSpecification volumeSpec) throws PersistitException {
         Volume volume = getVolume(volumeSpec.getId());
         if (volume == null) {
             volume = getVolume(volumeSpec.describe());
@@ -1326,8 +1270,7 @@ public class Persistit {
         return volume;
     }
 
-    public boolean deleteVolume(final String volumeName)
-            throws PersistitException {
+    public boolean deleteVolume(final String volumeName) throws PersistitException {
         final Volume volume = getVolume(volumeName);
         if (volume == null) {
             return false;
@@ -1478,8 +1421,7 @@ public class Persistit {
      *             if the volume was not found
      */
     public Volume getSystemVolume() throws VolumeNotFoundException {
-        return getSpecialVolume(SYSTEM_VOLUME_PROPERTY,
-                DEFAULT_SYSTEM_VOLUME_NAME);
+        return getSpecialVolume(SYSTEM_VOLUME_PROPERTY, DEFAULT_SYSTEM_VOLUME_NAME);
     }
 
     /**
@@ -1544,8 +1486,7 @@ public class Persistit {
      */
     public void setDefaultSplitPolicy(final SplitPolicy policy) {
         if (policy == null) {
-            throw new IllegalArgumentException(
-                    "Default SplitPolicy may not be null");
+            throw new IllegalArgumentException("Default SplitPolicy may not be null");
         }
         _defaultSplitPolicy = policy;
     }
@@ -1559,8 +1500,7 @@ public class Persistit {
      */
     public void setDefaultJoinPolicy(final JoinPolicy policy) {
         if (policy == null) {
-            throw new IllegalArgumentException(
-                    "Default JoinPolicy may not be null");
+            throw new IllegalArgumentException("Default JoinPolicy may not be null");
         }
         _defaultJoinPolicy = policy;
     }
@@ -1630,8 +1570,7 @@ public class Persistit {
             while (true) {
                 transaction.begin();
                 try {
-                    for (final TransactionalCache tc : _transactionalCaches
-                            .values()) {
+                    for (final TransactionalCache tc : _transactionalCaches.values()) {
                         tc.save(checkpoint);
                     }
                     transaction.commit();
@@ -1640,8 +1579,7 @@ public class Persistit {
                     if (--retries >= 0) {
                         continue;
                     } else {
-                        throw new TransactionFailedException(
-                                "Retry limit 10 exceeeded");
+                        throw new TransactionFailedException("Retry limit 10 exceeeded");
                     }
                 } finally {
                     transaction.end();
@@ -1692,8 +1630,7 @@ public class Persistit {
      * @throws VolumeNotFoundException
      *             if the volume was not found
      */
-    private Volume getSpecialVolume(String propName, String dflt)
-            throws VolumeNotFoundException {
+    private Volume getSpecialVolume(String propName, String dflt) throws VolumeNotFoundException {
         String volumeName = getProperty(propName, dflt);
 
         Volume volume = getVolume(volumeName);
@@ -1800,8 +1737,7 @@ public class Persistit {
         close(flush, false);
     }
 
-    private void close(final boolean flush, final boolean byHook)
-            throws PersistitException {
+    private void close(final boolean flush, final boolean byHook) throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
             return;
         }
@@ -1949,8 +1885,7 @@ public class Persistit {
             }
             final long now = System.currentTimeMillis();
             if (now > _nextCloseTime) {
-                _logBase.log(LogBase.LOG_WAIT_FOR_CLOSE,
-                        (_nextCloseTime - _beginCloseTime) / 1000);
+                _logBase.log(LogBase.LOG_WAIT_FOR_CLOSE, (_nextCloseTime - _beginCloseTime) / 1000);
                 _nextCloseTime += CLOSE_LOG_INTERVAL;
             }
         }
@@ -2063,13 +1998,11 @@ public class Persistit {
      * @param to
      *            minimum commitTimestamp, or -1 for any
      */
-    void populateTransactionList(final List<Transaction> transactions,
-            final long from, final long to) {
+    void populateTransactionList(final List<Transaction> transactions, final long from, final long to) {
         transactions.clear();
         synchronized (_transactionSessionMap) {
             for (final Transaction t : _transactionSessionMap.values()) {
-                if (t.getStartTimestamp() >= from
-                        && t.getCommitTimestamp() >= to) {
+                if (t.getStartTimestamp() >= from && t.getCommitTimestamp() >= to) {
                     transactions.add(t);
                 }
             }
@@ -2080,10 +2013,8 @@ public class Persistit {
         int count = 0;
         synchronized (_transactionSessionMap) {
             for (final Transaction t : _transactionSessionMap.values()) {
-                if (t.getStartTimestamp() > 0
-                        && t.getStartTimestamp() < timestamp
-                        && t.getCommitTimestamp() >= timestamp
-                        || t.getCommitTimestamp() == -1) {
+                if (t.getStartTimestamp() > 0 && t.getStartTimestamp() < timestamp
+                        && t.getCommitTimestamp() >= timestamp || t.getCommitTimestamp() == -1) {
                     count++;
                 }
             }
@@ -2234,8 +2165,7 @@ public class Persistit {
             try {
                 icheck.checkVolume(volume);
             } catch (Exception e) {
-                System.out.println(e + " while performing IntegrityCheck on "
-                        + volume);
+                System.out.println(e + " while performing IntegrityCheck on " + volume);
             }
         }
         System.out.println("  " + icheck.toString(true));
@@ -2286,8 +2216,7 @@ public class Persistit {
      *             if the supplied String is not a valid integer representation,
      *             or is outside the supplied bounds.
      */
-    static long parseLongProperty(String propName, String str, long min,
-            long max) {
+    static long parseLongProperty(String propName, String str, long min, long max) {
         long result = Long.MIN_VALUE;
         long multiplier = 1;
         if (str.length() > 1) {
@@ -2324,8 +2253,7 @@ public class Persistit {
             invalid = true;
         }
         if (result < min || result > max || invalid) {
-            throw new IllegalArgumentException("Value '" + str
-                    + "' of property " + propName + " is invalid");
+            throw new IllegalArgumentException("Value '" + str + "' of property " + propName + " is invalid");
         }
         return result;
     }
@@ -2348,8 +2276,7 @@ public class Persistit {
      *             representation, or is outside the supplied bounds.
      */
 
-    static float parseFloatProperty(String propName, String str, float min,
-            float max) {
+    static float parseFloatProperty(String propName, String str, float min, float max) {
         float result = Float.MIN_VALUE;
         boolean invalid = false;
         try {
@@ -2360,8 +2287,7 @@ public class Persistit {
             invalid = true;
         }
         if (result < min || result > max || invalid) {
-            throw new IllegalArgumentException("Value '" + str
-                    + "' of property " + propName + " is invalid");
+            throw new IllegalArgumentException("Value '" + str + "' of property " + propName + " is invalid");
         }
         return result;
     }
@@ -2405,16 +2331,13 @@ public class Persistit {
      *            the buffer size
      * @return
      */
-    int computeBufferCountFromMemoryProperty(final String propertyName,
-            final String propertyValue, final int bufferSize) {
+    int computeBufferCountFromMemoryProperty(final String propertyName, final String propertyValue, final int bufferSize) {
         if (propertyValue == null || propertyValue.isEmpty()) {
             return -1;
         }
         int bufferSizeWithOverhead = Buffer.bufferSizeWithOverhead(bufferSize);
-        long absoluteMinimum = (long) BufferPool.MINIMUM_POOL_COUNT
-                * bufferSizeWithOverhead;
-        long absoluteMaximum = (long) BufferPool.MAXIMUM_POOL_COUNT
-                * bufferSizeWithOverhead;
+        long absoluteMinimum = (long) BufferPool.MINIMUM_POOL_COUNT * bufferSizeWithOverhead;
+        long absoluteMaximum = (long) BufferPool.MAXIMUM_POOL_COUNT * bufferSizeWithOverhead;
         long minimum = absoluteMinimum;
         long maximum = absoluteMaximum;
         long reserved = 0;
@@ -2422,20 +2345,13 @@ public class Persistit {
 
         final String[] terms = propertyValue.split(",", 4);
         if (terms.length > 0 && !terms[0].isEmpty()) {
-            minimum = Math.max(
-                    absoluteMinimum,
-                    parseLongProperty(propertyName, terms[0], 0,
-                            absoluteMaximum));
+            minimum = Math.max(absoluteMinimum, parseLongProperty(propertyName, terms[0], 0, absoluteMaximum));
         }
         if (terms.length > 1 && !terms[1].isEmpty()) {
-            maximum = Math
-                    .max(absoluteMinimum,
-                            parseLongProperty(propertyName, terms[1], minimum,
-                                    maximum));
+            maximum = Math.max(absoluteMinimum, parseLongProperty(propertyName, terms[1], minimum, maximum));
         }
         if (terms.length > 2 && !terms[2].isEmpty()) {
-            reserved = parseLongProperty(propertyName, terms[2], 0,
-                    Long.MAX_VALUE);
+            reserved = parseLongProperty(propertyName, terms[2], 0, Long.MAX_VALUE);
             fraction = 1.0f;
         }
         if (terms.length > 3 && !terms[3].isEmpty()) {
@@ -2444,21 +2360,17 @@ public class Persistit {
         long allocation = (long) ((getAvailableHeap() - reserved) * fraction);
         allocation = Math.max(minimum, allocation);
         allocation = Math.min(maximum, allocation);
-        if (allocation < absoluteMinimum || allocation > absoluteMaximum
-                || allocation > getAvailableHeap()) {
-            throw new IllegalArgumentException(
-                    String.format("%s=%s resulted in invalid memory "
-                            + "allocation %,d, available memory is %,d",
-                            propertyName, propertyValue, allocation,
-                            getAvailableHeap()));
+        if (allocation < absoluteMinimum || allocation > absoluteMaximum || allocation > getAvailableHeap()) {
+            throw new IllegalArgumentException(String.format("%s=%s resulted in invalid memory "
+                    + "allocation %,d, available memory is %,d", propertyName, propertyValue, allocation,
+                    getAvailableHeap()));
         }
 
         return (int) (allocation / bufferSizeWithOverhead);
     }
 
     static long availableHeap() {
-        final MemoryUsage mu = ManagementFactory.getMemoryMXBean()
-                .getHeapMemoryUsage();
+        final MemoryUsage mu = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
         long available = mu.getMax();
         if (available == -1) {
             available = mu.getInit();
@@ -2485,8 +2397,8 @@ public class Persistit {
             return true;
         if ("false".equals(str))
             return false;
-        throw new IllegalArgumentException("Value '" + str + "' of property "
-                + propName + " must be " + " either \"true\" or \"false\"");
+        throw new IllegalArgumentException("Value '" + str + "' of property " + propName + " must be "
+                + " either \"true\" or \"false\"");
     }
 
     /**
@@ -2502,15 +2414,13 @@ public class Persistit {
      * @throws IllegalAccessException
      * @throws InstantiationException
      */
-    public void setupGUI(boolean suspendShutdown)
-            throws IllegalAccessException, InstantiationException,
+    public void setupGUI(boolean suspendShutdown) throws IllegalAccessException, InstantiationException,
             ClassNotFoundException, RemoteException {
         if (_localGUI == null) {
             if (_logBase.isLoggable(LogBase.LOG_INIT_CREATE_GUI)) {
                 _logBase.log(LogBase.LOG_INIT_CREATE_GUI);
             }
-            _localGUI = (UtilControl) (Class.forName(PERSISTIT_GUI_CLASS_NAME))
-                    .newInstance();
+            _localGUI = (UtilControl) (Class.forName(PERSISTIT_GUI_CLASS_NAME)).newInstance();
         }
         _localGUI.setManagement(getManagement());
         _suspendShutdown.set(suspendShutdown);
@@ -2598,12 +2508,10 @@ public class Persistit {
      */
     void addTransactionalCache(TransactionalCache tc) {
         if (_initialized.get()) {
-            throw new IllegalStateException("TransactionalCache must be added"
-                    + " before Persistit initialization");
+            throw new IllegalStateException("TransactionalCache must be added" + " before Persistit initialization");
         }
         if (getTransactionalCache(tc.cacheId()) != null) {
-            throw new IllegalStateException(
-                    "TransactionalCache cacheId must be unique");
+            throw new IllegalStateException("TransactionalCache cacheId must be unique");
         }
         _transactionalCaches.put(tc.cacheId(), tc);
     }
@@ -2637,8 +2545,7 @@ public class Persistit {
         String propertiesFileName = null;
         for (int index = 0; index < args.length; index++) {
             String s = args[index];
-            if (s.startsWith("?") || s.startsWith("-?") || s.startsWith("-h")
-                    || s.startsWith("-H")) {
+            if (s.startsWith("?") || s.startsWith("-?") || s.startsWith("-h") || s.startsWith("-H")) {
                 usage();
                 return;
             }

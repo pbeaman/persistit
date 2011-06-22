@@ -119,17 +119,14 @@ public class ArgParser {
                     } else if (flagsTemplate.indexOf(ch) >= 0) {
                         flags.append(ch);
                     } else {
-                        throw new IllegalArgumentException("Invalid flag ("
-                                + (char) ch + ") in " + arg);
+                        throw new IllegalArgumentException("Invalid flag (" + ch + ") in " + arg);
                     }
                 }
             } else {
                 String fieldName = piece(args[i], '=', 0);
                 int position = lookupName(fieldName);
                 if (position < 0)
-                    throw new IllegalArgumentException(
-                            "No such parameter name " + fieldName
-                                    + " in argument " + arg);
+                    throw new IllegalArgumentException("No such parameter name " + fieldName + " in argument " + arg);
                 String argValue = arg.substring(fieldName.length() + 1);
                 doField(argValue, position);
             }
@@ -285,18 +282,15 @@ public class ArgParser {
             long argInt = longVal(arg, Long.MIN_VALUE);
             if (!_isDefault[position]
                     && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi || argInt > Integer.MAX_VALUE)) {
-                throw new IllegalArgumentException("Invalid argument "
-                        + piece(_template[position], '|', 0) + "=" + arg);
+                throw new IllegalArgumentException("Invalid argument " + piece(_template[position], '|', 0) + "=" + arg);
             }
             _longArgs[position] = argInt;
         } else if ("long".equals(t)) {
             long lo = longVal(piece(type, ':', 2), 0);
             long hi = longVal(piece(type, ':', 3), Long.MAX_VALUE);
             long argInt = longVal(arg, Long.MIN_VALUE);
-            if (!_isDefault[position]
-                    && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi)) {
-                throw new IllegalArgumentException("Invalid argument "
-                        + piece(_template[position], '|', 0) + "=" + arg);
+            if (!_isDefault[position] && (argInt == Long.MIN_VALUE || argInt < lo || argInt > hi)) {
+                throw new IllegalArgumentException("Invalid argument " + piece(_template[position], '|', 0) + "=" + arg);
             }
             _longArgs[position] = argInt;
         } else {

@@ -97,6 +97,7 @@ public class DefaultValueCoder implements ValueRenderer {
     private final static Class[] OIS_CLASS_ARRAY = { ObjectInputStream.class };
 
     private final static Comparator FIELD_COMPARATOR = new Comparator() {
+        @Override
         public int compare(Object o1, Object o2) {
             Field f1 = (Field) o1;
             Field f2 = (Field) o2;
@@ -128,8 +129,7 @@ public class DefaultValueCoder implements ValueRenderer {
 
     private final static String GET_13_NEW_INSTANCE_METHOD_NAME = "allocateNewObject";
 
-    private final static Class[] GET_13_NEW_INSTANCE_METHOD_TYPES = {
-            Class.class, Class.class, };
+    private final static Class[] GET_13_NEW_INSTANCE_METHOD_TYPES = { Class.class, Class.class, };
 
     private Method _newInstanceMethod;
     private Object[] _newInstanceArguments;
@@ -166,18 +166,17 @@ public class DefaultValueCoder implements ValueRenderer {
      *             an appropriate method for constructing deserialized objects
      *             fails.
      */
-    public DefaultValueCoder(final Persistit persistit, final Class clientClass)
-            throws SecurityException {
+    public DefaultValueCoder(final Persistit persistit, final Class clientClass) throws SecurityException {
         init(persistit, clientClass, true);
 
         try {
             AccessController.doPrivileged(new PrivilegedExceptionAction() {
+                @Override
                 public Object run() {
                     List list;
 
                     if (_classDescriptor != null) {
-                        ObjectStreamField[] osFields = _classDescriptor
-                                .getFields();
+                        ObjectStreamField[] osFields = _classDescriptor.getFields();
 
                         //
                         // The Sun implementation has already sorted this
@@ -194,9 +193,8 @@ public class DefaultValueCoder implements ValueRenderer {
                                 field = clientClass.getDeclaredField(name);
                                 list.add(field);
                             } catch (NoSuchFieldException nsfe) {
-                                throw new ConversionException(clientClass
-                                        + " unmatched serializable field '"
-                                        + name + "' declared");
+                                throw new ConversionException(clientClass + " unmatched serializable field '" + name
+                                        + "' declared");
                             }
                         }
                     } else {
@@ -206,18 +204,16 @@ public class DefaultValueCoder implements ValueRenderer {
 
                         for (int index = 0; index < fields.length; index++) {
                             int modifier = fields[index].getModifiers();
-                            if (!Modifier.isTransient(modifier)
-                                    && !Modifier.isStatic(modifier)) {
+                            if (!Modifier.isTransient(modifier) && !Modifier.isStatic(modifier)) {
                                 list.add(fields[index]);
                             }
                         }
                     }
-                    final Field[] fields = (Field[]) list
-                            .toArray(new Field[list.size()]);
+                    final Field[] fields = (Field[]) list.toArray(new Field[list.size()]);
 
                     _valueBuilder = new Builder("value", fields, clientClass);
-                    lookupDefaultConstructor(persistit.getBooleanProperty(
-                            Persistit.CONSTRUCTOR_OVERRIDE_PROPERTY, false));
+                    lookupDefaultConstructor(persistit.getBooleanProperty(Persistit.CONSTRUCTOR_OVERRIDE_PROPERTY,
+                            false));
                     lookupSerializationMethods();
                     return null;
                 }
@@ -254,15 +250,15 @@ public class DefaultValueCoder implements ValueRenderer {
      *             an appropriate method for constructing deserialized objects
      *             fails.
      */
-    public DefaultValueCoder(final Persistit persistit,
-            final Class clientClass, final Field[] fields) {
+    public DefaultValueCoder(final Persistit persistit, final Class clientClass, final Field[] fields) {
         init(persistit, clientClass, false);
         try {
             AccessController.doPrivileged(new PrivilegedExceptionAction() {
+                @Override
                 public Object run() {
                     _valueBuilder = new Builder("value", fields, clientClass);
-                    lookupDefaultConstructor(persistit.getBooleanProperty(
-                            Persistit.CONSTRUCTOR_OVERRIDE_PROPERTY, false));
+                    lookupDefaultConstructor(persistit.getBooleanProperty(Persistit.CONSTRUCTOR_OVERRIDE_PROPERTY,
+                            false));
                     lookupSerializationMethods();
                     return null;
                 }
@@ -272,12 +268,12 @@ public class DefaultValueCoder implements ValueRenderer {
         }
     }
 
-    DefaultValueCoder(final Persistit persistit, final Class clientClass,
-            final Builder valueBuilder) {
+    DefaultValueCoder(final Persistit persistit, final Class clientClass, final Builder valueBuilder) {
         init(persistit, clientClass, false);
 
         try {
             AccessController.doPrivileged(new PrivilegedExceptionAction() {
+                @Override
                 public Object run() {
                     _valueBuilder = valueBuilder;
                     lookupDefaultConstructor(true);
@@ -295,23 +291,19 @@ public class DefaultValueCoder implements ValueRenderer {
      * @param clientClass
      * @param mustBeSerializable
      */
-    private void init(Persistit persistit, Class clientClass,
-            boolean mustBeSerializable) {
+    private void init(Persistit persistit, Class clientClass, boolean mustBeSerializable) {
         _clazz = clientClass;
         _persistit = persistit;
         _serializable = Serializable.class.isAssignableFrom(clientClass);
         if (_serializable) {
-            _externalizable = Externalizable.class
-                    .isAssignableFrom(clientClass);
+            _externalizable = Externalizable.class.isAssignableFrom(clientClass);
             _classDescriptor = ObjectStreamClass.lookup(_clazz);
         } else if (mustBeSerializable) {
-            throw new ConversionException("Not Serializable: "
-                    + clientClass.getName());
+            throw new ConversionException("Not Serializable: " + clientClass.getName());
         }
 
         Class superClass = clientClass.getSuperclass();
-        if (superClass != null
-                && Serializable.class.isAssignableFrom(superClass)) {
+        if (superClass != null && Serializable.class.isAssignableFrom(superClass)) {
             ValueCoder coder = null;
             CoderManager cm = _persistit.getCoderManager();
             if (cm != null) {
@@ -328,23 +320,19 @@ public class DefaultValueCoder implements ValueRenderer {
 
     private void lookupDefaultConstructor(final boolean constructorOverride) {
         AccessController.doPrivileged(new PrivilegedAction() {
+            @Override
             public Object run() {
                 if (_externalizable || !_serializable || constructorOverride) {
                     Constructor constructor = null;
                     try {
-                        constructor = _clazz
-                                .getDeclaredConstructor(EMPTY_CLASS_ARRAY);
+                        constructor = _clazz.getDeclaredConstructor(EMPTY_CLASS_ARRAY);
                     } catch (NoSuchMethodException nsme) {
                     }
-                    if (_externalizable
-                            && (constructor == null || !Modifier
-                                    .isPublic(constructor.getModifiers()))) {
-                        throw new ConversionException("Externalizable class "
-                                + _clazz.getName()
+                    if (_externalizable && (constructor == null || !Modifier.isPublic(constructor.getModifiers()))) {
+                        throw new ConversionException("Externalizable class " + _clazz.getName()
                                 + " requires a public no-argument constructor");
                     } else if (constructor == null) {
-                        throw new ConversionException("Class "
-                                + _clazz.getName()
+                        throw new ConversionException("Class " + _clazz.getName()
                                 + " requires a no-argument constructor");
                     }
                     constructor.setAccessible(true);
@@ -353,36 +341,27 @@ public class DefaultValueCoder implements ValueRenderer {
                     _newInstanceMethod = null;
 
                     try {
-                        _newInstanceMethod = ObjectStreamClass.class
-                                .getDeclaredMethod(
-                                        GET_14_NEW_INSTANCE_METHOD_NAME,
-                                        GET_14_NEW_INSTANCE_METHOD_TYPES);
+                        _newInstanceMethod = ObjectStreamClass.class.getDeclaredMethod(GET_14_NEW_INSTANCE_METHOD_NAME,
+                                GET_14_NEW_INSTANCE_METHOD_TYPES);
                         _newInstanceArguments = EMPTY_OBJECT_ARRAY;
                     } catch (NoSuchMethodException nsme) {
                         Class nonSerializableSuperclass = _clazz;
                         while (nonSerializableSuperclass != null
-                                && Serializable.class
-                                        .isAssignableFrom(nonSerializableSuperclass)) {
-                            nonSerializableSuperclass = nonSerializableSuperclass
-                                    .getSuperclass();
+                                && Serializable.class.isAssignableFrom(nonSerializableSuperclass)) {
+                            nonSerializableSuperclass = nonSerializableSuperclass.getSuperclass();
                         }
                         try {
-                            _newInstanceMethod = ObjectInputStream.class
-                                    .getDeclaredMethod(
-                                            GET_13_NEW_INSTANCE_METHOD_NAME,
-                                            GET_13_NEW_INSTANCE_METHOD_TYPES);
-                            _newInstanceArguments = new Class[] { _clazz,
-                                    nonSerializableSuperclass, };
+                            _newInstanceMethod = ObjectInputStream.class.getDeclaredMethod(
+                                    GET_13_NEW_INSTANCE_METHOD_NAME, GET_13_NEW_INSTANCE_METHOD_TYPES);
+                            _newInstanceArguments = new Class[] { _clazz, nonSerializableSuperclass, };
                         } catch (NoSuchMethodException nsme2) {
                         }
                     }
                     if (_newInstanceMethod != null) {
                         _newInstanceMethod.setAccessible(true);
                     } else {
-                        throw new UnsupportedOperationException(
-                                "Unable to find serialization constructor "
-                                        + "method for class "
-                                        + _clazz.getName());
+                        throw new UnsupportedOperationException("Unable to find serialization constructor "
+                                + "method for class " + _clazz.getName());
                     }
                 }
                 return null;
@@ -404,8 +383,7 @@ public class DefaultValueCoder implements ValueRenderer {
 
         char ch = name.charAt(0);
         if (Character.isLetter(ch) && Character.isLowerCase(ch)) {
-            baseName = new Character(Character.toUpperCase(ch))
-                    + name.substring(1);
+            baseName = new Character(Character.toUpperCase(ch)) + name.substring(1);
         } else {
             baseName = name;
         }
@@ -422,22 +400,16 @@ public class DefaultValueCoder implements ValueRenderer {
             Method m = methods[index];
             String n = m.getName();
 
-            if (n.startsWith("get")
-                    && n.regionMatches(3, baseName, 0, baseName.length())
-                    && m.getParameterTypes().length == 0
-                    && m.getReturnType() != Void.class
-                    && Modifier.isPublic(m.getModifiers())
-                    && !Modifier.isStatic(m.getModifiers())
+            if (n.startsWith("get") && n.regionMatches(3, baseName, 0, baseName.length())
+                    && m.getParameterTypes().length == 0 && m.getReturnType() != Void.class
+                    && Modifier.isPublic(m.getModifiers()) && !Modifier.isStatic(m.getModifiers())
                     && !Modifier.isAbstract(m.getModifiers())) {
                 getMethod = m;
             }
 
-            else if (n.startsWith("is")
-                    && n.regionMatches(2, baseName, 0, baseName.length())
-                    && getMethod == null && m.getReturnType() == boolean.class
-                    && m.getParameterTypes().length == 1
-                    && Modifier.isPublic(m.getModifiers())
-                    && !Modifier.isStatic(m.getModifiers())
+            else if (n.startsWith("is") && n.regionMatches(2, baseName, 0, baseName.length()) && getMethod == null
+                    && m.getReturnType() == boolean.class && m.getParameterTypes().length == 1
+                    && Modifier.isPublic(m.getModifiers()) && !Modifier.isStatic(m.getModifiers())
                     && !Modifier.isAbstract(m.getModifiers())) {
                 getMethod = m;
             }
@@ -453,15 +425,11 @@ public class DefaultValueCoder implements ValueRenderer {
                 Method m = methods[index];
                 String n = m.getName();
 
-                if (n.startsWith("set")
-                        && n.regionMatches(3, baseName, 0, baseName.length())
-                        && m.getParameterTypes().length == 1
-                        && Modifier.isPublic(m.getModifiers())
-                        && !Modifier.isStatic(m.getModifiers())
-                        && !Modifier.isAbstract(m.getModifiers())) {
+                if (n.startsWith("set") && n.regionMatches(3, baseName, 0, baseName.length())
+                        && m.getParameterTypes().length == 1 && Modifier.isPublic(m.getModifiers())
+                        && !Modifier.isStatic(m.getModifiers()) && !Modifier.isAbstract(m.getModifiers())) {
                     Class c = m.getParameterTypes()[0];
-                    if (m.getReturnType() == Void.TYPE
-                            && c == getMethod.getReturnType()) {
+                    if (m.getReturnType() == Void.TYPE && c == getMethod.getReturnType()) {
                         setMethod = m;
                     }
                 }
@@ -482,8 +450,8 @@ public class DefaultValueCoder implements ValueRenderer {
             c = c.getSuperclass();
         }
 
-        throw new IllegalArgumentException("Class " + clazz.getName()
-                + " has no accessible field or property named " + name);
+        throw new IllegalArgumentException("Class " + clazz.getName() + " has no accessible field or property named "
+                + name);
     }
 
     private static Field lookupField(String name, Class clazz) {
@@ -548,8 +516,7 @@ public class DefaultValueCoder implements ValueRenderer {
         abstract void toValue(Object object, Value value) throws Exception;
 
         protected void cantModifyFinalField() {
-            throw new ConversionException("Can not modify final field "
-                    + _field.getName());
+            throw new ConversionException("Can not modify final field " + _field.getName());
         }
     }
 
@@ -564,8 +531,7 @@ public class DefaultValueCoder implements ValueRenderer {
 
         @Override
         public String toString() {
-            return "Accessor[" + _getMethod.getName() + "/"
-                    + _setMethod.getName() + "]";
+            return "Accessor[" + _getMethod.getName() + "/" + _setMethod.getName() + "]";
         }
 
         @Override
@@ -734,8 +700,7 @@ public class DefaultValueCoder implements ValueRenderer {
         Builder(String name, String[] accessorNames, Class clazz) {
             _name = name;
             _accessorNames = new String[accessorNames.length];
-            System.arraycopy(accessorNames, 0, _accessorNames, 0,
-                    accessorNames.length);
+            System.arraycopy(accessorNames, 0, _accessorNames, 0, accessorNames.length);
             _accessors = new Accessor[accessorNames.length];
 
             for (int index = 0; index < accessorNames.length; index++) {
@@ -792,24 +757,19 @@ public class DefaultValueCoder implements ValueRenderer {
 
     private void lookupSerializationMethods() {
         if (_serializable) {
-            _readResolveMethod = lookupInheritableMethod("readResolve",
-                    EMPTY_CLASS_ARRAY, Object.class);
+            _readResolveMethod = lookupInheritableMethod("readResolve", EMPTY_CLASS_ARRAY, Object.class);
 
-            _writeReplaceMethod = lookupInheritableMethod("writeReplace",
-                    EMPTY_CLASS_ARRAY, Object.class);
+            _writeReplaceMethod = lookupInheritableMethod("writeReplace", EMPTY_CLASS_ARRAY, Object.class);
 
             if (!_externalizable) {
-                _readObjectMethod = lookupPrivateMethod("readObject",
-                        OIS_CLASS_ARRAY, void.class);
+                _readObjectMethod = lookupPrivateMethod("readObject", OIS_CLASS_ARRAY, void.class);
 
-                _writeObjectMethod = lookupPrivateMethod("writeObject",
-                        OOS_CLASS_ARRAY, void.class);
+                _writeObjectMethod = lookupPrivateMethod("writeObject", OOS_CLASS_ARRAY, void.class);
             }
         }
     }
 
-    private Method lookupPrivateMethod(String name, Class[] arguments,
-            Class returnType) {
+    private Method lookupPrivateMethod(String name, Class[] arguments, Class returnType) {
         Method method = null;
         try {
             method = _clazz.getDeclaredMethod(name, arguments);
@@ -817,10 +777,8 @@ public class DefaultValueCoder implements ValueRenderer {
         }
         if (method != null) {
             int modifiers = method.getModifiers();
-            if (method.getReturnType() == returnType
-                    && !Modifier.isStatic(modifiers)
-                    && !Modifier.isAbstract(modifiers)
-                    && Modifier.isPrivate(modifiers)) {
+            if (method.getReturnType() == returnType && !Modifier.isStatic(modifiers)
+                    && !Modifier.isAbstract(modifiers) && Modifier.isPrivate(modifiers)) {
                 method.setAccessible(true);
                 return method;
             }
@@ -828,8 +786,7 @@ public class DefaultValueCoder implements ValueRenderer {
         return null;
     }
 
-    private Method lookupInheritableMethod(String name, Class[] arguments,
-            Class returnType) {
+    private Method lookupInheritableMethod(String name, Class[] arguments, Class returnType) {
         Class cl = _clazz;
 
         boolean privateOk = true;
@@ -846,10 +803,8 @@ public class DefaultValueCoder implements ValueRenderer {
                 if (method.getReturnType() == returnType
                         && !Modifier.isStatic(modifiers)
                         && !Modifier.isAbstract(modifiers)
-                        && (Modifier.isPublic(modifiers)
-                                || Modifier.isProtected(modifiers) || privateOk
-                                && Modifier.isPrivate(modifiers) || packageOk
-                                && !Modifier.isPrivate(modifiers))) {
+                        && (Modifier.isPublic(modifiers) || Modifier.isProtected(modifiers) || privateOk
+                                && Modifier.isPrivate(modifiers) || packageOk && !Modifier.isPrivate(modifiers))) {
                     method.setAccessible(true);
                     return method;
                 }
@@ -872,8 +827,7 @@ public class DefaultValueCoder implements ValueRenderer {
      * otherwise. (From ObjectStreamClass)
      */
     private static boolean packageEquals(Class cl1, Class cl2) {
-        return cl1.getClassLoader() == cl2.getClassLoader()
-                && getPackageName(cl1).equals(getPackageName(cl2));
+        return cl1.getClassLoader() == cl2.getClassLoader() && getPackageName(cl1).equals(getPackageName(cl2));
     }
 
     /**
@@ -891,6 +845,7 @@ public class DefaultValueCoder implements ValueRenderer {
 
     private static void makeAccessorsAccessible(final Builder builder) {
         AccessController.doPrivileged(new PrivilegedAction() {
+            @Override
             public Object run() {
                 ArrayList list = new ArrayList();
 
@@ -919,8 +874,8 @@ public class DefaultValueCoder implements ValueRenderer {
                 // once.
                 //
                 if (list.size() > 0) {
-                    AccessibleObject.setAccessible((AccessibleObject[]) list
-                            .toArray(new AccessibleObject[list.size()]), true);
+                    AccessibleObject.setAccessible(
+                            (AccessibleObject[]) list.toArray(new AccessibleObject[list.size()]), true);
                 }
                 return null;
             }
@@ -958,22 +913,19 @@ public class DefaultValueCoder implements ValueRenderer {
      *            operation. (See {@link CoderContext}.) The default value is
      *            <code>null</code>.
      */
-    public void put(Value value, Object object, CoderContext context)
-            throws ConversionException {
+    @Override
+    public void put(Value value, Object object, CoderContext context) throws ConversionException {
         if (_superClassValueRenderer != null) {
             _superClassValueRenderer.put(value, object, context);
         }
         if (object instanceof Externalizable) {
             try {
-                ((Externalizable) object).writeExternal(value
-                        .getObjectOutputStream());
+                ((Externalizable) object).writeExternal(value.getObjectOutputStream());
             } catch (Exception e) {
-                throw new ConversionException("Invoking writeExternal for "
-                        + _clazz, e);
+                throw new ConversionException("Invoking writeExternal for " + _clazz, e);
             }
         } else if (_writeObjectMethod != null) {
-            invokeMethod(value, _writeObjectMethod, object,
-                    new Object[] { value.getObjectOutputStream() }, true);
+            invokeMethod(value, _writeObjectMethod, object, new Object[] { value.getObjectOutputStream() }, true);
         } else {
             putDefaultFields(value, object);
         }
@@ -995,15 +947,14 @@ public class DefaultValueCoder implements ValueRenderer {
      */
     Object writeReplace(Value value, Object object) {
         if (_writeReplaceMethod != null) {
-            return invokeMethod(value, _writeReplaceMethod, object,
-                    EMPTY_OBJECT_ARRAY, false);
+            return invokeMethod(value, _writeReplaceMethod, object, EMPTY_OBJECT_ARRAY, false);
         } else {
             return object;
         }
     }
 
-    private Object invokeMethod(Value value, Method method, Object object,
-            Object[] args, boolean setStackFields) throws ConversionException {
+    private Object invokeMethod(Value value, Method method, Object object, Object[] args, boolean setStackFields)
+            throws ConversionException {
         DefaultValueCoder saveCoder = value.getCurrentCoder();
         Object saveObject = value.getCurrentObject();
         value.setCurrentCoder(setStackFields ? this : null);
@@ -1012,22 +963,20 @@ public class DefaultValueCoder implements ValueRenderer {
             Object result = method.invoke(object, args);
             return result;
         } catch (Exception e) {
-            throw new ConversionException("Invoking " + method + " for "
-                    + _clazz, e);
+            throw new ConversionException("Invoking " + method + " for " + _clazz, e);
         } finally {
             value.setCurrentCoder(saveCoder);
             value.setCurrentObject(saveObject);
         }
     }
 
-    private Object invokeMethod(Method method, Object object, Object[] args,
-            boolean setStackFields) throws ConversionException {
+    private Object invokeMethod(Method method, Object object, Object[] args, boolean setStackFields)
+            throws ConversionException {
         try {
             Object result = method.invoke(object, args);
             return result;
         } catch (Exception e) {
-            throw new ConversionException("Invoking " + method + " for "
-                    + _clazz, e);
+            throw new ConversionException("Invoking " + method + " for " + _clazz, e);
         }
     }
 
@@ -1042,14 +991,12 @@ public class DefaultValueCoder implements ValueRenderer {
                 return _newInstanceConstructor.newInstance(EMPTY_OBJECT_ARRAY);
             }
             if (_newInstanceMethod != null) {
-                return _newInstanceMethod.invoke(_classDescriptor,
-                        _newInstanceArguments);
+                return _newInstanceMethod.invoke(_classDescriptor, _newInstanceArguments);
             } else {
                 return _clazz.newInstance();
             }
         } catch (Exception e) {
-            throw new ConversionException("Instantiating " + _clazz.getName(),
-                    e);
+            throw new ConversionException("Instantiating " + _clazz.getName(), e);
 
         }
     }
@@ -1071,8 +1018,7 @@ public class DefaultValueCoder implements ValueRenderer {
      * 
      * @throws ConversionException
      */
-    public void putDefaultFields(Value value, Object object)
-            throws ConversionException {
+    public void putDefaultFields(Value value, Object object) throws ConversionException {
         Accessor accessor = null;
         try {
             Accessor[] accessors = _valueBuilder._accessors;
@@ -1081,8 +1027,7 @@ public class DefaultValueCoder implements ValueRenderer {
                 accessors[index].toValue(object, value);
             }
         } catch (Exception e) {
-            throw new ConversionException("Encoding " + accessor.toString()
-                    + " for " + _clazz, e);
+            throw new ConversionException("Encoding " + accessor.toString() + " for " + _clazz, e);
         }
     }
 
@@ -1115,11 +1060,11 @@ public class DefaultValueCoder implements ValueRenderer {
      * 
      * @throws ConversionException
      */
-    public Object get(Value value, Class clazz, CoderContext context)
-            throws ConversionException {
+    @Override
+    public Object get(Value value, Class clazz, CoderContext context) throws ConversionException {
         if (clazz != _clazz)
-            throw new ClassCastException("Client class " + _clazz.getName()
-                    + " does not match requested class " + clazz.getName());
+            throw new ClassCastException("Client class " + _clazz.getName() + " does not match requested class "
+                    + clazz.getName());
 
         Object instance = newInstance();
         value.registerEncodedObject(instance);
@@ -1129,16 +1074,14 @@ public class DefaultValueCoder implements ValueRenderer {
 
     Object readResolve(Value value, Object instance) {
         if (_readResolveMethod != null) {
-            instance = invokeMethod(value, _readResolveMethod, instance,
-                    EMPTY_OBJECT_ARRAY, false);
+            instance = invokeMethod(value, _readResolveMethod, instance, EMPTY_OBJECT_ARRAY, false);
         }
         return instance;
     }
 
     Object readResolve(Object instance) {
         if (_readResolveMethod != null) {
-            instance = invokeMethod(_readResolveMethod, instance,
-                    EMPTY_OBJECT_ARRAY, false);
+            instance = invokeMethod(_readResolveMethod, instance, EMPTY_OBJECT_ARRAY, false);
         }
         return instance;
     }
@@ -1173,27 +1116,23 @@ public class DefaultValueCoder implements ValueRenderer {
      * 
      * @throws ConversionException
      */
-    public void render(Value value, Object target, Class clazz,
-            CoderContext context) throws ConversionException {
+    @Override
+    public void render(Value value, Object target, Class clazz, CoderContext context) throws ConversionException {
         if (target == null) {
             throw new IllegalArgumentException("Target object must not be null");
         }
         if (_superClassValueRenderer != null) {
-            _superClassValueRenderer.render(value, target,
-                    clazz.getSuperclass(), context);
+            _superClassValueRenderer.render(value, target, clazz.getSuperclass(), context);
         }
 
         if (target instanceof Externalizable) {
             try {
-                ((Externalizable) target).readExternal(value
-                        .getObjectInputStream());
+                ((Externalizable) target).readExternal(value.getObjectInputStream());
             } catch (Exception e) {
-                throw new ConversionException("Invoking readExternal for "
-                        + _clazz, e);
+                throw new ConversionException("Invoking readExternal for " + _clazz, e);
             }
         } else if (_readObjectMethod != null) {
-            invokeMethod(value, _readObjectMethod, target,
-                    new Object[] { value.getObjectInputStream() }, true);
+            invokeMethod(value, _readObjectMethod, target, new Object[] { value.getObjectInputStream() }, true);
         } else {
             renderDefaultFields(value, target);
         }
@@ -1211,8 +1150,7 @@ public class DefaultValueCoder implements ValueRenderer {
      * 
      * @throws ConversionException
      */
-    void renderDefaultFields(Value value, Object target)
-            throws ConversionException {
+    void renderDefaultFields(Value value, Object target) throws ConversionException {
         Accessor accessor = null;
         try {
             Accessor[] accessors = _valueBuilder._accessors;
@@ -1221,8 +1159,7 @@ public class DefaultValueCoder implements ValueRenderer {
                 accessor.fromValue(target, value);
             }
         } catch (Exception e) {
-            throw new ConversionException("Decoding " + accessor.toString()
-                    + " for " + _clazz, e);
+            throw new ConversionException("Decoding " + accessor.toString() + " for " + _clazz, e);
         }
     }
 

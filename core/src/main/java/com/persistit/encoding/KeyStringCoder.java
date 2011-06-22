@@ -100,8 +100,8 @@ public interface KeyStringCoder extends KeyRenderer {
      *            operation. (See {@link CoderContext}.) The default value is
      *            <code>null</code>.
      */
-    public void appendKeySegment(Key key, Object string, CoderContext context)
-            throws ConversionException;
+    @Override
+    public void appendKeySegment(Key key, Object string, CoderContext context) throws ConversionException;
 
     /**
      * <p>
@@ -125,8 +125,8 @@ public interface KeyStringCoder extends KeyRenderer {
      *            operation. (See {@link CoderContext}.) The default value is
      *            <code>null</code>.
      */
-    public Object decodeKeySegment(Key key, Class clazz, CoderContext context)
-            throws ConversionException;
+    @Override
+    public Object decodeKeySegment(Key key, Class clazz, CoderContext context) throws ConversionException;
 
     /**
      * <p>
@@ -152,6 +152,6 @@ public interface KeyStringCoder extends KeyRenderer {
      *            Value. For <code>KeyStringCoder</code>, this will always be
      *            <code>String.class</code>.
      */
-    public void renderKeySegment(Key key, Object target, Class clazz,
-            CoderContext context) throws ConversionException;
+    @Override
+    public void renderKeySegment(Key key, Object target, Class clazz, CoderContext context) throws ConversionException;
 }

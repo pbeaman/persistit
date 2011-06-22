@@ -104,6 +104,7 @@ public class IOMeter implements IOMeterMXBean {
     /**
      * @return the writePageSleepInterval
      */
+    @Override
     public synchronized long getWritePageSleepInterval() {
         return _writePageSleepInterval;
     }
@@ -112,8 +113,8 @@ public class IOMeter implements IOMeterMXBean {
      * @param writePageSleepInterval
      *            the writePageSleepInterval to set
      */
-    public synchronized void setWritePageSleepInterval(
-            long writePageSleepInterval) {
+    @Override
+    public synchronized void setWritePageSleepInterval(long writePageSleepInterval) {
         _writePageSleepInterval = writePageSleepInterval;
     }
 
@@ -122,6 +123,7 @@ public class IOMeter implements IOMeterMXBean {
      * 
      * @return the CopySleepInterval
      */
+    @Override
     public synchronized long getCopyPageSleepInterval() {
         return _copyPageSleepInterval;
     }
@@ -130,6 +132,7 @@ public class IOMeter implements IOMeterMXBean {
      * @param copyPageSleepInterval
      *            the copySleepInterval to set
      */
+    @Override
     public synchronized void setCopyPageSleepInterval(long copyPageSleepInterval) {
         _copyPageSleepInterval = copyPageSleepInterval;
     }
@@ -137,6 +140,7 @@ public class IOMeter implements IOMeterMXBean {
     /**
      * @return the quiescentIOthreshold
      */
+    @Override
     public synchronized long getQuiescentIOthreshold() {
         return _quiescentIOthreshold;
     }
@@ -145,6 +149,7 @@ public class IOMeter implements IOMeterMXBean {
      * @param quiescentIOthreshold
      *            the quiescentIOthreshold to set
      */
+    @Override
     public synchronized void setQuiescentIOthreshold(long quiescentIO) {
         _quiescentIOthreshold = quiescentIO;
     }
@@ -152,11 +157,13 @@ public class IOMeter implements IOMeterMXBean {
     /**
      * @return the ioRate
      */
+    @Override
     public synchronized long getIoRate() {
         charge(System.nanoTime(), 0, 0);
         return _ioRate;
     }
 
+    @Override
     public synchronized void setLogFile(final String toFile) throws IOException {
         if (toFile == null || toFile.isEmpty()) {
             final DataOutputStream dos = _logStream.get();
@@ -165,12 +172,12 @@ public class IOMeter implements IOMeterMXBean {
                 dos.close();
             }
         } else if (_logStream.get() == null) {
-            _logStream.set(new DataOutputStream(new BufferedOutputStream(
-                    new FileOutputStream(toFile))));
+            _logStream.set(new DataOutputStream(new BufferedOutputStream(new FileOutputStream(toFile))));
         }
         _logFileName = toFile;
     }
 
+    @Override
     public String getLogFile() {
         return _logFileName;
     }
@@ -190,16 +197,15 @@ public class IOMeter implements IOMeterMXBean {
         _sum[item].addAndGet(size);
     }
 
-    private void log(int type, final long time, final Volume volume,
-            long pageAddress, int size, long journalAddress, int bufferIndex) {
+    private void log(int type, final long time, final Volume volume, long pageAddress, int size, long journalAddress,
+            int bufferIndex) {
         final DataOutputStream os = _logStream.get();
         if (os != null) {
             synchronized (os) {
                 try {
                     os.write((byte) type);
                     os.writeLong(time);
-                    os.writeInt(volume == null ? 0 : (int) volume.getId()
-                            ^ (int) (volume.getId() >>> 32));
+                    os.writeInt(volume == null ? 0 : (int) volume.getId() ^ (int) (volume.getId() >>> 32));
                     os.writeLong(pageAddress);
                     os.writeInt(size);
                     os.writeLong(journalAddress);
@@ -221,8 +227,7 @@ public class IOMeter implements IOMeterMXBean {
                 if (type == -1) {
                     break;
                 }
-                final String opName = type >= 0 && type < OPERATIONS.length ? OPERATIONS[type]
-                        : "??";
+                final String opName = type >= 0 && type < OPERATIONS.length ? OPERATIONS[type] : "??";
                 final long time = is.readLong() / NANOS_TO_MILLIS;
                 final int volumeHash = is.readInt();
                 final long pageAddress = is.readLong();
@@ -237,9 +242,8 @@ public class IOMeter implements IOMeterMXBean {
                     volumeId = Integer.valueOf(++counter);
                     volMap.put(volumeHash, volumeId);
                 }
-                System.out.println(String.format(DUMP_FORMAT, time - start,
-                        opName, volumeId, pageAddress, journalAddress, size,
-                        bufferIndex));
+                System.out.println(String.format(DUMP_FORMAT, time - start, opName, volumeId, pageAddress,
+                        journalAddress, size, bufferIndex));
 
             } catch (EOFException e) {
                 break;
@@ -248,12 +252,10 @@ public class IOMeter implements IOMeterMXBean {
         }
     }
 
-    public void chargeCopyPageToVolume(final Volume volume,
-            final long pageAddress, final int size, final long journalAddress,
-            final int urgency) {
+    public void chargeCopyPageToVolume(final Volume volume, final long pageAddress, final int size,
+            final long journalAddress, final int urgency) {
         final long time = System.nanoTime();
-        log(COPY_PAGE_TO_VOLUME, time, volume, pageAddress, size,
-                journalAddress, 0);
+        log(COPY_PAGE_TO_VOLUME, time, volume, pageAddress, size, journalAddress, 0);
 
         // Determine how long to sleep. This logic attempts to slow down
         // page copy operations when there are a lot of other I/O operations
@@ -264,8 +266,7 @@ public class IOMeter implements IOMeterMXBean {
         long sleep = 0;
         if (urgency < URGENT - 2) {
             synchronized (this) {
-                sleep = _ioRate > _quiescentIOthreshold ? _copyPageSleepInterval
-                        : 0;
+                sleep = _ioRate > _quiescentIOthreshold ? _copyPageSleepInterval : 0;
             }
         }
         if (sleep > 0) {
@@ -277,29 +278,23 @@ public class IOMeter implements IOMeterMXBean {
         }
     }
 
-    public void chargeReadPageFromVolume(final Volume volume,
-            final long pageAddress, final int size, int bufferIndex) {
+    public void chargeReadPageFromVolume(final Volume volume, final long pageAddress, final int size, int bufferIndex) {
         final long time = System.nanoTime();
-        log(READ_PAGE_FROM_VOLUME, time, volume, pageAddress, size, -1,
-                bufferIndex);
+        log(READ_PAGE_FROM_VOLUME, time, volume, pageAddress, size, -1, bufferIndex);
         charge(time, size, READ_PAGE_FROM_VOLUME);
     }
 
-    public void chargeReadPageFromJournal(final Volume volume,
-            final long pageAddress, final int size, final long journalAddress,
-            int bufferIndex) {
+    public void chargeReadPageFromJournal(final Volume volume, final long pageAddress, final int size,
+            final long journalAddress, int bufferIndex) {
         final long time = System.nanoTime();
-        log(READ_PAGE_FROM_JOURNAL, time, volume, pageAddress, size,
-                journalAddress, bufferIndex);
+        log(READ_PAGE_FROM_JOURNAL, time, volume, pageAddress, size, journalAddress, bufferIndex);
         charge(time, size, READ_PAGE_FROM_JOURNAL);
     }
 
-    public void chargeWritePageToJournal(final Volume volume,
-            final long pageAddress, final int size, final long journalAddress,
-            final int urgency, int bufferIndex) {
+    public void chargeWritePageToJournal(final Volume volume, final long pageAddress, final int size,
+            final long journalAddress, final int urgency, int bufferIndex) {
         final long time = System.nanoTime();
-        log(WRITE_PAGE_TO_JOURNAL, time, volume, pageAddress, size,
-                journalAddress, bufferIndex);
+        log(WRITE_PAGE_TO_JOURNAL, time, volume, pageAddress, size, journalAddress, bufferIndex);
         charge(time, size, WRITE_PAGE_TO_JOURNAL);
 
         //
@@ -345,18 +340,15 @@ public class IOMeter implements IOMeterMXBean {
         charge(time, size, WRITE_DT_TO_JOURNAL);
     }
 
-    public void chargeWriteOtherToJournal(final int size,
-            final long journalAddress) {
+    public void chargeWriteOtherToJournal(final int size, final long journalAddress) {
         final long time = System.nanoTime();
         log(WRITE_OTHER_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
         charge(time, size, WRITE_OTHER_TO_JOURNAL);
     }
 
-    public void chargeEvictPageFromPool(final Volume volume,
-            final long pageAddress, final int size, int bufferIndex) {
+    public void chargeEvictPageFromPool(final Volume volume, final long pageAddress, final int size, int bufferIndex) {
         final long time = System.nanoTime();
-        log(EVICT_PAGE_FROM_POOL, time, volume, pageAddress, size, 0,
-                bufferIndex);
+        log(EVICT_PAGE_FROM_POOL, time, volume, pageAddress, size, 0, bufferIndex);
     }
 
     public void chargeFlushJournal(final int size, final long journalAddress) {
@@ -365,13 +357,12 @@ public class IOMeter implements IOMeterMXBean {
         charge(time, size, FLUSH_JOURNAL);
     }
 
-    public void chargeGetPage(final Volume volume,
-            final long pageAddress, final int size, int bufferIndex) {
+    public void chargeGetPage(final Volume volume, final long pageAddress, final int size, int bufferIndex) {
         final long time = System.nanoTime();
-        log(GET_PAGE, time, volume, pageAddress, size, 0,
-                bufferIndex);
+        log(GET_PAGE, time, volume, pageAddress, size, 0, bufferIndex);
     }
 
+    @Override
     public long getCount(final String opName) {
         return getCount(op(opName));
     }
@@ -384,6 +375,7 @@ public class IOMeter implements IOMeterMXBean {
         }
     }
 
+    @Override
     public long getSum(final String opName) {
         return getSum(op(opName));
     }
@@ -413,15 +405,13 @@ public class IOMeter implements IOMeterMXBean {
      * @throws Exception
      */
     public static void main(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser("com.persistit.IOMeter", args,
-                new String[] { "file||log file name" });
+        final ArgParser ap = new ArgParser("com.persistit.IOMeter", args, new String[] { "file||log file name" });
         final String fileName = ap.getStringValue("file");
         if (fileName == null) {
             ap.usage();
         } else {
             IOMeter ioMeter = new IOMeter();
-            final DataInputStream is = new DataInputStream(
-                    new BufferedInputStream(new FileInputStream(fileName)));
+            final DataInputStream is = new DataInputStream(new BufferedInputStream(new FileInputStream(fileName)));
             ioMeter.dump(is);
             is.close();
         }

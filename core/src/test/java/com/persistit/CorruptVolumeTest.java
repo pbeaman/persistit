@@ -29,8 +29,7 @@ public class CorruptVolumeTest extends PersistitUnitTestCase {
 
     @Test
     public void testCorruptVolume() throws PersistitException {
-        Exchange exchange = _persistit.getExchange(_volumeName,
-                "CorruptVolumeTest", true);
+        Exchange exchange = _persistit.getExchange(_volumeName, "CorruptVolumeTest", true);
         // store some records
         exchange.getValue().put("CorruptVolumeTest");
         for (int i = 0; i < 10000; i++) {
@@ -38,7 +37,7 @@ public class CorruptVolumeTest extends PersistitUnitTestCase {
         }
         // Corrupt the volume by zonking the the index page
         final Buffer buffer = exchange.getBufferPool().get(exchange.getVolume(), 4, true, true);
-        Arrays.fill(buffer.getBytes(), 20, 200, (byte)0);
+        Arrays.fill(buffer.getBytes(), 20, 200, (byte) 0);
         buffer.setDirty();
         exchange.getBufferPool().release(buffer);
         //
@@ -49,9 +48,10 @@ public class CorruptVolumeTest extends PersistitUnitTestCase {
             System.out.println(e.getMessage());
             e.printStackTrace();
         }
-        
+
     }
 
+    @Override
     public void runAllTests() throws Exception {
     }
 

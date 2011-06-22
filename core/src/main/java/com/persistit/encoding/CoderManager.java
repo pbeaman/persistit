@@ -39,8 +39,7 @@ import com.persistit.Key;
  * <pre>
  * ValueCoder vc1 = new MyClassValueCoder();
  * KeyCoder kc1 = new MyClassKeyCoder();
- * Persistit.getInstance().getCoderManager()
- *         .registerValueCoder(MyClass.class, kc1);
+ * Persistit.getInstance().getCoderManager().registerValueCoder(MyClass.class, kc1);
  * Persistit.getInstance().getCoderManager().registerKeyCoder(MyClass.class, kc1);
  * </pre>
  * 
@@ -64,8 +63,7 @@ import com.persistit.Key;
  * as follows: <blockquote>
  * 
  * <pre>
- * CoderManager myCoderManager = new MyCoderManager(Persistit.getInstance()
- *         .getCoderManager());
+ * CoderManager myCoderManager = new MyCoderManager(Persistit.getInstance().getCoderManager());
  * Persistit.getInstance().setCoderManager(myCoderManager);
  * </pre>
  * 

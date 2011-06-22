@@ -45,7 +45,6 @@ public class TestUnit {
                 }
             }
         }
-        return new TestResult(_passed,
-                (TestResult[]) results.toArray(TestRunner.EMPTY_RESULT_ARRAY));
+        return new TestResult(_passed, results.toArray(TestRunner.EMPTY_RESULT_ARRAY));
     }
 }

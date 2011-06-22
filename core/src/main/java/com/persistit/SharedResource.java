@@ -110,8 +110,7 @@ class SharedResource {
             final Thread thisThread = Thread.currentThread();
             for (;;) {
                 final Thread queuedThread = getFirstQueuedThread();
-                if (queuedThread != null && queuedThread != thisThread
-                        && getExclusiveOwnerThread() != thisThread) {
+                if (queuedThread != null && queuedThread != thisThread && getExclusiveOwnerThread() != thisThread) {
                     return false;
                 }
                 int state = getState();
@@ -134,8 +133,7 @@ class SharedResource {
             final Thread thisThread = Thread.currentThread();
             for (;;) {
                 final Thread queuedThread = getFirstQueuedThread();
-                if (queuedThread != null && queuedThread != thisThread
-                        && getExclusiveOwnerThread() != thisThread) {
+                if (queuedThread != null && queuedThread != thisThread && getExclusiveOwnerThread() != thisThread) {
                     return -1;
                 }
                 int state = getState();
@@ -185,14 +183,12 @@ class SharedResource {
 
         private boolean isAvailable(final int state) {
             return (state & CLAIMED_MASK) < CLAIMED_MASK
-                    && ((state & CLAIMED_MASK) == 0 || getExclusiveOwnerThread() == Thread
-                            .currentThread());
+                    && ((state & CLAIMED_MASK) == 0 || getExclusiveOwnerThread() == Thread.currentThread());
         }
 
         private boolean isAvailableShared(final int state) {
             return (state & CLAIMED_MASK) < CLAIMED_MASK
-                    && ((state & WRITER_MASK) == 0 || getExclusiveOwnerThread() == Thread
-                            .currentThread());
+                    && ((state & WRITER_MASK) == 0 || getExclusiveOwnerThread() == Thread.currentThread());
         }
 
         private int releaseState(final int count) {
@@ -216,8 +212,7 @@ class SharedResource {
                         return newState;
                     }
                 } else {
-                    throw new IllegalMonitorStateException(
-                            "Unmatched attempt to release " + this);
+                    throw new IllegalMonitorStateException("Unmatched attempt to release " + this);
                 }
             }
         }
@@ -270,8 +265,7 @@ class SharedResource {
     }
 
     public boolean isAvailable(boolean writer) {
-        return writer ? _sync.isAvailable(_sync.state()) : _sync
-                .isAvailableShared(_sync.state());
+        return writer ? _sync.isAvailable(_sync.state()) : _sync.isAvailableShared(_sync.state());
     }
 
     boolean isDirty() {
@@ -525,7 +519,6 @@ class SharedResource {
 
     @Override
     public String toString() {
-        return "SharedResource" + this.hashCode() + " status="
-                + getStatusDisplayString();
+        return "SharedResource" + this.hashCode() + " status=" + getStatusDisplayString();
     }
 }

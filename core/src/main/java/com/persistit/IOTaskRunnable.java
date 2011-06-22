@@ -109,6 +109,7 @@ abstract class IOTaskRunnable implements Runnable {
         }
     }
 
+    @Override
     public void run() {
 
         while (true) {
@@ -132,9 +133,7 @@ abstract class IOTaskRunnable implements Runnable {
                     break;
                 }
                 long waitTime;
-                while (!_notified
-                        && (waitTime = lastCycleTime + pollInterval()
-                                - System.currentTimeMillis()) > 0) {
+                while (!_notified && (waitTime = lastCycleTime + pollInterval() - System.currentTimeMillis()) > 0) {
                     try {
                         wait(waitTime);
                     } catch (InterruptedException ie) {

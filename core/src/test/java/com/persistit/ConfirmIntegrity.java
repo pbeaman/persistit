@@ -103,15 +103,13 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
                 final Volume volume = _volumes[_icheckIndex];
                 if (volume != null) {
                     print("Performing integrity check on " + volume);
-                    final IntegrityCheck icheck = new IntegrityCheck(
-                            getPersistit());
+                    final IntegrityCheck icheck = new IntegrityCheck(getPersistit());
                     _ichecks[_icheckIndex] = icheck;
 
                     icheck.checkVolume(volume);
                     println(" - " + icheck.toString(true));
 
-                    _result = new TestResult(!icheck.hasFaults(),
-                            icheck.toString());
+                    _result = new TestResult(!icheck.hasFaults(), icheck.toString());
 
                     results[_icheckIndex] = _result;
 
@@ -120,8 +118,7 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
                     }
                     resultCount++;
                 } else {
-                    _result = new TestResult(false, "Volume name "
-                            + _args[_icheckIndex] + " not found");
+                    _result = new TestResult(false, "Volume name " + _args[_icheckIndex] + " not found");
                     results[_icheckIndex] = _result;
                     resultCount++;
                 }

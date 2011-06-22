@@ -40,8 +40,7 @@ public class TimestampAllocator {
      */
     public static class Checkpoint {
 
-        private final static SimpleDateFormat SDF = new SimpleDateFormat(
-                "yyyy-MM-dd HH:mm:ss");
+        private final static SimpleDateFormat SDF = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
         private final long _timestamp;
 
@@ -60,11 +59,12 @@ public class TimestampAllocator {
             return _systemTime;
         }
 
+        @Override
         public String toString() {
-            return String.format("Checkpoint %,d @ %s", _timestamp,
-                    SDF.format(new Date(_systemTime)));
+            return String.format("Checkpoint %,d @ %s", _timestamp, SDF.format(new Date(_systemTime)));
         }
 
+        @Override
         public boolean equals(final Object object) {
             if (!(object instanceof Checkpoint)) {
                 return false;
@@ -109,8 +109,7 @@ public class TimestampAllocator {
 
     public synchronized Checkpoint forceCheckpoint() {
         final long checkpointTimestamp = _timestamp.addAndGet(10000);
-        _checkpoint = new Checkpoint(checkpointTimestamp,
-                System.currentTimeMillis());
+        _checkpoint = new Checkpoint(checkpointTimestamp, System.currentTimeMillis());
         return _checkpoint;
     }
 

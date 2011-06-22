@@ -33,9 +33,9 @@ public class Log4JLoggerTest extends PersistitUnitTestCase {
         new Log4JLoggerTest().runAllTests();
     }
 
+    @Override
     public void runAllTests() throws Exception {
-        final Logger logger = Logger
-                .getLogger("com.persistit.unit.JDK14LoggerTest");
+        final Logger logger = Logger.getLogger("com.persistit.unit.JDK14LoggerTest");
         // Set up a simple configuration that logs on the console.
         BasicConfigurator.configure();
         Persistit persistit = new Persistit();

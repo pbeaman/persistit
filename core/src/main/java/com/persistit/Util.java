@@ -29,8 +29,8 @@ public class Util {
     private final static String UTF8 = "UTF-8";
     public final static String NEW_LINE = System.getProperty("line.separator");
 
-    public final static char[] HEX_DIGITS = { '0', '1', '2', '3', '4', '5',
-            '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+    public final static char[] HEX_DIGITS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
+            'E', 'F' };
 
     public static int getByte(byte[] bytes, int index) {
         return (bytes[index + 0] & 0xFF);
@@ -54,35 +54,25 @@ public class Util {
 
     public static int getInt(byte[] bytes, int index) {
         if (Persistit.BIG_ENDIAN) {
-            return (bytes[index + 3] & 0xFF) | (bytes[index + 2] & 0xFF) << 8
-                    | (bytes[index + 1] & 0xFF) << 16
+            return (bytes[index + 3] & 0xFF) | (bytes[index + 2] & 0xFF) << 8 | (bytes[index + 1] & 0xFF) << 16
                     | (bytes[index + 0] & 0xFF) << 24;
         } else {
-            return (bytes[index + 0] & 0xFF) | (bytes[index + 1] & 0xFF) << 8
-                    | (bytes[index + 2] & 0xFF) << 16
+            return (bytes[index + 0] & 0xFF) | (bytes[index + 1] & 0xFF) << 8 | (bytes[index + 2] & 0xFF) << 16
                     | (bytes[index + 3] & 0xFF) << 24;
         }
     }
 
     public static long getLong(byte[] bytes, int index) {
         if (Persistit.BIG_ENDIAN) {
-            return (bytes[index + 7] & 0xFF)
-                    | (long) (bytes[index + 6] & 0xFF) << 8
-                    | (long) (bytes[index + 5] & 0xFF) << 16
-                    | (long) (bytes[index + 4] & 0xFF) << 24
-                    | (long) (bytes[index + 3] & 0xFF) << 32
-                    | (long) (bytes[index + 2] & 0xFF) << 40
-                    | (long) (bytes[index + 1] & 0xFF) << 48
-                    | (long) (bytes[index + 0] & 0xFF) << 56;
+            return (bytes[index + 7] & 0xFF) | (long) (bytes[index + 6] & 0xFF) << 8
+                    | (long) (bytes[index + 5] & 0xFF) << 16 | (long) (bytes[index + 4] & 0xFF) << 24
+                    | (long) (bytes[index + 3] & 0xFF) << 32 | (long) (bytes[index + 2] & 0xFF) << 40
+                    | (long) (bytes[index + 1] & 0xFF) << 48 | (long) (bytes[index + 0] & 0xFF) << 56;
         } else {
-            return (bytes[index + 0] & 0xFF)
-                    | (long) (bytes[index + 1] & 0xFF) << 8
-                    | (long) (bytes[index + 2] & 0xFF) << 16
-                    | (long) (bytes[index + 3] & 0xFF) << 24
-                    | (long) (bytes[index + 4] & 0xFF) << 32
-                    | (long) (bytes[index + 5] & 0xFF) << 40
-                    | (long) (bytes[index + 6] & 0xFF) << 48
-                    | (long) (bytes[index + 7] & 0xFF) << 56;
+            return (bytes[index + 0] & 0xFF) | (long) (bytes[index + 1] & 0xFF) << 8
+                    | (long) (bytes[index + 2] & 0xFF) << 16 | (long) (bytes[index + 3] & 0xFF) << 24
+                    | (long) (bytes[index + 4] & 0xFF) << 32 | (long) (bytes[index + 5] & 0xFF) << 40
+                    | (long) (bytes[index + 6] & 0xFF) << 48 | (long) (bytes[index + 7] & 0xFF) << 56;
         }
     }
 
@@ -230,13 +220,11 @@ public class Util {
         return format(Long.toString(i), width, true);
     }
 
-    public static boolean equalsByteSubarray(byte[] source, int next,
-            byte[] target) {
+    public static boolean equalsByteSubarray(byte[] source, int next, byte[] target) {
         return equalsByteSubarray(source, next, target, 0, target.length);
     }
 
-    public static boolean equalsByteSubarray(byte[] source, int soffset,
-            byte[] target, int toffset, int length) {
+    public static boolean equalsByteSubarray(byte[] source, int soffset, byte[] target, int toffset, int length) {
         for (int index = 0; index < length; index++) {
             if (source[soffset + index] != target[toffset + index])
                 return false;
@@ -378,8 +366,7 @@ public class Util {
         return sb.toString();
     }
 
-    public static void bytesToHex(StringBuilder sb, byte[] bytes, int offset,
-            int length) {
+    public static void bytesToHex(StringBuilder sb, byte[] bytes, int offset, int length) {
         length += offset;
         for (int i = offset; i < length; i++) {
             sb.append(HEX_DIGITS[(bytes[i] >>> 4) & 0x0F]);
@@ -393,8 +380,7 @@ public class Util {
             int c = hex.charAt(i);
             if (c == '/' || c == '}')
                 break;
-            if (c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A'
-                    && c <= 'F') {
+            if (c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F') {
                 count++;
             } else if (c != ' ' && c != '\t' && c != '\r' && c != '\n') {
                 throw new IllegalArgumentException();
@@ -447,8 +433,7 @@ public class Util {
      * @param toOffset
      * @param length
      */
-    public static void arraycopy(byte[] from, int fromOffset, byte[] to,
-            int toOffset, int length) {
+    public static void arraycopy(byte[] from, int fromOffset, byte[] to, int toOffset, int length) {
         if (from == to) {
             System.arraycopy(from, fromOffset, from, toOffset, length);
         } else {
@@ -491,8 +476,7 @@ public class Util {
         }
     }
 
-    public static void appendQuotedString(StringBuilder sb, String s,
-            int start, int length) {
+    public static void appendQuotedString(StringBuilder sb, String s, int start, int length) {
         int end = Math.min(start + length, s.length());
         for (int index = start; index < end; index++) {
             appendQuotedChar(sb, s.charAt(index));
@@ -528,11 +512,11 @@ public class Util {
             return new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date(t));
         }
     }
-    
+
     public static void println(final String template, final Object... args) {
         System.out.println(String.format(template, args));
     }
-    
+
     /**
      * Utility method to determine whether a subarray of bytes in a byte-array
      * <code>source</code> matches the byte-array in <code>target</code>.

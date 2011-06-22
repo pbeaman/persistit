@@ -39,8 +39,7 @@ public class Stress4a extends Stress4Base {
         writeRecords(_total, false, 30, 30);
         verboseln();
 
-        describeTest("sequential read " + _total
-                + " short records 30 bytes long");
+        describeTest("sequential read " + _total + " short records 30 bytes long");
         readRecords(_total, false, 30, 30);
         verboseln();
 
@@ -67,14 +66,12 @@ public class Stress4a extends Stress4Base {
         verboseln();
 
         seed(_seed * 7);
-        describeTest("random write " + (_total / 50)
-                + " records 20-8000 bytes long");
+        describeTest("random write " + (_total / 50) + " records 20-8000 bytes long");
         writeRecords(_total / 50, true, 20, 8000);
         verboseln();
 
         seed(_seed * 7);
-        describeTest("random read " + (_total / 50)
-                + " records 20-8000 bytes long");
+        describeTest("random read " + (_total / 50) + " records 20-8000 bytes long");
         readRecords(_total / 50, true, 20, 8000);
         verboseln();
 
@@ -83,14 +80,12 @@ public class Stress4a extends Stress4Base {
         verboseln();
 
         seed(_seed * 7);
-        describeTest("random write " + (_total / 200)
-                + " records 20-80000 bytes long");
+        describeTest("random write " + (_total / 200) + " records 20-80000 bytes long");
         writeRecords(_total / 200, true, 20, 80000);
         verboseln();
 
         seed(_seed * 7);
-        describeTest("random read " + (_total / 200)
-                + " records 20-80000 bytes long");
+        describeTest("random read " + (_total / 200) + " records 20-80000 bytes long");
         readRecords(_total / 200, true, 20, 80000);
         verboseln();
 

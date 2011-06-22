@@ -111,6 +111,7 @@ public class KeyHistogram {
             this._count = count;
         }
 
+        @Override
         public String toString() {
             final Key key = new Key((Persistit) null);
             System.arraycopy(_bytes, 0, key.getEncodedBytes(), 0, _bytes.length);
@@ -119,8 +120,8 @@ public class KeyHistogram {
         }
     }
 
-    public KeyHistogram(final Tree tree, final Key start, final Key end,
-            final int sampleSize, final int keyDepth, final int treeDepth) {
+    public KeyHistogram(final Tree tree, final Key start, final Key end, final int sampleSize, final int keyDepth,
+            final int treeDepth) {
         _tree = tree;
         _startKey = start;
         _endKey = end;
@@ -191,8 +192,7 @@ public class KeyHistogram {
     void addKeyCopy(final Key key) {
         _keyCount++;
         if (_keyCount % _modulus == 0) {
-            final int length = _keyDepth == 0 ? key.getEncodedSize() : key
-                    .indexTo(_keyDepth).getIndex();
+            final int length = _keyDepth == 0 ? key.getEncodedSize() : key.indexTo(_keyDepth).getIndex();
             final int end = _keys.size() - 1;
             boolean same = false;
             if (end >= 0) {

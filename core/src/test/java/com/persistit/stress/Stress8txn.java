@@ -35,8 +35,7 @@ public class Stress8txn extends StressBase {
             + "   simulating moving cash between accounts.  To exercise\r\n"
             + "   optimistic concurrency control, several threads should run\r\n"
             + "   this test simultaneously.  At the beginning of the run, and\r\n"
-            + "   periodically, this class tests whether all 'accounts' are\r\n"
-            + "   consistent";
+            + "   periodically, this class tests whether all 'accounts' are\r\n" + "   consistent";
 
     @Override
     public String shortDescription() {
@@ -48,11 +47,9 @@ public class Stress8txn extends StressBase {
         return LONG_DESCRIPTION;
     }
 
-    private final static String[] ARGS_TEMPLATE = {
-            "repeat|int:1:0:1000000000|Repetitions",
+    private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Repetitions",
             "count|int:100:0:100000|Number of iterations per cycle",
-            "size|int:1000:1:100000000|Number of 'C' accounts",
-            "seed|int:1:1:20000|Random seed", };
+            "size|int:1000:1:100000000|Number of 'C' accounts", "seed|int:1:1:20000|Random seed", };
 
     static boolean _consistencyCheckDone;
     int _size;
@@ -165,8 +162,7 @@ public class Stress8txn extends StressBase {
         try {
             _exs.clear().append("stress8txn");
             while (_exs.next(true)) {
-                if ((_exs.getValue().getType() == String.class)
-                        && (getAccountValue(_exs) > 8000)) {
+                if ((_exs.getValue().getType() == String.class) && (getAccountValue(_exs) > 8000)) {
                     // System.out.println("len=" + getAccountValue(_exs) +
                     // " Key=" + _exs.getKey().toString());
                 }
@@ -214,16 +210,15 @@ public class Stress8txn extends StressBase {
         /**
          * Transfers from one C account to another within the same B
          */
+        @Override
         public void runTransaction() throws PersistitException {
             final int delta = random(-1000, 1000);
             if (_c1 != _c2) {
-                _exs.clear().append("stress8txn").append(_a1).append(_b1)
-                        .append(_c1).fetch();
+                _exs.clear().append("stress8txn").append(_a1).append(_b1).append(_c1).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _c1 == 1);
                 _exs.store();
 
-                _exs.clear().append("stress8txn").append(_a1).append(_b1)
-                        .append(_c2).fetch();
+                _exs.clear().append("stress8txn").append(_a1).append(_b1).append(_c2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _c2 == 1);
                 _exs.store();
             }
@@ -235,28 +230,25 @@ public class Stress8txn extends StressBase {
          * Transfers from one C account to another in possibly a different B
          * account
          */
+        @Override
         public void runTransaction() throws PersistitException {
             final int delta = random(-1000, 1000);
             if ((_c1 != _c2) || (_b1 != _b2) || (_a1 != _a2)) {
-                _exs.clear().append("stress8txn").append(_a1).append(_b1)
-                        .append(_c1).fetch();
+                _exs.clear().append("stress8txn").append(_a1).append(_b1).append(_c1).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _c1 == 1);
                 _exs.store();
 
-                _exs.clear().append("stress8txn").append(_a2).append(_b2)
-                        .append(_c2).fetch();
+                _exs.clear().append("stress8txn").append(_a2).append(_b2).append(_c2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _c2 == 1);
                 _exs.store();
             }
 
             if ((_b1 != _b2) || (_a1 != _a2)) {
-                _exs.clear().append("stress8txn").append(_a1).append(_b1)
-                        .fetch();
+                _exs.clear().append("stress8txn").append(_a1).append(_b1).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) + delta, _b1 == 1);
                 _exs.store();
 
-                _exs.clear().append("stress8txn").append(_a2).append(_b2)
-                        .fetch();
+                _exs.clear().append("stress8txn").append(_a2).append(_b2).fetch();
                 putAccountValue(_exs, getAccountValue(_exs) - delta, _b1 == 1);
                 _exs.store();
             }
@@ -277,14 +269,14 @@ public class Stress8txn extends StressBase {
         /**
          * Perform consistency check across a B account
          */
+        @Override
         public void runTransaction() throws PersistitException {
             _result = null;
             _exs.clear().append("stress8txn").append(_a1).append(_b1).fetch();
             final int valueB = getAccountValue(_exs);
             final int totalC = accountTotal(_exs);
             if (valueB != totalC) {
-                _result = new TestResult(false, "totalC=" + totalC + " valueB="
-                        + valueB + " at " + _exs);
+                _result = new TestResult(false, "totalC=" + totalC + " valueB=" + valueB + " at " + _exs);
             }
         }
     }
@@ -293,14 +285,14 @@ public class Stress8txn extends StressBase {
         /**
          * Perform consistency check across an A account
          */
+        @Override
         public void runTransaction() throws PersistitException {
             _result = null;
             _exs.clear().append("stress8txn").append(_a1).fetch();
             final int valueA = getAccountValue(_exs);
             final int totalB = accountTotal(_exs);
             if (valueA != totalB) {
-                _result = new TestResult(false, "totalB=" + totalB + " valueA="
-                        + valueA + " at " + _exs);
+                _result = new TestResult(false, "totalB=" + totalB + " valueA=" + valueA + " at " + _exs);
             }
         }
     }
@@ -309,13 +301,13 @@ public class Stress8txn extends StressBase {
         /**
          * Perform consistency check across all A accounts
          */
+        @Override
         public void runTransaction() throws PersistitException {
             _result = null;
             _exs.clear().append("stress8txn");
             final int totalA = accountTotal(_exs);
             if (totalA != 0) {
-                _result = new TestResult(false, "totalA=" + totalA + " at "
-                        + _exs);
+                _result = new TestResult(false, "totalA=" + totalA + " at " + _exs);
             }
         }
     }
@@ -355,15 +347,13 @@ public class Stress8txn extends StressBase {
                     totalC += valueC;
                 }
                 if (totalC != valueB) {
-                    _result = new TestResult(false, "totalC=" + totalC
-                            + " valueB=" + valueB + " at " + exb);
+                    _result = new TestResult(false, "totalC=" + totalC + " valueB=" + valueB + " at " + exb);
                     forceStop();
                     return false;
                 }
             }
             if (totalB != valueA) {
-                _result = new TestResult(false, "totalB=" + totalB + " valueA="
-                        + valueA + " at " + exa);
+                _result = new TestResult(false, "totalB=" + totalB + " valueA=" + valueA + " at " + exa);
                 forceStop();
                 return false;
             }
@@ -397,10 +387,8 @@ public class Stress8txn extends StressBase {
         }
     }
 
-    private void putAccountValue(final Exchange ex, final int value,
-            final boolean string) {
-        if ((value > 0) && (value < 100000)
-                && ((random(0, 100) == 0) || string)) {
+    private void putAccountValue(final Exchange ex, final int value, final boolean string) {
+        if ((value > 0) && (value < 100000) && ((random(0, 100) == 0) || string)) {
             _sb.setLength(0);
             int i = 0;
             for (i = 100; i < value; i += 100) {

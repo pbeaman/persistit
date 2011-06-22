@@ -45,10 +45,8 @@ public class Stress6 extends StressBase {
         return LONG_DESCRIPTION;
     }
 
-    private final static String[] ARGS_TEMPLATE = {
-            "repeat|int:1:0:1000000000|Repetitions",
-            "count|int:1000:0:1000000000|Number of nodes to populate",
-            "size|int:500:1:1000|Max splitting value size", };
+    private final static String[] ARGS_TEMPLATE = { "repeat|int:1:0:1000000000|Repetitions",
+            "count|int:1000:0:1000000000|Number of nodes to populate", "size|int:500:1:1000|Max splitting value size", };
 
     int _size;
 
@@ -88,20 +86,17 @@ public class Stress6 extends StressBase {
                 }
                 verboseln();
                 verboseln();
-                verboseln("Starting test cycle " + _repeat + " at "
-                        + tsString());
+                verboseln("Starting test cycle " + _repeat + " at " + tsString());
                 describeTest("Deleting all records");
                 setPhase("@");
-                _exs.clear().append("stress6").append(_threadIndex)
-                        .remove(Key.GTEQ);
+                _exs.clear().append("stress6").append(_threadIndex).remove(Key.GTEQ);
                 verboseln();
 
                 describeTest("Creating baseline records");
                 setPhase("a");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
-                    _exs.clear().append("stress6").append(_threadIndex)
-                            .append(_count).append(_sb1);
+                    _exs.clear().append("stress6").append(_threadIndex).append(_count).append(_sb1);
                     _exs.store();
                 }
                 verboseln();
@@ -110,8 +105,7 @@ public class Stress6 extends StressBase {
                 setPhase("b");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
-                    _exs.clear().append("stress6").append(_threadIndex)
-                            .append(_count).append(_sb1);
+                    _exs.clear().append("stress6").append(_threadIndex).append(_count).append(_sb1);
                     _sb2.setLength(0);
                     for (int size = 0; (size < _size) && !isStopped(); size++) {
                         _sb2.append('y');
@@ -130,8 +124,7 @@ public class Stress6 extends StressBase {
                 setPhase("c");
                 for (_count = 0; (_count < _total) && !isStopped(); _count++) {
                     dot();
-                    _exs.clear().append("stress6").append(_threadIndex)
-                            .append(_count).append(_sb1);
+                    _exs.clear().append("stress6").append(_threadIndex).append(_count).append(_sb1);
                     _exs.fetch();
                     final Value value = _exs.getValue();
                     boolean okay = false;
@@ -142,8 +135,7 @@ public class Stress6 extends StressBase {
                         }
                     }
                     if (!okay) {
-                        _result = new TestResult(false, "Value for key "
-                                + _exs.getKey() + " is not zero-length");
+                        _result = new TestResult(false, "Value for key " + _exs.getKey() + " is not zero-length");
                         forceStop();
                         break;
                     }
@@ -157,8 +149,8 @@ public class Stress6 extends StressBase {
         }
     }
 
-    private void setupKey(final Exchange ex, final int length, final int depth,
-            final int a, final int b, final char fill) {
+    private void setupKey(final Exchange ex, final int length, final int depth, final int a, final int b,
+            final char fill) {
         _sb1.setLength(0);
         for (int i = 0; i < length; i++) {
             _sb1.append(fill);

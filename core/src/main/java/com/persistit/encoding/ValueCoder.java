@@ -146,8 +146,7 @@ public interface ValueCoder {
      *            operation. (See {@link CoderContext}.) The default value is
      *            <code>null</code>.
      */
-    public void put(Value value, Object object, CoderContext context)
-            throws ConversionException;
+    public void put(Value value, Object object, CoderContext context) throws ConversionException;
 
     /**
      * <p>
@@ -174,7 +173,6 @@ public interface ValueCoder {
      *         <code>clazz</code> parameter.
      * @throws ConversionException
      */
-    public Object get(Value value, Class clazz, CoderContext context)
-            throws ConversionException;
+    public Object get(Value value, Class clazz, CoderContext context) throws ConversionException;
 
 }

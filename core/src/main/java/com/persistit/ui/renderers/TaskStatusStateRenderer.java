@@ -25,10 +25,12 @@ import com.persistit.ui.ManagementTableModel.AbstractCustomTableCellRenderer;
 public class TaskStatusStateRenderer extends AbstractCustomTableCellRenderer {
     private AdminUI _adminUI;
 
+    @Override
     public void setup(AdminUI ui, Class baseClass, String columnSpec) {
         _adminUI = ui;
     }
 
+    @Override
     public void setValue(Object value) {
         String text = "?";
         if (value instanceof Integer) {

@@ -33,8 +33,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
         assertEquals(1, volume.directoryExchange().getTree().getRootPageAddr());
         for (int counter = 0; counter < COUNT; counter++) {
             txn.begin();
-            final Exchange exchange = _persistit.getExchange("persistit",
-                    "TreeTest1_" + counter, true);
+            final Exchange exchange = _persistit.getExchange("persistit", "TreeTest1_" + counter, true);
             for (int k = 0; k < 10; k++) {
                 exchange.to(k).store();
             }
@@ -45,8 +44,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
 
         for (int counter = 0; counter < COUNT; counter++) {
             txn.begin();
-            final Exchange exchange = _persistit.getExchange("persistit",
-                    "TreeTest1_" + counter, false);
+            final Exchange exchange = _persistit.getExchange("persistit", "TreeTest1_" + counter, false);
             exchange.removeTree();
             txn.commit();
             txn.end();
@@ -73,10 +71,8 @@ public class TreeTest2 extends PersistitUnitTestCase {
         for (int counter = 0; counter < 100; counter++) {
             txn.begin();
             try {
-                final Exchange exchange = _persistit.getExchange("persistit",
-                        "TreeTest1", true);
-                exchange.getValue().put(
-                        "The quick brown fox jumped over the lazy red dog");
+                final Exchange exchange = _persistit.getExchange("persistit", "TreeTest1", true);
+                exchange.getValue().put("The quick brown fox jumped over the lazy red dog");
                 for (int k = 0; k < counter * 100; k++) {
                     exchange.to(k).store();
                 }
@@ -86,8 +82,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
             }
             txn.begin();
             try {
-                final Exchange exchange = _persistit.getExchange("persistit",
-                        "TreeTest1", true);
+                final Exchange exchange = _persistit.getExchange("persistit", "TreeTest1", true);
                 exchange.removeTree();
                 txn.commit();
             } finally {
@@ -111,6 +106,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
         new TreeTest2().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         testLotsOfTrees();
     }

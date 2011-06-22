@@ -33,8 +33,7 @@ public class Bug739533Test extends PersistitUnitTestCase {
     @Test
     public void test739544() throws Exception {
 
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "Bug739533", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "Bug739533", true);
 
         final StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 65536; i++) {
@@ -52,20 +51,17 @@ public class Bug739533Test extends PersistitUnitTestCase {
                 sb.append(".");
             }
 
-            exchange.getValue().put(
-                    sb.toString().substring(0, pageSize / 2 - 50));
+            exchange.getValue().put(sb.toString().substring(0, pageSize / 2 - 50));
 
             for (int j = 0; j < 4; j += 2) {
                 exchange.clear().append(j);
                 exchange.store();
             }
 
-            exchange.getValue().put(
-                    sb.toString().substring(0, maxSimpleValueSize - 10));
+            exchange.getValue().put(sb.toString().substring(0, maxSimpleValueSize - 10));
 
             for (int j = 1; j < 3; j += 2) {
-                exchange.clear().append(j)
-                        .append(sb.toString().substring(0, k));
+                exchange.clear().append(j).append(sb.toString().substring(0, k));
                 exchange.store();
             }
         }

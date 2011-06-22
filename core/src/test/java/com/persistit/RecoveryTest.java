@@ -44,7 +44,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
      */
 
     private String _volumeName = "persistit";
-    
+
     @Override
     protected Properties getProperties(final boolean cleanup) {
         final Properties properties = super.getProperties(cleanup);
@@ -104,42 +104,36 @@ public class RecoveryTest extends PersistitUnitTestCase {
         final RecoveryListener actor = new RecoveryListener() {
 
             @Override
-            public void store(final long address, final long timestamp,
-                    Exchange exchange) throws PersistitException {
+            public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
                 recoveryTimestamps.add(timestamp);
             }
 
             @Override
-            public void removeKeyRange(final long address,
-                    final long timestamp, Exchange exchange, Key from, Key to)
+            public void removeKeyRange(final long address, final long timestamp, Exchange exchange, Key from, Key to)
                     throws PersistitException {
                 recoveryTimestamps.add(timestamp);
             }
 
             @Override
-            public void removeTree(final long address, final long timestamp,
-                    Exchange exchange) throws PersistitException {
+            public void removeTree(final long address, final long timestamp, Exchange exchange)
+                    throws PersistitException {
                 recoveryTimestamps.add(timestamp);
             }
 
             @Override
-            public void startRecovery(long address, long timestamp)
-                    throws PersistitException {
+            public void startRecovery(long address, long timestamp) throws PersistitException {
             }
 
             @Override
-            public void startTransaction(long address, long timestamp)
-                    throws PersistitException {
+            public void startTransaction(long address, long timestamp) throws PersistitException {
             }
 
             @Override
-            public void endTransaction(long address, long timestamp)
-                    throws PersistitException {
+            public void endTransaction(long address, long timestamp) throws PersistitException {
             }
 
             @Override
-            public void endRecovery(long address, long timestamp)
-                    throws PersistitException {
+            public void endRecovery(long address, long timestamp) throws PersistitException {
             }
 
         };
@@ -229,8 +223,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         SortedSet<String> keys = new TreeSet<String>();
         Exchange[] exchanges = new Exchange[5];
         for (int index = 0; index < 5; index++) {
-            final Exchange ex = _persistit.getExchange("persistit",
-                    "RecoveryTest_" + index, true);
+            final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest_" + index, true);
             ex.removeAll();
             exchanges[index] = ex;
         }
@@ -242,16 +235,14 @@ public class RecoveryTest extends PersistitUnitTestCase {
                 tStore(ex, keys);
                 for (int b = 0; b < 5; b++) {
                     ex.clear().append(a).append(b);
-                    ex.getValue().put(
-                            String.format("index=%d a=%d b=%d", index, a, b));
+                    ex.getValue().put(String.format("index=%d a=%d b=%d", index, a, b));
                     tStore(ex, keys);
                 }
             }
         }
         for (int index = 0; index < exchanges.length; index++) {
             Exchange ex = exchanges[index];
-            Key.Direction direction = index == 0 ? Key.EQ
-                    : index == 1 ? Key.GTEQ : Key.GT;
+            Key.Direction direction = index == 0 ? Key.EQ : index == 1 ? Key.GTEQ : Key.GT;
             for (int a = 0; a < 5; a++) {
                 ex.clear().append(a);
                 if (a % 2 == 0) {
@@ -301,16 +292,14 @@ public class RecoveryTest extends PersistitUnitTestCase {
         for (long pageAddr = 0; pageAddr < 100000; pageAddr++) {
             PageNode lastPageNode = new PageNode(1, pageAddr, pageAddr * 100, 0);
             for (long ts = 1; ts < 10; ts++) {
-                PageNode pn = new PageNode(1, pageAddr, pageAddr * 100 + ts
-                        * 10, ts * 100);
+                PageNode pn = new PageNode(1, pageAddr, pageAddr * 100 + ts * 10, ts * 100);
                 pn.setPrevious(lastPageNode);
                 lastPageNode = pn;
             }
             pageMap.put(lastPageNode, lastPageNode);
         }
         JournalManager jman = new JournalManager(_persistit);
-        final String path = UnitTestProperties.DATA_PATH
-                + "/RecoveryManagerTest_journal_";
+        final String path = UnitTestProperties.DATA_PATH + "/RecoveryManagerTest_journal_";
         jman.unitTestInjectVolumes(volumeMap);
         jman.unitTestInjectPageMap(pageMap);
         // Note: moved call to init after the unitTestInject calls
@@ -344,8 +333,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         VolumeDescriptor vd = new VolumeDescriptor("foo", 123);
         int volumeHandle = _persistit.getJournalManager().handleForVolume(vd);
         // retrieve the value of the handle counter before crashing
-        int initialHandleValue = _persistit.getJournalManager()
-                .getHandleCount();
+        int initialHandleValue = _persistit.getJournalManager().getHandleCount();
         _persistit.close();
         Properties saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
@@ -358,8 +346,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         // up
         TreeDescriptor td = new TreeDescriptor(volumeHandle, "gray");
         _persistit.getJournalManager().handleForTree(td);
-        int updatedHandleValue = _persistit.getJournalManager()
-                .getHandleCount();
+        int updatedHandleValue = _persistit.getJournalManager().getHandleCount();
         _persistit.close();
         saveProperties = _persistit.getProperties();
         _persistit = new Persistit();
@@ -375,14 +362,13 @@ public class RecoveryTest extends PersistitUnitTestCase {
         Transaction transaction = _persistit.getTransaction();
         StringBuilder sb = new StringBuilder();
         while (sb.length() < 1000) {
-            sb.append(RED_DOG);
+            sb.append(RED_FOX);
         }
 
         String s = sb.toString();
         for (int cycle = 0; cycle < 2; cycle++) {
             for (int i = 1000; i < 2000; i++) {
-                final Exchange exchange = _persistit.getExchange("persistit",
-                        "RecoveryTest" + i, true);
+                final Exchange exchange = _persistit.getExchange("persistit", "RecoveryTest" + i, true);
                 transaction.begin();
                 try {
                     exchange.getValue().put(s);
@@ -397,8 +383,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
             for (int j = 0; j < 20; j++) {
                 for (int i = 1000; i < 2000; i++) {
-                    final Exchange exchange = _persistit.getExchange(
-                            "persistit", "RecoveryTest" + i, true);
+                    final Exchange exchange = _persistit.getExchange("persistit", "RecoveryTest" + i, true);
                     transaction.begin();
                     try {
                         exchange.to(j).remove();
@@ -412,8 +397,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
             for (int i = 1000; i < 2000; i += 2) {
                 transaction.begin();
                 try {
-                    final Exchange exchange = _persistit.getExchange(
-                            "persistit", "RecoveryTest" + i, true);
+                    final Exchange exchange = _persistit.getExchange("persistit", "RecoveryTest" + i, true);
                     exchange.removeTree();
                     transaction.commit();
                 } finally {
@@ -430,24 +414,22 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
         final Volume volume = _persistit.getVolume("persistit");
         long page = volume.getDirectoryTree().getRootPageAddr();
-        Buffer buffer = _persistit.getBufferPool(volume.getPageSize())
-                .getBufferCopy(volume, page);
+        Buffer buffer = _persistit.getBufferPool(volume.getPageSize()).getBufferCopy(volume, page);
         assertEquals(0, buffer.getRightSibling());
 
         for (final String treeName : volume.getTreeNames()) {
             final Tree tree = volume.getTree(treeName, false);
             page = tree.getRootPageAddr();
-            buffer = _persistit.getBufferPool(volume.getPageSize())
-                    .getBufferCopy(volume, page);
+            buffer = _persistit.getBufferPool(volume.getPageSize()).getBufferCopy(volume, page);
             assertEquals(0, buffer.getRightSibling());
         }
     }
-    
+
     @Test
     public void testNormalRestart() throws Exception {
         final JournalManager jman = _persistit.getJournalManager();
         Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
-        exchange.getValue().put(RED_DOG);
+        exchange.getValue().put(RED_FOX);
         int count = 0;
         long checkpointAddr = 0;
         for (; jman.getCurrentAddress() < jman.getBlockSize() * 1.25;) {
@@ -463,7 +445,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
         final Properties properties = _persistit.getProperties();
         _persistit.close();
-        
+
         _persistit = new Persistit();
         _persistit.initialize(properties);
         exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
@@ -486,8 +468,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     private void store1() throws PersistitException {
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "RecoveryTest", true);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
         exchange.removeAll();
         final StringBuilder sb = new StringBuilder();
 
@@ -502,8 +483,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     private void fetch1a() throws PersistitException {
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "RecoveryTest", false);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
         final StringBuilder sb = new StringBuilder();
 
         for (int i = 1; i < 50000; i++) {
@@ -519,8 +499,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     private void fetch1b() throws PersistitException {
-        final Exchange exchange = _persistit.getExchange(_volumeName,
-                "RecoveryTest", false);
+        final Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", false);
         final StringBuilder sb = new StringBuilder();
         for (int i = 1; i < 400; i++) {
             sb.setLength(0);
@@ -534,8 +513,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     private void store2() throws PersistitException {
-        final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest",
-                true);
+        final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest", true);
         ex.removeAll();
         for (int j = 0; j++ < 10;) {
 
@@ -548,8 +526,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
                     ex.clear().append("test1").append(j).append(i).store();
                 }
                 for (int i = 3; i < 10; i += 3) {
-                    ex.clear().append("test1").append(j).append(i)
-                            .remove(Key.GTEQ);
+                    ex.clear().append("test1").append(j).append(i).remove(Key.GTEQ);
                 }
                 txn.commit();
             } finally {
@@ -570,8 +547,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     private void store3() throws PersistitException {
-        final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest",
-                true);
+        final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest", true);
         ex.removeAll();
         for (int j = 0; j++ < 5;) {
             final StringBuilder sb = new StringBuilder(500000);
@@ -589,8 +565,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
                     ex.clear().append("test1").append(j).append(i).store();
                 }
                 for (int i = 3; i < 10; i += 3) {
-                    ex.clear().append("test1").append(j).append(i)
-                            .remove(Key.GTEQ);
+                    ex.clear().append("test1").append(j).append(i).remove(Key.GTEQ);
                 }
                 txn.commit();
             } finally {
@@ -624,8 +599,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     private void fetch3() throws Exception {
-        final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest",
-                true);
+        final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest", true);
         for (int j = 0; j++ < 5;) {
             final StringBuilder sb = new StringBuilder(500000);
 
@@ -651,8 +625,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         return ex.getTree().getName() + "_" + s.substring(1, s.length() - 1);
     }
 
-    private void tStore(final Exchange ex, final SortedSet<String> keys)
-            throws PersistitException {
+    private void tStore(final Exchange ex, final SortedSet<String> keys) throws PersistitException {
         final Transaction txn = ex.getTransaction();
         int retries = 10;
         for (;;) {
@@ -673,8 +646,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
     }
 
-    private void tRemove(final Exchange ex, final SortedSet<String> keys,
-            final Key.Direction direction) throws PersistitException {
+    private void tRemove(final Exchange ex, final SortedSet<String> keys, final Key.Direction direction)
+            throws PersistitException {
         final Transaction txn = ex.getTransaction();
         int retries = 10;
         for (;;) {
@@ -685,11 +658,9 @@ public class RecoveryTest extends PersistitUnitTestCase {
                 final String ks = keyString(ex);
                 for (final Iterator<String> it = keys.iterator(); it.hasNext();) {
                     final String candidate = it.next();
-                    if ((direction == Key.EQ || direction == Key.GTEQ)
-                            && candidate.equals(ks)) {
+                    if ((direction == Key.EQ || direction == Key.GTEQ) && candidate.equals(ks)) {
                         it.remove();
-                    } else if ((direction == Key.GTEQ || direction == Key.GT)
-                            && candidate.startsWith(ks)
+                    } else if ((direction == Key.GTEQ || direction == Key.GT) && candidate.startsWith(ks)
                             && !candidate.equals(ks)) {
                         it.remove();
                     }
@@ -705,8 +676,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
     }
 
-    private void tDeleteTree(final Exchange ex, final SortedSet<String> keys)
-            throws PersistitException {
+    private void tDeleteTree(final Exchange ex, final SortedSet<String> keys) throws PersistitException {
         final Transaction txn = ex.getTransaction();
         int retries = 10;
         for (;;) {
@@ -737,6 +707,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         new RecoveryTest().initAndRunTest();
     }
 
+    @Override
     public void runAllTests() throws Exception {
         testRecoveryRebuildsPageMap();
         testCopierCleansUpJournals();

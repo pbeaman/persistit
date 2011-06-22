@@ -69,7 +69,6 @@ public interface KeyRenderer extends KeyCoder {
      * 
      * @throws ConversionException
      */
-    public void renderKeySegment(Key key, Object target, Class clazz,
-            CoderContext context) throws ConversionException;
+    public void renderKeySegment(Key key, Object target, Class clazz, CoderContext context) throws ConversionException;
 
 }

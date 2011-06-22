@@ -46,6 +46,7 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
             setName("LogFlusher");
         }
 
+        @Override
         public void run() {
             while (!_stop) {
                 try {
@@ -86,9 +87,9 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
      * @param message
      *            The message to write
      */
+    @Override
     public void log(LogTemplate logTemplate, String message) {
-        if (logTemplate._level > INFO
-                || (logTemplate._level > FINE && _logWriter == null)) {
+        if (logTemplate._level > INFO || (logTemplate._level > FINE && _logWriter == null)) {
             System.err.println(message);
         }
         if (_logWriter != null) {
@@ -102,6 +103,7 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
      * 
      * @return <code>true</code> if the log file is open
      */
+    @Override
     public boolean isOpen() {
         return _logWriter != null;
     }
@@ -110,12 +112,12 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
      * Prepares this logger to received messages. This implementation, opens the
      * file for writing.
      */
+    @Override
     public void open() throws Exception {
         if (isOpen())
             throw new IllegalStateException("Log already open");
 
-        _logWriter = new PrintWriter(new BufferedWriter(new FileWriter(
-                _logFileName)));
+        _logWriter = new PrintWriter(new BufferedWriter(new FileWriter(_logFileName)));
 
         _logFlusher = new DefaultPersistitLogFlusher();
         _logFlusher.start();
@@ -124,6 +126,7 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
     /**
      * Closes the log file.
      */
+    @Override
     public void close() {
         if (_logWriter != null) {
             _logWriter.close();
@@ -146,6 +149,7 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
      * the likelihood that the log file will be useful in case the application
      * exits abruptly.
      */
+    @Override
     public void flush() {
         if (_logWriter != null) {
             _logWriter.flush();

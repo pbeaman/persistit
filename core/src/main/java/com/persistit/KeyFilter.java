@@ -387,8 +387,7 @@ public class KeyFilter {
                 if (index < 0)
                     break;
                 byte[] bytes = new byte[index - previous];
-                System.arraycopy(key.getEncodedBytes(), previous, bytes, 0,
-                        bytes.length);
+                System.arraycopy(key.getEncodedBytes(), previous, bytes, 0, bytes.length);
                 _terms[level] = new SimpleTerm(bytes);
             }
         }
@@ -526,12 +525,10 @@ public class KeyFilter {
 
     private void checkLimits(int minDepth, int maxDepth) {
         if (minDepth < 0) {
-            throw new IllegalArgumentException("minDepth (" + minDepth
-                    + ") must be >= 0");
+            throw new IllegalArgumentException("minDepth (" + minDepth + ") must be >= 0");
         }
         if (minDepth > maxDepth) {
-            throw new IllegalArgumentException("minDepth (" + minDepth
-                    + ") must be <= maxDepth (" + maxDepth + ")");
+            throw new IllegalArgumentException("minDepth (" + minDepth + ") must be <= maxDepth (" + maxDepth + ")");
         }
     }
 
@@ -606,8 +603,7 @@ public class KeyFilter {
 
         abstract boolean selected(byte[] keyBytes, int offset, int length);
 
-        abstract boolean atEdge(byte[] keyBytes, int offset, int length,
-                boolean forward);
+        abstract boolean atEdge(byte[] keyBytes, int offset, int length, boolean forward);
 
         abstract boolean forward(Key key, int offset, int length);
 
@@ -661,8 +657,7 @@ public class KeyFilter {
                 sb.append("*");
             } else {
                 final Key workKey = new Key((Persistit) null);
-                appendDisplayableKeySegment(workKey, sb, _itemBytes, context,
-                        false, false);
+                appendDisplayableKeySegment(workKey, sb, _itemBytes, context, false, false);
             }
         }
 
@@ -703,12 +698,10 @@ public class KeyFilter {
 
             byte[] keyBytes = key.getEncodedBytes();
 
-            int compare = compare(keyBytes, offset, length, _itemBytes, 0,
-                    _itemBytes.length);
+            int compare = compare(keyBytes, offset, length, _itemBytes, 0, _itemBytes.length);
 
             if (compare < 0) {
-                System.arraycopy(_itemBytes, 0, keyBytes, offset,
-                        _itemBytes.length);
+                System.arraycopy(_itemBytes, 0, keyBytes, offset, _itemBytes.length);
                 key.setEncodedSize(offset + _itemBytes.length);
                 return true;
             } else {
@@ -730,12 +723,10 @@ public class KeyFilter {
 
             byte[] keyBytes = key.getEncodedBytes();
 
-            int compare = length == 0 ? 1 : compare(keyBytes, offset, length,
-                    _itemBytes, 0, _itemBytes.length);
+            int compare = length == 0 ? 1 : compare(keyBytes, offset, length, _itemBytes, 0, _itemBytes.length);
 
             if (compare > 0) {
-                System.arraycopy(_itemBytes, 0, keyBytes, offset,
-                        _itemBytes.length);
+                System.arraycopy(_itemBytes, 0, keyBytes, offset, _itemBytes.length);
                 key.setEncodedSize(offset + _itemBytes.length);
                 return true;
             } else {
@@ -771,8 +762,7 @@ public class KeyFilter {
         private final boolean _leftInclusive;
         private final boolean _rightInclusive;
 
-        RangeTerm(byte[] leftBytes, byte[] rightBytes, boolean leftInclusive,
-                boolean rightInclusive) {
+        RangeTerm(byte[] leftBytes, byte[] rightBytes, boolean leftInclusive, boolean rightInclusive) {
             _itemFromBytes = leftInclusive ? leftBytes : nudgeRight(leftBytes);
             _itemToBytes = rightInclusive ? rightBytes : nudgeLeft(rightBytes);
             _leftInclusive = leftInclusive;
@@ -834,12 +824,10 @@ public class KeyFilter {
             if (!allInclusive) {
                 sb.append(_leftInclusive ? "[" : "(");
             }
-            byte[] from = _leftInclusive ? _itemFromBytes
-                    : unnudgeRight(_itemFromBytes);
+            byte[] from = _leftInclusive ? _itemFromBytes : unnudgeRight(_itemFromBytes);
             appendDisplayableKeySegment(workKey, sb, from, context, true, false);
             sb.append(":");
-            byte[] to = _rightInclusive ? _itemToBytes
-                    : unnudgeLeft(_itemToBytes);
+            byte[] to = _rightInclusive ? _itemToBytes : unnudgeLeft(_itemToBytes);
             appendDisplayableKeySegment(workKey, sb, to, context, false, true);
             if (!allInclusive) {
                 sb.append(_rightInclusive ? "]" : ")");
@@ -848,15 +836,13 @@ public class KeyFilter {
 
         @Override
         boolean selected(byte[] keyBytes, int offset, int length) {
-            int compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
-                    _itemFromBytes.length);
+            int compare = compare(keyBytes, offset, length, _itemFromBytes, 0, _itemFromBytes.length);
 
             if (compare < 0) {
                 return false;
             }
 
-            compare = compare(keyBytes, offset, length, _itemToBytes, 0,
-                    _itemToBytes.length);
+            compare = compare(keyBytes, offset, length, _itemToBytes, 0, _itemToBytes.length);
 
             if (compare > 0) {
                 return false;
@@ -867,11 +853,9 @@ public class KeyFilter {
         @Override
         boolean atEdge(byte[] keyBytes, int offset, int length, boolean forward) {
             if (forward) {
-                return compare(keyBytes, offset, length, _itemToBytes, 0,
-                        _itemToBytes.length) == 0;
+                return compare(keyBytes, offset, length, _itemToBytes, 0, _itemToBytes.length) == 0;
             } else {
-                return compare(keyBytes, offset, length, _itemFromBytes, 0,
-                        _itemFromBytes.length) == 0;
+                return compare(keyBytes, offset, length, _itemFromBytes, 0, _itemFromBytes.length) == 0;
             }
         }
 
@@ -879,12 +863,10 @@ public class KeyFilter {
         boolean forward(Key key, int offset, int length) {
             byte[] keyBytes = key.getEncodedBytes();
 
-            int compare = compare(keyBytes, offset, length, _itemFromBytes, 0,
-                    _itemFromBytes.length);
+            int compare = compare(keyBytes, offset, length, _itemFromBytes, 0, _itemFromBytes.length);
 
             if (compare < 0) {
-                System.arraycopy(_itemFromBytes, 0, keyBytes, offset,
-                        _itemFromBytes.length);
+                System.arraycopy(_itemFromBytes, 0, keyBytes, offset, _itemFromBytes.length);
                 key.setEncodedSize(offset + _itemFromBytes.length);
                 keyBytes[offset + _itemFromBytes.length] = 0;
                 return true;
@@ -896,12 +878,10 @@ public class KeyFilter {
         boolean backward(Key key, int offset, int length) {
             byte[] keyBytes = key.getEncodedBytes();
 
-            int compare = compare(keyBytes, offset, length, _itemToBytes, 0,
-                    _itemToBytes.length);
+            int compare = compare(keyBytes, offset, length, _itemToBytes, 0, _itemToBytes.length);
 
             if (compare > 0) {
-                System.arraycopy(_itemToBytes, 0, keyBytes, offset,
-                        _itemToBytes.length);
+                System.arraycopy(_itemToBytes, 0, keyBytes, offset, _itemToBytes.length);
                 key.setEncodedSize(offset + _itemToBytes.length);
                 keyBytes[offset + _itemFromBytes.length] = 0;
                 return true;
@@ -955,7 +935,7 @@ public class KeyFilter {
         private byte[] unnudgeLeft(byte[] from) {
             int size = from.length;
             final byte[] to;
-            if (size > 1 && from[size - 1]!= 0) {
+            if (size > 1 && from[size - 1] != 0) {
                 to = new byte[size + 1];
                 System.arraycopy(from, 0, to, 0, size);
             } else {
@@ -973,13 +953,11 @@ public class KeyFilter {
             byte[] previousBytes = null;
             for (int index = 0; index < terms.length; index++) {
                 if (terms[index] instanceof OrTerm) {
-                    throw new IllegalArgumentException(
-                            "Nested OrTerm at index " + index);
+                    throw new IllegalArgumentException("Nested OrTerm at index " + index);
                 }
                 if (index > 0) {
                     if (compare(previousBytes, terms[index].leftBytes()) > 0) {
-                        throw new IllegalArgumentException(
-                                "Overlapping Term at index " + index);
+                        throw new IllegalArgumentException("Overlapping Term at index " + index);
                     }
                     previousBytes = terms[index].rightBytes();
                 }
@@ -1026,8 +1004,7 @@ public class KeyFilter {
         public boolean equals(Object object) {
             if (object instanceof OrTerm) {
                 OrTerm t = (OrTerm) object;
-                if (t.hashCode() != hashCode()
-                        || t._terms.length != _terms.length)
+                if (t.hashCode() != hashCode() || t._terms.length != _terms.length)
                     return false;
                 for (int index = 0; index < _terms.length; index++) {
                     if (t._terms[index] != _terms[index])
@@ -1067,8 +1044,7 @@ public class KeyFilter {
         boolean atEdge(byte[] keyBytes, int offset, int length, boolean forward) {
             for (int index = 0; index < _terms.length; index++) {
                 if (_terms[index].selected(keyBytes, offset, length)
-                        && _terms[index].atEdge(keyBytes, offset, length,
-                                forward)) {
+                        && _terms[index].atEdge(keyBytes, offset, length, forward)) {
                     return true;
                 }
             }
@@ -1181,8 +1157,7 @@ public class KeyFilter {
      * @throws IllegalArgumentException
      *             if <code>fromValue</code> follows <code>toValue</code>.
      */
-    public static Term rangeTerm(Object fromValue, Object toValue,
-            CoderContext context) {
+    public static Term rangeTerm(Object fromValue, Object toValue, CoderContext context) {
         return rangeTerm(fromValue, toValue, true, true, context);
     }
 
@@ -1214,10 +1189,8 @@ public class KeyFilter {
      *             if <code>fromValue</code> follows <code>toValue</code>.
      */
 
-    public static Term rangeTerm(Object fromValue, Object toValue,
-            boolean leftInclusive, boolean rightInclusive) {
-        return rangeTerm(fromValue, toValue, leftInclusive, rightInclusive,
-                null);
+    public static Term rangeTerm(Object fromValue, Object toValue, boolean leftInclusive, boolean rightInclusive) {
+        return rangeTerm(fromValue, toValue, leftInclusive, rightInclusive, null);
     }
 
     /**
@@ -1254,8 +1227,8 @@ public class KeyFilter {
      * @throws IllegalArgumentException
      *             if <code>fromValue</code> follows <code>toValue</code>.
      */
-    public static Term rangeTerm(Object fromValue, Object toValue,
-            boolean leftInclusive, boolean rightInclusive, CoderContext context) {
+    public static Term rangeTerm(Object fromValue, Object toValue, boolean leftInclusive, boolean rightInclusive,
+            CoderContext context) {
         Key key = new Key((Persistit) null);
         if (fromValue == null)
             key.appendBefore();
@@ -1269,11 +1242,10 @@ public class KeyFilter {
             key.reset();
             byte[] rightBytes = segmentBytes(key);
             if (compare(leftBytes, rightBytes) > 0) {
-                throw new IllegalArgumentException("Start value \"" + fromValue
-                        + "\" is after end value \"" + toValue + "\".");
+                throw new IllegalArgumentException("Start value \"" + fromValue + "\" is after end value \"" + toValue
+                        + "\".");
             }
-            return new RangeTerm(leftBytes, rightBytes, leftInclusive,
-                    rightInclusive);
+            return new RangeTerm(leftBytes, rightBytes, leftInclusive, rightInclusive);
         } else
             return new SimpleTerm(leftBytes);
     }
@@ -1306,17 +1278,14 @@ public class KeyFilter {
      * 
      * @return The <code>term</code>
      */
-    public static Term termFromKeySegments(Key fromKey, Key toKey,
-            boolean leftInclusive, boolean rightInclusive) {
+    public static Term termFromKeySegments(Key fromKey, Key toKey, boolean leftInclusive, boolean rightInclusive) {
         byte[] leftBytes = segmentBytes(fromKey);
         byte[] rightBytes = segmentBytes(toKey);
         toKey.nextElementIndex();
-        if (leftInclusive && rightInclusive
-                && compare(leftBytes, rightBytes) == 0) {
+        if (leftInclusive && rightInclusive && compare(leftBytes, rightBytes) == 0) {
             return new SimpleTerm(leftBytes);
         } else {
-            return new RangeTerm(leftBytes, rightBytes, leftInclusive,
-                    rightInclusive);
+            return new RangeTerm(leftBytes, rightBytes, leftInclusive, rightInclusive);
         }
     }
 
@@ -1456,8 +1425,7 @@ public class KeyFilter {
                     nextIndex = key.getEncodedSize();
                 }
                 Term term = level < _terms.length ? _terms[level] : ALL;
-                if (term == null
-                        || !term.selected(keyBytes, index, nextIndex - index)) {
+                if (term == null || !term.selected(keyBytes, index, nextIndex - index)) {
                     return false;
                 }
                 index = nextIndex;
@@ -1528,8 +1496,8 @@ public class KeyFilter {
      *         otherwise <code>false</code>.
      */
     public boolean next(Key key, Key.Direction direction) {
-        return next(key, 0, 0, direction == Key.GT || direction == Key.GTEQ,
-                direction == Key.GTEQ || direction == Key.LTEQ);
+        return next(key, 0, 0, direction == Key.GT || direction == Key.GTEQ, direction == Key.GTEQ
+                || direction == Key.LTEQ);
     }
 
     /**
@@ -1543,8 +1511,7 @@ public class KeyFilter {
      * @param eq
      * @return
      */
-    private boolean next(Key key, int index, int level, boolean forward,
-            boolean eq) {
+    private boolean next(Key key, int index, int level, boolean forward, boolean eq) {
 
         int size = key.getEncodedSize();
         byte[] bytes = key.getEncodedBytes();
@@ -1583,9 +1550,7 @@ public class KeyFilter {
             if (term.selected(bytes, index, nextIndex - index)) {
                 if (level + 1 == _maxDepth) {
                     if (isLastKeySegment) {
-                        if (eq
-                                || !term.atEdge(bytes, index,
-                                        nextIndex - index, forward)) {
+                        if (eq || !term.atEdge(bytes, index, nextIndex - index, forward)) {
                             return true;
                         }
                     } else {
@@ -1617,21 +1582,17 @@ public class KeyFilter {
                         }
                     }
                 } else if (level + 1 < _minDepth) {
-                    if (key.isSegmentSpecial(nextIndex)
-                            || (forward || !isLastKeySegment)
+                    if (key.isSegmentSpecial(nextIndex) || (forward || !isLastKeySegment)
                             && next(key, nextIndex, level + 1, forward, eq)) {
                         return true;
                     }
                 } else if (isLastKeySegment) {
-                    if (eq
-                            || (forward && level + 1 < _maxDepth)
-                            || !term.atEdge(bytes, index, nextIndex - index,
-                                    forward)) {
+                    if (eq || (forward && level + 1 < _maxDepth)
+                            || !term.atEdge(bytes, index, nextIndex - index, forward)) {
                         return true;
                     }
                 } else {
-                    if (key.isSegmentSpecial(nextIndex)
-                            || next(key, nextIndex, level + 1, forward, eq)) {
+                    if (key.isSegmentSpecial(nextIndex) || next(key, nextIndex, level + 1, forward, eq)) {
                         return true;
                     }
                 }
@@ -1647,10 +1608,8 @@ public class KeyFilter {
             key.setEncodedSize(nextIndex);
 
             if (forward) {
-                if (term.selected(key.getEncodedBytes(), index, nextIndex
-                        - index)
-                        && !term.atEdge(key.getEncodedBytes(), index, nextIndex
-                                - index, forward)) {
+                if (term.selected(key.getEncodedBytes(), index, nextIndex - index)
+                        && !term.atEdge(key.getEncodedBytes(), index, nextIndex - index, forward)) {
                     key.nudgeRight();
                     return true;
                 } else {
@@ -1659,10 +1618,8 @@ public class KeyFilter {
                     }
                 }
             } else {
-                if (term.selected(key.getEncodedBytes(), index, nextIndex
-                        - index)
-                        && !term.atEdge(key.getEncodedBytes(), index, nextIndex
-                                - index, forward)) {
+                if (term.selected(key.getEncodedBytes(), index, nextIndex - index)
+                        && !term.atEdge(key.getEncodedBytes(), index, nextIndex - index, forward)) {
                     key.nudgeLeft();
                     return true;
                 } else {
@@ -1711,8 +1668,7 @@ public class KeyFilter {
         return compare(a, 0, a.length, b, 0, b.length);
     }
 
-    private static int compare(byte[] a, int offsetA, int sizeA, byte[] b,
-            int offsetB, int sizeB) {
+    private static int compare(byte[] a, int offsetA, int sizeA, byte[] b, int offsetB, int sizeB) {
         int size = Math.min(sizeA, sizeB);
         for (int i = 0; i < size; i++) {
             if (a[i + offsetA] != b[i + offsetB]) {
@@ -1739,8 +1695,7 @@ public class KeyFilter {
         return h;
     }
 
-    private static void appendDisplayableKeySegment(Key workKey,
-            StringBuilder sb, byte[] bytes, CoderContext context,
+    private static void appendDisplayableKeySegment(Key workKey, StringBuilder sb, byte[] bytes, CoderContext context,
             boolean before, boolean after) {
         if (bytes == null) {
             return;

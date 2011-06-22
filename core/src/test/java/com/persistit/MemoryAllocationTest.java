@@ -21,8 +21,8 @@ import org.junit.Test;
 
 public class MemoryAllocationTest extends TestCase {
 
-    private final static long MEGA  =1024  * 1024;
-    
+    private final static long MEGA = 1024 * 1024;
+
     private final static String PNAME = "buffer.memory.";
 
     @Test
@@ -32,24 +32,16 @@ public class MemoryAllocationTest extends TestCase {
         for (int bufferSize = 1024; bufferSize <= 16384; bufferSize *= 2) {
             final String pname = PNAME + bufferSize;
             final int bsize = Buffer.bufferSizeWithOverhead(bufferSize);
-            assertEquals(MEGA / bsize,
-                    persistit.computeBufferCountFromMemoryProperty(pname, "1M",
-                            bufferSize));
-            assertEquals(10 * MEGA / bsize,
-                    persistit.computeBufferCountFromMemoryProperty(pname, "10M,1G",
-                            bufferSize));
-            assertEquals((available - 64 * MEGA) / bsize,
-                    persistit.computeBufferCountFromMemoryProperty(pname, ",100G,64M",
-                            bufferSize));
-            assertEquals((available / 2) / bsize,
-                    persistit.computeBufferCountFromMemoryProperty(pname, ",100G,0,0.5",
-                            bufferSize));
-            assertEquals((available / 2) / bsize,
-                    persistit.computeBufferCountFromMemoryProperty(pname, ",,,0.5",
-                            bufferSize));
-            assertEquals(10 * MEGA / bsize,
-                    persistit.computeBufferCountFromMemoryProperty(pname, "10M,,,0.0",
-                            bufferSize));
+            assertEquals(MEGA / bsize, persistit.computeBufferCountFromMemoryProperty(pname, "1M", bufferSize));
+            assertEquals(10 * MEGA / bsize, persistit.computeBufferCountFromMemoryProperty(pname, "10M,1G", bufferSize));
+            assertEquals((available - 64 * MEGA) / bsize, persistit.computeBufferCountFromMemoryProperty(pname,
+                    ",100G,64M", bufferSize));
+            assertEquals((available / 2) / bsize, persistit.computeBufferCountFromMemoryProperty(pname, ",100G,0,0.5",
+                    bufferSize));
+            assertEquals((available / 2) / bsize, persistit.computeBufferCountFromMemoryProperty(pname, ",,,0.5",
+                    bufferSize));
+            assertEquals(10 * MEGA / bsize, persistit.computeBufferCountFromMemoryProperty(pname, "10M,,,0.0",
+                    bufferSize));
         }
     }
 

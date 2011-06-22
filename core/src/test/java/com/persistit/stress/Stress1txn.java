@@ -35,12 +35,9 @@ public class Stress1txn extends StressBase {
             + "   Optional <splay> value allows variations in key sequence: \r\n"
             + "   Same as Stress1 except uses Transactions\r\n";
 
-    private final static String[] ARGS_TEMPLATE = {
-            "op|String:wrtd|Operations to perform",
-            "repeat|int:1:0:1000000000|Repetitions",
-            "count|int:10000:0:1000000000|Number of nodes to populate",
-            "size|int:30:1:5000000|Size of each data value",
-            "splay|int:1:1:1000|Splay", };
+    private final static String[] ARGS_TEMPLATE = { "op|String:wrtd|Operations to perform",
+            "repeat|int:1:0:1000000000|Repetitions", "count|int:10000:0:1000000000|Number of nodes to populate",
+            "size|int:30:1:5000000|Size of each data value", "splay|int:1:1:1000|Splay", };
 
     int _size;
     int _splay;
@@ -69,8 +66,7 @@ public class Stress1txn extends StressBase {
 
         try {
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit",
-                    _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
         } catch (final Exception ex) {
             handleThrowable(ex);
         }
@@ -126,8 +122,8 @@ public class Stress1txn extends StressBase {
                     setupTestValue(_ex, _count, _size);
                     try {
                         txn.run(new TransactionRunnable() {
-                            public void runTransaction()
-                                    throws PersistitException {
+                            @Override
+                            public void runTransaction() throws PersistitException {
 
                                 // fetch to a different Value object so we can
                                 // compare
@@ -154,9 +150,8 @@ public class Stress1txn extends StressBase {
                         }
                     }
                     if (_count != _total) {
-                        _result = new TestResult(false, "Traverse count="
-                                + _count + " out of " + _total + " repetition="
-                                + _repeat + " in thread=" + _threadIndex);
+                        _result = new TestResult(false, "Traverse count=" + _count + " out of " + _total
+                                + " repetition=" + _repeat + " in thread=" + _threadIndex);
                         println(_result);
                         forceStop();
                         break;

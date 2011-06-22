@@ -66,8 +66,7 @@ public class TestResult {
                 }
             }
 
-            TestRunner.logMessage("Multithreaded Test Failure: " + failCount
-                    + " threads failed", depth);
+            TestRunner.logMessage("Multithreaded Test Failure: " + failCount + " threads failed", depth);
 
             for (int index = 0; index < _results.length; index++) {
                 final TestResult result1 = _results[index];
@@ -77,8 +76,7 @@ public class TestResult {
             }
         } else if (_throwable != null) {
             TestRunner.logMessage(_throwable.toString(), depth);
-            final String s = LogBase.detailString(_throwable)
-                    .replace('\r', ' ');
+            final String s = LogBase.detailString(_throwable).replace('\r', ' ');
             final StringTokenizer st = new StringTokenizer(s, "\n");
             while (st.hasMoreTokens()) {
                 TestRunner.logMessage(st.nextToken(), depth + 1);
@@ -93,6 +91,7 @@ public class TestResult {
         }
     }
 
+    @Override
     public String toString() {
         if (_passed) {
             return "PASSED";
@@ -100,8 +99,7 @@ public class TestResult {
             if (_results != null) {
                 return "Multithreaded test FAILED";
             } else if (_throwable != null) {
-                return "FAILED WITH EXCEPTION\r\n"
-                        + LogBase.detailString(_throwable);
+                return "FAILED WITH EXCEPTION\r\n" + LogBase.detailString(_throwable);
             } else if (_message != null) {
                 return "FAILED: " + _message;
             }

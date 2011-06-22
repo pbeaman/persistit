@@ -18,27 +18,28 @@ package com.persistit;
 import com.persistit.exception.PersistitIOException;
 
 /**
- * Accessors for package-private methods in com.persistit so that unit tests can be in a different package.
+ * Accessors for package-private methods in com.persistit so that unit tests can
+ * be in a different package.
  * 
  * @author peter
- *
+ * 
  */
 public class TestShim {
 
     public final static int BUFFER_INDEX_PAGE_OVERHEAD = Buffer.INDEX_PAGE_OVERHEAD;
-    
+
     public static void rollover(final JournalManager journalManager) throws PersistitIOException {
         journalManager.rollover();
     }
-    
+
     public static int maxStorableKeySize(final int bufferSize) {
         return Key.maxStorableKeySize(bufferSize);
     }
-    
+
     public static int maxKeys(final Volume volume) {
         return volume.getPool().getMaxKeys();
     }
-    
+
     public static Buffer buffer(final Volume volume, final long page) throws Exception {
         return volume.getPool().get(volume, page, false, true);
     }

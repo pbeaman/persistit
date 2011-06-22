@@ -70,8 +70,7 @@ public class StressRecovery extends StressBase {
             + "    write progress to stdout.  This can be recorded, and played back to ensure that the"
             + "    resulting database after recovery contains all the committed transactions \r\n";
 
-    private final static String[] ARGS_TEMPLATE = {
-            "size|int:30:1:20000|Maximum size of each data value",
+    private final static String[] ARGS_TEMPLATE = { "size|int:30:1:20000|Maximum size of each data value",
             "verify|String:|Path name of ticket list to verify",
             "latency|long:0:0:60000|Maximum acceptable fault latency" };
 
@@ -127,8 +126,7 @@ public class StressRecovery extends StressBase {
 
     @Override
     public void setUp() throws Exception {
-        _ap = new ArgParser("com.persistit.StressRecovery", _args,
-                ARGS_TEMPLATE);
+        _ap = new ArgParser("com.persistit.StressRecovery", _args, ARGS_TEMPLATE);
         _size = _ap.getIntValue("size");
         _maxLatency = _ap.getLongValue("latency") * 1000000l;
         _verifyPath = _ap.getStringValue("verify");
@@ -143,8 +141,7 @@ public class StressRecovery extends StressBase {
             // Exchange with shared Tree
             _exs = getPersistit().getExchange("persistit", "shared", true);
             // Exchange with Thread-private Tree
-            _ex = getPersistit().getExchange("persistit",
-                    _rootName + _threadIndex, true);
+            _ex = getPersistit().getExchange("persistit", _rootName + _threadIndex, true);
         } catch (final Exception ex) {
             handleThrowable(ex);
         }
@@ -181,13 +178,11 @@ public class StressRecovery extends StressBase {
                     elapsed = Long.parseLong(s[2]);
                     last = Math.max(last, start + elapsed);
                 } catch (Exception e) {
-                    fail(e + " while reading line " + _count + " of "
-                            + _verifyPath + ": " + line);
+                    fail(e + " while reading line " + _count + " of " + _verifyPath + ": " + line);
                 }
                 if (elapsed >= 0) {
                     try {
-                        TransactionType tt = registry
-                                .get((int) (ticketId % registry.size()));
+                        TransactionType tt = registry.get((int) (ticketId % registry.size()));
                         tt.verifyTransaction(ticketId);
                     } catch (Exception e) {
                         firstFault = Math.min(firstFault, start + elapsed);
@@ -199,9 +194,8 @@ public class StressRecovery extends StressBase {
             if (faults > 0) {
                 if (last - firstFault < _maxLatency) {
                     printf("There were %,d faults. Last one occurred %,dms before crash - \n"
-                            + "acceptable because acceptable latency setting is %,dms.",
-                            faults, (last - firstFault) / 1000000l,
-                            _maxLatency / 1000000l);
+                            + "acceptable because acceptable latency setting is %,dms.", faults,
+                            (last - firstFault) / 1000000l, _maxLatency / 1000000l);
                 } else {
                     fail("Verification encountered " + faults + " faults");
                 }
@@ -213,8 +207,7 @@ public class StressRecovery extends StressBase {
             //
             for (int _count = 1;; _count++) {
                 final long ticketId = ticketSequence.incrementAndGet();
-                final TransactionType tt = registry
-                        .get((int) (ticketId % registry.size()));
+                final TransactionType tt = registry.get((int) (ticketId % registry.size()));
                 final long start = System.nanoTime();
                 try {
                     tt.performTransaction(ticketId);
@@ -230,8 +223,7 @@ public class StressRecovery extends StressBase {
         }
     }
 
-    private synchronized static void emit(final long ticketId,
-            final long start, final long elapsed) {
+    private synchronized static void emit(final long ticketId, final long start, final long elapsed) {
         System.out.println(ticketId + "," + start + "," + elapsed);
         System.out.flush();
     }
@@ -253,8 +245,7 @@ public class StressRecovery extends StressBase {
                 txn.begin();
                 try {
                     _exs.getValue().putString("ticket " + ticketId + " value");
-                    _exs.clear().append(ticketId % 1000)
-                            .append(ticketId / 1000);
+                    _exs.clear().append(ticketId % 1000).append(ticketId / 1000);
                     _exs.store();
                     txn.commit(false);
                     break;
@@ -276,13 +267,12 @@ public class StressRecovery extends StressBase {
 
     class IndexSimulationTransactionType implements TransactionType {
 
-        final String[] FRAGMENTS = { "now", "is", "the", "time", "for", "a",
-                "quick", "brown", "fox", "to", "come", "aid", "some", "party" };
+        final String[] FRAGMENTS = { "now", "is", "the", "time", "for", "a", "quick", "brown", "fox", "to", "come",
+                "aid", "some", "party" };
 
         @Override
         public void performTransaction(long ticketId) throws Exception {
-            final StringBuilder sb = new StringBuilder(String.format("%,15d",
-                    ticketId));
+            final StringBuilder sb = new StringBuilder(String.format("%,15d", ticketId));
             final int size = (int) ((ticketId * 17) % 876);
             for (int i = 0; i < size; i++) {
                 sb.append('-');
@@ -295,8 +285,7 @@ public class StressRecovery extends StressBase {
                     long t = ticketId;
                     _exs.clear();
                     while (t != 0) {
-                        _exs.getKey().append(
-                                FRAGMENTS[(int) (t) % FRAGMENTS.length]);
+                        _exs.getKey().append(FRAGMENTS[(int) (t) % FRAGMENTS.length]);
                         t /= FRAGMENTS.length;
                     }
                     _exs.store();
@@ -305,8 +294,7 @@ public class StressRecovery extends StressBase {
                     _exs.clear().append(1);
                     t = ticketId * 11;
                     while (t != 0) {
-                        _exs.getKey().append(
-                                FRAGMENTS[(int) (t) % FRAGMENTS.length]);
+                        _exs.getKey().append(FRAGMENTS[(int) (t) % FRAGMENTS.length]);
                         t /= FRAGMENTS.length;
                     }
                     _exs.store();
@@ -314,8 +302,7 @@ public class StressRecovery extends StressBase {
                     _exs.clear().append(2);
                     t = ticketId * 13;
                     while (t != 0) {
-                        _exs.getKey().append(
-                                FRAGMENTS[(int) (t) % FRAGMENTS.length]);
+                        _exs.getKey().append(FRAGMENTS[(int) (t) % FRAGMENTS.length]);
                         t /= FRAGMENTS.length;
                     }
                     _exs.store();
@@ -363,17 +350,14 @@ public class StressRecovery extends StressBase {
         }
     }
 
-    private void check(final long ticketId, final Exchange ex,
-            final String expected) throws Exception {
+    private void check(final long ticketId, final Exchange ex, final String expected) throws Exception {
         ex.fetch();
         if (!ex.getValue().isDefined()) {
-            throw new RuntimeException("Ticket " + ticketId
-                    + " missing value at " + ex.getKey());
+            throw new RuntimeException("Ticket " + ticketId + " missing value at " + ex.getKey());
         }
         final String s = ex.getValue().getString();
         if (!s.startsWith(expected)) {
-            throw new RuntimeException("Ticket " + ticketId
-                    + " incorrect value at " + ex.getKey());
+            throw new RuntimeException("Ticket " + ticketId + " incorrect value at " + ex.getKey());
         }
 
     }

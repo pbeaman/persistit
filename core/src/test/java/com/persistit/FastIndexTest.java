@@ -20,7 +20,7 @@ import com.persistit.FastIndex;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class FastIndexTest extends PersistitUnitTestCase {
-    
+
     private Buffer getABuffer() throws Exception {
         final Exchange exchange = _persistit.getExchange("persistit", "FastIndexTest", true);
         return exchange.getBufferPool().get(exchange.getVolume(), 1, false, true);
@@ -30,19 +30,16 @@ public class FastIndexTest extends PersistitUnitTestCase {
         final Buffer b1 = getABuffer();
         FastIndex fi = b1.getFastIndex();
         /*
-         * BUFFER_SIZE - HEADER_SIZE / MAX_KEY_RATIO
-         * BUFFER_SIZE = 16384
-         * HEADER_SIZE = 32
-         * MAX_KEY_RATIO = 16
-         * 16384 - 32 / 16 = 16352 / 16 = 1022
-         * size passed to FastIndex constructor is 1022 + 1
-         * when parameters are as listed above.
+         * BUFFER_SIZE - HEADER_SIZE / MAX_KEY_RATIO BUFFER_SIZE = 16384
+         * HEADER_SIZE = 32 MAX_KEY_RATIO = 16 16384 - 32 / 16 = 16352 / 16 =
+         * 1022 size passed to FastIndex constructor is 1022 + 1 when parameters
+         * are as listed above.
          */
-        final int expectedSize = (16384 - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO; 
+        final int expectedSize = (16384 - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO;
         assertEquals(expectedSize + 1, fi.size());
         b1.release();
     }
-    
+
     public void testIndexValidity() throws Exception {
         final Buffer b1 = getABuffer();
         b1.init(Buffer.PAGE_TYPE_GARBAGE);
@@ -60,7 +57,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
         assertEquals(false, fi.verify());
         b1.release();
     }
-    
+
     public void testBitShiftFunctions() throws Exception {
         final Buffer b1 = getABuffer();
         FastIndex fi = b1.getFastIndex();
@@ -81,8 +78,9 @@ public class FastIndexTest extends PersistitUnitTestCase {
         assertEquals(0, fi.getEbc(0));
         b1.release();
     }
-    
+
+    @Override
     public void runAllTests() {
     }
-    
+
 }
