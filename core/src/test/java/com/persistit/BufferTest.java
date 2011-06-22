@@ -70,6 +70,8 @@ public class BufferTest extends PersistitUnitTestCase {
         final RecordInfo r = b1.getRecords()[b1.getRecords().length - 1];
         r.getKeyState().copyTo(key);
         assertTrue(key.toString().contains("ttuuvv"));
+        b1.release();
+        b2.release();
     }
 
     @Override

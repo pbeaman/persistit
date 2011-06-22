@@ -300,7 +300,11 @@ public class Volume extends SharedResource {
         }
 
         boolean open = false;
-        this.setTransient(tranzient);
+        if (tranzient) {
+            setTransient();
+        } else {
+            clearTransient();
+        }
         _loose = loose;
 
         try {
@@ -326,7 +330,7 @@ public class Volume extends SharedResource {
             _persistit.addVolume(this);
 
             _headBuffer = _pool.get(this, 0, true, false);
-            _headBuffer.setFixed(true);
+            _headBuffer.setFixed();
             _header = new VolumeHeader(_channel);
 
             _headBuffer.clear();
@@ -367,7 +371,7 @@ public class Volume extends SharedResource {
         } finally {
             if (_headBuffer != null) {
                 if (!open) {
-                    _headBuffer.setFixed(false);
+                    _headBuffer.clearFixed();
                 }
                 releaseHeadBuffer();
             }
@@ -432,7 +436,7 @@ public class Volume extends SharedResource {
                 checkpointMetaData();
             }
 
-            _headBuffer.setFixed(true);
+            _headBuffer.setFixed();
             releaseHeadBuffer();
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
@@ -1248,7 +1252,7 @@ public class Volume extends SharedResource {
         tree.claim(true);
         tree.init(rootPage);
         tree.release();
-        tree.setValid(true);
+        tree.setValid();
         tree.commit();
         return tree;
     }
@@ -1501,7 +1505,7 @@ public class Volume extends SharedResource {
     }
 
     void close() throws PersistitException {
-        _headBuffer.setFixed(false);
+        _headBuffer.clearFixed();
         _closed = true;
 
         PersistitException pe = null;

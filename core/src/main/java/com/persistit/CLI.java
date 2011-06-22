@@ -724,7 +724,7 @@ public class CLI {
             if (buffer == null) {
                 return String.format("Journal address %,d is not a valid PA record", journalAddress);
             }
-            buffer.setValid(true);
+            buffer.setValid();
         } else if (pageAddress >= 0) {
             if (_currentVolume == null) {
                 return "Select a volume";

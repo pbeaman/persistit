@@ -158,7 +158,7 @@ public class Tree extends SharedResource {
         _rootPageAddr = Util.getLong(encoded, 0);
         _depth = Util.getShort(encoded, 12);
         _changeCount.set(Util.getLong(encoded, 16));
-        setValid(true);
+        setValid();
     }
 
     /**
@@ -169,7 +169,7 @@ public class Tree extends SharedResource {
      */
     void init(final long rootPageAddr) throws PersistitException {
         _rootPageAddr = rootPageAddr;
-        setValid(true);
+        setValid();
         setDirtyStructure();
         // Derive the index depth
         Buffer buffer = null;
@@ -189,7 +189,7 @@ public class Tree extends SharedResource {
      * <code>Tree</code> to fail.
      */
     void invalidate() {
-        super.setValid(false);
+        super.clearValid();
         _generation.set(-1);
     }
 

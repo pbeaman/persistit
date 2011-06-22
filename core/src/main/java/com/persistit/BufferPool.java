@@ -475,7 +475,7 @@ public class BufferPool {
         if (Debug.ENABLED) {
             Debug.$assert(buffer.isValid());
         }
-        buffer.setValid(false);
+        buffer.clearValid();
         buffer.setClean();
         buffer.setPageAddressAndVolume(0, null);
     }
@@ -587,8 +587,12 @@ public class BufferPool {
                         // meantime, any other Thread seeking access to the same
                         // page will find it.
                         //
-                        buffer.setValid(true);
-                        buffer.setTransient(vol.isTransient());
+                        buffer.setValid();
+                        if (vol.isTransient()) {
+                            buffer.setTransient();
+                        } else {
+                            buffer.clearTransient();
+                        }
 
                         if (Debug.ENABLED) {
                             Debug.$assert(buffer.getNext() != buffer);
@@ -736,7 +740,7 @@ public class BufferPool {
         buffer = new Buffer(_bufferSize, -1, this, _persistit);
         buffer.claim(true);
         buffer.load(vol, page);
-        buffer.setValid(true);
+        buffer.setValid();
         buffer.release();
         return buffer;
     }
@@ -774,7 +778,7 @@ public class BufferPool {
                         buffer.release();
                     } else {
                         if (buffer.isValid() && detach(buffer)) {
-                            buffer.setValid(false);
+                            buffer.clearValid();
                             _evictCounter.incrementAndGet();
                             _persistit.getIOMeter().chargeEvictPageFromPool(buffer.getVolume(),
                                     buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());

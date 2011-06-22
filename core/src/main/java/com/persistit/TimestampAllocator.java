@@ -36,6 +36,7 @@ public class TimestampAllocator extends SharedResource {
 
     TimestampAllocator(final Persistit db) {
         super(db);
+        setValid();
     }
 
     /**
@@ -132,6 +133,18 @@ public class TimestampAllocator extends SharedResource {
 
     public void setCheckpointInterval(long checkpointInterval) {
         _checkpointInterval = checkpointInterval;
+    }
+    
+    /**
+     * Verify that all claims have been released. This is really just for unit tests
+     * where there were problems getting everything closed. TODO - consider removing 
+     * this method.
+     */
+    public void close() {
+        Debug.debug3((getStatus() & CLAIMED_MASK) != 0);
+        while ((getStatus() & CLAIMED_MASK) != 0) {
+            release();
+        }
     }
 
 }

@@ -277,6 +277,8 @@ public class Persistit {
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
 
+    final static long SHORT_DELAY = 500;
+
     /**
      * Minimal command line documentation
      */
@@ -290,7 +292,6 @@ public class Persistit {
     private final static long GIGA = MEGA * KILO;
     private final static long TERA = GIGA * KILO;
 
-    private final static long SHORT_DELAY = 500;
 
     private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
 
@@ -1756,7 +1757,7 @@ public class Persistit {
         }
 
         flush();
-
+        _timestampAllocator.close();    //TODO - remove after debugging 799806
         _checkpointManager.close(flush);
         waitForIOTaskStop(_checkpointManager);
         _closed.set(true);

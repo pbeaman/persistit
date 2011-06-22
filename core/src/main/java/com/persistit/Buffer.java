@@ -359,7 +359,7 @@ public final class Buffer extends SharedResource {
 
     Buffer(Buffer original) {
         this(original._bufferSize, original._poolIndex, original._pool, original._persistit);
-        setStatus(original.getStatus() & ~(WRITER_MASK | CLAIMED_MASK));
+        setStatus(original);
         _type = original._type;
         _timestamp = original._timestamp;
         _page = original._page;
@@ -447,8 +447,13 @@ public final class Buffer extends SharedResource {
     boolean checkedClaim(final boolean writer, final long timeout) throws PersistitException {
         final boolean result = super.claim(writer, timeout);
         if (writer && result && isDirty()) {
-            _persistit.getTimestampAllocator().claim(false);
-            setCheckpointLocked();
+            if (!isCheckpointLocked()  && (getStatus() & CLAIMED_MASK) == 1 ) {
+                if (!_persistit.getTimestampAllocator().claim(false, timeout + Persistit.SHORT_DELAY)) {
+                    super.release();
+                    return false;
+                }
+                setCheckpointLocked();
+            }
             final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
             if (getTimestamp() < checkpoint.getTimestamp()
                     && _persistit.getCurrentTimestamp() >= checkpoint.getTimestamp()) {
@@ -493,7 +498,8 @@ public final class Buffer extends SharedResource {
         if (Debug.ENABLED && isDirty() && (isDataPage() || isIndexPage())) {
             assertVerify();
         }
-        if (isMine() && isCheckpointLocked() && (getStatus() & CLAIMED_MASK) == 1) {
+        if (isCheckpointLocked() && (getStatus() & CLAIMED_MASK) == 1) {
+            _persistit.getTimestampAllocator().release();
             clearCheckpointLocked();
         }
         super.release();
@@ -3588,6 +3594,9 @@ public final class Buffer extends SharedResource {
     }
 
     void setNext(final Buffer buffer) {
+        if (Debug.ENABLED) {
+            Debug.$assert(buffer != this);
+        }
         _next = buffer;
     }
 

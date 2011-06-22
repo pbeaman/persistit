@@ -64,7 +64,7 @@ class SharedResource {
      * {@link Buffer#checkedClaim(boolean, long)}.
      */
     final static int CHECKPOINT_LOCKED_MASK = 0x00200000;
-    
+
     /**
      * Status field mask for a resource that is dirty but not required to be
      * written with any checkpoint.
@@ -81,11 +81,6 @@ class SharedResource {
      * Mask for bit field indicating that updates are suspended
      */
     final static int SUSPENDED_MASK = 0x10000000;
-
-    /**
-     * Mask for bit field indicating that the resource is closing
-     */
-    final static int CLOSING_MASK = 0x20000000;
 
     /**
      * Mask for bit field indicating that resource should be mounted in a fixed
@@ -280,7 +275,7 @@ class SharedResource {
     public boolean isStructure() {
         return _sync.testBitsInState(STRUCTURE_MASK);
     }
-    
+
     public boolean isCheckpointLocked() {
         return _sync.testBitsInState(CHECKPOINT_LOCKED_MASK);
     }
@@ -304,14 +299,6 @@ class SharedResource {
      */
     boolean isMine() {
         return (_sync.writerThread() == Thread.currentThread());
-    }
-
-    void setFixed(boolean b) {
-        if (b) {
-            _sync.setBitsInState(FIXED_MASK);
-        } else {
-            _sync.clearBitsInState(FIXED_MASK);
-        }
     }
 
     boolean claim(boolean writer) {
@@ -395,7 +382,7 @@ class SharedResource {
     void setDirtyStructure() {
         _sync.setBitsInState(DIRTY_MASK | STRUCTURE_MASK);
     }
-    
+
     void setCheckpointLocked() {
         _sync.setBitsInState(CHECKPOINT_LOCKED_MASK);
     }
@@ -412,6 +399,14 @@ class SharedResource {
         _sync.clearBitsInState(TOUCHED_MASK);
     }
 
+    void setFixed() {
+        _sync.setBitsInState(FIXED_MASK);
+    }
+
+    void clearFixed() {
+        _sync.clearBitsInState(FIXED_MASK);
+    }
+
     boolean isTouched() {
         return _sync.testBitsInState(TOUCHED_MASK);
     }
@@ -420,20 +415,20 @@ class SharedResource {
         return _generation.get();
     }
 
-    void setTransient(final boolean b) {
-        if (b) {
-            _sync.setBitsInState(TRANSIENT_MASK);
-        } else {
-            _sync.clearBitsInState(TRANSIENT_MASK);
-        }
+    void setTransient() {
+        _sync.setBitsInState(TRANSIENT_MASK);
     }
 
-    void setValid(boolean b) {
-        if (b) {
-            _sync.setBitsInState(VALID_MASK);
-        } else {
-            _sync.clearBitsInState(VALID_MASK);
-        }
+    void clearTransient() {
+        _sync.clearBitsInState(TRANSIENT_MASK);
+    }
+
+    void setValid() {
+        _sync.setBitsInState(VALID_MASK);
+    }
+
+    void clearValid() {
+        _sync.clearBitsInState(VALID_MASK);
     }
 
     public boolean isAvailable() {
@@ -455,7 +450,8 @@ class SharedResource {
      * 
      * @param mask
      */
-    void setStatus(final int mask) {
+    void setStatus(final SharedResource resource) {
+        final int mask = resource.getStatus();
         _sync.clearBitsInState(~(WRITER_MASK | CLAIMED_MASK));
         _sync.setBitsInState(mask & ~(WRITER_MASK | CLAIMED_MASK));
     }
@@ -496,9 +492,6 @@ class SharedResource {
             if ((state & SUSPENDED_MASK) != 0) {
                 sb.append("s");
             }
-            if ((state & CLOSING_MASK) != 0) {
-                sb.append("c");
-            }
             if ((state & VALID_MASK) != 0) {
                 sb.append("v");
             }
@@ -528,6 +521,6 @@ class SharedResource {
 
     @Override
     public String toString() {
-        return "SharedResource" + this.hashCode() + " status=" + getStatusDisplayString();
+        return getClass().getSimpleName() + this.hashCode() + " status=" + getStatusDisplayString();
     }
 }
