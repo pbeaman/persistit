@@ -52,18 +52,19 @@ class SharedResource {
     final static int VALID_MASK = 0x00020000;
 
     /**
-     * Status field mask for deleted status. This bit is set if the page belongs
-     * to a Volume that is being deleted.
-     */
-    final static int DELETE_MASK = 0x00040000;
-
-    /**
      * Status field mask for a resource that is dirty and must be recovered
      * concurrently with its checkpoint -- e.g., a buffer containing a page that
      * has been split.
      */
     final static int STRUCTURE_MASK = 0x00100000;
 
+    /**
+     * Status field mask for a resource that has been claimed and for which the
+     * TimestampAllocator is also locked. See
+     * {@link Buffer#checkedClaim(boolean, long)}.
+     */
+    final static int CHECKPOINT_LOCKED_MASK = 0x00200000;
+    
     /**
      * Status field mask for a resource that is dirty but not required to be
      * written with any checkpoint.
@@ -276,12 +277,12 @@ class SharedResource {
         return _sync.testBitsInState(VALID_MASK);
     }
 
-    public boolean isDeleted() {
-        return _sync.testBitsInState(DELETE_MASK);
-    }
-
     public boolean isStructure() {
         return _sync.testBitsInState(STRUCTURE_MASK);
+    }
+    
+    public boolean isCheckpointLocked() {
+        return _sync.testBitsInState(CHECKPOINT_LOCKED_MASK);
     }
 
     public boolean isTransient() {
@@ -394,9 +395,17 @@ class SharedResource {
     void setDirtyStructure() {
         _sync.setBitsInState(DIRTY_MASK | STRUCTURE_MASK);
     }
+    
+    void setCheckpointLocked() {
+        _sync.setBitsInState(CHECKPOINT_LOCKED_MASK);
+    }
 
     void setTouched() {
         _sync.setBitsInState(TOUCHED_MASK);
+    }
+
+    void clearCheckpointLocked() {
+        _sync.clearBitsInState(CHECKPOINT_LOCKED_MASK);
     }
 
     void clearTouched() {

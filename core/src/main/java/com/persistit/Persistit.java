@@ -340,7 +340,7 @@ public class Persistit {
 
     private final JournalManager _journalManager = new JournalManager(this);
 
-    private final TimestampAllocator _timestampAllocator = new TimestampAllocator();
+    private final TimestampAllocator _timestampAllocator = new TimestampAllocator(this);
 
     private final CheckpointManager _checkpointManager = new CheckpointManager(this);
 

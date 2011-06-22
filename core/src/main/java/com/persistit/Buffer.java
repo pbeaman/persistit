@@ -446,20 +446,16 @@ public final class Buffer extends SharedResource {
 
     boolean checkedClaim(final boolean writer, final long timeout) throws PersistitException {
         final boolean result = super.claim(writer, timeout);
-        if (writer && result) {
-            writePageOnCheckpoint();
-        }
-        return result;
-    }
-
-    private void writePageOnCheckpoint() throws PersistitException {
-        if (isDirty()) {
+        if (writer && result && isDirty()) {
+            _persistit.getTimestampAllocator().claim(false);
+            setCheckpointLocked();
             final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
             if (getTimestamp() < checkpoint.getTimestamp()
                     && _persistit.getCurrentTimestamp() >= checkpoint.getTimestamp()) {
                 writePage();
             }
         }
+        return result;
     }
 
     void writePage() throws PersistitIOException, InvalidPageStructureException {
@@ -496,6 +492,9 @@ public final class Buffer extends SharedResource {
     void release() {
         if (Debug.ENABLED && isDirty() && (isDataPage() || isIndexPage())) {
             assertVerify();
+        }
+        if (isMine() && isCheckpointLocked() && (getStatus() & CLAIMED_MASK) == 1) {
+            clearCheckpointLocked();
         }
         super.release();
     }
