@@ -113,8 +113,6 @@ public class Volume extends SharedResource {
     private volatile boolean _closed;
     private final Tree _directoryTree;
 
-    private ArrayList<DeallocationChain> _deallocationList = new ArrayList<DeallocationChain>();
-
     private static class DeallocationChain {
         long _leftPage;
         long _rightPage;
@@ -932,34 +930,7 @@ public class Volume extends SharedResource {
         }
     }
 
-    void deallocateGarbageChainDeferred(long left, long right) {
-        if (Debug.ENABLED && right != -1) {
-            Buffer garbageBuffer = null;
-            try {
-                garbageBuffer = _pool.get(this, left, false, true);
-                Debug.$assert(garbageBuffer != null && (garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())
-                        || garbageBuffer.isLongRecordPage() || (right == -1 && garbageBuffer.isUnallocatedPage()));
-            } catch (PersistitException pe) {
-                // ok if this fails.
-            } finally {
-                if (garbageBuffer != null) {
-                    _pool.release(garbageBuffer);
-                    garbageBuffer = null;
-                }
-            }
-        }
-        synchronized (this) {
-            if (Debug.ENABLED) {
-                for (int i = 0; i < _deallocationList.size(); i++) {
-                    DeallocationChain chain = _deallocationList.get(i);
-                    Debug.$assert(chain._leftPage != left);
-                }
-            }
-            _deallocationList.add(new DeallocationChain(left, right));
-        }
-    }
-
-    boolean harvestLongRecords(Buffer buffer, int start, int end) {
+    boolean harvestLongRecords(Buffer buffer, int start, int end) throws PersistitException {
         boolean anyLongRecords = false;
         if (buffer.isDataPage()) {
             int p1 = buffer.toKeyBlock(start);
@@ -967,7 +938,7 @@ public class Volume extends SharedResource {
             for (int p = p1; p < p2 && p != -1; p = buffer.nextKeyBlock(p)) {
                 long pointer = buffer.fetchLongRecordPointer(p);
                 if (pointer != 0) {
-                    deallocateGarbageChainDeferred(pointer, 0);
+                    deallocateGarbageChain(pointer, 0);
                     anyLongRecords |= true;
                 }
             }
@@ -985,55 +956,6 @@ public class Volume extends SharedResource {
         _directoryTree.commit();
         for (final Tree tree : _treeNameHashMap.values()) {
             tree.commit();
-        }
-    }
-
-    /**
-     * Commits unwritten page deallocation records to the volume.
-     */
-    void commitAllDeferredDeallocations() throws PersistitException {
-        final ArrayList<DeallocationChain> list;
-        synchronized (this) {
-            if (_deallocationList.size() == 0)
-                return;
-            list = _deallocationList;
-            _deallocationList = new ArrayList<DeallocationChain>();
-        }
-
-        if (Debug.ENABLED && list.size() > 1) {
-            int size = list.size();
-            for (int i = 0; i < size; i++) {
-                DeallocationChain chain1 = list.get(i);
-                for (int j = i + 1; j < size; j++) {
-                    DeallocationChain chain2 = list.get(j);
-                    Debug.$assert(chain1._leftPage != chain2._leftPage);
-                }
-            }
-        }
-        //
-        // Now we can work on the deallocations at our leisure.
-        //
-        try {
-            while (list.size() > 0) {
-                DeallocationChain chain = list.get(list.size() - 1);
-
-                deallocateGarbageChain(chain._leftPage, chain._rightPage);
-                list.remove(list.size() - 1);
-            }
-        } finally {
-            if (list.size() > 0) {
-                // Reinsert DeallocationChain records that didn't
-                // get processed. We'll deallocate them on the next
-                // invocation.
-                //
-                synchronized (this) {
-                    if (_deallocationList.size() == 0) {
-                        _deallocationList = list;
-                    } else {
-                        _deallocationList.addAll(list);
-                    }
-                }
-            }
         }
     }
 
@@ -1157,14 +1079,15 @@ public class Volume extends SharedResource {
 
         while (page != -1) {
             Buffer buffer = null;
+            long deallocate = -1;
             try {
                 buffer = _pool.get(this, page, false, true);
                 if (buffer.getPageType() != depth) {
-                    throw new CorruptVolumeException("Page " + buffer + " type code=" + buffer.getPageType()
+                    throw new CorruptVolumeException(buffer + " type code=" + buffer.getPageType()
                             + " is not equal to expected value " + depth);
                 }
-                deallocateGarbageChainDeferred(page, 0);
                 if (buffer.isIndexPage()) {
+                    deallocate = page;
                     int p = buffer.toKeyBlock(0);
                     if (p > 0) {
                         page = buffer.getPointer(p);
@@ -1173,16 +1096,19 @@ public class Volume extends SharedResource {
                     }
                     depth--;
                 } else if (buffer.isDataPage()) {
-                    break;
+                    deallocate = page;
+                    page = -1;
                 }
             } finally {
                 if (buffer != null)
                     _pool.release(buffer);
                 buffer = null;
             }
+            if (deallocate != -1) {
+                deallocateGarbageChain(deallocate, 0);
+            }
         }
 
-        commitAllDeferredDeallocations();
         return true;
 
     }
@@ -1422,46 +1348,6 @@ public class Volume extends SharedResource {
      */
     Buffer allocPage() throws PersistitException {
         Buffer buffer = null;
-
-        // First we attempt to allocate from the uncommitted deallocation list
-        DeallocationChain dc = null;
-        synchronized (this) {
-            final ArrayList<DeallocationChain> list = _deallocationList;
-            if (list != null && list.size() > 0) {
-                dc = list.remove(list.size() - 1);
-            }
-        }
-        if (dc != null) {
-            long page = dc._leftPage;
-            long rightPage = dc._rightPage;
-            boolean solitaire = rightPage == -1;
-            if (page != rightPage) {
-                try {
-                    buffer = _pool.get(this, page, true, !solitaire);
-                    if (!solitaire && buffer.getRightSibling() != rightPage) {
-                        dc._leftPage = buffer.getRightSibling();
-                    } else
-                        dc = null;
-                }
-
-                finally {
-                    if (dc != null) {
-                        synchronized (this) {
-                            _deallocationList.add(dc);
-                        }
-                    }
-                }
-            }
-        }
-
-        if (buffer != null) {
-            harvestLongRecords(buffer, 0, Integer.MAX_VALUE);
-            buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
-            buffer.clear();
-            return buffer;
-        }
-
-        // Okay, next we look at the stored garbage chain for this Volume.
         claimHeadBuffer();
         try {
             long garbageRoot = getGarbageRoot();
@@ -1653,7 +1539,6 @@ public class Volume extends SharedResource {
     void flush() throws PersistitException {
         claimHeadBuffer();
         commitAllTreeUpdates();
-        commitAllDeferredDeallocations();
         setClean();
         checkpointMetaData();
         releaseHeadBuffer();

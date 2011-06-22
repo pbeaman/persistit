@@ -177,8 +177,6 @@ public class Exchange {
     private JoinPolicy _joinPolicy;
 
     private boolean _isDirectoryExchange = false;
-    private boolean _hasDeferredDeallocations = false;
-    private boolean _hasDeferredTreeUpdate = false;
 
     private Transaction _transaction;
 
@@ -1427,38 +1425,17 @@ public class Exchange {
                 // allocated one.
                 //
                 if (newLongRecordPointer != oldLongRecordPointer && newLongRecordPointer != 0) {
-                    _volume.deallocateGarbageChainDeferred(newLongRecordPointer, 0);
-                    _hasDeferredDeallocations = true;
+                    _volume.deallocateGarbageChain(newLongRecordPointer, 0);
                 }
             } else if (oldLongRecordPointer != newLongRecordPointer && oldLongRecordPointer != 0) {
-                _volume.deallocateGarbageChainDeferred(oldLongRecordPointer, 0);
-                _hasDeferredDeallocations = true;
+                _volume.deallocateGarbageChain(oldLongRecordPointer, 0);
             }
-        }
-        if (_hasDeferredDeallocations || _hasDeferredTreeUpdate) {
-            commitAllDeferredUpdates();
         }
         // if (journalId != -1)
         // journal().completed(journalId);
         _volume.bumpStoreCounter();
         if (fetchFirst) {
             _volume.bumpFetchCounter();
-        }
-    }
-
-    private void commitAllDeferredUpdates() throws PersistitException {
-
-        if (Debug.ENABLED) {
-            Debug.suspend();
-        }
-        if (_hasDeferredDeallocations) {
-            _volume.commitAllDeferredDeallocations();
-            _hasDeferredDeallocations = false;
-        }
-        if (_hasDeferredTreeUpdate) {
-            _tree.commit();
-            _volume.getDirectoryTree().commit();
-            _hasDeferredTreeUpdate = false;
         }
     }
 
@@ -3127,7 +3104,6 @@ public class Exchange {
                         lc._deallocRightPage = 0;
                     }
                 }
-                _volume.commitAllDeferredDeallocations();
                 // If we successfully finish the loop then we're done
                 deallocationRequired = false;
                 break;
@@ -3479,8 +3455,7 @@ public class Exchange {
                         if (buffer != null) {
                             _pool.release(buffer);
                             if (loosePageIndex >= 0 && index >= loosePageIndex) {
-                                _volume.deallocateGarbageChainDeferred(buffer.getPageAddress(), -1);
-                                _hasDeferredDeallocations = true;
+                                _volume.deallocateGarbageChain(buffer.getPageAddress(), -1);
                             }
                         }
                     }
@@ -3488,8 +3463,7 @@ public class Exchange {
                 value.changeLongRecordMode(false);
             } else {
                 if (looseChain != 0) {
-                    _volume.deallocateGarbageChainDeferred(looseChain, 0);
-                    _hasDeferredDeallocations = true;
+                    _volume.deallocateGarbageChain(looseChain, 0);
                 }
             }
         }
@@ -3575,8 +3549,7 @@ public class Exchange {
             if (buffer != null)
                 _pool.release(buffer);
             if (looseChain != 0) {
-                _volume.deallocateGarbageChainDeferred(looseChain, 0);
-                _hasDeferredDeallocations = true;
+                _volume.deallocateGarbageChain(looseChain, 0);
             }
             if (!completed)
                 value.changeLongRecordMode(false);
