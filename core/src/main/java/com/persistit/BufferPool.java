@@ -768,7 +768,7 @@ public class BufferPool {
                 buffer.clearTouched();
             } else {
                 if (!buffer.isFixed() && (buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0
-                        && buffer.checkedClaim(true, 0)) {
+                        && buffer.claim(true, 0)) {
                     if (buffer.isDirty()) {
                         if (!resetDirtyClock) {
                             resetDirtyClock = true;

@@ -43,12 +43,13 @@ public class RecoveryTest extends PersistitUnitTestCase {
      * methods used in controlling the test.
      */
 
+    private String journalSize = "20M";
     private String _volumeName = "persistit";
 
     @Override
     protected Properties getProperties(final boolean cleanup) {
         final Properties properties = super.getProperties(cleanup);
-        properties.setProperty("journalsize", "20M");
+        properties.setProperty("journalsize", journalSize);
         return properties;
     }
 
@@ -704,7 +705,15 @@ public class RecoveryTest extends PersistitUnitTestCase {
     }
 
     public static void main(final String[] args) throws Exception {
-        new RecoveryTest().initAndRunTest();
+        int cycles = args.length > 0 ? Integer.parseInt(args[0]) : 20;
+        for (int cycle = 0; cycle < cycles; cycle++) {
+            RecoveryTest rt = new RecoveryTest();
+            System.out.printf("\nStarting cycle %d\n", cycle);
+            rt.journalSize = "100M";
+            rt.setUp();
+            rt.testIndexHoles();
+            rt.tearDown();
+        }
     }
 
     @Override
