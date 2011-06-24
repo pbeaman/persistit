@@ -19,7 +19,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class TimestampAllocator extends SharedResource {
+public class TimestampAllocator {
 
     /**
      * Default interval in nanoseconds between checkpoints - one minute.
@@ -33,11 +33,6 @@ public class TimestampAllocator extends SharedResource {
     private volatile long _checkpointInterval = DEFAULT_CHECKPOINT_INTERVAL;
 
     private volatile long _lastCheckpointNanos;
-
-    TimestampAllocator(final Persistit db) {
-        super(db);
-        setValid();
-    }
 
     /**
      * A structure containing a timestamp and system clock time at which
@@ -112,15 +107,10 @@ public class TimestampAllocator extends SharedResource {
         }
     }
 
-    public Checkpoint forceCheckpoint() {
-        claim(true);
-        try {
+    public synchronized Checkpoint forceCheckpoint() {
             final long checkpointTimestamp = _timestamp.addAndGet(10000);
             _checkpoint = new Checkpoint(checkpointTimestamp, System.currentTimeMillis());
             return _checkpoint;
-        } finally {
-            release();
-        }
     }
 
     public synchronized Checkpoint getCurrentCheckpoint() {
@@ -135,16 +125,4 @@ public class TimestampAllocator extends SharedResource {
         _checkpointInterval = checkpointInterval;
     }
     
-    /**
-     * Verify that all claims have been released. This is really just for unit tests
-     * where there were problems getting everything closed. TODO - consider removing 
-     * this method.
-     */
-    public void close() {
-        Debug.debug3((getStatus() & CLAIMED_MASK) != 0);
-        while ((getStatus() & CLAIMED_MASK) != 0) {
-            release();
-        }
-    }
-
 }

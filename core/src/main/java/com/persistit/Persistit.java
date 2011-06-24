@@ -341,7 +341,7 @@ public class Persistit {
 
     private final JournalManager _journalManager = new JournalManager(this);
 
-    private final TimestampAllocator _timestampAllocator = new TimestampAllocator(this);
+    private final TimestampAllocator _timestampAllocator = new TimestampAllocator();
 
     private final CheckpointManager _checkpointManager = new CheckpointManager(this);
 
@@ -1757,7 +1757,7 @@ public class Persistit {
         }
 
         flush();
-        _timestampAllocator.close();    //TODO - remove after debugging 799806
+
         _checkpointManager.close(flush);
         waitForIOTaskStop(_checkpointManager);
         _closed.set(true);

@@ -1438,13 +1438,19 @@ public class Exchange {
             _volume.bumpFetchCounter();
         }
     }
+    
+    private long timestamp() {
+        return _persistit.getTimestampAllocator().updateTimestamp();
+    }
 
     private void insertIndexLevel(Key key, Value value) throws PersistitException {
 
         Buffer buffer = null;
         try {
             buffer = _volume.allocPage();
-
+            final long timestamp = timestamp();
+            buffer.writePageOnCheckpoint(timestamp);
+            
             buffer.init(PAGE_TYPE_INDEX_MIN + _treeDepth - 1);
 
             long newTopPage = buffer.getPageAddress();
@@ -1467,7 +1473,7 @@ public class Exchange {
             value.setPointerValue(-1);
             buffer.putValue(RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
 
-            buffer.setDirty();
+            buffer.setDirtyAtTimestamp(timestamp);
 
             _tree.changeRootPageAddr(newTopPage, 1);
             _tree.bumpGeneration();
@@ -1500,9 +1506,13 @@ public class Exchange {
                     && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
         }
         final Sequence sequence = lc.sequence(foundAt);
+        
+        long timestamp = timestamp();
+        buffer.writePageOnCheckpoint(timestamp);
+
         int result = buffer.putValue(key, value, foundAt, false);
         if (result != -1) {
-            buffer.setDirty();
+            buffer.setDirtyAtTimestamp(timestamp);
             lc.updateInsert(buffer, key, result);
             return false;
         } else {
@@ -1524,6 +1534,10 @@ public class Exchange {
                 //
                 rightSibling = _volume.allocPage();
 
+                timestamp = timestamp();
+                buffer.writePageOnCheckpoint(timestamp);
+                rightSibling.writePageOnCheckpoint(timestamp);
+                
                 if (Debug.ENABLED) {
                     Debug.$assert(rightSibling.getPageAddress() != 0);
                     Debug.$assert(rightSibling != buffer);
@@ -1558,8 +1572,8 @@ public class Exchange {
                 value.setPointerValue(newRightSibling);
                 value.setPointerPageType(rightSibling.getPageType());
 
-                rightSibling.setDirty();
-                buffer.setDirty();
+                rightSibling.setDirtyAtTimestamp(timestamp);
+                buffer.setDirtyAtTimestamp(timestamp);
 
                 return true;
 
@@ -1576,9 +1590,8 @@ public class Exchange {
         if (buffer == null)
             return null;
 
-        boolean available = buffer.checkedClaim(_exclusive, 0);
+        boolean available = buffer.claim(_exclusive, 0);
         if (available) {
-            // Have to retest all this now that we've gotten a claim
             if (buffer.getPageAddress() == lc._page && buffer.getVolume() == _volume
                     && _treeGeneration == _tree.getGeneration() && buffer.getGeneration() == lc._bufferGeneration
                     && buffer.isValid()) {
@@ -2796,16 +2809,15 @@ public class Exchange {
                                     final boolean anyLongRecords = _volume.harvestLongRecords(buffer, foundAt1,
                                             foundAt2);
 
+                                    final long timestamp = timestamp();
+                                    buffer.writePageOnCheckpoint(timestamp);
+
                                     boolean removed = buffer.removeKeys(foundAt1, foundAt2, _spareKey1);
                                     if (removed) {
                                         _tree.bumpChangeCount();
+                                        buffer.setDirtyAtTimestamp(timestamp);
                                     }
-
-                                    buffer.setDirty();
-                                    if (anyLongRecords) {
-                                        buffer.setDirty();
-                                    }
-                                    result = foundAt2 > foundAt1;
+                                    result = removed;
                                     break;
                                 }
                             }
@@ -2847,8 +2859,8 @@ public class Exchange {
                         depth = level;
 
                         int foundAt1 = searchLevel(key1, pageAddr1, level) & P_MASK;
-
                         int foundAt2 = -1;
+                        
                         //
                         // Note: this buffer now has a writer claim on it.
                         //
@@ -2942,6 +2954,7 @@ public class Exchange {
                     // needs to be removed. Now walk down the tree,
                     // stitching together the pages where necessary.
                     //
+                    final long timestamp = timestamp();
                     for (int level = _cacheDepth; --level >= 0;) {
                         LevelCache lc = _levelCache[level];
                         Buffer buffer1 = lc._leftBuffer;
@@ -2949,8 +2962,9 @@ public class Exchange {
                         int foundAt1 = lc._leftFoundAt;
                         int foundAt2 = lc._rightFoundAt;
                         boolean needsReindex = false;
-
+                        buffer1.writePageOnCheckpoint(timestamp);
                         if (buffer1 != buffer2) {
+                            buffer2.writePageOnCheckpoint(timestamp);
                             //
                             // Deletion spans multiple pages at this level.
                             // We will need to join or rebalance the pages.
@@ -2970,8 +2984,8 @@ public class Exchange {
                             if (buffer1.isDataPage()) {
                                 _tree.bumpChangeCount();
                             }
-                            buffer1.setDirty();
-                            buffer2.setDirty();
+                            buffer1.setDirtyAtTimestamp(timestamp);
+                            buffer2.setDirtyAtTimestamp(timestamp);
 
                             long rightGarbagePage = buffer1.getRightSibling();
 
@@ -3024,7 +3038,7 @@ public class Exchange {
                                         // If it worked then we're done.
                                         if (fit != -1) {
                                             needsReindex = false;
-                                            buffer.setDirty();
+                                            buffer.setDirtyAtTimestamp(timestamp);
                                         }
                                     }
                                 }
@@ -3039,7 +3053,7 @@ public class Exchange {
                             result = true;
                         } else if (foundAt1 != foundAt2) {
                             if (Debug.ENABLED) {
-                                Debug.$assert(foundAt2 >= foundAt1);
+                                Debug.$assert(foundAt2 > foundAt1);
                             }
                             _key.copyTo(_spareKey1);
                             //
@@ -3047,17 +3061,12 @@ public class Exchange {
                             // recover any LONG_RECORD pointers that may be
                             // associated with keys in this range.
                             //
-                            final boolean anyLongRecords = _volume.harvestLongRecords(buffer1, foundAt1, foundAt2);
-
+                            _volume.harvestLongRecords(buffer1, foundAt1, foundAt2);
                             result |= buffer1.removeKeys(foundAt1, foundAt2, _spareKey1);
-
                             if (buffer1.isDataPage() && result) {
                                 _tree.bumpChangeCount();
                             }
-                            buffer1.setDirty();
-                            if (anyLongRecords) {
-                                buffer1.setDirty();
-                            }
+                            buffer1.setDirtyAtTimestamp(timestamp);
                         }
 
                         if (level < _cacheDepth - 1) {
@@ -3418,6 +3427,7 @@ public class Exchange {
                 Buffer buffer = _volume.allocPage();
                 bufferArray[index] = buffer;
             }
+            final long timestamp = timestamp();
             //
             // Now we're committed - the just-allocated pages are no longer
             // subject to being deallocated by a retry.
@@ -3429,6 +3439,8 @@ public class Exchange {
                 if (segmentSize > maxSegmentSize)
                     segmentSize = maxSegmentSize;
                 Buffer buffer = bufferArray[index];
+                buffer.writePageOnCheckpoint(timestamp);
+                
                 buffer.init(PAGE_TYPE_LONG_RECORD);
                 buffer.setRightSibling(page);
 
@@ -3438,7 +3450,7 @@ public class Exchange {
                 if (end < buffer.getBufferSize()) {
                     buffer.clearBytes(end, buffer.getBufferSize());
                 }
-                buffer.setDirty();
+                buffer.setDirtyAtTimestamp(timestamp);
                 bufferArray[index] = null;
                 page = buffer.getPageAddress(); // current head of the chain
                 _pool.release(buffer);
@@ -3508,11 +3520,12 @@ public class Exchange {
 
         Buffer buffer = null;
         int offset = from + (((longSize - from - 1) / maxSegmentSize) * maxSegmentSize);
-
+        final long timestamp = timestamp();
         try {
             for (;;) {
                 while (offset >= from) {
                     buffer = _volume.allocPage();
+                    buffer.writePageOnCheckpoint(timestamp);
                     buffer.init(PAGE_TYPE_LONG_RECORD);
 
                     int segmentSize = longSize - offset;
@@ -3532,7 +3545,7 @@ public class Exchange {
                     }
                     buffer.setRightSibling(looseChain);
                     looseChain = buffer.getPageAddress();
-                    buffer.setDirty();
+                    buffer.setDirtyAtTimestamp(timestamp);
                     _pool.release(buffer);
                     offset -= maxSegmentSize;
                     buffer = null;

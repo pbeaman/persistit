@@ -34,6 +34,7 @@ import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
+import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -262,7 +263,8 @@ public class Volume extends SharedResource {
      * @throws PersistitException
      */
     private Volume(final Persistit persistit, final String path, final String name, final long id,
-            final int bufferSize, long initialPages, long extensionPages, long maximumPages, boolean tranzient) throws PersistitException {
+            final int bufferSize, long initialPages, long extensionPages, long maximumPages, boolean tranzient)
+            throws PersistitException {
         super(persistit);
 
         boolean sizeOkay = false;
@@ -570,11 +572,17 @@ public class Volume extends SharedResource {
     /**
      * Updates head page information.
      * 
+     * @throws InvalidPageStructureException
+     * @throws PersistitIOException
+     * 
      * @throws PMapException
      */
-    private void checkpointMetaData() throws ReadOnlyVolumeException {
+    private void checkpointMetaData() throws ReadOnlyVolumeException, PersistitIOException,
+            InvalidPageStructureException {
+        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+        _headBuffer.writePageOnCheckpoint(timestamp);
         if (!_readOnly && updateHeaderInfo(_headBuffer.getBytes())) {
-            _headBuffer.setDirty();
+            _headBuffer.setDirtyAtTimestamp(timestamp);
         }
     }
 
@@ -626,7 +634,7 @@ public class Volume extends SharedResource {
         return _garbageRoot;
     }
 
-    private void setGarbageRoot(long garbagePage) throws InUseException, ReadOnlyVolumeException {
+    private void setGarbageRoot(long garbagePage) throws InUseException, ReadOnlyVolumeException, PersistitIOException, InvalidPageStructureException {
         _garbageRoot = garbagePage;
         checkpointMetaData();
     }
@@ -867,6 +875,10 @@ public class Volume extends SharedResource {
                 }
 
                 garbageBuffer = _pool.get(this, garbagePage, true, true);
+                
+                final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                garbageBuffer.writePageOnCheckpoint(timestamp);
+                
                 boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
 
                 if (fits) {
@@ -874,7 +886,7 @@ public class Volume extends SharedResource {
                         _persistit.getLogBase().log(LogBase.LOG_DEALLOCGC2, left, right, 0, 0, 0,
                                 garbageBufferInfo(garbageBuffer));
                     }
-                    garbageBuffer.setDirty();
+                    garbageBuffer.setDirtyAtTimestamp(timestamp);
                     return;
                 } else {
                     if (_persistit.getLogBase().isLoggable(LogBase.LOG_DEALLOCGC3)) {
@@ -887,6 +899,10 @@ public class Volume extends SharedResource {
             }
             boolean solitaire = (right == -1);
             garbageBuffer = _pool.get(this, left, true, !solitaire);
+
+            
+            final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+            garbageBuffer.writePageOnCheckpoint(timestamp);
 
             if (Debug.ENABLED)
                 Debug.$assert((garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())
@@ -914,7 +930,7 @@ public class Volume extends SharedResource {
                 }
             }
             garbageBuffer.setRightSibling(garbagePage);
-            garbageBuffer.setDirty();
+            garbageBuffer.setDirtyAtTimestamp(timestamp);
             setGarbageRoot(garbageBuffer.getPageAddress());
         } finally {
             if (garbageBuffer != null) {
@@ -1214,13 +1230,17 @@ public class Volume extends SharedResource {
         Buffer rootPageBuffer = null;
 
         rootPageBuffer = allocPage();
+        
+        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+        rootPageBuffer.writePageOnCheckpoint(timestamp);
+
         long rootPage = rootPageBuffer.getPageAddress();
 
         try {
             rootPageBuffer.init(Buffer.PAGE_TYPE_DATA);
             rootPageBuffer.putValue(Key.LEFT_GUARD_KEY, Value.EMPTY_VALUE);
             rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
-            rootPageBuffer.setDirty();
+            rootPageBuffer.setDirtyAtTimestamp(timestamp);
         } finally {
             _pool.release(rootPageBuffer);
         }
@@ -1244,7 +1264,7 @@ public class Volume extends SharedResource {
     }
 
     private void claimHeadBuffer() throws PersistitException {
-        if (!_headBuffer.checkedClaim(true)) {
+        if (!_headBuffer.claim(true)) {
             throw new InUseException(this + " head buffer " + _headBuffer + " is unavailable");
         }
     }
@@ -1333,7 +1353,8 @@ public class Volume extends SharedResource {
             long garbageRoot = getGarbageRoot();
             if (garbageRoot != 0) {
                 Buffer garbageBuffer = _pool.get(this, garbageRoot, true, true);
-
+                final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                garbageBuffer.writePageOnCheckpoint(timestamp);
                 try {
                     if (Debug.ENABLED)
                         Debug.$assert(garbageBuffer.isGarbagePage());
@@ -1385,6 +1406,7 @@ public class Volume extends SharedResource {
                             }
                             garbageBuffer.setGarbageLeftPage(nextGarbagePage);
                         }
+                        garbageBuffer.setDirtyAtTimestamp(timestamp);
                     }
                     if (Debug.ENABLED) {
                         Debug.$assert(buffer != null && buffer.getPageAddress() != 0

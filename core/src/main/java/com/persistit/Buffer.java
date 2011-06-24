@@ -440,60 +440,14 @@ public final class Buffer extends SharedResource {
         bumpGeneration();
     }
 
-    /**
-     * Claims this buffer with a default timeout. See
-     * {@link #checkedClaim(boolean, long)}.
-     * 
-     * @param writer
-     *            <code>true</code> to acquire an exclusive claim
-     * @return <code>true</code> if and only if the claim was acquired.
-     * @throws PersistitException
-     */
-    boolean checkedClaim(final boolean writer) throws PersistitException {
-        return checkedClaim(writer, DEFAULT_MAX_WAIT_TIME);
-    }
-
-    /**
-     * Claims this buffer. Under certain circumstances this method may also
-     * write the content of this buffer to disk. This is done if
-     * <ul>
-     * <li>the claim is exclusive, indicating the caller's intent to modify the
-     * buffer</li>
-     * <li>this buffer is already dirty,</li>
-     * <li>the timestamp at which the buffer was made dirty is <i>before</i> a
-     * checkpoint, and the current timestamp is <i>after</i> that checkpoint/li>
-     * </ul>
-     * The buffer must be written under those circumstances so that changes made
-     * after the checkpoint are not comingled with changes with updates applied
-     * before the checkpoint; a checkpoint represents a timestamp at which
-     * recovery can ensure all prior updates and no subsequent updates are
-     * present in the recovered B-Tree structures. Therefore pre- and
-     * post-checkpoint changes must be recorded separately.
-     * 
-     * @param writer
-     *            <code>true</code> to acquire an exclusive claim
-     * @param timeout
-     *            Maximum to time wait, in milliseconds.
-     * @return <code>true</code> if and only if the claim was acquired.
-     * @throws PersistitException
-     */
-    boolean checkedClaim(final boolean writer, final long timeout) throws PersistitException {
-        final boolean result = super.claim(writer, timeout);
-        if (writer && result && isDirty()) {
-            if (!isCheckpointLocked() && (getStatus() & CLAIMED_MASK) == 1) {
-                if (!_persistit.getTimestampAllocator().claim(false, timeout + Persistit.SHORT_DELAY)) {
-                    super.release();
-                    return false;
-                }
-                setCheckpointLocked();
-            }
-            final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
-            if (getTimestamp() < checkpoint.getTimestamp()
-                    && _persistit.getCurrentTimestamp() >= checkpoint.getTimestamp()) {
-                writePage();
-            }
+    void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException {
+        if (Debug.ENABLED) {
+            Debug.$assert(isMine());
         }
-        return result;
+        final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
+        if (isDirty() && getTimestamp() < checkpoint.getTimestamp() && timestamp > checkpoint.getTimestamp()) {
+            writePage();
+        }
     }
 
     void writePage() throws PersistitIOException, InvalidPageStructureException {
@@ -509,11 +463,10 @@ public final class Buffer extends SharedResource {
         }
     }
 
-    void setDirty() {
+    void setDirtyAtTimestamp(final long timestamp) {
         super.setDirty();
+        _timestamp = timestamp;
         bumpGeneration();
-        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-        _timestamp = Math.max(_timestamp, timestamp);
     }
 
     /**
@@ -523,10 +476,6 @@ public final class Buffer extends SharedResource {
     void release() {
         if (Debug.ENABLED && isDirty() && (isDataPage() || isIndexPage())) {
             assertVerify();
-        }
-        if (isCheckpointLocked() && (getStatus() & CLAIMED_MASK) == 1) {
-            _persistit.getTimestampAllocator().release();
-            clearCheckpointLocked();
         }
         super.release();
     }
@@ -3515,7 +3464,6 @@ public final class Buffer extends SharedResource {
             putLong(_alloc + GARBAGE_BLOCK_RIGHT_PAGE, right);
             putLong(_alloc + GARBAGE_BLOCK_EXPECTED_COUNT, expectedCount);
             bumpGeneration();
-            setDirty();
             return true;
         }
     }
@@ -3568,7 +3516,6 @@ public final class Buffer extends SharedResource {
         clearBytes(_alloc, _alloc + GARBAGE_BLOCK_SIZE);
         _alloc += GARBAGE_BLOCK_SIZE;
         bumpGeneration();
-        setDirty();
         return true;
     }
 
@@ -3583,7 +3530,6 @@ public final class Buffer extends SharedResource {
         }
         putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
         bumpGeneration();
-        setDirty();
     }
 
     void populateInfo(ManagementImpl.BufferInfo info) {

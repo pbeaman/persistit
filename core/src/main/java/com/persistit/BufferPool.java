@@ -548,7 +548,7 @@ public class BufferPool {
                         //
                         // Found it - now claim it.
                         //
-                        if (buffer.checkedClaim(writer, 0)) {
+                        if (buffer.claim(writer, 0)) {
                             vol.bumpGetCounter();
                             bumpHitCounter();
                             return buffer; // trace(buffer);

@@ -193,10 +193,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         jman.init(null, path, 100 * 1000 * 1000);
         final BufferPool pool = _persistit.getBufferPool(16384);
         final long pages = Math.min(1000, volume.getPageCount());
-        final Transaction txn = _persistit.getTransaction();
         for (int i = 0; jman.getCurrentAddress() < 300 * 1000 * 1000; i++) {
             final Buffer buffer = pool.get(volume, i % pages, false, true);
-            buffer.setDirty();
+            buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
             buffer.save();
             jman.writePageToJournal(buffer);
             pool.release(buffer);
