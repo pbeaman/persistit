@@ -412,8 +412,10 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.getJournalManager().setAppendOnly(true);
         _persistit.initialize(saveProperties);
-
+        _persistit.checkAllVolumes();
+        
         final Volume volume = _persistit.getVolume("persistit");
+        
         long page = volume.getDirectoryTree().getRootPageAddr();
         Buffer buffer = _persistit.getBufferPool(volume.getPageSize()).getBufferCopy(volume, page);
         assertEquals(0, buffer.getRightSibling());

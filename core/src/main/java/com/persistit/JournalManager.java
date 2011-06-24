@@ -1138,15 +1138,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
         synchronized (this) {
             try {
-                for (final FileChannel channel : _journalFileChannels.values()) {
-                    if (channel != null) {
-                        channel.close();
-                    }
-                }
+                closeAllChannels();
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);
             } finally {
-                _journalFileChannels.clear();
                 _handleToTreeMap.clear();
                 _handleToVolumeMap.clear();
                 _volumeToHandleMap.clear();
@@ -1158,13 +1153,34 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
     }
 
+    private void closeAllChannels() throws IOException {
+        synchronized (this) {
+            try {
+                for (final FileChannel channel : _journalFileChannels.values()) {
+                    if (channel != null) {
+                        channel.close();
+                    }
+                }
+
+            } finally {
+                _journalFileChannels.clear();
+            }
+        }
+    }
+
     /**
      * Abruptly stop (using {@link Thread#stop()}) the copier and flusher
      * threads. This method should be used only by tests.
      */
-    void crash() {
+    void crash() throws IOException {
         IOTaskRunnable.crash(_flusher);
         IOTaskRunnable.crash(_copier);
+        //
+        // Even when simulating a crash do this to release
+        // channels and therefore allow disk space to be returned to
+        // the OS when the files are deleted.
+        //
+        closeAllChannels();
     }
 
     /**
