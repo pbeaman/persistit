@@ -52,13 +52,6 @@ class SharedResource {
     final static int VALID_MASK = 0x00020000;
 
     /**
-     * Status field mask for a resource that is dirty and must be recovered
-     * concurrently with its checkpoint -- e.g., a buffer containing a page that
-     * has been split.
-     */
-    final static int STRUCTURE_MASK = 0x00100000;
-
-    /**
      * Status field mask for a resource that has been claimed and for which the
      * TimestampAllocator is also locked. See
      * {@link Buffer#checkedClaim(boolean, long)}.
@@ -272,10 +265,6 @@ class SharedResource {
         return _sync.testBitsInState(VALID_MASK);
     }
 
-    public boolean isStructure() {
-        return _sync.testBitsInState(STRUCTURE_MASK);
-    }
-
     public boolean isCheckpointLocked() {
         return _sync.testBitsInState(CHECKPOINT_LOCKED_MASK);
     }
@@ -372,15 +361,11 @@ class SharedResource {
     }
 
     void setClean() {
-        _sync.clearBitsInState(DIRTY_MASK | STRUCTURE_MASK);
+        _sync.clearBitsInState(DIRTY_MASK);
     }
 
     void setDirty() {
         _sync.setBitsInState(DIRTY_MASK);
-    }
-
-    void setDirtyStructure() {
-        _sync.setBitsInState(DIRTY_MASK | STRUCTURE_MASK);
     }
 
     void setCheckpointLocked() {
@@ -500,9 +485,6 @@ class SharedResource {
             }
             if ((state & TRANSIENT_MASK) != 0) {
                 sb.append("t");
-            }
-            if ((state & STRUCTURE_MASK) != 0) {
-                sb.append("s");
             }
             if ((state & WRITER_MASK) != 0) {
                 sb.append("w");

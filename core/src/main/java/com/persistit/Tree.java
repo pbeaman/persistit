@@ -170,7 +170,7 @@ public class Tree extends SharedResource {
     void init(final long rootPageAddr) throws PersistitException {
         _rootPageAddr = rootPageAddr;
         setValid();
-        setDirtyStructure();
+        setDirty();
         // Derive the index depth
         Buffer buffer = null;
         try {

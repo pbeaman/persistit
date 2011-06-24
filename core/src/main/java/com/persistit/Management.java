@@ -1356,7 +1356,6 @@ public interface Management extends Remote, ManagementMXBean {
         long storeCounter;
         long removeCounter;
         boolean isTransient;
-        boolean isLoose;
 
         VolumeInfo(Volume vol) {
             super();
@@ -1382,19 +1381,18 @@ public interface Management extends Remote, ManagementMXBean {
             extensionPageCount = vol.getExtensionPages();
             garbageRootPage = vol.getGarbageRoot();
             isTransient = vol.isTransient();
-            isLoose = vol.isLoose();
             name = vol.getName();
         }
 
         @ConstructorProperties({ "pageSize", "path", "name", "id", "createTime", "openTime", "generation",
                 "getCounter", "readCounter", "writeCounter", "lastRead", "lastWrite", "lastExtension", "maximumPage",
                 "currentPageCount", "maximumPageCount", "extensionPageCount", "garbageRootPage", "fetchCounter",
-                "traverseCounter", "storeCounter", "removeCounter", "isTransient", "isLoose" })
+                "traverseCounter", "storeCounter", "removeCounter", "isTransient" })
         public VolumeInfo(int pageSize, String path, String name, long id, long createTime, long openTime,
                 long generation, long getCounter, long readCounter, long writeCounter, long lastRead, long lastWrite,
                 long lastExtension, long maximumPage, long currentPageCount, long maximumPageCount,
                 long extensionPageCount, long garbageRootPage, long fetchCounter, long traverseCounter,
-                long storeCounter, long removeCounter, boolean isTransient, boolean isLoose) {
+                long storeCounter, long removeCounter, boolean isTransient) {
             super();
             this.pageSize = pageSize;
             this.path = path;
@@ -1419,7 +1417,6 @@ public interface Management extends Remote, ManagementMXBean {
             this.storeCounter = storeCounter;
             this.removeCounter = removeCounter;
             this.isTransient = isTransient;
-            this.isLoose = isLoose;
         }
 
         /**
@@ -1641,10 +1638,6 @@ public interface Management extends Remote, ManagementMXBean {
 
         public boolean isTransient() {
             return isTransient;
-        }
-
-        public boolean isLoose() {
-            return isLoose;
         }
 
         /**

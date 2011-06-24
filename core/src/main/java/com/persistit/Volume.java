@@ -88,7 +88,6 @@ public class Volume extends SharedResource {
     private volatile long _directoryRootPage;
     private volatile long _garbageRoot;
     private int _bufferSize;
-    private volatile boolean _loose;
     private AtomicReference<Object> _appCache = new AtomicReference<Object>();
 
     private AtomicLong _readCounter = new AtomicLong();
@@ -242,7 +241,7 @@ public class Volume extends SharedResource {
         if (volumeSpec.isCreate() || volumeSpec.isCreateOnly() || volumeSpec.isTransient()) {
             return create(persistit, volumeSpec.getPath(), volumeSpec.getName(), volumeSpec.getId(), volumeSpec
                     .getBufferSize(), volumeSpec.getInitialPages(), volumeSpec.getExtensionPages(), volumeSpec
-                    .getMaximumPages(), volumeSpec.isCreateOnly(), volumeSpec.isTransient(), volumeSpec.isLoose());
+                    .getMaximumPages(), volumeSpec.isCreateOnly(), volumeSpec.isTransient());
         } else {
             return openVolume(persistit, volumeSpec.getPath(), volumeSpec.getName(), volumeSpec.getId(), volumeSpec
                     .isReadOnly());
@@ -263,8 +262,7 @@ public class Volume extends SharedResource {
      * @throws PersistitException
      */
     private Volume(final Persistit persistit, final String path, final String name, final long id,
-            final int bufferSize, long initialPages, long extensionPages, long maximumPages, boolean tranzient,
-            boolean loose) throws PersistitException {
+            final int bufferSize, long initialPages, long extensionPages, long maximumPages, boolean tranzient) throws PersistitException {
         super(persistit);
 
         boolean sizeOkay = false;
@@ -305,7 +303,6 @@ public class Volume extends SharedResource {
         } else {
             clearTransient();
         }
-        _loose = loose;
 
         try {
             initializePathAndName(path, name, true);
@@ -487,7 +484,7 @@ public class Volume extends SharedResource {
             final long initialPages, final long extensionPages, final long maximumPages, final boolean mustCreate)
             throws PersistitException {
         return create(persistit, pathName, null, id, bufferSize, initialPages, extensionPages, maximumPages,
-                mustCreate, false, false);
+                mustCreate, false);
     }
 
     /**
@@ -539,19 +536,12 @@ public class Volume extends SharedResource {
      *            made persistent. When <code>true</code> the Volume has no
      *            backing store.
      * 
-     * @param loose
-     *            <code>true</code> if updates may be written in "loose" (other
-     *            than execution order) to this Volume. Setting this flag may
-     *            reduce the overall I/O cost of updating the Volume, but at the
-     *            cost of possible application-level inconsistencies following
-     *            recovery from an abrupt termination.
-     * 
      * @return the Volume
      * @throws PersistitException
      */
     public static Volume create(final Persistit persistit, final String path, final String name, final long id,
             final int bufferSize, final long initialPages, final long extensionPages, final long maximumPages,
-            final boolean mustCreate, final boolean tranzient, final boolean loose) throws PersistitException {
+            final boolean mustCreate, final boolean tranzient) throws PersistitException {
         File file = new File(path);
         if (file.exists()) {
             if (mustCreate || tranzient) {
@@ -573,7 +563,7 @@ public class Volume extends SharedResource {
             return vol;
         } else {
             return new Volume(persistit, file.getAbsolutePath(), name, id, bufferSize, initialPages, extensionPages,
-                    maximumPages, tranzient, loose);
+                    maximumPages, tranzient);
         }
     }
 
@@ -584,7 +574,7 @@ public class Volume extends SharedResource {
      */
     private void checkpointMetaData() throws ReadOnlyVolumeException {
         if (!_readOnly && updateHeaderInfo(_headBuffer.getBytes())) {
-            _headBuffer.setDirtyStructure();
+            _headBuffer.setDirty();
         }
     }
 
@@ -884,7 +874,7 @@ public class Volume extends SharedResource {
                         _persistit.getLogBase().log(LogBase.LOG_DEALLOCGC2, left, right, 0, 0, 0,
                                 garbageBufferInfo(garbageBuffer));
                     }
-                    garbageBuffer.setDirtyStructure();
+                    garbageBuffer.setDirty();
                     return;
                 } else {
                     if (_persistit.getLogBase().isLoggable(LogBase.LOG_DEALLOCGC3)) {
@@ -924,7 +914,7 @@ public class Volume extends SharedResource {
                 }
             }
             garbageBuffer.setRightSibling(garbagePage);
-            garbageBuffer.setDirtyStructure();
+            garbageBuffer.setDirty();
             setGarbageRoot(garbageBuffer.getPageAddress());
         } finally {
             if (garbageBuffer != null) {
@@ -1213,20 +1203,6 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Indicates whether all updates to this <code>Volume</code> will be written
-     * in execution order (such that update anomalies are not visible upon
-     * recovering after an abrupt termination) or whether updates may be written
-     * out-of-order. The latter method, called "loose" causes fewer pages to be
-     * written to the journal for each checkpoint, but may lead to application-
-     * level inconsistencies after recovery from an abrupt termination.
-     * 
-     * @return <i>true</i> if this Volume accepts "loose" update semantics.
-     */
-    public boolean isLoose() {
-        return _loose;
-    }
-
-    /**
      * Create a new tree in this volume. A tree is represented by an index root
      * page and all the index and data pages pointed to by that root page.
      * 
@@ -1244,7 +1220,7 @@ public class Volume extends SharedResource {
             rootPageBuffer.init(Buffer.PAGE_TYPE_DATA);
             rootPageBuffer.putValue(Key.LEFT_GUARD_KEY, Value.EMPTY_VALUE);
             rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
-            rootPageBuffer.setDirtyStructure();
+            rootPageBuffer.setDirty();
         } finally {
             _pool.release(rootPageBuffer);
         }

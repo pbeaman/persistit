@@ -1467,7 +1467,7 @@ public class Exchange {
             value.setPointerValue(-1);
             buffer.putValue(RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
 
-            buffer.setDirtyStructure();
+            buffer.setDirty();
 
             _tree.changeRootPageAddr(newTopPage, 1);
             _tree.bumpGeneration();
@@ -1558,8 +1558,8 @@ public class Exchange {
                 value.setPointerValue(newRightSibling);
                 value.setPointerPageType(rightSibling.getPageType());
 
-                rightSibling.setDirtyStructure();
-                buffer.setDirtyStructure();
+                rightSibling.setDirty();
+                buffer.setDirty();
 
                 return true;
 
@@ -2803,7 +2803,7 @@ public class Exchange {
 
                                     buffer.setDirty();
                                     if (anyLongRecords) {
-                                        buffer.setDirtyStructure();
+                                        buffer.setDirty();
                                     }
                                     result = foundAt2 > foundAt1;
                                     break;
@@ -2970,8 +2970,8 @@ public class Exchange {
                             if (buffer1.isDataPage()) {
                                 _tree.bumpChangeCount();
                             }
-                            buffer1.setDirtyStructure();
-                            buffer2.setDirtyStructure();
+                            buffer1.setDirty();
+                            buffer2.setDirty();
 
                             long rightGarbagePage = buffer1.getRightSibling();
 
@@ -3024,7 +3024,7 @@ public class Exchange {
                                         // If it worked then we're done.
                                         if (fit != -1) {
                                             needsReindex = false;
-                                            buffer.setDirtyStructure();
+                                            buffer.setDirty();
                                         }
                                     }
                                 }
@@ -3056,7 +3056,7 @@ public class Exchange {
                             }
                             buffer1.setDirty();
                             if (anyLongRecords) {
-                                buffer1.setDirtyStructure();
+                                buffer1.setDirty();
                             }
                         }
 
@@ -3438,7 +3438,7 @@ public class Exchange {
                 if (end < buffer.getBufferSize()) {
                     buffer.clearBytes(end, buffer.getBufferSize());
                 }
-                buffer.setDirtyStructure();
+                buffer.setDirty();
                 bufferArray[index] = null;
                 page = buffer.getPageAddress(); // current head of the chain
                 _pool.release(buffer);
@@ -3532,7 +3532,7 @@ public class Exchange {
                     }
                     buffer.setRightSibling(looseChain);
                     looseChain = buffer.getPageAddress();
-                    buffer.setDirtyStructure();
+                    buffer.setDirty();
                     _pool.release(buffer);
                     offset -= maxSegmentSize;
                     buffer = null;
