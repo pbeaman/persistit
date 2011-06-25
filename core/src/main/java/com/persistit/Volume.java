@@ -34,6 +34,7 @@ import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
+import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -88,7 +89,6 @@ public class Volume extends SharedResource {
     private volatile long _directoryRootPage;
     private volatile long _garbageRoot;
     private int _bufferSize;
-    private volatile boolean _loose;
     private AtomicReference<Object> _appCache = new AtomicReference<Object>();
 
     private AtomicLong _readCounter = new AtomicLong();
@@ -112,8 +112,6 @@ public class Volume extends SharedResource {
 
     private volatile boolean _closed;
     private final Tree _directoryTree;
-
-    private ArrayList<DeallocationChain> _deallocationList = new ArrayList<DeallocationChain>();
 
     private static class DeallocationChain {
         long _leftPage;
@@ -244,7 +242,7 @@ public class Volume extends SharedResource {
         if (volumeSpec.isCreate() || volumeSpec.isCreateOnly() || volumeSpec.isTransient()) {
             return create(persistit, volumeSpec.getPath(), volumeSpec.getName(), volumeSpec.getId(), volumeSpec
                     .getBufferSize(), volumeSpec.getInitialPages(), volumeSpec.getExtensionPages(), volumeSpec
-                    .getMaximumPages(), volumeSpec.isCreateOnly(), volumeSpec.isTransient(), volumeSpec.isLoose());
+                    .getMaximumPages(), volumeSpec.isCreateOnly(), volumeSpec.isTransient());
         } else {
             return openVolume(persistit, volumeSpec.getPath(), volumeSpec.getName(), volumeSpec.getId(), volumeSpec
                     .isReadOnly());
@@ -265,8 +263,8 @@ public class Volume extends SharedResource {
      * @throws PersistitException
      */
     private Volume(final Persistit persistit, final String path, final String name, final long id,
-            final int bufferSize, long initialPages, long extensionPages, long maximumPages, boolean tranzient,
-            boolean loose) throws PersistitException {
+            final int bufferSize, long initialPages, long extensionPages, long maximumPages, boolean tranzient)
+            throws PersistitException {
         super(persistit);
 
         boolean sizeOkay = false;
@@ -302,8 +300,11 @@ public class Volume extends SharedResource {
         }
 
         boolean open = false;
-        this.setTransient(tranzient);
-        _loose = loose;
+        if (tranzient) {
+            setTransient();
+        } else {
+            clearTransient();
+        }
 
         try {
             initializePathAndName(path, name, true);
@@ -328,7 +329,7 @@ public class Volume extends SharedResource {
             _persistit.addVolume(this);
 
             _headBuffer = _pool.get(this, 0, true, false);
-            _headBuffer.setFixed(true);
+            _headBuffer.setFixed();
             _header = new VolumeHeader(_channel);
 
             _headBuffer.clear();
@@ -369,7 +370,7 @@ public class Volume extends SharedResource {
         } finally {
             if (_headBuffer != null) {
                 if (!open) {
-                    _headBuffer.setFixed(false);
+                    _headBuffer.clearFixed();
                 }
                 releaseHeadBuffer();
             }
@@ -434,7 +435,7 @@ public class Volume extends SharedResource {
                 checkpointMetaData();
             }
 
-            _headBuffer.setFixed(true);
+            _headBuffer.setFixed();
             releaseHeadBuffer();
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
@@ -485,7 +486,7 @@ public class Volume extends SharedResource {
             final long initialPages, final long extensionPages, final long maximumPages, final boolean mustCreate)
             throws PersistitException {
         return create(persistit, pathName, null, id, bufferSize, initialPages, extensionPages, maximumPages,
-                mustCreate, false, false);
+                mustCreate, false);
     }
 
     /**
@@ -537,19 +538,12 @@ public class Volume extends SharedResource {
      *            made persistent. When <code>true</code> the Volume has no
      *            backing store.
      * 
-     * @param loose
-     *            <code>true</code> if updates may be written in "loose" (other
-     *            than execution order) to this Volume. Setting this flag may
-     *            reduce the overall I/O cost of updating the Volume, but at the
-     *            cost of possible application-level inconsistencies following
-     *            recovery from an abrupt termination.
-     * 
      * @return the Volume
      * @throws PersistitException
      */
     public static Volume create(final Persistit persistit, final String path, final String name, final long id,
             final int bufferSize, final long initialPages, final long extensionPages, final long maximumPages,
-            final boolean mustCreate, final boolean tranzient, final boolean loose) throws PersistitException {
+            final boolean mustCreate, final boolean tranzient) throws PersistitException {
         File file = new File(path);
         if (file.exists()) {
             if (mustCreate || tranzient) {
@@ -571,18 +565,24 @@ public class Volume extends SharedResource {
             return vol;
         } else {
             return new Volume(persistit, file.getAbsolutePath(), name, id, bufferSize, initialPages, extensionPages,
-                    maximumPages, tranzient, loose);
+                    maximumPages, tranzient);
         }
     }
 
     /**
      * Updates head page information.
      * 
+     * @throws InvalidPageStructureException
+     * @throws PersistitIOException
+     * 
      * @throws PMapException
      */
-    private void checkpointMetaData() throws ReadOnlyVolumeException {
+    private void checkpointMetaData() throws ReadOnlyVolumeException, PersistitIOException,
+            InvalidPageStructureException {
+        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+        _headBuffer.writePageOnCheckpoint(timestamp);
         if (!_readOnly && updateHeaderInfo(_headBuffer.getBytes())) {
-            _headBuffer.setDirtyStructure();
+            _headBuffer.setDirtyAtTimestamp(timestamp);
         }
     }
 
@@ -634,7 +634,7 @@ public class Volume extends SharedResource {
         return _garbageRoot;
     }
 
-    private void setGarbageRoot(long garbagePage) throws InUseException, ReadOnlyVolumeException {
+    private void setGarbageRoot(long garbagePage) throws InUseException, ReadOnlyVolumeException, PersistitIOException, InvalidPageStructureException {
         _garbageRoot = garbagePage;
         checkpointMetaData();
     }
@@ -875,6 +875,10 @@ public class Volume extends SharedResource {
                 }
 
                 garbageBuffer = _pool.get(this, garbagePage, true, true);
+                
+                final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                garbageBuffer.writePageOnCheckpoint(timestamp);
+                
                 boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
 
                 if (fits) {
@@ -882,7 +886,7 @@ public class Volume extends SharedResource {
                         _persistit.getLogBase().log(LogBase.LOG_DEALLOCGC2, left, right, 0, 0, 0,
                                 garbageBufferInfo(garbageBuffer));
                     }
-                    garbageBuffer.setDirtyStructure();
+                    garbageBuffer.setDirtyAtTimestamp(timestamp);
                     return;
                 } else {
                     if (_persistit.getLogBase().isLoggable(LogBase.LOG_DEALLOCGC3)) {
@@ -895,6 +899,10 @@ public class Volume extends SharedResource {
             }
             boolean solitaire = (right == -1);
             garbageBuffer = _pool.get(this, left, true, !solitaire);
+
+            
+            final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+            garbageBuffer.writePageOnCheckpoint(timestamp);
 
             if (Debug.ENABLED)
                 Debug.$assert((garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())
@@ -922,7 +930,7 @@ public class Volume extends SharedResource {
                 }
             }
             garbageBuffer.setRightSibling(garbagePage);
-            garbageBuffer.setDirtyStructure();
+            garbageBuffer.setDirtyAtTimestamp(timestamp);
             setGarbageRoot(garbageBuffer.getPageAddress());
         } finally {
             if (garbageBuffer != null) {
@@ -932,34 +940,7 @@ public class Volume extends SharedResource {
         }
     }
 
-    void deallocateGarbageChainDeferred(long left, long right) {
-        if (Debug.ENABLED && right != -1) {
-            Buffer garbageBuffer = null;
-            try {
-                garbageBuffer = _pool.get(this, left, false, true);
-                Debug.$assert(garbageBuffer != null && (garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())
-                        || garbageBuffer.isLongRecordPage() || (right == -1 && garbageBuffer.isUnallocatedPage()));
-            } catch (PersistitException pe) {
-                // ok if this fails.
-            } finally {
-                if (garbageBuffer != null) {
-                    _pool.release(garbageBuffer);
-                    garbageBuffer = null;
-                }
-            }
-        }
-        synchronized (this) {
-            if (Debug.ENABLED) {
-                for (int i = 0; i < _deallocationList.size(); i++) {
-                    DeallocationChain chain = _deallocationList.get(i);
-                    Debug.$assert(chain._leftPage != left);
-                }
-            }
-            _deallocationList.add(new DeallocationChain(left, right));
-        }
-    }
-
-    boolean harvestLongRecords(Buffer buffer, int start, int end) {
+    boolean harvestLongRecords(Buffer buffer, int start, int end) throws PersistitException {
         boolean anyLongRecords = false;
         if (buffer.isDataPage()) {
             int p1 = buffer.toKeyBlock(start);
@@ -967,7 +948,7 @@ public class Volume extends SharedResource {
             for (int p = p1; p < p2 && p != -1; p = buffer.nextKeyBlock(p)) {
                 long pointer = buffer.fetchLongRecordPointer(p);
                 if (pointer != 0) {
-                    deallocateGarbageChainDeferred(pointer, 0);
+                    deallocateGarbageChain(pointer, 0);
                     anyLongRecords |= true;
                 }
             }
@@ -985,55 +966,6 @@ public class Volume extends SharedResource {
         _directoryTree.commit();
         for (final Tree tree : _treeNameHashMap.values()) {
             tree.commit();
-        }
-    }
-
-    /**
-     * Commits unwritten page deallocation records to the volume.
-     */
-    void commitAllDeferredDeallocations() throws PersistitException {
-        final ArrayList<DeallocationChain> list;
-        synchronized (this) {
-            if (_deallocationList.size() == 0)
-                return;
-            list = _deallocationList;
-            _deallocationList = new ArrayList<DeallocationChain>();
-        }
-
-        if (Debug.ENABLED && list.size() > 1) {
-            int size = list.size();
-            for (int i = 0; i < size; i++) {
-                DeallocationChain chain1 = list.get(i);
-                for (int j = i + 1; j < size; j++) {
-                    DeallocationChain chain2 = list.get(j);
-                    Debug.$assert(chain1._leftPage != chain2._leftPage);
-                }
-            }
-        }
-        //
-        // Now we can work on the deallocations at our leisure.
-        //
-        try {
-            while (list.size() > 0) {
-                DeallocationChain chain = list.get(list.size() - 1);
-
-                deallocateGarbageChain(chain._leftPage, chain._rightPage);
-                list.remove(list.size() - 1);
-            }
-        } finally {
-            if (list.size() > 0) {
-                // Reinsert DeallocationChain records that didn't
-                // get processed. We'll deallocate them on the next
-                // invocation.
-                //
-                synchronized (this) {
-                    if (_deallocationList.size() == 0) {
-                        _deallocationList = list;
-                    } else {
-                        _deallocationList.addAll(list);
-                    }
-                }
-            }
         }
     }
 
@@ -1157,14 +1089,15 @@ public class Volume extends SharedResource {
 
         while (page != -1) {
             Buffer buffer = null;
+            long deallocate = -1;
             try {
                 buffer = _pool.get(this, page, false, true);
                 if (buffer.getPageType() != depth) {
-                    throw new CorruptVolumeException("Page " + buffer + " type code=" + buffer.getPageType()
+                    throw new CorruptVolumeException(buffer + " type code=" + buffer.getPageType()
                             + " is not equal to expected value " + depth);
                 }
-                deallocateGarbageChainDeferred(page, 0);
                 if (buffer.isIndexPage()) {
+                    deallocate = page;
                     int p = buffer.toKeyBlock(0);
                     if (p > 0) {
                         page = buffer.getPointer(p);
@@ -1173,16 +1106,19 @@ public class Volume extends SharedResource {
                     }
                     depth--;
                 } else if (buffer.isDataPage()) {
-                    break;
+                    deallocate = page;
+                    page = -1;
                 }
             } finally {
                 if (buffer != null)
                     _pool.release(buffer);
                 buffer = null;
             }
+            if (deallocate != -1) {
+                deallocateGarbageChain(deallocate, 0);
+            }
         }
 
-        commitAllDeferredDeallocations();
         return true;
 
     }
@@ -1283,20 +1219,6 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Indicates whether all updates to this <code>Volume</code> will be written
-     * in execution order (such that update anomalies are not visible upon
-     * recovering after an abrupt termination) or whether updates may be written
-     * out-of-order. The latter method, called "loose" causes fewer pages to be
-     * written to the journal for each checkpoint, but may lead to application-
-     * level inconsistencies after recovery from an abrupt termination.
-     * 
-     * @return <i>true</i> if this Volume accepts "loose" update semantics.
-     */
-    public boolean isLoose() {
-        return _loose;
-    }
-
-    /**
      * Create a new tree in this volume. A tree is represented by an index root
      * page and all the index and data pages pointed to by that root page.
      * 
@@ -1308,13 +1230,17 @@ public class Volume extends SharedResource {
         Buffer rootPageBuffer = null;
 
         rootPageBuffer = allocPage();
+        
+        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+        rootPageBuffer.writePageOnCheckpoint(timestamp);
+
         long rootPage = rootPageBuffer.getPageAddress();
 
         try {
             rootPageBuffer.init(Buffer.PAGE_TYPE_DATA);
             rootPageBuffer.putValue(Key.LEFT_GUARD_KEY, Value.EMPTY_VALUE);
             rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
-            rootPageBuffer.setDirtyStructure();
+            rootPageBuffer.setDirtyAtTimestamp(timestamp);
         } finally {
             _pool.release(rootPageBuffer);
         }
@@ -1322,7 +1248,7 @@ public class Volume extends SharedResource {
         tree.claim(true);
         tree.init(rootPage);
         tree.release();
-        tree.setValid(true);
+        tree.setValid();
         tree.commit();
         return tree;
     }
@@ -1338,7 +1264,7 @@ public class Volume extends SharedResource {
     }
 
     private void claimHeadBuffer() throws PersistitException {
-        if (!_headBuffer.checkedClaim(true)) {
+        if (!_headBuffer.claim(true)) {
             throw new InUseException(this + " head buffer " + _headBuffer + " is unavailable");
         }
     }
@@ -1422,52 +1348,13 @@ public class Volume extends SharedResource {
      */
     Buffer allocPage() throws PersistitException {
         Buffer buffer = null;
-
-        // First we attempt to allocate from the uncommitted deallocation list
-        DeallocationChain dc = null;
-        synchronized (this) {
-            final ArrayList<DeallocationChain> list = _deallocationList;
-            if (list != null && list.size() > 0) {
-                dc = list.remove(list.size() - 1);
-            }
-        }
-        if (dc != null) {
-            long page = dc._leftPage;
-            long rightPage = dc._rightPage;
-            boolean solitaire = rightPage == -1;
-            if (page != rightPage) {
-                try {
-                    buffer = _pool.get(this, page, true, !solitaire);
-                    if (!solitaire && buffer.getRightSibling() != rightPage) {
-                        dc._leftPage = buffer.getRightSibling();
-                    } else
-                        dc = null;
-                }
-
-                finally {
-                    if (dc != null) {
-                        synchronized (this) {
-                            _deallocationList.add(dc);
-                        }
-                    }
-                }
-            }
-        }
-
-        if (buffer != null) {
-            harvestLongRecords(buffer, 0, Integer.MAX_VALUE);
-            buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
-            buffer.clear();
-            return buffer;
-        }
-
-        // Okay, next we look at the stored garbage chain for this Volume.
         claimHeadBuffer();
         try {
             long garbageRoot = getGarbageRoot();
             if (garbageRoot != 0) {
                 Buffer garbageBuffer = _pool.get(this, garbageRoot, true, true);
-
+                final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                garbageBuffer.writePageOnCheckpoint(timestamp);
                 try {
                     if (Debug.ENABLED)
                         Debug.$assert(garbageBuffer.isGarbagePage());
@@ -1519,6 +1406,7 @@ public class Volume extends SharedResource {
                             }
                             garbageBuffer.setGarbageLeftPage(nextGarbagePage);
                         }
+                        garbageBuffer.setDirtyAtTimestamp(timestamp);
                     }
                     if (Debug.ENABLED) {
                         Debug.$assert(buffer != null && buffer.getPageAddress() != 0
@@ -1615,7 +1503,7 @@ public class Volume extends SharedResource {
     }
 
     void close() throws PersistitException {
-        _headBuffer.setFixed(false);
+        _headBuffer.clearFixed();
         _closed = true;
 
         PersistitException pe = null;
@@ -1653,7 +1541,6 @@ public class Volume extends SharedResource {
     void flush() throws PersistitException {
         claimHeadBuffer();
         commitAllTreeUpdates();
-        commitAllDeferredDeallocations();
         setClean();
         checkpointMetaData();
         releaseHeadBuffer();

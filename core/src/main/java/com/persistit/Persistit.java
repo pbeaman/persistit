@@ -277,6 +277,8 @@ public class Persistit {
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
 
+    final static long SHORT_DELAY = 500;
+
     /**
      * Minimal command line documentation
      */
@@ -289,8 +291,6 @@ public class Persistit {
     private final static long MEGA = KILO * KILO;
     private final static long GIGA = MEGA * KILO;
     private final static long TERA = GIGA * KILO;
-
-    private final static long SHORT_DELAY = 500;
 
     private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
 
@@ -1801,9 +1801,17 @@ public class Persistit {
     public void crash() {
         final JournalManager journalManager = _journalManager;
         if (journalManager != null) {
-            journalManager.crash();
+            try {
+                journalManager.crash();
+            } catch (IOException e) {
+                _logBase.log(LogBase.LOG_EXCEPTION, e);
+            }
         }
-
+        //
+        // Even on simulating a crash we need to try to close
+        // the volumes - otherwise there will be left over channels
+        // and FileLocks that interfere with subsequent tests.
+        //
         for (final Volume volume : _volumes) {
             try {
                 volume.close();

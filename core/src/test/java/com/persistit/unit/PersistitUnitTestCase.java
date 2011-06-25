@@ -21,6 +21,8 @@ import java.util.Properties;
 import junit.framework.TestCase;
 
 import com.persistit.Persistit;
+import com.persistit.TestShim;
+import com.persistit.TimestampAllocator;
 
 public abstract class PersistitUnitTestCase extends TestCase {
 
@@ -40,6 +42,7 @@ public abstract class PersistitUnitTestCase extends TestCase {
 
     @Override
     public void tearDown() throws Exception {
+
         _persistit.close(false);
         _persistit = null;
     }

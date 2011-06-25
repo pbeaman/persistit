@@ -28,7 +28,7 @@ public class Debug {
     // Lazily instantiated
     private static Random _random;
 
-    private static ArrayList _brokenThreads = new ArrayList();
+    private static ArrayList<Thread> _brokenThreads = new ArrayList<Thread>();
 
     private static long _startTime;
 

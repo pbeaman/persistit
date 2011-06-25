@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 
  */
 abstract class IOTaskRunnable implements Runnable {
+    
+    private final static long THREAD_DEATH_WAIT_INTERVAL = 5000;
 
     protected final Persistit _persistit;
 
@@ -106,6 +108,11 @@ abstract class IOTaskRunnable implements Runnable {
         final Thread thread = _thread;
         if (thread != null && thread.isAlive()) {
             thread.stop();
+            try {
+                thread.join(THREAD_DEATH_WAIT_INTERVAL);
+            } catch (InterruptedException e) {
+                
+            }
         }
     }
 

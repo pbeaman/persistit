@@ -18,18 +18,18 @@ package com.persistit;
 import java.io.ObjectStreamClass;
 
 /**
- * A simple structure that holds a tuple consiting of a class, its serial
+ * A simple structure that holds a tuple consisting of a class, its serial
  * version UID and its Persistit handle.
  * 
  */
 
 public class ClassInfo {
-    private Class _class;
+    private Class<?> _class;
     private long _suid;
     private int _handle;
     private ObjectStreamClass _osc;
 
-    ClassInfo(Class cl, long suid, int handle, ObjectStreamClass osc) {
+    ClassInfo(Class<?> cl, long suid, int handle, ObjectStreamClass osc) {
         _class = cl;
         _suid = suid;
         _handle = handle;
@@ -39,7 +39,7 @@ public class ClassInfo {
     /**
      * @return The <code>Class</code>
      */
-    public Class getDescribedClass() {
+    public Class<?> getDescribedClass() {
         return _class;
     }
 

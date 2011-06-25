@@ -730,14 +730,12 @@ class ManagementImpl implements Management {
             status |= SharedResource.WRITER_MASK;
         if (statusCode.indexOf('s') >= 0)
             status |= SharedResource.SUSPENDED_MASK;
-        if (statusCode.indexOf('c') >= 0)
-            status |= SharedResource.CLOSING_MASK;
         if (statusCode.indexOf('p') >= 0)
             status |= SharedResource.FIXED_MASK;
 
         if (statusCode.indexOf('a') >= 0)
-            status |= (SharedResource.FIXED_MASK | SharedResource.CLOSING_MASK | SharedResource.SUSPENDED_MASK
-                    | SharedResource.WRITER_MASK | SharedResource.CLAIMED_MASK | SharedResource.DIRTY_MASK | SharedResource.VALID_MASK);
+            status |= (SharedResource.FIXED_MASK | SharedResource.SUSPENDED_MASK | SharedResource.WRITER_MASK
+                    | SharedResource.CLAIMED_MASK | SharedResource.DIRTY_MASK | SharedResource.VALID_MASK);
 
         // select none
         if (status == 0)

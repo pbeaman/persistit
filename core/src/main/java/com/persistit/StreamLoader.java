@@ -305,7 +305,7 @@ public class StreamLoader extends Task {
 
             if (_volume == null && _createMissingVolumes) {
                 _volume = Volume.create(_persistit, path, name, volumeId, bufferSize, initialPages, extensionPages,
-                        maximumPages, false, false, false);
+                        maximumPages, false, false);
             }
             if (oldExchange != null && oldExchange.getVolume().equals(_volume)) {
                 _exchange = oldExchange;

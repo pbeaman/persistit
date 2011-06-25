@@ -359,7 +359,7 @@ public final class Buffer extends SharedResource {
 
     Buffer(Buffer original) {
         this(original._bufferSize, original._poolIndex, original._pool, original._persistit);
-        setStatus(original.getStatus() & ~(WRITER_MASK | CLAIMED_MASK));
+        setStatus(original);
         _type = original._type;
         _timestamp = original._timestamp;
         _page = original._page;
@@ -440,25 +440,13 @@ public final class Buffer extends SharedResource {
         bumpGeneration();
     }
 
-    boolean checkedClaim(final boolean writer) throws PersistitException {
-        return checkedClaim(writer, DEFAULT_MAX_WAIT_TIME);
-    }
-
-    boolean checkedClaim(final boolean writer, final long timeout) throws PersistitException {
-        final boolean result = super.claim(writer, timeout);
-        if (writer && result) {
-            writePageOnCheckpoint();
+    void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException {
+        if (Debug.ENABLED) {
+            Debug.$assert(isMine());
         }
-        return result;
-    }
-
-    private void writePageOnCheckpoint() throws PersistitException {
-        if (isDirty()) {
-            final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
-            if (getTimestamp() < checkpoint.getTimestamp()
-                    && _persistit.getCurrentTimestamp() >= checkpoint.getTimestamp()) {
-                writePage();
-            }
+        final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
+        if (isDirty() && getTimestamp() < checkpoint.getTimestamp() && timestamp > checkpoint.getTimestamp()) {
+            writePage();
         }
     }
 
@@ -475,18 +463,10 @@ public final class Buffer extends SharedResource {
         }
     }
 
-    void setDirty() {
+    void setDirtyAtTimestamp(final long timestamp) {
         super.setDirty();
+        _timestamp = timestamp;
         bumpGeneration();
-        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-        _timestamp = Math.max(_timestamp, timestamp);
-    }
-
-    void setDirtyStructure() {
-        super.setDirtyStructure();
-        bumpGeneration();
-        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-        _timestamp = Math.max(_timestamp, timestamp);
     }
 
     /**
@@ -3486,7 +3466,6 @@ public final class Buffer extends SharedResource {
             putLong(_alloc + GARBAGE_BLOCK_RIGHT_PAGE, right);
             putLong(_alloc + GARBAGE_BLOCK_EXPECTED_COUNT, expectedCount);
             bumpGeneration();
-            setDirtyStructure();
             return true;
         }
     }
@@ -3539,7 +3518,6 @@ public final class Buffer extends SharedResource {
         clearBytes(_alloc, _alloc + GARBAGE_BLOCK_SIZE);
         _alloc += GARBAGE_BLOCK_SIZE;
         bumpGeneration();
-        setDirtyStructure();
         return true;
     }
 
@@ -3554,7 +3532,6 @@ public final class Buffer extends SharedResource {
         }
         putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
         bumpGeneration();
-        setDirtyStructure();
     }
 
     void populateInfo(ManagementImpl.BufferInfo info) {
@@ -3591,6 +3568,9 @@ public final class Buffer extends SharedResource {
     }
 
     void setNext(final Buffer buffer) {
+        if (Debug.ENABLED) {
+            Debug.$assert(buffer != this);
+        }
         _next = buffer;
     }
 

@@ -28,11 +28,11 @@ public class TimestampAllocator {
 
     private final AtomicLong _timestamp = new AtomicLong();
 
-    private Checkpoint _checkpoint = new Checkpoint(0, 0);
-
-    private long _lastCheckpointNanos;
+    private volatile Checkpoint _checkpoint = new Checkpoint(0, 0);
 
     private volatile long _checkpointInterval = DEFAULT_CHECKPOINT_INTERVAL;
+
+    private volatile long _lastCheckpointNanos;
 
     /**
      * A structure containing a timestamp and system clock time at which
@@ -97,7 +97,7 @@ public class TimestampAllocator {
         return _timestamp.get();
     }
 
-    public synchronized Checkpoint updatedCheckpoint() {
+    public Checkpoint updatedCheckpoint() {
         final long now = System.nanoTime();
         if (_lastCheckpointNanos + _checkpointInterval < now) {
             _lastCheckpointNanos = now;
@@ -108,9 +108,9 @@ public class TimestampAllocator {
     }
 
     public synchronized Checkpoint forceCheckpoint() {
-        final long checkpointTimestamp = _timestamp.addAndGet(10000);
-        _checkpoint = new Checkpoint(checkpointTimestamp, System.currentTimeMillis());
-        return _checkpoint;
+            final long checkpointTimestamp = _timestamp.addAndGet(10000);
+            _checkpoint = new Checkpoint(checkpointTimestamp, System.currentTimeMillis());
+            return _checkpoint;
     }
 
     public synchronized Checkpoint getCurrentCheckpoint() {
@@ -124,5 +124,5 @@ public class TimestampAllocator {
     public void setCheckpointInterval(long checkpointInterval) {
         _checkpointInterval = checkpointInterval;
     }
-
+    
 }
