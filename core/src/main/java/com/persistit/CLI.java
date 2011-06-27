@@ -241,9 +241,11 @@ public class CLI {
     }
 
     interface LineReader {
-        public String readLine() throws IOException;
+        String readLine() throws IOException;
 
-        public PrintWriter writer();
+        PrintWriter writer();
+        
+        void close() throws IOException;
     }
 
     /**
@@ -265,14 +267,7 @@ public class CLI {
 
         @Override
         public String readLine() throws IOException {
-            if (writer != null) {
-                writer.close();
-                writer = null;
-            }
-            if (socket != null) {
-                socket.close();
-                socket = null;
-            }
+            close();
             socket = serverSocket.accept();
             final BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
@@ -282,6 +277,18 @@ public class CLI {
         @Override
         public PrintWriter writer() {
             return writer;
+        }
+        
+        @Override
+        public void close() throws IOException {
+            if (writer != null) {
+                writer.close();
+                writer = null;
+            }
+            if (socket != null) {
+                socket.close();
+                socket = null;
+            }
         }
 
     }
@@ -369,6 +376,8 @@ public class CLI {
     private Tree _currentTree;
     private final boolean _live;
     private String _name;
+    private int _commandCount;
+    private String _lastStatus;
 
     private CLI() {
         _persistit = null;
@@ -380,20 +389,6 @@ public class CLI {
         _persistit = persistit;
         _name = "CLI_SERVER:" + port;
         _live = true;
-    }
-
-    public void start() {
-        new Thread(new Runnable() {
-            public void run() {
-                try {
-                    commandLoop();
-                } catch (Exception e) {
-                    // Just dump this out because there may not even be a Persistit instance
-                    // to log it.
-                    e.printStackTrace();
-                }
-            }
-        }, _name).start();
     }
 
     void setLineReader(final LineReader reader) {
@@ -416,6 +411,8 @@ public class CLI {
                 break;
             }
             _writer = _lineReader.writer();
+            _commandCount++;
+            _lastStatus = input;
             try {
                 final List<String> list = pieces(input);
                 if (list.isEmpty()) {
@@ -429,7 +426,9 @@ public class CLI {
                 if ("exit".equals(commandName) || "quit".equals(commandName)) {
                     _stop = true;
                     close(false);
-                    break;
+                    _lastStatus = "Done";
+                    _writer.println("Done");
+                    _lineReader.close();
                 }
 
                 // Handle intrinsic commands
@@ -444,29 +443,21 @@ public class CLI {
                             if (result != null) {
                                 _writer.println(result);
                             }
+                            _lastStatus += " - done";
                         }
                     } catch (InvocationTargetException e) {
+                        _lastStatus += e.getTargetException();
                         _writer.println(e.getTargetException());
                     } catch (RuntimeException e) {
+                        _lastStatus += e;
                         e.printStackTrace(_writer);
                     } catch (Exception e) {
+                        _lastStatus += e;
                         _writer.println(e);
                     }
                     continue;
                 }
-
-                // Handle ManagementCommands
-                if (_persistit != null) {
-                    try {
-                        final String result = _persistit.getManagement().execute(input);
-                        if (result != null) {
-                            _writer.println(result);
-                        }
-                    } catch (IllegalArgumentException e) {
-                        _writer.println(e);
-                    }
-                    continue;
-                }
+                _lastStatus += " - invalid command";
                 _writer.println("No such command " + commandName);
             } finally {
                 _writer.flush();
@@ -797,17 +788,26 @@ public class CLI {
     }
     
     @Cmd("startCLI")
-    static Task startCLI(@Arg("port|int:9999:1025:99999999") final int port) throws Exception {
+    static Task startCLI(@Arg("port|int:9999:1024:99999999") final int port) throws Exception {
         Task task = new Task() {
-
+            CLI _cli;
+            
             @Override
             protected void runTask() throws Exception {
-                new CLI(_persistit, port).start();
+                _cli = new CLI(_persistit, port);
+                _cli.commandLoop();
             }
 
             @Override
             public String getStatus() {
-                return "started";
+                CLI cli = _cli;
+                if (cli != null) {
+                    String status = cli._lastStatus;
+                    if (status != null) {
+                        return status;
+                    }
+                }
+                return "Not initialized yet";
             }
             
         };
@@ -954,6 +954,11 @@ public class CLI {
                 public PrintWriter writer() {
                     return writer;
                 }
+                
+                @Override
+                public void close() {
+                    
+                }
             };
             writer.println("jline.ConsoleReader enabled");
         } catch (Exception e) {
@@ -972,6 +977,11 @@ public class CLI {
                 @Override
                 public PrintWriter writer() {
                     return writer;
+                }
+
+                @Override
+                public void close() {
+                    
                 }
             };
         }
