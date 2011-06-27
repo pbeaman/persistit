@@ -240,14 +240,6 @@ public class CLI {
         return task;
     }
 
-    private LineReader _lineReader;
-    PrintWriter _writer = new PrintWriter(System.out);
-    private Stack<BufferedReader> _sourceStack = new Stack<BufferedReader>();
-    private Persistit _persistit;
-    private boolean _stop = false;
-    private Volume _currentVolume;
-    private Tree _currentTree;
-
     interface LineReader {
         public String readLine() throws IOException;
 
@@ -366,12 +358,42 @@ public class CLI {
         private static final long serialVersionUID = 1L;
     }
 
+    // ----------------------
+
+    private LineReader _lineReader;
+    PrintWriter _writer = new PrintWriter(System.out);
+    private Stack<BufferedReader> _sourceStack = new Stack<BufferedReader>();
+    private Persistit _persistit;
+    private boolean _stop = false;
+    private Volume _currentVolume;
+    private Tree _currentTree;
+    private final boolean _live;
+    private String _name;
+
     private CLI() {
-        this(null);
+        _persistit = null;
+        _live = false;
     }
 
-    public CLI(final Persistit persistit) {
+    public CLI(final Persistit persistit, final int port) throws IOException {
+        _lineReader = new NetworkReader(port);
         _persistit = persistit;
+        _name = "CLI_SERVER:" + port;
+        _live = true;
+    }
+
+    public void start() {
+        new Thread(new Runnable() {
+            public void run() {
+                try {
+                    commandLoop();
+                } catch (Exception e) {
+                    // Just dump this out because there may not even be a Persistit instance
+                    // to log it.
+                    e.printStackTrace();
+                }
+            }
+        }, _name).start();
     }
 
     void setLineReader(final LineReader reader) {
@@ -569,8 +591,12 @@ public class CLI {
     String close(@Arg("_flag|f|Flush modifications to disk") boolean flush) throws Exception {
         if (_persistit != null) {
             try {
-                _persistit.shutdownGUI();
-                _persistit.close(flush);
+                if (_live) {
+                    return "Detaching from live Persistit instance without closing it";
+                } else {
+                    _persistit.shutdownGUI();
+                    _persistit.close(flush);
+                }
             } catch (Exception e) {
                 return e.toString();
             } finally {
@@ -768,6 +794,24 @@ public class CLI {
             sb.append(command.toString());
         }
         return sb.toString();
+    }
+    
+    @Cmd("startCLI")
+    static Task startCLI(@Arg("port|int:9999:1025:99999999") final int port) throws Exception {
+        Task task = new Task() {
+
+            @Override
+            protected void runTask() throws Exception {
+                new CLI(_persistit, port).start();
+            }
+
+            @Override
+            public String getStatus() {
+                return "started";
+            }
+            
+        };
+        return task;
     }
 
     private String journalPath(List<String> files) {
