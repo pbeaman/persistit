@@ -42,6 +42,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     @Test
     public void testJournalRecords() throws Exception {
         store1();
+        _persistit.flush();
         final Volume volume = _persistit.getVolume(_volumeName);
         volume.setHandle(0);
 
@@ -186,6 +187,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     @Test
     public void testRollover() throws Exception {
         store1();
+        _persistit.flush();
         final Volume volume = _persistit.getVolume(_volumeName);
         volume.setHandle(0);
         final JournalManager jman = new JournalManager(_persistit);
