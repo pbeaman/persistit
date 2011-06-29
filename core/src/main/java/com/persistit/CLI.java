@@ -148,12 +148,23 @@ public class CLI {
     private final static Pattern ALL = Pattern.compile(".*");
 
     /**
-     * Simply client for CLI server. Run the command <code><pre>
-     * java -cp persistit.jar com.persistit.CLI port command arg arg arg ...
-     * </pre></code> to execute a CLI command on the CLI server, e.g.,
-     * <code><pre>
+     * Simple client for CLI server. Run the command
+     * 
+     * <pre>
+     * <code>
+     * java -cp <i>classpath</i> com.persistit.CLI <i>port command arg arg arg ...</i>
+     * </code>
+     * </pre>
+     * 
+     * to execute a CLI command on the CLI server, e.g.,
+     * 
+     * <pre>
+     * <code>
      * java -cp persistit.jar com.persistit.CLI 9999 select volume=akiban_data
-     * </pre></code> To execute the select command on a server on port 9999.
+     * </code>
+     * </pre>
+     * 
+     * To execute the select command on a server on port 9999.
      * 
      * @param args
      * @throws Exception
