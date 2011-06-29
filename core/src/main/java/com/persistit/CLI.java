@@ -147,20 +147,54 @@ public class CLI {
 
     private final static Pattern ALL = Pattern.compile(".*");
 
-    private final static String[] ARG_TEMPLATE = { "port|int:0:0:99999|Port on which to receive command requests (default is stdin)" };
-
+    /**
+     * Simply client for CLI server. Run the command <code><pre>
+     * java -cp persistit.jar com.persistit.CLI port command arg arg arg ...
+     * </pre></code> to execute a CLI command on the CLI server, e.g.,
+     * <code><pre>
+     * java -cp persistit.jar com.persistit.CLI 9999 select volume=akiban_data
+     * </pre></code> To execute the select command on a server on port 9999.
+     * 
+     * @param args
+     * @throws Exception
+     */
     public static void main(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser("CLI", args, ARG_TEMPLATE);
-        final int port = ap.getIntValue("port");
-        final LineReader reader;
-        if (port != 0) {
-            reader = new NetworkReader(port);
-        } else {
-            reader = lineReader(new BufferedReader(new InputStreamReader(System.in)), new PrintWriter(System.out));
+        final StringBuilder sb = new StringBuilder();
+        int port = -1;
+        String host = null;
+
+        String[] hostPieces = args[0].split(":");
+        switch (hostPieces.length) {
+        case 1:
+            port = Integer.parseInt(hostPieces[0]);
+            break;
+        case 2:
+            host = hostPieces[0];
+            port = Integer.parseInt(hostPieces[1]);
+            break;
         }
-        CLI cli = new CLI();
-        cli.setLineReader(reader);
-        cli.commandLoop();
+
+        for (int index = 1; index < args.length; index++) {
+            if (index > 1) {
+                sb.append(' ');
+            }
+            sb.append(args[index]);
+        }
+        sb.append('\n');
+
+        if (port == -1) {
+            throw new IllegalArgumentException("Invalid host or port specified by " + args[0]);
+        }
+
+        final Socket socket = new Socket(host, port);
+        final OutputStreamWriter writer = new OutputStreamWriter(socket.getOutputStream());
+        writer.write(sb.toString());
+        writer.flush();
+        final InputStreamReader reader = new InputStreamReader(socket.getInputStream());
+        int c;
+        while ((c = reader.read()) != -1) {
+            System.out.print((char) c);
+        }
     }
 
     private static long availableMemory() {
@@ -244,7 +278,7 @@ public class CLI {
         String readLine() throws IOException;
 
         PrintWriter writer();
-        
+
         void close() throws IOException;
     }
 
@@ -278,7 +312,7 @@ public class CLI {
         public PrintWriter writer() {
             return writer;
         }
-        
+
         @Override
         public void close() throws IOException {
             if (writer != null) {
@@ -375,20 +409,13 @@ public class CLI {
     private Volume _currentVolume;
     private Tree _currentTree;
     private final boolean _live;
-    private String _name;
     private int _commandCount;
     private String _lastStatus;
-
-    private CLI() {
-        _persistit = null;
-        _live = false;
-    }
 
     public CLI(final Persistit persistit, final int port) throws IOException {
         _lineReader = new NetworkReader(port);
         _persistit = persistit;
-        _name = "CLI_SERVER:" + port;
-        _live = true;
+        _live = persistit != null;
     }
 
     void setLineReader(final LineReader reader) {
@@ -786,12 +813,12 @@ public class CLI {
         }
         return sb.toString();
     }
-    
-    @Cmd("startCLI")
-    static Task startCLI(@Arg("port|int:9999:1024:99999999") final int port) throws Exception {
+
+    @Cmd("cliserver")
+    static Task cliserver(@Arg("port|int:9999:1024:99999999") final int port) throws Exception {
         Task task = new Task() {
             CLI _cli;
-            
+
             @Override
             protected void runTask() throws Exception {
                 _cli = new CLI(_persistit, port);
@@ -809,7 +836,7 @@ public class CLI {
                 }
                 return "Not initialized yet";
             }
-            
+
         };
         return task;
     }
@@ -954,10 +981,10 @@ public class CLI {
                 public PrintWriter writer() {
                     return writer;
                 }
-                
+
                 @Override
                 public void close() {
-                    
+
                 }
             };
             writer.println("jline.ConsoleReader enabled");
@@ -981,7 +1008,7 @@ public class CLI {
 
                 @Override
                 public void close() {
-                    
+
                 }
             };
         }

@@ -2534,6 +2534,11 @@ public class Persistit {
         return _transactionalCaches.get(cacheId);
     }
 
+    private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",
+            "_flag|i|Perform IntegrityCheck on all volumes", "_flag|w|Wait until AdminUI exists",
+            "_flag|c|Perform copy-back", "properties|string|Property file name",
+            "cliport|int:-1:1024:99999999|Port on which to start a simple command-line interface server" };
+
     /**
      * Initializes Persistit using a property file path supplied as the first
      * argument, or if no arguments are supplied, the default property file name
@@ -2545,53 +2550,51 @@ public class Persistit {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        boolean gui = false;
-        boolean icheck = false;
-        boolean wait = false;
-        boolean copy = false;
-
-        String propertiesFileName = null;
-        for (int index = 0; index < args.length; index++) {
-            String s = args[index];
-            if (s.startsWith("?") || s.startsWith("-?") || s.startsWith("-h") || s.startsWith("-H")) {
-                usage();
-                return;
-            }
-            if (s.equalsIgnoreCase("-g")) {
-                gui = true;
-            } else if (s.equalsIgnoreCase("-i")) {
-                icheck = true;
-            } else if (s.equalsIgnoreCase("-w")) {
-                wait = true;
-            } else if (s.equalsIgnoreCase("-c")) {
-                copy = true;
-            } else if (!s.startsWith("-") && propertiesFileName == null) {
-                propertiesFileName = s;
-            } else {
-                usage();
-                return;
-            }
+        final ArgParser ap = new ArgParser("Persistit", args, ARG_TEMPLATE);
+        if (ap.isUsageOnly()) {
+            return;
         }
-        Persistit persistit = new Persistit();
-        persistit.initialize(propertiesFileName);
-        try {
-            if (gui) {
-                persistit.setupGUI(wait);
+
+        String propertiesFileName = ap.getStringValue("properties");
+        int cliport = ap.getIntValue("cliport");
+
+        if (cliport > -1 && !propertiesFileName.isEmpty()) {
+            throw new IllegalArgumentException("Specify only one: properties or cliport");
+        }
+
+        if (cliport > 1) {
+            System.out.printf("Starting a Persistit CLI server on port %d\n", cliport);
+            CLI.cliserver(cliport).runTask();
+        } else {
+            if (propertiesFileName.isEmpty()) {
+                throw new IllegalArgumentException("Must specify a properties file");
             }
-            if (icheck) {
-                persistit.checkAllVolumes();
+            boolean gui = ap.isFlag('g');
+            boolean icheck = ap.isFlag('i');
+            boolean wait = ap.isFlag('w');
+            boolean copy = ap.isFlag('c');
+
+            Persistit persistit = new Persistit();
+            persistit.initialize(propertiesFileName);
+            try {
+                if (gui) {
+                    persistit.setupGUI(wait);
+                }
+                if (icheck) {
+                    persistit.checkAllVolumes();
+                }
+                if (copy) {
+                    persistit.copyBackPages();
+                }
+                if (wait) {
+                    persistit.setShutdownSuspended(true);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                persistit.setShutdownSuspended(false);
+            } finally {
+                persistit.close();
             }
-            if (copy) {
-                persistit.copyBackPages();
-            }
-            if (wait) {
-                persistit.setShutdownSuspended(true);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            persistit.setShutdownSuspended(false);
-        } finally {
-            persistit.close();
         }
     }
 

@@ -63,8 +63,11 @@ class ManagementImpl implements Management {
 
     private final static long MAX_STALE = 100;
 
-    private static boolean _localRegistryCreated;
-    private static long _taskIdCounter;
+    // Static because you can only call LocateRegistry.createRegistry() once
+    // on a port.
+    private static int _localRegistryPort = -1;
+
+    private long _taskIdCounter;
 
     private transient Persistit _persistit;
     private transient DisplayFilter _displayFilter;
@@ -139,6 +142,11 @@ class ManagementImpl implements Management {
     @Override
     public long getElapsedTime() {
         return _persistit.elapsedTime();
+    }
+
+    @Override
+    public int getRmiPort() {
+        return _localRegistryPort;
     }
 
     @Override
@@ -1161,16 +1169,6 @@ class ManagementImpl implements Management {
     }
 
     void register(String hostName, String portString) {
-        // Note: we don't do this because for now we are not downloading
-        // any class files. Persistit should not set a security manager that
-        // affects the embedding application!
-        //
-        // Create and install a security manager.
-        //
-        // if (System.getSecurityManager() == null)
-        // {
-        // System.setSecurityManager(new RMISecurityManager());
-        // }
 
         try {
             ManagementImpl impl = (ManagementImpl) _persistit.getManagement();
@@ -1189,13 +1187,13 @@ class ManagementImpl implements Management {
                 } catch (NumberFormatException nfe) {
                 }
             }
-            if (!_localRegistryCreated && port != -1) {
+            if (port != -1 && _localRegistryPort != port) {
 
                 if (_persistit.getLogBase().isLoggable(LogBase.LOG_RMI_SERVER)) {
                     _persistit.getLogBase().log(LogBase.LOG_RMI_SERVER, "Creating RMI Registry on port " + port);
                 }
                 LocateRegistry.createRegistry(port);
-                _localRegistryCreated = true;
+                _localRegistryPort = port;
             }
 
             if (hostName != null && hostName.length() > 0) {

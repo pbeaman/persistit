@@ -70,6 +70,15 @@ public interface ManagementMXBean {
     public long getElapsedTime() throws RemoteException;
 
     /**
+     * Return the port on which a local RMI server has been registered, or -1 if
+     * not registered.
+     * 
+     * @return the port
+     * @throws RemoteException
+     */
+    public int getRmiPort() throws RemoteException;
+
+    /**
      * Return the aggregate number of transactions committed since Persistit was
      * initialized
      * 
