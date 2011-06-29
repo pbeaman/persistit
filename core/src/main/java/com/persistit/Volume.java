@@ -469,7 +469,7 @@ public class Volume extends SharedResource {
         if (file.exists() && file.isDirectory() && name != null && !name.isEmpty()) {
             file = new File(file, name);
         }
-        _path = file.getCanonicalPath();
+        _path = file.getPath();
         if (name == null || name.isEmpty()) {
             _name = file.getName();
             final int p = _name.lastIndexOf('.');
