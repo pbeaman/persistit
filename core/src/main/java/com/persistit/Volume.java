@@ -168,7 +168,7 @@ public class Volume extends SharedResource {
             final boolean ro) throws PersistitException {
         File file = new File(pathName);
         if (file.exists() && file.isFile()) {
-            return new Volume(persistit, file.getAbsolutePath(), alias, id, ro);
+            return new Volume(persistit, file.getPath(), alias, id, ro);
         }
         throw new PersistitIOException(new FileNotFoundException(pathName));
     }
@@ -469,7 +469,7 @@ public class Volume extends SharedResource {
         if (file.exists() && file.isDirectory() && name != null && !name.isEmpty()) {
             file = new File(file, name);
         }
-        _path = file.getCanonicalPath();
+        _path = file.getPath();
         if (name == null || name.isEmpty()) {
             _name = file.getName();
             final int p = _name.lastIndexOf('.');
@@ -549,7 +549,7 @@ public class Volume extends SharedResource {
             if (mustCreate || tranzient) {
                 throw new VolumeAlreadyExistsException(path);
             }
-            Volume vol = openVolume(persistit, file.getAbsolutePath(), name, id, false);
+            Volume vol = openVolume(persistit, file.getPath(), name, id, false);
             if (vol._bufferSize != bufferSize) {
                 throw new VolumeAlreadyExistsException("Different buffer size expected/actual=" + bufferSize + "/"
                         + vol._bufferSize + ": " + vol);
@@ -564,7 +564,7 @@ public class Volume extends SharedResource {
 
             return vol;
         } else {
-            return new Volume(persistit, file.getAbsolutePath(), name, id, bufferSize, initialPages, extensionPages,
+            return new Volume(persistit, file.getPath(), name, id, bufferSize, initialPages, extensionPages,
                     maximumPages, tranzient);
         }
     }

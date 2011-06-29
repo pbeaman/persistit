@@ -61,7 +61,7 @@ public class ArgParser {
      * </p> <blockquote>
      * 
      * <pre>
-     * <code>  _flags|<i>flchar</i>|<i>description</i></code>
+     * <code>  _flag|<i>flchar</i>|<i>description</i></code>
      *         or
      * <code>  <i>argname</i>|<i>argtype</i>|<i>description</i></code>
      * </pre>

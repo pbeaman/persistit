@@ -147,20 +147,65 @@ public class CLI {
 
     private final static Pattern ALL = Pattern.compile(".*");
 
-    private final static String[] ARG_TEMPLATE = { "port|int:0:0:99999|Port on which to receive command requests (default is stdin)" };
-
+    /**
+     * Simple client for CLI server. Run the command
+     * 
+     * <pre>
+     * <code>
+     * java -cp <i>classpath</i> com.persistit.CLI <i>port command arg arg arg ...</i>
+     * </code>
+     * </pre>
+     * 
+     * to execute a CLI command on the CLI server, e.g.,
+     * 
+     * <pre>
+     * <code>
+     * java -cp persistit.jar com.persistit.CLI 9999 select volume=akiban_data
+     * </code>
+     * </pre>
+     * 
+     * To execute the select command on a server on port 9999.
+     * 
+     * @param args
+     * @throws Exception
+     */
     public static void main(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser("CLI", args, ARG_TEMPLATE);
-        final int port = ap.getIntValue("port");
-        final LineReader reader;
-        if (port != 0) {
-            reader = new NetworkReader(port);
-        } else {
-            reader = lineReader(new BufferedReader(new InputStreamReader(System.in)), new PrintWriter(System.out));
+        final StringBuilder sb = new StringBuilder();
+        int port = -1;
+        String host = null;
+
+        String[] hostPieces = args[0].split(":");
+        switch (hostPieces.length) {
+        case 1:
+            port = Integer.parseInt(hostPieces[0]);
+            break;
+        case 2:
+            host = hostPieces[0];
+            port = Integer.parseInt(hostPieces[1]);
+            break;
         }
-        CLI cli = new CLI();
-        cli.setLineReader(reader);
-        cli.commandLoop();
+
+        for (int index = 1; index < args.length; index++) {
+            if (index > 1) {
+                sb.append(' ');
+            }
+            sb.append(args[index]);
+        }
+        sb.append('\n');
+
+        if (port == -1) {
+            throw new IllegalArgumentException("Invalid host or port specified by " + args[0]);
+        }
+
+        final Socket socket = new Socket(host, port);
+        final OutputStreamWriter writer = new OutputStreamWriter(socket.getOutputStream());
+        writer.write(sb.toString());
+        writer.flush();
+        final InputStreamReader reader = new InputStreamReader(socket.getInputStream());
+        int c;
+        while ((c = reader.read()) != -1) {
+            System.out.print((char) c);
+        }
     }
 
     private static long availableMemory() {
@@ -240,18 +285,12 @@ public class CLI {
         return task;
     }
 
-    private LineReader _lineReader;
-    PrintWriter _writer = new PrintWriter(System.out);
-    private Stack<BufferedReader> _sourceStack = new Stack<BufferedReader>();
-    private Persistit _persistit;
-    private boolean _stop = false;
-    private Volume _currentVolume;
-    private Tree _currentTree;
-
     interface LineReader {
-        public String readLine() throws IOException;
+        String readLine() throws IOException;
 
-        public PrintWriter writer();
+        PrintWriter writer();
+
+        void close() throws IOException;
     }
 
     /**
@@ -273,14 +312,7 @@ public class CLI {
 
         @Override
         public String readLine() throws IOException {
-            if (writer != null) {
-                writer.close();
-                writer = null;
-            }
-            if (socket != null) {
-                socket.close();
-                socket = null;
-            }
+            close();
             socket = serverSocket.accept();
             final BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
@@ -290,6 +322,18 @@ public class CLI {
         @Override
         public PrintWriter writer() {
             return writer;
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (writer != null) {
+                writer.close();
+                writer = null;
+            }
+            if (socket != null) {
+                socket.close();
+                socket = null;
+            }
         }
 
     }
@@ -366,12 +410,23 @@ public class CLI {
         private static final long serialVersionUID = 1L;
     }
 
-    private CLI() {
-        this(null);
-    }
+    // ----------------------
 
-    public CLI(final Persistit persistit) {
+    private LineReader _lineReader;
+    PrintWriter _writer = new PrintWriter(System.out);
+    private Stack<BufferedReader> _sourceStack = new Stack<BufferedReader>();
+    private Persistit _persistit;
+    private boolean _stop = false;
+    private Volume _currentVolume;
+    private Tree _currentTree;
+    private final boolean _live;
+    private int _commandCount;
+    private String _lastStatus;
+
+    public CLI(final Persistit persistit, final int port) throws IOException {
+        _lineReader = new NetworkReader(port);
         _persistit = persistit;
+        _live = persistit != null;
     }
 
     void setLineReader(final LineReader reader) {
@@ -394,6 +449,8 @@ public class CLI {
                 break;
             }
             _writer = _lineReader.writer();
+            _commandCount++;
+            _lastStatus = input;
             try {
                 final List<String> list = pieces(input);
                 if (list.isEmpty()) {
@@ -407,7 +464,9 @@ public class CLI {
                 if ("exit".equals(commandName) || "quit".equals(commandName)) {
                     _stop = true;
                     close(false);
-                    break;
+                    _lastStatus = "Done";
+                    _writer.println("Done");
+                    _lineReader.close();
                 }
 
                 // Handle intrinsic commands
@@ -422,29 +481,21 @@ public class CLI {
                             if (result != null) {
                                 _writer.println(result);
                             }
+                            _lastStatus += " - done";
                         }
                     } catch (InvocationTargetException e) {
+                        _lastStatus += e.getTargetException();
                         _writer.println(e.getTargetException());
                     } catch (RuntimeException e) {
+                        _lastStatus += e;
                         e.printStackTrace(_writer);
                     } catch (Exception e) {
+                        _lastStatus += e;
                         _writer.println(e);
                     }
                     continue;
                 }
-
-                // Handle ManagementCommands
-                if (_persistit != null) {
-                    try {
-                        final String result = _persistit.getManagement().execute(input);
-                        if (result != null) {
-                            _writer.println(result);
-                        }
-                    } catch (IllegalArgumentException e) {
-                        _writer.println(e);
-                    }
-                    continue;
-                }
+                _lastStatus += " - invalid command";
                 _writer.println("No such command " + commandName);
             } finally {
                 _writer.flush();
@@ -569,8 +620,12 @@ public class CLI {
     String close(@Arg("_flag|f|Flush modifications to disk") boolean flush) throws Exception {
         if (_persistit != null) {
             try {
-                _persistit.shutdownGUI();
-                _persistit.close(flush);
+                if (_live) {
+                    return "Detaching from live Persistit instance without closing it";
+                } else {
+                    _persistit.shutdownGUI();
+                    _persistit.close(flush);
+                }
             } catch (Exception e) {
                 return e.toString();
             } finally {
@@ -770,6 +825,33 @@ public class CLI {
         return sb.toString();
     }
 
+    @Cmd("cliserver")
+    static Task cliserver(@Arg("port|int:9999:1024:99999999") final int port) throws Exception {
+        Task task = new Task() {
+            CLI _cli;
+
+            @Override
+            protected void runTask() throws Exception {
+                _cli = new CLI(_persistit, port);
+                _cli.commandLoop();
+            }
+
+            @Override
+            public String getStatus() {
+                CLI cli = _cli;
+                if (cli != null) {
+                    String status = cli._lastStatus;
+                    if (status != null) {
+                        return status;
+                    }
+                }
+                return "Not initialized yet";
+            }
+
+        };
+        return task;
+    }
+
     private String journalPath(List<String> files) {
         String journalPath = null;
         for (final String file : files) {
@@ -910,6 +992,11 @@ public class CLI {
                 public PrintWriter writer() {
                     return writer;
                 }
+
+                @Override
+                public void close() {
+
+                }
             };
             writer.println("jline.ConsoleReader enabled");
         } catch (Exception e) {
@@ -928,6 +1015,11 @@ public class CLI {
                 @Override
                 public PrintWriter writer() {
                     return writer;
+                }
+
+                @Override
+                public void close() {
+
                 }
             };
         }
