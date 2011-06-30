@@ -1250,11 +1250,17 @@ class ManagementImpl implements Management {
                 task.runTask();
                 return task.getStatusDetail();
             }
-            long taskId;
-            synchronized (this) {
-                taskId = ++_taskIdCounter;
-            }
-            task.setup(taskId, commandLine, "cli", 0, 5);
+            return launch(task, commandLine);
+        } catch (Exception ex) {
+            return "Failed: " + ex.toString();
+        }
+    }
+
+    @Override
+    public String launch(final Task task, final String description) throws RemoteException {
+        try {
+            long taskId = taskId();
+            task.setup(taskId, description, Thread.currentThread().getName(), 0, 5);
             _tasks.put(new Long(taskId), task);
             task.start();
             return Long.toString(taskId);
@@ -1276,5 +1282,9 @@ class ManagementImpl implements Management {
         } catch (Exception ex) {
             return "Failed: " + ex.toString();
         }
+    }
+
+    public synchronized long taskId() {
+        return ++_taskIdCounter;
     }
 }

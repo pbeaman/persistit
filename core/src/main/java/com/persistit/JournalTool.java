@@ -308,7 +308,10 @@ public class JournalTool {
         _startAddr = start;
         _endAddr = end;
         String pathName = path;
-        if (pathName == null || pathName.length() == 0) {
+        if (isNullOrEmpty(pathName) && _persistit != null) {
+            pathName = _persistit.getJournalManager().getJournalFilePath();
+        }
+        if (isNullOrEmpty(pathName)) {
             throw new IllegalArgumentException(
                     "The 'path' parameter must specify a valid journal path, for example, \n"
                             + " /xxx/yyy/jjj where journal file names " + "are like jjj.000000001234");
@@ -332,6 +335,10 @@ public class JournalTool {
         _valueDisplayLength = maxvalue;
         _verbose = v;
 
+    }
+
+    private boolean isNullOrEmpty(final String string) {
+        return string == null || string.isEmpty();
     }
 
     private void parseTypes(final String types) {

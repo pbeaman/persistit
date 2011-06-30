@@ -585,6 +585,18 @@ public interface Management extends Remote, ManagementMXBean {
             throws RemoteException;
 
     /**
+     * Launch a task.
+     * 
+     * @param task
+     *            the Task
+     * @param a
+     *            description identifying what the task is doing
+     * @return the taskId as a String, or other status information
+     * @throws RemoteException
+     */
+    public String launch(final Task task, final String description) throws RemoteException;
+
+    /**
      * Queries the current status of one or all tasks. If the specified taskId
      * value is -1, this method returns status information for all currently
      * active tasks.
