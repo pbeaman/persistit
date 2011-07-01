@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 
+import com.persistit.util.Debug;
+
 /**
  * @author pbeaman
  * 

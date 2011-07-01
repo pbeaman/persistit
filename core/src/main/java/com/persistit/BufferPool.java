@@ -29,6 +29,7 @@ import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.exception.VolumeClosedException;
+import com.persistit.util.Debug;
 
 /**
  * A pool of {@link Buffer} objects, maintained on various lists that permit

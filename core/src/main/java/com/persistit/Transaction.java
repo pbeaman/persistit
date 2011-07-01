@@ -43,6 +43,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.util.Debug;
 import com.persistit.util.InternalHashSet;
 
 /**

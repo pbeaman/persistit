@@ -43,6 +43,7 @@ import com.persistit.exception.RetryException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeFullException;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**

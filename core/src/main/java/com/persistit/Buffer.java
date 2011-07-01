@@ -30,6 +30,7 @@ import com.persistit.exception.RebalanceException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**
@@ -655,7 +656,7 @@ public final class Buffer extends SharedResource {
     }
 
     void setKeyBlockEnd(final int index) {
-        Debug.$assert1.t(index >= KEY_BLOCK_START && index <= (_pool.getMaxKeys() * KEYBLOCK_LENGTH) + KEY_BLOCK_START
+        Debug.$assert0.t(index >= KEY_BLOCK_START && index <= (_pool.getMaxKeys() * KEYBLOCK_LENGTH) + KEY_BLOCK_START
                 || (!isDataPage() && !isIndexPage() || !isValid()));
         _keyBlockEnd = index;
     }
@@ -786,7 +787,7 @@ public final class Buffer extends SharedResource {
                             // and right ends of the range to the keyblock
                             // we are seeking.
                             //
-                            if (runCount > 4) {
+                            if (runCount > 6) {
                                 int distance = (right - left) >> 2;
                                 int oldRight = right;
                                 if (distance > kb - db + 1) {
@@ -1454,8 +1455,9 @@ public final class Buffer extends SharedResource {
         } else if (value != Value.EMPTY_VALUE) {
             System.arraycopy(value.getEncodedBytes(), 0, _bytes, newTail + _tailHeaderSize + klength, length);
         }
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             assertVerify();
+        }
         return p | (key.getEncodedSize() << DEPTH_SHIFT) | EXACT_MASK;
     }
 
@@ -1477,9 +1479,9 @@ public final class Buffer extends SharedResource {
      *         <i>false</i>
      */
     boolean removeKeys(int foundAt1, int foundAt2, Key spareKey) {
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             assertVerify();
-
+        }
         int p1 = foundAt1 & P_MASK;
         int p2 = foundAt2 & P_MASK;
         if ((foundAt2 & EXACT_MASK) != 0)

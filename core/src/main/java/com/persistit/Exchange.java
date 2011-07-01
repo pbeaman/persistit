@@ -49,6 +49,7 @@ import com.persistit.exception.RetryException;
 import com.persistit.exception.TreeNotFoundException;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**
@@ -917,11 +918,10 @@ public class Exchange {
         //
         if (foundAt != -1 && buffer.getGeneration() == lc._bufferGeneration && key == _key) {
             if (key.getGeneration() == lc._keyGeneration) {
-                // return foundAt;
-                done = true;
+                Debug.$assert0.t(buffer.findKey(key) == foundAt);
+                return foundAt;
             }
         }
-        Debug.$assert0.t(!done || buffer.findKey(key) == foundAt);
         //
         // If no longer valid, then look it up again.
         //

@@ -13,13 +13,13 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.persistit;
+package com.persistit.util;
 
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.StringTokenizer;
 
-import com.persistit.util.Util;
+import com.persistit.LogBase;
 
 public class Debug {
 
@@ -33,7 +33,6 @@ public class Debug {
 
     private static class Null implements Dbg {
         public void t(final boolean b) {
-
         }
     }
 
@@ -61,8 +60,6 @@ public class Debug {
     public static Dbg $assert1 = new Assert("assert1");
 
     private static int _suspendedCount;
-    // Lazily instantiated
-    private static Random _random;
 
     private static ArrayList<Thread> _brokenThreads = new ArrayList<Thread>();
 
@@ -132,7 +129,7 @@ public class Debug {
      * 
      * @return <i>true</i>
      */
-    static boolean suspend() {
+    public static boolean suspend() {
         // Never suspend the AWT thread when. The AWT thread is now
         // a daemon thread when running the diagnostic GUI utility.
         //

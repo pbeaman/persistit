@@ -17,6 +17,7 @@ package com.persistit;
 
 import com.persistit.encoding.CoderContext;
 import com.persistit.exception.MissingKeySegmentException;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**

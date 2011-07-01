@@ -15,10 +15,10 @@
 
 package com.persistit.unit;
 
-import com.persistit.Debug;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.exception.PersistitException;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**

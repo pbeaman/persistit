@@ -15,7 +15,7 @@
 
 package com.persistit.exception;
 
-import com.persistit.Debug;
+import com.persistit.util.Debug;
 
 /**
  * Thrown by {@link com.persistit.Volume} if the volume file being opened is

@@ -42,6 +42,7 @@ import com.persistit.encoding.ValueRenderer;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.MalformedValueException;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**

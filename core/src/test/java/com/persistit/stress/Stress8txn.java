@@ -15,7 +15,6 @@
 
 package com.persistit.stress;
 
-import com.persistit.Debug;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
@@ -23,6 +22,7 @@ import com.persistit.TransactionRunnable;
 import com.persistit.exception.PersistitException;
 import com.persistit.test.TestResult;
 import com.persistit.util.ArgParser;
+import com.persistit.util.Debug;
 
 /**
  * @version 1.0

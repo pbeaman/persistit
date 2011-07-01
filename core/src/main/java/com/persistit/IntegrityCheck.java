@@ -22,6 +22,7 @@ import com.persistit.CLI.Cmd;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**

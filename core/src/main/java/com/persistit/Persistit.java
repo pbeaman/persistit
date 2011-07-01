@@ -61,6 +61,7 @@ import com.persistit.logging.DefaultPersistitLogger;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.util.ArgParser;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 import com.persistit.util.UtilControl;
 

@@ -17,6 +17,8 @@ package com.persistit;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.persistit.util.Debug;
+
 public class FastIndex {
 
     /**

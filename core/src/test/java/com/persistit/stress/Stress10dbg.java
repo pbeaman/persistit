@@ -15,11 +15,11 @@
 
 package com.persistit.stress;
 
-import com.persistit.Debug;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.test.TestResult;
 import com.persistit.util.ArgParser;
+import com.persistit.util.Debug;
 
 public class Stress10dbg extends StressBase {
 

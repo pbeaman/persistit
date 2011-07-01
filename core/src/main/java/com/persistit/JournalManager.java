@@ -56,6 +56,7 @@ import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.util.Debug;
 
 /**
  * Manages the disk-based I/O journal. The journal contains both committed

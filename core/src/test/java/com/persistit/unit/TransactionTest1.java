@@ -21,7 +21,6 @@ import java.util.Set;
 
 import org.junit.Test;
 
-import com.persistit.Debug;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
@@ -29,6 +28,7 @@ import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
+import com.persistit.util.Debug;
 
 public class TransactionTest1 extends PersistitUnitTestCase {
 
