@@ -15,11 +15,11 @@
 
 package com.persistit.stress;
 
-import com.persistit.ArgParser;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
 import com.persistit.test.TestResult;
+import com.persistit.util.ArgParser;
 
 /**
  * Test to try all split and join locations and conditions. Plan: 1. For each of

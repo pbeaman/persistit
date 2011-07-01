@@ -20,7 +20,7 @@ import static com.persistit.JournalRecord.getLength;
 import static com.persistit.JournalRecord.getTimestamp;
 import static com.persistit.JournalRecord.getType;
 import static com.persistit.JournalRecord.isValidType;
-import static com.persistit.Util.println;
+import static com.persistit.util.Util.println;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -62,6 +62,8 @@ import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.TestException;
+import com.persistit.util.ArgParser;
+import com.persistit.util.Util;
 
 /**
  * <p>

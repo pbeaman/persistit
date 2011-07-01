@@ -23,8 +23,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.TreeMap;
 
-import com.persistit.Util;
 import com.persistit.Value;
+import com.persistit.util.Util;
 
 public class ValueTest1 extends PersistitUnitTestCase {
 

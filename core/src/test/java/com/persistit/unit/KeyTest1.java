@@ -24,7 +24,7 @@ import org.junit.Test;
 
 import com.persistit.Key;
 import com.persistit.KeyState;
-import com.persistit.Util;
+import com.persistit.util.Util;
 
 public class KeyTest1 extends PersistitUnitTestCase {
 

@@ -48,6 +48,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.util.ArgParser;
+import com.persistit.util.Util;
 
 /**
  * Handle commands delivered interactively as command strings.  For example,

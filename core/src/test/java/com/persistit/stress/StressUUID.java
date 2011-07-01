@@ -17,8 +17,8 @@ package com.persistit.stress;
 
 import java.util.UUID;
 
-import com.persistit.ArgParser;
 import com.persistit.Key;
+import com.persistit.util.ArgParser;
 
 public class StressUUID extends StressBase {
 

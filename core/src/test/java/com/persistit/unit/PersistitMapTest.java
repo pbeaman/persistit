@@ -29,8 +29,8 @@ import java.util.TreeMap;
 import com.persistit.Exchange;
 import com.persistit.KeyFilter;
 import com.persistit.PersistitMap;
-import com.persistit.Util;
 import com.persistit.exception.PersistitException;
+import com.persistit.util.Util;
 
 public class PersistitMapTest extends PersistitUnitTestCase {
 

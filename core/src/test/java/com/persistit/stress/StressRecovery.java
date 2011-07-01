@@ -21,10 +21,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.persistit.ArgParser;
 import com.persistit.Exchange;
 import com.persistit.Transaction;
 import com.persistit.exception.RollbackException;
+import com.persistit.util.ArgParser;
 
 /**
  * This class tests recovery after a non-graceful shutdown. To test, run this

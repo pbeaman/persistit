@@ -24,7 +24,7 @@ import javax.swing.JTextArea;
 import javax.swing.ScrollPaneConstants;
 
 import com.persistit.Management;
-import com.persistit.Util;
+import com.persistit.util.Util;
 
 /**
  * @author Peter Beaman

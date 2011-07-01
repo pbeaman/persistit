@@ -314,7 +314,7 @@ class SharedResource {
                 }
             } catch (InterruptedException e) {
             }
-            Debug.debug1(true);
+            Debug.$assert1.t(false);
             return false;
         }
     }
@@ -341,7 +341,7 @@ class SharedResource {
         final Thread t = Thread.currentThread();
         for (int index = _threads.size(); --index >= 0;) {
             if (_threads.get(index) == t) {
-                Debug.debug1(true);
+                Debug.$assert1.t(false);
                 return false;
             }
         }

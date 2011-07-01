@@ -33,6 +33,7 @@ import com.persistit.CLI.Cmd;
 import com.persistit.Management.JournalInfo;
 import com.persistit.Management.VolumeInfo;
 import com.persistit.TimestampAllocator.Checkpoint;
+import com.persistit.util.Util;
 
 /**
  * Task to perform and/or control hot (concurrent) backup. Generally the process

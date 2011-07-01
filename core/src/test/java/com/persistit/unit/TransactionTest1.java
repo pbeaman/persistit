@@ -277,7 +277,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                 if ((i >= 10) && (i < 20)) {
                     s2 += "'";
                 }
-                Debug.$assert(s1.equals(s2));
+                Debug.$assert1.t(s1.equals(s2));
                 assertEquals(s1, s2);
             }
             for (int i = 0; i < 10; i++) {
@@ -321,7 +321,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
             if ((i >= 10) && (i < 20)) {
                 s2 += "'";
             }
-            Debug.$assert(s1.equals(s2));
+            Debug.$assert1.t(s1.equals(s2));
             assertEquals(s1, s2);
         }
 

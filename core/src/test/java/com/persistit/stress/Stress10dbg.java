@@ -15,11 +15,11 @@
 
 package com.persistit.stress;
 
-import com.persistit.ArgParser;
 import com.persistit.Debug;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.test.TestResult;
+import com.persistit.util.ArgParser;
 
 public class Stress10dbg extends StressBase {
 
@@ -137,7 +137,7 @@ public class Stress10dbg extends StressBase {
                             _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1 + " key="
                                     + _ex1.getKey());
                             println(_result);
-                            Debug.debug1(true);
+                            Debug.$assert1.t(false);
                             forceStop();
                         }
 
@@ -164,7 +164,7 @@ public class Stress10dbg extends StressBase {
                             _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1 + " key="
                                     + _ex.getKey());
                             println(_result);
-                            Debug.debug1(true);
+                            Debug.$assert1.t(false);
                             forceStop();
                         }
                     } catch (final Exception e) {
@@ -194,7 +194,7 @@ public class Stress10dbg extends StressBase {
                                 _result = new TestResult(false, "Value is size " + size2 + ", should be " + size1
                                         + " key=" + _ex.getKey());
                                 println(_result);
-                                Debug.debug1(true);
+                                Debug.$assert1.t(false);
                                 forceStop();
                             }
                             _exs.cut();

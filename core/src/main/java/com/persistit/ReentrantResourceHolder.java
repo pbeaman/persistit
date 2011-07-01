@@ -25,7 +25,7 @@ public class ReentrantResourceHolder {
     }
 
     void verifyReleased() {
-        Debug.debug1(_claimCount != 0);
+        Debug.$assert0.t(_claimCount == 0);
         _claimCount = 0;
     }
 

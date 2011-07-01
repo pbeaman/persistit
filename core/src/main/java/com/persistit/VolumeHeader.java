@@ -21,7 +21,7 @@ import java.nio.channels.FileChannel;
 
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
-import com.persistit.Util;
+import com.persistit.util.Util;
 
 /**
  * A volume header represents the header information at the beginning of each

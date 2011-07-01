@@ -43,6 +43,7 @@ import com.persistit.exception.RetryException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeFullException;
+import com.persistit.util.Util;
 
 /**
  * Holds a collection of data organized logically into trees and physically into
@@ -634,7 +635,8 @@ public class Volume extends SharedResource {
         return _garbageRoot;
     }
 
-    private void setGarbageRoot(long garbagePage) throws InUseException, ReadOnlyVolumeException, PersistitIOException, InvalidPageStructureException {
+    private void setGarbageRoot(long garbagePage) throws InUseException, ReadOnlyVolumeException, PersistitIOException,
+            InvalidPageStructureException {
         _garbageRoot = garbagePage;
         checkpointMetaData();
     }
@@ -860,8 +862,7 @@ public class Volume extends SharedResource {
     }
 
     void deallocateGarbageChain(long left, long right) throws PersistitException {
-        if (Debug.ENABLED)
-            Debug.$assert(left > 0);
+        Debug.$assert0.t(left > 0);
 
         claimHeadBuffer();
 
@@ -870,15 +871,13 @@ public class Volume extends SharedResource {
         try {
             long garbagePage = getGarbageRoot();
             if (garbagePage != 0) {
-                if (Debug.ENABLED) {
-                    Debug.$assert(left != garbagePage && right != garbagePage);
-                }
+                Debug.$assert0.t(left != garbagePage && right != garbagePage);
 
                 garbageBuffer = _pool.get(this, garbagePage, true, true);
-                
+
                 final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                 garbageBuffer.writePageOnCheckpoint(timestamp);
-                
+
                 boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
 
                 if (fits) {
@@ -900,18 +899,15 @@ public class Volume extends SharedResource {
             boolean solitaire = (right == -1);
             garbageBuffer = _pool.get(this, left, true, !solitaire);
 
-            
             final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
             garbageBuffer.writePageOnCheckpoint(timestamp);
 
-            if (Debug.ENABLED)
-                Debug.$assert((garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())
-                        || garbageBuffer.isLongRecordPage() || (solitaire && garbageBuffer.isUnallocatedPage()));
+            Debug.$assert0.t((garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())
+                    || garbageBuffer.isLongRecordPage() || (solitaire && garbageBuffer.isUnallocatedPage()));
 
             long nextGarbagePage = solitaire ? 0 : garbageBuffer.getRightSibling();
 
-            if (Debug.ENABLED)
-                Debug.$assert(nextGarbagePage > 0 || right == 0 || solitaire);
+            Debug.$assert0.t(nextGarbagePage > 0 || right == 0 || solitaire);
 
             harvestLongRecords(garbageBuffer, 0, Integer.MAX_VALUE);
 
@@ -1230,7 +1226,7 @@ public class Volume extends SharedResource {
         Buffer rootPageBuffer = null;
 
         rootPageBuffer = allocPage();
-        
+
         final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         rootPageBuffer.writePageOnCheckpoint(timestamp);
 
@@ -1356,16 +1352,13 @@ public class Volume extends SharedResource {
                 final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                 garbageBuffer.writePageOnCheckpoint(timestamp);
                 try {
-                    if (Debug.ENABLED)
-                        Debug.$assert(garbageBuffer.isGarbagePage());
-                    if (Debug.ENABLED)
-                        Debug.$assert((garbageBuffer.getStatus() & CLAIMED_MASK) == 1);
+                    Debug.$assert0.t(garbageBuffer.isGarbagePage());
+                    Debug.$assert0.t((garbageBuffer.getStatus() & CLAIMED_MASK) == 1);
 
                     long page = garbageBuffer.getGarbageChainLeftPage();
                     long rightPage = garbageBuffer.getGarbageChainRightPage();
 
-                    if (Debug.ENABLED)
-                        Debug.$assert(page != 0);
+                    Debug.$assert0.t(page != 0);
 
                     if (page == -1) {
                         long newGarbageRoot = garbageBuffer.getRightSibling();
@@ -1384,8 +1377,7 @@ public class Volume extends SharedResource {
                         boolean solitaire = rightPage == -1;
                         buffer = _pool.get(this, page, true, !solitaire);
 
-                        if (Debug.ENABLED)
-                            Debug.$assert(buffer.getPageAddress() > 0);
+                        Debug.$assert0.t(buffer.getPageAddress() > 0);
 
                         long nextGarbagePage = solitaire ? -1 : buffer.getRightSibling();
 
@@ -1401,18 +1393,16 @@ public class Volume extends SharedResource {
                                         0, 0, 0, garbageBufferInfo(garbageBuffer), null, null, null, null);
                             }
 
-                            if (Debug.ENABLED) {
-                                Debug.$assert(nextGarbagePage > 0);
-                            }
+                            Debug.$assert0.t(nextGarbagePage > 0);
                             garbageBuffer.setGarbageLeftPage(nextGarbagePage);
                         }
                         garbageBuffer.setDirtyAtTimestamp(timestamp);
                     }
-                    if (Debug.ENABLED) {
-                        Debug.$assert(buffer != null && buffer.getPageAddress() != 0
-                                && buffer.getPageAddress() != _garbageRoot
-                                && buffer.getPageAddress() != _directoryRootPage);
-                    }
+
+                    Debug.$assert0
+                            .t(buffer != null && buffer.getPageAddress() != 0
+                                    && buffer.getPageAddress() != _garbageRoot
+                                    && buffer.getPageAddress() != _directoryRootPage);
 
                     harvestLongRecords(buffer, 0, Integer.MAX_VALUE);
 
@@ -1443,8 +1433,7 @@ public class Volume extends SharedResource {
 
                 checkpointMetaData();
 
-                if (Debug.ENABLED)
-                    Debug.$assert(buffer.getPageAddress() != 0);
+                Debug.$assert0.t(buffer.getPageAddress() != 0);
                 return buffer;
             }
         } finally {

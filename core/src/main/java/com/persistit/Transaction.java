@@ -43,6 +43,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.util.InternalHashSet;
 
 /**
  * <p>
@@ -724,7 +725,7 @@ public class Transaction {
             _commitListeners.clear();
             // First release the pessimistic lock if we claimed it.
             if (Debug.ENABLED && _rollbackPending) {
-                Debug.debug1(_rollbacksSinceLastCommit - _pessimisticRetryThreshold > 20);
+                Debug.$assert1.t(_rollbacksSinceLastCommit - _pessimisticRetryThreshold < 20);
             }
             _persistit.getTransactionResourceA().release();
             _startTimestamp.set(-1);
@@ -755,9 +756,7 @@ public class Transaction {
             _rollbackPending = false;
             _visbilityOrder.clear();
 
-            if (Debug.ENABLED) {
-                Debug.$assert(_touchedPagesSet.size() == 0);
-            }
+            Debug.$assert0.t(_touchedPagesSet.size() == 0);
             _touchedPagesSet.clear();
         }
         _commitCompleted = false;
@@ -2021,7 +2020,7 @@ public class Transaction {
                     Volume volume = dc._volume;
                     long pageAddr = dc._leftPage;
                     Buffer buffer = volume.getPool().get(volume, pageAddr, false, true);
-                    Debug.$assert(buffer.isLongRecordPage());
+                    Debug.$assert0.t(buffer.isLongRecordPage());
                     volume.getPool().release(buffer);
                 }
 
@@ -2059,12 +2058,11 @@ public class Transaction {
                 Volume volume = currentTree.getVolume();
                 long pageAddress = Buffer.decodeLongRecordDescriptorPointer(bytes, 0);
 
-                if (Debug.ENABLED)
-                    Debug.$assert(pageAddress > 0 && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
+                Debug.$assert0.t(pageAddress > 0 && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
 
                 if (Debug.ENABLED) {
                     Buffer buffer = volume.getPool().get(volume, pageAddress, false, true);
-                    Debug.$assert(buffer.isLongRecordPage());
+                    Debug.$assert0.t(buffer.isLongRecordPage());
                     buffer.release();
                 }
 

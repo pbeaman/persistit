@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.util.Util;
 
 /**
  * Represents a single B-Tree within a {@link Volume}.
@@ -88,8 +89,7 @@ public class Tree extends SharedResource {
     }
 
     void changeRootPageAddr(long rootPageAddr, int deltaDepth) {
-        if (Debug.ENABLED)
-            Debug.$assert(isMine());
+        Debug.$assert0.t(isMine());
         _rootPageAddr = rootPageAddr;
         _depth += deltaDepth;
         setDirty();

@@ -17,6 +17,7 @@ package com.persistit;
 
 import com.persistit.encoding.CoderContext;
 import com.persistit.exception.MissingKeySegmentException;
+import com.persistit.util.Util;
 
 /**
  * <p>
@@ -1518,10 +1519,8 @@ public class KeyFilter {
         Term term = level >= _terms.length ? ALL : _terms[level];
         int nextIndex;
 
-        if (Debug.ENABLED) {
-            Debug.$assert(level < _maxDepth);
-            Debug.$assert(index <= size);
-        }
+        Debug.$assert0.t(level < _maxDepth);
+        Debug.$assert0.t(index <= size);
 
         if (term == null) {
             return false;

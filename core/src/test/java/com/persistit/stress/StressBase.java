@@ -17,11 +17,11 @@ package com.persistit.stress;
 
 import java.util.Random;
 
-import com.persistit.ArgParser;
 import com.persistit.Exchange;
 import com.persistit.Value;
 import com.persistit.test.AbstractTestRunnerItem;
 import com.persistit.test.TestResult;
+import com.persistit.util.ArgParser;
 
 public abstract class StressBase extends AbstractTestRunnerItem {
 

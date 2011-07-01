@@ -34,6 +34,7 @@ import java.util.Vector;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.CollectionValueCoder;
 import com.persistit.encoding.KeyCoder;
+import com.persistit.encoding.SerialValueCoder;
 import com.persistit.encoding.ValueCoder;
 
 /**

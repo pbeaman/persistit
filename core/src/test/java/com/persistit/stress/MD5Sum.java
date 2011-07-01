@@ -20,9 +20,9 @@ import java.security.MessageDigest;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.Util;
 import com.persistit.Volume;
 import com.persistit.test.AbstractTestRunnerItem;
+import com.persistit.util.Util;
 
 public class MD5Sum extends AbstractTestRunnerItem {
 

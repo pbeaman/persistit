@@ -40,8 +40,8 @@ import javax.swing.event.ListSelectionListener;
 import com.persistit.Management;
 import com.persistit.Management.TaskStatus;
 import com.persistit.Task;
-import com.persistit.Util;
 import com.persistit.ui.AdminUI.AdminAction;
+import com.persistit.util.Util;
 
 public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
     private final static int FAST_REFRESH_INTERVAL = 1;

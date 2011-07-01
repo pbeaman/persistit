@@ -33,7 +33,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.tree.TreeNode;
 
 import com.persistit.Key;
-import com.persistit.Util;
+import com.persistit.util.Util;
 
 /**
  * @author Peter Beaman

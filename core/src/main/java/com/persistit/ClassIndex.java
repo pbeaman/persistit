@@ -17,6 +17,7 @@ package com.persistit;
 
 import java.io.ObjectStreamClass;
 
+import com.persistit.encoding.CoderManager;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.PersistitException;
 

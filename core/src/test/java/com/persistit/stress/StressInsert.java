@@ -17,10 +17,10 @@ package com.persistit.stress;
 
 import java.util.Random;
 
-import com.persistit.ArgParser;
 import com.persistit.Key;
 import com.persistit.Value;
 import com.persistit.test.TestResult;
+import com.persistit.util.ArgParser;
 
 public class StressInsert extends StressBase {
 

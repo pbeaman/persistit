@@ -19,10 +19,46 @@ import java.util.ArrayList;
 import java.util.Random;
 import java.util.StringTokenizer;
 
+import com.persistit.util.Util;
+
 public class Debug {
+
     public final static boolean ENABLED = false;
 
     public final static boolean VERIFY_PAGES = false;
+
+    public interface Dbg {
+        void t(boolean b);
+    }
+
+    private static class Null implements Dbg {
+        public void t(final boolean b) {
+
+        }
+    }
+
+    private static class Assert implements Dbg {
+        private final String _name;
+
+        private Assert(final String name) {
+            _name = name;
+        }
+
+        public void t(final boolean b) {
+            if (!b) {
+                logDebugMessage(_name);
+                setSuspended(true);
+                //
+                // Put a breakpoint on the next statement.
+                //
+                setSuspended(false); // <-- BREAKPOINT HERE
+            }
+        }
+    }
+
+
+    public static Dbg $assert0 = ENABLED ? new Assert("assert0") : new Null();
+    public static Dbg $assert1 = new Assert("assert1");
 
     private static int _suspendedCount;
     // Lazily instantiated
@@ -45,9 +81,9 @@ public class Debug {
     }
 
     private static void logDebugMessage(String msg) {
-        DebugException de = new DebugException();
-        de.fillInStackTrace();
-        String s = LogBase.detailString(de).replace('\r', ' ');
+        RuntimeException exception = new RuntimeException();
+        exception.fillInStackTrace();
+        String s = LogBase.detailString(exception).replace('\r', ' ');
         StringTokenizer st = new StringTokenizer(s, "\n");
         StringBuilder sb = new StringBuilder(msg);
         sb.append(Util.NEW_LINE);
@@ -57,194 +93,6 @@ public class Debug {
             sb.append(Util.NEW_LINE);
         }
         System.err.println("Debug " + sb.toString());
-    }
-
-    private static class DebugException extends Exception {
-    }
-
-    /**
-     * Use this method for a conditional breakpoint that executes at full speed.
-     * Set a debugger breakpoint where indicated.
-     * 
-     * @param condition
-     *            <i>true</i> if the breakpoint should be taken
-     * @return <i>true</i>
-     */
-    public static boolean debug(boolean condition) {
-        if (!condition)
-            return false;
-        // Put a breakpoint on this return statement.
-        logDebugMessage("debug");
-        return true; // <-- BREAKPOINT HERE
-    }
-
-    /**
-     * Use this method for a conditional breakpoint that executes at full speed.
-     * Set a debugger breakpoint where indicated. This method also sets the
-     * suspend flag so other threads will be suspended at a suspend point if
-     * necessary. (Simplifies debugging because the diagnostic UI still works in
-     * this situation.)
-     * 
-     * @param condition
-     *            <i>true</i> if the breakpoint should be taken
-     * @return <i>false</i>
-     */
-    public static boolean debug0(boolean condition) {
-        if (condition) {
-            logDebugMessage("debug0");
-            setSuspended(true);
-            //
-            // Put a breakpoint on the next statement.
-            //
-            setSuspended(false); // <-- BREAKPOINT HERE
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Use this method for a conditional breakpoint that executes at full speed.
-     * Set a debugger breakpoint where indicated. This method also sets the
-     * suspend flag so other threads will be suspended at a suspend point if
-     * necessary. (Simplifies debugging because the diagnostic UI still works in
-     * this situation.)
-     * 
-     * @param condition
-     *            <i>true</i> if the breakpoint should be taken
-     * @return <i>false</i>
-     */
-    public static boolean debug1(boolean condition) {
-        if (condition) {
-            logDebugMessage("debug1");
-            setSuspended(true);
-            //
-            // Put a breakpoint on the next statement.
-            //
-            setSuspended(false); // <-- BREAKPOINT HERE
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Use this method for a conditional breakpoint that executes at full speed.
-     * Set a debugger breakpoint where indicated. This method also sets the
-     * suspend flag so other threads will be suspended at a suspend point if
-     * necessary. (Simplifies debugging because the diagnostic UI still works in
-     * this situation.)
-     * 
-     * @param condition
-     *            <i>true</i> if the breakpoint should be taken
-     * @return <i>false</i>
-     */
-    public static boolean debug2(boolean condition) {
-        if (condition) {
-            logDebugMessage("debug2");
-            setSuspended(true);
-            //
-            // Put a breakpoint on the next statement.
-            //
-            setSuspended(false); // <-- BREAKPOINT HERE
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Use this method for a conditional breakpoint that executes at full speed.
-     * Set a debugger breakpoint where indicated. This method also sets the
-     * suspend flag so other threads will be suspended at a suspend point if
-     * necessary. (Simplifies debugging because the diagnostic UI still works in
-     * this situation.)
-     * 
-     * @param condition
-     *            <i>true</i> if the breakpoint should be taken
-     * @return <i>false</i>
-     */
-    public static boolean debug3(boolean condition) {
-        if (condition) {
-            logDebugMessage("debug3");
-            setSuspended(true);
-            //
-            // Put a breakpoint on the next statement.
-            //
-            setSuspended(false); // <-- BREAKPOINT HERE
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Replace assert statements with calls to this method in order to take a
-     * breakpoint before throwing the AssertionError if the condition is false.
-     * 
-     * @param condition
-     */
-    public static void $assert(boolean condition) {
-        if (!condition) {
-            setSuspended(true);
-            logDebugMessage("$assert");
-            //
-            // Put a breakpoint on the next statement.
-            //
-            setSuspended(false); // <-- BREAKPOINT HERE
-            /* JDK14 */// assert(false);
-        }
-    }
-
-    /**
-     * Invoke this method to sleep briefly on a random basis. This method
-     * invokes sleep approximately once per thousand invocations.
-     */
-    public static void debugPause() {
-        debugPause(true);
-    }
-
-    /**
-     * Invoke this method to sleep briefly on a random basis. This method
-     * invokes sleep approximately once per thousand invocations on which the
-     * condition is true.
-     * 
-     * @param condition
-     *            <i>true<i> to whether to pause with 0.1% probability
-     */
-    public static void debugPause(boolean condition) {
-        debugPause(condition, 0.001);
-    }
-
-    /**
-     * Invoke this method to sleep briefly on a random basis. Supply a double
-     * value to indicate the probability that should be used.
-     * 
-     * @param condition
-     *            <i>true<i> to whether to pause
-     */
-    public static void debugPause(boolean condition, double probability) {
-        if (_random == null)
-            _random = new Random(1000);
-        if (condition && probability >= 1.0 || _random.nextFloat() < probability) {
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException ie) {
-            }
-        }
-    }
-
-    /**
-     * Invoke this method to perform a System.exit() operation on a random basis
-     * according to the supplied probability.
-     * 
-     * @param probability
-     */
-    public static void debugExit(double probability) {
-        if (_random == null)
-            _random = new Random(1000);
-        if (probability >= 1.0 || _random.nextFloat() < probability) {
-            logDebugMessage("debugExit");
-            System.out.println();
-            System.out.println("DEBUG EXIT!");
-            System.exit(0);
-        }
     }
 
     /**
@@ -261,7 +109,7 @@ public class Debug {
             _suspendedCount--;
             _brokenThreads.remove(Thread.currentThread());
             if (_suspendedCount == 0) {
-                $assert(_brokenThreads.size() == _suspendedCount);
+                $assert1.t(_brokenThreads.size() == _suspendedCount);
             }
         }
     }

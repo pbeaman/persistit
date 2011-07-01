@@ -132,7 +132,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         int length = 19;
         while (length < 10000000) {
             sb.setLength(0);
-            sb.append(com.persistit.Util.format(length));
+            sb.append(com.persistit.util.Util.format(length));
             sb.append("  ");
             sb.setLength(length);
             // System.out.print("Record length " + length);
@@ -153,7 +153,7 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         int length = 19;
         while (length < 10000000) {
             sb.setLength(0);
-            sb.append(com.persistit.Util.format(length));
+            sb.append(com.persistit.util.Util.format(length));
             sb.append("  ");
             sb.setLength(length);
             // System.out.print("Record length " + length);
