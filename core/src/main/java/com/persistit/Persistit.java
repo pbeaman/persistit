@@ -503,10 +503,8 @@ public class Persistit {
         try {
             getPersistitLogger().open();
             String logLevel = getProperty(LOGGING_PROPERTIES);
-            if (logLevel != null) {
-                if (getPersistitLogger() instanceof DefaultPersistitLogger) {
-                    ((DefaultPersistitLogger) getPersistitLogger()).setLevel(logLevel);
-                }
+            if (logLevel != null && getPersistitLogger() instanceof DefaultPersistitLogger) {
+                ((DefaultPersistitLogger) getPersistitLogger()).setLevel(logLevel);
             }
             _logBase.configure(getPersistitLogger());
             _logBase.start.log(_startTime);

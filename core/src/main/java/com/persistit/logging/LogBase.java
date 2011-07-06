@@ -41,10 +41,10 @@ public class LogBase {
     @Message("INFO|%s")
     public final LogItem copyright = PersistitLogMessage.empty();
 
-    @Message("INFO|Log started at %tc")
+    @Message("INFO|Log started %tc")
     public final LogItem start = PersistitLogMessage.empty();
 
-    @Message("INFO|Log ended at %tc")
+    @Message("INFO|Log ended %tc")
     public final LogItem end = PersistitLogMessage.empty();
 
     @Message("ERROR|%s")
@@ -113,13 +113,13 @@ public class LogBase {
     @Message("INFO|Starting AdminUI")
     public final LogItem startAdminUI = PersistitLogMessage.empty();
 
-    @Message("INFO|JMX MBean %s is registered")
+    @Message("INFO|MXBean %s is registered")
     public final LogItem mbeanRegistered = PersistitLogMessage.empty();
 
-    @Message("INFO|JMX MBean %s is unregistered")
+    @Message("INFO|MXBean %s is unregistered")
     public final LogItem mbeanUnregistered = PersistitLogMessage.empty();
 
-    @Message("WARNING|Failure while registering JMX MBean: %s")
+    @Message("WARNING|Failure while registering MXBean: %s")
     public final LogItem mbeanException = PersistitLogMessage.empty();
 
     @Message("TRACE|Added new garbage chain leftPage=%,d, rightPage=%,d %s")
@@ -161,13 +161,7 @@ public class LogBase {
     @Message("ERROR|IOException %s while extending %s: old length=%,d, new length=%,d")
     public final LogItem extendException = PersistitLogMessage.empty();
 
-    @Message("DEBUG|Register management RMI Server on port %s")
-    public final LogItem rmiServerRegisterPort = PersistitLogMessage.empty();
-
-    @Message("DEBUG|Register management RMI Server %s")
-    public final LogItem rmiServerRegisterName = PersistitLogMessage.empty();
-
-    @Message("INFO|Management RMI Server registerd on %s")
+    @Message("INFO|Management RMI Server registered on %s")
     public final LogItem rmiServerRegistered = PersistitLogMessage.empty();
 
     @Message("INFO|Management RMI Server unregistered on %s")

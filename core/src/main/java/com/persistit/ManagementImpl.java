@@ -1188,23 +1188,16 @@ class ManagementImpl implements Management {
                 }
             }
             if (port != -1 && _localRegistryPort != port) {
-
-                _persistit.getLogBase().rmiServerRegisterPort.log(port);
                 LocateRegistry.createRegistry(port);
                 _localRegistryPort = port;
             }
 
             if (hostName != null && hostName.length() > 0) {
-
                 String name = "//" + hostName + "/PersistitManagementServer";
-                _persistit.getLogBase().rmiServerRegisterName.log(name);
-
                 UnicastRemoteObject.exportObject(impl);
                 Naming.rebind(name, impl);
-
                 impl._registered = true;
                 impl._registeredHostName = hostName;
-
                 _persistit.getLogBase().rmiServerRegistered.log(hostName);
 
             }

@@ -713,7 +713,9 @@ public class Transaction {
             if (_rollbackException == null) {
                 _rollbackException = new RollbackException();
             }
-            _persistit.getLogBase().txnNotCommitted.log(_rollbackException);
+            if (!_rollbackPending) {
+                _persistit.getLogBase().txnNotCommitted.log(_rollbackException);
+            }
             _rollbackPending = true;
         }
 
