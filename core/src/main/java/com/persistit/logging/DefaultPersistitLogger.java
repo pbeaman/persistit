@@ -21,18 +21,18 @@ import java.io.PrintWriter;
 
 /**
  * The default implementation of logging for Persistit. Writes log messages to a
- * file.
+ * file and/or System.err.
  * 
  * @version 1.0
  */
-public class DefaultPersistitLogger extends AbstractPersistitLogger {
+public class DefaultPersistitLogger implements PersistitLogger {
     private static PrintWriter _logWriter;
 
-    private static final String DEFAULT_LOG_FILE_NAME = "./persistit.log";
-    private static final long FLUSH_DELAY_INTERVAL = 5000;
-
+    private final static String DEFAULT_LOG_FILE_NAME = "./persistit.log";
+    private final static long FLUSH_DELAY_INTERVAL = 5000;
     private String _logFileName;
     private DefaultPersistitLogFlusher _logFlusher;
+    private PersistitLevel _level = PersistitLevel.INFO;
 
     /**
      * Background thread that periodically flushes the log file buffers so that
@@ -66,6 +66,23 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
         this(null);
     }
 
+    public void setLevel(final String levelName) {
+        try {
+            setLevel(PersistitLevel.valueOf(levelName));
+        } catch (EnumConstantNotPresentException e) {
+            log(PersistitLevel.WARNING, "No such log level " + levelName);
+            setLevel(PersistitLevel.INFO);
+        }
+    }
+
+    public void setLevel(PersistitLevel level) {
+        _level = level;
+    }
+
+    public PersistitLevel getLevel() {
+        return _level;
+    }
+
     /**
      * Constructs a logger that logs messages to a file.
      * 
@@ -88,8 +105,9 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
      *            The message to write
      */
     @Override
-    public void log(LogTemplate logTemplate, String message) {
-        if (logTemplate._level > INFO || (logTemplate._level > FINE && _logWriter == null)) {
+    public void log(PersistitLevel level, String message) {
+        if (_logWriter == null && level.compareTo(PersistitLevel.DEBUG) >= 0
+                || level.compareTo(PersistitLevel.WARNING) >= 0) {
             System.err.println(message);
         }
         if (_logWriter != null) {
@@ -98,27 +116,20 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
 
     }
 
-    /**
-     * Detects whether the log file is open.
-     * 
-     * @return <code>true</code> if the log file is open
-     */
     @Override
-    public boolean isOpen() {
-        return _logWriter != null;
+    public boolean isLoggable(final PersistitLevel level) {
+        return level.compareTo(_level) >= 0;
     }
 
     /**
      * Prepares this logger to received messages. This implementation, opens the
      * file for writing.
      */
-    @Override
     public void open() throws Exception {
-        if (isOpen())
+        if (_logWriter != null) {
             throw new IllegalStateException("Log already open");
-
+        }
         _logWriter = new PrintWriter(new BufferedWriter(new FileWriter(_logFileName)));
-
         _logFlusher = new DefaultPersistitLogFlusher();
         _logFlusher.start();
     }
@@ -126,7 +137,6 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
     /**
      * Closes the log file.
      */
-    @Override
     public void close() {
         if (_logWriter != null) {
             _logWriter.close();
@@ -149,7 +159,6 @@ public class DefaultPersistitLogger extends AbstractPersistitLogger {
      * the likelihood that the log file will be useful in case the application
      * exits abruptly.
      */
-    @Override
     public void flush() {
         if (_logWriter != null) {
             _logWriter.flush();

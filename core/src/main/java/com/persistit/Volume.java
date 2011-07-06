@@ -882,17 +882,11 @@ public class Volume extends SharedResource {
                 boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
 
                 if (fits) {
-                    if (_persistit.getLogBase().isLoggable(LogBase.LOG_DEALLOCGC2)) {
-                        _persistit.getLogBase().log(LogBase.LOG_DEALLOCGC2, left, right, 0, 0, 0,
-                                garbageBufferInfo(garbageBuffer));
-                    }
+                    _persistit.getLogBase().newGarbageChain.log(left, right, garbageBufferInfo(garbageBuffer));
                     garbageBuffer.setDirtyAtTimestamp(timestamp);
                     return;
                 } else {
-                    if (_persistit.getLogBase().isLoggable(LogBase.LOG_DEALLOCGC3)) {
-                        _persistit.getLogBase().log(LogBase.LOG_DEALLOCGC3, left, right, 0, 0, 0,
-                                garbageBufferInfo(garbageBuffer), null, null, null, null);
-                    }
+                    _persistit.getLogBase().garbagePageFull.log(left, right, garbageBufferInfo(garbageBuffer));
                     _pool.release(garbageBuffer);
                     garbageBuffer = null;
                 }
@@ -914,17 +908,12 @@ public class Volume extends SharedResource {
 
             garbageBuffer.init(Buffer.PAGE_TYPE_GARBAGE);
 
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_DEALLOCGC6)) {
-                _persistit.getLogBase().log(LogBase.LOG_DEALLOCGC6, garbageBufferInfo(garbageBuffer));
-            }
+            _persistit.getLogBase().newGarbageRoot.log(garbageBufferInfo(garbageBuffer));
 
             if (!solitaire && nextGarbagePage != right) {
                 // Will always fit because this is a freshly initialized page
                 garbageBuffer.addGarbageChain(nextGarbagePage, right, -1);
-                if (_persistit.getLogBase().isLoggable(LogBase.LOG_DEALLOCGC7)) {
-                    _persistit.getLogBase().log(LogBase.LOG_DEALLOCGC7, nextGarbagePage, right, 0, 0, 0,
-                            garbageBufferInfo(garbageBuffer), null, null, null, null);
-                }
+                _persistit.getLogBase().newGarbageChain.log(nextGarbagePage, right, garbageBufferInfo(garbageBuffer));
             }
             garbageBuffer.setRightSibling(garbagePage);
             garbageBuffer.setDirtyAtTimestamp(timestamp);
@@ -1294,15 +1283,9 @@ public class Volume extends SharedResource {
             _persistit.getIOMeter().chargeReadPageFromVolume(this, buffer.getPageAddress(), buffer.getBufferSize(),
                     buffer.getIndex());
             bumpReadCounter();
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_READ_OK)) {
-                _persistit.getLogBase().log(LogBase.LOG_READ_OK, page, buffer.getIndex());
-            }
+            _persistit.getLogBase().readOk.log(this, page, buffer.getIndex());
         } catch (IOException ioe) {
-
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_READ_IOE)) {
-                _persistit.getLogBase().log(LogBase.LOG_READ_IOE, page, buffer.getIndex(), 0, 0, 0, ioe, null, null,
-                        null, null);
-            }
+            _persistit.getLogBase().readException.log(ioe, this, page, buffer.getIndex());
             _lastIOException = ioe;
             throw new PersistitIOException(ioe);
         }
@@ -1326,9 +1309,7 @@ public class Volume extends SharedResource {
         try {
             _channel.write(bb, page * _bufferSize);
         } catch (IOException ioe) {
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_WRITE_IOE)) {
-                _persistit.getLogBase().log(LogBase.LOG_WRITE_IOE, page, ioe);
-            }
+            _persistit.getLogBase().writeException.log(ioe, this, page);
             _lastIOException = ioe;
             throw ioe;
         }
@@ -1363,18 +1344,13 @@ public class Volume extends SharedResource {
 
                     if (page == -1) {
                         long newGarbageRoot = garbageBuffer.getRightSibling();
-                        if (_persistit.getLogBase().isLoggable(LogBase.LOG_ALLOC_GARROOT)) {
-                            _persistit.getLogBase().log(LogBase.LOG_ALLOC_GARROOT, garbageRoot, newGarbageRoot, 0, 0,
-                                    0, garbageBufferInfo(garbageBuffer));
-                        }
+                        _persistit.getLogBase().garbagePageExhausted.log(garbageRoot, newGarbageRoot,
+                                garbageBufferInfo(garbageBuffer));
                         setGarbageRoot(newGarbageRoot);
                         buffer = garbageBuffer;
                         garbageBuffer = null;
                     } else {
-                        if (_persistit.getLogBase().isLoggable(LogBase.LOG_ALLOC_GAR)) {
-                            _persistit.getLogBase().log(LogBase.LOG_ALLOC_GAR, page, 0, 0, 0, 0,
-                                    garbageBufferInfo(garbageBuffer), null, null, null, null);
-                        }
+                        _persistit.getLogBase().allocateFromGarbageChain.log(page, garbageBufferInfo(garbageBuffer));
                         boolean solitaire = rightPage == -1;
                         buffer = _pool.get(this, page, true, !solitaire);
 
@@ -1383,17 +1359,10 @@ public class Volume extends SharedResource {
                         long nextGarbagePage = solitaire ? -1 : buffer.getRightSibling();
 
                         if (nextGarbagePage == rightPage || nextGarbagePage == 0) {
-                            if (_persistit.getLogBase().isLoggable(LogBase.LOG_ALLOC_GAR_END)) {
-                                _persistit.getLogBase().log(LogBase.LOG_ALLOC_GAR_END, rightPage, 0, 0, 0, 0,
-                                        garbageBufferInfo(garbageBuffer), null, null, null, null);
-                            }
+                            _persistit.getLogBase().garbageChainDone.log(garbageBufferInfo(garbageBuffer), rightPage);
                             garbageBuffer.removeGarbageChain();
                         } else {
-                            if (_persistit.getLogBase().isLoggable(LogBase.LOG_ALLOC_GAR_UPDATE)) {
-                                _persistit.getLogBase().log(LogBase.LOG_ALLOC_GAR_UPDATE, nextGarbagePage, rightPage,
-                                        0, 0, 0, garbageBufferInfo(garbageBuffer), null, null, null, null);
-                            }
-
+                            _persistit.getLogBase().garbageChainUpdate.log(garbageBufferInfo(garbageBuffer), nextGarbagePage, rightPage);
                             Debug.$assert0.t(nextGarbagePage > 0);
                             garbageBuffer.setGarbageLeftPage(nextGarbagePage);
                         }
@@ -1461,18 +1430,14 @@ public class Volume extends SharedResource {
             if (!isTransient()) {
                 currentSize = _channel.size();
                 if (currentSize > newSize) {
-                    if (_persistit.getLogBase().isLoggable(LogBase.LOG_EXTEND_LARGER)) {
-                        _persistit.getLogBase().log(LogBase.LOG_EXTEND_LARGER, currentSize, newSize, this);
-                    }
+                    _persistit.getLogBase().extendLonger.log(this, currentSize, newSize);
                 }
                 if (currentSize < newSize) {
                     final ByteBuffer bb = ByteBuffer.allocate(1);
                     bb.position(0).limit(1);
                     _channel.write(bb, newSize - 1);
                     _channel.force(true);
-                    if (_persistit.getLogBase().isLoggable(LogBase.LOG_EXTEND_NORMAL)) {
-                        _persistit.getLogBase().log(LogBase.LOG_EXTEND_NORMAL, currentSize, newSize, this);
-                    }
+                    _persistit.getLogBase().extendNormal.log(this, currentSize, newSize);
                 }
             }
 
@@ -1482,10 +1447,7 @@ public class Volume extends SharedResource {
 
         } catch (IOException ioe) {
             _lastIOException = ioe;
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_EXTEND_IOE)) {
-                _persistit.getLogBase().log(LogBase.LOG_EXTEND_IOE, currentSize, newSize, 0, 0, 0, ioe, this, null,
-                        null, null);
-            }
+            _persistit.getLogBase().extendException.log(ioe, this, currentSize, newSize);
             throw new PersistitIOException(ioe);
         } finally {
             releaseHeadBuffer();
@@ -1504,9 +1466,7 @@ public class Volume extends SharedResource {
                 lock.release();
             }
         } catch (Exception e) {
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_EXCEPTION)) {
-                _persistit.getLogBase().log(LogBase.LOG_EXCEPTION, e);
-            }
+            _persistit.getLogBase().exception.log(e);
             pe = new PersistitException(e);
         }
         try {
@@ -1516,9 +1476,7 @@ public class Volume extends SharedResource {
                 channel.close();
             }
         } catch (Exception e) {
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_EXCEPTION)) {
-                _persistit.getLogBase().log(LogBase.LOG_EXCEPTION, e);
-            }
+            _persistit.getLogBase().exception.log(e);
             // has priority over Exception throw by
             // releasing file lock.
             pe = new PersistitException(e);

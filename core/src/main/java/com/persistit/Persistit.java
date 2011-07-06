@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
@@ -56,8 +57,10 @@ import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
-import com.persistit.logging.AbstractPersistitLogger;
 import com.persistit.logging.DefaultPersistitLogger;
+import com.persistit.logging.LogBase;
+import com.persistit.logging.PersistitLevel;
+import com.persistit.logging.PersistitLogger;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.util.ArgParser;
@@ -305,7 +308,7 @@ public class Persistit {
 
     private final long _availableHeap = availableHeap();
 
-    private AbstractPersistitLogger _logger;
+    private PersistitLogger _logger;
 
     /**
      * Start time
@@ -322,7 +325,7 @@ public class Persistit {
     private long _beginCloseTime;
     private long _nextCloseTime;
 
-    private final LogBase _logBase = new LogBase(this);
+    private final LogBase _logBase = new LogBase();
 
     private AtomicBoolean _suspendShutdown = new AtomicBoolean(false);
     private AtomicBoolean _suspendUpdates = new AtomicBoolean(false);
@@ -440,22 +443,30 @@ public class Persistit {
      * @throws IOException
      */
     public void initialize(Properties properties) throws PersistitException {
-        initializeProperties(properties);
-        initializeLogging();
-        initializeManagement();
-        initializeOther();
-        initializeRecovery();
-        initializeJournal();
-        initializeBufferPools();
-        initializeVolumes();
-        startJournal();
-        startBufferPools();
-        startCheckpointManager();
-        finishRecovery();
-        flush();
+        boolean done = false;
+        try {
+            initializeProperties(properties);
+            initializeLogging();
+            initializeManagement();
+            initializeOther();
+            initializeRecovery();
+            initializeJournal();
+            initializeBufferPools();
+            initializeVolumes();
+            startJournal();
+            startBufferPools();
+            startCheckpointManager();
+            finishRecovery();
+            flush();
 
-        _initialized.set(true);
-        _closed.set(false);
+            _initialized.set(true);
+            _closed.set(false);
+            done = true;
+        } finally {
+            if (!done) {
+                releaseAllResources();
+            }
+        }
     }
 
     Properties parseProperties(final String propertiesFileName) throws PersistitException {
@@ -490,7 +501,16 @@ public class Persistit {
 
     void initializeLogging() throws PersistitException {
         try {
-            _logBase.logstart();
+            getPersistitLogger().open();
+            String logLevel = getProperty(LOGGING_PROPERTIES);
+            if (logLevel != null) {
+                if (getPersistitLogger() instanceof DefaultPersistitLogger) {
+                    ((DefaultPersistitLogger) getPersistitLogger()).setLevel(logLevel);
+                }
+            }
+            _logBase.configure(getPersistitLogger());
+            _logBase.start.log(_startTime);
+            _logBase.copyright.log(copyright());
         } catch (Exception e) {
             System.err.println("Persistit(tm) Logging is disabled due to " + e);
             if (e.getMessage() != null && e.getMessage().length() > 0) {
@@ -499,14 +519,6 @@ public class Persistit {
             e.printStackTrace();
         }
 
-        String logSpecification = getProperty(LOGGING_PROPERTIES);
-        if (logSpecification != null) {
-            try {
-                _logBase.setLogEnabled(logSpecification, AbstractPersistitLogger.INFO);
-            } catch (Exception e) {
-                throw new LogInitializationException(e);
-            }
-        }
     }
 
     void initializeRecovery() throws PersistitException {
@@ -547,9 +559,7 @@ public class Persistit {
             }
 
             if (byCount != -1) {
-                if (_logBase.isLoggable(LogBase.LOG_INIT_ALLOCATE_BUFFERS)) {
-                    _logBase.log(LogBase.LOG_INIT_ALLOCATE_BUFFERS, byCount, bufferSize);
-                }
+                _logBase.allocateBuffers.log(byCount, bufferSize);
                 BufferPool pool = new BufferPool(byCount, bufferSize, this);
                 _bufferPoolTable.put(new Integer(bufferSize), pool);
                 registerBufferPoolMXBean(bufferSize);
@@ -570,10 +580,7 @@ public class Persistit {
                 }
                 if (isOne) {
                     VolumeSpecification volumeSpecification = new VolumeSpecification(getProperty(key));
-
-                    if (_logBase.isLoggable(LogBase.LOG_INIT_OPEN_VOLUME)) {
-                        _logBase.log(LogBase.LOG_INIT_OPEN_VOLUME, volumeSpecification.describe());
-                    }
+                    _logBase.openVolume.log(volumeSpecification.describe());
                     Volume.loadVolume(this, volumeSpecification);
                 }
             }
@@ -604,9 +611,7 @@ public class Persistit {
             try {
                 setupGUI(true);
             } catch (Exception e) {
-                if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
-                    _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e);
-                }
+                _logBase.configurationError.log(e);
             }
         }
 
@@ -614,16 +619,12 @@ public class Persistit {
             _defaultSplitPolicy = SplitPolicy.forName(getProperty(SPLIT_POLICY_PROPERTY, DEFAULT_SPLIT_POLICY
                     .toString()));
         } catch (IllegalArgumentException e) {
-            if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
-                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e.getLocalizedMessage());
-            }
+            _logBase.configurationError.log(e);
         }
         try {
             _defaultJoinPolicy = JoinPolicy.forName(getProperty(JOIN_POLICY_PROPERTY, DEFAULT_JOIN_POLICY.toString()));
         } catch (IllegalArgumentException e) {
-            if (_logBase.isLoggable(LogBase.LOG_CONFIGURATION_ERROR)) {
-                _logBase.log(LogBase.LOG_CONFIGURATION_ERROR, e.getLocalizedMessage());
-            }
+            _logBase.configurationError.log(e);
         }
     }
 
@@ -646,11 +647,8 @@ public class Persistit {
         _recoveryManager.close();
         flush();
         checkpoint();
-        if (_logBase.isLoggable(LogBase.LOG_RECOVERY_DONE)) {
-            _logBase.log(LogBase.LOG_RECOVERY_DONE, _journalManager.getPageMapSize(), _recoveryManager
-                    .getAppliedTransactionCount(), _recoveryManager.getErrorCount());
-        }
-
+        _logBase.recoveryDone.log(_journalManager.getPageMapSize(), _recoveryManager.getAppliedTransactionCount(),
+                _recoveryManager.getErrorCount());
     }
 
     /**
@@ -663,58 +661,61 @@ public class Persistit {
      *            "true" to enable the PersistitOpenMBean, else "false".
      */
     private void registerMXBeans() {
-        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         try {
-            server.registerMBean(getManagement(), new ObjectName(ManagementMXBean.MXBEAN_NAME));
-            server.registerMBean(_ioMeter, new ObjectName(IOMeterMXBean.MXBEAN_NAME));
-            server.registerMBean(_journalManager, new ObjectName(JournalManagerMXBean.MXBEAN_NAME));
-            server.registerMBean(_recoveryManager, new ObjectName(RecoveryManagerMXBean.MXBEAN_NAME));
+            registerMBean(getManagement(), ManagementMXBean.MXBEAN_NAME);
+            registerMBean(_ioMeter, IOMeterMXBean.MXBEAN_NAME);
+            registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
+            registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
         } catch (Exception exception) {
-            if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
-                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
-            }
+            _logBase.mbeanException.log(exception);
         }
     }
 
     private void registerBufferPoolMXBean(final int bufferSize) {
-        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         try {
             BufferPoolMXBean bean = new BufferPoolMXBeanImpl(this, bufferSize);
-            server.registerMBean(bean, new ObjectName(BufferPoolMXBeanImpl.mbeanName(bufferSize)));
+            registerMBean(bean, BufferPoolMXBeanImpl.mbeanName(bufferSize));
         } catch (Exception exception) {
-            if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
-                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
-            }
+            _logBase.mbeanException.log(exception);
         }
     }
 
-    private void unregisterMXBeans() {
+    private void registerMBean(final Object mbean, final String name) throws Exception {
         MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
+        ObjectName on = new ObjectName(name);
+        server.registerMBean(mbean, on);
+        _logBase.mbeanRegistered.log(on);
+    }
+
+    private void unregisterMXBeans() {
         try {
-            server.unregisterMBean(new ObjectName(RecoveryManagerMXBean.MXBEAN_NAME));
-            server.unregisterMBean(new ObjectName(JournalManagerMXBean.MXBEAN_NAME));
-            server.unregisterMBean(new ObjectName(IOMeterMXBean.MXBEAN_NAME));
-            server.unregisterMBean(new ObjectName(ManagementMXBean.MXBEAN_NAME));
+            unregisterMBean(RecoveryManagerMXBean.MXBEAN_NAME);
+            unregisterMBean(JournalManagerMXBean.MXBEAN_NAME);
+            unregisterMBean(IOMeterMXBean.MXBEAN_NAME);
+            unregisterMBean(ManagementMXBean.MXBEAN_NAME);
         } catch (InstanceNotFoundException exception) {
             // ignore
         } catch (Exception exception) {
-            if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
-                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
-            }
+            _logBase.mbeanException.log(exception);
         }
     }
 
     private void unregisterBufferPoolMXBean(final int bufferSize) {
-        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
         try {
-            server.unregisterMBean(new ObjectName(BufferPoolMXBeanImpl.mbeanName(bufferSize)));
+            unregisterMBean(BufferPoolMXBeanImpl.mbeanName(bufferSize));
         } catch (InstanceNotFoundException exception) {
             // ignore
         } catch (Exception exception) {
-            if (_logBase.isLoggable(LogBase.LOG_MBEAN_EXCEPTION)) {
-                _logBase.log(LogBase.LOG_MBEAN_EXCEPTION, exception);
-            }
+            _logBase.mbeanException.log(exception);
         }
+    }
+
+    private void unregisterMBean(final String name) throws Exception {
+        MBeanServer server = java.lang.management.ManagementFactory.getPlatformMBeanServer();
+        ObjectName on = new ObjectName(name);
+        server.unregisterMBean(on);
+        _logBase.mbeanUnregistered.log(on);
+
     }
 
     synchronized void addVolume(Volume volume) throws VolumeAlreadyExistsException {
@@ -1793,7 +1794,7 @@ public class Persistit {
         for (final BufferPool pool : _bufferPoolTable.values()) {
             int count = pool.countDirty(null);
             if (count > 0) {
-                _logBase.log(LogBase.LOG_STRANDED, pool, count);
+                _logBase.strandedPages.log(pool, count);
             }
         }
 
@@ -1810,7 +1811,7 @@ public class Persistit {
             try {
                 journalManager.crash();
             } catch (IOException e) {
-                _logBase.log(LogBase.LOG_EXCEPTION, e);
+                _logBase.exception.log(e);
             }
         }
         //
@@ -1839,7 +1840,6 @@ public class Persistit {
     }
 
     private void releaseAllResources() {
-        _logBase.logend();
         _volumes.clear();
         _volumesById.clear();
         _bufferPoolTable.clear();
@@ -1849,6 +1849,12 @@ public class Persistit {
             unregisterMXBeans();
             _management.unregister();
             _management = null;
+        }
+        try {
+            _logBase.end.log(System.currentTimeMillis());
+            _logger.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -1899,7 +1905,7 @@ public class Persistit {
             }
             final long now = System.currentTimeMillis();
             if (now > _nextCloseTime) {
-                _logBase.log(LogBase.LOG_WAIT_FOR_CLOSE, (_nextCloseTime - _beginCloseTime) / 1000);
+                _logBase.waitForClose.log((_nextCloseTime - _beginCloseTime) / 1000);
                 _nextCloseTime += CLOSE_LOG_INTERVAL;
             }
         }
@@ -2151,14 +2157,14 @@ public class Persistit {
      * @param logger
      *            The new logger implementation
      */
-    public void setPersistitLogger(AbstractPersistitLogger logger) {
+    public void setPersistitLogger(PersistitLogger logger) {
         _logger = logger;
     }
 
     /**
      * @return The current logger.
      */
-    public AbstractPersistitLogger getPersistitLogger() {
+    public PersistitLogger getPersistitLogger() {
         if (_logger == null)
             _logger = new DefaultPersistitLogger(getProperty(LOGFILE_PROPERTY));
         return _logger;
@@ -2431,9 +2437,7 @@ public class Persistit {
     public void setupGUI(boolean suspendShutdown) throws IllegalAccessException, InstantiationException,
             ClassNotFoundException, RemoteException {
         if (_localGUI == null) {
-            if (_logBase.isLoggable(LogBase.LOG_INIT_CREATE_GUI)) {
-                _logBase.log(LogBase.LOG_INIT_CREATE_GUI);
-            }
+            _logBase.startAdminUI.log();
             _localGUI = (UtilControl) (Class.forName(PERSISTIT_GUI_CLASS_NAME)).newInstance();
         }
         _localGUI.setManagement(getManagement());

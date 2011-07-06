@@ -20,7 +20,8 @@ package com.persistit.test;
 
 import java.util.StringTokenizer;
 
-import com.persistit.LogBase;
+import com.persistit.logging.LogBase;
+import com.persistit.util.Debug;
 
 public class TestResult {
     boolean _passed;
@@ -76,7 +77,7 @@ public class TestResult {
             }
         } else if (_throwable != null) {
             TestRunner.logMessage(_throwable.toString(), depth);
-            final String s = LogBase.detailString(_throwable).replace('\r', ' ');
+            final String s = Debug.asString(_throwable).replace('\r', ' ');
             final StringTokenizer st = new StringTokenizer(s, "\n");
             while (st.hasMoreTokens()) {
                 TestRunner.logMessage(st.nextToken(), depth + 1);
@@ -99,7 +100,7 @@ public class TestResult {
             if (_results != null) {
                 return "Multithreaded test FAILED";
             } else if (_throwable != null) {
-                return "FAILED WITH EXCEPTION\r\n" + LogBase.detailString(_throwable);
+                return "FAILED WITH EXCEPTION\r\n" + Debug.asString(_throwable);
             } else if (_message != null) {
                 return "FAILED: " + _message;
             }

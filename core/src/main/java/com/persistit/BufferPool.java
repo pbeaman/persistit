@@ -841,10 +841,7 @@ public class BufferPool {
                             buffer.setClean();
                         }
                     } catch (Exception e) {
-                        final Volume volume = buffer.getVolume();
-                        final long page = buffer.getPageAddress();
-                        _persistit.getLogBase().log(LogBase.LOG_EXCEPTION,
-                                e + " while writing page " + page + " in volume " + volume);
+                        _persistit.getLogBase().writeException.log(e, buffer.getVolume(), buffer.getPageAddress());
                     } finally {
                         buffer.release();
                         if (urgent) {

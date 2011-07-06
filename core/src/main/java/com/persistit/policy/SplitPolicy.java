@@ -29,9 +29,8 @@ public abstract class SplitPolicy {
     public final static SplitPolicy PACK_BIAS = new Pack();
     public final static SplitPolicy LEFT90 = new Left90();
     public final static SplitPolicy RIGHT90 = new Right90();
-    
-    final static int KEYBLOCK_LENGTH = 4;
 
+    final static int KEYBLOCK_LENGTH = 4;
 
     private final static SplitPolicy[] POLICIES = { LEFT_BIAS, RIGHT_BIAS, EVEN_BIAS, NICE_BIAS, PACK_BIAS, LEFT90,
             RIGHT90 };

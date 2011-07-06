@@ -640,7 +640,6 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 // The JH record is valid. Now read records until a CP record is
                 // found.
                 //
-
                 // _logWriter.println("Scanning records");
 
                 boolean checkpointFound = false;
@@ -663,9 +662,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     }
                 }
                 if (checkpointFound) {
-                    if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_RECORD)) {
-                        _persistit.getLogBase().log(LogBase.LOG_RECOVERY_RECORD, "JH", JH.getPath(_readBuffer));
-                    }
+                    _persistit.getLogBase().recoveryKeystone.log(addressToFile(_keystoneAddress), _currentAddress);
                     _recoveryEndedAddress = _currentAddress;
                     break;
                 }
@@ -828,10 +825,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         _handleToVolumeMap.put(handle, vd);
         _volumeToHandleMap.put(vd, handle);
 
-        if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_RECORD)) {
-            _persistit.getLogBase().log(LogBase.LOG_RECOVERY_RECORD, "IV", addressToString(address, timestamp), name,
-                    timestamp);
-        }
+        _persistit.getLogBase().recoveryRecord.log("IV", addressToString(address, timestamp), name, timestamp);
     }
 
     /**
@@ -857,10 +851,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final TreeDescriptor td = new TreeDescriptor(volumeHandle, treeName);
         _handleToTreeMap.put(handle, td);
         _treeToHandleMap.put(td, handle);
-        if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_RECORD)) {
-            _persistit.getLogBase().log(LogBase.LOG_RECOVERY_RECORD, "IT", addressToString(address, timestamp),
-                    treeName, timestamp);
-        }
+        _persistit.getLogBase().recoveryRecord.log("IT", addressToString(address, timestamp), treeName, timestamp);
     }
 
     /**
@@ -895,11 +886,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             final PageNode oldPageNode = _pageMap.get(pageNode);
             pageNode.setPrevious(oldPageNode);
             _pageMap.put(pageNode, pageNode);
-
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_RECORD)) {
-                _persistit.getLogBase().log(LogBase.LOG_RECOVERY_RECORD, "PA", pageNode.toStringJournalAddress(this),
-                        pageNode.toStringPageAddress(this), timestamp);
-            }
+            _persistit.getLogBase().recoveryRecord.log("PA", pageNode.toStringJournalAddress(this), pageNode
+                    .toStringPageAddress(this), timestamp);
         }
     }
 
@@ -1095,14 +1083,10 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             }
         }
 
-        if (_persistit.getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_RECOVERED)) {
-            _persistit.getLogBase().log(LogBase.LOG_CHECKPOINT_RECOVERED, checkpoint,
-                    addressToString(address, checkpoint.getTimestamp()));
-        }
-        if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_RECORD)) {
-            _persistit.getLogBase().log(LogBase.LOG_RECOVERY_RECORD, "CP", addressToString(address, timestamp),
-                    checkpoint + " pageMap.size()=" + _pageMap.size(), timestamp);
-        }
+        _persistit.getLogBase().checkpointRecovered.log(checkpoint, addressToString(address, checkpoint
+                .getTimestamp()));
+        _persistit.getLogBase().recoveryRecord.log("CP", addressToString(address, timestamp), checkpoint
+                + " pageMap.size()=" + _pageMap.size(), timestamp);
     }
 
     /**
@@ -1118,7 +1102,6 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         if (!file.exists()) {
             throw new CorruptJournalException("Missing journal file " + file);
         }
-        final long size;
         read(generation * _blockSize, JH.OVERHEAD);
         int recordSize = getLength(_readBuffer);
 
@@ -1148,9 +1131,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         validate(currentAddress, file, 0, 0, _keystoneAddress, "Journal base address %3$,d not in valid range "
                 + "[%4$,d:%5$,d] at %1$s:%2$,d");
 
-        if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_RECORD)) {
-            _persistit.getLogBase().log(LogBase.LOG_RECOVERY_RECORD, "JH", JH.getPath(_readBuffer));
-        }
+        _persistit.getLogBase().recoveryValidFile.log(file.getPath());
 
         //
         // Now make sure we can read the last PA record required for
@@ -1220,14 +1201,10 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     _uncommittedTransactionCount++;
                 }
             }
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_PLAN)) {
-                _persistit.getLogBase().log(LogBase.LOG_RECOVERY_PLAN, _pageMap.size(),
-                        _recoveredTransactionMap.size(), _uncommittedTransactionCount);
-            }
+            _persistit.getLogBase().recoveryPlan.log(_pageMap.size(), _recoveredTransactionMap.size(),
+                    _uncommittedTransactionCount);
         } catch (PersistitIOException pe) {
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_FAILURE)) {
-                _persistit.getLogBase().log(LogBase.LOG_RECOVERY_FAILURE, pe);
-            }
+            _persistit.getLogBase().recoveryFailure.log(pe);
             throw pe;
         }
 
@@ -1303,18 +1280,16 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 applyTransaction(ts, listener);
                 _appliedTransactionCount++;
                 if (_appliedTransactionCount % APPLY_TRANSACTION_LOG_COUNT == 0) {
-                    if (_persistit.getLogBase().isLoggable(LogBase.LOG_RECOVERY_PROGRESS)) {
-                        _persistit.getLogBase().log(LogBase.LOG_RECOVERY_PROGRESS, _appliedTransactionCount,
-                                _recoveredTransactionMap.size() - _appliedTransactionCount);
-                    }
+                    _persistit.getLogBase().recoveryProgress.log(_appliedTransactionCount,
+                            _recoveredTransactionMap.size() - _appliedTransactionCount);
                 }
                 previous = ts;
             } catch (TestException te) {
                 // Exception thrown by a unit test to interrupt recovery
-                _persistit.getLogBase().log(LogBase.LOG_RECOVERY_EXCEPTION, te, ts);
+                _persistit.getLogBase().recoveryException.log(te, ts);
                 break;
             } catch (Exception pe) {
-                _persistit.getLogBase().log(LogBase.LOG_RECOVERY_EXCEPTION, pe, ts);
+                _persistit.getLogBase().recoveryException.log(pe, ts);
                 _errorCount++;
             }
         }
@@ -1322,7 +1297,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             try {
                 listener.endTransaction(previous.getStartAddress(), previous.getCommitTimestamp());
             } catch (Exception pe) {
-                _persistit.getLogBase().log(LogBase.LOG_RECOVERY_EXCEPTION, pe, previous);
+                _persistit.getLogBase().recoveryException.log(pe, previous);
                 _errorCount++;
             }
         }

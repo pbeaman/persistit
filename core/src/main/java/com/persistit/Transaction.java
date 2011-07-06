@@ -674,9 +674,7 @@ public class Transaction {
                 _startTimestamp.set(_persistit.getTimestampAllocator().updateTimestamp());
 
             } catch (PersistitException pe) {
-                if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
-                    _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe, this);
-                }
+                _persistit.getLogBase().txnBeginException.log(pe, this);
                 throw pe;
             }
             if (!_persistit.getTransactionResourceA().claim(_rollbacksSinceLastCommit >= _pessimisticRetryThreshold,
@@ -715,17 +713,15 @@ public class Transaction {
             if (_rollbackException == null) {
                 _rollbackException = new RollbackException();
             }
-            if (!_rollbackPending && _persistit.getLogBase().isLoggable(LogBase.LOG_TXN_NOT_COMMITTED)) {
-                _persistit.getLogBase().log(LogBase.LOG_TXN_NOT_COMMITTED, _rollbackException);
-                _rollbackPending = true;
-            }
+            _persistit.getLogBase().txnNotCommitted.log(_rollbackException);
+            _rollbackPending = true;
         }
 
         // Special handling for the outermost scope.
         if (_nestedDepth == 0) {
             _commitListeners.clear();
             // First release the pessimistic lock if we claimed it.
-            if (Debug.ENABLED && _rollbackPending) {
+            if (_rollbackPending) {
                 Debug.$assert1.t(_rollbacksSinceLastCommit - _pessimisticRetryThreshold < 20);
             }
             _persistit.getTransactionResourceA().release();
@@ -745,9 +741,7 @@ public class Transaction {
                         Thread.sleep(_rollbackDelay); // TODO
                     }
                 } catch (PersistitException pe) {
-                    if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
-                        _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe, this);
-                    }
+                    _persistit.getLogBase().txnEndException.log(pe, this);
                 } catch (InterruptedException ie) {
                 }
             } else {
@@ -798,9 +792,7 @@ public class Transaction {
         try {
             rollbackUpdates();
         } catch (PersistitException pe) {
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
-                _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe, this);
-            }
+            _persistit.getLogBase().txnRollbackException.log(pe, this);
         }
 
         for (int index = _commitListeners.size(); --index >= 0;) {
@@ -1320,9 +1312,7 @@ public class Transaction {
                     try {
                         _commitListeners.get(index).committed();
                     } catch (RuntimeException e) {
-                        if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
-                            _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, e, this);
-                        }
+                        _persistit.getLogBase().txnCommitException.log(e, this);
                     }
                 }
 

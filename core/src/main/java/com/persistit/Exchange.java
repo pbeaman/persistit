@@ -3048,10 +3048,7 @@ public class Exchange {
                                 _value.setPointerPageType(buffer.getPageType());
                                 storeInternal(_spareKey2, _value, level + 1, false, true);
                             } else {
-                                if (_persistit.getLogBase().isLoggable(LogBase.LOG_UNINDEXED_PAGE)) {
-                                    _persistit.getLogBase().log(LogBase.LOG_UNINDEXED_PAGE, deferredPage, 0, 0, 0, 0,
-                                            _tree.getName(), _volume.getPath());
-                                }
+                                _persistit.getLogBase().unindexedPage.log(deferredPage, _volume, _tree.getName());
                             }
                             lc._deferredReindexPage = 0;
                             _pool.release(buffer);
@@ -3627,9 +3624,7 @@ public class Exchange {
 
     void corrupt(final String error) throws CorruptVolumeException {
         Debug.$assert0.t(false);
-        if (_persistit.getLogBase().isLoggable(LogBase.LOG_CORRUPT)) {
-            _persistit.getLogBase().log(LogBase.LOG_CORRUPT, error + Util.NEW_LINE + toStringDetail());
-        }
+        _persistit.getLogBase().corruptVolume.log(error + Util.NEW_LINE + toStringDetail());
         throw new CorruptVolumeException(error);
     }
 

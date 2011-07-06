@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 
  */
 abstract class IOTaskRunnable implements Runnable {
-    
+
     private final static long THREAD_DEATH_WAIT_INTERVAL = 5000;
 
     protected final Persistit _persistit;
@@ -111,7 +111,7 @@ abstract class IOTaskRunnable implements Runnable {
             try {
                 thread.join(THREAD_DEATH_WAIT_INTERVAL);
             } catch (InterruptedException e) {
-                
+
             }
         }
     }
@@ -128,7 +128,7 @@ abstract class IOTaskRunnable implements Runnable {
             } catch (Exception e) {
                 if (!e.equals(_lastException)) {
                     _lastException = e;
-                    _persistit.getLogBase().log(LogBase.LOG_EXCEPTION, e);
+                    _persistit.getLogBase().exception.log(e);
                 }
             }
 

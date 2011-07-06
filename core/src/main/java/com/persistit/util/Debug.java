@@ -15,11 +15,12 @@
 
 package com.persistit.util;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Random;
 import java.util.StringTokenizer;
 
-import com.persistit.LogBase;
+import com.persistit.logging.LogBase;
 
 public class Debug {
 
@@ -55,7 +56,6 @@ public class Debug {
         }
     }
 
-
     public static Dbg $assert0 = ENABLED ? new Assert("assert0") : new Null();
     public static Dbg $assert1 = new Assert("assert1");
 
@@ -80,7 +80,7 @@ public class Debug {
     private static void logDebugMessage(String msg) {
         RuntimeException exception = new RuntimeException();
         exception.fillInStackTrace();
-        String s = LogBase.detailString(exception).replace('\r', ' ');
+        String s = asString(exception).replace('\r', ' ');
         StringTokenizer st = new StringTokenizer(s, "\n");
         StringBuilder sb = new StringBuilder(msg);
         sb.append(Util.NEW_LINE);
@@ -143,6 +143,12 @@ public class Debug {
             }
         }
         return true;
+    }
+    
+    public static String asString(Throwable t) {
+        StringWriter sw = new StringWriter();
+        t.printStackTrace(new PrintWriter(sw));
+        return sw.toString();
     }
 
 }

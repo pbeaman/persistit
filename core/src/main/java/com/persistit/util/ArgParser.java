@@ -15,7 +15,6 @@
 
 package com.persistit.util;
 
-
 /**
  * <p>
  * A simple command line argument parser the provides primitive type conversion

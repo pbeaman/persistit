@@ -18,6 +18,7 @@ package com.persistit;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
+
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
 import com.persistit.TimestampAllocator.Checkpoint;

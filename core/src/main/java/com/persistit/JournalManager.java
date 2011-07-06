@@ -815,10 +815,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
             checkpointWritten(checkpoint);
 
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_WRITTEN)) {
-                _persistit.getLogBase()
-                        .log(LogBase.LOG_CHECKPOINT_WRITTEN, checkpoint, addressToFile(address), address);
-            }
+            _persistit.getLogBase().checkpointWritten.log(checkpoint, address);
         }
 
         _lastValidCheckpoint = checkpoint;
@@ -1792,10 +1789,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                             || now - _lastLogMessageTime > -_logRepeatInterval) {
                         _lastLogMessageTime = now;
                         _lastException = e;
-                        if (_persistit.getLogBase().isLoggable(LogBase.LOG_JOURNAL_WRITE_ERROR)) {
-                            _persistit.getLogBase().log(LogBase.LOG_JOURNAL_WRITE_ERROR, e,
-                                    addressToFile(_writeBufferAddress));
-                        }
+                        _persistit.getLogBase().journalWriteError.log(e, addressToFile(_writeBufferAddress));
                     }
                 }
             } finally {
