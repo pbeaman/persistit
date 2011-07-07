@@ -29,6 +29,10 @@ import com.persistit.Management.BufferPoolInfo;
 import com.persistit.Management.JournalInfo;
 import com.persistit.Management.TransactionInfo;
 
+/**
+ * Task that reports, either once or periodically, various runtime statistics.
+ * @author peter
+ */
 public class StatisticsTask extends Task {
 
     static final long NANOS_PER_MILLI = 1000000;

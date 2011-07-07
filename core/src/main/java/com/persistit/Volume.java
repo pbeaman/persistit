@@ -115,16 +115,6 @@ public class Volume extends SharedResource {
     private volatile boolean _closed;
     private final Tree _directoryTree;
 
-    private static class DeallocationChain {
-        long _leftPage;
-        long _rightPage;
-
-        DeallocationChain(long leftPage, long rightPage) {
-            _leftPage = leftPage;
-            _rightPage = rightPage;
-        }
-    }
-
     /**
      * Opens a Volume. The volume must already exist.
      * 

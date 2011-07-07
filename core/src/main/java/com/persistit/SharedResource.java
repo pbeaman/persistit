@@ -23,8 +23,20 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import com.persistit.util.Debug;
 
 /**
- * @author pbeaman
+ * Base class for objects that need synchronization across threads. The methods
+ * {@link #claim(boolean)} and {@link #register()} establish and release either
+ * exclusive or non-exclusive access to the object. Numerous other status flags
+ * are also managed by this class, such as {@link #isDirty()} and
+ * {@link #isValid()}.
+ * <p>
+ * The implementation of this class uses a {@link AbstractQueuedSynchronizer}
+ * and is similar to {@link ReentrantReadWriteLock}. The synchronization policy
+ * is a non-strict fair policy which is necessary and sufficient to prevent
+ * starvation on busy system.
  * 
+ * See {@link Buffer}, {@link Tree} and {@link Volume}.
+ * 
+ * @author peter
  */
 class SharedResource {
 
@@ -88,6 +100,9 @@ class SharedResource {
      */
     final static int UNAVAILABLE_MASK = FIXED_MASK | CLAIMED_MASK | WRITER_MASK;
 
+    /**
+     * Extension of {@link AbstractQueuedSynchronizer} with Persistit semantics.
+     */
     private static class Sync extends AbstractQueuedSynchronizer {
         private static final long serialVersionUID = 1L;
 
