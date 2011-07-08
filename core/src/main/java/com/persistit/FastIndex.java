@@ -55,39 +55,32 @@ public class FastIndex {
     }
 
     public void putDescriminatorByte(int index, int db) {
-        checkBounds(index);
         _findexElements[index] = (db & FINDEX_DB_MASK) | (_findexElements[index] & ~FINDEX_DB_MASK);
     }
 
     public void putRunCount(int index, int runCount) {
-        checkBounds(index);
         _findexElements[index] = (runCount << FINDEX_RUNCOUNT_SHIFT) | (_findexElements[index] & ~FINDEX_RUNCOUNT_MASK);
     }
 
     public void putEbc(int index, int ebc) {
-        checkBounds(index);
         _findexElements[index] = ((ebc << FINDEX_EBC_SHIFT) & FINDEX_EBC_MASK)
                 | (_findexElements[index] & ~FINDEX_EBC_MASK);
     }
 
     public void putRunCountAndEbc(int index, int runCount, int ebc) {
-        checkBounds(index);
         _findexElements[index] = ((ebc << FINDEX_EBC_SHIFT) & FINDEX_EBC_MASK) | (runCount << FINDEX_RUNCOUNT_SHIFT)
                 | (_findexElements[index] & FINDEX_DB_MASK);
     }
 
     public void putZero(int index) {
-        checkBounds(index);
         _findexElements[index] = _findexElements[index] & FINDEX_DB_MASK;
     }
 
     public int getRunCount(int index) {
-        checkBounds(index);
         return _findexElements[index] >> FINDEX_RUNCOUNT_SHIFT;
     }
 
     public int getEbc(int index) {
-        checkBounds(index);
         int ebc = (_findexElements[index] & FINDEX_EBC_MASK) >> FINDEX_EBC_SHIFT;
         if (ebc > 2047) {
             return ebc - 4096;
@@ -97,16 +90,7 @@ public class FastIndex {
     }
 
     public int getDescriminatorByte(int index) {
-        checkBounds(index);
         return _findexElements[index] & FINDEX_DB_MASK;
-    }
-
-    private void checkBounds(final int index) {
-        if (index < 0 || index >= _findexElements.length) {
-            System.out.println("FastIndex.checkBounds(" + index + ")");
-            System.out.println(_buffer.toStringDetail());
-            Debug.$assert1.t(false);
-        }
     }
 
     public boolean isValid() {
