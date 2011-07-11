@@ -15,14 +15,14 @@
 
 package com.persistit.stress;
 
-import com.persistit.ArgParser;
-import com.persistit.Debug;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
 import com.persistit.exception.PersistitException;
 import com.persistit.test.TestResult;
+import com.persistit.util.ArgParser;
+import com.persistit.util.Debug;
 
 /**
  * @version 1.0
@@ -144,11 +144,11 @@ public class Stress8txn extends StressBase {
                     if (passes > 10) {
                         verboseln("pass count=" + passes);
                     }
-                    Debug.debug3(passes > 90);
+                    Debug.$assert1.t(passes <= 90);
                     if (op._result != null) {
                         _result = op._result;
                         // if (Debug.ENABLED) {
-                        Debug.debug0(true);
+                        Debug.$assert1.t(false);
                         // }
                         forceStop();
                     }

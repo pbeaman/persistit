@@ -1188,36 +1188,21 @@ class ManagementImpl implements Management {
                 }
             }
             if (port != -1 && _localRegistryPort != port) {
-
-                if (_persistit.getLogBase().isLoggable(LogBase.LOG_RMI_SERVER)) {
-                    _persistit.getLogBase().log(LogBase.LOG_RMI_SERVER, "Creating RMI Registry on port " + port);
-                }
                 LocateRegistry.createRegistry(port);
                 _localRegistryPort = port;
             }
 
             if (hostName != null && hostName.length() > 0) {
-
                 String name = "//" + hostName + "/PersistitManagementServer";
-                if (_persistit.getLogBase().isLoggable(LogBase.LOG_RMI_SERVER)) {
-                    _persistit.getLogBase().log(LogBase.LOG_RMI_SERVER, "Registering Management RMI object to name",
-                            name);
-                }
-
                 UnicastRemoteObject.exportObject(impl);
                 Naming.rebind(name, impl);
-
                 impl._registered = true;
                 impl._registeredHostName = hostName;
+                _persistit.getLogBase().rmiServerRegistered.log(hostName);
 
-                if (_persistit.getLogBase().isLoggable(LogBase.LOG_RMI_SERVER)) {
-                    _persistit.getLogBase().log(LogBase.LOG_RMI_SERVER, "Successfully registered", hostName);
-                }
             }
         } catch (Exception exception) {
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_RMI_EXCEPTION)) {
-                _persistit.getLogBase().log(LogBase.LOG_RMI_EXCEPTION, hostName, exception);
-            }
+            _persistit.getLogBase().rmiRegisterException.log(hostName, exception);
         }
     }
 
@@ -1228,13 +1213,9 @@ class ManagementImpl implements Management {
 
                 UnicastRemoteObject.unexportObject(impl, true);
                 _registered = false;
-                if (_persistit.getLogBase().isLoggable(LogBase.LOG_RMI_SERVER)) {
-                    _persistit.getLogBase().log(LogBase.LOG_RMI_SERVER, _registeredHostName, "Unregistered");
-                }
+                _persistit.getLogBase().rmiServerUnregister.log(_registeredHostName);
             } catch (Exception exception) {
-                if (_persistit.getLogBase().isLoggable(LogBase.LOG_RMI_EXCEPTION)) {
-                    _persistit.getLogBase().log(LogBase.LOG_RMI_EXCEPTION, _registeredHostName, exception);
-                }
+                _persistit.getLogBase().rmiUnregisterException.log(_registeredHostName, exception);
             }
         }
     }

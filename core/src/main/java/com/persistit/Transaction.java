@@ -43,6 +43,8 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.util.Debug;
+import com.persistit.util.InternalHashSet;
 
 /**
  * <p>
@@ -672,9 +674,7 @@ public class Transaction {
                 _startTimestamp.set(_persistit.getTimestampAllocator().updateTimestamp());
 
             } catch (PersistitException pe) {
-                if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
-                    _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe, this);
-                }
+                _persistit.getLogBase().txnBeginException.log(pe, this);
                 throw pe;
             }
             if (!_persistit.getTransactionResourceA().claim(_rollbacksSinceLastCommit >= _pessimisticRetryThreshold,
@@ -713,18 +713,18 @@ public class Transaction {
             if (_rollbackException == null) {
                 _rollbackException = new RollbackException();
             }
-            if (!_rollbackPending && _persistit.getLogBase().isLoggable(LogBase.LOG_TXN_NOT_COMMITTED)) {
-                _persistit.getLogBase().log(LogBase.LOG_TXN_NOT_COMMITTED, _rollbackException);
-                _rollbackPending = true;
+            if (!_rollbackPending) {
+                _persistit.getLogBase().txnNotCommitted.log(_rollbackException);
             }
+            _rollbackPending = true;
         }
 
         // Special handling for the outermost scope.
         if (_nestedDepth == 0) {
             _commitListeners.clear();
             // First release the pessimistic lock if we claimed it.
-            if (Debug.ENABLED && _rollbackPending) {
-                Debug.debug1(_rollbacksSinceLastCommit - _pessimisticRetryThreshold > 20);
+            if (_rollbackPending) {
+                Debug.$assert1.t(_rollbacksSinceLastCommit - _pessimisticRetryThreshold < 20);
             }
             _persistit.getTransactionResourceA().release();
             _startTimestamp.set(-1);
@@ -743,9 +743,7 @@ public class Transaction {
                         Thread.sleep(_rollbackDelay); // TODO
                     }
                 } catch (PersistitException pe) {
-                    if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
-                        _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe, this);
-                    }
+                    _persistit.getLogBase().txnEndException.log(pe, this);
                 } catch (InterruptedException ie) {
                 }
             } else {
@@ -755,9 +753,7 @@ public class Transaction {
             _rollbackPending = false;
             _visbilityOrder.clear();
 
-            if (Debug.ENABLED) {
-                Debug.$assert(_touchedPagesSet.size() == 0);
-            }
+            Debug.$assert0.t(_touchedPagesSet.size() == 0);
             _touchedPagesSet.clear();
         }
         _commitCompleted = false;
@@ -798,9 +794,7 @@ public class Transaction {
         try {
             rollbackUpdates();
         } catch (PersistitException pe) {
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
-                _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, pe, this);
-            }
+            _persistit.getLogBase().txnRollbackException.log(pe, this);
         }
 
         for (int index = _commitListeners.size(); --index >= 0;) {
@@ -1320,9 +1314,7 @@ public class Transaction {
                     try {
                         _commitListeners.get(index).committed();
                     } catch (RuntimeException e) {
-                        if (_persistit.getLogBase().isLoggable(LogBase.LOG_TXN_EXCEPTION)) {
-                            _persistit.getLogBase().log(LogBase.LOG_TXN_EXCEPTION, e, this);
-                        }
+                        _persistit.getLogBase().txnCommitException.log(e, this);
                     }
                 }
 
@@ -2021,7 +2013,7 @@ public class Transaction {
                     Volume volume = dc._volume;
                     long pageAddr = dc._leftPage;
                     Buffer buffer = volume.getPool().get(volume, pageAddr, false, true);
-                    Debug.$assert(buffer.isLongRecordPage());
+                    Debug.$assert0.t(buffer.isLongRecordPage());
                     volume.getPool().release(buffer);
                 }
 
@@ -2059,12 +2051,11 @@ public class Transaction {
                 Volume volume = currentTree.getVolume();
                 long pageAddress = Buffer.decodeLongRecordDescriptorPointer(bytes, 0);
 
-                if (Debug.ENABLED)
-                    Debug.$assert(pageAddress > 0 && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
+                Debug.$assert0.t(pageAddress > 0 && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
 
                 if (Debug.ENABLED) {
                     Buffer buffer = volume.getPool().get(volume, pageAddress, false, true);
-                    Debug.$assert(buffer.isLongRecordPage());
+                    Debug.$assert0.t(buffer.isLongRecordPage());
                     buffer.release();
                 }
 

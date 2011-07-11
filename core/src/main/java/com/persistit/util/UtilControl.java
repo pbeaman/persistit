@@ -13,7 +13,9 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.persistit;
+package com.persistit.util;
+
+import com.persistit.Management;
 
 public interface UtilControl {
     public boolean isAlive();

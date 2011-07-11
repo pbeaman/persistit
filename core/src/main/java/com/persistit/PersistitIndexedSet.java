@@ -33,7 +33,7 @@ import com.persistit.exception.TransactionFailedException;
  * <blockquote>
  * 
  * <pre>
- * {...,"id"}            next unused peramanent OID value
+ * {...,"id"}            next unused permanent OID value
  * {...,"id",id}         the object
  * {...,"key",object}    the OID
  * </blockquote>

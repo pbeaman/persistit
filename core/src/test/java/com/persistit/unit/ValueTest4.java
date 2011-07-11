@@ -30,10 +30,10 @@ import com.persistit.DefaultCoderManager;
 import com.persistit.DefaultValueCoder;
 import com.persistit.Exchange;
 import com.persistit.Persistit;
-import com.persistit.SerialValueCoder;
 import com.persistit.Value;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.CoderManager;
+import com.persistit.encoding.SerialValueCoder;
 import com.persistit.encoding.ValueCoder;
 import com.persistit.exception.PersistitException;
 

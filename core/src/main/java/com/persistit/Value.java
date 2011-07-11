@@ -35,12 +35,15 @@ import java.util.HashMap;
 
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.CoderManager;
+import com.persistit.encoding.SerialValueCoder;
 import com.persistit.encoding.ValueCoder;
 import com.persistit.encoding.ValueDisplayer;
 import com.persistit.encoding.ValueRenderer;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.MalformedValueException;
+import com.persistit.util.Debug;
+import com.persistit.util.Util;
 
 /**
  * <p>
@@ -606,10 +609,13 @@ public final class Value {
      * Remove all content from this <code>Value</code>. This method also
      * disables stream mode.
      * 
+     * @return this Value to permit call-chaining
+     * 
      */
-    public void clear() {
+    public Value clear() {
         _size = 0;
         reset();
+        return this;
     }
 
     void clear(boolean secure) {
@@ -3278,6 +3284,7 @@ public final class Value {
      *            The new value
      */
     public void putUTF(String string) {
+        preparePut();
         int length = string.length();
         ensureFit(length + 1);
         int index = _size;
@@ -3989,10 +3996,10 @@ public final class Value {
             _longSize = tempSize;
             _longMode = mode;
 
-            if (mode) { // TODO - remove
-                Debug.$assert(_bytes.length == Buffer.LONGREC_SIZE);
+            if (mode) {
+                Debug.$assert1.t(_bytes.length == Buffer.LONGREC_SIZE);
             } else {
-                Debug.$assert(_longBytes.length == Buffer.LONGREC_SIZE);
+                Debug.$assert1.t(_longBytes.length == Buffer.LONGREC_SIZE);
             }
         }
     }
@@ -4140,8 +4147,7 @@ public final class Value {
     }
 
     private int encodeVariableLengthInt(int base, int index, int value) {
-        if (Debug.ENABLED)
-            Debug.$assert((base & 0x3F) == 0);
+        Debug.$assert0.t((base & 0x3F) == 0);
 
         int encodingSize = value < 0x00000010 ? 1 : value < 0x00001000 ? 2 : value < 0x10000000 ? 3 : 5;
 
@@ -4590,6 +4596,14 @@ public final class Value {
 
     }
 
+    public OldValueInputStream oldValueInputStream(ObjectStreamClass classDescriptor) throws IOException {
+        return new OldValueInputStream(this, classDescriptor);
+    }
+
+    public OldValueOutputStream oldValueOutputStream(ObjectStreamClass classDescriptor) throws IOException {
+        return new OldValueOutputStream(this, classDescriptor);
+    }
+
     /**
      * An ObjectOutputStream that reads bytes from this Value using standard
      * Java serialization. If constructed with a non-null ObjectStreamClass,
@@ -4597,13 +4611,13 @@ public final class Value {
      * nothing because the SerialValueCoder will already have access to the
      * necessary information.
      */
-    static class OldValueInputStream extends ObjectInputStream {
+    public static class OldValueInputStream extends ObjectInputStream {
         Value _value;
         boolean _innerClassDescriptor;
         int _mark = -1;
         ObjectStreamClass _classDescriptor;
 
-        OldValueInputStream(final Value value, ObjectStreamClass classDescriptor) throws IOException {
+        private OldValueInputStream(final Value value, ObjectStreamClass classDescriptor) throws IOException {
             this(value);
             if (classDescriptor == null) {
                 throw new ConversionException("Null class descriptor");

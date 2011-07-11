@@ -17,6 +17,8 @@ package com.persistit;
 
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
+import com.persistit.policy.JoinPolicy;
+import com.persistit.policy.SplitPolicy;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class BufferTest extends PersistitUnitTestCase {

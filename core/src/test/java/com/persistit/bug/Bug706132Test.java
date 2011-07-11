@@ -20,7 +20,7 @@ import java.util.Properties;
 import org.junit.Test;
 
 import com.persistit.Exchange;
-import com.persistit.SplitPolicy;
+import com.persistit.policy.SplitPolicy;
 import com.persistit.unit.PersistitUnitTestCase;
 
 /*

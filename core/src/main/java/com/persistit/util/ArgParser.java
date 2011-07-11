@@ -13,7 +13,7 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.persistit;
+package com.persistit.util;
 
 /**
  * <p>
@@ -195,7 +195,7 @@ public class ArgParser {
         return _flags;
     }
 
-    boolean booleanValue(final int index) {
+    public boolean booleanValue(final int index) {
         String t = _template[index];
         if (t.startsWith("_flag|")) {
             return isFlag(t.charAt(6));
@@ -226,7 +226,7 @@ public class ArgParser {
         return (int) _longArgs[lookupName(fieldName)];
     }
 
-    int intValue(int index) {
+    public int intValue(int index) {
         return (int) _longArgs[index];
     }
 
@@ -241,11 +241,11 @@ public class ArgParser {
         return _longArgs[lookupName(fieldName)];
     }
 
-    long longValue(final int index) {
+    public long longValue(final int index) {
         return _longArgs[index];
     }
 
-    String stringValue(final int index) {
+    public String stringValue(final int index) {
         return _strArgs[index];
     }
 

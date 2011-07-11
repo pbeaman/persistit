@@ -20,8 +20,8 @@ import org.junit.Test;
 import com.persistit.Buffer;
 import com.persistit.Exchange;
 import com.persistit.Exchange.Sequence;
-import com.persistit.SplitPolicy;
 import com.persistit.exception.PersistitException;
+import com.persistit.policy.SplitPolicy;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class InsertSequenceTest extends PersistitUnitTestCase {

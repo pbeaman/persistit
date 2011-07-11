@@ -18,13 +18,13 @@ package com.persistit.stress;
 import java.util.Arrays;
 import java.util.BitSet;
 
-import com.persistit.ArgParser;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.RollbackException;
 import com.persistit.test.TestResult;
+import com.persistit.util.ArgParser;
 
 public class Stress3txn extends StressBase {
 

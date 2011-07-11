@@ -104,5 +104,5 @@ public interface KeyCoder {
      * @throws ConversionException
      */
 
-    public Object decodeKeySegment(Key key, Class clazz, CoderContext context) throws ConversionException;
+    public Object decodeKeySegment(Key key, Class<?> clazz, CoderContext context) throws ConversionException;
 }

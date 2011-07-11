@@ -18,6 +18,7 @@ package com.persistit;
 import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
 import com.persistit.Management.TaskStatus;
+import com.persistit.util.Util;
 
 public class TaskCheck extends Task {
 

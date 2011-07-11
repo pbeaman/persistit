@@ -21,7 +21,6 @@ import java.util.Set;
 
 import org.junit.Test;
 
-import com.persistit.Debug;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
@@ -29,6 +28,7 @@ import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
+import com.persistit.util.Debug;
 
 public class TransactionTest1 extends PersistitUnitTestCase {
 
@@ -277,7 +277,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                 if ((i >= 10) && (i < 20)) {
                     s2 += "'";
                 }
-                Debug.$assert(s1.equals(s2));
+                Debug.$assert1.t(s1.equals(s2));
                 assertEquals(s1, s2);
             }
             for (int i = 0; i < 10; i++) {
@@ -321,7 +321,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
             if ((i >= 10) && (i < 20)) {
                 s2 += "'";
             }
-            Debug.$assert(s1.equals(s2));
+            Debug.$assert1.t(s1.equals(s2));
             assertEquals(s1, s2);
         }
 

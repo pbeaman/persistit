@@ -17,13 +17,13 @@ package com.persistit.stress;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.persistit.ArgParser;
 import com.persistit.Transaction;
 import com.persistit.Transaction.CommitListener;
 import com.persistit.Value;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
 import com.persistit.test.TestResult;
+import com.persistit.util.ArgParser;
 
 public class Stress12txn extends StressBase {
 

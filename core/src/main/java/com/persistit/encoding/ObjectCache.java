@@ -56,11 +56,11 @@ public class ObjectCache {
     private int _deadCount;
     private int _deadCountThreshold = 25;
 
-    private ReferenceQueue _queue = new ReferenceQueue();
+    private ReferenceQueue<WeakReference<?>> _queue = new ReferenceQueue<WeakReference<?>>();
 
     private static class Entry {
         Object _key;
-        WeakReference _reference;
+        WeakReference<?> _reference;
         Entry _next;
     }
 

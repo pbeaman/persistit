@@ -18,6 +18,7 @@ package com.persistit;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
+
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
 import com.persistit.TimestampAllocator.Checkpoint;
@@ -28,6 +29,10 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.RebalanceException;
 import com.persistit.exception.VolumeClosedException;
+import com.persistit.policy.JoinPolicy;
+import com.persistit.policy.SplitPolicy;
+import com.persistit.util.Debug;
+import com.persistit.util.Util;
 
 /**
  * <p>
@@ -140,12 +145,11 @@ public final class Buffer extends SharedResource {
      */
     public final static int HEADER_SIZE = 32;
 
-    // TODO - allow larger pointer size
     final static long MAX_VALID_PAGE_ADDR = Integer.MAX_VALUE - 1;
     /**
      * A <code>Buffer</code> contains header information, a series of contiguous
-     * key blocks, each of which contains a Elided Byte Count (EBC), one byte of
-     * the key sequence, called the discriminator byte (DB), and an offset to
+     * key blocks, each of which contains an Elided Byte Count (EBC), one byte
+     * of the key sequence, called the discriminator byte (DB), and an offset to
      * another section of the buffer that contains the bytes of the key value
      * and the payload (TAIL). These three values are coded into an int (4
      * bytes) so that every key block is int-aligned. The TAIL value is the
@@ -324,8 +328,6 @@ public final class Buffer extends SharedResource {
      */
     private int _slack;
 
-    // Following are package-private so BufferPool can access them.
-    // TODO - replace with accessor methods.
     /**
      * Singly-linked list of Buffers current having the same hash code.
      * (Maintained by BufferPool.)
@@ -401,7 +403,7 @@ public final class Buffer extends SharedResource {
     }
 
     void load() throws InvalidPageStructureException {
-        Debug.$assert(isMine());
+        Debug.$assert0.t(isMine());
 
         _timestamp = getLong(TIMESTAMP_OFFSET);
 
@@ -419,10 +421,8 @@ public final class Buffer extends SharedResource {
                 _slack = 0;
                 _rightSibling = 0;
             } else {
-                if (Debug.ENABLED) {
-                    Debug.$assert(getByte(BUFFER_LENGTH_OFFSET) * 256 == _bufferSize);
-                    Debug.$assert(getLong(PAGE_ADDRESS_OFFSET) == _page);
-                }
+                Debug.$assert0.t(getByte(BUFFER_LENGTH_OFFSET) * 256 == _bufferSize);
+                Debug.$assert0.t(getLong(PAGE_ADDRESS_OFFSET) == _page);
                 _alloc = getChar(FREE_OFFSET);
                 _slack = getChar(SLACK_OFFSET);
                 _rightSibling = getLong(RIGHT_SIBLING_OFFSET);
@@ -441,9 +441,7 @@ public final class Buffer extends SharedResource {
     }
 
     void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException {
-        if (Debug.ENABLED) {
-            Debug.$assert(isMine());
-        }
+        Debug.$assert1.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         if (isDirty() && getTimestamp() < checkpoint.getTimestamp() && timestamp > checkpoint.getTimestamp()) {
             writePage();
@@ -646,7 +644,7 @@ public final class Buffer extends SharedResource {
      *            the sibling's address
      */
     void setRightSibling(long pageAddress) {
-        Debug.$assert(isMine());
+        Debug.$assert0.t(isMine());
         _rightSibling = pageAddress;
     }
 
@@ -659,12 +657,8 @@ public final class Buffer extends SharedResource {
     }
 
     void setKeyBlockEnd(final int index) {
-        // Diagnostic bounds-check on new value.
-        // TODO - remove this code after thorough testing.
-        if ((index < KEY_BLOCK_START || index > (_pool.getMaxKeys() * KEYBLOCK_LENGTH) + KEY_BLOCK_START)
-                && (isDataPage() || isIndexPage() && isValid())) {
-            Debug.$assert(false);
-        }
+        Debug.$assert0.t(index >= KEY_BLOCK_START && index <= (_pool.getMaxKeys() * KEYBLOCK_LENGTH) + KEY_BLOCK_START
+                || (!isDataPage() && !isIndexPage() || !isValid()));
         _keyBlockEnd = index;
     }
 
@@ -794,7 +788,7 @@ public final class Buffer extends SharedResource {
                             // and right ends of the range to the keyblock
                             // we are seeking.
                             //
-                            if (runCount > 4) {
+                            if (runCount > 6) {
                                 int distance = (right - left) >> 2;
                                 int oldRight = right;
                                 if (distance > kb - db + 1) {
@@ -1140,8 +1134,7 @@ public final class Buffer extends SharedResource {
      * @return
      */
     int nextLongRecord(Value value, int foundAt) {
-        if (Debug.ENABLED)
-            Debug.$assert(isDataPage());
+        Debug.$assert0.t(isDataPage());
         for (int p = foundAt & P_MASK; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
             int kbData = getInt(p);
             int tail = decodeKeyBlockTail(kbData);
@@ -1260,7 +1253,7 @@ public final class Buffer extends SharedResource {
             int newTailSize = klength + length + _tailHeaderSize;
 
             if (getKeyCount() >= _pool.getMaxKeys() || !willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
-                Debug.$assert(!postSplit);
+                Debug.$assert1.t(!postSplit);
                 return -1;
             }
 
@@ -1299,8 +1292,7 @@ public final class Buffer extends SharedResource {
                 repack();
                 setKeyBlockEnd(getKeyBlockEnd() + KEYBLOCK_LENGTH);
                 newTail = allocTail(newTailSize);
-                if (Debug.ENABLED)
-                    Debug.$assert(newTail != -1);
+                Debug.$assert0.t(newTail != -1);
             }
 
             // Shift the subsequent key blocks
@@ -1313,24 +1305,21 @@ public final class Buffer extends SharedResource {
             // Write new tail block
             putInt(newTail, encodeTailBlock(newTailSize, klength));
 
-            if (Debug.ENABLED) {
-                Debug.$assert(klength >= 0 && ebcNew + 1 >= 0 && ebcNew + 1 + klength <= kbytes.length
-                        && newTail + _tailHeaderSize >= 0 && newTail + _tailHeaderSize + klength <= _bytes.length);
-            }
+            Debug.$assert0.t(klength >= 0 && ebcNew + 1 >= 0 && ebcNew + 1 + klength <= kbytes.length
+                    && newTail + _tailHeaderSize >= 0 && newTail + _tailHeaderSize + klength <= _bytes.length);
+
             try {
                 System.arraycopy(kbytes, ebcNew + 1, _bytes, newTail + _tailHeaderSize, klength);
             } catch (Exception e) {
-                Debug.$assert(false);
+                Debug.$assert1.t(false);
             }
             if (isIndexPage()) {
                 // TODO - allow larger pointer size
                 int pointer = (int) value.getPointerValue();
 
-                if (Debug.ENABLED) {
-                    Debug.$assert(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0 : true);
-                    if (value != Value.EMPTY_VALUE) {
-                        Debug.$assert(_type - 1 == value.getPointerPageType());
-                    }
+                Debug.$assert0.t(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0 : true);
+                if (value != Value.EMPTY_VALUE) {
+                    Debug.$assert0.t(_type - 1 == value.getPointerPageType());
                 }
 
                 putInt(newTail + TAILBLOCK_POINTER, pointer);
@@ -1344,11 +1333,11 @@ public final class Buffer extends SharedResource {
 
             bumpGeneration();
 
-            if (Debug.ENABLED && p > KEY_BLOCK_START) {
-                Debug.$assert(adjacentKeyCheck(p - KEYBLOCK_LENGTH));
+            if (p > KEY_BLOCK_START) {
+                Debug.$assert0.t(adjacentKeyCheck(p - KEYBLOCK_LENGTH));
             }
-            if (Debug.ENABLED && p + KEYBLOCK_LENGTH < _keyBlockEnd) {
-                Debug.$assert(adjacentKeyCheck(p));
+            if (p + KEYBLOCK_LENGTH < _keyBlockEnd) {
+                Debug.$assert0.t(adjacentKeyCheck(p));
             }
 
             if (Debug.ENABLED) {
@@ -1459,18 +1448,17 @@ public final class Buffer extends SharedResource {
         if (isIndexPage()) {
             // TODO - allow larger pointer size
             long pointer = value.getPointerValue();
-            if (Debug.ENABLED) {
-                Debug.$assert(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0 : pointer == -1);
-                if (value != Value.EMPTY_VALUE) {
-                    Debug.$assert(_type - 1 == value.getPointerPageType());
-                }
+            Debug.$assert0.t(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0 : pointer == -1);
+            if (value != Value.EMPTY_VALUE) {
+                Debug.$assert0.t(_type - 1 == value.getPointerPageType());
             }
             putInt(newTail + TAILBLOCK_POINTER, (int) pointer);
         } else if (value != Value.EMPTY_VALUE) {
             System.arraycopy(value.getEncodedBytes(), 0, _bytes, newTail + _tailHeaderSize + klength, length);
         }
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             assertVerify();
+        }
         return p | (key.getEncodedSize() << DEPTH_SHIFT) | EXACT_MASK;
     }
 
@@ -1492,9 +1480,9 @@ public final class Buffer extends SharedResource {
      *         <i>false</i>
      */
     boolean removeKeys(int foundAt1, int foundAt2, Key spareKey) {
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             assertVerify();
-
+        }
         int p1 = foundAt1 & P_MASK;
         int p2 = foundAt2 & P_MASK;
         if ((foundAt2 & EXACT_MASK) != 0)
@@ -1706,9 +1694,9 @@ public final class Buffer extends SharedResource {
             SplitPolicy policy) throws PersistitException {
         // Make sure the right sibling page is empty.
 
+        Debug.$assert0.t(rightSibling._keyBlockEnd == KEY_BLOCK_START);
+        Debug.$assert0.t(rightSibling._alloc == rightSibling._bufferSize);
         if (Debug.ENABLED) {
-            Debug.$assert(rightSibling._keyBlockEnd == KEY_BLOCK_START);
-            Debug.$assert(rightSibling._alloc == rightSibling._bufferSize);
             assertVerify();
         }
 
@@ -1958,8 +1946,7 @@ public final class Buffer extends SharedResource {
             //
             if (exact && isDataPage() && foundAtPosition == p) {
                 newDataSize = value.getEncodedSize();
-                if (Debug.ENABLED)
-                    Debug.$assert(newDataSize > dataSize);
+                Debug.$assert0.t(newDataSize > dataSize);
             } else {
                 newDataSize = dataSize;
             }
@@ -1968,10 +1955,8 @@ public final class Buffer extends SharedResource {
             // Allocate the new tail block.
             //
             int newTailBlock = rightSibling.allocTail(newTailBlockSize);
-            if (Debug.ENABLED) {
-                Debug.$assert(newTailBlock >= 0 && newTailBlock < rightSibling._bufferSize);
-                Debug.$assert(newTailBlock != -1);
-            }
+            Debug.$assert0.t(newTailBlock >= 0 && newTailBlock < rightSibling._bufferSize);
+            Debug.$assert0.t(newTailBlock != -1);
 
             rightSibling.putInt(newTailBlock, encodeTailBlock(newTailBlockSize, newKeyLength));
             if (isIndexPage()) {
@@ -2073,8 +2058,7 @@ public final class Buffer extends SharedResource {
                 edgeTail = allocTail(edgeTailBlockSize);
             }
 
-            if (Debug.ENABLED)
-                Debug.$assert(edgeTail != -1);
+            Debug.$assert0.t(edgeTail != -1);
             putInt(edgeTail, encodeTailBlock(edgeTailBlockSize, edgeKeyLength));
 
             System.arraycopy(indexKeyBytes, depth + 1, _bytes, edgeTail + _tailHeaderSize, edgeKeyLength);
@@ -2097,10 +2081,9 @@ public final class Buffer extends SharedResource {
         invalidateFastIndex();
         rightSibling.invalidateFastIndex();
 
-        if (Debug.ENABLED) {
-            Debug.$assert(rightSibling._keyBlockEnd > rightSibling.KEY_BLOCK_START + KEYBLOCK_LENGTH ? rightSibling
-                    .adjacentKeyCheck(rightSibling.KEY_BLOCK_START) : true);
-        }
+        Debug.$assert0.t(rightSibling._keyBlockEnd > KEY_BLOCK_START + KEYBLOCK_LENGTH ? rightSibling
+                .adjacentKeyCheck(KEY_BLOCK_START) : true);
+
         if (!exact) {
             if (foundAtPosition >= splitAtPosition && (!lastLeft || foundAtPosition > splitAtPosition)) {
                 foundAt -= (splitAtPosition - KEY_BLOCK_START);
@@ -2109,11 +2092,11 @@ public final class Buffer extends SharedResource {
                 }
                 final int t = rightSibling.putValue(key, value, foundAt, true);
                 whereInserted = -foundAt;
-                Debug.$assert(t != -1);
+                Debug.$assert0.t(t != -1);
             } else {
                 final int t = putValue(key, value, foundAt, true);
                 whereInserted = foundAt;
-                Debug.$assert(t != -1);
+                Debug.$assert0.t(t != -1);
             }
         } else {
             int p = -1;
@@ -2124,9 +2107,8 @@ public final class Buffer extends SharedResource {
                 // It is really bad if p is less than 0. Means that we failed
                 // to replace the value.
                 //
-                if (Debug.ENABLED) {
-                    Debug.$assert(p > 0);
-                }
+
+                Debug.$assert0.t(p > 0);
                 if (p <= 0) {
                     throw new IllegalStateException("p = " + p + " foundAtPosition=" + foundAtPosition
                             + " splitAtPosition=" + splitAtPosition);
@@ -2137,19 +2119,17 @@ public final class Buffer extends SharedResource {
             // the new value into the right sibling page.
         }
 
-        if (Debug.ENABLED) {
-            Debug.$assert(KEY_BLOCK_START + KEYBLOCK_LENGTH < _keyBlockEnd);
-            Debug.$assert(rightSibling.KEY_BLOCK_START + KEYBLOCK_LENGTH < rightSibling._keyBlockEnd);
-        }
+        Debug.$assert0.t(KEY_BLOCK_START + KEYBLOCK_LENGTH < _keyBlockEnd);
+        Debug.$assert0.t(KEY_BLOCK_START + KEYBLOCK_LENGTH < rightSibling._keyBlockEnd);
 
         // Indicate that both buffers have changed.
         bumpGeneration();
         rightSibling.bumpGeneration();
 
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             assertVerify();
-        if (Debug.ENABLED)
             rightSibling.assertVerify();
+        }
         return whereInserted;
     }
 
@@ -2190,16 +2170,15 @@ public final class Buffer extends SharedResource {
 
         if (buffer == this || foundAt1 <= KEY_BLOCK_START || foundAt1 >= _keyBlockEnd || foundAt2 <= KEY_BLOCK_START
                 || foundAt2 >= buffer._keyBlockEnd /*- KEYBLOCK_LENGTH */) {
-            if (Debug.ENABLED)
-                Debug.debug2(true);
+            Debug.$assert0.t(false);
             throw new IllegalArgumentException("foundAt1=" + foundAt1 + " foundAt2=" + foundAt2 + " _keyBlockEnd="
                     + _keyBlockEnd + " buffer._keyBlockEnd=" + buffer._keyBlockEnd);
         }
 
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             assertVerify();
-        if (Debug.ENABLED)
             buffer.assertVerify();
+        }
 
         //
         // Initialize indexKey to contain the first key of the right
@@ -2243,8 +2222,7 @@ public final class Buffer extends SharedResource {
             int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
             buffer.deallocTail(tail, size);
         }
-        if (Debug.ENABLED)
-            Debug.$assert(newEbc < Integer.MAX_VALUE);
+        Debug.$assert0.t(newEbc < Integer.MAX_VALUE);
         //
         // We clear the about-to-be deleted key blocks so that repack()
         // operations don't damage just-freed tail blocks.
@@ -2288,8 +2266,7 @@ public final class Buffer extends SharedResource {
             // from the right page can be merged into the left page. The caller
             // will then deallocate the right page.
             //
-            if (Debug.ENABLED)
-                Debug.$assert(virtualSize <= _bufferSize);
+            Debug.$assert0.t(virtualSize <= _bufferSize);
             //
             // Now we need to process each keyblock from the right buffer,
             // copying its tail block to the left buffer.
@@ -2477,11 +2454,9 @@ public final class Buffer extends SharedResource {
             result = true;
         }
 
-        if (Debug.ENABLED) {
-            Debug.$assert(KEY_BLOCK_START + KEYBLOCK_LENGTH < _keyBlockEnd);
-            if (result) {
-                Debug.$assert(KEY_BLOCK_START + KEYBLOCK_LENGTH < buffer._keyBlockEnd);
-            }
+        Debug.$assert0.t(KEY_BLOCK_START + KEYBLOCK_LENGTH < _keyBlockEnd);
+        if (result) {
+            Debug.$assert0.t(KEY_BLOCK_START + KEYBLOCK_LENGTH < buffer._keyBlockEnd);
         }
         //
         // Indicate that both buffers have changed
@@ -2489,11 +2464,10 @@ public final class Buffer extends SharedResource {
         bumpGeneration();
         buffer.bumpGeneration();
 
-        if (Debug.ENABLED)
+        if (Debug.ENABLED) {
             assertVerify();
-        if (Debug.ENABLED)
             buffer.assertVerify();
-
+        }
         return result;
     }
 
@@ -2643,8 +2617,7 @@ public final class Buffer extends SharedResource {
                 newTail = allocTail(newSize);
             }
 
-            if (Debug.ENABLED)
-                Debug.$assert(newTail != -1);
+            Debug.$assert0.t(newTail != -1);
 
             System.arraycopy(buffer._bytes, tail + 4, _bytes, newTail + 4, newSize - 4);
 
@@ -2693,10 +2666,8 @@ public final class Buffer extends SharedResource {
     private void deallocTail(int tail, int size) {
         size = (size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
 
-        if (Debug.ENABLED) {
-            Debug.$assert((size > 0 && size <= _bufferSize - _alloc) && (tail >= _alloc && tail < _bufferSize)
-                    && (tail + size <= _bufferSize));
-        }
+        Debug.$assert0.t((size > 0 && size <= _bufferSize - _alloc) && (tail >= _alloc && tail < _bufferSize)
+                && (tail + size <= _bufferSize));
 
         if (tail == _alloc) {
             //
@@ -2707,9 +2678,7 @@ public final class Buffer extends SharedResource {
                 int kbNext = getInt(tail + size);
                 if ((kbNext & TAILBLOCK_INUSE_MASK) == 0) {
                     int sizeNext = decodeTailBlockSize(kbNext);
-                    if (Debug.ENABLED) {
-                        Debug.$assert((sizeNext & ~TAILBLOCK_MASK) == 0 && sizeNext != 0);
-                    }
+                    Debug.$assert0.t((sizeNext & ~TAILBLOCK_MASK) == 0 && sizeNext != 0);
                     _slack -= sizeNext;
                     putInt(tail + size, 0);
                     size += sizeNext;
@@ -2729,7 +2698,7 @@ public final class Buffer extends SharedResource {
      * Repacks the tail blocks so that they are contiguous.
      */
     private void repack() {
-        Debug.$assert(isMine());
+        Debug.$assert1.t(isMine());
 
         int[] plan = getRepackPlanBuffer();
         //
@@ -2892,14 +2861,12 @@ public final class Buffer extends SharedResource {
     }
 
     void putByte(int index, int value) {
-        if (Debug.ENABLED)
-            Debug.$assert(index >= 0 && index + 1 <= _bytes.length);
+        Debug.$assert0.t(index >= 0 && index + 1 <= _bytes.length);
         _bytes[index] = (byte) (value);
     }
 
     void putChar(int index, int value) {
-        if (Debug.ENABLED)
-            Debug.$assert(index >= 0 && index + 2 <= _bytes.length);
+        Debug.$assert0.t(index >= 0 && index + 2 <= _bytes.length);
         if (Persistit.BIG_ENDIAN) {
             _bytes[index + 1] = (byte) (value);
             _bytes[index] = (byte) (value >>> 8);
@@ -2910,8 +2877,7 @@ public final class Buffer extends SharedResource {
     }
 
     void putInt(int index, int value) {
-        if (Debug.ENABLED)
-            Debug.$assert(index >= 0 && index + 4 <= _bytes.length);
+        Debug.$assert0.t(index >= 0 && index + 4 <= _bytes.length);
         if (Persistit.BIG_ENDIAN) {
             _bytes[index + 3] = (byte) (value);
             _bytes[index + 2] = (byte) (value >>> 8);
@@ -2926,8 +2892,7 @@ public final class Buffer extends SharedResource {
     }
 
     void putLong(int index, long value) {
-        if (Debug.ENABLED)
-            Debug.$assert(index >= 0 && index + 8 <= _bytes.length);
+        Debug.$assert0.t(index >= 0 && index + 8 <= _bytes.length);
 
         if (Persistit.BIG_ENDIAN) {
             _bytes[index + 7] = (byte) (value);
@@ -3449,13 +3414,12 @@ public final class Buffer extends SharedResource {
     void assertVerify() {
         if (Debug.VERIFY_PAGES) {
             Exception verifyException = verify(null);
-            Debug.$assert(verifyException == null);
+            Debug.$assert1.t(verifyException == null);
         }
     }
 
     boolean addGarbageChain(long left, long right, long expectedCount) {
-        if (Debug.ENABLED)
-            Debug.$assert(left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page && right != _page && isGarbagePage());
+        Debug.$assert0.t(left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page && right != _page && isGarbagePage());
 
         if (_alloc - GARBAGE_BLOCK_SIZE < _keyBlockEnd) {
             return false;
@@ -3471,8 +3435,7 @@ public final class Buffer extends SharedResource {
     }
 
     int getGarbageChainStatus() {
-        if (Debug.ENABLED)
-            Debug.$assert(isGarbagePage());
+        Debug.$assert0.t(isGarbagePage());
         if (_alloc + GARBAGE_BLOCK_SIZE > _bufferSize)
             return -1;
         else
@@ -3480,19 +3443,16 @@ public final class Buffer extends SharedResource {
     }
 
     long getGarbageChainLeftPage() {
-        if (Debug.ENABLED)
-            Debug.$assert(isGarbagePage());
+        Debug.$assert0.t(isGarbagePage());
         if (_alloc + GARBAGE_BLOCK_SIZE > _bufferSize)
             return -1;
         long page = getLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE);
-        if (Debug.ENABLED)
-            Debug.$assert(page > 0 && page <= MAX_VALID_PAGE_ADDR && page != _page);
+        Debug.$assert0.t(page > 0 && page <= MAX_VALID_PAGE_ADDR && page != _page);
         return page;
     }
 
     long getGarbageChainRightPage() {
-        if (Debug.ENABLED)
-            Debug.$assert(isGarbagePage());
+        Debug.$assert0.t(isGarbagePage());
         if (_alloc + GARBAGE_BLOCK_SIZE > _bufferSize)
             return -1;
         else
@@ -3501,8 +3461,7 @@ public final class Buffer extends SharedResource {
 
     long getGarbageChainLeftPage(int p) {
         long page = getLong(p + GARBAGE_BLOCK_LEFT_PAGE);
-        if (Debug.ENABLED)
-            Debug.$assert(page > 0 && page <= MAX_VALID_PAGE_ADDR && page != _page);
+        Debug.$assert0.t(page > 0 && page <= MAX_VALID_PAGE_ADDR && page != _page);
         return page;
     }
 
@@ -3511,8 +3470,7 @@ public final class Buffer extends SharedResource {
     }
 
     boolean removeGarbageChain() {
-        if (Debug.ENABLED)
-            Debug.$assert(isGarbagePage());
+        Debug.$assert0.t(isGarbagePage());
         if (_alloc + GARBAGE_BLOCK_SIZE > _bufferSize)
             return false;
         clearBytes(_alloc, _alloc + GARBAGE_BLOCK_SIZE);
@@ -3522,14 +3480,11 @@ public final class Buffer extends SharedResource {
     }
 
     void setGarbageLeftPage(long left) {
-        Debug.$assert(isMine());
-        if (Debug.ENABLED) {
-            if (Debug.ENABLED)
-                Debug.$assert(left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page);
-            Debug.$assert(isGarbagePage());
-            Debug.$assert(_alloc + GARBAGE_BLOCK_SIZE <= _bufferSize);
-            Debug.$assert(_alloc >= _keyBlockEnd);
-        }
+        Debug.$assert1.t(isMine());
+        Debug.$assert0.t(left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page);
+        Debug.$assert0.t(isGarbagePage());
+        Debug.$assert0.t(_alloc + GARBAGE_BLOCK_SIZE <= _bufferSize);
+        Debug.$assert0.t(_alloc >= _keyBlockEnd);
         putLong(_alloc + GARBAGE_BLOCK_LEFT_PAGE, left);
         bumpGeneration();
     }
@@ -3568,9 +3523,7 @@ public final class Buffer extends SharedResource {
     }
 
     void setNext(final Buffer buffer) {
-        if (Debug.ENABLED) {
-            Debug.$assert(buffer != this);
-        }
+        Debug.$assert0.t(buffer != this);
         _next = buffer;
     }
 

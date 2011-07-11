@@ -29,6 +29,7 @@ import com.persistit.encoding.KeyStringCoder;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.MissingKeySegmentException;
+import com.persistit.util.Util;
 
 /**
  * <p>

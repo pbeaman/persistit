@@ -15,11 +15,11 @@
 
 package com.persistit.unit;
 
-import com.persistit.Debug;
 import com.persistit.Exchange;
 import com.persistit.Key;
-import com.persistit.Util;
 import com.persistit.exception.PersistitException;
+import com.persistit.util.Debug;
+import com.persistit.util.Util;
 
 /**
  * @author Peter Beaman
@@ -136,7 +136,7 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         }
         ex.fetch().getValue().getString(sb2);
         boolean ok = equals(sb1, sb2);
-        Debug.debug0(!ok);
+        Debug.$assert1.t(ok);
         assertTrue(equals(sb1, sb2));
     }
 

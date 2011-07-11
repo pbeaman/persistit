@@ -17,10 +17,10 @@ package com.persistit.stress;
 
 import java.util.Arrays;
 
-import com.persistit.ArgParser;
 import com.persistit.Key;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
+import com.persistit.util.ArgParser;
 
 /**
  * A basic test sequence:

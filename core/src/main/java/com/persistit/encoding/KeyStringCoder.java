@@ -126,7 +126,7 @@ public interface KeyStringCoder extends KeyRenderer {
      *            <code>null</code>.
      */
     @Override
-    public Object decodeKeySegment(Key key, Class clazz, CoderContext context) throws ConversionException;
+    public Object decodeKeySegment(Key key, Class<?> clazz, CoderContext context) throws ConversionException;
 
     /**
      * <p>
@@ -153,5 +153,5 @@ public interface KeyStringCoder extends KeyRenderer {
      *            <code>String.class</code>.
      */
     @Override
-    public void renderKeySegment(Key key, Object target, Class clazz, CoderContext context) throws ConversionException;
+    public void renderKeySegment(Key key, Object target, Class<?> clazz, CoderContext context) throws ConversionException;
 }

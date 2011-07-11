@@ -29,6 +29,7 @@ import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.exception.VolumeClosedException;
+import com.persistit.util.Debug;
 
 /**
  * A pool of {@link Buffer} objects, maintained on various lists that permit
@@ -165,8 +166,6 @@ public class BufferPool {
     private long _writerPollInterval = DEFAULT_WRITER_POLL_INTERVAL;
 
     private PageWriter _writer;
-
-    private boolean _enableTrace = true; // TODO - turn this off
 
     /**
      * Construct a BufferPool with the specified count of <code>Buffer</code>s
@@ -472,9 +471,7 @@ public class BufferPool {
     }
 
     private void invalidate(Buffer buffer) {
-        if (Debug.ENABLED) {
-            Debug.$assert(buffer.isValid());
-        }
+        Debug.$assert0.t(buffer.isValid());
         buffer.clearValid();
         buffer.setClean();
         buffer.setPageAddressAndVolume(0, null);
@@ -541,9 +538,7 @@ public class BufferPool {
                 // Search for the page
                 //
                 while (buffer != null) {
-                    if (Debug.ENABLED)
-                        Debug.$assert(buffer.getNext() != buffer);
-
+                    Debug.$assert0.t(buffer.getNext() != buffer);
                     if (buffer.getPageAddress() == page && buffer.getVolume() == vol) {
                         //
                         // Found it - now claim it.
@@ -573,10 +568,8 @@ public class BufferPool {
                     //
                     if (buffer != null) {
 
-                        if (Debug.ENABLED) {
-                            Debug.$assert(buffer != _hashTable[hash]);
-                            Debug.$assert(buffer.getNext() != buffer);
-                        }
+                        Debug.$assert0.t(buffer != _hashTable[hash]);
+                        Debug.$assert0.t(buffer.getNext() != buffer);
 
                         buffer.setPageAddressAndVolume(page, vol);
                         buffer.setNext(_hashTable[hash]);
@@ -593,10 +586,7 @@ public class BufferPool {
                         } else {
                             buffer.clearTransient();
                         }
-
-                        if (Debug.ENABLED) {
-                            Debug.$assert(buffer.getNext() != buffer);
-                        }
+                        Debug.$assert0.t(buffer.getNext() != buffer);
                         mustRead = true;
                     }
                 }
@@ -613,9 +603,7 @@ public class BufferPool {
                     }
                 }
             } else {
-                if (Debug.ENABLED) {
-                    Debug.$assert(!mustClaim || !mustRead);
-                }
+                Debug.$assert0.t(!mustClaim || !mustRead);
                 if (mustClaim) {
                     if (!buffer.claim(writer)) {
                         throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to acquire "
@@ -658,10 +646,8 @@ public class BufferPool {
                     if (wantRead) {
                         boolean loaded = false;
                         try {
-                            if (Debug.ENABLED) {
-                                Debug.$assert(buffer.getPageAddress() == page && buffer.getVolume() == vol
-                                        && hashIndex(buffer.getVolume(), buffer.getPageAddress()) == hash);
-                            }
+                            Debug.$assert0.t(buffer.getPageAddress() == page && buffer.getVolume() == vol
+                                    && hashIndex(buffer.getVolume(), buffer.getPageAddress()) == hash);
                             buffer.load(vol, page);
                             loaded = true;
                             vol.bumpGetCounter();
@@ -718,12 +704,10 @@ public class BufferPool {
             // Search for the page
             //
             while (buffer != null) {
-                if (Debug.ENABLED)
-                    Debug.$assert(buffer.getNext() != buffer);
+                Debug.$assert0.t(buffer.getNext() != buffer);
 
                 if (buffer.getPageAddress() == page && buffer.getVolume() == vol) {
-                    if (Debug.ENABLED)
-                        Debug.$assert(buffer.isValid());
+                    Debug.$assert0.t(buffer.isValid());
                     //
                     // Found it - now return a copy of it.
                     //
@@ -857,10 +841,7 @@ public class BufferPool {
                             buffer.setClean();
                         }
                     } catch (Exception e) {
-                        final Volume volume = buffer.getVolume();
-                        final long page = buffer.getPageAddress();
-                        _persistit.getLogBase().log(LogBase.LOG_EXCEPTION,
-                                e + " while writing page " + page + " in volume " + volume);
+                        _persistit.getLogBase().writeException.log(e, buffer.getVolume(), buffer.getPageAddress());
                     } finally {
                         buffer.release();
                         if (urgent) {
@@ -913,14 +894,6 @@ public class BufferPool {
         protected void urgent() {
             super.urgent();
         }
-    }
-
-    private Buffer trace(final Buffer buffer) {
-        if (_enableTrace) {
-            _persistit.getIOMeter().chargeGetPage(buffer.getVolume(), buffer.getPageAddress(), buffer.getBufferSize(),
-                    buffer.getIndex());
-        }
-        return buffer;
     }
 
     @Override

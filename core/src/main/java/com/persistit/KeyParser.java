@@ -20,6 +20,8 @@ import java.math.BigInteger;
 import java.text.ParseException;
 import java.util.ArrayList;
 
+import com.persistit.util.Util;
+
 /**
  * Parses String values as Key or KeyFilter values.
  * 

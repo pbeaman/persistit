@@ -85,9 +85,7 @@ public class CheckpointManager extends IOTaskRunnable {
             if (checkpoint.getTimestamp() > _lastCheckpoint.getTimestamp()) {
                 _outstandingCheckpoints.add(checkpoint);
                 _lastCheckpoint = checkpoint;
-                if (_persistit.getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_PROPOSED)) {
-                    _persistit.getLogBase().log(LogBase.LOG_CHECKPOINT_PROPOSED, checkpoint);
-                }
+                _persistit.getLogBase().checkpointProposed.log(checkpoint);
             }
         }
     }
@@ -109,7 +107,7 @@ public class CheckpointManager extends IOTaskRunnable {
                 }
                 _persistit.getJournalManager().writeCheckpointToJournal(validCheckpoint);
             } catch (PersistitIOException e) {
-                _persistit.getLogBase().log(LogBase.LOG_EXCEPTION, e + " while writing " + validCheckpoint + ":" + e);
+                _persistit.getLogBase().exception.log(e);
             }
         }
         synchronized (this) {

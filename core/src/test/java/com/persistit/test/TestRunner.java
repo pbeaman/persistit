@@ -26,11 +26,11 @@ import java.util.Date;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
-import com.persistit.ArgParser;
 import com.persistit.ConfirmIntegrity;
 import com.persistit.Invariants;
 import com.persistit.Persistit;
-import com.persistit.Util;
+import com.persistit.util.ArgParser;
+import com.persistit.util.Util;
 
 /**
  * 

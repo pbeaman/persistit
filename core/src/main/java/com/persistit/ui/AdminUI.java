@@ -90,7 +90,7 @@ import javax.swing.event.ChangeListener;
 import javax.swing.plaf.FontUIResource;
 
 import com.persistit.Management;
-import com.persistit.UtilControl;
+import com.persistit.util.UtilControl;
 
 public class AdminUI implements UtilControl, Runnable, AdminCommand {
     final static String BUNDLE_NAME = "com.persistit.ui.AdminUI";

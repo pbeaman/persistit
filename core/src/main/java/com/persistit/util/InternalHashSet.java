@@ -13,7 +13,7 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.persistit;
+package com.persistit.util;
 
 /**
  * A minimal HashSet-like collection that allows lookup by just hash code. This
@@ -24,7 +24,7 @@ package com.persistit;
  * @author pbeaman
  * @version 1.0
  */
-class InternalHashSet {
+public class InternalHashSet {
     //
     // Must always be power of 2
     //
@@ -47,7 +47,7 @@ class InternalHashSet {
     //
     private Entry[] _entries = new Entry[INITIAL_SIZE];
 
-    protected abstract static class Entry {
+    public abstract static class Entry {
         private Entry _next;
         private int _hashCode = -1;
 
@@ -65,11 +65,11 @@ class InternalHashSet {
         public abstract int hashCode();
     }
 
-    Entry lookup(int hashCode) {
+    public Entry lookup(int hashCode) {
         return _entries[hashCode & _mask];
     }
 
-    void put(Entry newEntry) {
+    public void put(Entry newEntry) {
         int index = newEntry.getHashCode() & _mask;
         Entry entry = _entries[index];
         newEntry._next = entry;
@@ -97,7 +97,7 @@ class InternalHashSet {
         _entries = temp;
     }
 
-    Entry next(Entry entry) {
+    public Entry next(Entry entry) {
         if (entry != null && entry._next != null) {
             return entry._next;
         } else {
@@ -113,11 +113,11 @@ class InternalHashSet {
         }
     }
 
-    int size() {
+    public int size() {
         return _count;
     }
 
-    void clear() {
+    public void clear() {
         if (_count == 0) {
             return;
         }

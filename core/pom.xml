@@ -4,12 +4,12 @@
 	<parent>
 		<groupId>com.akiban</groupId>
 		<artifactId>akiban-persistit</artifactId>
-		<version>2.4.4-SNAPSHOT</version>
+		<version>2.5.1-SNAPSHOT</version>
 	</parent>
 	<artifactId>akiban-persistit-core</artifactId>
 	<packaging>jar</packaging>
 	<name>akiban-persistit-core</name>
-	<version>2.4.4-SNAPSHOT</version>
+	<version>2.5.1-SNAPSHOT</version>
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -17,6 +17,11 @@
 			<version>4.8.1</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.6.1</version>
+        </dependency>
 		<dependency>
 			<groupId>commons-logging</groupId>
 			<artifactId>commons-logging</artifactId>

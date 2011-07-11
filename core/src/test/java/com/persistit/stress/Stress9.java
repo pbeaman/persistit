@@ -17,11 +17,11 @@ package com.persistit.stress;
 
 import java.util.ArrayList;
 
-import com.persistit.ArgParser;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
 import com.persistit.test.TestResult;
+import com.persistit.util.ArgParser;
 
 public class Stress9 extends StressBase {
 

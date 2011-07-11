@@ -18,6 +18,8 @@ package com.persistit;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
+import com.persistit.util.Util;
+
 /**
  * This class encapsulates the formats of Persistit journal records. There is
  * one inner class per record type. The following describes the byte layout

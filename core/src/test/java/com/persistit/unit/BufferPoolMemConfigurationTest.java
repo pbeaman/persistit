@@ -38,6 +38,7 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
         int bufferCount = infoArray[0].getBufferCount();
         assertTrue(bufferSize * bufferCount < 1024 * 1024);
         assertTrue(bufferSize * bufferCount > 512 * 1024);
+        _persistit.close();
     }
 
     @Test
@@ -66,6 +67,8 @@ public class BufferPoolMemConfigurationTest extends PersistitUnitTestCase {
         } catch (IllegalArgumentException e) {
             // okay
         }
+        _persistit.close();
+
     }
 
     @Override

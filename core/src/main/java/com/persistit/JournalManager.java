@@ -56,6 +56,7 @@ import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.util.Debug;
 
 /**
  * Manages the disk-based I/O journal. The journal contains both committed
@@ -419,9 +420,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         Integer handle = _volumeToHandleMap.get(vd);
         if (handle == null) {
             handle = Integer.valueOf(++_handleCounter);
-            if (Debug.ENABLED) {
-                Debug.$assert(!_handleToVolumeMap.containsKey(handle));
-            }
+            Debug.$assert0.t(!_handleToVolumeMap.containsKey(handle));
             writeVolumeHandleToJournal(vd, handle.intValue());
             _volumeToHandleMap.put(vd, handle);
             _handleToVolumeMap.put(handle, vd);
@@ -437,9 +436,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         Integer handle = _treeToHandleMap.get(td);
         if (handle == null) {
             handle = Integer.valueOf(++_handleCounter);
-            if (Debug.ENABLED) {
-                Debug.$assert(!_handleToTreeMap.containsKey(handle));
-            }
+            Debug.$assert0.t(!_handleToTreeMap.containsKey(handle));
             writeTreeHandleToJournal(td, handle.intValue());
             _treeToHandleMap.put(td, handle);
             _handleToTreeMap.put(handle, td);
@@ -650,9 +647,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
     }
 
     private void advance(final int recordSize) {
-        if (Debug.ENABLED) {
-            Debug.$assert(recordSize > 0 && recordSize + _writeBuffer.position() <= _writeBuffer.capacity());
-        }
+        Debug.$assert0.t(recordSize > 0 && recordSize + _writeBuffer.position() <= _writeBuffer.capacity());
         _currentAddress += recordSize;
         _writeBuffer.position(_writeBuffer.position() + recordSize);
     }
@@ -765,9 +760,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                 pageNode = pageNode.getPrevious();
             }
         }
-        if (Debug.ENABLED) {
-            Debug.$assert(count == 0);
-        }
+        Debug.$assert0.t(count == 0);
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize, _currentAddress - recordSize);
     }
 
@@ -794,9 +787,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             }
         }
 
-        if (Debug.ENABLED) {
-            Debug.$assert(count == 0);
-        }
+        Debug.$assert0.t(count == 0);
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize, _currentAddress - recordSize);
     }
 
@@ -824,10 +815,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
             checkpointWritten(checkpoint);
 
-            if (_persistit.getLogBase().isLoggable(LogBase.LOG_CHECKPOINT_WRITTEN)) {
-                _persistit.getLogBase()
-                        .log(LogBase.LOG_CHECKPOINT_WRITTEN, checkpoint, addressToFile(address), address);
-            }
+            _persistit.getLogBase().checkpointWritten.log(checkpoint, address);
         }
 
         _lastValidCheckpoint = checkpoint;
@@ -867,9 +855,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             } else {
                 _writeBuffer.put(buffer.getBytes());
             }
-            if (Debug.ENABLED) {
-                Debug.$assert(_writeBuffer.position() - position == recordSize);
-            }
+            Debug.$assert0.t(_writeBuffer.position() - position == recordSize);
             _currentAddress += recordSize - PA.OVERHEAD;
 
             final PageNode pageNode = new PageNode(handle, buffer.getPageAddress(), address, buffer.getTimestamp());
@@ -1194,9 +1180,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             try {
                 if (_writeBuffer.position() > 0) {
                     final FileChannel channel = getFileChannel(address);
-                    if (Debug.ENABLED) {
-                        Debug.$assert(channel.size() == addressToOffset(address));
-                    }
+                    Debug.$assert0.t(channel.size() == addressToOffset(address));
                     _writeBuffer.flip();
                     final int size = _writeBuffer.remaining();
                     channel.write(_writeBuffer);
@@ -1256,9 +1240,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             startJournalFile();
             newJournalFile = true;
         }
-        if (Debug.ENABLED) {
-            Debug.$assert(_writeBufferAddress + _writeBuffer.position() == _currentAddress);
-        }
+        Debug.$assert0.t(_writeBufferAddress + _writeBuffer.position() == _currentAddress);
         //
         // If the current journal file has room for the record, then return.
         //
@@ -1302,9 +1284,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                 final FileChannel channel = getFileChannel(_currentAddress);
                 final long length = _currentAddress % _blockSize;
                 final boolean matches = length == (_writeBuffer.position() + _writeBufferAddress) % _blockSize;
-                if (Debug.ENABLED) {
-                    Debug.$assert(matches);
-                }
+                Debug.$assert0.t(matches);
                 if (matches) {
                     channel.truncate(length);
                 }
@@ -1809,10 +1789,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                             || now - _lastLogMessageTime > -_logRepeatInterval) {
                         _lastLogMessageTime = now;
                         _lastException = e;
-                        if (_persistit.getLogBase().isLoggable(LogBase.LOG_JOURNAL_WRITE_ERROR)) {
-                            _persistit.getLogBase().log(LogBase.LOG_JOURNAL_WRITE_ERROR, e,
-                                    addressToFile(_writeBufferAddress));
-                        }
+                        _persistit.getLogBase().journalWriteError.log(e, addressToFile(_writeBufferAddress));
                     }
                 }
             } finally {

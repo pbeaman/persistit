@@ -15,12 +15,12 @@
 
 package com.persistit.stress;
 
-import com.persistit.ArgParser;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
 import com.persistit.test.TestResult;
+import com.persistit.util.ArgParser;
 
 public class Stress5 extends StressBase {
     private final static String SHORT_DESCRIPTION = "Extreme variations in key and record length";

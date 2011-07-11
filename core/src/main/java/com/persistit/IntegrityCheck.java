@@ -17,11 +17,14 @@ package com.persistit;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+
 import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.util.Debug;
+import com.persistit.util.Util;
 
 /**
  * <p>
@@ -677,8 +680,7 @@ public class IntegrityCheck extends Task {
                 _edgeKeys[level] = key;
             }
 
-            if (Debug.ENABLED)
-                Debug.$assert(leftSibling != buffer);
+            Debug.$assert0.t(leftSibling != buffer);
 
             _edgeBuffers[level] = buffer;
             _edgePages[level] = page;
@@ -739,8 +741,7 @@ public class IntegrityCheck extends Task {
             //
             buffer = null;
 
-            if (Debug.ENABLED)
-                Debug.debug0(_edgeBuffers[level].isAvailable(true));
+            Debug.$assert0.t(!_edgeBuffers[level].isAvailable(true));
         } finally {
             if (buffer != null) {
                 _edgeBuffers[level] = null;
@@ -832,8 +833,7 @@ public class IntegrityCheck extends Task {
         Buffer startingBuffer = _edgeBuffers[level];
         if (startingBuffer == null)
             return null;
-        if (Debug.ENABLED)
-            Debug.debug0(startingBuffer.isAvailable(true));
+        Debug.$assert0.t(!startingBuffer.isAvailable(true));
         Buffer buffer = startingBuffer;
         if (buffer.getPageAddress() == toPage) {
             addFault("Overlapping page", toPage, level, 0);
@@ -885,8 +885,7 @@ public class IntegrityCheck extends Task {
             }
             if (startingBuffer != buffer)
                 releasePage(startingBuffer);
-            if (Debug.ENABLED)
-                Debug.debug0(buffer.isAvailable(true));
+            Debug.$assert0.t(!buffer.isAvailable(true));
 
             return buffer;
         } finally {

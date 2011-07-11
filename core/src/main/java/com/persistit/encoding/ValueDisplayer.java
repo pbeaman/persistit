@@ -71,6 +71,6 @@ public interface ValueDisplayer extends ValueCoder {
      * 
      * @throws ConversionException
      */
-    public void display(Value value, StringBuilder target, Class clazz, CoderContext context)
+    public void display(Value value, StringBuilder target, Class<?> clazz, CoderContext context)
             throws ConversionException;
 }

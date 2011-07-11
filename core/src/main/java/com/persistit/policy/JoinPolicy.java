@@ -13,7 +13,9 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.persistit;
+package com.persistit.policy;
+
+import com.persistit.Buffer;
 
 /**
  * Policy for determining the balance between left and right pages when
@@ -127,7 +129,7 @@ public class JoinPolicy {
      * @return <code>true</code> if the buffer will accept content of the
      *         specified size
      */
-    protected boolean acceptJoin(Buffer buffer, int virtualSize) {
+    public boolean acceptJoin(Buffer buffer, int virtualSize) {
         return virtualSize < buffer.getBufferSize();
     }
 

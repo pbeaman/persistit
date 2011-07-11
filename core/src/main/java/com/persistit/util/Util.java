@@ -13,11 +13,15 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.persistit;
+package com.persistit.util;
 
 import java.io.UnsupportedEncodingException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+
+import com.persistit.KeyState;
+import com.persistit.Persistit;
+import com.persistit.ValueState;
 
 /**
  * @author pbeaman

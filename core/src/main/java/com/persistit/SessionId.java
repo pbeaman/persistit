@@ -17,9 +17,19 @@ package com.persistit;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Identity key for a session. Normally there is one session per thread, but
+ * applications that need to maintain session context across multiple network
+ * requests serviced on different threads can access and carefully modify their
+ * session contexts using SessionID. See {@link Persistit#getSessionId()} and
+ * {@link Persistit#setSessionId(SessionId)}.
+ * 
+ * @author peter
+ * 
+ */
 public class SessionId {
 
-    final static AtomicInteger counter = new AtomicInteger(1);
+    private final static AtomicInteger counter = new AtomicInteger(1);
 
     private final int _id = counter.getAndIncrement();
 

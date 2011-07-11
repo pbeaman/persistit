@@ -22,6 +22,7 @@ import java.rmi.RemoteException;
 import java.util.Date;
 
 import com.persistit.encoding.CoderContext;
+import com.persistit.util.Util;
 
 /**
  * <p>

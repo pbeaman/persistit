@@ -47,6 +47,10 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.TreeNotFoundException;
+import com.persistit.policy.JoinPolicy;
+import com.persistit.policy.SplitPolicy;
+import com.persistit.util.Debug;
+import com.persistit.util.Util;
 
 /**
  * <p>
@@ -429,9 +433,7 @@ public class Exchange {
         }
 
         private void copyTo(LevelCache to) {
-            if (Debug.ENABLED) {
-                Debug.$assert(to._level == _level || to._level == -1);
-            }
+            Debug.$assert0.t(to._level == _level || to._level == -1);
             to._buffer = _buffer;
             to._page = _page;
             to._foundAt = _foundAt;
@@ -450,17 +452,9 @@ public class Exchange {
         }
 
         private void update(Buffer buffer, Key key, int foundAt) {
-            if (Debug.ENABLED) {
-                Debug.$assert(_level + PAGE_TYPE_DATA == buffer.getPageType());
-
-                if (foundAt != -1 && (foundAt & EXACT_MASK) != 0) {
-                    int depth = Buffer.decodeDepth(foundAt);
-                    int klength = key.getEncodedSize();
-                    if (Debug.ENABLED) {
-                        Debug.$assert(depth == klength);
-                    }
-                }
-            }
+            Debug.$assert0.t(_level + PAGE_TYPE_DATA == buffer.getPageType());
+            Debug.$assert0.t(foundAt == -1 || (foundAt & EXACT_MASK) == 0
+                    || Buffer.decodeDepth(foundAt) == key.getEncodedSize());
 
             _page = buffer.getPageAddress();
             _buffer = buffer;
@@ -924,13 +918,9 @@ public class Exchange {
         //
         if (foundAt != -1 && buffer.getGeneration() == lc._bufferGeneration && key == _key) {
             if (key.getGeneration() == lc._keyGeneration) {
-                // return foundAt;
-                done = true;
+                Debug.$assert0.t(buffer.findKey(key) == foundAt);
+                return foundAt;
             }
-        }
-        if (Debug.ENABLED && done) {
-            int foundAt2 = buffer.findKey(key);
-            Debug.$assert(foundAt2 == foundAt);
         }
         //
         // If no longer valid, then look it up again.
@@ -957,9 +947,7 @@ public class Exchange {
         boolean found = false;
 
         if (!_treeHolder.claim(false)) {
-            if (Debug.ENABLED) {
-                Debug.debug1(true);
-            }
+            Debug.$assert0.t(false);
             throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to get reader claim on "
                     + _tree);
         }
@@ -967,17 +955,11 @@ public class Exchange {
 
         long pageAddress = _rootPage;
         long oldPageAddress = pageAddress;
-        if (Debug.ENABLED) {
-            Debug.$assert(pageAddress != 0);
-        }
+        Debug.$assert0.t(pageAddress != 0);
 
         try {
             for (currentLevel = _cacheDepth; --currentLevel >= toLevel;) {
                 if (pageAddress <= 0) {
-                    if (Debug.ENABLED) {
-                        Debug.debug1(true);
-                    }
-
                     corrupt("Volume " + _volume + " level=" + currentLevel + " page=" + pageAddress + " oldPage="
                             + oldPageAddress + " key=<" + key.toString() + "> " + " invalid page address");
                 }
@@ -993,10 +975,6 @@ public class Exchange {
 
                 if (buffer == null || buffer.isBeforeLeftEdge(foundAt)) {
                     oldBuffer = buffer; // So it will be released
-                    if (Debug.ENABLED) {
-                        Debug.debug1(true);
-                    }
-
                     corrupt("Volume " + _volume + " level=" + currentLevel + " page=" + pageAddress + " key=<"
                             + key.toString() + "> " + " is before left edge");
                 }
@@ -1018,15 +996,9 @@ public class Exchange {
                     oldPageAddress = pageAddress;
                     pageAddress = buffer.getPointer(p);
 
-                    if (Debug.ENABLED) {
-                        Debug.$assert(pageAddress > 0 && pageAddress < MAX_VALID_PAGE_ADDR);
-                    }
+                    Debug.$assert0.t(pageAddress > 0 && pageAddress < MAX_VALID_PAGE_ADDR);
                 } else {
                     oldBuffer = buffer; // So it will be released
-                    if (Debug.ENABLED) {
-                        Debug.debug1(true);
-                    }
-
                     corrupt("Volume " + _volume + " level=" + currentLevel + " page=" + pageAddress + " key=<"
                             + key.toString() + ">" + " page type=" + buffer.getPageType() + " is invalid");
                 }
@@ -1059,10 +1031,6 @@ public class Exchange {
             for (int rightWalk = MAX_WALK_RIGHT; rightWalk-- > 0;) {
                 Buffer buffer = null;
                 if (pageAddress <= 0 || pageAddress > _volume.getMaximumPageInUse()) {
-                    if (Debug.ENABLED) {
-                        Debug.debug1(true);
-                    }
-
                     corrupt("Volume " + _volume + " level=" + currentLevel + " page=" + pageAddress + " previousPage="
                             + oldPageAddress + " initialPage=" + initialPageAddress + " key=<" + key.toString() + ">"
                             + " oldBuffer=<" + oldBuffer + ">" + " invalid page address");
@@ -1097,11 +1065,8 @@ public class Exchange {
 
                 if (foundAt == -1) {
                     foundAt = buffer.findKey(key);
-                }
-                // DEBUG - debug - get rid of else clause
-                else if (Debug.ENABLED) {
-                    int foundAt2 = buffer.findKey(key);
-                    Debug.$assert(foundAt2 == foundAt);
+                } else {
+                    Debug.$assert0.t(buffer.findKey(key) == foundAt);
                 }
 
                 if (!buffer.isAfterRightEdge(foundAt)) {
@@ -1114,15 +1079,9 @@ public class Exchange {
                 oldPageAddress = pageAddress;
                 pageAddress = buffer.getRightSibling();
 
-                if (Debug.ENABLED) {
-                    Debug.$assert(pageAddress > 0 && pageAddress < MAX_VALID_PAGE_ADDR);
-                }
+                Debug.$assert0.t(pageAddress > 0 && pageAddress < MAX_VALID_PAGE_ADDR);
                 oldBuffer = buffer;
             }
-            if (Debug.ENABLED) {
-                Debug.debug1(true);
-            }
-
             corrupt("Volume " + _volume + " level=" + currentLevel + " page=" + oldPageAddress + " initialPage="
                     + initialPageAddress + " key=<" + key.toString() + ">" + " walked right more than "
                     + MAX_WALK_RIGHT + " pages" + " last page visited=" + pageAddress);
@@ -1208,18 +1167,14 @@ public class Exchange {
             }
 
             for (;;) {
-                if (Debug.ENABLED) {
-                    Debug.$assert(buffer == null);
-                }
+                Debug.$assert0.t(buffer == null);
                 if (Debug.ENABLED) {
                     Debug.suspend();
                 }
 
                 if (treeClaimRequired && !treeClaimAcquired) {
                     if (!_treeHolder.claim(treeWriterClaimRequired)) {
-                        if (Debug.ENABLED) {
-                            Debug.debug1(true);
-                        }
+                        Debug.$assert0.t(false);
                         throw new InUseException("Thread " + Thread.currentThread().getName()
                                 + " failed to get reader claim on " + _tree);
                     }
@@ -1255,9 +1210,7 @@ public class Exchange {
                     }
 
                     if (level >= _cacheDepth) {
-                        if (Debug.ENABLED) {
-                            Debug.$assert(level == _cacheDepth);
-                        }
+                        Debug.$assert0.t(level == _cacheDepth);
                         //
                         // Need to lock the tree because we may need to change
                         // its root.
@@ -1268,16 +1221,12 @@ public class Exchange {
                             throw RetryException.SINGLE;
                         }
 
-                        if (Debug.ENABLED) {
-                            Debug.$assert(value.getPointerValue() > 0);
-                        }
+                        Debug.$assert0.t(value.getPointerValue() > 0);
                         insertIndexLevel(key, value);
                         break;
                     }
 
-                    if (Debug.ENABLED) {
-                        Debug.$assert(buffer == null);
-                    }
+                    Debug.$assert0.t(buffer == null);
                     int foundAt = -1;
                     LevelCache lc = _levelCache[level];
                     buffer = reclaimQuickBuffer(lc);
@@ -1299,10 +1248,8 @@ public class Exchange {
                         buffer = lc._buffer;
                     }
 
-                    if (Debug.ENABLED) {
-                        Debug.$assert(buffer != null && (buffer.getStatus() & SharedResource.WRITER_MASK) != 0
-                                && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
-                    }
+                    Debug.$assert0.t(buffer != null && (buffer.getStatus() & SharedResource.WRITER_MASK) != 0
+                            && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
                     if ((foundAt & EXACT_MASK) != 0) {
                         oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
                     }
@@ -1322,10 +1269,8 @@ public class Exchange {
                     //
                     boolean splitPerformed = putLevel(lc, key, value, buffer, foundAt, treeClaimAcquired);
 
-                    if (Debug.ENABLED) {
-                        Debug.$assert((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
-                                && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
-                    }
+                    Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
+                            && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
                     //
                     // If a split is required then putLevel did not change
                     // anything. We need to repeat this after acquiring a
@@ -1363,9 +1308,7 @@ public class Exchange {
                     } else {
                         // Otherwise we need to index the new right
                         // sibling at the next higher index level.
-                        if (Debug.ENABLED) {
-                            Debug.$assert(value.getPointerValue() > 0);
-                        }
+                        Debug.$assert0.t(value.getPointerValue() > 0);
                         key = _spareKey1;
                         key.bumpGeneration(); // because otherwise we may
                         // use the wrong cached
@@ -1438,7 +1381,7 @@ public class Exchange {
             _volume.bumpFetchCounter();
         }
     }
-    
+
     private long timestamp() {
         return _persistit.getTimestampAllocator().updateTimestamp();
     }
@@ -1450,15 +1393,13 @@ public class Exchange {
             buffer = _volume.allocPage();
             final long timestamp = timestamp();
             buffer.writePageOnCheckpoint(timestamp);
-            
+
             buffer.init(PAGE_TYPE_INDEX_MIN + _treeDepth - 1);
 
             long newTopPage = buffer.getPageAddress();
             long leftSiblingPointer = _rootPage;
 
-            if (Debug.ENABLED) {
-                Debug.$assert(leftSiblingPointer == _tree.getRootPageAddr());
-            }
+            Debug.$assert0.t(leftSiblingPointer == _tree.getRootPageAddr());
             long rightSiblingPointer = value.getPointerValue();
             //
             // Note: left and right sibling are of the same level and therefore
@@ -1500,13 +1441,11 @@ public class Exchange {
      */
     private boolean putLevel(LevelCache lc, Key key, Value value, Buffer buffer, int foundAt, boolean okToSplit)
             throws PersistitException {
-        if (Debug.ENABLED) {
-            Debug.$assert(_exclusive);
-            Debug.$assert((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
-                    && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
-        }
+        Debug.$assert0.t(_exclusive);
+        Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
+                && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
         final Sequence sequence = lc.sequence(foundAt);
-        
+
         long timestamp = timestamp();
         buffer.writePageOnCheckpoint(timestamp);
 
@@ -1516,9 +1455,7 @@ public class Exchange {
             lc.updateInsert(buffer, key, result);
             return false;
         } else {
-            if (Debug.ENABLED) {
-                Debug.$assert(buffer.getPageAddress() != _volume.getGarbageRoot());
-            }
+            Debug.$assert0.t(buffer.getPageAddress() != _volume.getGarbageRoot());
             Buffer rightSibling = null;
 
             try {
@@ -1537,11 +1474,9 @@ public class Exchange {
                 timestamp = timestamp();
                 buffer.writePageOnCheckpoint(timestamp);
                 rightSibling.writePageOnCheckpoint(timestamp);
-                
-                if (Debug.ENABLED) {
-                    Debug.$assert(rightSibling.getPageAddress() != 0);
-                    Debug.$assert(rightSibling != buffer);
-                }
+
+                Debug.$assert0.t(rightSibling.getPageAddress() != 0);
+                Debug.$assert0.t(rightSibling != buffer);
 
                 rightSibling.init(buffer.getPageType());
                 // debug
@@ -1561,10 +1496,8 @@ public class Exchange {
                 long oldRightSibling = buffer.getRightSibling();
                 long newRightSibling = rightSibling.getPageAddress();
 
-                if (Debug.ENABLED) {
-                    Debug.$assert(newRightSibling > 0 && oldRightSibling != newRightSibling);
-                    Debug.$assert(rightSibling.getPageType() == buffer.getPageType());
-                }
+                Debug.$assert0.t(newRightSibling > 0 && oldRightSibling != newRightSibling);
+                Debug.$assert0.t(rightSibling.getPageType() == buffer.getPageType());
 
                 rightSibling.setRightSibling(oldRightSibling);
                 buffer.setRightSibling(newRightSibling);
@@ -1830,9 +1763,7 @@ public class Exchange {
                     if (buffer.isAfterRightEdge(foundAt)) {
                         long rightSiblingPage = buffer.getRightSibling();
 
-                        if (Debug.ENABLED) {
-                            Debug.$assert(rightSiblingPage >= 0 && rightSiblingPage <= MAX_VALID_PAGE_ADDR);
-                        }
+                        Debug.$assert0.t(rightSiblingPage >= 0 && rightSiblingPage <= MAX_VALID_PAGE_ADDR);
                         if (rightSiblingPage > 0) {
                             Buffer rightSibling = _pool.get(_volume, rightSiblingPage, _exclusive, true);
                             if (inTxn) {
@@ -2566,9 +2497,7 @@ public class Exchange {
         _spareValue.clear();
         boolean result = remove(EQ, true);
         _spareValue.copyTo(_value);
-        if (Debug.ENABLED) {
-            Debug.$assert(_value.isDefined() == result);
-        }
+        Debug.$assert0.t(_value.isDefined() == result);
         return result;
     }
 
@@ -2800,9 +2729,7 @@ public class Exchange {
                                     }
                                     foundAt2 &= P_MASK;
 
-                                    if (Debug.ENABLED) {
-                                        Debug.$assert(foundAt2 >= foundAt1);
-                                    }
+                                    Debug.$assert0.t(foundAt2 >= foundAt1);
                                     if (fetchFirst) {
                                         removeFetchFirst(buffer, foundAt1, buffer, foundAt2);
                                     }
@@ -2833,9 +2760,7 @@ public class Exchange {
 
                     if (!treeClaimAcquired) {
                         if (!_treeHolder.claim(treeWriterClaimRequired)) {
-                            if (Debug.ENABLED) {
-                                Debug.debug1(true);
-                            }
+                            Debug.$assert0.t(false);
                             throw new InUseException("Thread " + Thread.currentThread().getName()
                                     + " failed to get writer claim on " + _tree);
                         }
@@ -2860,7 +2785,7 @@ public class Exchange {
 
                         int foundAt1 = searchLevel(key1, pageAddr1, level) & P_MASK;
                         int foundAt2 = -1;
-                        
+
                         //
                         // Note: this buffer now has a writer claim on it.
                         //
@@ -2909,15 +2834,11 @@ public class Exchange {
                             foundAt2 = searchLevel(key2, pageAddr2, level);
                             if ((foundAt2 & EXACT_MASK) != 0) {
                                 foundAt2 = buffer.nextKeyBlock(foundAt2);
-                                if (Debug.ENABLED) {
-                                    Debug.$assert(foundAt2 != -1);
-                                }
+                                Debug.$assert0.t(foundAt2 != -1);
                             }
                             foundAt2 &= P_MASK;
 
-                            if (Debug.ENABLED) {
-                                Debug.$assert(foundAt2 != KEY_BLOCK_START);
-                            }
+                            Debug.$assert0.t(foundAt2 != KEY_BLOCK_START);
                             buffer = lc._buffer;
                             lc._flags |= RIGHT_CLAIMED;
                             lc._rightBuffer = buffer;
@@ -2926,21 +2847,15 @@ public class Exchange {
                         }
 
                         if (lc._leftBuffer.isIndexPage()) {
-                            if (Debug.ENABLED) {
-                                Debug.$assert(lc._rightBuffer.isIndexPage() && depth > 0);
-                            }
+                            Debug.$assert0.t(lc._rightBuffer.isIndexPage() && depth > 0);
                             int p1 = lc._leftBuffer.previousKeyBlock(foundAt1);
                             int p2 = lc._rightBuffer.previousKeyBlock(foundAt2);
 
-                            if (Debug.ENABLED) {
-                                Debug.$assert(p1 != -1 && p2 != -1);
-                            }
+                            Debug.$assert0.t(p1 != -1 && p2 != -1);
                             pageAddr1 = lc._leftBuffer.getPointer(p1);
                             pageAddr2 = lc._rightBuffer.getPointer(p2);
                         } else {
-                            if (Debug.ENABLED) {
-                                Debug.$assert(depth == 0);
-                            }
+                            Debug.$assert0.t(depth == 0);
                             break;
                         }
                     }
@@ -3022,14 +2937,10 @@ public class Exchange {
                                     LevelCache parentLc = _levelCache[level + 1];
                                     Buffer buffer = parentLc._leftBuffer;
 
-                                    if (Debug.ENABLED) {
-                                        Debug.$assert(buffer != null);
-                                    }
+                                    Debug.$assert0.t(buffer != null);
                                     if (parentLc._rightBuffer == buffer) {
                                         int foundAt = buffer.findKey(_spareKey1);
-                                        if (Debug.ENABLED) {
-                                            Debug.$assert((foundAt & EXACT_MASK) == 0);
-                                        }
+                                        Debug.$assert0.t((foundAt & EXACT_MASK) == 0);
                                         // Try it the simple way
                                         _value.setPointerValue(buffer2.getPageAddress());
                                         _value.setPointerPageType(buffer2.getPageType());
@@ -3052,9 +2963,7 @@ public class Exchange {
 
                             result = true;
                         } else if (foundAt1 != foundAt2) {
-                            if (Debug.ENABLED) {
-                                Debug.$assert(foundAt2 > foundAt1);
-                            }
+                            Debug.$assert0.t(foundAt2 > foundAt1);
                             _key.copyTo(_spareKey1);
                             //
                             // Before we remove these records, we need to
@@ -3091,9 +3000,7 @@ public class Exchange {
                 }
                 if (treeWriterClaimRequired) {
                     if (!_treeHolder.claim(true)) {
-                        if (Debug.ENABLED) {
-                            Debug.debug1(true);
-                        }
+                        Debug.$assert0.t(false);
                         throw new InUseException("Thread " + Thread.currentThread().getName()
                                 + " failed to get reader claim on " + _tree);
                     }
@@ -3125,9 +3032,7 @@ public class Exchange {
                         if (lc._deferredReindexPage != 0) {
                             if (!treeClaimAcquired) {
                                 if (!_treeHolder.claim(treeWriterClaimRequired)) {
-                                    if (Debug.ENABLED) {
-                                        Debug.debug1(true);
-                                    }
+                                    Debug.$assert0.t(false);
                                     throw new InUseException("Thread " + Thread.currentThread().getName()
                                             + " failed to get writer claim on " + _tree);
                                 }
@@ -3143,10 +3048,7 @@ public class Exchange {
                                 _value.setPointerPageType(buffer.getPageType());
                                 storeInternal(_spareKey2, _value, level + 1, false, true);
                             } else {
-                                if (_persistit.getLogBase().isLoggable(LogBase.LOG_UNINDEXED_PAGE)) {
-                                    _persistit.getLogBase().log(LogBase.LOG_UNINDEXED_PAGE, deferredPage, 0, 0, 0, 0,
-                                            _tree.getName(), _volume.getPath());
-                                }
+                                _persistit.getLogBase().unindexedPage.log(deferredPage, _volume, _tree.getName());
                             }
                             lc._deferredReindexPage = 0;
                             _pool.release(buffer);
@@ -3260,15 +3162,9 @@ public class Exchange {
             byte[] rawBytes = value.getEncodedBytes();
             int rawSize = value.getEncodedSize();
             if (rawSize != LONGREC_SIZE) {
-                if (Debug.ENABLED) {
-                    Debug.debug1(true);
-                }
                 corrupt("Invalid LONG_RECORD value size=" + rawSize + " but should be " + LONGREC_SIZE);
             }
             if ((rawBytes[0] & 0xFF) != LONGREC_TYPE) {
-                if (Debug.ENABLED) {
-                    Debug.debug1(true);
-                }
                 corrupt("Invalid LONG_RECORD value type=" + (rawBytes[0] & 0xFF) + " but should be " + LONGREC_TYPE);
             }
             int longSize = Buffer.decodeLongRecordDescriptorSize(rawBytes, 0);
@@ -3293,17 +3189,11 @@ public class Exchange {
 
             for (int count = 0; page != 0 && offset < minimumBytesFetched; count++) {
                 if (remainingSize <= 0) {
-                    if (Debug.ENABLED) {
-                        Debug.debug1(true);
-                    }
                     corrupt("Invalid LONG_RECORD remaining size=" + remainingSize + " of " + rawSize + " in page "
                             + page);
                 }
                 buffer = _pool.get(_volume, page, false, true);
                 if (buffer.getPageType() != PAGE_TYPE_LONG_RECORD) {
-                    if (Debug.ENABLED) {
-                        Debug.debug1(true);
-                    }
                     corrupt("LONG_RECORD chain is invalid at page " + page + " - invalid page type: " + buffer);
                 }
                 int segmentSize = buffer.getBufferSize() - HEADER_SIZE;
@@ -3385,10 +3275,8 @@ public class Exchange {
         long looseChain = 0;
         Buffer[] bufferArray = null;
 
-        if (Debug.ENABLED) {
-            Debug.$assert(value.isLongRecordMode());
-            Debug.$assert(rawBytes.length == LONGREC_SIZE);
-        }
+        Debug.$assert0.t(value.isLongRecordMode());
+        Debug.$assert0.t(rawBytes.length == LONGREC_SIZE);
 
         System.arraycopy(longBytes, 0, rawBytes, LONGREC_PREFIX_OFFSET, LONGREC_PREFIX_SIZE);
 
@@ -3400,19 +3288,13 @@ public class Exchange {
             bufferArray = new Buffer[count];
             for (; index < count && page != 0; index++) {
                 Buffer buffer = _pool.get(_volume, page, true, true);
-                if (Debug.ENABLED) {
-                    Debug.$assert(buffer.isLongRecordPage());
-                }
+                Debug.$assert0.t(buffer.isLongRecordPage());
                 bufferArray[index] = buffer;
                 page = buffer.getRightSibling();
 
                 // verify that there's no cycle
                 for (int i = 0; i < index; i++) {
                     if (bufferArray[i].getPageAddress() == page) {
-                        if (Debug.ENABLED) {
-                            Debug.debug1(true);
-                        }
-
                         corrupt("LONG_RECORD chain cycle at " + bufferArray[0]);
                     }
                 }
@@ -3440,7 +3322,7 @@ public class Exchange {
                     segmentSize = maxSegmentSize;
                 Buffer buffer = bufferArray[index];
                 buffer.writePageOnCheckpoint(timestamp);
-                
+
                 buffer.init(PAGE_TYPE_LONG_RECORD);
                 buffer.setRightSibling(page);
 
@@ -3507,10 +3389,8 @@ public class Exchange {
         byte[] rawBytes = value.getEncodedBytes();
         int maxSegmentSize = _pool.getBufferSize() - HEADER_SIZE;
 
-        if (Debug.ENABLED) {
-            Debug.$assert(value.isLongRecordMode());
-            Debug.$assert(rawBytes.length == LONGREC_SIZE);
-        }
+        Debug.$assert0.t(value.isLongRecordMode());
+        Debug.$assert0.t(rawBytes.length == LONGREC_SIZE);
 
         System.arraycopy(longBytes, 0, rawBytes, LONGREC_PREFIX_OFFSET, LONGREC_PREFIX_SIZE);
 
@@ -3532,10 +3412,8 @@ public class Exchange {
                     if (segmentSize > maxSegmentSize)
                         segmentSize = maxSegmentSize;
 
-                    if (Debug.ENABLED) {
-                        Debug.$assert(segmentSize >= 0 && offset >= 0 && offset + segmentSize < longBytes.length
-                                && HEADER_SIZE + segmentSize <= buffer.getBytes().length);
-                    }
+                    Debug.$assert0.t(segmentSize >= 0 && offset >= 0 && offset + segmentSize < longBytes.length
+                            && HEADER_SIZE + segmentSize <= buffer.getBytes().length);
 
                     System.arraycopy(longBytes, offset, buffer.getBytes(), HEADER_SIZE, segmentSize);
 
@@ -3579,9 +3457,6 @@ public class Exchange {
             for (int count = 0; page != 0; count++) {
                 buffer = _volume.getPool().get(_volume, page, false, true);
                 if (buffer.getPageType() != PAGE_TYPE_LONG_RECORD) {
-                    if (Debug.ENABLED) {
-                        Debug.debug1(true);
-                    }
                     corrupt("LONG_RECORD chain starting at " + _longRecordPageAddress + " is invalid at page " + page
                             + " - invalid page type: " + buffer);
                 }
@@ -3605,9 +3480,6 @@ public class Exchange {
     private void checkPageType(Buffer buffer, int expectedType) throws PersistitException {
         int type = buffer.getPageType();
         if (type != expectedType) {
-            if (Debug.ENABLED) {
-                Debug.$assert(false);
-            }
             _pool.release(buffer);
             corrupt("Volume " + _volume + " page " + buffer.getPageAddress() + " invalid page type " + type
                     + ": should be " + expectedType);
@@ -3751,9 +3623,8 @@ public class Exchange {
     }
 
     void corrupt(final String error) throws CorruptVolumeException {
-        if (_persistit.getLogBase().isLoggable(LogBase.LOG_CORRUPT)) {
-            _persistit.getLogBase().log(LogBase.LOG_CORRUPT, error + Util.NEW_LINE + toStringDetail());
-        }
+        Debug.$assert0.t(false);
+        _persistit.getLogBase().corruptVolume.log(error + Util.NEW_LINE + toStringDetail());
         throw new CorruptVolumeException(error);
     }
 

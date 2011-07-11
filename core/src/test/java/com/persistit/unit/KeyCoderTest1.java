@@ -23,12 +23,12 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import com.persistit.Key;
-import com.persistit.Util;
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.KeyRenderer;
 import com.persistit.encoding.KeyStringCoder;
 import com.persistit.exception.ConversionException;
+import com.persistit.util.Util;
 
 public class KeyCoderTest1 extends PersistitUnitTestCase {
 

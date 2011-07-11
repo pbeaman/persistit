@@ -19,10 +19,10 @@ import java.util.Iterator;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-import com.persistit.ArgParser;
 import com.persistit.PersistitMap;
 import com.persistit.Value;
 import com.persistit.test.TestResult;
+import com.persistit.util.ArgParser;
 
 public class PersistitMapStress1 extends StressBase {
 

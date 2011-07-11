@@ -15,7 +15,7 @@
 
 package com.persistit.exception;
 
-import com.persistit.Debug;
+import com.persistit.util.Debug;
 
 /**
  * Thrown by {@link com.persistit.Volume} if the volume file being opened is
@@ -34,7 +34,7 @@ public class CorruptVolumeException extends PersistitException {
     public CorruptVolumeException(String msg) {
         super(msg);
         if (Debug.ENABLED)
-            Debug.debug1(true);
+            Debug.$assert1.t(false);
     }
 
 }
