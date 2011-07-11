@@ -66,7 +66,7 @@ public interface KeyDisplayer extends KeyCoder {
      * 
      * @throws ConversionException
      */
-    public void displayKeySegment(Key key, StringBuilder target, Class clazz, CoderContext context)
+    public void displayKeySegment(Key key, StringBuilder target, Class<?> clazz, CoderContext context)
             throws ConversionException;
 
 }

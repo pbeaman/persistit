@@ -69,7 +69,7 @@ import com.persistit.exception.ConversionException;
  * , and other <code>List</code> implementations that do not extend
  * <code>AbstractSequentialList</code>, the serialization logic uses the
  * <code>get(index)</code> method of <code>List</code> to acquire each member
- * rather than constructing an <code>Interator</code>. Subclasses of
+ * rather than constructing an <code>Iterator</code>. Subclasses of
  * <code>AbstractSequentialList</code> are serialized by using an
  * <code>Iterator</code> because access by index may be inefficient.
  * </p>
@@ -112,20 +112,20 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      */
     @Override
     public void put(Value value, Object object, CoderContext context) throws ConversionException {
-        if (object instanceof Map) {
-            for (Iterator iter = ((Map) object).entrySet().iterator(); iter.hasNext();) {
-                Map.Entry entry = (Map.Entry) iter.next();
+        if (object instanceof Map<?, ?>) {
+            for (Iterator<Map.Entry<?, ?>> iter = ((Map) object).entrySet().iterator(); iter.hasNext();) {
+                Map.Entry<?, ?> entry = (Map.Entry<?, ?>) iter.next();
                 value.put(entry.getKey(), context);
                 value.put(entry.getValue(), context);
             }
-        } else if (object instanceof List && !(object instanceof AbstractSequentialList)) {
-            List list = (List) object;
+        } else if (object instanceof List<?> && !(object instanceof AbstractSequentialList)) {
+            List<?> list = (List<?>) object;
             int size = list.size();
             for (int index = 0; index < size; index++) {
                 value.put(list.get(index), context);
             }
-        } else if (object instanceof Collection) {
-            for (Iterator iter = ((Collection) object).iterator(); iter.hasNext();) {
+        } else if (object instanceof Collection<?>) {
+            for (Iterator<?> iter = ((Collection<?>) object).iterator(); iter.hasNext();) {
                 value.put(iter.next(), context);
             }
         } else {
@@ -160,7 +160,7 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      * @throws ConversionException
      */
     @Override
-    public Object get(Value value, Class clazz, CoderContext context) throws ConversionException {
+    public Object get(Value value, Class<?> clazz, CoderContext context) throws ConversionException {
         try {
             Object target = clazz.newInstance();
             value.registerEncodedObject(target);
@@ -275,7 +275,7 @@ public class CollectionValueCoder implements ValueRenderer, ValueDisplayer {
      * @throws ConversionException
      */
     @Override
-    public void display(Value value, StringBuilder target, Class clazz, CoderContext context)
+    public void display(Value value, StringBuilder target, Class<?> clazz, CoderContext context)
             throws ConversionException {
         if (Map.class.isAssignableFrom(clazz)) {
             target.append('[');

@@ -28,7 +28,7 @@ import com.persistit.exception.ConversionException;
  * A {@link ValueCoder} that uses standard Java serialization to store and
  * retrieve object values. This class is related to {@link DefaultValueCoder}.
  * When Persistit serializes or deserializes an object for which there is no
- * registered <code>ValueCoder</code>, it implictly constructs either a
+ * registered <code>ValueCoder</code>, it implicitly constructs either a
  * <code>DefaultValueCoder</code> or a <code>SerialValueCoder</code>, depending
  * on the value of the <code>serialOverride</code> property. See <a
  * href="../../../Object_Serialization_Notes.html"> Persistit Object
@@ -53,7 +53,7 @@ import com.persistit.exception.ConversionException;
 public final class SerialValueCoder implements ValueCoder {
     private ObjectStreamClass _classDescriptor;
 
-    public SerialValueCoder(Class clazz) {
+    public SerialValueCoder(Class<?> clazz) {
         _classDescriptor = ObjectStreamClass.lookup(clazz);
         if (_classDescriptor == null) {
             throw new ConversionException("Not Serializable: " + clazz.getName());
@@ -92,7 +92,7 @@ public final class SerialValueCoder implements ValueCoder {
      * @throws ConversionException
      */
     @Override
-    public Object get(Value value, Class clazz, CoderContext context) {
+    public Object get(Value value, Class<?> clazz, CoderContext context) {
         try {
             ObjectInputStream stream = value.oldValueInputStream(_classDescriptor);
             Object object = stream.readObject();

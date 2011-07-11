@@ -24,7 +24,7 @@ import com.persistit.exception.ConversionException;
  * arbitrary type in a {@link Value}. Persistit contains built-in logic to
  * encode objects of certain classes. For other classes, if there is no
  * registered <code>ValueCoder</code>, Persistit uses standard object
- * serializaion to generate a byte array that represents the state of that
+ * serialization to generate a byte array that represents the state of that
  * object in the database.
  * </p>
  * <p>
@@ -173,6 +173,6 @@ public interface ValueCoder {
      *         <code>clazz</code> parameter.
      * @throws ConversionException
      */
-    public Object get(Value value, Class clazz, CoderContext context) throws ConversionException;
+    public Object get(Value value, Class<?> clazz, CoderContext context) throws ConversionException;
 
 }

@@ -132,7 +132,7 @@ public interface CoderManager {
      * @return <code>Map</code> of <code>Class</code>es to
      *         <code>ValueCoder</code>s.
      */
-    public Map getRegisteredValueCoders();
+    public Map<Class<?>, ? extends ValueCoder> getRegisteredValueCoders();
 
     /**
      * Create a <code>Map</code> of <code>Class</code>es to registered
@@ -143,7 +143,7 @@ public interface CoderManager {
      * @return <code>Map</code> of <code>Class</code>es to <code>KeyCoder</code>
      *         s.
      */
-    public Map getRegisteredKeyCoders();
+    public Map<Class<?>, ? extends KeyCoder> getRegisteredKeyCoders();
 
     /**
      * Register the provided <code>KeyCoder</code> to encode and decode
@@ -157,7 +157,7 @@ public interface CoderManager {
      * @return The <code>KeyCoder</code> formerly registered for this
      *         <code>Class</code> , or <code>null</code> if there was none.
      */
-    public KeyCoder registerKeyCoder(Class clazz, KeyCoder coder);
+    public KeyCoder registerKeyCoder(Class<?> clazz, KeyCoder coder);
 
     /**
      * Remove the registered <code>KeyCoder</code> for the supplied class.
@@ -168,7 +168,7 @@ public interface CoderManager {
      * @return The <code>KeyCoder</code> that was removed, or <code>null</code>
      *         if there was none.
      */
-    public KeyCoder unregisterKeyCoder(Class clazz);
+    public KeyCoder unregisterKeyCoder(Class<?> clazz);
 
     /**
      * Remove the supplied <code>KeyCoder</code> from all classes to which it
@@ -190,7 +190,7 @@ public interface CoderManager {
      *            The <code>Class</code>
      * @return The <code>KeyCoder</code> or <code>null</code> if there is none.
      */
-    public KeyCoder lookupKeyCoder(Class clazz);
+    public KeyCoder lookupKeyCoder(Class<?> clazz);
 
     /**
      * Register the provided <code>ValueCoder</code> to encode and decode
@@ -204,7 +204,7 @@ public interface CoderManager {
      * @return The <code>ValueCoder</code> that was removed, or
      *         <code>null</code> if there was none.
      */
-    public ValueCoder registerValueCoder(Class clazz, ValueCoder coder);
+    public ValueCoder registerValueCoder(Class<?> clazz, ValueCoder coder);
 
     /**
      * Remove the registered <code>ValueCoder</code> for the supplied class.
@@ -215,7 +215,7 @@ public interface CoderManager {
      * @return The <code>ValueCoder</code> that was removed, or
      *         <code>null</code> if there was none.
      */
-    public ValueCoder unregisterValueCoder(Class clazz);
+    public ValueCoder unregisterValueCoder(Class<?> clazz);
 
     /**
      * Remove the supplied <code>ValueCoder</code> from all classes to which it
@@ -238,7 +238,7 @@ public interface CoderManager {
      * @return The <code>ValueCoder</code> or <code>null</code> if there is
      *         none.
      */
-    public ValueCoder lookupValueCoder(Class clazz);
+    public ValueCoder lookupValueCoder(Class<?> clazz);
 
     /**
      * Return a <code>ValueCoder</code> for the supplied <code>Class</code>. If
@@ -247,7 +247,7 @@ public interface CoderManager {
      * @param clazz
      * @return The ValueCoder
      */
-    public ValueCoder getValueCoder(Class clazz);
+    public ValueCoder getValueCoder(Class<?> clazz);
 
     /**
      * Return the parent <code>CoderManager</code> implementation, or

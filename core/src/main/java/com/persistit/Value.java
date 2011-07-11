@@ -609,10 +609,13 @@ public final class Value {
      * Remove all content from this <code>Value</code>. This method also
      * disables stream mode.
      * 
+     * @return this Value to permit call-chaining
+     * 
      */
-    public void clear() {
+    public Value clear() {
         _size = 0;
         reset();
+        return this;
     }
 
     void clear(boolean secure) {
@@ -3281,6 +3284,7 @@ public final class Value {
      *            The new value
      */
     public void putUTF(String string) {
+        preparePut();
         int length = string.length();
         ensureFit(length + 1);
         int index = _size;
