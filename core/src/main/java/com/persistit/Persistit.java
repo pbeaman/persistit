@@ -40,14 +40,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
-import com.persistit.exception.LogInitializationException;
 import com.persistit.exception.PersistitClosedException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -59,7 +57,6 @@ import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
 import com.persistit.logging.LogBase;
-import com.persistit.logging.PersistitLevel;
 import com.persistit.logging.PersistitLogger;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
