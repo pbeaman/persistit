@@ -7,14 +7,14 @@ Peter Beaman <pbeaman@akiban.com>
 :numbered:
 :website: http://www.akiban.com/persistit/
 
-@doc//GettingStarted.txt
-@doc//BasicAPI.txt
-@doc//Transactions.txt
-@doc//PhysicalStorage.txt
-@doc//Configuration.txt
-@doc//Recovery.txt
-@doc//Management.txt
-@doc//Security.txt
-@doc//Serialization.txt
-@doc//Miscellaneous.txt
+@GettingStarted.txt
+@BasicAPI.txt
+@Transactions.txt
+@PhysicalStorage.txt
+@Configuration.txt
+@Recovery.txt
+@Management.txt
+@Security.txt
+@Serialization.txt
+@Miscellaneous.txt
 
