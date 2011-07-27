@@ -877,7 +877,7 @@ public class Volume extends SharedResource {
                     return;
                 } else {
                     _persistit.getLogBase().garbagePageFull.log(left, right, garbageBufferInfo(garbageBuffer));
-                    _pool.release(garbageBuffer);
+                    garbageBuffer.releaseTouched();
                     garbageBuffer = null;
                 }
             }
@@ -910,12 +910,13 @@ public class Volume extends SharedResource {
             setGarbageRoot(garbageBuffer.getPageAddress());
         } finally {
             if (garbageBuffer != null) {
-                _pool.release(garbageBuffer);
+                garbageBuffer.releaseTouched();
             }
             releaseHeadBuffer();
         }
     }
 
+    // TODO - no one needs the return value
     boolean harvestLongRecords(Buffer buffer, int start, int end) throws PersistitException {
         boolean anyLongRecords = false;
         if (buffer.isDataPage()) {
@@ -1087,7 +1088,7 @@ public class Volume extends SharedResource {
                 }
             } finally {
                 if (buffer != null)
-                    _pool.release(buffer);
+                    buffer.releaseTouched();
                 buffer = null;
             }
             if (deallocate != -1) {
@@ -1218,7 +1219,7 @@ public class Volume extends SharedResource {
             rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
             rootPageBuffer.setDirtyAtTimestamp(timestamp);
         } finally {
-            _pool.release(rootPageBuffer);
+            rootPageBuffer.releaseTouched();
         }
 
         tree.claim(true);
@@ -1246,7 +1247,7 @@ public class Volume extends SharedResource {
     }
 
     private void releaseHeadBuffer() {
-        _pool.release(_headBuffer);
+        _headBuffer.releaseTouched();
     }
 
     void readPage(Buffer buffer, long page) throws PersistitIOException, InvalidPageAddressException,
@@ -1371,7 +1372,7 @@ public class Volume extends SharedResource {
                     return buffer;
                 } finally {
                     if (garbageBuffer != null) {
-                        _pool.release(garbageBuffer);
+                        garbageBuffer.releaseTouched();
                     }
                 }
             } else {
@@ -1585,11 +1586,11 @@ public class Volume extends SharedResource {
         return _appCache.get();
     }
 
-    public int getHandle() {
+    int getHandle() {
         return _handle.get();
     }
 
-    public int setHandle(final int handle) {
+    int setHandle(final int handle) {
         _handle.set(handle);
         return handle;
     }

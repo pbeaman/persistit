@@ -20,8 +20,6 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
 
-import com.persistit.logging.LogBase;
-
 public class Debug {
 
     public final static boolean ENABLED = false;

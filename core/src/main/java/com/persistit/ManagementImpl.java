@@ -736,13 +736,12 @@ class ManagementImpl implements Management {
             status |= SharedResource.CLAIMED_MASK;
         if (statusCode.indexOf('w') >= 0)
             status |= SharedResource.WRITER_MASK;
-        if (statusCode.indexOf('s') >= 0)
-            status |= SharedResource.SUSPENDED_MASK;
+
         if (statusCode.indexOf('p') >= 0)
             status |= SharedResource.FIXED_MASK;
 
         if (statusCode.indexOf('a') >= 0)
-            status |= (SharedResource.FIXED_MASK | SharedResource.SUSPENDED_MASK | SharedResource.WRITER_MASK
+            status |= (SharedResource.FIXED_MASK | SharedResource.WRITER_MASK
                     | SharedResource.CLAIMED_MASK | SharedResource.DIRTY_MASK | SharedResource.VALID_MASK);
 
         // select none

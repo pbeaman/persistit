@@ -478,6 +478,11 @@ public final class Buffer extends SharedResource {
         super.release();
     }
 
+    void releaseTouched() {
+        setTouched();
+        release();
+    }
+
     /**
      * Zero out all bytes in this buffer.
      */
@@ -550,9 +555,7 @@ public final class Buffer extends SharedResource {
     }
 
     /**
-     * Synchronized because background threads read the state.
-     * 
-     * @return
+     * @return Timestamp at which page held by this buffer was last changed
      */
     public long getTimestamp() {
         return _timestamp;
@@ -703,9 +706,10 @@ public final class Buffer extends SharedResource {
             //
             // Here we MUST land on a KeyBlock at an ebc value change point.
             //
+            int kbData = getInt(p);
             int index = (p - start) >> 2;
             int runCount = fastIndex.getRunCount(index);
-            int ebc = fastIndex.getEbc(index);
+            int ebc = decodeKeyBlockEbc(kbData);
 
             if (depth < ebc) {
                 // We know that depth < ebc for a bunch of KeyBlocks - we
@@ -728,7 +732,7 @@ public final class Buffer extends SharedResource {
             else // if (depth == ebc)
             {
                 // Now we are looking for the keyblock with the matching db
-                int db = fastIndex.getDescriminatorByte(index);
+                int db = decodeKeyBlockDb(kbData);
                 int kb = kbytes[depth] & 0xFF;
 
                 if (kb < db) {
@@ -737,15 +741,26 @@ public final class Buffer extends SharedResource {
                 }
                 if (kb > db) {
                     if (runCount > 0) {
+                        //
+                        // There is a run of runCount keys after p that all have
+                        // the same ebc. Depending on how big the run is, we
+                        // either do a
+                        // linear search or perform a binary search within the
+                        // run.
+                        //
                         int p2 = p + (runCount << 2);
+                        //
                         // p2 now points to the last key block with the same
                         // ebc in this run.
-                        int db2 = fastIndex.getDescriminatorByte(index + runCount);
-
+                        //
+                        int kbData2 = getInt(p2);
+                        int db2 = decodeKeyBlockDb(kbData2);
+                        //
                         // For the common case that runCount == 1, we avoid
                         // setting up the binary search loop. Instead, the
                         // result is completely determined here by the
                         // value of db2.
+                        //
                         if (runCount == 1) {
                             if (db2 > kb) {
                                 //
@@ -753,19 +768,18 @@ public final class Buffer extends SharedResource {
                                 // that kb > db.
                                 //
                                 int result = p2 | (depth << DEPTH_SHIFT);
-
                                 return result;
                             } else if (db2 < kb) {
-                                // we just want to move forward from kb2.
-                                // index = (p2 - start) >> 2;
-                                // runCount = _findexElements[index] >>
-                                // FINDEX_RUNCOUNT_SHIFT;
+                                //
+                                // The key at the end of the run is still less
+                                // than kb so we just skip the entire run and
+                                // increment p.
                                 p = p2 + KEYBLOCK_LENGTH;
                                 continue;
                             } else {
-                                // found it right here. We'll fall through to
-                                // the
-                                // equality check below.
+                                //
+                                // Found it right here. We'll fall through to
+                                // the equality check below.
                                 //
                                 p = p2;
                                 db = db2;
@@ -775,8 +789,10 @@ public final class Buffer extends SharedResource {
                         // If runCount > 1 then we have more work to do.
                         //
                         else if (db2 > kb) {
-                            // the key block we want is >= p and < p2.
+                            //
+                            // The key block we want is between [p, p2).
                             // Time to do a binary search.
+                            //
                             left = p;
                             right = p2;
                             //
@@ -798,18 +814,27 @@ public final class Buffer extends SharedResource {
                                     left = oldRight - ((db2 - kb + 1) << 2);
                                 }
                             }
-
+                            //
+                            // Perform binary search
+                            //
                             while (right > left) {
                                 p = ((left + right) >> 1) & P_MASK;
                                 if (p == left) {
                                     //
-                                    // This is right because we already know
-                                    // that kb > db.
+                                    // This is right because if p == left then
+                                    // right = left + 1. We already know
+                                    // that kb > db and less than db2, so the
+                                    // final
+                                    // answer is in right.
                                     //
                                     int result = right | (depth << DEPTH_SHIFT);
-
                                     return result;
                                 }
+                                //
+                                // Otherwise perform a probe and the current
+                                // mid-point and
+                                // adjust the ends depending on the comparison.
+                                //
                                 int db1 = getDb(p);
 
                                 if (db1 == kb) {
@@ -823,8 +848,10 @@ public final class Buffer extends SharedResource {
                                 }
                             }
                         } else if (db2 < kb) {
-                            // we just want to move forward from kb2, skipping
+                            //
+                            // We just want to move forward from kb2, skipping
                             // the crossCount if non-zero.
+                            //
                             index = (p2 - start) >> 2;
                             runCount = fastIndex.getRunCount(index);
                             assert runCount <= 0;
@@ -837,13 +864,25 @@ public final class Buffer extends SharedResource {
                             db = db2;
                         }
                     } else {
+                        //
+                        // Skipping all the keys in the crossCount. These keys
+                        // are all deeper and therefore all fall before the db
+                        // are looking for. This case also handles
+                        // runCount == 0 where we simply advance to the next key
+                        // block.
+                        //
                         p += KEYBLOCK_LENGTH * (-runCount + 1);
                         continue;
                     }
                 }
 
                 if (kb == db) {
-                    int kbData = getInt(p);
+                    //
+                    // If kb == db then we now try to go deeper into the key. On
+                    // an exact match we will perform this block of code once
+                    // for each byte in the key.
+                    //
+                    kbData = getInt(p);
                     int tail = decodeKeyBlockTail(kbData);
                     int tbData = getInt(tail);
                     int tlength = decodeTailBlockKLength(tbData) + depth + 1;
@@ -867,10 +906,11 @@ public final class Buffer extends SharedResource {
                             db = db & 0xFF;
 
                             if (kb < db) {
-                                // key is less than tail, so we return
+                                //
+                                // Key is less than tail, so we return
                                 // this keyblock
+                                //
                                 int result = p | (depth << DEPTH_SHIFT) | FIXUP_MASK;
-
                                 return result;
                             }
                             matched = false;
@@ -882,16 +922,19 @@ public final class Buffer extends SharedResource {
                         // tail.
                         //
                         if (qlength == tlength) {
+                            //
                             // We matched all the way to the end of the tail
+                            //
                             if (qlength == klength) {
-                                // lengths match exactly so this is an
-                                // exact match
+                                //
+                                // And the key lengths are equal so this is an
+                                // exact match.
                                 //
                                 int result = p | (depth << DEPTH_SHIFT) | EXACT_MASK;
                                 return result;
                             }
-                            // key is longer, so we move to the right
                         } else if (tlength > qlength) {
+                            //
                             // Tail is longer, so the key
                             // key is less than tail, so we return the
                             // this keyblock since it is greater than the key
@@ -899,6 +942,8 @@ public final class Buffer extends SharedResource {
                             int result = p | (depth << DEPTH_SHIFT) | FIXUP_MASK;
                             return result;
                         }
+                        // Otherwise, the key is longer, so we move to the next
+                        // key block at the bottom of this loop.
                     }
                 }
                 // Advance to the next keyblock
@@ -906,8 +951,7 @@ public final class Buffer extends SharedResource {
             }
 
         }
-        // Should never fall through. If so, then we've walked to the right of
-        // maxkey.
+
         int result = right | (depth << DEPTH_SHIFT);
         return result;
     }
@@ -992,7 +1036,7 @@ public final class Buffer extends SharedResource {
         }
         int kbData = getInt(foundAt & P_MASK);
         int tail = decodeKeyBlockTail(kbData);
-        return getInt(tail + 4); // TODO - allow larger pointer size
+        return getInt(tail + 4);
     }
 
     /**
@@ -1314,7 +1358,6 @@ public final class Buffer extends SharedResource {
                 Debug.$assert1.t(false);
             }
             if (isIndexPage()) {
-                // TODO - allow larger pointer size
                 int pointer = (int) value.getPointerValue();
 
                 Debug.$assert0.t(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0 : true);
@@ -1328,7 +1371,7 @@ public final class Buffer extends SharedResource {
             }
 
             if (fastIndex != null) {
-                fastIndex.insertKeyBlock(p, ebcNew, fixupSuccessor);
+                fastIndex.insertKeyBlock(p, ebcSuccessor, fixupSuccessor);
             }
 
             bumpGeneration();
@@ -1446,7 +1489,6 @@ public final class Buffer extends SharedResource {
         }
 
         if (isIndexPage()) {
-            // TODO - allow larger pointer size
             long pointer = value.getPointerValue();
             Debug.$assert0.t(p + KEYBLOCK_LENGTH < _keyBlockEnd ? pointer > 0 : pointer == -1);
             if (value != Value.EMPTY_VALUE) {
@@ -1463,7 +1505,7 @@ public final class Buffer extends SharedResource {
     }
 
     /**
-     * Removes the keys and assocated values from the key blocks indicated by
+     * Removes the keys and associated values from the key blocks indicated by
      * the two argument. The removal range starts at foundAt1 inclusive and ends
      * at foundAt2 exclusive.
      * 
@@ -1591,11 +1633,7 @@ public final class Buffer extends SharedResource {
                 // location.
                 //
                 if (isIndexPage()) {
-                    putInt(newNextTail + TAILBLOCK_POINTER, getInt(tailNext + TAILBLOCK_POINTER)); // TODO
-                                                                                                   // -
-                                                                                                   // allow
-                                                                                                   // larger
-                    // pointer size
+                    putInt(newNextTail + TAILBLOCK_POINTER, getInt(tailNext + TAILBLOCK_POINTER));
                 }
                 System.arraycopy(_bytes, tailNext + _tailHeaderSize, _bytes, newNextTail + _tailHeaderSize + ebcNext
                         - ebc, nextTailSize - _tailHeaderSize);
@@ -2074,7 +2112,7 @@ public final class Buffer extends SharedResource {
         // it does not later get confused and interpreted as a valid pointer.
         //
         if (isIndexPage()) {
-            putInt(edgeTail + TAILBLOCK_POINTER, -1); // TODO - fix for long
+            putInt(edgeTail + TAILBLOCK_POINTER, -1);
             // pointers
         }
 
@@ -2115,8 +2153,7 @@ public final class Buffer extends SharedResource {
                 }
             }
             // If foundAtPosition >= splitAtPosition then the split code already
-            // copied
-            // the new value into the right sibling page.
+            // copied the new value into the right sibling page.
         }
 
         Debug.$assert0.t(KEY_BLOCK_START + KEYBLOCK_LENGTH < _keyBlockEnd);
@@ -2477,21 +2514,22 @@ public final class Buffer extends SharedResource {
         }
     }
 
-    FastIndex getFastIndex() {
+    synchronized FastIndex getFastIndex() {
         // TODO - replace synchronized with CAS instructions
-        synchronized (this) {
-            if (_fastIndex == null) {
-                _fastIndex = _pool.allocFastIndex();
-                _fastIndex.setBuffer(this);
-            }
-            if (!_fastIndex.isValid()) {
-                _fastIndex.recompute();
-            }
-            return _fastIndex;
+        if (_fastIndex == null) {
+            _fastIndex = _pool.allocFastIndex();
+            _fastIndex.setBuffer(this);
         }
+        if (!_fastIndex.isValid()) {
+            _fastIndex.recompute();
+        }
+        // TODO - rename and get rid of argument. This means this FastIndex has
+        // been "touched"
+        _fastIndex.setTouched();
+        return _fastIndex;
     }
 
-    void takeFastIndex() {
+    synchronized void takeFastIndex() {
         _fastIndex = null;
     }
 
@@ -2549,8 +2587,6 @@ public final class Buffer extends SharedResource {
         }
 
         if (newTail != tail && isIndexPage()) {
-            // TODO - allow larger pointer size
-            //
             putInt(newTail + TAILBLOCK_POINTER, getInt(tail + TAILBLOCK_POINTER));
         }
         System.arraycopy(_bytes, tail + _tailHeaderSize, _bytes, newTail + _tailHeaderSize + oldEbc - newEbc, size
@@ -2856,7 +2892,7 @@ public final class Buffer extends SharedResource {
         if (Persistit.BIG_ENDIAN) {
             return _bytes[index + 3] & 0xFF;
         } else {
-            return _bytes[index + 3] & 0xFF;
+            return _bytes[index] & 0xFF;
         }
     }
 
@@ -3064,7 +3100,7 @@ public final class Buffer extends SharedResource {
         }
         BitSet bitSet = null;
         if (isIndexPage())
-            bitSet = new BitSet(); // TODO - this may kill GC
+            bitSet = new BitSet();
         if (key == null)
             key = new Key(_persistit);
 
@@ -3126,7 +3162,7 @@ public final class Buffer extends SharedResource {
             // If this is an index page, make sure the pointer isn't redundant
             //
             if (isIndexPage()) {
-                int pointer = getInt(tail + 4); // TODO - long pointers
+                int pointer = getInt(tail + 4);
                 if (pointer == -1) {
                     if (p + KEYBLOCK_LENGTH != _keyBlockEnd) {
                         return new InvalidPageStructureException("index pointer has pointer to -1 "
@@ -3379,7 +3415,6 @@ public final class Buffer extends SharedResource {
                 rec._key = new KeyState(key);
 
                 if (isIndexPage()) {
-                    // TODO - allow larger pointer size
                     rec._pointerValue = getInt(tail + 4);
                 } else {
                     int vsize = size - _tailHeaderSize - klength;

@@ -57,7 +57,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 jman.rollover();
             }
             jman.writePageToJournal(buffer);
-            pool.release(buffer);
+            buffer.releaseTouched();
         }
 
         final Checkpoint checkpoint1 = _persistit.getTimestampAllocator().forceCheckpoint();
@@ -121,7 +121,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             if (buffer.getTimestamp() > checkpoint2.getTimestamp()) {
                 jman.writePageToJournal(buffer);
             }
-            pool.release(buffer);
+            buffer.releaseTouched();
         }
         jman.close();
         volume.setHandle(0);
@@ -200,7 +200,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
             buffer.save();
             jman.writePageToJournal(buffer);
-            pool.release(buffer);
+            buffer.releaseTouched();
         }
         final Checkpoint checkpoint1 = _persistit.getTimestampAllocator().forceCheckpoint();
         jman.writeCheckpointToJournal(checkpoint1);

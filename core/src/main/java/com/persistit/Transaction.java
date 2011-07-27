@@ -1269,7 +1269,7 @@ public class Transaction {
                     BufferPool pool = tp._volume.getPool();
                     Buffer buffer = pool.get(tp._volume, tp._pageAddr, false, true);
                     boolean changed = buffer.getTimestamp() != tp._timestamp;
-                    pool.release(buffer);
+                    buffer.releaseTouched();
 
                     if (changed) {
                         _rollbackPending = true;
@@ -2014,7 +2014,7 @@ public class Transaction {
                     long pageAddr = dc._leftPage;
                     Buffer buffer = volume.getPool().get(volume, pageAddr, false, true);
                     Debug.$assert0.t(buffer.isLongRecordPage());
-                    volume.getPool().release(buffer);
+                    buffer.releaseTouched();
                 }
 
                 dc._volume.deallocateGarbageChain(dc._leftPage, dc._rightPage);

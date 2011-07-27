@@ -52,6 +52,7 @@ public class Tree extends SharedResource {
         return _name;
     }
 
+    // TODO - renameTree
     @Override
     public int hashCode() {
         if (_hashCode < 0) {
@@ -180,7 +181,7 @@ public class Tree extends SharedResource {
             _depth = type - Buffer.PAGE_TYPE_DATA + 1;
         } finally {
             if (buffer != null)
-                getVolume().getPool().release(buffer);
+                buffer.releaseTouched();
         }
     }
 
@@ -223,11 +224,11 @@ public class Tree extends SharedResource {
         return _appCache.get();
     }
 
-    public int getHandle() {
+    int getHandle() {
         return _handle.get();
     }
 
-    public int setHandle(final int handle) {
+    int setHandle(final int handle) {
         _handle.set(handle);
         return handle;
     }

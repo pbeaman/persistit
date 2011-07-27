@@ -905,7 +905,7 @@ public class Exchange {
         int foundAt = findKey(buffer, key, lc);
 
         if (buffer.isBeforeLeftEdge(foundAt) || buffer.isAfterRightEdge(foundAt)) {
-            _pool.release(buffer);
+            buffer.releaseTouched();
             return searchTree(key, 0);
         }
         return foundAt;
@@ -966,7 +966,7 @@ public class Exchange {
 
                 foundAt = searchLevel(key, pageAddress, currentLevel);
                 if (oldBuffer != null) {
-                    _pool.release(oldBuffer);
+                    oldBuffer.releaseTouched();
                     oldBuffer = null;
                 }
 
@@ -1008,7 +1008,7 @@ public class Exchange {
 
         } finally {
             if (oldBuffer != null) {
-                _pool.release(oldBuffer);
+                oldBuffer.releaseTouched();
                 oldBuffer = null;
             }
             _treeHolder.release();
@@ -1052,7 +1052,7 @@ public class Exchange {
                 // of our new buffer.
                 //
                 if (oldBuffer != null) {
-                    _pool.release(oldBuffer);
+                    oldBuffer.releaseTouched();
                     oldBuffer = null;
                 }
 
@@ -1089,7 +1089,7 @@ public class Exchange {
             return -1;
         } finally {
             if (oldBuffer != null) {
-                _pool.release(oldBuffer);
+                oldBuffer.releaseTouched();
             }
         }
     }
@@ -1238,7 +1238,7 @@ public class Exchange {
                         foundAt = findKey(buffer, key, lc);
 
                         if (buffer.isBeforeLeftEdge(foundAt) || buffer.isAfterRightEdge(foundAt)) {
-                            _pool.release(buffer);
+                            buffer.releaseTouched();
                             buffer = null;
                         }
                     }
@@ -1281,7 +1281,7 @@ public class Exchange {
                     //
                     if (splitPerformed && !treeClaimAcquired) {
                         treeClaimRequired = true;
-                        _pool.release(buffer);
+                        buffer.releaseTouched();
                         buffer = null;
                         continue;
                     }
@@ -1298,7 +1298,7 @@ public class Exchange {
                         committed = true;
                     }
 
-                    _pool.release(buffer);
+                    buffer.releaseTouched();
                     buffer = null;
 
                     if (!splitPerformed) {
@@ -1327,7 +1327,7 @@ public class Exchange {
                     newLongRecordPointer = 0;
                     oldLongRecordPointer = 0;
                     if (buffer != null) {
-                        _pool.release(buffer);
+                        buffer.releaseTouched();
                         buffer = null;
                     }
 
@@ -1346,7 +1346,7 @@ public class Exchange {
                     }
                 } finally {
                     if (buffer != null) {
-                        _pool.release(buffer);
+                        buffer.releaseTouched();
                         buffer = null;
                     }
                 }
@@ -1422,7 +1422,7 @@ public class Exchange {
 
         } finally {
             if (buffer != null) {
-                _pool.release(buffer);
+                buffer.releaseTouched();
             }
         }
     }
@@ -1512,7 +1512,7 @@ public class Exchange {
 
             } finally {
                 if (rightSibling != null) {
-                    _pool.release(rightSibling);
+                    rightSibling.releaseTouched();
                 }
             }
         }
@@ -1727,7 +1727,7 @@ public class Exchange {
                     if (inTxn) {
                         _transaction.touchedPage(this, buffer);
                     }
-                    _pool.release(buffer);
+                    buffer.releaseTouched();
                     buffer = null;
                 }
                 //
@@ -1769,7 +1769,7 @@ public class Exchange {
                             if (inTxn) {
                                 _transaction.touchedPage(this, buffer);
                             }
-                            _pool.release(buffer);
+                            buffer.releaseTouched();
                             //
                             // Reset foundAtNext to point to the first key block
                             // of the right sibling page.
@@ -1819,7 +1819,7 @@ public class Exchange {
 
                     if (txnResult != null) {
                         _transaction.touchedPage(this, buffer);
-                        _pool.release(buffer);
+                        buffer.releaseTouched();
                         buffer = null;
 
                         if (txnResult.equals(Boolean.TRUE)) {
@@ -1935,7 +1935,7 @@ public class Exchange {
                 if (inTxn) {
                     _transaction.touchedPage(this, buffer);
                 }
-                _pool.release(buffer);
+                buffer.releaseTouched();
                 buffer = null;
             }
         }
@@ -2391,7 +2391,7 @@ public class Exchange {
                 if (inTxn) {
                     _transaction.touchedPage(this, buffer);
                 }
-                _pool.release(buffer);
+                buffer.releaseTouched();
             }
             _treeHolder.verifyReleased();
         }
@@ -2753,7 +2753,7 @@ public class Exchange {
                             tryQuickDelete = false;
                         } finally {
                             if (buffer != null)
-                                _pool.release(buffer);
+                                buffer.releaseTouched();
                             buffer = null;
                         }
                     }
@@ -3051,20 +3051,20 @@ public class Exchange {
                                 _persistit.getLogBase().unindexedPage.log(deferredPage, _volume, _tree.getName());
                             }
                             lc._deferredReindexPage = 0;
-                            _pool.release(buffer);
+                            buffer.releaseTouched();
                             buffer = null;
                         }
                     }
                     deferredReindexRequired = false;
                 } catch (RetryException re) {
                     if (buffer != null) {
-                        _pool.release(buffer);
+                        buffer.releaseTouched();
                         buffer = null;
                     }
                     waitForTreeExclusive();
                 } finally {
                     if (buffer != null) {
-                        _pool.release(buffer);
+                        buffer.releaseTouched();
                         buffer = null;
                     }
                 }
@@ -3105,10 +3105,10 @@ public class Exchange {
         Buffer buffer2 = lc._rightBuffer;
 
         if (buffer2 != null && (lc._flags & RIGHT_CLAIMED) != 0) {
-            _pool.release(buffer2);
+            buffer2.releaseTouched();
         }
         if (buffer1 != null && (lc._flags & LEFT_CLAIMED) != 0) {
-            _pool.release(buffer1);
+            buffer1.releaseTouched();
         }
 
         lc._leftBuffer = null;
@@ -3209,7 +3209,7 @@ public class Exchange {
                 if (inTxn) {
                     _transaction.touchedPage(this, buffer);
                 }
-                _pool.release(buffer);
+                buffer.releaseTouched();
                 buffer = null;
 
                 if (count > MAX_LONG_RECORD_CHAIN) {
@@ -3223,7 +3223,7 @@ public class Exchange {
             value.setEncodedSize(offset);
         } finally {
             if (buffer != null)
-                _pool.release(buffer);
+                buffer.releaseTouched();
         }
     }
 
@@ -3335,7 +3335,7 @@ public class Exchange {
                 buffer.setDirtyAtTimestamp(timestamp);
                 bufferArray[index] = null;
                 page = buffer.getPageAddress(); // current head of the chain
-                _pool.release(buffer);
+                buffer.releaseTouched();
             }
             completed = true;
             Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
@@ -3347,7 +3347,7 @@ public class Exchange {
                     for (index = count; --index >= 0;) {
                         Buffer buffer = bufferArray[index];
                         if (buffer != null) {
-                            _pool.release(buffer);
+                            buffer.releaseTouched();
                             if (loosePageIndex >= 0 && index >= loosePageIndex) {
                                 _volume.deallocateGarbageChain(buffer.getPageAddress(), -1);
                             }
@@ -3424,7 +3424,7 @@ public class Exchange {
                     buffer.setRightSibling(looseChain);
                     looseChain = buffer.getPageAddress();
                     buffer.setDirtyAtTimestamp(timestamp);
-                    _pool.release(buffer);
+                    buffer.releaseTouched();
                     offset -= maxSegmentSize;
                     buffer = null;
                 }
@@ -3438,7 +3438,7 @@ public class Exchange {
             }
         } finally {
             if (buffer != null)
-                _pool.release(buffer);
+                buffer.releaseTouched();
             if (looseChain != 0) {
                 _volume.deallocateGarbageChain(looseChain, 0);
             }
@@ -3464,7 +3464,7 @@ public class Exchange {
                     buffer.writePage();
                 }
                 page = buffer.getRightSibling();
-                _volume.getPool().release(buffer);
+                buffer.releaseTouched();
                 buffer = null;
                 if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
                     corrupt("LONG_RECORD chain starting at " + _longRecordPageAddress + " is too long");
@@ -3472,7 +3472,7 @@ public class Exchange {
             }
         } finally {
             if (buffer != null) {
-                _volume.getPool().release(buffer);
+                buffer.releaseTouched();
             }
         }
     }
@@ -3480,7 +3480,7 @@ public class Exchange {
     private void checkPageType(Buffer buffer, int expectedType) throws PersistitException {
         int type = buffer.getPageType();
         if (type != expectedType) {
-            _pool.release(buffer);
+            buffer.releaseTouched();
             corrupt("Volume " + _volume + " page " + buffer.getPageAddress() + " invalid page type " + type
                     + ": should be " + expectedType);
         }
@@ -3586,7 +3586,7 @@ public class Exchange {
                     long rightSiblingPage = buffer.getRightSibling();
                     if (rightSiblingPage > 0) {
                         Buffer rightSibling = _pool.get(_volume, rightSiblingPage, _exclusive, true);
-                        _pool.release(buffer);
+                        buffer.releaseTouched();
                         //
                         // Reset foundAtNext to point to the first key block
                         // of the right sibling page.
@@ -3614,7 +3614,7 @@ public class Exchange {
             }
         } finally {
             if (buffer != null) {
-                _pool.release(buffer);
+                buffer.releaseTouched();
             }
         }
 
@@ -3671,7 +3671,7 @@ public class Exchange {
                 return new Buffer(buffer);
             }
         } finally {
-            _volume.getPool().release(buffer);
+            buffer.releaseTouched();
         }
     }
 
