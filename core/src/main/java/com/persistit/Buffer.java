@@ -441,7 +441,7 @@ public final class Buffer extends SharedResource {
     }
 
     void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException {
-        Debug.$assert1.t(isMine());
+        Debug.$assert0.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         if (isDirty() && getTimestamp() < checkpoint.getTimestamp() && timestamp > checkpoint.getTimestamp()) {
             writePage();
@@ -665,6 +665,15 @@ public final class Buffer extends SharedResource {
         _keyBlockEnd = index;
     }
 
+    void setNext(final Buffer buffer) {
+        Debug.$assert0.t(buffer != this);
+        _next = buffer;
+    }
+    
+    Buffer getNext() {
+        return _next;
+    }
+
     /**
      * Finds the keyblock in this page that exactly matches or immediately
      * follows the supplied key.
@@ -773,8 +782,13 @@ public final class Buffer extends SharedResource {
                                 //
                                 // The key at the end of the run is still less
                                 // than kb so we just skip the entire run and
-                                // increment p.
-                                p = p2 + KEYBLOCK_LENGTH;
+                                // increment p. One possibility is that the
+                                // run is interrupted by a series of deeper keys -
+                                // in that case we use the cross count to skip
+                                // all of them.
+                                int runCount2 = fastIndex.getRunCount(index + runCount);
+                                assert runCount2 <= 0;
+                                p = p2 + KEYBLOCK_LENGTH * (-runCount + 1);
                                 continue;
                             } else {
                                 //
@@ -1297,7 +1311,7 @@ public final class Buffer extends SharedResource {
             int newTailSize = klength + length + _tailHeaderSize;
 
             if (getKeyCount() >= _pool.getMaxKeys() || !willFit(newTailSize + KEYBLOCK_LENGTH - (free1 - free2))) {
-                Debug.$assert1.t(!postSplit);
+                Debug.$assert0.t(!postSplit);
                 return -1;
             }
 
@@ -1352,11 +1366,8 @@ public final class Buffer extends SharedResource {
             Debug.$assert0.t(klength >= 0 && ebcNew + 1 >= 0 && ebcNew + 1 + klength <= kbytes.length
                     && newTail + _tailHeaderSize >= 0 && newTail + _tailHeaderSize + klength <= _bytes.length);
 
-            try {
-                System.arraycopy(kbytes, ebcNew + 1, _bytes, newTail + _tailHeaderSize, klength);
-            } catch (Exception e) {
-                Debug.$assert1.t(false);
-            }
+            System.arraycopy(kbytes, ebcNew + 1, _bytes, newTail + _tailHeaderSize, klength);
+
             if (isIndexPage()) {
                 int pointer = (int) value.getPointerValue();
 
@@ -2734,7 +2745,7 @@ public final class Buffer extends SharedResource {
      * Repacks the tail blocks so that they are contiguous.
      */
     private void repack() {
-        Debug.$assert1.t(isMine());
+        Debug.$assert0.t(isMine());
 
         int[] plan = getRepackPlanBuffer();
         //
@@ -3515,7 +3526,7 @@ public final class Buffer extends SharedResource {
     }
 
     void setGarbageLeftPage(long left) {
-        Debug.$assert1.t(isMine());
+        Debug.$assert0.t(isMine());
         Debug.$assert0.t(left > 0 && left <= MAX_VALID_PAGE_ADDR && left != _page);
         Debug.$assert0.t(isGarbagePage());
         Debug.$assert0.t(_alloc + GARBAGE_BLOCK_SIZE <= _bufferSize);
@@ -3555,15 +3566,6 @@ public final class Buffer extends SharedResource {
         }
         info.updateAcquisitonTime();
 
-    }
-
-    void setNext(final Buffer buffer) {
-        Debug.$assert0.t(buffer != this);
-        _next = buffer;
-    }
-
-    Buffer getNext() {
-        return _next;
     }
 
 }

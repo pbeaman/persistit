@@ -91,10 +91,8 @@ public class FastIndexTest extends PersistitUnitTestCase {
         b1.putValue(key, value);
         
         FastIndex fi = b1.getFastIndex();
-        short[] inserted = fi.getArray();
         String inserteds = fi.toString();
         fi.recompute();
-        short[] computed = fi.getArray();
         String computeds = fi.toString();
         assertEquals(inserteds, computeds);
         b1.release();

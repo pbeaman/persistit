@@ -141,7 +141,6 @@ import com.persistit.util.Debug;
 
 class FastIndex {
 
-
     /**
      * The Findex array. One element per keyblock holds the crossCount,
      * runCount, ebc and db from the keyblock.
@@ -156,7 +155,6 @@ class FastIndex {
      * Indicates whether the _findexElements array is valid
      */
     private boolean _isValid;
-
 
     /**
      * The buffer this fast index is associated with.
@@ -192,15 +190,6 @@ class FastIndex {
 
     void invalidate() {
         _isValid = false;
-    }
-
-    /**
-     * For debugging only. Return a copy of the array elements.
-     */
-    short[] getArray() {
-        short[] result = new short[_buffer.getKeyCount()];
-        System.arraycopy(_findexElements, 0, result, 0, _buffer.getKeyCount());
-        return result;
     }
 
     void recompute() {
@@ -260,7 +249,7 @@ class FastIndex {
 
                     ebc0 = ebc;
                 } else {
-                    _findexElements[i] = 0;
+                    putRunCount(i, 0);
                 }
             }
             if (Debug.ENABLED) {
