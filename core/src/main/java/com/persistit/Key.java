@@ -1360,10 +1360,10 @@ public final class Key implements Comparable<Object> {
      * 
      * <code><pre>
      *     key.clear().append(&quot;a&quot;).append(&quot;b&quot;).append(&quot;c&quot;);
-     *     return key.indexTo(2).indexTo(-1).decode();
+     *     return key.indexTo(-1).decode();
      * </pre></code>
      * 
-     * returns "b".
+     * returns "c".
      * 
      * @param depth
      *            The depth, as defined above.

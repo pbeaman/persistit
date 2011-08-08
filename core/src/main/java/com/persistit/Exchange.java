@@ -98,26 +98,18 @@ import com.persistit.util.Util;
  * <code>Exchange</code> instances. Were it to occur, modification of the
  * <code>Key</code> or <code>Value</code> objects associated with an
  * <code>Exchange</code> by another thread could cause severe and unpredictable
- * errors, including possible corruption of the underlying data storage. For
- * this reason, each <code>Exchange</code> instance is associated with the first
- * <code>Thread</code> that performs any method accessing or modifying either
- * its key or value. Any subsequent attempt to access or modify either of these
- * fields by a different <code>Thread</code> results in a
- * {@link com.persistit.exception.WrongThreadException WrongThreadException}.
- * Also see {@link #clearOwnerThread} and {@link #getOwner()}.
- * </p>
- * <p>
- * Despite the fact that the methods of <code>Exchange</code> are not
- * threadsafe, Persistit is designed to allow multiple threads, using
- * <em>multiple</em> <code>Exchange</code> instances, to access and update the
- * underlying database in a highly concurrent fashion.
+ * errors, including possible corruption of the underlying data storage. While
+ * the methods of one <code>Exchange</code> instance are not threadsafe,
+ * Persistit is designed to allow multiple threads, using <em>multiple</em>
+ * <code>Exchange</code> instances, to access and update the underlying database
+ * in a highly concurrent fashion.
  * </p>
  * <p>
  * <h3>Exchange Pools</h3>
  * Normally each thread should allocate its own <code>Exchange</code> instances.
  * However, depending on the garbage collection performance characteristics of a
  * particular JVM it may be desirable to maintain a pool of
- * <code>Exchange</code>'s available for reuse, thereby reducing the frequency
+ * <code>Exchange</code>s available for reuse, thereby reducing the frequency
  * with which <code>Exchange</code>s need to be constructed and then garbage
  * collected. An application may get an Exchange using
  * {@link Persistit#getExchange(String, String, boolean)} or
@@ -154,8 +146,6 @@ public class Exchange {
     private final static int RIGHT_CLAIMED = 2;
 
     private Persistit _persistit;
-
-    private long _timeout;
 
     private final Key _key;
     private final Value _value;
@@ -321,7 +311,6 @@ public class Exchange {
         final Volume volume = tree.getVolume();
         _pool = _persistit.getBufferPool(volume.getPageSize());
         _transaction = _persistit.getTransaction();
-        _timeout = _persistit.getDefaultTimeout();
         _key.clear();
         _value.clear();
 
@@ -349,7 +338,6 @@ public class Exchange {
         _treeGeneration = -1;
         _transaction = _persistit.getTransaction();
         _cacheDepth = exchange._cacheDepth;
-        _timeout = exchange._timeout;
 
         initCache();
 
@@ -804,35 +792,7 @@ public class Exchange {
     }
 
     /**
-     * Return the maximum time, in milliseconds, that operations on this
-     * <code>Exchange</code> will wait for completion. In particular, if there
-     * is heavy disk I/O an operation may require a significant amount of time
-     * to complete. This is the approximate upper bound on that time.
-     * 
-     * @return The current timeout, in milliseconds.
-     */
-    public long getTimeout() {
-        return _timeout;
-    }
-
-    /**
-     * Change the maximum time (in milliseconds) that operations on this
-     * <code>Exchange</code> will wait for completion. In particular, if there
-     * is heavy disk I/O an operation may require a significant amount of time
-     * to complete. This sets the approximate upper bound on that time.
-     * 
-     * @param timeout
-     *            Maximum time, in milliseconds
-     */
-    public void setTimeout(long timeout) {
-        if (timeout < 0 || timeout > Persistit.MAXIMUM_TIMEOUT_VALUE) {
-            throw new IllegalArgumentException("must be between 0 and " + Persistit.MAXIMUM_TIMEOUT_VALUE);
-        }
-        _timeout = timeout;
-    }
-
-    /**
-     * To be called only by loadRootLevelInfo in Tree
+     * To be called only by {@link Tree#loadRootLevelInfo(Exchange)}
      */
     void setRootLevelInfo(long root, int depth, long generation) {
         _rootPage = root;
@@ -884,10 +844,16 @@ public class Exchange {
     }
 
     /**
-     * Search for a data record by key. Uses and maintains level cache.
+     * Search for a data record by key. Uses and maintains level cache. This
+     * method returns a foundAt location within a Buffer.
+     * <p />
+     * As a side effect, this method populates the root LevelCache instance
+     * (_levelCache[0]) and establishes a claim on a Buffer at that level to
+     * which the foundAt value refers. The caller of this method MUST release
+     * that Buffer when finished with it.
      * 
      * @return Encoded key location within the data page. The page itself is
-     *         valid in the level cache.
+     *         made valid in the level cache.
      * @throws PMapException
      */
     private int search(Key key) throws PersistitException {
@@ -905,36 +871,54 @@ public class Exchange {
         int foundAt = findKey(buffer, key, lc);
 
         if (buffer.isBeforeLeftEdge(foundAt) || buffer.isAfterRightEdge(foundAt)) {
+            // TODO - should this be touched?
             buffer.releaseTouched();
             return searchTree(key, 0);
         }
         return foundAt;
     }
 
+    /**
+     * Helper method to return the result of the {@link Buffer#findKey(Key)}
+     * method given a Buffer, a Key and a LevelCache instance. The caller must
+     * establish a claim on the Buffer before calling this method. This method
+     * determines whether information cached in the LevelCache is still valid;
+     * if so the previous result is still valid.
+     * 
+     * @param buffer
+     * @param key
+     * @param lc
+     * @return
+     */
     private int findKey(Buffer buffer, Key key, LevelCache lc) {
-        int foundAt = lc._foundAt;
-        boolean done = false;
+        //
         // Possibly we can accelerate.
         //
-        if (foundAt != -1 && buffer.getGeneration() == lc._bufferGeneration && key == _key) {
-            if (key.getGeneration() == lc._keyGeneration) {
-                Debug.$assert0.t(buffer.findKey(key) == foundAt);
-                return foundAt;
-            }
+        // TODO - metrics on hits vs. misses
+        //
+        int foundAt = lc._foundAt;
+        if (foundAt != -1 && buffer.getGeneration() == lc._bufferGeneration && key == _key
+                && key.getGeneration() == lc._keyGeneration) {
+            Debug.$assert0.t(buffer.findKey(key) == foundAt);
+            return foundAt;
         }
         //
-        // If no longer valid, then look it up again.
+        // Otherwise look it up again.
         //
-        if (!done) {
-            foundAt = buffer.findKey(key);
-            lc.update(buffer, key, foundAt);
-        }
+        foundAt = buffer.findKey(key);
+        // TODO - why do this if key != _key
+        lc.update(buffer, key, foundAt);
         return foundAt;
     }
 
     /**
      * Searches for the current key from top down and populates the level cache
      * while doing so.
+     * <p />
+     * As a side effect, this method populates the root LevelCache instance
+     * (_levelCache[0]) and establishes a claim on a Buffer at that level to
+     * which the foundAt value refers. The caller of this method MUST release
+     * that Buffer when finished with it.
      * 
      * @return Encoded key location within the level. The page itself is valid
      *         within the level cache.
@@ -944,7 +928,6 @@ public class Exchange {
         Buffer oldBuffer = null;
         int currentLevel;
         int foundAt = -1;
-        boolean found = false;
 
         if (!_treeHolder.claim(false)) {
             Debug.$assert0.t(false);
@@ -985,7 +968,6 @@ public class Exchange {
                     for (int level = currentLevel; --level > 0;) {
                         _levelCache[level].invalidate();
                     }
-                    found = true;
                     return foundAt;
                 } else if (buffer.isIndexPage()) {
                     int p = foundAt & P_MASK;
@@ -997,7 +979,7 @@ public class Exchange {
                     pageAddress = buffer.getPointer(p);
 
                     Debug.$assert0.t(pageAddress > 0 && pageAddress < MAX_VALID_PAGE_ADDR);
-                } else {
+                } /** TODO -- dead code **/ else {
                     oldBuffer = buffer; // So it will be released
                     corrupt("Volume " + _volume + " level=" + currentLevel + " page=" + pageAddress + " key=<"
                             + key.toString() + ">" + " page type=" + buffer.getPageType() + " is invalid");
@@ -1016,7 +998,17 @@ public class Exchange {
     }
 
     /**
-     * Search for the key in the specified page (data or index).
+     * Search for the key in the specified page (data or index). This method
+     * gets and claims the identified page. If the key is found to be after the
+     * right key of that page, this method "walks" right by getting and claiming
+     * the right sibling page and then releasing the original page. This pattern
+     * implements the B-link-tree semantic that allows searches to proceed while
+     * inserts are adjusting the index structure.
+     * <p />
+     * As a side effect, this method populates the LevelCache instance for the
+     * specified <code>currentLevel</code> and establishes a claim on a Buffer
+     * at that level. The caller of this method MUST release that Buffer when
+     * finished with it.
      * 
      * @param pageAddress
      *            The address of the page to search
@@ -1056,24 +1048,13 @@ public class Exchange {
                     oldBuffer = null;
                 }
 
-                int foundAt = -1;
-
-                if (pageAddress == lc._page && key == _key && key.getGeneration() == lc._keyGeneration
-                        && buffer.getGeneration() == lc._bufferGeneration) {
-                    foundAt = lc._foundAt;
+                if (pageAddress != lc._page) {
+                    lc.invalidate();
                 }
 
-                if (foundAt == -1) {
-                    foundAt = buffer.findKey(key);
-                } else {
-                    Debug.$assert0.t(buffer.findKey(key) == foundAt);
-                }
-
+                int foundAt = findKey(buffer, key, lc);
                 if (!buffer.isAfterRightEdge(foundAt)) {
-                    lc.update(buffer, key, foundAt);
                     return foundAt;
-                } else {
-                    // lc.update(buffer, key, -1);
                 }
 
                 oldPageAddress = pageAddress;
@@ -1094,6 +1075,13 @@ public class Exchange {
         }
     }
 
+    int maxValueSize(final int keySize) {
+        final int pageSize = _volume.getPageSize();
+        final int reserveForKeys = (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_INDEX) * 3 + maxStorableKeySize(pageSize) * 2
+                + keySize;
+        return (pageSize - HEADER_SIZE - reserveForKeys) / 2;
+    }
+
     /**
      * Inserts or replaces a data value in the database.
      * 
@@ -1111,13 +1099,6 @@ public class Exchange {
         _treeHolder.verifyReleased();
 
         return this;
-    }
-
-    int maxValueSize(final int keySize) {
-        final int pageSize = _volume.getPageSize();
-        final int reserveForKeys = (KEYBLOCK_LENGTH + TAILBLOCK_HDR_SIZE_INDEX) * 3 + maxStorableKeySize(pageSize) * 2
-                + keySize;
-        return (pageSize - HEADER_SIZE - reserveForKeys) / 2;
     }
 
     /**
@@ -1159,9 +1140,8 @@ public class Exchange {
         try {
             if (overlength) {
                 //
-                // This method may delay significantly for retries, and may
-                // throw a TimeoutException. It must be called when there are
-                // no other claimed resources.
+                // This method may delay significantly for I/O and must
+                // be called when there are no other claimed resources.
                 //
                 newLongRecordPointer = storeOverlengthRecord(value, 0);
             }
@@ -1175,8 +1155,8 @@ public class Exchange {
                 if (treeClaimRequired && !treeClaimAcquired) {
                     if (!_treeHolder.claim(treeWriterClaimRequired)) {
                         Debug.$assert0.t(false);
-                        throw new InUseException("Thread " + Thread.currentThread().getName()
-                                + " failed to get reader claim on " + _tree);
+                        throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to get "
+                                + (treeWriterClaimRequired ? "writer" : "reader") + " claim on " + _tree);
                     }
                     treeClaimAcquired = true;
                 }
@@ -1201,6 +1181,8 @@ public class Exchange {
                                 fetch(_spareValue);
                             }
                         }
+                        
+                        // TODO - check whether this can happen
                         if (value.getEncodedSize() > maxSimpleValueSize) {
                             newLongRecordPointer = storeOverlengthRecord(value, 0);
                         }
@@ -1218,7 +1200,7 @@ public class Exchange {
                         if (!treeClaimAcquired || !_treeHolder.upgradeClaim()) {
                             treeClaimRequired = true;
                             treeWriterClaimRequired = true;
-                            throw RetryException.SINGLE;
+                            throw new RetryException();
                         }
 
                         Debug.$assert0.t(value.getPointerValue() > 0);
@@ -1238,6 +1220,7 @@ public class Exchange {
                         foundAt = findKey(buffer, key, lc);
 
                         if (buffer.isBeforeLeftEdge(foundAt) || buffer.isAfterRightEdge(foundAt)) {
+                            // TODO -maybe not touched
                             buffer.releaseTouched();
                             buffer = null;
                         }
@@ -1259,6 +1242,7 @@ public class Exchange {
                         fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
                     }
 
+                    // TODO - How would this condition ever be true?
                     if (value.getEncodedSize() > maxSimpleValueSize && !overlength) {
                         newLongRecordPointer = storeLongRecord(value, oldLongRecordPointer, 0);
                     } else {
@@ -1267,19 +1251,19 @@ public class Exchange {
                     // Here we have a buffer with a writer claim and
                     // a correct foundAt value
                     //
-                    boolean splitPerformed = putLevel(lc, key, value, buffer, foundAt, treeClaimAcquired);
+                    boolean splitRequired = putLevel(lc, key, value, buffer, foundAt, treeClaimAcquired);
 
                     Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                             && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
                     //
-                    // If a split is required then putLevel did not change
-                    // anything. We need to repeat this after acquiring a
-                    // tree claim. Not that if treeClaimAcquired is false
-                    // then the putLevel method did not actually split the
-                    // page. It just backed out so we could repeat after
-                    // acquiring the claim.
+                    // If a split is required but treeClaimAcquired is false
+                    // then putLevel did not change anything. It just backed out
+                    // so we can repeat after acquiring the claim. We need to
+                    // repeat this after acquiring a tree claim.
                     //
-                    if (splitPerformed && !treeClaimAcquired) {
+                    if (splitRequired && !treeClaimAcquired) {
+                        //
+                        // TODO - is it worth it to try an instantaneous claim and retry?
                         treeClaimRequired = true;
                         buffer.releaseTouched();
                         buffer = null;
@@ -1301,7 +1285,8 @@ public class Exchange {
                     buffer.releaseTouched();
                     buffer = null;
 
-                    if (!splitPerformed) {
+                    if (!splitRequired) {
+                        //
                         // No split means we're totally done.
                         //
                         break;
@@ -1309,16 +1294,22 @@ public class Exchange {
                         // Otherwise we need to index the new right
                         // sibling at the next higher index level.
                         Debug.$assert0.t(value.getPointerValue() > 0);
+                        //
+                        // This maneuver sets key to the key value of
+                        // the first record in the newly inserted page.
+                        //
                         key = _spareKey1;
-                        key.bumpGeneration(); // because otherwise we may
-                        // use the wrong cached
-                        // foundAt value
-
-                        // // PDB 20050715
-                        // _spareKey2.copyTo(_spareKey1);
-                        // key.copyTo(_spareKey2);
                         _spareKey1 = _spareKey2;
                         _spareKey2 = key;
+                        //
+                        // Bump key generation because it no longer matches
+                        // what's in the LevelCache
+                        //
+                        key.bumpGeneration();
+                        //
+                        // And now cycle back to insert the key/pointer pair
+                        // into the next higher index level.
+                        //
                         level++;
                         continue;
                     }
@@ -1374,8 +1365,6 @@ public class Exchange {
                 _volume.deallocateGarbageChain(oldLongRecordPointer, 0);
             }
         }
-        // if (journalId != -1)
-        // journal().completed(journalId);
         _volume.bumpStoreCounter();
         if (fetchFirst) {
             _volume.bumpFetchCounter();
@@ -1439,6 +1428,7 @@ public class Exchange {
      *         ancestor index page.
      * @throws PMapException
      */
+    // TODO - Check insertIndexLevel timestamps
     private boolean putLevel(LevelCache lc, Key key, Value value, Buffer buffer, int foundAt, boolean okToSplit)
             throws PersistitException {
         Debug.$assert0.t(_exclusive);
@@ -1868,8 +1858,9 @@ public class Exchange {
                     }
                 } else {
                     int parentIndex = _spareKey1.previousElementIndex(index);
-                    if (parentIndex < 0)
+                    if (parentIndex < 0) {
                         parentIndex = 0;
+                    }
 
                     matches = (_spareKey1.compareKeyFragment(_key, 0, parentIndex) == 0);
 
@@ -2733,8 +2724,7 @@ public class Exchange {
                                     if (fetchFirst) {
                                         removeFetchFirst(buffer, foundAt1, buffer, foundAt2);
                                     }
-                                    final boolean anyLongRecords = _volume.harvestLongRecords(buffer, foundAt1,
-                                            foundAt2);
+                                    _volume.harvestLongRecords(buffer, foundAt1, foundAt2);
 
                                     final long timestamp = timestamp();
                                     buffer.writePageOnCheckpoint(timestamp);
