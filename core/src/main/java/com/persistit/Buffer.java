@@ -757,7 +757,7 @@ public final class Buffer extends SharedResource {
                         // linear search or perform a binary search within the
                         // run.
                         //
-                        int p2 = p + (runCount << 2);
+                        int p2 = p + (runCount * KEYBLOCK_LENGTH);
                         //
                         // p2 now points to the last key block with the same
                         // ebc in this run.

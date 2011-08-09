@@ -529,12 +529,12 @@ public final class Key implements Comparable<Object> {
     public final static String PREFIX_FLOAT = "(float)";
     /**
      * Displayable prefix for double values (optional for input, implied and
-     * supressed on output)
+     * suppressed on output)
      */
     public final static String PREFIX_DOUBLE = "(double)";
     /**
      * Displayable prefix for String values (optional for input, implied and
-     * supressed on output)
+     * suppressed on output)
      */
     public final static String PREFIX_STRING = "(java.lang.String)";
     public final static String PREFIX_STRING0 = "(String)";
@@ -891,6 +891,8 @@ public final class Key implements Comparable<Object> {
      * Values include {@link #EQ}, {@link #GT}, {@link #GTEQ}, {@link #LT} and
      * {@link #LTEQ}.
      */
+    // TODO - why are Direction and EdgeValue Serializable at all?
+    // TODO - change to actual enums?
     public static class Direction implements Serializable {
         public static final long serialVersionUID = -6405708619069695188L;
 
@@ -1074,8 +1076,9 @@ public final class Key implements Comparable<Object> {
      * @return The number of key segments.
      */
     public int getDepth() {
-        if (_depth == -1)
+        if (_depth == -1) {
             recomputeCurrentDepth();
+        }
         return _depth;
     }
 
@@ -1300,8 +1303,9 @@ public final class Key implements Comparable<Object> {
     }
 
     void clear(boolean secure) {
-        if (secure)
+        if (secure) {
             Util.clearBytes(_bytes, 0, _bytes.length);
+        }
         clear();
     }
 
@@ -1324,8 +1328,9 @@ public final class Key implements Comparable<Object> {
      * @return This <code>Key</code>, to permit method call chaining
      */
     public Key setDepth(int depth) {
-        if (depth == 0)
+        if (depth == 0) {
             return clear();
+        }
         indexTo(depth);
         _size = _index;
         _index = 0;
@@ -3339,7 +3344,7 @@ public final class Key implements Comparable<Object> {
      * byte sequence (0x01, 0x20 + (byte)c) This ensures that all bytes in the
      * encoded form of the String are non-zero but still collate correctly.
      * <p>
-     * This encoding does not provide localized collection capability. It merely
+     * This encoding does not provide localized collation capability. It merely
      * collates Strings by the numeric values of their character codes.
      * <p>
      * Note: this code is paraphrased from java.io.DataOutputStream.
@@ -3357,6 +3362,11 @@ public final class Key implements Comparable<Object> {
         }
         int size = _size;
         _bytes[size++] = (byte) TYPE_STRING;
+        //
+        // TODO - Embody the default behavior in a default KeyStringCoder to
+        // to eliminate the if statement.  Also provides a base implementation
+        // for developers to extend.
+        // 
         if (_stringCoder != null) {
             try {
                 _size = size;
@@ -3757,6 +3767,7 @@ public final class Key implements Comparable<Object> {
             _bytes[size++] = (byte) (0xC0 | ((handle >>> 12) & 0x3F));
             _bytes[size++] = (byte) (0xC0 | ((handle >>> 6) & 0x3F));
             _bytes[size++] = (byte) (0x80 | ((handle) & 0x3F));
+            // TODO - betch this is wrong
             return 3;
         }
     }
