@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Properties;
@@ -30,9 +32,11 @@ import java.util.Stack;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.CollectionValueCoder;
+import com.persistit.encoding.EnumValueCoder;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.SerialValueCoder;
 import com.persistit.encoding.ValueCoder;
@@ -57,35 +61,16 @@ import com.persistit.encoding.ValueCoder;
  * @version 1.0
  */
 public final class DefaultCoderManager implements CoderManager {
-    private static final Class[] DEFAULT_CLASSES = new Class[] { ArrayList.class, LinkedList.class, Stack.class,
+    private static final Class<?>[] DEFAULT_CLASSES = new Class[] { ArrayList.class, LinkedList.class, Stack.class,
             Vector.class, Properties.class, HashMap.class, HashSet.class, Hashtable.class, TreeMap.class,
-            TreeSet.class, };
+            TreeSet.class, LinkedHashMap.class, LinkedHashSet.class, };
 
-    private static final String[] DEFAULT_14_CLASSES = new String[] { "java.util.LinkedHashMap",
-            "java.util.LinkedHashSet", };
-
-    private static final String ENUM_CLASS_NAME = "java.lang.Enum";
-
-    private final static String ENUM_VALUE_CODER_CLASS_NAME = "com.persistit.encoding.EnumValueCoder";
-
-    private static Class ENUM_CLASS = null;
-    // Since an EnumValueCoder has no state, there needs to be only one
-    // instance.
-    private static ValueCoder ENUM_VALUE_CODER = null;
-
-    static {
-        try {
-            ENUM_CLASS = Class.forName(ENUM_CLASS_NAME);
-            ENUM_VALUE_CODER = (ValueCoder) Class.forName(ENUM_VALUE_CODER_CLASS_NAME).newInstance();
-        } catch (ClassNotFoundException cnfe) {
-        } catch (InstantiationException ie) {
-        } catch (IllegalAccessException oae) {
-        }
-    }
+    private static Class<?> ENUM_CLASS = Enum.class;
+    private static ValueCoder ENUM_VALUE_CODER = new EnumValueCoder();
 
     private final Persistit _persistit;
-    private HashMap _keyCodersByClass = new HashMap();
-    private HashMap _valueCodersByClass = new HashMap();
+    private Map<Class<?>, KeyCoder> _keyCodersByClass = new ConcurrentHashMap<Class<?>, KeyCoder>();
+    private Map<Class<?>, ValueCoder> _valueCodersByClass = new ConcurrentHashMap<Class<?>, ValueCoder>();
     private ClassSelector[] _serialOverrides = new ClassSelector[0];
 
     /**
@@ -140,8 +125,8 @@ public final class DefaultCoderManager implements CoderManager {
                 q = p + 1;
             }
             _serialOverrides = overrides;
-            for (Iterator iter = _valueCodersByClass.keySet().iterator(); iter.hasNext();) {
-                Class clazz = (Class) iter.next();
+            for (Iterator<Class<?>> iter = _valueCodersByClass.keySet().iterator(); iter.hasNext();) {
+                Class<?> clazz = (Class<?>) iter.next();
                 if (isSerialOverride(clazz)) {
                     iter.remove();
                 }
@@ -170,7 +155,7 @@ public final class DefaultCoderManager implements CoderManager {
      *            The <code>KeyCoder</code>
      */
     @Override
-    public synchronized KeyCoder registerKeyCoder(Class clazz, KeyCoder coder) {
+    public KeyCoder registerKeyCoder(Class<?> clazz, KeyCoder coder) {
         return (KeyCoder) _keyCodersByClass.put(clazz, coder);
     }
 
@@ -185,7 +170,7 @@ public final class DefaultCoderManager implements CoderManager {
      *         was none.
      */
     @Override
-    public synchronized KeyCoder unregisterKeyCoder(Class clazz) {
+    public KeyCoder unregisterKeyCoder(Class<?> clazz) {
         return (KeyCoder) _keyCodersByClass.remove(clazz);
     }
 
@@ -199,10 +184,10 @@ public final class DefaultCoderManager implements CoderManager {
      *         <code>KeyCoder</code> was previously registered.
      */
     @Override
-    public synchronized int unregisterKeyCoder(KeyCoder coder) {
+    public int unregisterKeyCoder(KeyCoder coder) {
         int count = 0;
-        for (Iterator iter = _keyCodersByClass.keySet().iterator(); iter.hasNext();) {
-            Class clazz = (Class) iter.next();
+        for (Iterator<Class<?>> iter = _keyCodersByClass.keySet().iterator(); iter.hasNext();) {
+            Class<?> clazz = (Class<?>) iter.next();
             if (coder.equals(_keyCodersByClass.get(clazz))) {
                 iter.remove();
                 count++;
@@ -211,15 +196,11 @@ public final class DefaultCoderManager implements CoderManager {
         return count;
     }
 
-    private final static class ClassComparator implements Comparator {
-        public boolean equals(Object o1, Object o2) {
-            return o1.equals(o2);
-        }
-
+    private final static class ClassComparator<T> implements Comparator<T> {
         @Override
         public int compare(Object o1, Object o2) {
-            Class c1 = (Class) o1;
-            Class c2 = (Class) o2;
+            Class<?> c1 = (Class<?>) o1;
+            Class<?> c2 = (Class<?>) o2;
             return c1.getName().compareTo(c2.getName());
         }
     }
@@ -227,15 +208,15 @@ public final class DefaultCoderManager implements CoderManager {
     /**
      * Create a <code>Map</code> of <code>Class</code>es to registered
      * <code>ValueCoder</code>s. The map is an unmodifiable, is sorted by class
-     * name, and does not change with subsequent registrations or
-     * unregistrations of <code>ValueCoder</code>s.
+     * name, and does not change with subsequent registrations or removals of
+     * <code>ValueCoder</code>s.
      * 
      * @return <code>Map</code> of <code>Class</code>es to
      *         <code>ValueCoder</code>s.
      */
     @Override
-    public Map getRegisteredValueCoders() {
-        Map newMap = new TreeMap(new ClassComparator());
+    public Map<Class<?>, ValueCoder> getRegisteredValueCoders() {
+        Map<Class<?>, ValueCoder> newMap = new TreeMap<Class<?>, ValueCoder>(new ClassComparator<Class<?>>());
         newMap.putAll(_valueCodersByClass);
         return Collections.unmodifiableMap(newMap);
     }
@@ -250,8 +231,8 @@ public final class DefaultCoderManager implements CoderManager {
      *         s.
      */
     @Override
-    public Map getRegisteredKeyCoders() {
-        Map newMap = new TreeMap(new ClassComparator());
+    public Map<Class<?>, KeyCoder> getRegisteredKeyCoders() {
+        Map<Class<?>, KeyCoder> newMap = new TreeMap<Class<?>, KeyCoder>(new ClassComparator<Class<?>>());
         newMap.putAll(_keyCodersByClass);
         return Collections.unmodifiableMap(newMap);
     }
@@ -266,8 +247,8 @@ public final class DefaultCoderManager implements CoderManager {
      * @return The <code>KeyCoder</code> or <code>null</code> if there is none.
      */
     @Override
-    public synchronized KeyCoder lookupKeyCoder(Class clazz) {
-        return (KeyCoder) _keyCodersByClass.get(clazz);
+    public KeyCoder lookupKeyCoder(Class<?> clazz) {
+        return _keyCodersByClass.get(clazz);
     }
 
     /**
@@ -288,8 +269,8 @@ public final class DefaultCoderManager implements CoderManager {
      *         <code>null</code> if there was none.
      */
     @Override
-    public synchronized ValueCoder registerValueCoder(Class clazz, ValueCoder coder) {
-        return (ValueCoder) _valueCodersByClass.put(clazz, coder);
+    public ValueCoder registerValueCoder(Class<?> clazz, ValueCoder coder) {
+        return _valueCodersByClass.put(clazz, coder);
     }
 
     /**
@@ -303,7 +284,7 @@ public final class DefaultCoderManager implements CoderManager {
      *         there was none.
      */
     @Override
-    public synchronized ValueCoder unregisterValueCoder(Class clazz) {
+    public ValueCoder unregisterValueCoder(Class<?> clazz) {
         return (ValueCoder) _valueCodersByClass.remove(clazz);
     }
 
@@ -317,10 +298,10 @@ public final class DefaultCoderManager implements CoderManager {
      *         <code>ValueCoder</code> was previously registered.
      */
     @Override
-    public synchronized int unregisterValueCoder(ValueCoder coder) {
+    public int unregisterValueCoder(ValueCoder coder) {
         int count = 0;
-        for (Iterator iter = _valueCodersByClass.keySet().iterator(); iter.hasNext();) {
-            Class clazz = (Class) iter.next();
+        for (Iterator<Class<?>> iter = _valueCodersByClass.keySet().iterator(); iter.hasNext();) {
+            Class<?> clazz = (Class<?>) iter.next();
             if (coder.equals(_valueCodersByClass.get(clazz))) {
                 iter.remove();
                 count++;
@@ -340,8 +321,8 @@ public final class DefaultCoderManager implements CoderManager {
      *         none.
      */
     @Override
-    public synchronized ValueCoder lookupValueCoder(Class clazz) {
-        return (ValueCoder) _valueCodersByClass.get(clazz);
+    public ValueCoder lookupValueCoder(Class<?> clazz) {
+        return _valueCodersByClass.get(clazz);
     }
 
     /**
@@ -354,7 +335,7 @@ public final class DefaultCoderManager implements CoderManager {
      * @return The <code>ValueCoder</code>
      */
     @Override
-    public synchronized ValueCoder getValueCoder(Class clazz) {
+    public ValueCoder getValueCoder(Class<?> clazz) {
         ValueCoder coder = lookupValueCoder(clazz);
         if (coder == null) {
             boolean serialOverride = isSerialOverride(clazz);
@@ -391,14 +372,14 @@ public final class DefaultCoderManager implements CoderManager {
      * 
      * includes <code>java.util.ArrayList</code>,
      * <code>java.util.AbstractMap</code>, <code>java.util.HashMap</code>, etc.,
-     * all the classs in the <code>java.lang</code> package (but not
+     * all the classes in the <code>java.lang</code> package (but not
      * <code>java.lang.ref</code> or <code>java.lang.reflect</code>), and all
-     * classes in <code>javax.swing</code> and all its subpackages.
+     * classes in <code>javax.swing</code> and all its sub-packages.
      * </p>
      * 
      * @return The serialization override pattern
      */
-    public synchronized String getSerialOverridePatterns() {
+    public String getSerialOverridePatterns() {
         StringBuilder sb = new StringBuilder();
         for (int index = 0; index < _serialOverrides.length; index++) {
             if (sb.length() > 0)
@@ -423,7 +404,7 @@ public final class DefaultCoderManager implements CoderManager {
      * @return <code>true</code> if and only if the specified class is selected
      *         by the <code>serialOverride</code> property
      */
-    public boolean isSerialOverride(Class clazz) {
+    public boolean isSerialOverride(Class<?> clazz) {
         while (Serializable.class.isAssignableFrom(clazz)) {
             String className = clazz.getName();
             for (int index = 0; index < _serialOverrides.length; index++) {
@@ -445,19 +426,9 @@ public final class DefaultCoderManager implements CoderManager {
         ValueCoder coder = new CollectionValueCoder();
 
         for (int index = 0; index < DEFAULT_CLASSES.length; index++) {
-            Class clazz = DEFAULT_CLASSES[index];
+            Class<?> clazz = DEFAULT_CLASSES[index];
             if (!isSerialOverride(clazz)) {
                 registerValueCoder(DEFAULT_CLASSES[index], coder);
-            }
-        }
-        for (int index = 0; index < DEFAULT_14_CLASSES.length; index++) {
-            try {
-                Class clazz = Class.forName(DEFAULT_14_CLASSES[index]);
-                if (!isSerialOverride(clazz)) {
-                    registerValueCoder(clazz, coder);
-                }
-            } catch (Exception e) {
-                // ignore if we are below JDK 1.4.
             }
         }
     }

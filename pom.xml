@@ -36,6 +36,7 @@
                     <header>LICENSE.txt</header>
                     <aggregate>true</aggregate>
                     <excludes>
+                        <exclude>bench/BenchmarkSQL*/**</exclude>
                         <exclude>doc/**</exclude>
                         <exclude>src/test/resources/**</exclude>
                         <exclude>.idea/**</exclude>

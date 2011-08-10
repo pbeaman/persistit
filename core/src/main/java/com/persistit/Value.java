@@ -3069,7 +3069,7 @@ public final class Value {
             _bytes[_size++] = TYPE_NULL;
             return;
         }
-        if (_shared) {
+        if (_depth > 0 && _shared) {
             int serializationHandle = getValueCache().put(currentItemCount, object);
             if (serializationHandle != -1) {
                 ensureFit(5);
@@ -3187,6 +3187,9 @@ public final class Value {
             boolean replaced = false;
 
             try {
+                if (_shared && _depth == 0) {
+                    getValueCache().put(currentItemCount, object);
+                }
                 _depth++;
                 ValueCoder coder = getValueCoder(cl);
 
