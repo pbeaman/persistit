@@ -3075,8 +3075,6 @@ public final class Value {
                 ensureFit(5);
                 _bytes[_size++] = (byte) CLASS_REREF;
                 _size += encodeVariableLengthInt(0, _size, serializationHandle);
-                if (_depth == 0)
-                    releaseValueCache();
                 return;
             }
         }
@@ -4902,10 +4900,12 @@ public final class Value {
 
         int put(int handle, Object object) {
             int previous = lookup(object);
-            if (previous != -1)
+            if (previous != -1) {
                 return previous;
-            if (handle >= _array.length)
+            }
+            if (handle >= _array.length) {
                 grow(1 + handle * 2);
+            }
             _array[handle] = object;
             int index = hashIndex(object);
             _hashLink[handle] = _hashTable[index];
