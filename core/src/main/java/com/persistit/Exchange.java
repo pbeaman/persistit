@@ -1054,6 +1054,7 @@ public class Exchange {
 
                 int foundAt = findKey(buffer, key, lc);
                 if (!buffer.isAfterRightEdge(foundAt)) {
+                    lc.update(buffer, key, foundAt);
                     return foundAt;
                 }
 

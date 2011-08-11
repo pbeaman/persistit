@@ -337,7 +337,6 @@ public class CLI {
                 socket = null;
             }
         }
-
     }
 
     private static class Command {
@@ -959,73 +958,6 @@ public class CLI {
             _garbageRoot = Util.getLong(bytes, 152);
             _initialPages = Util.getLong(bytes, 192);
         }
-    }
-
-    /**
-     * Uses reflection to try to find a jline.ConsoleReader. The jline package
-     * supports command history and in-line editing. If the jline is not in the
-     * classpath, then this method returns a <code>LineReader</code> based on
-     * {@link System#in}.
-     * 
-     * @return A <code>LineReader</code>
-     * @see http://jline.sourceforge.net/
-     */
-    private static LineReader lineReader(final Reader reader, final PrintWriter writer) {
-        LineReader lineReader = null;
-        try {
-            final Class<?> readerClass = CLI.class.getClassLoader().loadClass("jline.ConsoleReader");
-            final Object consoleReader = readerClass.newInstance();
-            final Method readLineMethod = readerClass.getMethod("readLine", new Class[] { String.class });
-            lineReader = new LineReader() {
-                @Override
-                public String readLine() throws IOException {
-                    try {
-                        return (String) readLineMethod.invoke(consoleReader, new Object[] { PROMPT });
-                    } catch (IllegalArgumentException e) {
-                        throw new RuntimeException(e);
-                    } catch (IllegalAccessException e) {
-                        throw new RuntimeException(e);
-                    } catch (InvocationTargetException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-
-                @Override
-                public PrintWriter writer() {
-                    return writer;
-                }
-
-                @Override
-                public void close() {
-
-                }
-            };
-            writer.println("jline.ConsoleReader enabled");
-        } catch (Exception e) {
-
-        }
-        if (lineReader == null) {
-            final BufferedReader br = new BufferedReader(reader);
-            lineReader = new LineReader() {
-                @Override
-                public String readLine() throws IOException {
-                    writer.print(PROMPT);
-                    writer.flush();
-                    return br.readLine();
-                }
-
-                @Override
-                public PrintWriter writer() {
-                    return writer;
-                }
-
-                @Override
-                public void close() {
-
-                }
-            };
-        }
-        return lineReader;
     }
 
     static KeyFilter toKeyFilter(final String keyFilterString) {
