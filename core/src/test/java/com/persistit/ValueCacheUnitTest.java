@@ -49,17 +49,17 @@ public class ValueCacheUnitTest extends TestCase {
     public void test2() {
         System.out.print("test2 ");
         final ValueCache vc = new ValueCache();
-        for (int handle = 0; handle < 50000; handle++) {
+        for (int handle = 0; handle < 5000; handle++) {
             final Object o = new Integer(handle);
             assertEquals(-1, vc.lookup(o));
             assertEquals(-1, vc.put(handle, o));
             assertEquals(handle, vc.put(handle, o));
         }
-        for (int handle = 0; handle < 50000; handle++) {
+        for (int handle = 0; handle < 5000; handle++) {
             final Object o = new Integer(handle);
             assertEquals(-1, vc.lookup(o));
         }
-        for (int handle = 0; handle < 50000; handle++) {
+        for (int handle = 0; handle < 5000; handle++) {
             final Object o = vc.get(handle);
             assertEquals(handle, vc.lookup(o));
         }
@@ -71,19 +71,19 @@ public class ValueCacheUnitTest extends TestCase {
         final long ts = System.currentTimeMillis();
         final ValueCache vc = new ValueCache();
 
-        for (int cycle = 0; cycle < 100; cycle++) {
+        for (int cycle = 0; cycle < 10; cycle++) {
             vc.clear();
-            for (int handle = 0; handle < 10000; handle++) {
+            for (int handle = 0; handle < 1000; handle++) {
                 final Object o = new Integer(handle);
                 assertEquals(-1, vc.lookup(o));
                 assertEquals(-1, vc.put(handle, o));
                 assertEquals(handle, vc.put(handle, o));
             }
-            for (int handle = 0; handle < 10000; handle++) {
+            for (int handle = 0; handle < 1000; handle++) {
                 final Object o = new Integer(handle);
                 assertEquals(-1, vc.lookup(o));
             }
-            for (int handle = 0; handle < 10000; handle++) {
+            for (int handle = 0; handle < 1000; handle++) {
                 final Object o = vc.get(handle);
                 assertEquals(handle, vc.lookup(o));
             }
