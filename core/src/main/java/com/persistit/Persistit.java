@@ -40,14 +40,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
-import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
-import com.persistit.exception.LogInitializationException;
 import com.persistit.exception.PersistitClosedException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -59,7 +57,6 @@ import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
 import com.persistit.logging.LogBase;
-import com.persistit.logging.PersistitLevel;
 import com.persistit.logging.PersistitLogger;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
@@ -1067,6 +1064,8 @@ public class Persistit {
      * 
      * @throws IllegalStateException
      */
+    
+    // TODO - why not one pool.
     public void releaseExchange(Exchange exchange, boolean secure) {
         if (exchange == null) {
             return;
@@ -1077,8 +1076,7 @@ public class Persistit {
         synchronized (_exchangePoolMap) {
             stack = _exchangePoolMap.get(sessionId);
             if (stack == null) {
-                stack = new Stack<Exchange>();
-                _exchangePoolMap.put(sessionId, stack);
+                throw new IllegalStateException("Release not preceded by get"); //TODO
             }
         }
         if (stack.size() < MAX_POOLED_EXCHANGES) {
@@ -1275,6 +1273,17 @@ public class Persistit {
         return volume;
     }
 
+    /**
+     * Delete a volume currently loaded volume and remove it from the list
+     * returned by {@link #getVolumes()}.
+     * 
+     * @param volumeName
+     *            the Volume to delete
+     * @return <code>true</code> if the volume was previusly loaded and has been
+     *         successfully deleted.
+     * @throws PersistitException
+     */
+
     public boolean deleteVolume(final String volumeName) throws PersistitException {
         final Volume volume = getVolume(volumeName);
         if (volume == null) {
@@ -1360,7 +1369,7 @@ public class Persistit {
      * The supplied name can match a volume in one of two ways:
      * <ul>
      * <li>(a) its name by exact match</li>
-     * <li>(b) its path, by matching the canonical forms of the volume's path
+     * <li>(b) its path, by matching the absolute forms of the volume's path
      * and the supplied path.</li>
      * </ul>
      * </p>
@@ -1392,10 +1401,10 @@ public class Persistit {
             return result;
         }
 
-        final File file = new File(name);
+        final File file = new File(name).getAbsoluteFile();
         for (int i = 0; i < _volumes.size(); i++) {
             Volume vol = _volumes.get(i);
-            if (file.equals(new File(vol.getPath()))) {
+            if (file.equals(new File(vol.getPath()).getAbsoluteFile())) {
                 if (result == null)
                     result = vol;
                 else {
@@ -1742,6 +1751,7 @@ public class Persistit {
         close(flush, false);
     }
 
+    // TODO - can byHook ever be true?  I don't think so.
     private void close(final boolean flush, final boolean byHook) throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
             return;
@@ -1774,6 +1784,8 @@ public class Persistit {
         for (final Volume volume : volumes) {
             volume.flush();
         }
+        
+        // TODO - why do this if there can't be another checkpoint?
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close(flush);
@@ -1785,6 +1797,8 @@ public class Persistit {
             volume.close();
         }
 
+        // TODO - why not removeAll volumes
+        
         while (!_volumes.isEmpty()) {
             removeVolume(_volumes.get(0), false);
         }
@@ -1936,7 +1950,7 @@ public class Persistit {
         _journalManager.force();
     }
 
-    public void checkClosed() throws PersistitClosedException {
+    void checkClosed() throws PersistitClosedException {
         if (isClosed()) {
             throw new PersistitClosedException();
         }
@@ -2025,19 +2039,6 @@ public class Persistit {
                 }
             }
         }
-    }
-
-    public int pendingTransactionCount(final long timestamp) {
-        int count = 0;
-        synchronized (_transactionSessionMap) {
-            for (final Transaction t : _transactionSessionMap.values()) {
-                if (t.getStartTimestamp() > 0 && t.getStartTimestamp() < timestamp
-                        && t.getCommitTimestamp() >= timestamp || t.getCommitTimestamp() == -1) {
-                    count++;
-                }
-            }
-        }
-        return count;
     }
 
     /**

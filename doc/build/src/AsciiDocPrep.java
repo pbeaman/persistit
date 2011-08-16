@@ -1,19 +1,5 @@
-/**
- * Copyright (C) 2011 Akiban Technologies Inc.
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License, version 3,
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see http://www.gnu.org/licenses.
- */
-
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.PrintWriter;
@@ -21,7 +7,7 @@ import java.util.SortedMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.persistit.ArgParser;
+import com.persistit.util.ArgParser;
 
 public class AsciiDocPrep {
 
@@ -61,18 +47,18 @@ public class AsciiDocPrep {
         index.buildIndex(indexPath, base);
         System.out.println("done");
 
-        processFile(inPath, 0);
+        processFile(new File(inPath), 0);
         writer.close();
     }
 
-    public void processFile(final String path, final int level)
+    public void processFile(final File file, final int level)
             throws Exception {
-        BufferedReader reader = new BufferedReader(new FileReader(path));
-        System.out.print("Processing file " + path);
+        BufferedReader reader = new BufferedReader(new FileReader(file));
+        System.out.print("Processing file " + file);
         String line;
         while ((line = reader.readLine()) != null) {
             if (line.startsWith("@")) {
-                processFile(line.substring(1), level + 1);
+                processFile(new File(file.getParentFile(), line.substring(1)), level + 1);
             } else {
                 processLine(line);
             }

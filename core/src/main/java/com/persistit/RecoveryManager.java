@@ -139,7 +139,7 @@ import com.persistit.util.Util;
  */
 public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLookup {
 
-    public final static int DEFAULT_BUFFER_SIZE = 1 * 1024 * 1024;
+    final static int DEFAULT_BUFFER_SIZE = 1 * 1024 * 1024;
 
     /**
      * Number of transactions to apply per progress log message
@@ -316,7 +316,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         _persistit = persistit;
     }
 
-    public synchronized void populateRecoveryInfo(final Management.RecoveryInfo info) {
+    synchronized void populateRecoveryInfo(final Management.RecoveryInfo info) {
         info.keystoneJournalAddress = _keystoneAddress;
         info.currentAddress = _currentAddress;
         info.recoveryStatus = _recoveryStatus;

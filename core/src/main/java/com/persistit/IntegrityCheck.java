@@ -598,7 +598,7 @@ public class IntegrityCheck extends Task {
                     for (int index = Exchange.MAX_TREE_DEPTH; --index >= 0;) {
                         Buffer buffer = _edgeBuffers[index];
                         if (buffer != null) {
-                            releasePage(buffer);
+                            buffer.release();
                             _edgeBuffers[index] = null;
                             _edgePages[index] = 0;
                         }
@@ -684,8 +684,9 @@ public class IntegrityCheck extends Task {
 
             _edgeBuffers[level] = buffer;
             _edgePages[level] = page;
-            if (leftSibling != null)
-                releasePage(leftSibling);
+            if (leftSibling != null) {
+                leftSibling.release();
+            }
             _edgeKeys[level] = key;
 
             if (checkPageType(buffer, level, tree) && verifyPage(buffer, page, level, key)) {
@@ -746,7 +747,7 @@ public class IntegrityCheck extends Task {
             if (buffer != null) {
                 _edgeBuffers[level] = null;
                 _edgePages[level] = 0;
-                releasePage(buffer);
+                buffer.release();
             }
 
         }
@@ -764,7 +765,7 @@ public class IntegrityCheck extends Task {
             checkGarbagePage(garbageBuffer);
             _pagesVisited++;
             garbagePageAddress = garbageBuffer.getRightSibling();
-            releasePage(garbageBuffer);
+            garbageBuffer.release();
         }
         _edgePages[0] = 0;
     }
@@ -812,7 +813,7 @@ public class IntegrityCheck extends Task {
             }
             _pagesVisited++;
             page = buffer.getRightSibling();
-            releasePage(buffer);
+            buffer.release();
         }
         _edgePages[2] = 0;
     }
@@ -872,7 +873,7 @@ public class IntegrityCheck extends Task {
                 oldBuffer = buffer;
                 buffer = getPage(page);
                 if (oldBuffer != startingBuffer) {
-                    releasePage(oldBuffer);
+                    oldBuffer.release();
                     oldBuffer = null;
                 }
                 boolean ok = verifyPage(buffer, page, level, key);
@@ -883,14 +884,15 @@ public class IntegrityCheck extends Task {
                 }
                 _pagesVisited++;
             }
-            if (startingBuffer != buffer)
-                releasePage(startingBuffer);
+            if (startingBuffer != buffer) {
+                startingBuffer.release();
+            }
             Debug.$assert0.t(!buffer.isAvailable(true));
 
             return buffer;
         } finally {
             if (oldBuffer != null && oldBuffer != startingBuffer) {
-                releasePage(oldBuffer);
+                oldBuffer.release();
                 oldBuffer = null;
             }
         }
@@ -964,7 +966,7 @@ public class IntegrityCheck extends Task {
                 longPage = longBuffer.getRightSibling();
             } finally {
                 if (longBuffer != null)
-                    releasePage(longBuffer);
+                    longBuffer.release();
             }
         }
 
@@ -996,7 +998,7 @@ public class IntegrityCheck extends Task {
                 exchange.storeInternal(spareKey2, _value, level + 1, false, true);
             } finally {
                 if (buffer != null) {
-                    volume.getPool().release(buffer);
+                    buffer.release();
                     buffer = null;
                 }
             }
@@ -1012,10 +1014,5 @@ public class IntegrityCheck extends Task {
         } catch (PersistitException de) {
             throw de;
         }
-    }
-
-    private void releasePage(Buffer buffer) {
-        BufferPool pool = _currentVolume.getPool();
-        pool.release(buffer);
     }
 }

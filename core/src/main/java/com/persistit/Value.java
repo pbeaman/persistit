@@ -3069,14 +3069,12 @@ public final class Value {
             _bytes[_size++] = TYPE_NULL;
             return;
         }
-        if (_shared) {
+        if (_depth > 0 && _shared) {
             int serializationHandle = getValueCache().put(currentItemCount, object);
             if (serializationHandle != -1) {
                 ensureFit(5);
                 _bytes[_size++] = (byte) CLASS_REREF;
                 _size += encodeVariableLengthInt(0, _size, serializationHandle);
-                if (_depth == 0)
-                    releaseValueCache();
                 return;
             }
         }
@@ -3187,6 +3185,9 @@ public final class Value {
             boolean replaced = false;
 
             try {
+                if (_shared && _depth == 0) {
+                    getValueCache().put(currentItemCount, object);
+                }
                 _depth++;
                 ValueCoder coder = getValueCoder(cl);
 
@@ -4836,18 +4837,8 @@ public final class Value {
          * handle -> Object
          */
         Object[] _array = new Object[INITIAL_SIZE];
-        /**
-         * hashCode -> handle
-         */
-        int[] _hashTable = new int[INITIAL_SIZE];
-        /**
-         * handle -> handle of next object with same hash index
-         */
-        int[] _hashLink = new int[INITIAL_SIZE];
 
-        boolean _isClear;
-
-        boolean _hashed;
+        int _handleCount = 0;
 
         ValueCache() {
             clear();
@@ -4861,11 +4852,9 @@ public final class Value {
          * @return The handle, or -1 if the object has not been stored yet.
          */
         int lookup(Object object) {
-            int index = hashIndex(object);
-            if (index != -1) {
-                for (int handle = _hashTable[index]; handle != -1; handle = _hashLink[handle]) {
-                    if (_array[handle] == object)
-                        return handle;
+            for (int index = _handleCount; --index >= 0;) {
+                if (_array[index] == object) {
+                    return index;
                 }
             }
             return -1;
@@ -4893,22 +4882,18 @@ public final class Value {
         void store(int handle, Object object) {
             if (handle >= _array.length)
                 grow(1 + handle * 2);
+            if (handle >= _handleCount) {
+                _handleCount = handle + +1;
+            }
             _array[handle] = object;
-            _isClear = false;
         }
 
         int put(int handle, Object object) {
             int previous = lookup(object);
-            if (previous != -1)
+            if (previous != -1) {
                 return previous;
-            if (handle >= _array.length)
-                grow(1 + handle * 2);
-            _array[handle] = object;
-            int index = hashIndex(object);
-            _hashLink[handle] = _hashTable[index];
-            _hashTable[index] = handle;
-            _isClear = false;
-            _hashed = true;
+            }
+            store(handle, object);
             return -1;
         }
 
@@ -4918,41 +4903,17 @@ public final class Value {
         void grow(int newSize) {
             Object[] temp = _array;
             _array = new Object[newSize];
-            _hashTable = new int[newSize];
-            _hashLink = new int[newSize];
-            boolean hashed = _hashed;
-            _isClear = false;
-            clear();
-            for (int index = 0; index < temp.length; index++) {
-                if (hashed) {
-                    put(index, temp[index]);
-                } else {
-                    store(index, temp[index]);
-                }
-            }
+            System.arraycopy(temp, 0, _array, 0, temp.length);
         }
 
         /**
          * Clears all object/handle associations.
          */
         void clear() {
-            if (!_isClear) {
-                for (int index = 0; index < _array.length; index++) {
-                    _array[index] = null;
-                }
-                for (int index = 0; index < _hashTable.length; index++) {
-                    _hashTable[index] = -1;
-                }
-                for (int index = 0; index < _hashLink.length; index++) {
-                    _hashLink[index] = -1;
-                }
-                _isClear = true;
-                _hashed = false;
+            for (int index = _handleCount; --index >= 0;) {
+                _array[index] = null;
             }
-        }
-
-        private int hashIndex(Object object) {
-            return (System.identityHashCode(object) & 0x7FFFFFFF) % _hashTable.length;
+            _handleCount = 0;
         }
     }
 

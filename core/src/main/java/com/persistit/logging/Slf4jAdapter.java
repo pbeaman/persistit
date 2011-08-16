@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 
 public class Slf4jAdapter implements PersistitLogger {
 
-    private Logger _logger;
+    private final Logger _logger;
 
     /**
      * Constructs a wrapped Slf4j Logger.

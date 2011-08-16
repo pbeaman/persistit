@@ -21,8 +21,6 @@ import java.util.Properties;
 import junit.framework.TestCase;
 
 import com.persistit.Persistit;
-import com.persistit.TestShim;
-import com.persistit.TimestampAllocator;
 
 public abstract class PersistitUnitTestCase extends TestCase {
 

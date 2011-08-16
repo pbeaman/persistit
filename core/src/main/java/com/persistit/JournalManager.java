@@ -912,9 +912,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
     void writeStoreRecordToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp,
             final int treeHandle, final Key key, final Value value) throws PersistitIOException {
-        JournalRecord.putLength(writeBuffer, recordSize);
+        SR.putLength(writeBuffer, recordSize);
         SR.putType(writeBuffer);
-        JournalRecord.putTimestamp(writeBuffer, timestamp);
+        SR.putTimestamp(writeBuffer, timestamp);
         SR.putTreeHandle(writeBuffer, treeHandle);
         SR.putKeySize(writeBuffer, (short) key.getEncodedSize());
         writeBuffer.position(writeBuffer.position() + SR.OVERHEAD);

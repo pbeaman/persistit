@@ -23,7 +23,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
-import java.io.Reader;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -102,13 +101,8 @@ import com.persistit.util.Util;
  *
  */
 public class CLI {
-
     private final static char DEFAULT_COMMAND_DELIMITER = ' ';
     private final static char DEFAULT_QUOTE = '\\';
-    private final static String PROMPT = "Persistit CLI> ";
-    private final static String LAUNCH_COMMAND = "launch";
-    private final static String EXIT_COMMAND = "exit";
-    
     private final static Map<String, Command> COMMANDS = new TreeMap<String, Command>();
 
     private final static Class<?>[] CLASSES = { CLI.class, BackupTask.class, IntegrityCheck.class, StreamSaver.class,
@@ -116,18 +110,29 @@ public class CLI {
 
     static {
         for (final Class<?> clazz : CLASSES) {
-            for (final Method method : clazz.getDeclaredMethods()) {
-                if (method.isAnnotationPresent(Cmd.class)) {
-                    String name = method.getAnnotation(Cmd.class).value();
-                    Annotation[][] parameters = method.getParameterAnnotations();
-                    String[] argTemplate = new String[parameters.length];
-                    int index = 0;
-                    for (Annotation[] annotations : parameters) {
-                        Arg argAnnotation = (Arg) annotations[0];
-                        argTemplate[index++] = argAnnotation.value();
-                    }
-                    COMMANDS.put(name, new Command(name, argTemplate, method));
+            registerCommands(clazz);
+        }
+    }
+    /**
+     * Registers command methods provided by the supplied Class. To be
+     * registered as a CLI command, a method must be identified by a @Cmd
+     * annotation, and its arguments must be defined with @Arg annotations. This
+     * method allows applications to extend the CLI.
+     * 
+     * @param clazz
+     */
+    public static void registerCommands(final Class<?> clazz) {
+        for (final Method method : clazz.getDeclaredMethods()) {
+            if (method.isAnnotationPresent(Cmd.class)) {
+                String name = method.getAnnotation(Cmd.class).value();
+                Annotation[][] parameters = method.getParameterAnnotations();
+                String[] argTemplate = new String[parameters.length];
+                int index = 0;
+                for (Annotation[] annotations : parameters) {
+                    Arg argAnnotation = (Arg) annotations[0];
+                    argTemplate[index++] = argAnnotation.value();
                 }
+                COMMANDS.put(name, new Command(name, argTemplate, method));
             }
         }
     }
@@ -137,7 +142,7 @@ public class CLI {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
-    @interface Cmd {
+    public @interface Cmd {
         String value();
     }
 
@@ -146,7 +151,7 @@ public class CLI {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
-    @interface Arg {
+    public @interface Arg {
         String value();
     }
 
@@ -340,7 +345,6 @@ public class CLI {
                 socket = null;
             }
         }
-
     }
 
     private static class Command {
@@ -433,6 +437,7 @@ public class CLI {
     private String _lastStatus;
 
     public CLI(final Persistit persistit, final int port) throws IOException {
+
         _lineReader = new NetworkReader(port);
         _persistit = persistit;
         _live = persistit != null;
@@ -571,6 +576,29 @@ public class CLI {
             persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         }
         persistit.initialize(properties);
+        
+        /**
+         * Following is a hack to figure ought whether there is a classIndex in
+         * exactly one volume, and if so, make is the system volume. There should
+         * be an API in the Persistit class itself to do this, but currently there
+         * isn't one.
+         */
+        Volume sysvol = null;
+        for (final Volume volume : persistit.getVolumes()) {
+            if (volume.getTree(ClassIndex.CLASS_INDEX_TREE_NAME, false) != null) {
+                if (sysvol == null) {
+                    sysvol = volume;
+                } else {
+                    sysvol = null;
+                    break;
+                }
+            }
+        }
+        if (sysvol != null) {
+            properties.put(Persistit.SYSTEM_VOLUME_PROPERTY, sysvol.getName());
+        }
+        
+        
         _persistit = persistit;
         return "Last valid checkpoint=" + persistit.getRecoveryManager().getLastValidCheckpoint().toString();
     }
@@ -971,73 +999,6 @@ public class CLI {
             _garbageRoot = Util.getLong(bytes, 152);
             _initialPages = Util.getLong(bytes, 192);
         }
-    }
-
-    /**
-     * Uses reflection to try to find a jline.ConsoleReader. The jline package
-     * supports command history and in-line editing. If the jline is not in the
-     * classpath, then this method returns a <code>LineReader</code> based on
-     * {@link System#in}.
-     * 
-     * @return A <code>LineReader</code>
-     * @see http://jline.sourceforge.net/
-     */
-    private static LineReader lineReader(final Reader reader, final PrintWriter writer) {
-        LineReader lineReader = null;
-        try {
-            final Class<?> readerClass = CLI.class.getClassLoader().loadClass("jline.ConsoleReader");
-            final Object consoleReader = readerClass.newInstance();
-            final Method readLineMethod = readerClass.getMethod("readLine", new Class[] { String.class });
-            lineReader = new LineReader() {
-                @Override
-                public String readLine() throws IOException {
-                    try {
-                        return (String) readLineMethod.invoke(consoleReader, new Object[] { PROMPT });
-                    } catch (IllegalArgumentException e) {
-                        throw new RuntimeException(e);
-                    } catch (IllegalAccessException e) {
-                        throw new RuntimeException(e);
-                    } catch (InvocationTargetException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-
-                @Override
-                public PrintWriter writer() {
-                    return writer;
-                }
-
-                @Override
-                public void close() {
-
-                }
-            };
-            writer.println("jline.ConsoleReader enabled");
-        } catch (Exception e) {
-
-        }
-        if (lineReader == null) {
-            final BufferedReader br = new BufferedReader(reader);
-            lineReader = new LineReader() {
-                @Override
-                public String readLine() throws IOException {
-                    writer.print(PROMPT);
-                    writer.flush();
-                    return br.readLine();
-                }
-
-                @Override
-                public PrintWriter writer() {
-                    return writer;
-                }
-
-                @Override
-                public void close() {
-
-                }
-            };
-        }
-        return lineReader;
     }
 
     static KeyFilter toKeyFilter(final String keyFilterString) {

@@ -615,6 +615,17 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertEquals(ks, _key2);
         assertEquals(ks, _key1);
     }
+    
+    public void testIndexTo() {
+        _key1.clear().append("a").append("b").append("c").append("d");
+        assertEquals("a", _key1.indexTo(0).decodeString());
+        assertEquals("b", _key1.indexTo(1).decodeString());
+        assertEquals("c", _key1.indexTo(2).decodeString());
+        assertEquals("d", _key1.indexTo(3).decodeString());
+        assertEquals("d", _key1.indexTo(-1).decodeString());
+        assertEquals("c", _key1.indexTo(-2).decodeString());
+
+    }
 
     private static boolean doubleEquals(final double f1, final double f2) {
         if (Double.isNaN(f1)) {

@@ -397,7 +397,7 @@ import com.persistit.util.Util;
  * @author peter
  * 
  */
-public class JournalRecord {
+class JournalRecord {
 
     private final static Charset UTF8 = Charset.forName("UTF-8");
 

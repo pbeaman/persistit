@@ -39,7 +39,7 @@ public class CorruptVolumeTest extends PersistitUnitTestCase {
         final Buffer buffer = exchange.getBufferPool().get(exchange.getVolume(), 4, true, true);
         Arrays.fill(buffer.getBytes(), 20, 200, (byte) 0);
         buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
-        exchange.getBufferPool().release(buffer);
+        buffer.releaseTouched();
         //
         try {
             exchange.to(9000).fetch();

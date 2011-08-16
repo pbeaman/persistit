@@ -66,13 +66,6 @@ class SharedResource {
     final static int VALID_MASK = 0x00020000;
 
     /**
-     * Status field mask for a resource that has been claimed and for which the
-     * TimestampAllocator is also locked. See
-     * {@link Buffer#checkedClaim(boolean, long)}.
-     */
-    final static int CHECKPOINT_LOCKED_MASK = 0x00200000;
-
-    /**
      * Status field mask for a resource that is dirty but not required to be
      * written with any checkpoint.
      */
@@ -85,20 +78,10 @@ class SharedResource {
     final static int TOUCHED_MASK = 0x08000000;
 
     /**
-     * Mask for bit field indicating that updates are suspended
-     */
-    final static int SUSPENDED_MASK = 0x10000000;
-
-    /**
-     * Mask for bit field indicating that resource should be mounted in a fixed
-     * location -- e.g., a Volume's head page.
+     * Mask for bit field indicating that resource (a Buffer) should not be
+     * replaced. The buffer houses a Volume's head page.
      */
     final static int FIXED_MASK = 0x40000000;
-
-    /**
-     * Status field mask for bits that indicate this Buffer is unavailable.
-     */
-    final static int UNAVAILABLE_MASK = FIXED_MASK | CLAIMED_MASK | WRITER_MASK;
 
     /**
      * Extension of {@link AbstractQueuedSynchronizer} with Persistit semantics.
@@ -155,6 +138,8 @@ class SharedResource {
          * Attempt to convert shared to exclusive. The caller must already have
          * acquired shared access. This method upgrades the state to exclusive,
          * but only if there is exactly one shared acquire.
+         * 
+         * TODO  - prove that caller already a reader claim
          * 
          * @return
          */
@@ -259,8 +244,6 @@ class SharedResource {
 
     private final Sync _sync = new Sync();
 
-    private List<Thread> _threads = new ArrayList<Thread>();
-
     /**
      * A counter that increments every time the resource is changed.
      */
@@ -280,10 +263,6 @@ class SharedResource {
 
     public boolean isValid() {
         return _sync.testBitsInState(VALID_MASK);
-    }
-
-    public boolean isCheckpointLocked() {
-        return _sync.testBitsInState(CHECKPOINT_LOCKED_MASK);
     }
 
     public boolean isTransient() {
@@ -330,39 +309,11 @@ class SharedResource {
                     }
                 }
             } catch (InterruptedException e) {
+                // TODO - (Jack) - consider this.
             }
             Debug.$assert1.t(false);
             return false;
         }
-    }
-
-    /**
-     * For debugging resource protocol issues only
-     */
-    synchronized void register() {
-        _threads.add(Thread.currentThread());
-    }
-
-    synchronized boolean unregister() {
-        final Thread t = Thread.currentThread();
-        for (int index = _threads.size(); --index >= 0;) {
-            if (_threads.get(index) == t) {
-                _threads.remove(index);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    synchronized boolean verifyReleased() {
-        final Thread t = Thread.currentThread();
-        for (int index = _threads.size(); --index >= 0;) {
-            if (_threads.get(index) == t) {
-                Debug.$assert1.t(false);
-                return false;
-            }
-        }
-        return true;
     }
 
     boolean upgradeClaim() {
@@ -385,16 +336,8 @@ class SharedResource {
         _sync.setBitsInState(DIRTY_MASK);
     }
 
-    void setCheckpointLocked() {
-        _sync.setBitsInState(CHECKPOINT_LOCKED_MASK);
-    }
-
     void setTouched() {
         _sync.setBitsInState(TOUCHED_MASK);
-    }
-
-    void clearCheckpointLocked() {
-        _sync.clearBitsInState(CHECKPOINT_LOCKED_MASK);
     }
 
     void clearTouched() {
@@ -431,11 +374,6 @@ class SharedResource {
 
     void clearValid() {
         _sync.clearBitsInState(VALID_MASK);
-    }
-
-    public boolean isAvailable() {
-        return _sync.testBitsInState(UNAVAILABLE_MASK);
-
     }
 
     void bumpGeneration() {
@@ -491,10 +429,8 @@ class SharedResource {
             return "vdwr1";
         default:
             StringBuilder sb = new StringBuilder(8);
-            if ((state & SUSPENDED_MASK) != 0) {
-                sb.append("s");
-            }
-            if ((state & VALID_MASK) != 0) {
+
+            if ((state & VALID_MASK) != 0) { //TODO chars
                 sb.append("v");
             }
             if ((state & DIRTY_MASK) != 0) {

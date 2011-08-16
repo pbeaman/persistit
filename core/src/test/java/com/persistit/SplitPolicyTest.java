@@ -133,7 +133,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         ex.to(1);
         long page = ex.fetchBufferCopy(0).getPageAddress();
         final Buffer buffer = ex.getBufferPool().get(ex.getVolume(), page, false, true);
-        ex.getBufferPool().release(buffer);
+        buffer.releaseTouched();
         for (int i = 0; buffer.getAvailableSize() > 100; i++) {
             ex.to(i).store();
         }
@@ -251,7 +251,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
                 total = total + buffer.getBufferSize();
                 used = used + buffer.getBufferSize() - buffer.getAvailableSize();
             }
-            ex.getBufferPool().release(buffer);
+            buffer.releaseTouched();
         }
         return used / total;
     }

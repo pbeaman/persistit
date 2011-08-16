@@ -47,7 +47,7 @@ public class ClassIndex {
 
     private final static String BY_HANDLE = "byHandle";
     private final static String BY_NAME = "byName";
-    private final static String CLASS_INDEX_TREE_NAME = "_classIndex";
+    final static String CLASS_INDEX_TREE_NAME = "_classIndex";
 
     private int _capacityById = INITIAL_CAPACITY;
     private int _capacityByName = INITIAL_CAPACITY;

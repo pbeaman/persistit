@@ -127,7 +127,7 @@ java.lang.reflect.ReflectPermission("suppressAccessChecks")
 java.io.SerializablePermission("enableSubclassImplementation")
 ----
 
-See the <<Security>> for an extended discussion on security policy issues for Persistit.
+See <<Security>> for an extended discussion on security policy issues for Persistit.
 
 == SerialValueCoder
 

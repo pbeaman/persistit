@@ -1269,7 +1269,7 @@ public class Transaction {
                     BufferPool pool = tp._volume.getPool();
                     Buffer buffer = pool.get(tp._volume, tp._pageAddr, false, true);
                     boolean changed = buffer.getTimestamp() != tp._timestamp;
-                    pool.release(buffer);
+                    buffer.release();
 
                     if (changed) {
                         _rollbackPending = true;
@@ -1542,6 +1542,7 @@ public class Transaction {
                 _ex1.getKey().copyTo(key1);
                 Value txnValue = _ex1.getValue();
                 txnValue.decodeAntiValue(_ex1);
+                // TODO - skip to end of AntiValue
                 if (candidateKey.compareTo(key2) <= 0) {
                     return Boolean.FALSE;
                 }
@@ -1663,7 +1664,7 @@ public class Transaction {
             Value value = _ex1.getValue();
             if (_pendingRemoveCount > 0) {
                 // If the left edge of this key removal range overlaps a
-                // previously posted remove oepration, then reset the left edge
+                // previously posted remove operation, then reset the left edge
                 // of this range to the overlapping one.
                 //
                 prepareTxnExchange(tree, key1, 'R');
@@ -2014,7 +2015,7 @@ public class Transaction {
                     long pageAddr = dc._leftPage;
                     Buffer buffer = volume.getPool().get(volume, pageAddr, false, true);
                     Debug.$assert0.t(buffer.isLongRecordPage());
-                    volume.getPool().release(buffer);
+                    buffer.releaseTouched();
                 }
 
                 dc._volume.deallocateGarbageChain(dc._leftPage, dc._rightPage);

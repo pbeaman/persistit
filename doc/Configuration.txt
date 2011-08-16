@@ -14,7 +14,8 @@ creates and initializes a Persistit instance using supplied Properties values.
 The following properties are defined for Persistit. Other properties may also reside in the Properties object or its backing file; Persistit simply ignores any property not listed here.
 
 [horizontal]
-+buffer.count._SSSS_+:: where _SSSS_ is 1024, 2048, 4096, 8192, or 16384. This property specifies the number of buffers of the corresponding size that Persistit will allocate for its buffer pool. For example, +buffer.count.8192=100+ allocates 100 8Kb buffers. The value must be an integer greater than 7. The maximum count is limited by available memory. Each buffer consumes _SSSS_ bytes plus approximately 25% overhead. (Note that the size _SSSS_ must be given as an integer; a form such as +buffer.count.8K+ is invalid.)
++buffer.count._SSSS_+:: where _SSSS_ is 1024, 2048, 4096, 8192 or 16384. This property specifies the number of buffers of the corresponding size that Persistit will allocate for its buffer pool. For example, +buffer.count.8192=100+ allocates 100 8Kb buffers. The value must be an integer greater than 7. The maximum count is limited by available memory. Each buffer consumes _SSSS_ bytes plus approximately 12.5% overhead. (Note that the size _SSSS_ must be given as an integer; a form such as +buffer.count.8K+ is invalid.)
++buffer.memory._SSSS_+:: where _SSSS_ is 1024, 2048, 4096, 8192 or 16384. This property provides a way to specify the buffer pool size by heap memory consumption rather than count. This property and +buffer.count._SSSS_+ are mutually incompatible. Specify only one of these per buffer size. The memory specification format is described below.
 +volume._N_+:: where _N_ is an ordinal number 1, 2, etc. Specifies a Volume that Persistit is to manage. The value of this property is a specification string defined below. The ordinal number has no significance other than to provide a unique property name for each volume.
 +sysvolume+:: Identifies the system volume by name. The value name one of the volumes specified by the +volume._N_+ properties. The system volume holds class meta data for serialized objects.
 +txnvolume+:: Identifies the transaction log volume.The value name one of the volumes specified by the +volume._N_+ properties. Uncommitted transactions are written first to this volume before being committed.
@@ -35,12 +36,46 @@ The following properties are defined for Persistit. Other properties may also re
 For all integer-valued properties, the suffix “K” may be used to represent kilo, “M” for mega, “G” for giga and “T” for tera. For example,
 “2M” represents the value 2,097,152.
 
+== Buffer Pool Memory Allocation
+
+Buffer pool memory can be specified in one of two ways:
+
+- +buffer.count._SSSS_+ =_count_
+- +buffer.memory._SSSS_+ =_min_,_max_,_reserved_,_fraction_
+
+where _SSSS_ is a buffer size, and must be one of “1024”, “2048”, “4096”, “8192”, “16384”.  The buffer size relates to volume page size: in order to open a volume having a page size of _SSSS_, the buffer pool must be configured to have buffers of the same size.
+
+The +buffer.memory._SSSS_+ property works by calculating a target heap memory allocation; it then divides that target by the size of each buffer (with its associated overhead) to derive the buffer count. The calculation is done as follows:
+
+. Determine the maximum heap size by accessing the platform MemoryMXBean, which in turn supplies the value given by the +-Xmx+ JVM property.
+. Subtract the _reserved_ size from the maximum heap size
+. Multiple the result by _fraction_
+. Bound the product between _min_ and _max_
+
+Example: an embedding application needs to reserve 128M for its own operations, and wants to give 75% of the remaining available heap space to a pool of 16K Persistit buffers up to a maximum buffer pool allocation of 8G.
+----
+buffer.memory.16384=,8G,128M,.75
+----
+Leaving _min_ and/or _max_ unspecified results in default minimum and maximum buffer counts of 7 and infinite (i.e., the buffer count will be constrained only by available memory). Leaving _reserved_ unspecified results in a default value of 0.
+
+Note that it is possible to allocate buffers having different page sizes, for example:
+
+----
+buffer.memory.2048=64M,512G,256M,.2
+buffer.memory.16384=64M,512G,256M,.5
+----
+
+In performing the target heap memory computation, the available memory is determined before _any_ buffers are allocated. In this example, approximately 70% of available memory (after the 256M reservation) will be allocated to buffers; 50% to 16K buffers and 20% to 2K buffers.
+
+The MemoryMXBean supplies as its maximum heap size value the size given by the +-Xmx+ JVM parameter. Use care to specify a value of +-Xmx+ that can actually be allocated on the server running the application. Otherwise Persistit will throw an +OutOfMemoryError+ during initialization when it it attempts to allocate a physically unavailable memory when using the +buffer.memory._SSSS_+ property to specify buffer pool allocation.
+
 == Volume Specification
 
 Each volume specification in the configuration has the following form:
 
 [horizontal]
 +volume._N_ = _path_[,_attrname_[:_attrvalue_]]...+:: where _N_ is an arbitrary integer, _path_ is the path specification of the volume file, and _attrnames_ include:
+- +pageSize+: Fixed length unit representing one page. Value must be one of 1024, 2048, 4096, 8192 or 16384. To open and use the Volume, the buffer pool must have available buffers of the same size.
 - +create+: Persistit attempts to open an existing volume file with the specified _path_, or create a new one if the file does not exist.
 - +createOnly+: Persistit throw a VolumeAlreadyExistsException if the file specified by path already exists. Otherwise it creates a new file with the specified path.
 - +readOnly+: Opens a volume in read-only mode. An attempt to modify the volume results in a ReadOnlyVolumeException.
@@ -96,7 +131,7 @@ txnvolume = demo_txn
 journalpath = /ssd/persistit_journal
 ----
 
-With this configuration there will be 5,000 8Kb buffers in the buffer pool (consuming heap space of approximately 46MB including overhead). Persistit will open or create volume files named +/data/demo_data.v01+ and +/data/demo_txn.v01+ and a journal file named +/ssd/persistit_journal.0000000000000001+.
+With this configuration there will be 5,000 8K buffers in the buffer pool (consuming heap space of approximately 46MB including overhead). Persistit will open or create volume files named +/data/demo_data.v01+ and +/data/demo_txn.v01+ and a journal file named +/ssd/persistit_journal.0000000000000001+.
 
 The +demo_data.v01+ volume has the alias +data+. This means that application code uses the name "data" to refer to that volume. The +sysvolume+ property specifies that this volume is also designated to hold class meta data for serialized objects.
 

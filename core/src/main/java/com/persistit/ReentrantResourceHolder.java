@@ -1,7 +1,3 @@
-package com.persistit;
-
-import com.persistit.util.Debug;
-
 /**
  * Copyright (C) 2011 Akiban Technologies Inc. This program is free software:
  * you can redistribute it and/or modify it under the terms of the GNU Affero
@@ -15,6 +11,17 @@ import com.persistit.util.Debug;
  * 
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see http://www.gnu.org/licenses.
+ */
+package com.persistit;
+
+import com.persistit.util.Debug;
+
+/**
+ * A container for a SharedResource that experiences reentrant claims (locks).
+ * {@link Exchange} uses this to hold a Tree object, which experiences this pattern.
+ * The purpose is to keep a count of so that when an Exchange has finished using
+ * the Tree, it can verify that all claims were released. This is primarily for
+ * debugging; correct code will always release each claim.
  */
 
 public class ReentrantResourceHolder {

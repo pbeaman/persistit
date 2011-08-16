@@ -69,7 +69,7 @@ public class BufferPool {
     /**
      * Ratio of FastIndex to buffers
      */
-    final static float FAST_INDEX_RATIO = 0.5f;
+    final static float FAST_INDEX_RATIO = 1.0f;
 
     /**
      * The Persistit instance that references this BufferBool.
@@ -79,17 +79,17 @@ public class BufferPool {
     /**
      * Hash table - fast access to buffer by hash of address.
      */
-    private Buffer[] _hashTable;
+    private final Buffer[] _hashTable;
 
     /**
      * Locks used to lock hashtable entries.
      */
-    private ReentrantLock[] _hashLocks;
+    private final ReentrantLock[] _hashLocks;
 
     /**
      * All Buffers in this pool
      */
-    private Buffer[] _buffers;
+    private final Buffer[] _buffers;
     /**
      * Count of Buffers allocated to this pool.
      */
@@ -252,19 +252,23 @@ public class BufferPool {
     void crash() {
         IOTaskRunnable.crash(_writer);
     }
+    
+    private void pause() {
+        try {
+            Thread.sleep(RETRY_SLEEP_TIME);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
+    }
 
     int flush() {
         int unavailable = 0;
         for (int retries = 0; retries < MAX_FLUSH_RETRY_COUNT; retries++) {
-            unavailable = writeDirtyBuffers(false, true, Long.MAX_VALUE);
+            unavailable = writeDirtyBuffers(false, true);
             if (unavailable == 0) {
                 break;
             }
-            try {
-                Thread.sleep(RETRY_SLEEP_TIME);
-            } catch (InterruptedException e) {
-                break;
-            }
+            pause();
         }
         return unavailable;
     }
@@ -472,6 +476,9 @@ public class BufferPool {
 
     private void invalidate(Buffer buffer) {
         Debug.$assert0.t(buffer.isValid());
+        while (!detach(buffer)) {
+            pause();
+        }
         buffer.clearValid();
         buffer.setClean();
         buffer.setPageAddressAndVolume(0, null);
@@ -483,10 +490,7 @@ public class BufferPool {
             return false;
         }
         try {
-            //
-            // If already invalid, we're done.
-            //
-            //
+
             // Detach this buffer from the hash table.
             //
             if (_hashTable[hash] == buffer) {
@@ -546,7 +550,7 @@ public class BufferPool {
                         if (buffer.claim(writer, 0)) {
                             vol.bumpGetCounter();
                             bumpHitCounter();
-                            return buffer; // trace(buffer);
+                            return buffer;
                         } else {
                             mustClaim = true;
                             break;
@@ -619,7 +623,7 @@ public class BufferPool {
                         //
                         vol.bumpGetCounter();
                         bumpHitCounter();
-                        return buffer; // trace(buffer);
+                        return buffer;
                     }
                     //
                     // If not, release the claim and retry.
@@ -670,11 +674,6 @@ public class BufferPool {
                 }
             }
         }
-    }
-
-    void release(final Buffer buffer) {
-        buffer.setTouched();
-        buffer.release();
     }
 
     /**
@@ -739,15 +738,19 @@ public class BufferPool {
      *         currently available. The buffer has a writer claim.
      * @throws InvalidPageStructureException
      */
+
+    // Yuval: could a second thread wrap the entire buffer pool and look at the
+    // same buffer?
     private Buffer allocBuffer() throws PersistitException {
 
-        for (int retry = 0; retry < _bufferCount;) {
+        for (int retry = 0; retry < _bufferCount * 2;) {
             int clock = _clock.get();
+            assert clock < _bufferCount;
             if (!_clock.compareAndSet(clock, (clock + 1) % _bufferCount)) {
                 continue;
             }
             boolean resetDirtyClock = false;
-            Buffer buffer = _buffers[clock % _bufferCount];
+            Buffer buffer = _buffers[clock];
             if (buffer.isTouched()) {
                 buffer.clearTouched();
             } else {
@@ -756,6 +759,8 @@ public class BufferPool {
                     if (buffer.isDirty()) {
                         if (!resetDirtyClock) {
                             resetDirtyClock = true;
+                            // TODO - check this. Did we set this as far away as
+                            // possible.
                             _dirtyClock.set(clock);
                             _writer.urgent();
                         }
@@ -781,14 +786,15 @@ public class BufferPool {
     }
 
     FastIndex allocFastIndex() {
-        for (int retry = 0; retry < _fastIndexCount; retry++) {
+        for (int retry = 0; retry < _fastIndexCount * 2;) {
             int clock = _fastIndexClock.get();
             if (!_fastIndexClock.compareAndSet(clock, (clock + 1) % _fastIndexCount)) {
                 continue;
             }
             FastIndex findex = _fastIndexes[clock];
-            if (findex.testBit(1)) {
-                findex.clearBit(1);
+
+            if (findex.testTouched()) {
+                findex.clearTouched();
             } else {
                 Buffer buffer = findex.getBuffer();
                 if (buffer.claim(true, 0)) {
@@ -798,6 +804,7 @@ public class BufferPool {
                     return findex;
                 }
             }
+            retry++;
         }
         throw new IllegalStateException("No FastIndex buffers available");
     }
@@ -820,7 +827,7 @@ public class BufferPool {
         return earliestDirtyTimestamp;
     }
 
-    private int writeDirtyBuffers(final boolean urgent, final boolean all, final long timestamp) {
+    private int writeDirtyBuffers(final boolean urgent, final boolean all) {
         int unavailable = 0;
         int start = _dirtyClock.get();
         int max = all ? _bufferCount : _bufferCount / 8;
@@ -828,7 +835,7 @@ public class BufferPool {
         int index = start;
         for (; index < end; index++) {
             final Buffer buffer = _buffers[index % _bufferCount];
-            if (buffer.isDirty() && buffer.getTimestamp() < timestamp) {
+            if (buffer.isDirty()) {
                 if (buffer.claim(true, 0)) {
                     try {
                         if (buffer.isValid() && buffer.isDirty()) {
@@ -874,7 +881,7 @@ public class BufferPool {
         @Override
         public void runTask() {
             _wasClosed = _closed.get();
-            _clean = writeDirtyBuffers(_urgent.get(), _wasClosed, Long.MAX_VALUE) == 0;
+            _clean = writeDirtyBuffers(_urgent.get(), _wasClosed) == 0;
             if (_clean) {
                 _urgent.set(false);
             }
