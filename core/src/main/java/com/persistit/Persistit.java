@@ -1369,7 +1369,7 @@ public class Persistit {
      * The supplied name can match a volume in one of two ways:
      * <ul>
      * <li>(a) its name by exact match</li>
-     * <li>(b) its path, by matching the canonical forms of the volume's path
+     * <li>(b) its path, by matching the absolute forms of the volume's path
      * and the supplied path.</li>
      * </ul>
      * </p>
@@ -1401,10 +1401,10 @@ public class Persistit {
             return result;
         }
 
-        final File file = new File(name);
+        final File file = new File(name).getAbsoluteFile();
         for (int i = 0; i < _volumes.size(); i++) {
             Volume vol = _volumes.get(i);
-            if (file.equals(new File(vol.getPath()))) {
+            if (file.equals(new File(vol.getPath()).getAbsoluteFile())) {
                 if (result == null)
                     result = vol;
                 else {

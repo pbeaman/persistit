@@ -23,7 +23,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
-import java.io.Reader;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -102,10 +101,9 @@ import com.persistit.util.Util;
  *
  */
 public class CLI {
-
     private final static char DEFAULT_COMMAND_DELIMITER = ' ';
     private final static char DEFAULT_QUOTE = '\\';
-    private final static String PROMPT = "Persistit CLI> ";
+
     private final static Map<String, Command> COMMANDS = new TreeMap<String, Command>();
 
     private final static Class<?>[] CLASSES = { CLI.class, BackupTask.class, IntegrityCheck.class, StreamSaver.class,
@@ -113,18 +111,29 @@ public class CLI {
 
     static {
         for (final Class<?> clazz : CLASSES) {
-            for (final Method method : clazz.getDeclaredMethods()) {
-                if (method.isAnnotationPresent(Cmd.class)) {
-                    String name = method.getAnnotation(Cmd.class).value();
-                    Annotation[][] parameters = method.getParameterAnnotations();
-                    String[] argTemplate = new String[parameters.length];
-                    int index = 0;
-                    for (Annotation[] annotations : parameters) {
-                        Arg argAnnotation = (Arg) annotations[0];
-                        argTemplate[index++] = argAnnotation.value();
-                    }
-                    COMMANDS.put(name, new Command(name, argTemplate, method));
+            registerCommands(clazz);
+        }
+    }
+    /**
+     * Registers command methods provided by the supplied Class. To be
+     * registered as a CLI command, a method must be identified by a @Cmd
+     * annotation, and its arguments must be defined with @Arg annotations. This
+     * method allows applications to extend the CLI.
+     * 
+     * @param clazz
+     */
+    public static void registerCommands(final Class<?> clazz) {
+        for (final Method method : clazz.getDeclaredMethods()) {
+            if (method.isAnnotationPresent(Cmd.class)) {
+                String name = method.getAnnotation(Cmd.class).value();
+                Annotation[][] parameters = method.getParameterAnnotations();
+                String[] argTemplate = new String[parameters.length];
+                int index = 0;
+                for (Annotation[] annotations : parameters) {
+                    Arg argAnnotation = (Arg) annotations[0];
+                    argTemplate[index++] = argAnnotation.value();
                 }
+                COMMANDS.put(name, new Command(name, argTemplate, method));
             }
         }
     }
@@ -134,7 +143,7 @@ public class CLI {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
-    @interface Cmd {
+    public @interface Cmd {
         String value();
     }
 
@@ -143,7 +152,7 @@ public class CLI {
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.PARAMETER)
-    @interface Arg {
+    public @interface Arg {
         String value();
     }
 
@@ -425,6 +434,7 @@ public class CLI {
     private String _lastStatus;
 
     public CLI(final Persistit persistit, final int port) throws IOException {
+
         _lineReader = new NetworkReader(port);
         _persistit = persistit;
         _live = persistit != null;
@@ -558,6 +568,29 @@ public class CLI {
             persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         }
         persistit.initialize(properties);
+        
+        /**
+         * Following is a hack to figure ought whether there is a classIndex in
+         * exactly one volume, and if so, make is the system volume. There should
+         * be an API in the Persistit class itself to do this, but currently there
+         * isn't one.
+         */
+        Volume sysvol = null;
+        for (final Volume volume : persistit.getVolumes()) {
+            if (volume.getTree(ClassIndex.CLASS_INDEX_TREE_NAME, false) != null) {
+                if (sysvol == null) {
+                    sysvol = volume;
+                } else {
+                    sysvol = null;
+                    break;
+                }
+            }
+        }
+        if (sysvol != null) {
+            properties.put(Persistit.SYSTEM_VOLUME_PROPERTY, sysvol.getName());
+        }
+        
+        
         _persistit = persistit;
         return "Last valid checkpoint=" + persistit.getRecoveryManager().getLastValidCheckpoint().toString();
     }
