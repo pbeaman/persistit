@@ -103,6 +103,7 @@ import com.persistit.util.Util;
 public class CLI {
     private final static char DEFAULT_COMMAND_DELIMITER = ' ';
     private final static char DEFAULT_QUOTE = '\\';
+
     private final static Map<String, Command> COMMANDS = new TreeMap<String, Command>();
 
     private final static Class<?>[] CLASSES = { CLI.class, BackupTask.class, IntegrityCheck.class, StreamSaver.class,
@@ -358,7 +359,7 @@ public class CLI {
             this.method = method;
         }
 
-        private String execute(final CLI cli, final ArgParser ap, final boolean immediate) throws Exception {
+        private String execute(final CLI cli, final ArgParser ap) throws Exception {
             final Object[] args = invocationArgs(ap);
             if (method.getReturnType() == String.class) {
                 String result = (String) method.invoke(cli, args);
@@ -368,11 +369,7 @@ public class CLI {
                 task.setPersistit(cli._persistit);
                 task.setMaximumTime(-1);
                 task.setMessageWriter(cli._writer);
-                if (immediate || task.isImmediate()) {
-                    task.runTask();
-                } else {
-                    return cli._persistit.getManagement().launch(task, name);
-                }
+                task.runTask();
                 return task.getStatus();
             } else {
                 throw new IllegalStateException(this + " must return either a Task or a String");
@@ -470,12 +467,12 @@ public class CLI {
                 if (list.isEmpty()) {
                     continue;
                 }
-                String commandName = list.remove(0);
+                final String commandName = list.get(0);
                 if (commandName.startsWith("#")) {
                     continue;
                 }
 
-                if (EXIT_COMMAND.equals(commandName)) {
+                if ("exit".equals(commandName) || "quit".equals(commandName)) {
                     _stop = true;
                     close(false);
                     _lastStatus = "Done";
@@ -483,20 +480,15 @@ public class CLI {
                     _lineReader.close();
                 }
 
-                boolean immediate = true;
-                if (commandName.equals(LAUNCH_COMMAND)) {
-                    immediate = false;
-                    commandName = list.remove(0);
-                }
-
                 // Handle intrinsic commands
                 final Command command = COMMANDS.get(commandName);
                 if (command != null) {
+                    list.remove(0);
                     try {
                         final String[] args = list.toArray(new String[list.size()]);
                         final ArgParser ap = new ArgParser(commandName, args, command.argTemplate);
                         if (!ap.isUsageOnly()) {
-                            String result = command.execute(this, ap, immediate);
+                            String result = command.execute(this, ap);
                             if (result != null) {
                                 _writer.println(result);
                             }
