@@ -34,9 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
-import java.util.Stack;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
@@ -329,7 +329,8 @@ public class Persistit {
 
     private UtilControl _localGUI;
 
-    private CoderManager _coderManager;
+    private AtomicReference<CoderManager> _coderManager = new AtomicReference<CoderManager>();
+
     private ClassIndex _classIndex = new ClassIndex(this);
     private ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
         @Override
@@ -600,7 +601,7 @@ public class Persistit {
         // Set up the parent CoderManager for this instance.
         String serialOverridePatterns = getProperty(Persistit.SERIAL_OVERRIDE_PROPERTY);
         DefaultCoderManager cm = new DefaultCoderManager(this, serialOverridePatterns);
-        _coderManager = cm;
+        _coderManager.set(cm);
 
         if (getBooleanProperty(SHOW_GUI_PROPERTY, false)) {
             try {
@@ -1064,7 +1065,7 @@ public class Persistit {
      * 
      * @throws IllegalStateException
      */
-    
+
     // TODO - why not one pool.
     public void releaseExchange(Exchange exchange, boolean secure) {
         if (exchange == null) {
@@ -1076,7 +1077,7 @@ public class Persistit {
         synchronized (_exchangePoolMap) {
             stack = _exchangePoolMap.get(sessionId);
             if (stack == null) {
-                throw new IllegalStateException("Release not preceded by get"); //TODO
+                throw new IllegalStateException("Release not preceded by get"); // TODO
             }
         }
         if (stack.size() < MAX_POOLED_EXCHANGES) {
@@ -1369,8 +1370,8 @@ public class Persistit {
      * The supplied name can match a volume in one of two ways:
      * <ul>
      * <li>(a) its name by exact match</li>
-     * <li>(b) its path, by matching the absolute forms of the volume's path
-     * and the supplied path.</li>
+     * <li>(b) its path, by matching the absolute forms of the volume's path and
+     * the supplied path.</li>
      * </ul>
      * </p>
      * 
@@ -1751,7 +1752,7 @@ public class Persistit {
         close(flush, false);
     }
 
-    // TODO - can byHook ever be true?  I don't think so.
+    // TODO - can byHook ever be true? I don't think so.
     private void close(final boolean flush, final boolean byHook) throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
             return;
@@ -1784,7 +1785,7 @@ public class Persistit {
         for (final Volume volume : volumes) {
             volume.flush();
         }
-        
+
         // TODO - why do this if there can't be another checkpoint?
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
@@ -1798,7 +1799,7 @@ public class Persistit {
         }
 
         // TODO - why not removeAll volumes
-        
+
         while (!_volumes.isEmpty()) {
             removeVolume(_volumes.get(0), false);
         }
@@ -2069,8 +2070,8 @@ public class Persistit {
      * 
      * @param coderManager
      */
-    public synchronized void setCoderManager(CoderManager coderManager) {
-        _coderManager = coderManager;
+    public void setCoderManager(CoderManager coderManager) {
+        _coderManager.set(coderManager);
     }
 
     /**
@@ -2078,8 +2079,8 @@ public class Persistit {
      * 
      * @return The current {@link com.persistit.encoding.CoderManager}.
      */
-    public synchronized CoderManager getCoderManager() {
-        return _coderManager;
+    public CoderManager getCoderManager() {
+        return _coderManager.get();
     }
 
     public LogBase getLogBase() {
@@ -2103,7 +2104,7 @@ public class Persistit {
         return _classIndex;
     }
 
-    Class classForHandle(int handle) {
+    Class<?> classForHandle(int handle) {
         ClassInfo ci = _classIndex.lookupByHandle(handle);
         if (ci == null)
             return null;
@@ -2111,16 +2112,20 @@ public class Persistit {
             return ci.getDescribedClass();
     }
 
-    KeyCoder lookupKeyCoder(Class cl) {
-        if (_coderManager == null)
+    KeyCoder lookupKeyCoder(Class<?> cl) {
+        CoderManager cm = _coderManager.get();
+        if (cm == null) {
             return null;
-        return _coderManager.lookupKeyCoder(cl);
+        }
+        return cm.lookupKeyCoder(cl);
     }
 
-    ValueCoder lookupValueCoder(Class cl) {
-        if (_coderManager == null)
+    ValueCoder lookupValueCoder(Class<?> cl) {
+        CoderManager cm = _coderManager.get();
+        if (cm == null) {
             return null;
-        return _coderManager.lookupValueCoder(cl);
+        }
+        return cm.lookupValueCoder(cl);
     }
 
     public RecoveryManager getRecoveryManager() {
@@ -2573,7 +2578,10 @@ public class Persistit {
 
         if (cliport > 1) {
             System.out.printf("Starting a Persistit CLI server on port %d\n", cliport);
-            CLI.cliserver(cliport).runTask();
+            Task task = CLI.cliserver(cliport);
+            task.runTask();
+            task.setPersistit(null);
+            
         } else {
             if (propertiesFileName.isEmpty()) {
                 throw new IllegalArgumentException("Must specify a properties file");

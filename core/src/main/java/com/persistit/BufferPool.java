@@ -74,7 +74,7 @@ public class BufferPool {
     /**
      * The Persistit instance that references this BufferBool.
      */
-    private Persistit _persistit;
+    private final Persistit _persistit;
 
     /**
      * Hash table - fast access to buffer by hash of address.
@@ -93,26 +93,26 @@ public class BufferPool {
     /**
      * Count of Buffers allocated to this pool.
      */
-    private int _bufferCount;
+    private final int _bufferCount;
 
     /**
      * Size of each buffer
      */
-    private int _bufferSize;
+    private final int _bufferSize;
 
     /**
      * Count of FastIndex instances, computed as a fraction of buffer count
      */
-    private int _fastIndexCount;
+    private final int _fastIndexCount;
     /**
      * FastIndex array
      */
-    private FastIndex[] _fastIndexes;
+    private final FastIndex[] _fastIndexes;
 
     /**
      * The maximum number of keys allowed Buffers in this pool
      */
-    private int _maxKeys;
+    private final int _maxKeys;
 
     /**
      * Pointer to next location to look for a replacement buffer
@@ -243,6 +243,7 @@ public class BufferPool {
         _fastClose.set(!flush);
         _closed.set(true);
         _persistit.waitForIOTaskStop(_writer);
+        _writer = null;
     }
 
     /**
@@ -739,10 +740,7 @@ public class BufferPool {
      * @throws InvalidPageStructureException
      */
 
-    // Yuval: could a second thread wrap the entire buffer pool and look at the
-    // same buffer?
     private Buffer allocBuffer() throws PersistitException {
-
         for (int retry = 0; retry < _bufferCount * 2;) {
             int clock = _clock.get();
             assert clock < _bufferCount;
@@ -759,8 +757,6 @@ public class BufferPool {
                     if (buffer.isDirty()) {
                         if (!resetDirtyClock) {
                             resetDirtyClock = true;
-                            // TODO - check this. Did we set this as far away as
-                            // possible.
                             _dirtyClock.set(clock);
                             _writer.urgent();
                         }

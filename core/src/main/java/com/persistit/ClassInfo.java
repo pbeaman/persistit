@@ -36,6 +36,20 @@ public class ClassInfo {
         _osc = osc;
     }
 
+    public boolean equals(final Object object) {
+        if (object instanceof ClassInfo) {
+            ClassInfo ci = (ClassInfo) object;
+            if (_class.equals(ci._class) && _handle == ci._handle && _suid == ci._suid) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public int hashCode() {
+        return _class.hashCode() ^ _handle ^ (int) _suid;
+    }
+
     /**
      * @return The <code>Class</code>
      */

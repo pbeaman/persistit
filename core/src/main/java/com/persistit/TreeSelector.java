@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  * this to select Volumes and/or Trees. Syntax:
  * 
  * <pre>
- * <i>volpattern</i>[/<i>treepattern</i>[<i>keyfilter</i>],...
+ * <i>volpattern</i>[:<i>treepattern</i>[<i>keyfilter</i>],...
  * </pre>
  * 
  * where <i>volpattern</i> and <i>treepattern</i> are pattern strings that use
@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  * expressions.) Example:
  * 
  * <code><pre>
- * v1/*index*{"a"-"f"},*data/*
+ * v1:*index*{"a"-"f"},*data/*
  * </pre></code>
  * 
  * selects all trees in volume named "v1" having names containing the substring
@@ -43,7 +43,7 @@ import java.util.regex.Pattern;
  * <p />
  * The {@link #parseSelector(String, boolean, char)} method takes a quote
  * character, normally '\\', that may be used to quote the meta characters in
- * patterns, commas and forward slashes.
+ * patterns, commas and colons.
  * 
  * @author peter
  */
@@ -68,6 +68,20 @@ public class TreeSelector {
 
         private boolean isNull() {
             return _vpattern == null && _tpattern == null && _keyFilter == null;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(_vpattern);
+            if (_tpattern != null) {
+                sb.append(COLON);
+                sb.append(_tpattern);
+                if (_keyFilter != null) {
+                    sb.append(_keyFilter);
+                }
+            }
+            return sb.toString();
         }
 
     }
@@ -108,6 +122,7 @@ public class TreeSelector {
                         } else {
                             treeSelector._terms.add(s);
                             s = new Selector();
+                            state = State.V;
                         }
                     } else {
                         sb.append(c);
@@ -127,6 +142,7 @@ public class TreeSelector {
                         } else {
                             treeSelector._terms.add(s);
                             s = new Selector();
+                            state = State.V;
                         }
                     } else {
                         sb.append(c);
@@ -226,6 +242,18 @@ public class TreeSelector {
             }
         }
         return kf;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (final Selector ts : _terms) {
+            if (sb.length() > 0) {
+                sb.append(COMMA);
+            }
+            sb.append(ts.toString());
+        }
+        return sb.toString();
     }
 
 }

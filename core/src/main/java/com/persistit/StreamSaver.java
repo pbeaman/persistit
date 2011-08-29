@@ -115,7 +115,6 @@ public class StreamSaver extends Task {
     protected int _cycleCount = DEFAULT_CYCLE_COUNT;
     protected boolean _stop;
     protected Exception _lastException;
-    protected boolean _verbose;
     protected int _recordCount;
     protected TreeSelector _treeSelector;
 
@@ -163,7 +162,7 @@ public class StreamSaver extends Task {
         StreamSaver task = new StreamSaver();
         task._filePath = file;
         task._treeSelector = TreeSelector.parseSelector(treeSelectorString, regex, '\\');
-        task.setVerbose(verbose);
+        task.setMessageLogVerbosity(verbose ? LOG_VERBOSE : LOG_NORMAL);
         return task;
     }
 
@@ -206,27 +205,6 @@ public class StreamSaver extends Task {
      */
     public StreamSaver(final Persistit persistit, final String pathName, int bufferSize) throws FileNotFoundException {
         this(persistit, new DataOutputStream(new BufferedOutputStream(new FileOutputStream(pathName), bufferSize)));
-    }
-
-    /**
-     * Indicates whether verbose progress messages posted to the message log.
-     * 
-     * @return <code>true</code> if progress comments are enabled, otherwise
-     *         <code>false</code>.
-     */
-    public boolean isVerbose() {
-        return _verbose;
-    }
-
-    /**
-     * Enables or disables output of verbose progress messages to the message
-     * logl
-     * 
-     * @param enabled
-     *            <code>true</code> to enable progress comments
-     */
-    public void setVerbose(boolean enabled) {
-        _verbose = enabled;
     }
 
     /**
@@ -464,10 +442,8 @@ public class StreamSaver extends Task {
      * @throws IOException
      */
     public void save(Exchange exchange, KeyFilter filter) throws PersistitException, IOException {
-        if (_verbose) {
-            postMessage("Saving Tree " + exchange.getTree().getName() + " in volume " + exchange.getVolume().getPath()
-                    + (filter == null ? "" : " using KeyFilter: " + filter.toString()), LOG_VERBOSE);
-        }
+        postMessage("Saving Tree " + exchange.getTree().getName() + " in volume " + exchange.getVolume().getPath()
+                + (filter == null ? "" : " using KeyFilter: " + filter.toString()), LOG_VERBOSE);
 
         writeTimestamp();
         _dos.writeChar(RECORD_TYPE_START);

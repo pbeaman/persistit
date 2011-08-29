@@ -44,6 +44,9 @@ import com.persistit.ui.AdminUI.AdminAction;
 import com.persistit.util.Util;
 
 public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
+
+    private static final long serialVersionUID = 1L;
+
     private final static int FAST_REFRESH_INTERVAL = 1;
 
     AdminUI _adminUI;
@@ -53,8 +56,6 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
 
     private Map _menuMap = new TreeMap();
     private boolean _refreshing;
-    private TitledBorder _taskDetailBorder;
-    private String _taskDetailPattern;
 
     private JPanel _taskListPanel;
     private JPanel _detailPanel;

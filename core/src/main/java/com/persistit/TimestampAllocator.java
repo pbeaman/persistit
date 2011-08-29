@@ -22,9 +22,9 @@ import java.util.concurrent.atomic.AtomicLong;
 public class TimestampAllocator {
 
     /**
-     * Default interval in nanoseconds between checkpoints - one minute.
+     * Default interval in nanoseconds between checkpoints - five minutes.
      */
-    private final static long DEFAULT_CHECKPOINT_INTERVAL = 60000000000L;
+    private final static long DEFAULT_CHECKPOINT_INTERVAL = 300000000000L;
 
     private final AtomicLong _timestamp = new AtomicLong();
 

@@ -83,7 +83,7 @@ public class LogBase {
     @Message("INFO|Recovery progress: %,d committed transactions applied, %,d remaining ")
     public final LogItem recoveryProgress = PersistitLogMessage.empty();
 
-    @Message("WARNING|Recovery exception %s at timestamp %,d")
+    @Message("WARNING|Recovery exception %s at transaction %s")
     public final LogItem recoveryException = PersistitLogMessage.empty();
 
     @Message("INFO|%s proposed")

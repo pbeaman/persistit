@@ -1228,6 +1228,7 @@ class ManagementImpl implements Management {
             }
             if (task.isImmediate()) {
                 task.runTask();
+                task.setPersistit(null);
                 return task.getStatusDetail();
             }
             return launch(task, commandLine);
@@ -1257,6 +1258,7 @@ class ManagementImpl implements Management {
                 return "Invalid task " + commandLine;
             }
             task.runTask();
+            task.setPersistit(null);
             return task.getStatusDetail();
 
         } catch (Exception ex) {

@@ -195,9 +195,6 @@ public class Volume extends SharedResource {
      * <dd>Creates the volume, or throw a {@link VolumeAlreadyExistsException}
      * if it already exists.</dd>
      * 
-     * <dt><code>transient</code></dt>
-     * <dd>Specify that updates to Volume should not be persistent.</dd>
-     * 
      * <dt><code>id:<i>NNN</i></code></dt>
      * <dd>Specifies an ID value for the volume. If the volume already exists,
      * this ID value must match the ID that was previously assigned to the
@@ -231,10 +228,10 @@ public class Volume extends SharedResource {
      * @throws PersistitException
      */
     static Volume loadVolume(final Persistit persistit, final VolumeSpecification volumeSpec) throws PersistitException {
-        if (volumeSpec.isCreate() || volumeSpec.isCreateOnly() || volumeSpec.isTransient()) {
+        if (volumeSpec.isCreate() || volumeSpec.isCreateOnly()) {
             return create(persistit, volumeSpec.getPath(), volumeSpec.getName(), volumeSpec.getId(), volumeSpec
                     .getBufferSize(), volumeSpec.getInitialPages(), volumeSpec.getExtensionPages(), volumeSpec
-                    .getMaximumPages(), volumeSpec.isCreateOnly(), volumeSpec.isTransient());
+                    .getMaximumPages(), volumeSpec.isCreateOnly());
         } else {
             return openVolume(persistit, volumeSpec.getPath(), volumeSpec.getName(), volumeSpec.getId(), volumeSpec
                     .isReadOnly());
@@ -255,8 +252,7 @@ public class Volume extends SharedResource {
      * @throws PersistitException
      */
     private Volume(final Persistit persistit, final String path, final String name, final long id,
-            final int bufferSize, long initialPages, long extensionPages, long maximumPages, boolean tranzient)
-            throws PersistitException {
+            final int bufferSize, long initialPages, long extensionPages, long maximumPages) throws PersistitException {
         super(persistit);
 
         boolean sizeOkay = false;
@@ -292,11 +288,6 @@ public class Volume extends SharedResource {
         }
 
         boolean open = false;
-        if (tranzient) {
-            setTransient();
-        } else {
-            clearTransient();
-        }
 
         try {
             initializePathAndName(path, name, true);
@@ -339,13 +330,11 @@ public class Volume extends SharedResource {
 
             updateHeaderInfo(_headBuffer.getBytes());
 
-            if (!tranzient) {
-                _channel = new RandomAccessFile(_path, "rw").getChannel();
-                lockChannel();
-                _headBuffer.getByteBuffer().position(0).limit(_headBuffer.getBufferSize());
-                _channel.write(_headBuffer.getByteBuffer(), 0);
-                _channel.force(true);
-            }
+            _channel = new RandomAccessFile(_path, "rw").getChannel();
+            lockChannel();
+            _headBuffer.getByteBuffer().position(0).limit(_headBuffer.getBufferSize());
+            _channel.write(_headBuffer.getByteBuffer(), 0);
+            _channel.force(true);
 
             if (initialPages > 1) {
                 extend(initialPages);
@@ -474,13 +463,6 @@ public class Volume extends SharedResource {
         }
     }
 
-    static Volume create(final Persistit persistit, final String pathName, final long id, final int bufferSize,
-            final long initialPages, final long extensionPages, final long maximumPages, final boolean mustCreate)
-            throws PersistitException {
-        return create(persistit, pathName, null, id, bufferSize, initialPages, extensionPages, maximumPages,
-                mustCreate, false);
-    }
-
     /**
      * Creates a new Volume or open an existing Volume. If a volume having the
      * specified <code>id</code> and <code>pathname</code> already exists, and
@@ -525,20 +507,15 @@ public class Volume extends SharedResource {
      *            Volume, and that the Volume returned by this method is newly
      *            created.
      * 
-     * @param tranzient
-     *            <code>true</code> if any updates to this volume should not be
-     *            made persistent. When <code>true</code> the Volume has no
-     *            backing store.
-     * 
      * @return the Volume
      * @throws PersistitException
      */
     public static Volume create(final Persistit persistit, final String path, final String name, final long id,
             final int bufferSize, final long initialPages, final long extensionPages, final long maximumPages,
-            final boolean mustCreate, final boolean tranzient) throws PersistitException {
+            final boolean mustCreate) throws PersistitException {
         File file = new File(path);
         if (file.exists()) {
-            if (mustCreate || tranzient) {
+            if (mustCreate) {
                 throw new VolumeAlreadyExistsException(path);
             }
             Volume vol = openVolume(persistit, file.getPath(), name, id, false);
@@ -557,7 +534,7 @@ public class Volume extends SharedResource {
             return vol;
         } else {
             return new Volume(persistit, file.getPath(), name, id, bufferSize, initialPages, extensionPages,
-                    maximumPages, tranzient);
+                    maximumPages);
         }
     }
 
@@ -1196,6 +1173,19 @@ public class Volume extends SharedResource {
     }
 
     /**
+     * Read all pages used within this <code>Volume</code> to "warm up" the
+     * buffer pool. The primary purpose is to support benchmarks.
+     * 
+     * @throws PersistitException
+     */
+    public void warm() throws PersistitException {
+        for (long page = 1; page < _firstAvailablePage; page++) {
+            Buffer buffer = _pool.get(this, page, false, true);
+            buffer.releaseTouched();
+        }
+    }
+
+    /**
      * Create a new tree in this volume. A tree is represented by an index root
      * page and all the index and data pages pointed to by that root page.
      * 
@@ -1255,9 +1245,6 @@ public class Volume extends SharedResource {
         if (page < 0 || page >= _pageCount) {
             throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _pageCount + ")");
         }
-        if (isTransient()) {
-            throw new InvalidPageAddressException("Page " + page + " can't be read in transient volume " + this);
-        }
 
         try {
             final ByteBuffer bb = buffer.getByteBuffer();
@@ -1290,11 +1277,6 @@ public class Volume extends SharedResource {
 
         if (_readOnly) {
             throw new ReadOnlyVolumeException(this.getPath());
-        }
-
-        if (isTransient()) {
-            throw new InvalidPageAddressException("Page " + page + " can't be written in transient volume " + this);
-
         }
 
         try {
@@ -1353,7 +1335,8 @@ public class Volume extends SharedResource {
                             _persistit.getLogBase().garbageChainDone.log(garbageBufferInfo(garbageBuffer), rightPage);
                             garbageBuffer.removeGarbageChain();
                         } else {
-                            _persistit.getLogBase().garbageChainUpdate.log(garbageBufferInfo(garbageBuffer), nextGarbagePage, rightPage);
+                            _persistit.getLogBase().garbageChainUpdate.log(garbageBufferInfo(garbageBuffer),
+                                    nextGarbagePage, rightPage);
                             Debug.$assert0.t(nextGarbagePage > 0);
                             garbageBuffer.setGarbageLeftPage(nextGarbagePage);
                         }
@@ -1418,18 +1401,16 @@ public class Volume extends SharedResource {
 
         claimHeadBuffer();
         try {
-            if (!isTransient()) {
-                currentSize = _channel.size();
-                if (currentSize > newSize) {
-                    _persistit.getLogBase().extendLonger.log(this, currentSize, newSize);
-                }
-                if (currentSize < newSize) {
-                    final ByteBuffer bb = ByteBuffer.allocate(1);
-                    bb.position(0).limit(1);
-                    _channel.write(bb, newSize - 1);
-                    _channel.force(true);
-                    _persistit.getLogBase().extendNormal.log(this, currentSize, newSize);
-                }
+            currentSize = _channel.size();
+            if (currentSize > newSize) {
+                _persistit.getLogBase().extendLonger.log(this, currentSize, newSize);
+            }
+            if (currentSize < newSize) {
+                final ByteBuffer bb = ByteBuffer.allocate(1);
+                bb.position(0).limit(1);
+                _channel.write(bb, newSize - 1);
+                _channel.force(true);
+                _persistit.getLogBase().extendNormal.log(this, currentSize, newSize);
             }
 
             _pageCount = pageCount;
@@ -1566,7 +1547,7 @@ public class Volume extends SharedResource {
      */
     @Override
     public String toString() {
-        return getName() + "(" + getPath() + (isTransient() ? ":transient" : "") + ")";
+        return getName() + "(" + getPath() + ")";
     }
 
     /**
