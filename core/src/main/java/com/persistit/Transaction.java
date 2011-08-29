@@ -332,7 +332,7 @@ public class Transaction {
 
     private final List<Integer> _visbilityOrder = new ArrayList<Integer>();
 
-    private long _rollbackDelay = 50;
+    private long _rollbackDelay;
 
     // Valid only during the commit() method
     private AtomicLong _startTimestamp = new AtomicLong(-1);

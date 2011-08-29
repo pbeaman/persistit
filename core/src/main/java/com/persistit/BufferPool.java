@@ -79,17 +79,17 @@ public class BufferPool {
     /**
      * Hash table - fast access to buffer by hash of address.
      */
-    private final Buffer[] _hashTable;
+    private Buffer[] _hashTable;
 
     /**
      * Locks used to lock hashtable entries.
      */
-    private final ReentrantLock[] _hashLocks;
+    private ReentrantLock[] _hashLocks;
 
     /**
      * All Buffers in this pool
      */
-    private final Buffer[] _buffers;
+    private Buffer[] _buffers;
     /**
      * Count of Buffers allocated to this pool.
      */
@@ -243,6 +243,7 @@ public class BufferPool {
         _fastClose.set(!flush);
         _closed.set(true);
         _persistit.waitForIOTaskStop(_writer);
+        _writer = null;
     }
 
     /**
@@ -739,10 +740,7 @@ public class BufferPool {
      * @throws InvalidPageStructureException
      */
 
-    // Yuval: could a second thread wrap the entire buffer pool and look at the
-    // same buffer?
     private Buffer allocBuffer() throws PersistitException {
-
         for (int retry = 0; retry < _bufferCount * 2;) {
             int clock = _clock.get();
             assert clock < _bufferCount;
@@ -759,8 +757,6 @@ public class BufferPool {
                     if (buffer.isDirty()) {
                         if (!resetDirtyClock) {
                             resetDirtyClock = true;
-                            // TODO - check this. Did we set this as far away as
-                            // possible.
                             _dirtyClock.set(clock);
                             _writer.urgent();
                         }

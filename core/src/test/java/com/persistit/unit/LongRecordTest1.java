@@ -85,20 +85,19 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         for (int count = 0; count < 10; count++) {
             store(ex, size, sb1);
             check(ex, size, sb1, sb2);
-            System.out.print(".");
         }
         System.out.println();
         for (int count = 0; count < 10; count++) {
             store(ex, size, sb1);
             check(ex, size, sb1, sb2);
-            System.out.print("-");
         }
+        System.out.println(" - done");
     }
 
     public void test3() throws PersistitException {
         System.out.print("test3");
         final Exchange ex = _persistit.getExchange("persistit", "LongRecordTest1", true);
-        for (int cycle = 0; cycle < 100; cycle++) {
+        for (int cycle = 0; cycle < 5; cycle++) {
             ex.removeAll();
             final StringBuilder sb1 = new StringBuilder(1000000);
             final StringBuilder sb2 = new StringBuilder(1000000);
@@ -107,16 +106,14 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
             for (int size = 0; size < 500000; size += 10000) {
                 store(ex, size, sb1);
                 check(ex, size, sb1, sb2);
-                System.out.print("+");
             }
             System.out.println();
             for (int size = 500000; (size -= 10000) >= 0;) {
                 store(ex, size, sb1);
                 check(ex, size, sb1, sb2);
-                System.out.print("-");
             }
-            System.out.println();
         }
+        System.out.println(" - done");
     }
 
     void store(final Exchange ex, final int size, final StringBuilder sb1) throws PersistitException {

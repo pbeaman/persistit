@@ -370,6 +370,7 @@ public class CLI {
                 task.setMaximumTime(-1);
                 task.setMessageWriter(cli._writer);
                 task.runTask();
+                task.setPersistit(null);
                 return task.getStatus();
             } else {
                 throw new IllegalStateException(this + " must return either a Task or a String");

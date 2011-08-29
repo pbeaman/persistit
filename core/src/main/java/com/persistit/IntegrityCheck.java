@@ -150,7 +150,18 @@ public class IntegrityCheck extends Task {
                         Thread.sleep(3000);
                     }
                     postMessage("Checking " + tree.getName() + " in " + volume.getPath(), LOG_VERBOSE);
+                    long saveIndexPageCount = _indexPageCount;
+                    long saveIndexBytesInUse = _indexBytesInUse;
+                    long saveDataPageCount = _dataPageCount;
+                    long saveDataBytesInUse = _dataBytesInUse;
+                    long saveLongRecordPageCount = _longRecordPageCount;
+                    long saveLongRecordBytesInUse = _longRecordBytesInUse;
                     boolean okay = checkWholeVolume ? checkVolume(volume) : checkTree(tree);
+                    appendMessage(inUseInfo((_indexPageCount - saveIndexPageCount),
+                            (_indexBytesInUse - saveIndexBytesInUse), (_dataPageCount - saveDataPageCount),
+                            (_dataBytesInUse - saveDataBytesInUse), (_longRecordPageCount - saveLongRecordPageCount),
+                            (_longRecordBytesInUse - saveLongRecordBytesInUse)), LOG_VERBOSE);
+
                     appendMessage(okay ? " - OKAY" : " - FAULTS", LOG_VERBOSE);
                 } catch (PersistitException pe) {
                     postMessage(pe.toString(), LOG_NORMAL);
@@ -158,6 +169,8 @@ public class IntegrityCheck extends Task {
                     // Just repeat the operation...
                 }
             }
+            _currentVolume = null;
+            _currentTree = null;
             postMessage(toString(), LOG_NORMAL);
         } catch (PersistitException e) {
             postMessage(e.toString(), LOG_NORMAL);
@@ -392,22 +405,10 @@ public class IntegrityCheck extends Task {
             sb.append(" FAULTS");
         } else
             sb.append("is OKAY");
-        sb.append(" Index: ");
-        sb.append(_indexPageCount);
-        sb.append(" pages / ");
-        sb.append(_indexBytesInUse);
-        sb.append(" bytes, Data:");
-        sb.append(_dataPageCount);
-        sb.append(" pages, ");
-        sb.append(_dataBytesInUse);
-        sb.append(" bytes, Long Record:");
-        sb.append(_longRecordPageCount);
-        sb.append(" pages, ");
-        sb.append(_longRecordBytesInUse);
-        sb.append(" bytes");
+        sb.append(inUseInfo(_indexPageCount, _indexBytesInUse, _dataPageCount, _dataBytesInUse, _longRecordPageCount,
+                _longRecordBytesInUse));
 
         if (details) {
-
             for (int index = 0; index < _faults.size(); index++) {
                 sb.append(Util.NEW_LINE);
                 sb.append("        ");
@@ -415,6 +416,13 @@ public class IntegrityCheck extends Task {
             }
         }
         return sb.toString();
+    }
+
+    private String inUseInfo(long indexPageCount, long indexBytesInUse, long dataPageCount, long dataBytesInUse,
+            long longRecordPageCount, long longRecordBytesInUse) {
+        return String.format(" Index: %,d pages / %,d bytes, Data: %,d pages / %,d bytes,"
+                + " Long Record: %,d pages / %,d bytes", indexPageCount, indexBytesInUse, dataPageCount,
+                dataBytesInUse, longRecordPageCount, longRecordBytesInUse);
     }
 
     private static class Hole {

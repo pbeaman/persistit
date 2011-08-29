@@ -42,6 +42,20 @@ public class TreeSelectorTest {
         assertNotNull(ts.keyFilter("mydata", "anindex"));
         assertNull(ts.keyFilter("mydata", "someothertree"));
     }
+    
+    @Test
+    public void simpleTreeList() throws Exception {
+        TreeSelector ts = TreeSelector.parseSelector("v1:t1,v1:t2,v1:t3,v1:t4", false, '\\');
+        assertTrue(ts.isVolumeNameSelected("v1"));
+        assertFalse(ts.isVolumeNameSelected("v2"));
+        assertTrue(ts.isTreeNameSelected("v1", "t1"));
+        assertTrue(ts.isTreeNameSelected("v1", "t2"));
+        assertTrue(ts.isTreeNameSelected("v1", "t3"));
+        assertTrue(ts.isTreeNameSelected("v1", "t4"));
+        assertFalse(ts.isTreeNameSelected("v1", "t5"));
+        assertFalse(ts.isTreeNameSelected("v2", "t1"));
+        assertEquals("v1:t1,v1:t2,v1:t3,v1:t4", ts.toString());
+    }
 
     @Test
     public void complexCase() throws Exception {

@@ -47,6 +47,9 @@ import com.persistit.ui.AdminUI.AdminAction;
  * @version 1.0
  */
 public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
+
+    private static final long serialVersionUID = 1;
+
     private static final String PROTOTYPE_VOLUME_NAME = "c:/this/that/persistit.v01";
 
     private static final String PROTOTYPE_TREE_NAME = "aTreeName (c:/this/that/other.v01)";
@@ -77,12 +80,6 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
     private String _selectedVolumeName;
 
     private boolean _refreshing;
-
-    private AdminCommand _parentAdminCommand;
-
-    public void setParentCommand(AdminCommand command) {
-        _parentAdminCommand = command;
-    }
 
     @Override
     public void setup(AdminUI ui) {
@@ -278,6 +275,9 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
     }
 
     private static class TreeItemListCellRenderer extends DefaultListCellRenderer implements ListCellRenderer {
+
+        private static final long serialVersionUID = 1L;
+        
         boolean _supplySide;
         StringBuilder sb = new StringBuilder();
 

@@ -29,7 +29,6 @@ public class VolumeSpecification {
     private final static String ATTR_CREATE = "create";
     private final static String ATTR_READONLY = "readOnly";
     private final static String ATTR_CREATEONLY = "createOnly";
-    private final static String ATTR_TRANSIENT = "transient";
     private final static String ATTR_PAGE_SIZE = "pageSize";
     private final static String ATTR_PAGE2_SIZE = "bufferSize";
     private final static String ATTR_ID = "id";
@@ -47,7 +46,6 @@ public class VolumeSpecification {
     private boolean readOnly = false;
     private boolean create = false;
     private boolean createOnly = false;
-    private boolean tranzient = false;
     private int bufferSize = 8192;
     private long id = 0;
     private long initialPages = -1;
@@ -72,8 +70,6 @@ public class VolumeSpecification {
                     create = true;
                 } else if (ATTR_CREATEONLY.equals(attr)) {
                     createOnly = true;
-                } else if (ATTR_TRANSIENT.equals(attr)) {
-                    tranzient = true;
                 } else if (ATTR_ALIAS.equals(attr)) {
                     String valueString = innerTokenizer.nextToken().trim();
                     if (valueString != null && valueString.length() > 0) {
@@ -122,10 +118,6 @@ public class VolumeSpecification {
                 throw new InvalidVolumeSpecificationException(specification + ": readOnly, create and createOnly "
                         + "attributes are mutually exclusive");
             }
-            if (readOnly && tranzient) {
-                throw new InvalidVolumeSpecificationException(specification + ": readOnly and transient attributes "
-                        + "are mutually exclusive");
-            }
             //
             // Allows size specification in bytes rather than pages.
             //
@@ -165,10 +157,6 @@ public class VolumeSpecification {
 
     public boolean isCreateOnly() {
         return createOnly;
-    }
-
-    public boolean isTransient() {
-        return tranzient;
     }
 
     public int getBufferSize() {
@@ -236,9 +224,6 @@ public class VolumeSpecification {
             sb.append(',').append(ATTR_CREATEONLY);
         } else if (create) {
             sb.append(',').append(ATTR_CREATE);
-        }
-        if (tranzient) {
-            sb.append(',').append(ATTR_TRANSIENT);
         }
         return sb.toString();
     }
