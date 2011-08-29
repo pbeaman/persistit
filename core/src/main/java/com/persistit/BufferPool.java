@@ -74,45 +74,45 @@ public class BufferPool {
     /**
      * The Persistit instance that references this BufferBool.
      */
-    private Persistit _persistit;
+    private final Persistit _persistit;
 
     /**
      * Hash table - fast access to buffer by hash of address.
      */
-    private Buffer[] _hashTable;
+    private final Buffer[] _hashTable;
 
     /**
      * Locks used to lock hashtable entries.
      */
-    private ReentrantLock[] _hashLocks;
+    private final ReentrantLock[] _hashLocks;
 
     /**
      * All Buffers in this pool
      */
-    private Buffer[] _buffers;
+    private final Buffer[] _buffers;
     /**
      * Count of Buffers allocated to this pool.
      */
-    private int _bufferCount;
+    private final int _bufferCount;
 
     /**
      * Size of each buffer
      */
-    private int _bufferSize;
+    private final int _bufferSize;
 
     /**
      * Count of FastIndex instances, computed as a fraction of buffer count
      */
-    private int _fastIndexCount;
+    private final int _fastIndexCount;
     /**
      * FastIndex array
      */
-    private FastIndex[] _fastIndexes;
+    private final FastIndex[] _fastIndexes;
 
     /**
      * The maximum number of keys allowed Buffers in this pool
      */
-    private int _maxKeys;
+    private final int _maxKeys;
 
     /**
      * Pointer to next location to look for a replacement buffer
