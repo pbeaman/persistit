@@ -90,6 +90,7 @@ import javax.swing.event.ChangeListener;
 import javax.swing.plaf.FontUIResource;
 
 import com.persistit.Management;
+import com.persistit.Task;
 import com.persistit.util.UtilControl;
 
 public class AdminUI implements UtilControl, Runnable, AdminCommand {
@@ -1277,7 +1278,7 @@ public class AdminUI implements UtilControl, Runnable, AdminCommand {
         if (management != null) {
             // TODO - reinstate task interface
             management.startTask(tsp.getDescriptionString(), tsp.getOwnerString(), tsp.getCommandLine(), tsp
-                    .getExpirationTime(), tsp.isVerboseEnabled() ? 1 : 0);
+                    .getExpirationTime(), tsp.isVerboseEnabled() ? Task.LOG_VERBOSE : Task.LOG_NORMAL);
         }
         scheduleRefresh(1000);
     }
