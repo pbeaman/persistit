@@ -18,6 +18,7 @@ package com.persistit.unit;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import com.persistit.exception.MissingKeySegmentException;
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -625,6 +626,28 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertEquals("d", _key1.indexTo(-1).decodeString());
         assertEquals("c", _key1.indexTo(-2).decodeString());
 
+    }
+
+    @Test
+    public void testIsNull() {
+        _key1.clear().append(null);
+        assertTrue("seg0 is null: "+_key1, _key1.indexTo(0).isNull());
+        _key1.clear().append(1);
+        assertFalse("seg0 is not null: " + _key1, _key1.indexTo(0).isNull());
+        _key1.clear().append(5L).append(null);
+        assertTrue("seg1 is null: " + _key1, _key1.indexTo(1).isNull());
+        _key1.clear().append("abc");
+        assertFalse("seg0 is not null:" + _key1, _key1.indexTo(0).isNull());
+        _key1.clear().append(BigInteger.valueOf(42)).append(null);
+        assertTrue("seg1 is null: " + _key1, _key1.indexTo(1).isNull());
+
+        try {
+            _key1.clear().reset().isNull();
+            Assert.fail("Expected MissingKeySegmentException!");
+        }
+        catch(MissingKeySegmentException e) {
+            // expected
+        }
     }
 
     private static boolean doubleEquals(final double f1, final double f2) {

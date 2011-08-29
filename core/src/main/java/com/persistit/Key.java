@@ -3157,6 +3157,20 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
+     * Determine if the current segment would return <code>null</code>
+     * if {@link #decode()} were called. This is not only a fast test to
+     * perform but also allows for safe decoding of primitives, such
+     * as {@link #decodeInt()}, without object creation.
+     *
+     * @return <code>true</code> if the current segment is null,
+     *         <code>false</code> otherwise.
+     */
+    public boolean isNull() {
+        int type = getTypeCode();
+        return type == TYPE_NULL;
+    }
+
+    /**
      * Advance the index to the beginning of the next key segment. If the index
      * is already at the end of the key, then wrap it to the beginning and
      * return -1.
