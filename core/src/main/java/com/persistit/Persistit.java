@@ -1280,7 +1280,7 @@ public class Persistit {
      * 
      * @param volumeName
      *            the Volume to delete
-     * @return <code>true</code> if the volume was previusly loaded and has been
+     * @return <code>true</code> if the volume was previously loaded and has been
      *         successfully deleted.
      * @throws PersistitException
      */
@@ -1857,6 +1857,8 @@ public class Persistit {
         _volumesById.clear();
         _bufferPoolTable.clear();
         _transactionalCaches.clear();
+        _exchangePoolMap.clear();
+        _transactionSessionMap.clear();
 
         if (_management != null) {
             unregisterMXBeans();
