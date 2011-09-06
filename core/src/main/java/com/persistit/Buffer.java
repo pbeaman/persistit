@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
@@ -27,6 +28,7 @@ import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.InvalidPageTypeException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RebalanceException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.policy.JoinPolicy;
@@ -440,7 +442,7 @@ public final class Buffer extends SharedResource {
         bumpGeneration();
     }
 
-    void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException {
+    void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException, VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException {
         Debug.$assert0.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         if (isDirty() && getTimestamp() < checkpoint.getTimestamp() && timestamp > checkpoint.getTimestamp()) {
@@ -448,12 +450,16 @@ public final class Buffer extends SharedResource {
         }
     }
 
-    void writePage() throws PersistitIOException, InvalidPageStructureException {
+    void writePage() throws PersistitIOException, InvalidPageStructureException, VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException {
         final Volume volume = getVolume();
         if (volume != null) {
             clearSlack();
             save();
-            _persistit.getJournalManager().writePageToJournal(this);
+            if (isTemporary()) {
+                _vol.writePage(_byteBuffer, _page);
+            } else {
+                _persistit.getJournalManager().writePageToJournal(this);
+            }
             setClean();
             if (!volume.isClosed()) {
                 volume.bumpWriteCounter();

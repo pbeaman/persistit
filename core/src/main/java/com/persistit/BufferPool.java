@@ -253,7 +253,7 @@ public class BufferPool {
     void crash() {
         IOTaskRunnable.crash(_writer);
     }
-    
+
     private void pause() {
         try {
             Thread.sleep(RETRY_SLEEP_TIME);
@@ -282,7 +282,7 @@ public class BufferPool {
         int count = 0;
         for (int i = 0; i < _bufferCount; i++) {
             Buffer buffer = _buffers[i];
-            if ((vol == null || buffer.getVolume() == vol) && buffer.isDirty() && !buffer.isTransient()) {
+            if ((vol == null || buffer.getVolume() == vol) && buffer.isDirty() && !buffer.isTemporary()) {
                 count++;
             }
         }
@@ -457,26 +457,28 @@ public class BufferPool {
      * @param volume
      *            The volume
      */
-    void invalidate(Volume volume) {
+    boolean invalidate(Volume volume) {
+        boolean result = true;
         for (int index = 0; index < _buffers.length; index++) {
             Buffer buffer = _buffers[index];
             if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
-                invalidate(buffer);
+                if (buffer.claim(true, 0)) {
+                    // re-check after claim
+                    if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
+                        invalidate(buffer);
+                    }
+                    buffer.release();
+                } else {
+                    result = false;
+                }
             }
         }
-    }
-
-    void delete(Volume volume) {
-        for (int index = 0; index < _buffers.length; index++) {
-            Buffer buffer = _buffers[index];
-            if (buffer.getVolume() == volume) {
-                invalidate(buffer);
-            }
-        }
+        return result;
     }
 
     private void invalidate(Buffer buffer) {
-        Debug.$assert0.t(buffer.isValid());
+        Debug.$assert0.t(buffer.isValid()  && buffer.isMine());
+
         while (!detach(buffer)) {
             pause();
         }
@@ -586,10 +588,10 @@ public class BufferPool {
                         // page will find it.
                         //
                         buffer.setValid();
-                        if (vol.isTransient()) {
-                            buffer.setTransient();
+                        if (vol.isTemporary()) {
+                            buffer.setTemporary();
                         } else {
-                            buffer.clearTransient();
+                            buffer.clearTemporary();
                         }
                         Debug.$assert0.t(buffer.getNext() != buffer);
                         mustRead = true;
@@ -741,6 +743,9 @@ public class BufferPool {
      */
 
     private Buffer allocBuffer() throws PersistitException {
+        //
+        // TODO - try to allocate an invalid buffer first.
+        //
         for (int retry = 0; retry < _bufferCount * 2;) {
             int clock = _clock.get();
             assert clock < _bufferCount;
@@ -755,6 +760,13 @@ public class BufferPool {
                 if (!buffer.isFixed() && (buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0
                         && buffer.claim(true, 0)) {
                     if (buffer.isDirty()) {
+                        // An invalid dirty buffer is available and does not
+                        // need
+                        // to be written.
+                        if (!buffer.isValid()) {
+                            buffer.setClean();
+                            return buffer;
+                        }
                         if (!resetDirtyClock) {
                             resetDirtyClock = true;
                             _dirtyClock.set(clock);
@@ -813,7 +825,7 @@ public class BufferPool {
         long earliestDirtyTimestamp = Long.MAX_VALUE;
         for (int index = 0; index < _buffers.length; index++) {
             final Buffer buffer = _buffers[index];
-            if (buffer.isDirty() && !buffer.isTransient()) {
+            if (buffer.isDirty() && !buffer.isTemporary()) {
                 long timestamp = buffer.getTimestamp();
                 if (timestamp < earliestDirtyTimestamp) {
                     earliestDirtyTimestamp = timestamp;

@@ -251,7 +251,7 @@ public class Volume extends SharedResource {
      * @param maximumPages
      * @throws PersistitException
      */
-    private Volume(final Persistit persistit, final String path, final String name, final long id,
+    protected Volume(final Persistit persistit, final String path, final String name, final long id,
             final int bufferSize, long initialPages, long extensionPages, long maximumPages) throws PersistitException {
         super(persistit);
 
@@ -297,8 +297,9 @@ public class Volume extends SharedResource {
             long now = System.currentTimeMillis();
             if (id == 0) {
                 _id = (now ^ (((long) path.hashCode()) << 32)) & Long.MAX_VALUE;
-            } else
+            } else {
                 _id = id;
+            }
 
             _highestPageUsed = 0;
             _createTime = now;
@@ -326,7 +327,6 @@ public class Volume extends SharedResource {
             _highestPageUsed = 0;
             _garbageRoot = 0;
             _directoryRootPage = 0;
-            _pool.invalidate(this);
 
             updateHeaderInfo(_headBuffer.getBytes());
 
@@ -356,7 +356,7 @@ public class Volume extends SharedResource {
                 releaseHeadBuffer();
             }
             if (!open) {
-                _persistit.removeVolume(this, false);
+                _persistit.removeVolume(this);
             }
         }
 
@@ -372,7 +372,7 @@ public class Volume extends SharedResource {
      * @param readOnly
      * @throws PersistitException
      */
-    private Volume(final Persistit persistit, String path, String name, long id, boolean readOnly)
+    protected Volume(final Persistit persistit, String path, String name, long id, boolean readOnly)
             throws PersistitException {
         super(persistit);
         try {
@@ -543,11 +543,13 @@ public class Volume extends SharedResource {
      * 
      * @throws InvalidPageStructureException
      * @throws PersistitIOException
+     * @throws InvalidPageAddressException 
+     * @throws VolumeClosedException 
      * 
      * @throws PMapException
      */
     private void checkpointMetaData() throws ReadOnlyVolumeException, PersistitIOException,
-            InvalidPageStructureException {
+            InvalidPageStructureException, VolumeClosedException, InvalidPageAddressException {
         final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         _headBuffer.writePageOnCheckpoint(timestamp);
         if (!_readOnly && updateHeaderInfo(_headBuffer.getBytes())) {
@@ -604,7 +606,7 @@ public class Volume extends SharedResource {
     }
 
     private void setGarbageRoot(long garbagePage) throws InUseException, ReadOnlyVolumeException, PersistitIOException,
-            InvalidPageStructureException {
+            InvalidPageStructureException, VolumeClosedException, InvalidPageAddressException {
         _garbageRoot = garbagePage;
         checkpointMetaData();
     }
@@ -1269,7 +1271,7 @@ public class Volume extends SharedResource {
         }
     }
 
-    void writePage(final ByteBuffer bb, final long page) throws IOException, InvalidPageAddressException,
+    void writePage(final ByteBuffer bb, final long page) throws PersistitIOException, InvalidPageAddressException,
             ReadOnlyVolumeException, VolumeClosedException {
         if (page < 0 || page >= _pageCount) {
             throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _pageCount + ")");
@@ -1284,7 +1286,7 @@ public class Volume extends SharedResource {
         } catch (IOException ioe) {
             _persistit.getLogBase().writeException.log(ioe, this, page);
             _lastIOException = ioe;
-            throw ioe;
+            throw new PersistitIOException(ioe);
         }
 
     }
@@ -1449,7 +1451,7 @@ public class Volume extends SharedResource {
             }
         } catch (Exception e) {
             _persistit.getLogBase().exception.log(e);
-            // has priority over Exception throw by
+            // has priority over Exception thrown by
             // releasing file lock.
             pe = new PersistitException(e);
         }

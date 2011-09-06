@@ -1368,7 +1368,7 @@ public interface Management extends Remote, ManagementMXBean {
         long traverseCounter;
         long storeCounter;
         long removeCounter;
-        boolean isTransient;
+        boolean isTemporary;
 
         VolumeInfo(Volume vol) {
             super();
@@ -1393,7 +1393,7 @@ public interface Management extends Remote, ManagementMXBean {
             maximumPageCount = vol.getMaximumPages();
             extensionPageCount = vol.getExtensionPages();
             garbageRootPage = vol.getGarbageRoot();
-            isTransient = vol.isTransient();
+            isTemporary = vol.isTemporary();
             name = vol.getName();
         }
 
@@ -1429,7 +1429,7 @@ public interface Management extends Remote, ManagementMXBean {
             this.traverseCounter = traverseCounter;
             this.storeCounter = storeCounter;
             this.removeCounter = removeCounter;
-            this.isTransient = isTransient;
+            this.isTemporary = isTransient;
         }
 
         /**
@@ -1650,7 +1650,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         public boolean isTransient() {
-            return isTransient;
+            return isTemporary;
         }
 
         /**

@@ -15,10 +15,9 @@
 
 package com.persistit;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.persistit.util.Debug;
 
@@ -69,7 +68,7 @@ class SharedResource {
      * Status field mask for a resource that is dirty but not required to be
      * written with any checkpoint.
      */
-    final static int TRANSIENT_MASK = 0x00400000;
+    final static int TEMPORARY_MASK = 0x00400000;
 
     /**
      * Status field mask indicating a resource has been touched. Used by
@@ -265,8 +264,8 @@ class SharedResource {
         return _sync.testBitsInState(VALID_MASK);
     }
 
-    public boolean isTransient() {
-        return _sync.testBitsInState(TRANSIENT_MASK);
+    public boolean isTemporary() {
+        return _sync.testBitsInState(TEMPORARY_MASK);
     }
 
     boolean isFixed() {
@@ -360,12 +359,12 @@ class SharedResource {
         return _generation.get();
     }
 
-    void setTransient() {
-        _sync.setBitsInState(TRANSIENT_MASK);
+    void setTemporary() {
+        _sync.setBitsInState(TEMPORARY_MASK);
     }
 
-    void clearTransient() {
-        _sync.clearBitsInState(TRANSIENT_MASK);
+    void clearTemporary() {
+        _sync.clearBitsInState(TEMPORARY_MASK);
     }
 
     void setValid() {
@@ -436,7 +435,7 @@ class SharedResource {
             if ((state & DIRTY_MASK) != 0) {
                 sb.append("d");
             }
-            if ((state & TRANSIENT_MASK) != 0) {
+            if ((state & TEMPORARY_MASK) != 0) {
                 sb.append("t");
             }
             if ((state & WRITER_MASK) != 0) {

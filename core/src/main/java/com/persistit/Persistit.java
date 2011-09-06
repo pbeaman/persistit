@@ -728,14 +728,11 @@ public class Persistit {
         _volumesById.put(idKey, volume);
     }
 
-    synchronized void removeVolume(Volume volume, boolean delete) {
+    synchronized void removeVolume(Volume volume) {
         Long idKey = new Long(volume.getId());
         _volumesById.remove(idKey);
         _volumes.remove(volume);
-        // volume.getPool().invalidate(volume);
-        if (delete) {
-            volume.getPool().delete(volume);
-        }
+        volume.getPool().invalidate(volume);
     }
 
     /**
@@ -1280,8 +1277,8 @@ public class Persistit {
      * 
      * @param volumeName
      *            the Volume to delete
-     * @return <code>true</code> if the volume was previously loaded and has been
-     *         successfully deleted.
+     * @return <code>true</code> if the volume was previously loaded and has
+     *         been successfully deleted.
      * @throws PersistitException
      */
 
@@ -1290,7 +1287,7 @@ public class Persistit {
         if (volume == null) {
             return false;
         } else {
-            removeVolume(volume, true);
+            removeVolume(volume);
             new File(volume.getPath()).delete();
             return true;
         }
@@ -1796,12 +1793,6 @@ public class Persistit {
 
         for (final Volume volume : volumes) {
             volume.close();
-        }
-
-        // TODO - why not removeAll volumes
-
-        while (!_volumes.isEmpty()) {
-            removeVolume(_volumes.get(0), false);
         }
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
@@ -2319,6 +2310,28 @@ public class Persistit {
     }
 
     /**
+     * Provide a displayable version of a long value, preferable using one of
+     * the suffixes 'K', 'M', 'G', or 'T' to abbreviate values that are integral
+     * multiples of powers of 1,024.
+     * 
+     * @param value
+     *            to convert
+     * @return Readable format of long value
+     */
+    static String displayableLongValue(final long value) {
+        long v = value;
+        int scale = 0;
+        while ((v / 1024) * 1024 == v) {
+            scale++;
+            v /= 1024;
+            if (scale == 3) {
+                break;
+            }
+        }
+        return String.format("%,d%s", v, "KMGT".subSequence(scale, scale));
+    }
+
+    /**
      * Parses a String-valued memory allocation specification to produce a
      * buffer count that will consume approximately the specified amount of
      * memory.
@@ -2583,7 +2596,7 @@ public class Persistit {
             Task task = CLI.cliserver(cliport);
             task.runTask();
             task.setPersistit(null);
-            
+
         } else {
             if (propertiesFileName.isEmpty()) {
                 throw new IllegalArgumentException("Must specify a properties file");
