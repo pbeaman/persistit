@@ -169,7 +169,7 @@ public class NewTree extends SharedResource {
         // Derive the index depth
         Buffer buffer = null;
         try {
-            buffer = getVolume().getPool().get(_volume, rootPageAddr, false, true);
+            buffer = getVolume().getStructure().getPool().get(_volume, rootPageAddr, false, true);
             int type = buffer.getPageType();
             _depth = type - Buffer.PAGE_TYPE_DATA + 1;
         } finally {

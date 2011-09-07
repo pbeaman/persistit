@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
+import java.security.Signature;
 
 import com.persistit.exception.BufferSizeUnavailableException;
 import com.persistit.exception.CorruptVolumeException;
@@ -331,14 +332,29 @@ public class NewVolumeStorage extends SharedResource {
             release();
         }
     }
-
+    
     void checkpointMetaData() throws PersistitException {
+        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+        _headBuffer.writePageOnCheckpoint(timestamp);
+        if (!isReadOnly() && updateMetaData(_headBuffer.getBytes())) {
+            _headBuffer.setDirtyAtTimestamp(timestamp);
+        }
+    }
+    
+    private void initMetaData(final byte[] bytes) {
         NewVolumeSpecification spec = _volume.getSpecification();
+        NewVolumeStructure struc = _volume.getStructure();
+        putSignature(bytes);
+        putVersion(bytes);
+        putPageSize(bytes, struc.getPageSize());
+        putId(bytes, _volume.getId());
+    }
+
+    private boolean updateMetaData(final byte[] bytes) {
         NewVolumeStatistics stat = _volume.getStatistics();
         NewVolumeStructure struc = _volume.getStructure();
         
         boolean changed = false;
-        final byte[] bytes = _headBuffer.getBytes();
         changed |= changeDirectoryRoot(bytes, struc.getDirectoryRoot());
         changed |= changeGarbageRoot(bytes, struc.getGarbageRoot());
         changed |= changeFetchCounter(bytes, stat.getFetchCounter());
@@ -346,15 +362,16 @@ public class NewVolumeStorage extends SharedResource {
         changed |= changeStoreCounter(bytes, stat.getStoreCounter());
         changed |= changeRemoveCounter(bytes, stat.getRemoveCounter());
         changed |= changeReadCounter(bytes, stat.getReadCounter());
-        changed |= changeWriteCounter(bytes, stat.getWriteCounter());
         changed |= changeLastExtensionTime(bytes, stat.getLastExtensionTime());
         changed |= changeLastReadTime(bytes, stat.getLastReadTime());
-        changed |= changeLastWriteTime(bytes, stat.getLastWriteTime());
         
-        if (changed) {
-            _headBuffer.setDirty();
-        }
-        
+        // Ugly, but the act of closing the system increments this
+        // counter, leading to an extra write. So basically we
+        // ignore the final write by not setting the changed flag.
+        changeWriteCounter(bytes, stat.getWriteCounter());
+        changeLastWriteTime(bytes, stat.getLastWriteTime());
+
+        return changed;
     }
 
     private void extend() throws PersistitException {

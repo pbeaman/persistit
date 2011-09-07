@@ -519,8 +519,8 @@ public final class Buffer extends SharedResource {
      * Post fields back into the buffer in preparation for writing it to disk.
      */
     void save() {
+        putLong(TIMESTAMP_OFFSET, _timestamp);
         if (_page != 0) {
-            putLong(TIMESTAMP_OFFSET, _timestamp);
             putByte(TYPE_OFFSET, _type);
             putByte(BUFFER_LENGTH_OFFSET, _bufferSize / 256);
             putChar(KEY_BLOCK_END_OFFSET, _keyBlockEnd);

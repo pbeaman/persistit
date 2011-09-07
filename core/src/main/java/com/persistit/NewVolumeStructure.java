@@ -528,8 +528,4 @@ public class NewVolumeStructure extends SharedResource {
         }
         return "@<" + buffer.getPageAddress() + ":" + buffer.getAlloc() + ">";
     }
-
-    void checkpointMetaData() {
-        
-    }
 }

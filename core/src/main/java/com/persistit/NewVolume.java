@@ -14,20 +14,12 @@
  */
 package com.persistit;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.persistit.exception.CorruptVolumeException;
-import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
-import com.persistit.util.Util;
 
 /**
  * Represent the identity and optionally the service classes that manage a

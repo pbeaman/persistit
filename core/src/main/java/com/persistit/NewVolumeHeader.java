@@ -66,16 +66,16 @@ public class NewVolumeHeader {
         return Util.getInt(bytes, 16);
     }
 
-    static boolean changeVersion(final byte[] bytes, final int value) {
-        return Util.changeInt(bytes, 16, value);
+    static void putVersion(final byte[] bytes) {
+        Util.putInt(bytes, 16, CURRENT_VERSION);
     }
 
     static int getPageSize(final byte[] bytes) {
         return Util.getInt(bytes, 20);
     }
 
-    static boolean changePageSize(final byte[] bytes, final int value) {
-        return Util.changeInt(bytes, 20, value);
+    static void putPageSize(final byte[] bytes, final int value) {
+        Util.putInt(bytes, 20, value);
     }
 
     static long getTimestamp(final byte[] bytes) {
@@ -90,8 +90,8 @@ public class NewVolumeHeader {
         return Util.getLong(bytes, 32);
     }
 
-    static boolean changeId(final byte[] bytes, final long value) {
-        return Util.changeLong(bytes, 32, value);
+    static void putId(final byte[] bytes, final long value) {
+        Util.putLong(bytes, 32, value);
     }
 
     static long getReadCounter(final byte[] bytes) {
