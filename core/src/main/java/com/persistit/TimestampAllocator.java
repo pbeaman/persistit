@@ -19,7 +19,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class TimestampAllocator {
+class TimestampAllocator {
 
     /**
      * Default interval in nanoseconds between checkpoints - five minutes.

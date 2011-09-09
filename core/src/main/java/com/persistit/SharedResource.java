@@ -216,20 +216,22 @@ class SharedResource {
             return getExclusiveOwnerThread();
         }
 
-        private void setBitsInState(final int mask) {
+        private boolean setBitsInState(final int mask) {
             for (;;) {
                 final int state = getState();
-                if (compareAndSetState(state, state | mask)) {
-                    break;
+                final int newState = state | mask;
+                if (compareAndSetState(state, newState)) {
+                    return state != newState;
                 }
             }
         }
 
-        private void clearBitsInState(final int mask) {
+        private boolean clearBitsInState(final int mask) {
             for (;;) {
                 final int state = getState();
-                if (compareAndSetState(state, state & ~mask)) {
-                    break;
+                final int newState = state & ~mask;
+                if (compareAndSetState(state, newState)) {
+                    return state != newState;
                 }
             }
         }
@@ -327,12 +329,12 @@ class SharedResource {
         _sync.release(0);
     }
 
-    void setDirty() {
-        _sync.setBitsInState(DIRTY_MASK);
+    boolean setDirty() {
+        return _sync.setBitsInState(DIRTY_MASK);
     }
 
-    void clearDirty() {
-        _sync.clearBitsInState(DIRTY_MASK);
+    boolean clearDirty() {
+        return _sync.clearBitsInState(DIRTY_MASK);
     }
 
     void setTouched() {

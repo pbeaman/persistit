@@ -16,9 +16,7 @@ package com.persistit;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class VolumeStatistics {
-
-    private Volume _volume;
+class VolumeStatistics {
 
     private volatile long _openTime;
     private volatile long _lastReadTime;

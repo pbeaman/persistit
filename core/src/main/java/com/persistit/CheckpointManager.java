@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitIOException;
 
-public class CheckpointManager extends IOTaskRunnable {
+class CheckpointManager extends IOTaskRunnable {
 
     private final static long SHORT_DELAY = 500;
 
@@ -46,7 +46,6 @@ public class CheckpointManager extends IOTaskRunnable {
 
     public void close(final boolean flush) {
         if (flush) {
-            urgent();
             checkpoint();
         } else {
             _fastClose.set(true);
@@ -60,15 +59,19 @@ public class CheckpointManager extends IOTaskRunnable {
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         while (true) {
             urgent();
-            synchronized (this) {
-                if (!_outstandingCheckpoints.contains(checkpoint)) {
-                    return checkpoint;
-                }
-            }
             try {
-                Thread.sleep(SHORT_DELAY);
-            } catch (InterruptedException ie) {
-                return null;
+                synchronized (this) {
+                    if (!_outstandingCheckpoints.contains(checkpoint)) {
+                        return checkpoint;
+                    }
+                }
+                try {
+                    Thread.sleep(SHORT_DELAY);
+                } catch (InterruptedException ie) {
+                    return null;
+                }
+            } finally {
+                _urgent.set(false);
             }
         }
     }
@@ -114,9 +117,6 @@ public class CheckpointManager extends IOTaskRunnable {
         synchronized (this) {
             if (validCheckpoint != null) {
                 _outstandingCheckpoints.remove(validCheckpoint);
-                if (_outstandingCheckpoints.isEmpty()) {
-                    _urgent.set(false);
-                }
             }
         }
     }

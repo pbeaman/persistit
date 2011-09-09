@@ -37,7 +37,6 @@ import static com.persistit.VolumeHeader.getLastExtensionTime;
 import static com.persistit.VolumeHeader.getLastReadTime;
 import static com.persistit.VolumeHeader.getLastWriteTime;
 import static com.persistit.VolumeHeader.getMaximumPages;
-import static com.persistit.VolumeHeader.getOpenTime;
 import static com.persistit.VolumeHeader.putId;
 import static com.persistit.VolumeHeader.putPageSize;
 import static com.persistit.VolumeHeader.putSignature;
@@ -67,7 +66,7 @@ import com.persistit.exception.VolumeNotFoundException;
  * 
  * @author peter
  */
-public class VolumeStorage extends SharedResource {
+class VolumeStorage extends SharedResource {
 
     private final static Random ID_GENERATOR = new Random();
     private Volume _volume;
@@ -377,10 +376,15 @@ public class VolumeStorage extends SharedResource {
         }
     }
 
-    void readPage(Buffer buffer, long page) throws PersistitIOException, InvalidPageAddressException,
+    void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
             VolumeClosedException {
+        final long page = buffer.getPageAddress();
         if (page < 0 || page >= _nextAvailablePage) {
             throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
+        }
+        if (!_volume.isTemporary() && _persistit.getJournalManager().readPageFromJournal(buffer))
+        {
+            return;
         }
 
         try {
@@ -403,6 +407,14 @@ public class VolumeStorage extends SharedResource {
             _persistit.getLogBase().readException.log(ioe, this, page, buffer.getIndex());
             _lastIOException = ioe;
             throw new PersistitIOException(ioe);
+        }
+    }
+    
+    void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException, ReadOnlyVolumeException, VolumeClosedException {
+        if (_volume.isTemporary()) {
+            writePage(buffer.getByteBuffer(), buffer.getPageAddress());
+        } else {
+            _persistit.getJournalManager().writePageToJournal(buffer);
         }
     }
 

@@ -25,11 +25,11 @@ import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.Debug;
 
-public class VolumeStructure {
+class VolumeStructure {
     /**
      * Designated Tree name for the special directory "tree of trees".
      */
-    public final static String DIRECTORY_TREE_NAME = "_directory";
+    final static String DIRECTORY_TREE_NAME = "_directory";
     /**
      * Key segment name for index by directory tree name.
      */

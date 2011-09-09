@@ -65,7 +65,7 @@ import com.persistit.util.Debug;
  * @author peter
  * 
  */
-public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, TransactionWriter {
+class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, TransactionWriter {
 
     /**
      * REGEX expression that recognizes the name of a journal file.

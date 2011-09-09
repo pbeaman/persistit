@@ -402,10 +402,7 @@ public final class Buffer extends SharedResource {
             InvalidPageStructureException, VolumeClosedException {
         _vol = vol;
         _page = page;
-        final boolean readFromLog = _persistit.getJournalManager().readPageFromJournal(this);
-        if (!readFromLog) {
-            vol.getStorage().readPage(this, page);
-        }
+        vol.getStorage().readPage(this);
         load();
     }
 
@@ -462,14 +459,26 @@ public final class Buffer extends SharedResource {
         if (volume != null) {
             clearSlack();
             save();
-            if (isTemporary()) {
-                _vol.getStorage().writePage(_byteBuffer, _page);
-            } else {
-                _persistit.getJournalManager().writePageToJournal(this);
-            }
+            _vol.getStorage().writePage(this);
             clearDirty();
             volume.getStatistics().bumpWriteCounter();
         }
+    }
+
+    boolean clearDirty() {
+        if (super.clearDirty()) {
+            _pool.decrementDirtyPageCount();
+            return true;
+        }
+        return false;
+    }
+
+    boolean setDirty() {
+        if (super.setDirty()) {
+            _pool.incrementDirtyPageCount();
+            return true;
+        }
+        return false;
     }
 
     void setDirtyAtTimestamp(final long timestamp) {

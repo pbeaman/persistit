@@ -1656,10 +1656,8 @@ public class Persistit {
             volumes = new ArrayList<Volume>(_volumes);
         }
 
-        // TODO - why do this if there can't be another checkpoint?
-
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.close(flush);
+            pool.close(false);
             unregisterBufferPoolMXBean(pool.getBufferSize());
         }
         _journalManager.close();

@@ -148,6 +148,11 @@ public class BufferPool {
      * Count of valid buffers evicted to make room for another page.
      */
     private AtomicLong _evictCounter = new AtomicLong();
+    
+    /**
+     * Count of dirty pages
+     */
+    private AtomicInteger _dirtyPageCount = new AtomicInteger();
 
     /**
      * Indicates that Persistit wants to shut down fast, without flushing all
@@ -451,6 +456,18 @@ public class BufferPool {
             return ((double) hitCounter) / ((double) getCounter);
     }
 
+    void incrementDirtyPageCount() {
+        _dirtyPageCount.incrementAndGet();
+    }
+    
+    void decrementDirtyPageCount() {
+        _dirtyPageCount.decrementAndGet();
+    }
+    
+    int getDirtyPageCount() {
+        return _dirtyClock.get();
+    }
+    
     /**
      * Invalidate all buffers from a specified Volume.
      * 
@@ -905,10 +922,6 @@ public class BufferPool {
             return _wasClosed || _urgent.get() ? 0 : _writerPollInterval;
         }
 
-        @Override
-        protected void urgent() {
-            super.urgent();
-        }
     }
 
     @Override

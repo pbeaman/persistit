@@ -47,7 +47,7 @@ import com.persistit.util.ArgParser;
  * @author peter
  * 
  */
-public class IOMeter implements IOMeterMXBean {
+class IOMeter implements IOMeterMXBean {
 
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;

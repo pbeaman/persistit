@@ -29,7 +29,7 @@ import com.persistit.util.Util;
  * A volume header represents the header information at the beginning of each
  * volume file.
  */
-public class VolumeHeader {
+class VolumeHeader {
     /**
      * Signature value - human and machine readable confirmation that this file
      * resulted from Persistit.

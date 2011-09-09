@@ -24,7 +24,7 @@ import com.persistit.util.Debug;
  * debugging; correct code will always release each claim.
  */
 
-public class ReentrantResourceHolder {
+class ReentrantResourceHolder {
 
     private final SharedResource _resource;
     private int _claimCount;
