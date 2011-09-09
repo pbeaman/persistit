@@ -19,18 +19,13 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.persistit.exception.CorruptVolumeException;
-import com.persistit.exception.InUseException;
-import com.persistit.exception.InvalidPageAddressException;
-import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.PersistitIOException;
-import com.persistit.exception.ReadOnlyVolumeException;
-import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
 
-public class NewVolumeStructure extends SharedResource {
+public class VolumeStructure {
     /**
      * Designated Tree name for the special directory "tree of trees".
      */
@@ -40,18 +35,19 @@ public class NewVolumeStructure extends SharedResource {
      */
     private final static String BY_NAME = "byName";
 
-    private final NewVolume _volume;
+    private final Persistit _persistit;
+    private final Volume _volume;
     private final int _pageSize;
     private final BufferPool _pool;
 
     private volatile long _directoryRootPage;
     private volatile long _garbageRoot;
 
-    private HashMap<String, WeakReference<NewTree>> _treeNameHashMap = new HashMap<String, WeakReference<NewTree>>();
-    private NewTree _directoryTree;
+    private Map<String, WeakReference<Tree>> _treeNameHashMap = new HashMap<String, WeakReference<Tree>>();
+    private Tree _directoryTree;
 
-    NewVolumeStructure(final Persistit persistit, final NewVolume volume) {
-        super(persistit);
+    VolumeStructure(final Persistit persistit, final Volume volume) {
+        _persistit = persistit;
         _volume = volume;
         _pageSize = volume.getSpecification().getPageSize();
         _pool = persistit.getBufferPool(_pageSize);
@@ -61,14 +57,16 @@ public class NewVolumeStructure extends SharedResource {
         _garbageRoot = garbageRootPage;
         _directoryRootPage = directoryRootPage;
         if (directoryRootPage != 0) {
-            _directoryTree = new NewTree(_persistit, _volume, DIRECTORY_TREE_NAME);
-            _directoryTree.init(directoryRootPage);
+            _directoryTree = new Tree(_persistit, _volume, DIRECTORY_TREE_NAME);
+            _directoryTree.setRootPageAddress(directoryRootPage);
         } else {
-            _directoryTree = new NewTree(_persistit, _volume, DIRECTORY_TREE_NAME);
-            initTree(_directoryTree);
+            _directoryTree = new Tree(_persistit, _volume, DIRECTORY_TREE_NAME);
+            final long rootPageAddr = createTreeRoot(_directoryTree);
+            _directoryTree.setRootPageAddress(rootPageAddr);
+            updateDirectoryTree(_directoryTree);
         }
     }
-    
+
     Exchange directoryExchange() {
         Exchange ex = new Exchange(_directoryTree);
         ex.ignoreTransactions();
@@ -82,7 +80,7 @@ public class NewVolumeStructure extends SharedResource {
      * @return newly create NewTree object
      * @throws PersistitException
      */
-    private NewTree initTree(final NewTree tree) throws PersistitException {
+    private long createTreeRoot(final Tree tree) throws PersistitException {
         _persistit.checkSuspended();
         Buffer rootPageBuffer = null;
 
@@ -101,12 +99,7 @@ public class NewVolumeStructure extends SharedResource {
         } finally {
             rootPageBuffer.releaseTouched();
         }
-
-        tree.claim(true);
-        tree.init(rootPage);
-        tree.release();
-        tree.setValid();
-        return tree;
+        return rootPage;
     }
 
     /**
@@ -128,10 +121,10 @@ public class NewVolumeStructure extends SharedResource {
      * 
      * @throws PersistitException
      */
-    public NewTree getTree(String name, boolean createIfNecessary) throws PersistitException {
+    public Tree getTree(String name, boolean createIfNecessary) throws PersistitException {
         synchronized (_treeNameHashMap) {
-            NewTree tree;
-            WeakReference<NewTree> treeRef = _treeNameHashMap.get(name);
+            Tree tree;
+            WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
             if (treeRef != null) {
                 tree = treeRef.get();
                 if (tree != null) {
@@ -141,28 +134,25 @@ public class NewVolumeStructure extends SharedResource {
             final Exchange ex = directoryExchange();
             ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(name);
             Value value = ex.fetch().getValue();
-            tree = new NewTree(_persistit, _volume, name);
+            tree = new Tree(_persistit, _volume, name);
             if (value.isDefined()) {
                 tree.load(ex.getValue());
             } else if (createIfNecessary) {
-                initTree(tree);
+                final long rootPageAddr = createTreeRoot(tree);
+                tree.setRootPageAddress(rootPageAddr);
+                updateDirectoryTree(tree);
             } else {
                 return null;
             }
-            _treeNameHashMap.put(name, new WeakReference<NewTree>(tree));
+            _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
             return tree;
         }
     }
 
-    void updateTree(NewTree tree) throws PersistitException {
+    void updateDirectoryTree(Tree tree) throws PersistitException {
         if (tree == _directoryTree) {
-            claim(true);
-            try {
-                _directoryRootPage = tree.getRootPageAddr();
-                _volume.getStorage().checkpointMetaData();
-            } finally {
-                release();
-            }
+            _directoryRootPage = tree.getRootPageAddr();
+            _volume.getStorage().flushMetaData();
         } else {
             Exchange ex = directoryExchange();
             tree.store(ex.getValue());
@@ -170,7 +160,7 @@ public class NewVolumeStructure extends SharedResource {
         }
     }
 
-    boolean removeTree(NewTree tree) throws PersistitException {
+    boolean removeTree(Tree tree) throws PersistitException {
         if (tree == _directoryTree) {
             throw new IllegalArgumentException("Can't delete the Directory tree");
         }
@@ -181,24 +171,23 @@ public class NewVolumeStructure extends SharedResource {
 
         tree.claim(true);
 
+        synchronized (this) {
+            _treeNameHashMap.remove(tree.getName());
+            tree.bumpGeneration();
+            tree.invalidate();
+        }
+
         try {
             final long rootPage = tree.getRootPageAddr();
             tree.changeRootPageAddr(-1, 0);
             page = rootPage;
             depth = tree.getDepth();
             Exchange ex = directoryExchange();
-
             ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(tree.getName()).remove();
-
-            synchronized (this) {
-                _treeNameHashMap.remove(tree.getName());
-                tree.bumpGeneration();
-                tree.invalidate();
-            }
         } finally {
             tree.release();
         }
-        // The NewTree is now gone. The following deallocates the
+        // The Tree is now gone. The following deallocates the
         // pages formerly associated with it. If this fails we'll be
         // left with allocated pages that are not available on the garbage
         // chain for reuse.
@@ -207,7 +196,7 @@ public class NewVolumeStructure extends SharedResource {
             Buffer buffer = null;
             long deallocate = -1;
             try {
-                buffer = _pool.get(this, page, false, true);
+                buffer = _pool.get(_volume, page, false, true);
                 if (buffer.getPageType() != depth) {
                     throw new CorruptVolumeException(buffer + " type code=" + buffer.getPageType()
                             + " is not equal to expected value " + depth);
@@ -257,46 +246,6 @@ public class NewVolumeStructure extends SharedResource {
     }
 
     /**
-     * Returns the next tree name in alphabetical order within this volume.
-     * 
-     * @param treeName
-     *            The starting tree name
-     * 
-     * @return The name of the first tree in alphabetical order that is larger
-     *         than <code>treeName</code>.
-     * 
-     * @throws PersistitException
-     */
-    String nextTreeName(String treeName) throws PersistitException {
-        Exchange ex = directoryExchange();
-        ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(treeName);
-        if (ex.next()) {
-            return ex.getKey().indexTo(-1).decodeString();
-        }
-        return null;
-    }
-
-    /**
-     * Returns an array of all Trees currently open within this Volume.
-     * 
-     * @return The array.
-     */
-    NewTree[] getTrees() {
-        synchronized (this) {
-            int size = _treeNameHashMap.values().size();
-            NewTree[] trees = new NewTree[size];
-            int index = 0;
-            for (final WeakReference<NewTree> treeRef : _treeNameHashMap.values()) {
-                final NewTree tree = treeRef.get();
-                if (tree != null) {
-                    trees[index++] = tree;
-                }
-            }
-            return trees;
-        }
-    }
-
-    /**
      * Return a TreeInfo structure for a tree by the specified name. If there is
      * no such tree, then return <i>null</i>.
      * 
@@ -306,7 +255,7 @@ public class NewVolumeStructure extends SharedResource {
      */
     Management.TreeInfo getTreeInfo(String name) {
         try {
-            final NewTree tree = getTree(name, false);
+            final Tree tree = getTree(name, false);
             if (tree != null) {
                 return new Management.TreeInfo(tree);
             } else {
@@ -314,6 +263,24 @@ public class NewVolumeStructure extends SharedResource {
             }
         } catch (PersistitException pe) {
             return null;
+        }
+    }
+
+    /**
+     * Ensure that any dirty Tree instances are backed up in the Directory tree
+     * 
+     * @throws PersistitException
+     */
+    void flushTrees() throws PersistitException {
+        List<WeakReference<Tree>> trees = new ArrayList<WeakReference<Tree>>();
+        synchronized (this) {
+            trees.addAll(_treeNameHashMap.values());
+        }
+        for (final WeakReference<Tree> treeRef : trees) {
+            final Tree tree = treeRef.get();
+            if (tree != null && tree.isDirty()) {
+                updateDirectoryTree(tree);
+            }
         }
     }
 
@@ -327,7 +294,7 @@ public class NewVolumeStructure extends SharedResource {
      */
     Buffer allocPage() throws PersistitException {
         Buffer buffer = null;
-        claim(true);
+        _volume.getStorage().claimHeadBuffer();
         try {
             long garbageRoot = getGarbageRoot();
             if (garbageRoot != 0) {
@@ -396,20 +363,20 @@ public class NewVolumeStructure extends SharedResource {
                 // -
                 // debug
 
-                _volume.getStorage().checkpointMetaData();
+                _volume.getStorage().flushMetaData();
 
                 Debug.$assert0.t(buffer.getPageAddress() != 0);
                 return buffer;
             }
         } finally {
-            release();
+            _volume.getStorage().releaseHeadBuffer();
         }
     }
 
     void deallocateGarbageChain(long left, long right) throws PersistitException {
         Debug.$assert0.t(left > 0);
 
-        claim(true);
+        _volume.getStorage().claimHeadBuffer();
 
         Buffer garbageBuffer = null;
 
@@ -466,7 +433,7 @@ public class NewVolumeStructure extends SharedResource {
             if (garbageBuffer != null) {
                 garbageBuffer.releaseTouched();
             }
-            release();
+            _volume.getStorage().releaseHeadBuffer();
         }
     }
 
@@ -490,6 +457,14 @@ public class NewVolumeStructure extends SharedResource {
     public long getDirectoryRoot() {
         return _directoryRootPage;
     }
+
+    /**
+     * @return The directory <code>Tree</code>
+     */
+    Tree getDirectoryTree() {
+        return _directoryTree;
+    }
+
     /**
      * Returns the page address of the garbage tree. This method is useful to
      * diagnostic utility programs.
@@ -502,7 +477,7 @@ public class NewVolumeStructure extends SharedResource {
 
     private void setGarbageRoot(long garbagePage) throws PersistitException {
         _garbageRoot = garbagePage;
-        _volume.getStorage().checkpointMetaData();
+        _volume.getStorage().flushMetaData();
     }
 
     /**

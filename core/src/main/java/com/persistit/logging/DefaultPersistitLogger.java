@@ -26,10 +26,11 @@ import java.io.PrintWriter;
  * @version 1.0
  */
 public class DefaultPersistitLogger implements PersistitLogger {
-    private static PrintWriter _logWriter;
 
     private final static String DEFAULT_LOG_FILE_NAME = "./persistit.log";
     private final static long FLUSH_DELAY_INTERVAL = 5000;
+
+    private PrintWriter _logWriter;
     private String _logFileName;
     private DefaultPersistitLogFlusher _logFlusher;
     private PersistitLevel _level = PersistitLevel.INFO;

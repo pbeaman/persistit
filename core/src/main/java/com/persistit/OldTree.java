@@ -24,13 +24,13 @@ import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**
- * Represents a single B-Tree within a {@link NewVolume}.
+ * Represents a single B-Tree within a {@link Volume}.
  * 
  * @version 1.1
  */
-public class NewTree extends SharedResource {
+public class OldTree extends SharedResource {
     private final String _name;
-    private final NewVolume _volume;
+    private final Volume _volume;
     private volatile long _rootPageAddr;
     private volatile int _depth;
     private AtomicLong _changeCount = new AtomicLong(-1);
@@ -38,13 +38,13 @@ public class NewTree extends SharedResource {
     private AtomicReference<Object> _appCache = new AtomicReference<Object>();
     private AtomicInteger _handle = new AtomicInteger();
 
-    NewTree(final Persistit persistit, NewVolume volume, String name) {
+    OldTree(final Persistit persistit, Volume volume, String name) {
         super(persistit);
         _name = name;
         _volume = volume;
     }
 
-    public NewVolume getVolume() {
+    public Volume getVolume() {
         return _volume;
     }
 
@@ -63,8 +63,8 @@ public class NewTree extends SharedResource {
 
     @Override
     public boolean equals(Object o) {
-        if (o instanceof NewTree) {
-            NewTree tree = (NewTree) o;
+        if (o instanceof OldTree) {
+            OldTree tree = (OldTree) o;
             return _name.equals(tree._name) && _volume == tree.getVolume();
         } else
             return false;
@@ -105,7 +105,14 @@ public class NewTree extends SharedResource {
      * @param lc
      */
     void loadRootLevelInfo(Exchange exchange) {
-        exchange.setRootLevelInfo(_rootPageAddr, _depth, getGeneration());
+//        exchange.setRootLevelInfo(_rootPageAddr, _depth, getGeneration());
+    }
+
+    void commit() throws PersistitException {
+        if (isDirty() && isValid()) {
+//            _volume.updateTree(this);
+            clearDirty();
+        }
     }
 
     void bumpChangeCount() {
@@ -169,7 +176,7 @@ public class NewTree extends SharedResource {
         // Derive the index depth
         Buffer buffer = null;
         try {
-            buffer = getVolume().getStructure().getPool().get(_volume, rootPageAddr, false, true);
+            buffer = getVolume().getPool().get(getVolume(), rootPageAddr, false, true);
             int type = buffer.getPageType();
             _depth = type - Buffer.PAGE_TYPE_DATA + 1;
         } finally {
@@ -217,26 +224,12 @@ public class NewTree extends SharedResource {
         return _appCache.get();
     }
 
-    /**
-     * @return The handle value used to identify this Tree in the journal
-     */
-    public int getHandle() {
+    int getHandle() {
         return _handle.get();
     }
 
-    /**
-     * Set the handle used to identify this Tree in the journal. May be invoked
-     * only once.
-     * 
-     * @param handle
-     * @return
-     * @throws IllegalStateException
-     *             if the handle has already been set
-     */
     int setHandle(final int handle) {
-        if (!_handle.compareAndSet(0, handle)) {
-            throw new IllegalStateException("Tree handle already set");
-        }
+        _handle.set(handle);
         return handle;
     }
 

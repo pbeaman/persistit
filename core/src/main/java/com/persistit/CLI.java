@@ -534,7 +534,7 @@ public class CLI {
                 : volumepath));
         Set<Integer> bufferSizes = new HashSet<Integer>();
         for (final VolumeSpecification vs : volumeSpecifications) {
-            bufferSizes.add(vs.getBufferSize());
+            bufferSizes.add(vs.getPageSize());
         }
         final Properties properties = new Properties();
         long bpoolMemory = availableMemory() / 2;
@@ -910,14 +910,10 @@ public class CLI {
                 continue;
             }
             try {
-                final File file = new File(path);
-                final VolumeInfo volumeInfo = volumeInfo(file);
-                if (volumeInfo != null) {
-                    list.add(new VolumeSpecification(path + ",pageSize:" + volumeInfo._bufferSize + ",id:"
-                            + volumeInfo._id));
+                final VolumeSpecification specification = new VolumeSpecification(path);
+                if (VolumeHeader.verifyVolumeHeader(specification)) {
+                    list.add(specification);
                 }
-            } catch (IOException e) {
-                // ignore this file
             } catch (PersistitException e) {
                 // ignore this file
             }
@@ -941,25 +937,6 @@ public class CLI {
         }
         Collections.sort(list);
         return list;
-    }
-
-    private VolumeInfo volumeInfo(final File candidate) throws IOException {
-        if (!candidate.exists() || !candidate.isFile()) {
-            return null;
-        }
-        RandomAccessFile raf = null;
-        try {
-            raf = new RandomAccessFile(candidate, "r");
-            final VolumeHeader header = new VolumeHeader(raf.getChannel());
-            final byte[] bytes = header.validate().array();
-            return new VolumeInfo(bytes);
-        } catch (PersistitException pe) {
-            return null;
-        } finally {
-            if (raf != null) {
-                raf.close();
-            }
-        }
     }
 
     // TODO - we REALLY need to refactor Volume!

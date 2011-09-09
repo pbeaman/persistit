@@ -313,7 +313,6 @@ public class Persistit {
     private final long _startTime = System.currentTimeMillis();
     private final HashMap<Integer, BufferPool> _bufferPoolTable = new HashMap<Integer, BufferPool>();
     private final ArrayList<Volume> _volumes = new ArrayList<Volume>();
-    private final HashMap<Long, Volume> _volumesById = new HashMap<Long, Volume>();
     private Properties _properties = new Properties();
 
     private AtomicBoolean _initialized = new AtomicBoolean();
@@ -576,8 +575,9 @@ public class Persistit {
                 }
                 if (isOne) {
                     VolumeSpecification volumeSpecification = new VolumeSpecification(getProperty(key));
-                    _logBase.openVolume.log(volumeSpecification.describe());
-                    Volume.loadVolume(this, volumeSpecification);
+                    _logBase.openVolume.log(volumeSpecification.getName());
+                    final Volume volume = new Volume(volumeSpecification);
+                    volume.open(this);
                 }
             }
         }
@@ -715,22 +715,15 @@ public class Persistit {
     }
 
     synchronized void addVolume(Volume volume) throws VolumeAlreadyExistsException {
-        Long idKey = new Long(volume.getId());
-        Volume otherVolume = _volumesById.get(idKey);
-        if (otherVolume != null) {
-            throw new VolumeAlreadyExistsException("Volume " + otherVolume + " has same ID");
-        }
+        Volume otherVolume;
         otherVolume = getVolume(volume.getPath());
         if (otherVolume != null && volume.getPath().equals(otherVolume.getPath())) {
             throw new VolumeAlreadyExistsException("Volume " + otherVolume + " has same path");
         }
         _volumes.add(volume);
-        _volumesById.put(idKey, volume);
     }
 
     synchronized void removeVolume(Volume volume) {
-        Long idKey = new Long(volume.getId());
-        _volumesById.remove(idKey);
         _volumes.remove(volume);
         volume.getPool().invalidate(volume);
     }
@@ -1124,111 +1117,9 @@ public class Persistit {
     }
 
     /**
-     * Opens a Volume. The volume must already exist.
-     * 
-     * @param pathName
-     *            The full pathname to the file containing the Volume.
-     * @param ro
-     *            <code>true</code> if the Volume should be opened in read- only
-     *            mode so that no updates can be performed against it.
-     * @return The Volume.
-     * @throws PersistitException
-     */
-    public Volume openVolume(final String pathName, final boolean ro) throws PersistitException {
-        return openVolume(pathName, null, 0, ro);
-    }
-
-    /**
-     * Opens a Volume with a confirming id. If the id value is non-zero, then it
-     * must match the id the volume being opened.
-     * 
-     * @param pathName
-     *            The full pathname to the file containing the Volume.
-     * 
-     * @param alias
-     *            A friendly name for this volume that may be used internally by
-     *            applications. The alias need not be related to the
-     *            <code>Volume</code>'s pathname, and typically will denote its
-     *            function rather than physical location.
-     * 
-     * @param id
-     *            The internal Volume id value - if non-zero this value must
-     *            match the id value stored in the Volume header.
-     * 
-     * @param ro
-     *            <code>true</code> if the Volume should be opened in read- only
-     *            mode so that no updates can be performed against it.
-     * 
-     * @return The <code>Volume</code>.
-     * 
-     * @throws PersistitException
-     */
-    public Volume openVolume(final String pathName, final String alias, final long id, final boolean ro)
-            throws PersistitException {
-        File file = new File(pathName);
-        if (file.exists() && file.isFile()) {
-            return Volume.openVolume(this, pathName, alias, id, ro);
-        }
-        throw new PersistitIOException(new FileNotFoundException(pathName));
-    }
-
-    /**
      * Look up, load and/or creates a volume based on a String-valued
-     * specification. The specification has the form: <br />
-     * <i>pathname</i>[,<i>options</i>]... <br />
-     * where options include: <br />
-     * <dl>
-     * <dt><code>alias</code></dt>
-     * <dd>An alias used in looking up the volume by name within Persistit
-     * programs (see {@link com.persistit.Persistit#getVolume(String)}). If the
-     * alias attribute is not specified, the the Volume's path name is used
-     * instead.</dd>
-     * <dt><code>drive<code></dt>
-     * <dd>Name of the drive on which the volume is located. Specifying the
-     * drive on which each volume is physically located is optional. If
-     * supplied, Persistit uses the information to improve I/O throughput in
-     * multi-volume configurations by interleaving write operations to different
-     * physical drives.</dd>
-     * <dt><code>readOnly</code></dt>
-     * <dd>Open in Read-Only mode. (Incompatible with create mode.)</dd>
-     * 
-     * <dt><code>create</code></dt>
-     * <dd>Creates the volume if it does not exist. Requires
-     * <code>bufferSize</code>, <code>initialPagesM</code>,
-     * <code>extensionPages</code> and <code>maximumPages</code> to be
-     * specified.</dd>
-     * 
-     * <dt><code>createOnly</code></dt>
-     * <dd>Creates the volume, or throw a {@link VolumeAlreadyExistsException}
-     * if it already exists.</dd>
-     * 
-     * <dt><code>temporary</code></dt>
-     * <dd>Creates the a new, empty volume regardless of whether an existing
-     * volume file already exists.</dd>
-     * 
-     * <dt><code>id:<i>NNN</i></code></dt>
-     * <dd>Specifies an ID value for the volume. If the volume already exists,
-     * this ID value must match the ID that was previously assigned to the
-     * volume when it was created. If this volume is being newly created, this
-     * becomes its ID number.</dd>
-     * 
-     * <dt><code>bufferSize:<i>NNN</i></code></dt>
-     * <dd>Specifies <i>NNN</i> as the volume's buffer size when creating a new
-     * volume. <i>NNN</i> must be 1024, 2048, 4096, 8192 or 16384</dd>.
-     * 
-     * <dt><code>initialPages:<i>NNN</i></code></dt>
-     * <dd><i>NNN</i> is the initial number of pages to be allocated when this
-     * volume is first created.</dd>
-     * 
-     * <dt><code>extensionPages:<i>NNN</i></code></dt>
-     * <dd><i>NNN</i> is the number of pages by which to extend the volume when
-     * more pages are required.</dd>
-     * 
-     * <dt><code>maximumPages:<i>NNN</i></code></dt>
-     * <dd><i>NNN</i> is the maximum number of pages to which this volume can
-     * extend.</dd>
-     * 
-     * </dl>
+     * specification. See {@link VolumeSpecification} for the specification
+     * String format.
      * <p>
      * If a Volume has already been loaded having the same ID or name, this
      * method returns that Volume. Otherwise it tries to open or create a volume
@@ -1261,12 +1152,10 @@ public class Persistit {
      * @throws PersistitException
      */
     public Volume loadVolume(final VolumeSpecification volumeSpec) throws PersistitException {
-        Volume volume = getVolume(volumeSpec.getId());
+        Volume volume = getVolume(volumeSpec.getName());
         if (volume == null) {
-            volume = getVolume(volumeSpec.describe());
-        }
-        if (volume == null) {
-            volume = Volume.loadVolume(this, volumeSpec);
+            volume = new Volume(volumeSpec);
+            volume.open(this);
         }
         return volume;
     }
@@ -1342,18 +1231,6 @@ public class Persistit {
      */
     public long elapsedTime() {
         return System.currentTimeMillis() - _startTime;
-    }
-
-    /**
-     * Looks up a {@link Volume} by id. At creation time, each
-     * <code>Volume</code> is assigned a unique long ID value.
-     * 
-     * @param id
-     * @return the <code>Volume</code>, or <i>null</i> if there is no open
-     *         <code>Volume</code> having the supplied ID value.
-     */
-    public Volume getVolume(long id) {
-        return _volumesById.get(new Long(id));
     }
 
     /**
@@ -1779,10 +1656,6 @@ public class Persistit {
             volumes = new ArrayList<Volume>(_volumes);
         }
 
-        for (final Volume volume : volumes) {
-            volume.flush();
-        }
-
         // TODO - why do this if there can't be another checkpoint?
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
@@ -1792,7 +1665,7 @@ public class Persistit {
         _journalManager.close();
 
         for (final Volume volume : volumes) {
-            volume.close();
+            volume.getStorage().close();
         }
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
@@ -1825,7 +1698,7 @@ public class Persistit {
         //
         for (final Volume volume : _volumes) {
             try {
-                volume.close();
+                volume.getStorage().close();
             } catch (PersistitException pe) {
                 // ignore -
             }
@@ -1845,7 +1718,6 @@ public class Persistit {
 
     private void releaseAllResources() {
         _volumes.clear();
-        _volumesById.clear();
         _bufferPoolTable.clear();
         _transactionalCaches.clear();
         _exchangePoolMap.clear();
@@ -1884,7 +1756,8 @@ public class Persistit {
         }
 
         for (final Volume volume : _volumes) {
-            volume.flush();
+            volume.getStructure().flushTrees();
+            volume.getStorage().flushMetaData();
         }
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
@@ -1933,12 +1806,8 @@ public class Persistit {
 
         for (int index = 0; index < volumes.size(); index++) {
             Volume volume = volumes.get(index);
-            if (!volume.isReadOnly()) {
-                try {
-                    volume.sync();
-                } catch (ReadOnlyVolumeException rove) {
-                    // ignore, because it can't happen
-                }
+            if (!volume.getStorage().isReadOnly()) {
+                volume.getStorage().force();
             }
         }
         _journalManager.force();
@@ -2321,14 +2190,11 @@ public class Persistit {
     static String displayableLongValue(final long value) {
         long v = value;
         int scale = 0;
-        while ((v / 1024) * 1024 == v) {
+        while ((v / 1024) * 1024 == v && scale < 3) {
             scale++;
             v /= 1024;
-            if (scale == 3) {
-                break;
-            }
         }
-        return String.format("%,d%s", v, "KMGT".subSequence(scale, scale));
+        return String.format("%d%s", v, "KMGT".substring(scale, scale + 1));
     }
 
     /**

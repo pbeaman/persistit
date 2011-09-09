@@ -46,6 +46,7 @@ public class CheckpointManager extends IOTaskRunnable {
 
     public void close(final boolean flush) {
         if (flush) {
+            urgent();
             checkpoint();
         } else {
             _fastClose.set(true);

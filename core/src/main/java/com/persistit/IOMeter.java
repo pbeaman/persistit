@@ -207,7 +207,7 @@ public class IOMeter implements IOMeterMXBean {
                 try {
                     os.write((byte) type);
                     os.writeLong(time);
-                    os.writeInt(volume == null ? 0 : (int) volume.getId() ^ (int) (volume.getId() >>> 32));
+                    os.writeInt(volume == null ? 0 : volume.hashCode());
                     os.writeLong(pageAddress);
                     os.writeInt(size);
                     os.writeLong(journalAddress);

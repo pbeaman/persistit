@@ -14,7 +14,35 @@
  */
 package com.persistit;
 
-import static com.persistit.NewVolumeHeader.*;
+import static com.persistit.VolumeHeader.changeDirectoryRoot;
+import static com.persistit.VolumeHeader.changeExtendedPageCount;
+import static com.persistit.VolumeHeader.changeFetchCounter;
+import static com.persistit.VolumeHeader.changeGarbageRoot;
+import static com.persistit.VolumeHeader.changeLastExtensionTime;
+import static com.persistit.VolumeHeader.changeLastReadTime;
+import static com.persistit.VolumeHeader.changeLastWriteTime;
+import static com.persistit.VolumeHeader.changeNextAvailablePage;
+import static com.persistit.VolumeHeader.changeReadCounter;
+import static com.persistit.VolumeHeader.changeRemoveCounter;
+import static com.persistit.VolumeHeader.changeStoreCounter;
+import static com.persistit.VolumeHeader.changeTraverseCounter;
+import static com.persistit.VolumeHeader.changeWriteCounter;
+import static com.persistit.VolumeHeader.getCreateTime;
+import static com.persistit.VolumeHeader.getDirectoryRoot;
+import static com.persistit.VolumeHeader.getExtensionPages;
+import static com.persistit.VolumeHeader.getGarbageRoot;
+import static com.persistit.VolumeHeader.getId;
+import static com.persistit.VolumeHeader.getInitialPages;
+import static com.persistit.VolumeHeader.getLastExtensionTime;
+import static com.persistit.VolumeHeader.getLastReadTime;
+import static com.persistit.VolumeHeader.getLastWriteTime;
+import static com.persistit.VolumeHeader.getMaximumPages;
+import static com.persistit.VolumeHeader.getOpenTime;
+import static com.persistit.VolumeHeader.putId;
+import static com.persistit.VolumeHeader.putPageSize;
+import static com.persistit.VolumeHeader.putSignature;
+import static com.persistit.VolumeHeader.putVersion;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -22,10 +50,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
-import java.security.Signature;
+import java.util.Random;
 
-import com.persistit.exception.BufferSizeUnavailableException;
-import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
@@ -35,36 +61,39 @@ import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeFullException;
 import com.persistit.exception.VolumeNotFoundException;
-import com.persistit.util.Util;
 
 /**
  * Manage all details of file I/O for a <code>Volume</code> backing file.
  * 
  * @author peter
  */
-public class NewVolumeStorage extends SharedResource {
+public class VolumeStorage extends SharedResource {
 
-    private NewVolume _volume;
+    private final static Random ID_GENERATOR = new Random();
+    private Volume _volume;
 
     private FileChannel _channel;
     private FileLock _fileLock;
-
-    private String _path;
-
-    private long _initialPages;
-    private long _maximumPages;
-    private long _extensionPages;
-
-    private volatile long _pageAllocationBoundary;
-    private volatile long _pageCount;
     private Buffer _headBuffer;
 
+    private volatile long _nextAvailablePage;
+    private volatile long _extendedPageCount;
+    private volatile boolean _closed;
     private volatile IOException _lastIOException;
 
-    NewVolumeStorage(final Persistit persistit, final NewVolume volume) {
+    /**
+     * Generate a random positive (non-zero) long value to be used as a
+     * validation of a Volume's identity.
+     * 
+     * @return
+     */
+    private static long generateId() {
+        return (ID_GENERATOR.nextLong() & 0x0FFFFFFFFFFl) + 1;
+    }
+
+    VolumeStorage(final Persistit persistit, final Volume volume) {
         super(persistit);
         _volume = volume;
-        _path = _volume.getSpecification().getPath();
     }
 
     /**
@@ -72,8 +101,8 @@ public class NewVolumeStorage extends SharedResource {
      * 
      * @return The path name
      */
-    public String getPath() {
-        return _path;
+    String getPath() {
+        return _volume.getSpecification().getPath();
     }
 
     /**
@@ -92,7 +121,7 @@ public class NewVolumeStorage extends SharedResource {
      * @return The most recently encountered <code>IOException</code>, or
      *         <code>null</code> if there has been none.
      */
-    public IOException lastException(boolean reset) {
+    IOException lastException(boolean reset) {
         IOException ioe = _lastIOException;
         if (reset)
             _lastIOException = null;
@@ -104,41 +133,52 @@ public class NewVolumeStorage extends SharedResource {
      * 
      * @return <i>true</i> if this Volume prohibits updates.
      */
-    public boolean isReadOnly() {
+    boolean isReadOnly() {
         return _volume.getSpecification().isReadOnly();
     }
 
     /**
      * Create a new <code>Volume</code> backing file according to the
-     * {@link NewVolume}'s volume specification.
+     * {@link Volume}'s volume specification.
      * 
      * @throws PersistitException
      */
     void create() throws PersistitException {
         if (exists()) {
-            throw new VolumeAlreadyExistsException(_path);
+            throw new VolumeAlreadyExistsException(getPath());
         }
+        boolean created = false;
         try {
-            _channel = new RandomAccessFile(_path, "rw").getChannel();
+            _channel = new RandomAccessFile(getPath(), "rw").getChannel();
             lockChannel();
 
-            NewVolumeSpecification spec = _volume.getSpecification();
-            NewVolumeStatistics stat = _volume.getStatistics();
-            NewVolumeStructure struc = _volume.getStructure();
+            VolumeSpecification spec = _volume.getSpecification();
+            VolumeStatistics stat = _volume.getStatistics();
+            VolumeStructure struc = _volume.getStructure();
+
             resize(spec.getInitialPages());
+            _volume.setId(generateId());
 
             long now = System.currentTimeMillis();
             stat.setCreateTime(now);
             stat.setOpenTime(now);
-            _pageCount = spec.getInitialPages();
-            _pageAllocationBoundary = 1;
+            _extendedPageCount = spec.getInitialPages();
+            _nextAvailablePage = 1;
 
             _headBuffer = _volume.getStructure().getPool().get(_volume, 0, true, false);
             _headBuffer.setFixed();
+
+            initMetaData(_headBuffer.getBytes());
+            //
+            // Lay down the initial version of the header page so that the
+            // volume file
+            // will be valid on restart
+            //
+            writePage(_headBuffer.getByteBuffer(), _headBuffer.getPageAddress());
             
             struc.init(0, 0);
-            checkpointMetaData();
-            
+            flushMetaData();
+            created = true;
         } catch (IOException ioe) {
             if (_headBuffer != null) {
                 _headBuffer.clearFixed();
@@ -151,6 +191,16 @@ public class NewVolumeStorage extends SharedResource {
             if (_headBuffer != null) {
                 _headBuffer.release();
             }
+            if (!created) {
+                try {
+                    _channel.close();
+                    _channel = null;
+                } catch (IOException e) {
+                    // Not much to do - we're going to try to delete
+                    // the file anyway.
+                }
+                new File(getPath()).delete();
+            }
         }
 
     }
@@ -162,35 +212,49 @@ public class NewVolumeStorage extends SharedResource {
      */
     void open() throws PersistitException {
         if (!exists()) {
-            throw new VolumeNotFoundException(_path);
+            throw new VolumeNotFoundException(getPath());
         }
+
+        VolumeSpecification spec = _volume.getSpecification();
+        VolumeStatistics stat = _volume.getStatistics();
+        VolumeStructure struc = _volume.getStructure();
+
         try {
-            _channel = new RandomAccessFile(_path, isReadOnly() ? "r" : "rw").getChannel();
+            _channel = new RandomAccessFile(getPath(), isReadOnly() ? "r" : "rw").getChannel();
             lockChannel();
+            _nextAvailablePage = 1; // correct value installed below
+            _volume.setId(spec.getId());
+
             _headBuffer = _volume.getStructure().getPool().get(_volume, 0, true, true);
             _headBuffer.setFixed();
-
-            NewVolumeSpecification spec = _volume.getSpecification();
-            NewVolumeStatistics stat = _volume.getStatistics();
-            NewVolumeStructure struc = _volume.getStructure();
-
             final byte[] bytes = _headBuffer.getBytes();
+
+            _nextAvailablePage = VolumeHeader.getNextAvailablePage(bytes);
+            _extendedPageCount = _channel.size() / _volume.getStructure().getPageSize();
+
+            final long id = getId(bytes);
+            _volume.verifyId(id);
+            _volume.setId(id);
+
+            long now = System.currentTimeMillis();
 
             spec.setInitialPages(getInitialPages(bytes));
             spec.setMaximumPages(getMaximumPages(bytes));
             spec.setExtensionPages(getExtensionPages(bytes));
 
             stat.setCreateTime(getCreateTime(bytes));
-            stat.setHighestPageUsed(getHighestPageUsed(bytes));
+            stat.setNextAvailablePage(VolumeHeader.getNextAvailablePage(bytes));
             stat.setLastExtensionTime(getLastExtensionTime(bytes));
             stat.setLastReadTime(getLastReadTime(bytes));
             stat.setLastWriteTime(getLastWriteTime(bytes));
-            stat.setOpenTime(getOpenTime(bytes));
+            stat.setOpenTime(now);
 
             final long directoryRootPage = getDirectoryRoot(bytes);
             final long garbageRootPage = getGarbageRoot(bytes);
+            
             struc.init(directoryRootPage, garbageRootPage);
-            checkpointMetaData();
+            
+            flushMetaData();
 
         } catch (IOException ioe) {
             if (_headBuffer != null) {
@@ -212,47 +276,93 @@ public class NewVolumeStorage extends SharedResource {
      * @throws PersistitException
      */
     boolean exists() throws PersistitException {
-        final File file = new File(_path);
+        final File file = new File(getPath());
         return file.exists() && file.isFile();
     }
 
+    /**
+     * Delete the backing file for this Volume if it exists.
+     * 
+     * @return <code>true</code> if there was a file and it was successfully
+     *         deleted
+     * @throws PersistitException
+     */
     boolean delete() throws PersistitException {
-        final File file = new File(_path);
+        final File file = new File(getPath());
         return file.exists() && file.isFile() && file.delete();
     }
 
-    void close() throws PersistitException {
-
-        PersistitException pe = null;
+    /**
+     * Force all file system buffers to disk.
+     * 
+     * @throws PersistitIOException
+     */
+    void force() throws PersistitIOException {
         try {
-            final FileLock lock = _fileLock;
-            _fileLock = null;
-            if (lock != null) {
-                lock.release();
-            }
-        } catch (Exception e) {
-            _persistit.getLogBase().exception.log(e);
-            pe = new PersistitException(e);
-        }
-        try {
-            final FileChannel channel = _channel;
-            _channel = null;
-            if (channel != null) {
-                channel.close();
-            }
-        } catch (Exception e) {
-            _persistit.getLogBase().exception.log(e);
-            // has priority over Exception thrown by
-            // releasing file lock.
-            pe = new PersistitException(e);
-        }
-        if (pe != null) {
-            throw pe;
+            _channel.force(true);
+        } catch (IOException ioe) {
+            throw new PersistitIOException(ioe);
         }
     }
 
+    /**
+     * Close the file resources held by this <code>Volume</code>. After this
+     * method is called no further file I/O is possible.
+     * 
+     * @throws PersistitException
+     */
+    void close() throws PersistitException {
+        if (!_closed) {
+            PersistitException pe = null;
+            try {
+                final FileLock lock = _fileLock;
+                _fileLock = null;
+                if (lock != null) {
+                    lock.release();
+                }
+            } catch (Exception e) {
+                _persistit.getLogBase().exception.log(e);
+                pe = new PersistitException(e);
+            }
+            try {
+                final FileChannel channel = _channel;
+                _channel = null;
+                if (channel != null) {
+                    channel.close();
+                }
+            } catch (Exception e) {
+                _persistit.getLogBase().exception.log(e);
+                // has priority over Exception thrown by
+                // releasing file lock.
+                pe = new PersistitException(e);
+            }
+            if (pe != null) {
+                throw pe;
+            }
+            _closed = true;
+        }
+    }
+
+    boolean isClosed() {
+        return _closed;
+    }
+
     long getPageCount() {
-        return _pageCount;
+        return _extendedPageCount;
+    }
+
+    long getNextAvailablePage() {
+        return _nextAvailablePage;
+    }
+
+    void claimHeadBuffer() throws PersistitException {
+        if (!_headBuffer.claim(true)) {
+            throw new InUseException(this + " head buffer " + _headBuffer + " is unavailable");
+        }
+    }
+
+    void releaseHeadBuffer() {
+        _headBuffer.releaseTouched();
     }
 
     private void lockChannel() throws InUseException, IOException {
@@ -260,17 +370,17 @@ public class NewVolumeStorage extends SharedResource {
             _fileLock = _channel.tryLock(0, Long.MAX_VALUE, isReadOnly());
         } catch (OverlappingFileLockException e) {
             // Note: OverlappingFileLockException is a RuntimeException
-            throw new InUseException("Volume file " + _path + " is locked by another thread in this JVM");
+            throw new InUseException("Volume file " + getPath() + " is locked by another thread in this JVM");
         }
         if (_fileLock == null) {
-            throw new InUseException("Volume file " + _path + " is locked by another process");
+            throw new InUseException("Volume file " + getPath() + " is locked by another process");
         }
     }
 
     void readPage(Buffer buffer, long page) throws PersistitIOException, InvalidPageAddressException,
             VolumeClosedException {
-        if (page < 0 || page >= _pageAllocationBoundary) {
-            throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _pageAllocationBoundary + ")");
+        if (page < 0 || page >= _nextAvailablePage) {
+            throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
         }
 
         try {
@@ -285,9 +395,8 @@ public class NewVolumeStorage extends SharedResource {
                 }
                 read += bytesRead;
             }
-            // _persistit.getIOMeter().chargeReadPageFromVolume(this,
-            // buffer.getPageAddress(), buffer.getBufferSize(),
-            // buffer.getIndex());
+            _persistit.getIOMeter().chargeReadPageFromVolume(this._volume, buffer.getPageAddress(),
+                    buffer.getBufferSize(), buffer.getIndex());
             _volume.getStatistics().bumpReadCounter();
             _persistit.getLogBase().readOk.log(this, page, buffer.getIndex());
         } catch (IOException ioe) {
@@ -299,8 +408,8 @@ public class NewVolumeStorage extends SharedResource {
 
     void writePage(final ByteBuffer bb, final long page) throws PersistitIOException, InvalidPageAddressException,
             ReadOnlyVolumeException, VolumeClosedException {
-        if (page < 0 || page >= _pageAllocationBoundary) {
-            throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _pageAllocationBoundary + ")");
+        if (page < 0 || page >= _nextAvailablePage) {
+            throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
         }
 
         if (isReadOnly()) {
@@ -321,9 +430,10 @@ public class NewVolumeStorage extends SharedResource {
         claim(true);
         try {
             for (;;) {
-                if (_pageAllocationBoundary <= _pageCount) {
-                    long page = _pageAllocationBoundary ++;
-                    _volume.getStatistics().setHighestPageUsed(page);
+                if (_nextAvailablePage <= _extendedPageCount) {
+                    long page = _nextAvailablePage++;
+                    _volume.getStatistics().setNextAvailablePage(page);
+                    flushMetaData();
                     return page;
                 }
                 extend();
@@ -332,29 +442,35 @@ public class NewVolumeStorage extends SharedResource {
             release();
         }
     }
-    
-    void checkpointMetaData() throws PersistitException {
-        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-        _headBuffer.writePageOnCheckpoint(timestamp);
-        if (!isReadOnly() && updateMetaData(_headBuffer.getBytes())) {
-            _headBuffer.setDirtyAtTimestamp(timestamp);
+
+    void flushMetaData() throws PersistitException {
+        if (!isReadOnly()) {
+            final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+            _headBuffer.writePageOnCheckpoint(timestamp);
+            if (updateMetaData(_headBuffer.getBytes())) {
+                _headBuffer.setDirtyAtTimestamp(timestamp);
+            }
         }
     }
-    
+
     private void initMetaData(final byte[] bytes) {
-        NewVolumeSpecification spec = _volume.getSpecification();
-        NewVolumeStructure struc = _volume.getStructure();
+        VolumeStructure struc = _volume.getStructure();
         putSignature(bytes);
         putVersion(bytes);
         putPageSize(bytes, struc.getPageSize());
         putId(bytes, _volume.getId());
-    }
+
+        changeNextAvailablePage(bytes, _nextAvailablePage);
+        changeExtendedPageCount(bytes, _extendedPageCount);
+}
 
     private boolean updateMetaData(final byte[] bytes) {
-        NewVolumeStatistics stat = _volume.getStatistics();
-        NewVolumeStructure struc = _volume.getStructure();
-        
+        VolumeStatistics stat = _volume.getStatistics();
+        VolumeStructure struc = _volume.getStructure();
+
         boolean changed = false;
+        changed |= changeNextAvailablePage(bytes, _nextAvailablePage);
+        changed |= changeExtendedPageCount(bytes, _extendedPageCount);
         changed |= changeDirectoryRoot(bytes, struc.getDirectoryRoot());
         changed |= changeGarbageRoot(bytes, struc.getGarbageRoot());
         changed |= changeFetchCounter(bytes, stat.getFetchCounter());
@@ -364,7 +480,7 @@ public class NewVolumeStorage extends SharedResource {
         changed |= changeReadCounter(bytes, stat.getReadCounter());
         changed |= changeLastExtensionTime(bytes, stat.getLastExtensionTime());
         changed |= changeLastReadTime(bytes, stat.getLastReadTime());
-        
+
         // Ugly, but the act of closing the system increments this
         // counter, leading to an extra write. So basically we
         // ignore the final write by not setting the changed flag.
@@ -374,15 +490,25 @@ public class NewVolumeStorage extends SharedResource {
         return changed;
     }
 
+    void extend(final long pageAddr) throws PersistitException {
+        if (pageAddr >= _extendedPageCount) {
+            extend();
+        }
+    }
+
     private void extend() throws PersistitException {
-        if (_pageCount >= _maximumPages || _extensionPages <= 0) {
-            throw new VolumeFullException(this + " is full: " + _pageCount + " pages");
+        final long maximumPages = _volume.getSpecification().getMaximumPages();
+        final long extensionPages = _volume.getSpecification().getExtensionPages();
+        if (_extendedPageCount >= maximumPages || extensionPages <= 0) {
+            throw new VolumeFullException(this + " is full: " + _extendedPageCount + " pages");
         }
         // Do not extend past maximum pages
-        long pageCount = Math.min(_pageCount + _extensionPages, _maximumPages);
+        long pageCount = Math.min(_extendedPageCount + extensionPages, maximumPages);
         resize(pageCount);
+        flushMetaData();
+
     }
-    
+
     private void resize(long pageCount) throws PersistitException {
         long newSize = pageCount * _volume.getStructure().getPageSize();
         long currentSize = -1;
@@ -400,9 +526,8 @@ public class NewVolumeStorage extends SharedResource {
                 _persistit.getLogBase().extendNormal.log(this, currentSize, newSize);
             }
 
-            _pageCount = pageCount;
             _volume.getStatistics().setLastExtensionTime(System.currentTimeMillis());
-
+            _extendedPageCount = pageCount;
         } catch (IOException ioe) {
             _lastIOException = ioe;
             _persistit.getLogBase().extendException.log(ioe, this, currentSize, newSize);

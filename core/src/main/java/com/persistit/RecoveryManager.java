@@ -1312,7 +1312,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         for (final Tree tree : removedTrees) {
-            tree.getVolume().removeTree(tree);
+            tree.getVolume().getStructure().removeTree(tree);
         }
     }
 
@@ -1582,23 +1582,12 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     + addressToString(from, timestamp));
         }
 
-        final Volume v1 = _persistit.getVolume(vd.getId());
-        final Volume v2 = _persistit.getVolume(vd.getName());
-
-        Volume volume = null;
-
-        if (v1 == null) {
-            volume = v2;
-        } else if (v2 == null) {
-            volume = v1;
-        } else if (v1 == v2) {
-            volume = v1;
-        }
-
+        final Volume volume = _persistit.getVolume(vd.getName());
         if (volume == null) {
             throw new CorruptJournalException("No matching Volume found for journal reference " + vd + " at "
                     + addressToString(from, timestamp));
         }
+        volume.verifyId(vd.getId());
 
         return _persistit.getExchange(volume, td.getTreeName(), true);
     }

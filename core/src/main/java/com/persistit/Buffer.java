@@ -15,7 +15,12 @@
 
 package com.persistit;
 
-import java.io.IOException;
+import static com.persistit.VolumeHeader.getDirectoryRoot;
+import static com.persistit.VolumeHeader.getGarbageRoot;
+import static com.persistit.VolumeHeader.getId;
+import static com.persistit.VolumeHeader.getNextAvailablePage;
+import static com.persistit.VolumeHeader.getExtendedPageCount;
+
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
@@ -399,7 +404,7 @@ public final class Buffer extends SharedResource {
         _page = page;
         final boolean readFromLog = _persistit.getJournalManager().readPageFromJournal(this);
         if (!readFromLog) {
-            vol.readPage(this, page);
+            vol.getStorage().readPage(this, page);
         }
         load();
     }
@@ -442,7 +447,8 @@ public final class Buffer extends SharedResource {
         bumpGeneration();
     }
 
-    void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException, VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException {
+    void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException,
+            VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException {
         Debug.$assert0.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         if (isDirty() && getTimestamp() < checkpoint.getTimestamp() && timestamp > checkpoint.getTimestamp()) {
@@ -450,20 +456,19 @@ public final class Buffer extends SharedResource {
         }
     }
 
-    void writePage() throws PersistitIOException, InvalidPageStructureException, VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException {
+    void writePage() throws PersistitIOException, InvalidPageStructureException, VolumeClosedException,
+            ReadOnlyVolumeException, InvalidPageAddressException {
         final Volume volume = getVolume();
         if (volume != null) {
             clearSlack();
             save();
             if (isTemporary()) {
-                _vol.writePage(_byteBuffer, _page);
+                _vol.getStorage().writePage(_byteBuffer, _page);
             } else {
                 _persistit.getJournalManager().writePageToJournal(this);
             }
-            setClean();
-            if (!volume.isClosed()) {
-                volume.bumpWriteCounter();
-            }
+            clearDirty();
+            volume.getStatistics().bumpWriteCounter();
         }
     }
 
@@ -675,7 +680,7 @@ public final class Buffer extends SharedResource {
         Debug.$assert0.t(buffer != this);
         _next = buffer;
     }
-    
+
     Buffer getNext() {
         return _next;
     }
@@ -789,7 +794,8 @@ public final class Buffer extends SharedResource {
                                 // The key at the end of the run is still less
                                 // than kb so we just skip the entire run and
                                 // increment p. One possibility is that the
-                                // run is interrupted by a series of deeper keys -
+                                // run is interrupted by a series of deeper keys
+                                // -
                                 // in that case we use the cross count to skip
                                 // all of them.
                                 int runCount2 = fastIndex.getRunCount(index + runCount);
@@ -3334,16 +3340,11 @@ public final class Buffer extends SharedResource {
                 sb.append(" - " + e);
             }
         } else if (isHeadPage()) {
-            //
-            // TODO - Desperately needs to be refactored so that Volume and this
-            // method don't need all these constant byte references.
-            //
             sb.append(String.format("\n  type=%,d  " + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
                     getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
-            sb.append(String.format("\n  highestPageUsed=%,d pageCount=%,d "
-                    + "firstAvailablePage=%,d directoryRootPage=%,d garbageRootPage=%,d id=%,d ", Util.getLong(_bytes,
-                    104), Util.getLong(_bytes, 112), Util.getLong(_bytes, 136), Util.getLong(_bytes, 144), Util
-                    .getLong(_bytes, 152), Util.getLong(_bytes, 32)));
+            sb.append(String.format("\n  nextAvailablePage=%,d extendedPageCount=%,d "
+                    + " directoryRootPage=%,d garbageRootPage=%,d id=%,d ", getNextAvailablePage(_bytes),
+                    getExtendedPageCount(_bytes), getDirectoryRoot(_bytes), getGarbageRoot(_bytes), getId(_bytes)));
         } else if (isGarbagePage()) {
             sb.append(String.format("\n  type=%,d  " + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
                     getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
@@ -3547,10 +3548,8 @@ public final class Buffer extends SharedResource {
         info.rightSiblingAddress = _rightSibling;
         Volume vol = _vol;
         if (vol != null) {
-            info.volumeId = vol.getId();
             info.volumeName = vol.getPath();
         } else {
-            info.volumeId = 0;
             info.volumeName = null;
         }
         info.type = _type;

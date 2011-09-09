@@ -554,7 +554,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                     + bb.limit());
         }
         _readPageCount++;
-        buffer.getVolume().bumpReadCounter();
+        buffer.getVolume().getStatistics().bumpReadCounter();
         return true;
     }
 
@@ -1861,14 +1861,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                 continue;
             }
 
-            if (volume.getId() != vd.getId()) {
-                throw new CorruptJournalException(vd + " does not identify a valid Volume at "
-                        + pageNode.toStringJournalAddress(this));
-            }
+            volume.verifyId(vd.getId());
 
             final long pageAddress = readPageBufferFromJournal(pageNode, bb);
 
-            if (bb.limit() != volume.getPageSize()) {
+            if (bb.limit() != volume.getStructure().getPageSize()) {
                 throw new CorruptJournalException(pageNode.toStringPageAddress(this) + " bufferSize " + bb.limit()
                         + " does not match " + volume + " bufferSize " + volume.getPageSize() + " at "
                         + pageNode.toStringJournalAddress(this));
@@ -1878,16 +1875,16 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                 throw new CorruptJournalException(pageNode.toStringPageAddress(this) + " does not match page address "
                         + pageAddress + " found at " + pageNode.toStringJournalAddress(this));
             }
-
-                volume.writePage(bb, pageAddress);
-                volumes.add(volume);
-                _copiedPageCount++;
-                _persistit.getIOMeter().chargeCopyPageToVolume(volume, pageAddress, volume.getPageSize(),
-                        pageNode.getJournalAddress(), wasUrgent ? URGENT : urgency());
+            volume.getStorage().extend(pageAddress);
+            volume.getStorage().writePage(bb, pageAddress);
+            volumes.add(volume);
+            _copiedPageCount++;
+            _persistit.getIOMeter().chargeCopyPageToVolume(volume, pageAddress, volume.getPageSize(),
+                    pageNode.getJournalAddress(), wasUrgent ? URGENT : urgency());
         }
 
         for (final Volume vol : volumes) {
-            vol.sync();
+            vol.getStorage().force();
         }
 
         //

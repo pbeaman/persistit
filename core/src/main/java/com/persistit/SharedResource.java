@@ -327,12 +327,12 @@ class SharedResource {
         _sync.release(0);
     }
 
-    void setClean() {
-        _sync.clearBitsInState(DIRTY_MASK);
-    }
-
     void setDirty() {
         _sync.setBitsInState(DIRTY_MASK);
+    }
+
+    void clearDirty() {
+        _sync.clearBitsInState(DIRTY_MASK);
     }
 
     void setTouched() {

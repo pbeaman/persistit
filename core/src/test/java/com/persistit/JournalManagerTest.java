@@ -50,7 +50,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final String path = UnitTestProperties.DATA_PATH + "/JournalManagerTest_journal_";
         jman.init(null, path, 100 * 1000 * 1000);
         final BufferPool pool = _persistit.getBufferPool(16384);
-        final long pages = Math.min(1000, volume.getPageCount());
+        final long pages = Math.min(1000, volume.getStorage().getNextAvailablePage() - 1);
         for (int i = 0; i < 1000; i++) {
             final Buffer buffer = pool.get(volume, i % pages, false, true);
             if ((i % 400) == 0) {
@@ -194,7 +194,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final String path = UnitTestProperties.DATA_PATH + "/JournalManagerTest_journal_";
         jman.init(null, path, 100 * 1000 * 1000);
         final BufferPool pool = _persistit.getBufferPool(16384);
-        final long pages = Math.min(1000, volume.getPageCount());
+        final long pages = Math.min(1000, volume.getStorage().getNextAvailablePage() - 1);
         for (int i = 0; jman.getCurrentAddress() < 300 * 1000 * 1000; i++) {
             final Buffer buffer = pool.get(volume, i % pages, false, true);
             buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());

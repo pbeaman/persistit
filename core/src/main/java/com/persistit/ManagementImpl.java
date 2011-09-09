@@ -624,7 +624,7 @@ class ManagementImpl implements Management {
                 return null;
             }
             if (treeName == null) {
-                exchange = volume.directoryExchange();
+                exchange = volume.getStructure().directoryExchange();
             } else {
                 exchange = _persistit.getExchange(volume, treeName, false);
             }
@@ -847,7 +847,7 @@ class ManagementImpl implements Management {
             return null;
         try {
             Tree tree = null;
-            if (Volume.DIRECTORY_TREE_NAME.equals(treeName)) {
+            if (VolumeStructure.DIRECTORY_TREE_NAME.equals(treeName)) {
                 tree = volume.getDirectoryTree();
             } else {
                 tree = volume.getTree(treeName, false);

@@ -81,7 +81,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
         jman = _persistit.getJournalManager();
-        assertEquals(0, jman.getPageMapSize());
+        // opening a volume modifies its head page
+        assertTrue(jman.getPageMapSize() <= 1);
         fetch1a();
         fetch1b();
     }

@@ -493,7 +493,7 @@ public class Transaction {
 
         @Override
         public int hashCode() {
-            return ((int) _volume.getId()) ^ ((int) _pageAddr);
+            return _volume.hashCode() ^ ((int) _pageAddr);
         }
 
         @Override
@@ -515,7 +515,7 @@ public class Transaction {
 
         @Override
         public int hashCode() {
-            return (int) _leftPage ^ (int) _rightPage ^ (int) _volume.getId();
+            return (int) _leftPage ^ (int) _rightPage ^ _volume.hashCode();
         }
 
         @Override
@@ -1194,7 +1194,7 @@ public class Transaction {
     }
 
     void touchedPage(Exchange exchange, Buffer buffer) throws PersistitException {
-        int hashCode = ((int) buffer.getVolume().getId()) ^ ((int) buffer.getPageAddress());
+        int hashCode = buffer.getVolume().hashCode() ^ ((int) buffer.getPageAddress());
         TouchedPage entry = (TouchedPage) _touchedPagesSet.lookup(hashCode);
         while (entry != null) {
             if (entry._volume == buffer.getVolume() && entry._pageAddr == buffer.getPageAddress()) {
@@ -1984,7 +1984,7 @@ public class Transaction {
             }
         }
         for (final Tree tree : removedTrees) {
-            tree.getVolume().removeTree(tree);
+            tree.getVolume().getStructure().removeTree(tree);
         }
     }
 
@@ -2018,7 +2018,7 @@ public class Transaction {
                     buffer.releaseTouched();
                 }
 
-                dc._volume.deallocateGarbageChain(dc._leftPage, dc._rightPage);
+                dc._volume.getStructure().deallocateGarbageChain(dc._leftPage, dc._rightPage);
 
                 _longRecordDeallocationList.remove(index);
             }

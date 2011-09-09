@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
@@ -34,7 +35,6 @@ public class Tree extends SharedResource {
     private volatile long _rootPageAddr;
     private volatile int _depth;
     private AtomicLong _changeCount = new AtomicLong(-1);
-    int _hashCode = -1;
     private AtomicReference<Object> _appCache = new AtomicReference<Object>();
     private AtomicInteger _handle = new AtomicInteger();
 
@@ -55,19 +55,17 @@ public class Tree extends SharedResource {
     // TODO - renameTree
     @Override
     public int hashCode() {
-        if (_hashCode < 0) {
-            _hashCode = (_volume.hashCode() ^ _name.hashCode()) & 0x7FFFFFFF;
-        }
-        return _hashCode;
+        return _volume.hashCode() ^ _name.hashCode();
     }
 
     @Override
     public boolean equals(Object o) {
         if (o instanceof Tree) {
             Tree tree = (Tree) o;
-            return _name.equals(tree._name) && _volume == tree.getVolume();
-        } else
+            return _name.equals(tree._name) && _volume.equals(tree.getVolume());
+        } else {
             return false;
+        }
     }
 
     /**
@@ -90,29 +88,11 @@ public class Tree extends SharedResource {
         return _depth;
     }
 
-    void changeRootPageAddr(long rootPageAddr, int deltaDepth) {
+    
+    void changeRootPageAddr(long rootPageAddr, int deltaDepth) throws PersistitException {
         Debug.$assert0.t(isMine());
         _rootPageAddr = rootPageAddr;
         _depth += deltaDepth;
-        setDirty();
-    }
-
-    /**
-     * Atomically returns the current depth and current root page address in a
-     * Exchange.LevelCache. Used intimately by Exchange. This is done in here
-     * because the _lock object is protected.
-     * 
-     * @param lc
-     */
-    void loadRootLevelInfo(Exchange exchange) {
-        exchange.setRootLevelInfo(_rootPageAddr, _depth, getGeneration());
-    }
-
-    void commit() throws PersistitException {
-        if (isDirty() && isValid()) {
-            _volume.updateTree(this);
-            setClean();
-        }
     }
 
     void bumpChangeCount() {
@@ -169,19 +149,24 @@ public class Tree extends SharedResource {
      * @param rootPageAddr
      * @throws PersistitException
      */
-    void init(final long rootPageAddr) throws PersistitException {
-        _rootPageAddr = rootPageAddr;
-        setValid();
-        setDirty();
-        // Derive the index depth
-        Buffer buffer = null;
-        try {
-            buffer = getVolume().getPool().get(getVolume(), rootPageAddr, false, true);
-            int type = buffer.getPageType();
-            _depth = type - Buffer.PAGE_TYPE_DATA + 1;
-        } finally {
-            if (buffer != null)
-                buffer.releaseTouched();
+    void setRootPageAddress(final long rootPageAddr) throws PersistitException {
+        if (_rootPageAddr != rootPageAddr) {
+            // Derive the index depth
+            Buffer buffer = null;
+            try {
+                buffer = getVolume().getStructure().getPool().get(_volume, rootPageAddr, false, true);
+                int type = buffer.getPageType();
+                if (type < Buffer.PAGE_TYPE_DATA || type > Buffer.PAGE_TYPE_INDEX_MAX) {
+                    throw new CorruptVolumeException(String.format("Tree root page %,d has invalid type %s",
+                            rootPageAddr, buffer.getPageTypeName()));
+                }
+                _rootPageAddr = rootPageAddr;
+                _depth = type - Buffer.PAGE_TYPE_DATA + 1;
+            } finally {
+                if (buffer != null) {
+                    buffer.releaseTouched();
+                }
+            }
         }
     }
 
@@ -224,12 +209,26 @@ public class Tree extends SharedResource {
         return _appCache.get();
     }
 
-    int getHandle() {
+    /**
+     * @return The handle value used to identify this Tree in the journal
+     */
+    public int getHandle() {
         return _handle.get();
     }
 
+    /**
+     * Set the handle used to identify this Tree in the journal. May be invoked
+     * only once.
+     * 
+     * @param handle
+     * @return
+     * @throws IllegalStateException
+     *             if the handle has already been set
+     */
     int setHandle(final int handle) {
-        _handle.set(handle);
+        if (!_handle.compareAndSet(0, handle)) {
+            throw new IllegalStateException("Tree handle already set");
+        }
         return handle;
     }
 

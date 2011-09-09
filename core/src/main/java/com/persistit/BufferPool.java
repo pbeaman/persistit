@@ -275,7 +275,7 @@ public class BufferPool {
     }
 
     int hashIndex(Volume vol, long page) {
-        return (int) ((page ^ vol.getId()) % _hashTable.length);
+        return (int) ((page ^ vol.hashCode()) % _hashTable.length);
     }
 
     int countDirty(Volume vol) {
@@ -483,7 +483,7 @@ public class BufferPool {
             pause();
         }
         buffer.clearValid();
-        buffer.setClean();
+        buffer.clearDirty();
         buffer.setPageAddressAndVolume(0, null);
     }
 
@@ -551,7 +551,7 @@ public class BufferPool {
                         // Found it - now claim it.
                         //
                         if (buffer.claim(writer, 0)) {
-                            vol.bumpGetCounter();
+                            vol.getStatistics().bumpGetCounter();
                             bumpHitCounter();
                             return buffer;
                         } else {
@@ -624,7 +624,7 @@ public class BufferPool {
                         //
                         // If so, then we're done.
                         //
-                        vol.bumpGetCounter();
+                        vol.getStatistics().bumpGetCounter();
                         bumpHitCounter();
                         return buffer;
                     }
@@ -657,7 +657,7 @@ public class BufferPool {
                                     && hashIndex(buffer.getVolume(), buffer.getPageAddress()) == hash);
                             buffer.load(vol, page);
                             loaded = true;
-                            vol.bumpGetCounter();
+                            vol.getStatistics().bumpGetCounter();
                             bumpMissCounter();
                         } finally {
                             if (!loaded) {
@@ -764,7 +764,7 @@ public class BufferPool {
                         // need
                         // to be written.
                         if (!buffer.isValid()) {
-                            buffer.setClean();
+                            buffer.clearDirty();
                             return buffer;
                         }
                         if (!resetDirtyClock) {
@@ -853,7 +853,7 @@ public class BufferPool {
                                 break;
                             }
                         } else {
-                            buffer.setClean();
+                            buffer.clearDirty();
                         }
                     } catch (Exception e) {
                         _persistit.getLogBase().writeException.log(e, buffer.getVolume(), buffer.getPageAddress());

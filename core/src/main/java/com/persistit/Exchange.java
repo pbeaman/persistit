@@ -156,10 +156,8 @@ public class Exchange {
     private Volume _volume;
     private Tree _tree;
 
-    private volatile long _treeGeneration = -1;
+    private volatile long _cachedTreeGeneration = -1;
     private volatile int _cacheDepth = 0;
-    private volatile int _treeDepth = 0;
-    private volatile long _rootPage = 0;
 
     private boolean _exclusive;
     private Key _spareKey1;
@@ -318,7 +316,7 @@ public class Exchange {
             _volume = volume;
             _tree = tree;
             _treeHolder = new ReentrantResourceHolder(_tree);
-            _treeGeneration = -1;
+            _cachedTreeGeneration = -1;
             initCache();
         }
         _splitPolicy = _persistit.getDefaultSplitPolicy();
@@ -333,9 +331,7 @@ public class Exchange {
         _treeHolder = new ReentrantResourceHolder(_tree);
         _pool = exchange._pool;
 
-        _rootPage = exchange._rootPage;
-        _treeDepth = exchange._treeDepth;
-        _treeGeneration = -1;
+        _cachedTreeGeneration = -1;
         _transaction = _persistit.getTransaction();
         _cacheDepth = exchange._cacheDepth;
 
@@ -374,9 +370,9 @@ public class Exchange {
     }
 
     private void checkLevelCache() {
-        if (_treeGeneration != _tree.getGeneration()) {
-            _tree.loadRootLevelInfo(this);
-            _cacheDepth = _treeDepth;
+        if (_cachedTreeGeneration != _tree.getGeneration()) {
+            _cachedTreeGeneration = _tree.getGeneration();
+            _cacheDepth = _tree.getDepth();
             // for (int index = 0; index < _cacheDepth; index++)
             for (int index = 0; index < MAX_TREE_DEPTH; index++) {
                 LevelCache lc = _levelCache[index];
@@ -792,15 +788,6 @@ public class Exchange {
     }
 
     /**
-     * To be called only by {@link Tree#loadRootLevelInfo(Exchange)}
-     */
-    void setRootLevelInfo(long root, int depth, long generation) {
-        _rootPage = root;
-        _treeDepth = depth;
-        _treeGeneration = generation;
-    }
-
-    /**
      * An additional <code>Key</code> maintained for the convenience of
      * {@link Transaction}, {@link PersistitMap} and {@link JournalManager}.
      * 
@@ -936,7 +923,7 @@ public class Exchange {
         }
         checkLevelCache();
 
-        long pageAddress = _rootPage;
+        long pageAddress = _tree.getRootPageAddr();
         long oldPageAddress = pageAddress;
         Debug.$assert0.t(pageAddress != 0);
 
@@ -1022,7 +1009,7 @@ public class Exchange {
             long oldPageAddress = pageAddress;
             for (int rightWalk = MAX_WALK_RIGHT; rightWalk-- > 0;) {
                 Buffer buffer = null;
-                if (pageAddress <= 0 || pageAddress > _volume.getMaximumPageInUse()) {
+                if (pageAddress <= 0 || pageAddress >= _volume.getStorage().getNextAvailablePage()) {
                     corrupt("Volume " + _volume + " level=" + currentLevel + " page=" + pageAddress + " previousPage="
                             + oldPageAddress + " initialPage=" + initialPageAddress + " key=<" + key.toString() + ">"
                             + " oldBuffer=<" + oldBuffer + ">" + " invalid page address");
@@ -1360,15 +1347,15 @@ public class Exchange {
                 // allocated one.
                 //
                 if (newLongRecordPointer != oldLongRecordPointer && newLongRecordPointer != 0) {
-                    _volume.deallocateGarbageChain(newLongRecordPointer, 0);
+                    _volume.getStructure().deallocateGarbageChain(newLongRecordPointer, 0);
                 }
             } else if (oldLongRecordPointer != newLongRecordPointer && oldLongRecordPointer != 0) {
-                _volume.deallocateGarbageChain(oldLongRecordPointer, 0);
+                _volume.getStructure().deallocateGarbageChain(oldLongRecordPointer, 0);
             }
         }
-        _volume.bumpStoreCounter();
+        _volume.getStatistics().bumpStoreCounter();
         if (fetchFirst) {
-            _volume.bumpFetchCounter();
+            _volume.getStatistics().bumpFetchCounter();
         }
     }
 
@@ -1380,14 +1367,14 @@ public class Exchange {
 
         Buffer buffer = null;
         try {
-            buffer = _volume.allocPage();
+            buffer = _volume.getStructure().allocPage();
             final long timestamp = timestamp();
             buffer.writePageOnCheckpoint(timestamp);
 
-            buffer.init(PAGE_TYPE_INDEX_MIN + _treeDepth - 1);
+            buffer.init(PAGE_TYPE_INDEX_MIN + _tree.getDepth() - 1);
 
             long newTopPage = buffer.getPageAddress();
-            long leftSiblingPointer = _rootPage;
+            long leftSiblingPointer = _tree.getRootPageAddr();
 
             Debug.$assert0.t(leftSiblingPointer == _tree.getRootPageAddr());
             long rightSiblingPointer = value.getPointerValue();
@@ -1408,7 +1395,7 @@ public class Exchange {
 
             _tree.changeRootPageAddr(newTopPage, 1);
             _tree.bumpGeneration();
-            _tree.commit();
+            _volume.getStructure().updateDirectoryTree(_tree);
 
         } finally {
             if (buffer != null) {
@@ -1446,7 +1433,7 @@ public class Exchange {
             lc.updateInsert(buffer, key, result);
             return false;
         } else {
-            Debug.$assert0.t(buffer.getPageAddress() != _volume.getGarbageRoot());
+            Debug.$assert0.t(buffer.getPageAddress() != _volume.getStructure().getGarbageRoot());
             Buffer rightSibling = null;
 
             try {
@@ -1460,7 +1447,7 @@ public class Exchange {
                 //
                 // Allocate a new page
                 //
-                rightSibling = _volume.allocPage();
+                rightSibling = _volume.getStructure().allocPage();
 
                 timestamp = timestamp();
                 buffer.writePageOnCheckpoint(timestamp);
@@ -1517,7 +1504,7 @@ public class Exchange {
         boolean available = buffer.claim(_exclusive, 0);
         if (available) {
             if (buffer.getPageAddress() == lc._page && buffer.getVolume() == _volume
-                    && _treeGeneration == _tree.getGeneration() && buffer.getGeneration() == lc._bufferGeneration
+                    && _cachedTreeGeneration == _tree.getGeneration() && buffer.getGeneration() == lc._bufferGeneration
                     && buffer.isValid()) {
                 return buffer;
             } else {
@@ -1931,7 +1918,7 @@ public class Exchange {
                 buffer = null;
             }
         }
-        _volume.bumpTraverseCounter();
+        _volume.getStatistics().bumpTraverseCounter();
         return result;
     }
 
@@ -2376,7 +2363,7 @@ public class Exchange {
             buffer = lc._buffer;
             buffer.fetch(foundAt, value);
             fetchFixupForLongRecords(value, minimumBytes);
-            _volume.bumpFetchCounter();
+            _volume.getStatistics().bumpFetchCounter();
             return this;
         } finally {
             if (buffer != null) {
@@ -2510,7 +2497,7 @@ public class Exchange {
         if (inTxn) {
             _transaction.removeTree(this);
         } else {
-            _volume.removeTree(_tree);
+            _volume.getStructure().removeTree(_tree);
         }
         initCache();
     }
@@ -2725,7 +2712,7 @@ public class Exchange {
                                     if (fetchFirst) {
                                         removeFetchFirst(buffer, foundAt1, buffer, foundAt2);
                                     }
-                                    _volume.harvestLongRecords(buffer, foundAt1, foundAt2);
+                                    _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2);
 
                                     final long timestamp = timestamp();
                                     buffer.writePageOnCheckpoint(timestamp);
@@ -2758,7 +2745,7 @@ public class Exchange {
                         treeClaimAcquired = true;
                         _tree.bumpGeneration();
                         // Because we actually haven't changed anything yet.
-                        _treeGeneration++;
+                        _cachedTreeGeneration++;
                     }
                     //
                     // Need to redo this check now that we have a
@@ -2766,7 +2753,7 @@ public class Exchange {
                     //
                     checkLevelCache();
 
-                    long pageAddr1 = _rootPage;
+                    long pageAddr1 = _tree.getRootPageAddr();
                     long pageAddr2 = pageAddr1;
 
                     for (int level = _cacheDepth; --level >= 0;) {
@@ -2881,9 +2868,9 @@ public class Exchange {
                             // Before we remove the records in this range, we
                             // need to recover any LONG_RECORD pointers that
                             // are associated with keys in this range.
-                            _volume.harvestLongRecords(buffer1, foundAt1, Integer.MAX_VALUE);
+                            _volume.getStructure().harvestLongRecords(buffer1, foundAt1, Integer.MAX_VALUE);
 
-                            _volume.harvestLongRecords(buffer2, 0, foundAt2);
+                            _volume.getStructure().harvestLongRecords(buffer2, 0, foundAt2);
 
                             boolean rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1, _spareKey2,
                                     _joinPolicy);
@@ -2961,7 +2948,7 @@ public class Exchange {
                             // recover any LONG_RECORD pointers that may be
                             // associated with keys in this range.
                             //
-                            _volume.harvestLongRecords(buffer1, foundAt1, foundAt2);
+                            _volume.getStructure().harvestLongRecords(buffer1, foundAt1, foundAt2);
                             result |= buffer1.removeKeys(foundAt1, foundAt2, _spareKey1);
                             if (buffer1.isDataPage() && result) {
                                 _tree.bumpChangeCount();
@@ -3006,7 +2993,7 @@ public class Exchange {
                     left = lc._deallocLeftPage;
                     right = lc._deallocRightPage;
                     if (left != 0) {
-                        _volume.deallocateGarbageChain(left, right);
+                        _volume.getStructure().deallocateGarbageChain(left, right);
                         lc._deallocLeftPage = 0;
                         lc._deallocRightPage = 0;
                     }
@@ -3070,9 +3057,9 @@ public class Exchange {
         }
         // if (journalId != -1)
         // journal().completed(journalId);
-        _volume.bumpRemoveCounter();
+        _volume.getStatistics().bumpRemoveCounter();
         if (fetchFirst)
-            _volume.bumpFetchCounter();
+            _volume.getStatistics().bumpFetchCounter();
         return result;
     }
 
@@ -3297,7 +3284,7 @@ public class Exchange {
             }
 
             for (; index < count; index++) {
-                Buffer buffer = _volume.allocPage();
+                Buffer buffer = _volume.getStructure().allocPage();
                 bufferArray[index] = buffer;
             }
             final long timestamp = timestamp();
@@ -3340,7 +3327,7 @@ public class Exchange {
                         if (buffer != null) {
                             buffer.releaseTouched();
                             if (loosePageIndex >= 0 && index >= loosePageIndex) {
-                                _volume.deallocateGarbageChain(buffer.getPageAddress(), -1);
+                                _volume.getStructure().deallocateGarbageChain(buffer.getPageAddress(), -1);
                             }
                         }
                     }
@@ -3348,7 +3335,7 @@ public class Exchange {
                 value.changeLongRecordMode(false);
             } else {
                 if (looseChain != 0) {
-                    _volume.deallocateGarbageChain(looseChain, 0);
+                    _volume.getStructure().deallocateGarbageChain(looseChain, 0);
                 }
             }
         }
@@ -3395,7 +3382,7 @@ public class Exchange {
         try {
             for (;;) {
                 while (offset >= from) {
-                    buffer = _volume.allocPage();
+                    buffer = _volume.getStructure().allocPage();
                     buffer.writePageOnCheckpoint(timestamp);
                     buffer.init(PAGE_TYPE_LONG_RECORD);
 
@@ -3431,7 +3418,7 @@ public class Exchange {
             if (buffer != null)
                 buffer.releaseTouched();
             if (looseChain != 0) {
-                _volume.deallocateGarbageChain(looseChain, 0);
+                _volume.getStructure().deallocateGarbageChain(looseChain, 0);
             }
             if (!completed)
                 value.changeLongRecordMode(false);
@@ -3508,7 +3495,7 @@ public class Exchange {
         if (_tree != tree) {
             _tree = tree;
             _treeHolder = new ReentrantResourceHolder(_tree);
-            _treeGeneration = -1;
+            _cachedTreeGeneration = -1;
             checkLevelCache();
         }
     }
@@ -3546,7 +3533,7 @@ public class Exchange {
 
         _persistit.checkClosed();
         checkLevelCache();
-        final int treeDepth = requestedTreeDepth > _treeDepth ? _treeDepth : requestedTreeDepth;
+        final int treeDepth = requestedTreeDepth > _tree.getDepth() ? _tree.getDepth() : requestedTreeDepth;
         if (treeDepth < 0) {
             throw new IllegalArgumentException("treeDepth out of bounds: " + treeDepth);
         }
@@ -3651,7 +3638,7 @@ public class Exchange {
         if (level >= _tree.getDepth() || level <= -_tree.getDepth()) {
             throw new IllegalArgumentException("Tree depth is " + _tree.getDepth());
         }
-        int lvl = level >= 0 ? level : _treeDepth + level;
+        int lvl = level >= 0 ? level : _tree.getDepth() + level;
         _exclusive = false;
         int foundAt = searchTree(_key, lvl);
         final Buffer buffer = _levelCache[lvl]._buffer;

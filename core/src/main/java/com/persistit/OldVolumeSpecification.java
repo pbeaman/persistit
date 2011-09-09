@@ -18,35 +18,35 @@
  */
 package com.persistit;
 
-import java.io.File;
 import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
 
 import com.persistit.exception.InvalidVolumeSpecificationException;
 
-public class NewVolumeSpecification {
+public class OldVolumeSpecification {
 
-    private final static String ATTR_NAME = "name";
+    private final static String ATTR_ALIAS = "alias";
     private final static String ATTR_CREATE = "create";
     private final static String ATTR_READONLY = "readOnly";
     private final static String ATTR_CREATEONLY = "createOnly";
     private final static String ATTR_PAGE_SIZE = "pageSize";
+    private final static String ATTR_PAGE2_SIZE = "bufferSize";
     private final static String ATTR_ID = "id";
 
     private final static String ATTR_INITIAL_SIZE = "initialSize";
     private final static String ATTR_EXTENSION_SIZE = "extensionSize";
     private final static String ATTR_MAXIMUM_SIZE = "maximumSize";
-    private final static String ATTR_VERSION = "version";
+
+    private final static String ATTR_INITIAL_PAGES = "initialPages";
+    private final static String ATTR_EXTENSION_PAGES = "extensionPages";
+    private final static String ATTR_MAXIMUM_PAGES = "maximumPages";
 
     private String path;
     private String name = null;
     private boolean readOnly = false;
     private boolean create = false;
     private boolean createOnly = false;
-
-    private int pageSize = -1;
-    private int version = -1;
-
+    private int bufferSize = 8192;
     private long id = 0;
     private long initialPages = -1;
     private long extensionPages = -1;
@@ -55,25 +55,10 @@ public class NewVolumeSpecification {
     private long extensionSize = -1;
     private long maximumSize = -1;
 
-    public NewVolumeSpecification(final String path, final String name, final long id, final int pageSize,
-            final long initialPages, final long maximumPages, final long extensionPages, final boolean create,
-            final boolean createOnly, final boolean readOnly) {
-        this.path = path;
-        this.id = id;
-        this.pageSize = pageSize;
-        this.initialPages = initialPages;
-        this.maximumPages = maximumPages;
-        this.extensionPages = extensionPages;
-        this.create = create;
-        this.createOnly = createOnly;
-        this.readOnly = readOnly;
-    }
-
-    public NewVolumeSpecification(final String specification) throws InvalidVolumeSpecificationException {
+    public OldVolumeSpecification(final String specification) throws InvalidVolumeSpecificationException {
         StringTokenizer mainTokenizer = new StringTokenizer(specification, ",");
         try {
             path = mainTokenizer.nextToken().trim();
-            name = new File(path).getName();
 
             while (mainTokenizer.hasMoreTokens()) {
                 String token = mainTokenizer.nextToken().trim();
@@ -85,9 +70,9 @@ public class NewVolumeSpecification {
                     create = true;
                 } else if (ATTR_CREATEONLY.equals(attr)) {
                     createOnly = true;
-                } else if (ATTR_NAME.equals(attr)) {
+                } else if (ATTR_ALIAS.equals(attr)) {
                     String valueString = innerTokenizer.nextToken().trim();
-                    if (valueString != null && !valueString.isEmpty()) {
+                    if (valueString != null && valueString.length() > 0) {
                         name = valueString;
                     }
                 } else {
@@ -95,14 +80,16 @@ public class NewVolumeSpecification {
                     boolean bad = false;
                     long value = Persistit.parseLongProperty(attr, valueString, 0, Long.MAX_VALUE);
 
-                    if (ATTR_PAGE_SIZE.equals(attr)) {
-                        if (value < Integer.MAX_VALUE && value > 0 && NewVolume.isValidPageSize((int) value)) {
-                            pageSize = (int) value;
-                        } else {
-                            throw new InvalidVolumeSpecificationException("Invalid pageSize " + specification);
-                        }
+                    if (ATTR_PAGE_SIZE.equals(attr) || ATTR_PAGE2_SIZE.equals(attr)) {
+                        bufferSize = (value > Integer.MAX_VALUE) ? Integer.MAX_VALUE : (int) value;
                     } else if (ATTR_ID.equals(attr)) {
                         id = value;
+                    } else if (ATTR_INITIAL_PAGES.equals(attr)) {
+                        initialPages = value;
+                    } else if (ATTR_EXTENSION_PAGES.equals(attr)) {
+                        extensionPages = value;
+                    } else if (ATTR_MAXIMUM_PAGES.equals(attr)) {
+                        maximumPages = value;
                     } else if (ATTR_INITIAL_SIZE.equals(attr)) {
                         initialSize = value;
                     } else if (ATTR_EXTENSION_SIZE.equals(attr)) {
@@ -112,7 +99,6 @@ public class NewVolumeSpecification {
                     } else {
                         bad = true;
                     }
-
                     if (bad || innerTokenizer.hasMoreTokens()) {
                         throw new InvalidVolumeSpecificationException("Unknown attribute " + attr + " in "
                                 + specification);
@@ -136,58 +122,21 @@ public class NewVolumeSpecification {
             //
             // Allows size specification in bytes rather than pages.
             //
-            if (pageSize > 0) {
+            if (bufferSize > 0) {
                 if (initialPages == -1 && initialSize > 0) {
-                    initialPages = (initialSize + (pageSize - 1)) / pageSize;
+                    initialPages = (initialSize + (bufferSize - 1)) / bufferSize;
                 }
                 if (extensionPages == -1 && extensionSize > 0) {
-                    extensionPages = (extensionSize + (pageSize - 1)) / pageSize;
+                    extensionPages = (extensionSize + (bufferSize - 1)) / bufferSize;
                 }
                 if (maximumPages == -1 && maximumSize > 0) {
-                    maximumPages = (maximumSize + (pageSize - 1)) / pageSize;
+                    maximumPages = (maximumSize + (bufferSize - 1)) / bufferSize;
                 }
             }
-            
-            // Validate initial, maximum and extension sizes
-            if (maximumPages == 0)
-                maximumPages = initialPages;
-
-            if (initialPages < 1 || initialPages > Long.MAX_VALUE / pageSize) {
-                throw new InvalidVolumeSpecificationException("Invalid initial page count: " + initialPages);
-            }
-
-            if (extensionPages < 0 || extensionPages > Long.MAX_VALUE / pageSize) {
-                throw new InvalidVolumeSpecificationException("Invalid extension page count: " + extensionPages);
-            }
-
-            if (maximumPages < initialPages || maximumPages > Long.MAX_VALUE / pageSize) {
-                throw new InvalidVolumeSpecificationException("Invalid maximum page count: " + maximumPages);
-            }
-            
         } catch (NumberFormatException nfe) {
             throw new InvalidVolumeSpecificationException(specification + ": invalid number");
         } catch (NoSuchElementException nste) {
             throw new InvalidVolumeSpecificationException(specification + ": " + nste);
-        }
-    }
-
-    public void setPageSize(final int value) throws InvalidVolumeSpecificationException {
-        if (value > Integer.MAX_VALUE || value < 0 || !NewVolume.isValidPageSize((int) value)) {
-            throw new InvalidVolumeSpecificationException("Invalid pageSize " + value);
-        }
-
-        if (pageSize == value || pageSize == -1) {
-            pageSize = value;
-        } else {
-            throw new InvalidVolumeSpecificationException("Mismatched volume pageSize " + value + " for " + this);
-        }
-    }
-
-    public void setVersion(final int value) throws InvalidVolumeSpecificationException {
-        if (version == value || version == -1) {
-            version = value;
-        } else {
-            throw new InvalidVolumeSpecificationException("Mismatched volume version " + value + " for " + this);
         }
     }
 
@@ -211,8 +160,8 @@ public class NewVolumeSpecification {
         return createOnly;
     }
 
-    public int getPageSize() {
-        return pageSize;
+    public int getBufferSize() {
+        return bufferSize;
     }
 
     public long getId() {
@@ -242,27 +191,32 @@ public class NewVolumeSpecification {
     public long getMaximumSize() {
         return maximumSize;
     }
-    
-    public int getVersion() {
-        return version;
+
+    public String describe() {
+        if (name != null) {
+            return name;
+        } else {
+            return path;
+        }
     }
 
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(path);
-        sb.append(',').append(ATTR_NAME).append(':').append(name);
         sb.append(',').append(ATTR_ID).append(':').append(id);
-        sb.append(',').append(ATTR_PAGE_SIZE).append(':').append(pageSize);
-
-        if (initialSize >= 0) {
-            sb.append(',').append(ATTR_INITIAL_SIZE).append(':').append(ds(initialPages));
+        sb.append(',').append(ATTR_PAGE_SIZE).append(':').append(bufferSize);
+        if (initialPages >= 0) {
+            sb.append(',').append(ATTR_INITIAL_PAGES).append(':').append(initialPages);
         }
-        if (maximumSize >= 0) {
-            sb.append(',').append(ATTR_MAXIMUM_SIZE).append(':').append(ds(maximumPages));
+        if (maximumPages >= 0) {
+            sb.append(',').append(ATTR_MAXIMUM_PAGES).append(':').append(maximumPages);
         }
-        if (extensionSize >= 0) {
-            sb.append(',').append(ATTR_EXTENSION_SIZE).append(':').append(ds(extensionPages));
+        if (extensionPages >= 0) {
+            sb.append(',').append(ATTR_EXTENSION_PAGES).append(':').append(extensionPages);
+        }
+        if (name != null) {
+            sb.append(',').append(ATTR_ALIAS).append(':').append(name);
         }
         if (readOnly) {
             sb.append(',').append(ATTR_READONLY);
@@ -272,37 +226,7 @@ public class NewVolumeSpecification {
         } else if (create) {
             sb.append(',').append(ATTR_CREATE);
         }
-        if (version != -1) {
-            sb.append(',').append(ATTR_VERSION).append(':').append(version);
-        }
         return sb.toString();
     }
-
-    private String ds(final long pages) {
-        return Persistit.displayableLongValue(pages * pageSize);
-    }
-    
-    /**
-     * @param initialPages the initialPages to set
-     */
-    void setInitialPages(long initialPages) {
-        this.initialPages = initialPages;
-    }
-
-    /**
-     * @param extensionPages the extensionPages to set
-     */
-    void setExtensionPages(long extensionPages) {
-        this.extensionPages = extensionPages;
-    }
-
-    /**
-     * @param maximumPages the maximumPages to set
-     */
-    void setMaximumPages(long maximumPages) {
-        this.maximumPages = maximumPages;
-    }
-
-
 
 }

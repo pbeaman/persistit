@@ -16,15 +16,15 @@ package com.persistit;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class NewVolumeStatistics {
+public class VolumeStatistics {
 
-    private NewVolume _volume;
+    private Volume _volume;
 
     private volatile long _openTime;
     private volatile long _lastReadTime;
     private volatile long _lastWriteTime;
     private volatile long _lastExtensionTime;
-    private volatile long _highestPageUsed;
+    private volatile long _nextAvailablePage;
     private volatile long _createTime;
 
     private AtomicLong _readCounter = new AtomicLong();
@@ -65,8 +65,8 @@ public class NewVolumeStatistics {
         _removeCounter.incrementAndGet();
     }
 
-    long getMaximumPageInUse() {
-        return _highestPageUsed;
+    long getNextAvailablePage() {
+        return _nextAvailablePage;
     }
 
     /**
@@ -218,8 +218,8 @@ public class NewVolumeStatistics {
         _lastExtensionTime = lastExtensionTime;
     }
 
-    void setHighestPageUsed(long highestPageUsed) {
-        _highestPageUsed = highestPageUsed;
+    void setNextAvailablePage(long nextAvailablePage) {
+        _nextAvailablePage = nextAvailablePage;
     }
 
     void setCreateTime(long createTime) {

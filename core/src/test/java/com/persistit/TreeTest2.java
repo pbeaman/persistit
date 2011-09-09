@@ -30,7 +30,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
     public void testLotsOfTrees() throws Exception {
         Volume volume = _persistit.getVolume("persistit");
         Transaction txn = _persistit.getTransaction();
-        assertEquals(1, volume.directoryExchange().getTree().getRootPageAddr());
+        assertEquals(1, volume.getStructure().directoryExchange().getTree().getRootPageAddr());
         for (int counter = 0; counter < COUNT; counter++) {
             txn.begin();
             final Exchange exchange = _persistit.getExchange("persistit", "TreeTest1_" + counter, true);
@@ -40,7 +40,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
             txn.commit();
             txn.end();
         }
-        assertTrue(1 != volume.directoryExchange().getTree().getRootPageAddr());
+        assertTrue(1 != volume.getStructure().directoryExchange().getTree().getRootPageAddr());
 
         for (int counter = 0; counter < COUNT; counter++) {
             txn.begin();
@@ -57,7 +57,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
         _persistit.initialize(properties);
 
         volume = _persistit.getVolume("persistit");
-        assertTrue(1 != volume.directoryExchange().getTree().getRootPageAddr());
+        assertTrue(1 != volume.getStructure().directoryExchange().getTree().getRootPageAddr());
 
         String[] treeNames = volume.getTreeNames();
         for (final String t : treeNames) {
