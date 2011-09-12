@@ -78,9 +78,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
 
     private final Map<PageNode, PageNode> _branchMap = new HashMap<PageNode, PageNode>();
 
-    private final Map<VolumeDescriptor, Integer> _volumeToHandleMap = new HashMap<VolumeDescriptor, Integer>();
+    private final Map<Volume, Integer> _volumeToHandleMap = new HashMap<Volume, Integer>();
 
-    private final Map<Integer, VolumeDescriptor> _handleToVolumeMap = new HashMap<Integer, VolumeDescriptor>();
+    private final Map<Integer, Volume> _handleToVolumeMap = new HashMap<Integer, Volume>();
 
     private final Map<TreeDescriptor, Integer> _treeToHandleMap = new HashMap<TreeDescriptor, Integer>();
 
@@ -408,15 +408,10 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
         return Math.min(urgency, URGENT);
     }
 
-    public int handleForVolume(final Volume volume) throws PersistitIOException {
-        if (volume.getHandle() != 0) {
-            return volume.getHandle();
+    public synchronized int handleForVolume(final Volume vd) throws PersistitIOException {
+        if (vd.getHandle() != 0) {
+            return vd.getHandle();
         }
-        final VolumeDescriptor vd = new VolumeDescriptor(volume);
-        return volume.setHandle(handleForVolume(vd));
-    }
-
-    public synchronized int handleForVolume(final VolumeDescriptor vd) throws PersistitIOException {
         Integer handle = _volumeToHandleMap.get(vd);
         if (handle == null) {
             handle = Integer.valueOf(++_handleCounter);
@@ -465,7 +460,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
     }
 
     Volume volumeForHandle(final int handle) throws PersistitException {
-        final VolumeDescriptor vd = lookupVolumeHandle(handle);
+        final Volume vd = lookupVolumeHandle(handle);
         if (vd == null) {
             return null;
         }
@@ -473,7 +468,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
     }
 
     @Override
-    public synchronized VolumeDescriptor lookupVolumeHandle(final int handle) {
+    public synchronized Volume lookupVolumeHandle(final int handle) {
         return _handleToVolumeMap.get(Integer.valueOf(handle));
     }
 
@@ -528,10 +523,9 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
         final ByteBuffer bb = buffer.getByteBuffer();
 
         final Volume volume = buffer.getVolume();
-        final VolumeDescriptor vd = new VolumeDescriptor(volume);
         PageNode pn = null;
         synchronized (this) {
-            final Integer volumeHandle = _volumeToHandleMap.get(vd);
+            final Integer volumeHandle = _volumeToHandleMap.get(volume);
             if (volumeHandle != null) {
                 pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
             }
@@ -874,8 +868,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
      * @param handle
      * @throws PersistitIOException
      */
-    synchronized void writeVolumeHandleToJournal(final VolumeDescriptor volume, final int handle)
-            throws PersistitIOException {
+    synchronized void writeVolumeHandleToJournal(final Volume volume, final int handle) throws PersistitIOException {
         prepareWriteBuffer(IV.MAX_LENGTH);
         IV.putType(_writeBuffer);
         IV.putHandle(_writeBuffer, handle);
@@ -1329,7 +1322,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
         // Write IV (identify volume) records for each volume in the handle
         // map
         //
-        for (final Map.Entry<Integer, VolumeDescriptor> entry : _handleToVolumeMap.entrySet()) {
+        for (final Map.Entry<Integer, Volume> entry : _handleToVolumeMap.entrySet()) {
             writeVolumeHandleToJournal(entry.getValue(), entry.getKey().intValue());
         }
         //
@@ -1394,8 +1387,8 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
                         // ignore;
                     }
                 }
-                pagesLeft = _pageMap.size();
             }
+            pagesLeft = _pageMap.size();
         }
     }
 
@@ -1455,51 +1448,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
             if (pageNode.getTimestamp() < recoveryTimestamp) {
                 iterator.remove();
             }
-        }
-
-    }
-
-    static class VolumeDescriptor {
-
-        private final long _id;
-
-        private final String _name;
-
-        VolumeDescriptor(final String name, final long id) {
-            this._name = name;
-            this._id = id;
-        }
-
-        VolumeDescriptor(final Volume volume) {
-            _name = volume.getName();
-            _id = volume.getId();
-        }
-
-        String getName() {
-            return _name;
-        }
-
-        long getId() {
-            return _id;
-        }
-
-        @Override
-        public boolean equals(final Object object) {
-            if (object == null || !(object instanceof VolumeDescriptor)) {
-                return false;
-            }
-            final VolumeDescriptor vd = (VolumeDescriptor) object;
-            return vd._name.equals(_name) && vd._id == _id;
-        }
-
-        @Override
-        public int hashCode() {
-            return _name.hashCode() ^ (int) _id;
-        }
-
-        @Override
-        public String toString() {
-            return _name;
         }
 
     }
@@ -1641,7 +1589,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
         }
 
         public String toString(final JournalManager jman) {
-            final VolumeDescriptor vd = jman._handleToVolumeMap.get(_volumeHandle);
+            final Volume vd = jman._handleToVolumeMap.get(_volumeHandle);
             if (vd == null) {
                 return toString();
             }
@@ -1650,7 +1598,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
         }
 
         public String toStringPageAddress(final VolumeHandleLookup lvh) {
-            final VolumeDescriptor vd = lvh.lookupVolumeHandle(_volumeHandle);
+            final Volume vd = lvh.lookupVolumeHandle(_volumeHandle);
             return String.format("%s:%d", vd == null ? String.valueOf(_volumeHandle) : vd.toString(), _pageAddress);
         }
 
@@ -1831,7 +1779,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
         }
 
         Volume volume = null;
-        VolumeDescriptor vd = null;
+        Volume vd = null;
         int handle = -1;
 
         final HashSet<Volume> volumes = new HashSet<Volume>();
@@ -2034,7 +1982,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
      * 
      * @param handleToVolumeMap
      */
-    synchronized void unitTestInjectVolumes(final Map<Integer, VolumeDescriptor> handleToVolumeMap) {
+    synchronized void unitTestInjectVolumes(final Map<Integer, Volume> handleToVolumeMap) {
         _handleToVolumeMap.putAll(handleToVolumeMap);
     }
 

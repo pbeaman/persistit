@@ -14,7 +14,6 @@
  */
 package com.persistit;
 
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -25,7 +24,13 @@ import com.persistit.exception.WrongVolumeException;
 
 /**
  * Represent the identity and optionally the service classes that manage a
- * volume.
+ * volume. A newly constructed Volume is "hollow" in the sense that it has no
+ * ability to perform I/O on a backing file or allocate pages. In this state it
+ * represents the identity, but not the content, of the volume.
+ * <p />
+ * To enable the <code>Volume</code> to act on data, you must supply a
+ * {@link VolumeSpecification} object, either through the constructor or with
+ * #setSpecification call either the {@link #open(Persistit)} method.
  * 
  * @author peter
  */
@@ -51,12 +56,18 @@ public class Volume {
         return false;
     }
 
-    public Volume(final String name, final long id) {
+    /**
+     * Construct a hollow Volume - used by JournalManager
+     * 
+     * @param name
+     * @param id
+     */
+    Volume(final String name, final long id) {
         _name = name;
         _id = id;
     }
 
-    public Volume(final VolumeSpecification specification) {
+    Volume(final VolumeSpecification specification) {
         this(specification.getName(), specification.getId());
         _specification = specification;
     }
@@ -89,7 +100,23 @@ public class Volume {
         return _structure;
     }
 
-    String getPath() {
+    void setSpecification(final VolumeSpecification specification) {
+        if (_specification != null) {
+            throw new IllegalStateException("Volume " + this + " already has a VolumeSpecification");
+        }
+        if (specification.getName().equals(_name) && specification.getId() == _id) {
+            _specification = specification;
+        } else {
+            throw new IllegalStateException("Volume " + this + " is incompatible with " + specification);
+        }
+    }
+
+    /**
+     * Returns the path name by which this volume was opened.
+     * 
+     * @return The path name
+     */
+    public String getPath() {
         return getStorage().getPath();
     }
 
@@ -237,6 +264,7 @@ public class Volume {
             throw new WrongVolumeException(this + "id " + _id + " does not match expected id " + id);
         }
     }
+
     /**
      * Store an Object with this Volume for the convenience of an application.
      * 
@@ -296,6 +324,10 @@ public class Volume {
 
     @Override
     public boolean equals(Object o) {
-        return this == o;
+        if (o instanceof Volume) {
+            final Volume volume = (Volume) o;
+            return volume.getName().equals(getName()) && volume.getId() == getId();
+        }
+        return false;
     }
 }

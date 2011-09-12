@@ -28,7 +28,6 @@ import org.junit.Test;
 
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TreeDescriptor;
-import com.persistit.JournalManager.VolumeDescriptor;
 import com.persistit.RecoveryManager.RecoveryListener;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
@@ -286,8 +285,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     @Test
     public void testLargePageMap() throws Exception {
-        final VolumeDescriptor vd = new VolumeDescriptor("foo", 123);
-        final Map<Integer, VolumeDescriptor> volumeMap = new TreeMap<Integer, VolumeDescriptor>();
+        final Volume vd = new Volume("foo", 123);
+        final Map<Integer, Volume> volumeMap = new TreeMap<Integer, Volume>();
         volumeMap.put(1, vd);
         // sorted to make reading hex dumps easier
         final Map<PageNode, PageNode> pageMap = new TreeMap<PageNode, PageNode>();
@@ -332,7 +331,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     public void testVolumeMetadataValid() throws Exception {
         // create a junk volume to make sure the internal handle count is bumped
         // up
-        VolumeDescriptor vd = new VolumeDescriptor("foo", 123);
+        Volume vd = new Volume("foo", 123);
         int volumeHandle = _persistit.getJournalManager().handleForVolume(vd);
         // retrieve the value of the handle counter before crashing
         int initialHandleValue = _persistit.getJournalManager().getHandleCount();

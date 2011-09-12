@@ -42,7 +42,6 @@ import java.util.TreeSet;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TransactionStatus;
 import com.persistit.JournalManager.TreeDescriptor;
-import com.persistit.JournalManager.VolumeDescriptor;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.CU;
 import com.persistit.JournalRecord.DR;
@@ -159,9 +158,9 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     private final Map<PageNode, PageNode> _branchMap = new HashMap<PageNode, PageNode>();
 
-    private final Map<VolumeDescriptor, Integer> _volumeToHandleMap = new HashMap<VolumeDescriptor, Integer>();
+    private final Map<Volume, Integer> _volumeToHandleMap = new HashMap<Volume, Integer>();
 
-    private final Map<Integer, VolumeDescriptor> _handleToVolumeMap = new HashMap<Integer, VolumeDescriptor>();
+    private final Map<Integer, Volume> _handleToVolumeMap = new HashMap<Integer, Volume>();
 
     private final Map<TreeDescriptor, Integer> _treeToHandleMap = new HashMap<TreeDescriptor, Integer>();
 
@@ -433,7 +432,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     }
 
     @Override
-    public synchronized VolumeDescriptor lookupVolumeHandle(final int handle) {
+    public synchronized Volume lookupVolumeHandle(final int handle) {
         return _handleToVolumeMap.get(Integer.valueOf(handle));
     }
 
@@ -478,8 +477,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
     }
 
-    void collectRecoveredVolumeMaps(final Map<Integer, VolumeDescriptor> handleToVolumeMap,
-            final Map<VolumeDescriptor, Integer> volumeToHandleMap) {
+    void collectRecoveredVolumeMaps(final Map<Integer, Volume> handleToVolumeMap,
+            final Map<Volume, Integer> volumeToHandleMap) {
         volumeToHandleMap.putAll(_volumeToHandleMap);
         handleToVolumeMap.putAll(_handleToVolumeMap);
     }
@@ -820,7 +819,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final Integer handle = Integer.valueOf(IV.getHandle(_readBuffer));
         final String name = IV.getVolumeName(_readBuffer);
         final long volumeId = IV.getVolumeId(_readBuffer);
-        VolumeDescriptor vd = new VolumeDescriptor(name, volumeId);
+        Volume vd = new Volume(name, volumeId);
 
         _handleToVolumeMap.put(handle, vd);
         _volumeToHandleMap.put(vd, handle);
@@ -876,7 +875,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             final int volumeHandle = PA.getVolumeHandle(_readBuffer);
             final long pageAddress = PA.getPageAddress(_readBuffer);
 
-            VolumeDescriptor vd = _handleToVolumeMap.get(volumeHandle);
+            Volume vd = _handleToVolumeMap.get(volumeHandle);
             if (vd == null) {
                 throw new CorruptJournalException("PA reference to volume " + volumeHandle
                         + " is not preceded by an IV record for that handle at " + addressToString(address, timestamp));
@@ -922,7 +921,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 }
             }
             final int volumeHandle = PM.getEntryVolumeHandle(_readBuffer, index);
-            final VolumeDescriptor vd = _handleToVolumeMap.get(volumeHandle);
+            final Volume vd = _handleToVolumeMap.get(volumeHandle);
             if (vd == null) {
                 throw new CorruptJournalException("Page map refers to undefined volume handle " + volumeHandle
                         + " in entry " + (count - remaining + 1) + " at " + addressToString(from, timestamp));
@@ -1576,7 +1575,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             throw new CorruptJournalException("Tree handle " + treeHandle + " is undefined at "
                     + addressToString(from, timestamp));
         }
-        final VolumeDescriptor vd = _handleToVolumeMap.get(td.getVolumeHandle());
+        final Volume vd = _handleToVolumeMap.get(td.getVolumeHandle());
         if (vd == null) {
             throw new CorruptJournalException("Volume handle " + td.getVolumeHandle() + " is undefined at "
                     + addressToString(from, timestamp));
@@ -1608,7 +1607,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         println("Recovered transaction count committed=%,d uncommitted=%,d", getCommittedCount(), getUncommittedCount());
         println("Recovered page count: %,d", getPageMapSize());
         println("Volume handle map--");
-        for (final Map.Entry<Integer, VolumeDescriptor> entry : _handleToVolumeMap.entrySet()) {
+        for (final Map.Entry<Integer, Volume> entry : _handleToVolumeMap.entrySet()) {
             println(" %5d->%s", entry.getKey(), entry.getValue());
         }
         println("Tree handle map--");
