@@ -280,7 +280,7 @@ public class BufferPool {
     }
 
     int hashIndex(Volume vol, long page) {
-        return (int) ((page ^ vol.hashCode()) % _hashTable.length);
+        return (int) (((page ^ vol.hashCode()) & Integer.MAX_VALUE) % _hashTable.length);
     }
 
     int countDirty(Volume vol) {

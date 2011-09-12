@@ -205,6 +205,16 @@ public class Persistit {
      * Property name for specifying the transaction volume name
      */
     public final static String TXN_VOLUME_PROPERTY = "txnvolume";
+    
+    /**
+     * Property name for specifying default temporary volume page size
+     */
+    public final static String TEMPORARY_VOLUME_PAGE_SIZE_NAME = "tvpagesize";
+
+    /**
+     * Property name for specifying default temporary volume directory
+     */
+    public final static String TEMPORARY_VOLUME_DIR_NAME = "tvdirectory";
 
     /**
      * Property name for specifying whether Persistit should display diagnostic
@@ -1160,6 +1170,28 @@ public class Persistit {
         return volume;
     }
 
+    public Volume createTemporaryVolume() throws PersistitException {
+        final int pageSize = (int)getLongProperty(TEMPORARY_VOLUME_PAGE_SIZE_NAME, 16384, 0, 99999);
+        return createTemporaryVolume(pageSize);
+    }
+    /**
+     * Create a temporary volume. A temporary volume is not durable; it should
+     * be used to hold temporary data such as intermediate sort or aggregation
+     * results that can be recreated in the event the system restarts.
+     * 
+     * @param volumeSpec
+     * @return the temporary <code>Volume</code>.
+     * @throws PersistitException
+     */
+    public Volume createTemporaryVolume(final int pageSize) throws PersistitException {
+        if (!Volume.isValidPageSize(pageSize)) {
+            throw new IllegalArgumentException("Invalid page size " + pageSize);
+        }
+        Volume volume = new Volume(Thread.currentThread().getName() + "_temporary_volume", 12345);
+        volume.openTemporary(this, pageSize);
+        return volume;
+    }
+
     /**
      * Delete a volume currently loaded volume and remove it from the list
      * returned by {@link #getVolumes()}.
@@ -2000,7 +2032,7 @@ public class Persistit {
         return _timestampAllocator;
     }
 
-    public IOMeter getIOMeter() {
+    IOMeter getIOMeter() {
         return _ioMeter;
     }
 

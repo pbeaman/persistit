@@ -102,7 +102,7 @@ class VolumeHeader {
         return Util.changeLong(bytes, 40, value);
     }
 
-    static long getwriteCounter(final byte[] bytes) {
+    static long getWriteCounter(final byte[] bytes) {
         return Util.getLong(bytes, 48);
     }
 

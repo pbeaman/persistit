@@ -46,10 +46,10 @@ class VolumeStructure {
     private Map<String, WeakReference<Tree>> _treeNameHashMap = new HashMap<String, WeakReference<Tree>>();
     private Tree _directoryTree;
 
-    VolumeStructure(final Persistit persistit, final Volume volume) {
+    VolumeStructure(final Persistit persistit, final Volume volume, int pageSize) {
         _persistit = persistit;
         _volume = volume;
-        _pageSize = volume.getSpecification().getPageSize();
+        _pageSize = pageSize;
         _pool = persistit.getBufferPool(_pageSize);
     }
 

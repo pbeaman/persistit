@@ -448,7 +448,8 @@ public final class Buffer extends SharedResource {
             VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException {
         Debug.$assert0.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
-        if (isDirty() && getTimestamp() < checkpoint.getTimestamp() && timestamp > checkpoint.getTimestamp()) {
+        if (isDirty() && !isTemporary() && getTimestamp() < checkpoint.getTimestamp()
+                && timestamp > checkpoint.getTimestamp()) {
             writePage();
         }
     }

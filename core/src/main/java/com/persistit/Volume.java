@@ -112,6 +112,32 @@ public class Volume {
     }
 
     /**
+     * Closes all resources for this <code>Volume</code> and invalidates all its
+     * buffers in the {@link BufferPool}. Exchanges based on this
+     * <code>Volume</code> may no longer be used after this call.
+     * 
+     * @throws PersistitException
+     */
+    public void close() throws PersistitException {
+        getStructure().getPool().invalidate(this);
+        getStorage().close();
+    }
+
+    /**
+     * Remove all data from this volume. This is equivalent to deleting and then
+     * recreating the <code>Volume</code> except that it does not actually
+     * delete and close the file. Instead, this method truncates the file,
+     * rewrites the head page, and invalidates all buffers belonging to this
+     * <code>Volume</code> in the {@link BufferPool}.
+     * 
+     * @throws PersistitException
+     */
+    public void truncate() throws PersistitException {
+        getStructure().getPool().invalidate(this);
+        getStorage().truncate();
+    }
+
+    /**
      * Returns the path name by which this volume was opened.
      * 
      * @return The path name
@@ -129,7 +155,7 @@ public class Volume {
     }
 
     boolean isTemporary() { // TODO
-        return false;
+        return getStorage().isTemp();
     }
 
     /**
@@ -193,11 +219,11 @@ public class Volume {
             return null;
         }
     }
-    
+
     /**
-     * Indicate whether this <code>Volume</code> has been opened or
-     * created, i.e., whether a backing volume file has been created
-     * or opened.
+     * Indicate whether this <code>Volume</code> has been opened or created,
+     * i.e., whether a backing volume file has been created or opened.
+     * 
      * @return <code>true</code> if there is a backing volume file.
      */
     public boolean isOpened() {
@@ -228,7 +254,7 @@ public class Volume {
      * 
      * @throws PersistitException
      */
-    public void open(final Persistit persistit) throws PersistitException {
+    void open(final Persistit persistit) throws PersistitException {
         if (_specification == null) {
             throw new IllegalStateException("Missing VolumeSpecification");
         }
@@ -236,9 +262,9 @@ public class Volume {
             throw new IllegalStateException("This volume has already been opened");
         }
         final boolean exists = VolumeHeader.verifyVolumeHeader(_specification);
-        
-        _structure = new VolumeStructure(persistit, this);
-        _storage = new VolumeStorage(persistit, this);
+
+        _structure = new VolumeStructure(persistit, this, _specification.getPageSize());
+        _storage = new VolumeStorageV2(persistit, this);
         _statistics = new VolumeStatistics();
 
         if (exists) {
@@ -251,9 +277,20 @@ public class Volume {
                 throw new VolumeNotFoundException(_specification.getPath());
             }
             _storage.create();
-            
+
         }
         persistit.addVolume(this);
+    }
+
+    void openTemporary(final Persistit persistit, final int pageSize) throws PersistitException {
+        if (_storage != null) {
+            throw new IllegalStateException("This volume has already been opened");
+        }
+        _structure = new VolumeStructure(persistit, this, pageSize);
+        _storage = new VolumeStorageT2(persistit, this);
+        _statistics = new VolumeStatistics();
+
+        _storage.create();
     }
 
     public String getName() {

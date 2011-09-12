@@ -259,7 +259,7 @@ public class VolumeSpecification {
     }
 
     public void setPageSize(final int value) throws InvalidVolumeSpecificationException {
-        if (value > Integer.MAX_VALUE || value < 0 || !Volume.isValidPageSize((int) value)) {
+        if (!Volume.isValidPageSize(value)) {
             throw new InvalidVolumeSpecificationException("Invalid pageSize " + value);
         }
 
