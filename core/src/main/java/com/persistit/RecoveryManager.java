@@ -819,10 +819,10 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final Integer handle = Integer.valueOf(IV.getHandle(_readBuffer));
         final String name = IV.getVolumeName(_readBuffer);
         final long volumeId = IV.getVolumeId(_readBuffer);
-        Volume vd = new Volume(name, volumeId);
+        Volume volume = new Volume(name, volumeId);
 
-        _handleToVolumeMap.put(handle, vd);
-        _volumeToHandleMap.put(vd, handle);
+        _handleToVolumeMap.put(handle, volume);
+        _volumeToHandleMap.put(volume, handle);
 
         _persistit.getLogBase().recoveryRecord.log("IV", addressToString(address, timestamp), name, timestamp);
     }
@@ -875,8 +875,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             final int volumeHandle = PA.getVolumeHandle(_readBuffer);
             final long pageAddress = PA.getPageAddress(_readBuffer);
 
-            Volume vd = _handleToVolumeMap.get(volumeHandle);
-            if (vd == null) {
+            Volume volume = _handleToVolumeMap.get(volumeHandle);
+            if (volume == null) {
                 throw new CorruptJournalException("PA reference to volume " + volumeHandle
                         + " is not preceded by an IV record for that handle at " + addressToString(address, timestamp));
             }
@@ -921,8 +921,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 }
             }
             final int volumeHandle = PM.getEntryVolumeHandle(_readBuffer, index);
-            final Volume vd = _handleToVolumeMap.get(volumeHandle);
-            if (vd == null) {
+            final Volume volume = _handleToVolumeMap.get(volumeHandle);
+            if (volume == null) {
                 throw new CorruptJournalException("Page map refers to undefined volume handle " + volumeHandle
                         + " in entry " + (count - remaining + 1) + " at " + addressToString(from, timestamp));
             }
@@ -1082,8 +1082,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             }
         }
 
-        _persistit.getLogBase().checkpointRecovered.log(checkpoint, addressToString(address, checkpoint
-                .getTimestamp()));
+        _persistit.getLogBase().checkpointRecovered
+                .log(checkpoint, addressToString(address, checkpoint.getTimestamp()));
         _persistit.getLogBase().recoveryRecord.log("CP", addressToString(address, timestamp), checkpoint
                 + " pageMap.size()=" + _pageMap.size(), timestamp);
     }
@@ -1279,8 +1279,9 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 applyTransaction(ts, listener);
                 _appliedTransactionCount++;
                 if (_appliedTransactionCount % APPLY_TRANSACTION_LOG_COUNT == 0) {
-                    _persistit.getLogBase().recoveryProgress.log(_appliedTransactionCount,
-                            _recoveredTransactionMap.size() - _appliedTransactionCount);
+                    _persistit.getLogBase().recoveryProgress.log(_appliedTransactionCount, _recoveredTransactionMap
+                            .size()
+                            - _appliedTransactionCount);
                 }
                 previous = ts;
             } catch (TestException te) {
@@ -1575,18 +1576,21 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             throw new CorruptJournalException("Tree handle " + treeHandle + " is undefined at "
                     + addressToString(from, timestamp));
         }
-        final Volume vd = _handleToVolumeMap.get(td.getVolumeHandle());
-        if (vd == null) {
+        Volume volume = _handleToVolumeMap.get(td.getVolumeHandle());
+        if (volume == null) {
             throw new CorruptJournalException("Volume handle " + td.getVolumeHandle() + " is undefined at "
                     + addressToString(from, timestamp));
         }
 
-        final Volume volume = _persistit.getVolume(vd.getName());
-        if (volume == null) {
-            throw new CorruptJournalException("No matching Volume found for journal reference " + vd + " at "
-                    + addressToString(from, timestamp));
+        if (!volume.isOpened()) {
+            volume = _persistit.getVolume(volume.getName());
+            if (volume == null) {
+                throw new CorruptJournalException("No matching Volume found for journal reference " + volume + " at "
+                        + addressToString(from, timestamp));
+            }
+            _handleToVolumeMap.put(td.getVolumeHandle(), volume);
         }
-        volume.verifyId(vd.getId());
+        volume.verifyId(volume.getId());
 
         return _persistit.getExchange(volume, td.getTreeName(), true);
     }

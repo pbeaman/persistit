@@ -408,17 +408,17 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
         return Math.min(urgency, URGENT);
     }
 
-    public synchronized int handleForVolume(final Volume vd) throws PersistitIOException {
-        if (vd.getHandle() != 0) {
-            return vd.getHandle();
+    public synchronized int handleForVolume(final Volume volume) throws PersistitIOException {
+        if (volume.getHandle() != 0) {
+            return volume.getHandle();
         }
-        Integer handle = _volumeToHandleMap.get(vd);
+        Integer handle = _volumeToHandleMap.get(volume);
         if (handle == null) {
             handle = Integer.valueOf(++_handleCounter);
             Debug.$assert0.t(!_handleToVolumeMap.containsKey(handle));
-            writeVolumeHandleToJournal(vd, handle.intValue());
-            _volumeToHandleMap.put(vd, handle);
-            _handleToVolumeMap.put(handle, vd);
+            writeVolumeHandleToJournal(volume, handle.intValue());
+            _volumeToHandleMap.put(volume, handle);
+            _handleToVolumeMap.put(handle, volume);
         }
         return handle.intValue();
     }
@@ -460,11 +460,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
     }
 
     Volume volumeForHandle(final int handle) throws PersistitException {
-        final Volume vd = lookupVolumeHandle(handle);
-        if (vd == null) {
+        final Volume volume = lookupVolumeHandle(handle);
+        if (volume == null) {
             return null;
         }
-        return _persistit.getVolume(vd.getName());
+        return _persistit.getVolume(volume.getName());
     }
 
     @Override
@@ -1589,17 +1589,17 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
         }
 
         public String toString(final JournalManager jman) {
-            final Volume vd = jman._handleToVolumeMap.get(_volumeHandle);
-            if (vd == null) {
+            final Volume volume = jman._handleToVolumeMap.get(_volumeHandle);
+            if (volume == null) {
                 return toString();
             }
-            return String.format("%s:%d@%d{%d}%s", vd, _pageAddress, _journalAddress, _timestamp,
+            return String.format("%s:%d@%d{%d}%s", volume, _pageAddress, _journalAddress, _timestamp,
                     _previous == null ? "" : "+");
         }
 
         public String toStringPageAddress(final VolumeHandleLookup lvh) {
-            final Volume vd = lvh.lookupVolumeHandle(_volumeHandle);
-            return String.format("%s:%d", vd == null ? String.valueOf(_volumeHandle) : vd.toString(), _pageAddress);
+            final Volume volume = lvh.lookupVolumeHandle(_volumeHandle);
+            return String.format("%s:%d", volume == null ? String.valueOf(_volumeHandle) : volume.toString(), _pageAddress);
         }
 
         public String toStringJournalAddress(final VolumeHandleLookup lvn) {
@@ -1779,7 +1779,6 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
         }
 
         Volume volume = null;
-        Volume vd = null;
         int handle = -1;
 
         final HashSet<Volume> volumes = new HashSet<Volume>();
@@ -1792,13 +1791,11 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
             final PageNode pageNode = iterator.next();
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
-                volume = null;
-                vd = null;
-                vd = _handleToVolumeMap.get(pageNode.getVolumeHandle());
-                if (vd == null) {
+                volume = _handleToVolumeMap.get(pageNode.getVolumeHandle());
+                if (volume == null) {
                     // TODO
                 } else {
-                    volume = _persistit.getVolume(vd.getName());
+                    volume = _persistit.getVolume(volume.getName());
                 }
 
             }
@@ -1809,7 +1806,7 @@ class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, Transa
                 continue;
             }
 
-            volume.verifyId(vd.getId());
+            volume.verifyId(volume.getId());
 
             final long pageAddress = readPageBufferFromJournal(pageNode, bb);
 

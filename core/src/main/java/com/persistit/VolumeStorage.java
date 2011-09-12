@@ -77,6 +77,7 @@ class VolumeStorage extends SharedResource {
 
     private volatile long _nextAvailablePage;
     private volatile long _extendedPageCount;
+    private volatile boolean _opened;
     private volatile boolean _closed;
     private volatile IOException _lastIOException;
 
@@ -146,7 +147,6 @@ class VolumeStorage extends SharedResource {
         if (exists()) {
             throw new VolumeAlreadyExistsException(getPath());
         }
-        boolean created = false;
         try {
             _channel = new RandomAccessFile(getPath(), "rw").getChannel();
             lockChannel();
@@ -177,7 +177,7 @@ class VolumeStorage extends SharedResource {
             
             struc.init(0, 0);
             flushMetaData();
-            created = true;
+            _opened = true;
         } catch (IOException ioe) {
             if (_headBuffer != null) {
                 _headBuffer.clearFixed();
@@ -190,7 +190,7 @@ class VolumeStorage extends SharedResource {
             if (_headBuffer != null) {
                 _headBuffer.release();
             }
-            if (!created) {
+            if (!_opened) {
                 try {
                     _channel.close();
                     _channel = null;
@@ -254,7 +254,8 @@ class VolumeStorage extends SharedResource {
             struc.init(directoryRootPage, garbageRootPage);
             
             flushMetaData();
-
+            _opened = true;
+            
         } catch (IOException ioe) {
             if (_headBuffer != null) {
                 _headBuffer.clearFixed();
@@ -340,6 +341,10 @@ class VolumeStorage extends SharedResource {
             }
             _closed = true;
         }
+    }
+
+    boolean isOpened() {
+        return _opened;
     }
 
     boolean isClosed() {

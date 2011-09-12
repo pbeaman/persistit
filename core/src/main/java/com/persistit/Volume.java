@@ -175,7 +175,7 @@ public class Volume {
 
     /**
      * Return a TreeInfo structure for a tree by the specified name. If there is
-     * no such tree, then return <i>null</i>.
+     * no such tree, then return <code>null</code>.
      * 
      * @param tree
      *            name
@@ -193,20 +193,30 @@ public class Volume {
             return null;
         }
     }
+    
+    /**
+     * Indicate whether this <code>Volume</code> has been opened or
+     * created, i.e., whether a backing volume file has been created
+     * or opened.
+     * @return <code>true</code> if there is a backing volume file.
+     */
+    public boolean isOpened() {
+        return _storage != null && _storage.isOpened();
+    }
 
     /**
-     * Indicates whether this <code>Volume</code> has been closed.
+     * Indicate whether this <code>Volume</code> has been closed.
      * 
-     * @return <i>true</i> if this Volume is closed.
+     * @return <code>true</code> if this Volume is closed.
      */
     public boolean isClosed() {
-        return getStorage().isClosed();
+        return _storage != null && _storage.isClosed();
     }
 
     /**
      * Indicates whether this <code>Volume</code> prohibits updates.
      * 
-     * @return <i>true</i> if this Volume prohibits updates.
+     * @return <code>true</code> if this Volume prohibits updates.
      */
     public boolean isReadOnly() {
         return getStorage().isReadOnly();
@@ -226,6 +236,7 @@ public class Volume {
             throw new IllegalStateException("This volume has already been opened");
         }
         final boolean exists = VolumeHeader.verifyVolumeHeader(_specification);
+        
         _structure = new VolumeStructure(persistit, this);
         _storage = new VolumeStorage(persistit, this);
         _statistics = new VolumeStatistics();
@@ -240,6 +251,7 @@ public class Volume {
                 throw new VolumeNotFoundException(_specification.getPath());
             }
             _storage.create();
+            
         }
         persistit.addVolume(this);
     }
