@@ -65,7 +65,7 @@ class VolumeStorageT2 extends VolumeStorage {
      * Returns <code>null</code> if there have been no <code>IOException</code>s
      * since the volume was opened. If <code>reset</code> is <code>true</code>,
      * the lastException field is cleared so that a subsequent call to this
-     * method will return <code>null</code> unless another
+     * method will return <code>null</code> until another
      * <code>IOException</code> has occurred.
      * 
      * @param reset

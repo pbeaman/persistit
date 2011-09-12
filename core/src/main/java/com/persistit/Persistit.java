@@ -205,7 +205,7 @@ public class Persistit {
      * Property name for specifying the transaction volume name
      */
     public final static String TXN_VOLUME_PROPERTY = "txnvolume";
-    
+
     /**
      * Property name for specifying default temporary volume page size
      */
@@ -1170,16 +1170,39 @@ public class Persistit {
         return volume;
     }
 
-    public Volume createTemporaryVolume() throws PersistitException {
-        final int pageSize = (int)getLongProperty(TEMPORARY_VOLUME_PAGE_SIZE_NAME, 16384, 0, 99999);
-        return createTemporaryVolume(pageSize);
-    }
     /**
      * Create a temporary volume. A temporary volume is not durable; it should
      * be used to hold temporary data such as intermediate sort or aggregation
      * results that can be recreated in the event the system restarts.
+     * <p />
+     * The temporary volume page size is can be specified by the configuration property
+     * <code>tvpagesize</code>.  The default value is 16,384.
+     * <p />
+     * The backing store file for a temporary volume is created in the directory
+     * specified by the configuration property <code>tvdirectory</code>, or if
+     * unspecified, the system temporary directory..
      * 
-     * @param volumeSpec
+     * @return the temporary <code>Volume</code>.
+     * @throws PersistitException
+     */
+    public Volume createTemporaryVolume() throws PersistitException {
+        final int pageSize = (int) getLongProperty(TEMPORARY_VOLUME_PAGE_SIZE_NAME, 16384, 0, 99999);
+        return createTemporaryVolume(pageSize);
+    }
+
+    /**
+     * Create a temporary volume. A temporary volume is not durable; it should
+     * be used to hold temporary data such as intermediate sort or aggregation
+     * results that can be recreated in the event the system restarts.
+     * <p />
+     * The backing store file for a temporary volume is created in the directory
+     * specified by the configuration property <code>tvdirectory</code>, or if
+     * unspecified, the system temporary directory..
+     * 
+     * @param pageSize
+     *            The page size for the volume. Must be one of 1024, 2048, 4096,
+     *            8192 or 16384, and the volume will be usable only if there are
+     *            buffers of the specified size in the {@link BufferPool}.
      * @return the temporary <code>Volume</code>.
      * @throws PersistitException
      */

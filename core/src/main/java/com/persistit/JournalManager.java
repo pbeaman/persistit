@@ -443,8 +443,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         if (tree.getHandle() != 0) {
             return tree.getHandle();
         }
-        final TreeDescriptor td = new TreeDescriptor(handleForVolume(tree.getVolume()), tree.getName());
-        return tree.setHandle(handleForTree(td));
+        synchronized (this) {
+            if (tree.getHandle() != 0) {
+                return tree.getHandle();
+            }
+            final TreeDescriptor td = new TreeDescriptor(handleForVolume(tree.getVolume()), tree.getName());
+            return tree.setHandle(handleForTree(td));
+        }
     }
 
     Tree treeForHandle(final int handle) throws PersistitException {
@@ -1599,7 +1604,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
         public String toStringPageAddress(final VolumeHandleLookup lvh) {
             final Volume volume = lvh.lookupVolumeHandle(_volumeHandle);
-            return String.format("%s:%d", volume == null ? String.valueOf(_volumeHandle) : volume.toString(), _pageAddress);
+            return String.format("%s:%d", volume == null ? String.valueOf(_volumeHandle) : volume.toString(),
+                    _pageAddress);
         }
 
         public String toStringJournalAddress(final VolumeHandleLookup lvn) {

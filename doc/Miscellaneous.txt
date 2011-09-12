@@ -7,11 +7,23 @@ Following are some short items you may find useful as you explore Akiban Persist
 
 The method +com.persistit.Exchange#computeHistogram+ class provides a way to sample and summarize a set of keys in a +Tree+.  It works by traversing keys in index pages near the root of the tree.  Because only a small fraction of all the keys in the tree are represented in the index, this can result in relatively small sample set of keys relatively quickly. The result can be used to estimate the actual number of keys.
 
-== Transient Volumes
+== Temporary Volumes
 
-A Persistit transient volume is a special kind of Volume that is deleted when Persistit is closed. Each time Persistit starts up, volumes marked as +transient+ are reinitialized to an empty state. The update mechanism for temporary volumes avoids writing to disk whenever possible, and its contents are not recoverable Persistit shuts down. Therefore in some cases database operations on temporary volumes are faster.
+A Persistit temporary volume is a special kind of non-durable Volume that is simply deleted when Persistit is closed. The update mechanism for temporary volumes avoids writing to disk whenever possible. Temporary volumes are suitable for holding intermediate results of operations such as sorting data that may be arbitrarily large, but do not need to be saved.
 
-The primary use case for a temporary volume is an application that needs the unlimited size, but not the persistence of normal Persistit volumes.
+The following example shows how to create and use a temporary volume:
+
+[source,java]
+----
+final Volume volume = persistit.createTemporaryVolume();
+final Exchange exchange = persistit.getExchange(volume, "myTree", true);
+
+... use the exchange ...
+
+volume.close();
+----
+
+The +com.persistit.Volume#close+ method closes the volume and (if it is a temporary volume) deletes its backing file. Alternatively, call the +com.persistit.Volume#truncate+ method to remove all data from the temporary volume if you intend to reuse the backing file.  (After calling +truncate+ or close+, any +Exchange+ instance previously created using that volume are not usable and should be discarded.)
 
 See com.persistit.Volume for details.
 
