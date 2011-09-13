@@ -119,8 +119,31 @@ public class Volume {
      * @throws PersistitException
      */
     public void close() throws PersistitException {
-        getStructure().getPool().invalidate(this);
-        getStorage().close();
+        for (;;) {
+            //
+            // Prevents read/write operations from starting while the
+            // volume is being closed.
+            //
+            getStorage().claim(true);
+            try {
+                //
+                // BufferPool#invalidate may fail and return false if other
+                // threads hold claims on pages of this volume. In that case we
+                // need to back off all locks and retry
+                //
+                if (getStructure().getPool().invalidate(this)) {
+                    getStorage().close();
+                    break;
+                }
+            } finally {
+                getStorage().release();
+            }
+            try {
+                Thread.sleep(Persistit.SHORT_DELAY);
+            } catch (InterruptedException ie) {
+                throw new PersistitException(ie);
+            }
+        }
     }
 
     /**
@@ -133,8 +156,31 @@ public class Volume {
      * @throws PersistitException
      */
     public void truncate() throws PersistitException {
-        getStructure().getPool().invalidate(this);
-        getStorage().truncate();
+        for (;;) {
+            //
+            // Prevents read/write operations from starting while the
+            // volume is being closed.
+            //
+            getStorage().claim(true);
+            try {
+                //
+                // BufferPool#invalidate may fail and return false if other
+                // threads hold claims on pages of this volume. In that case we
+                // need to back off all locks and retry
+                //
+                if (getStructure().getPool().invalidate(this)) {
+                    getStorage().truncate();
+                    break;
+                }
+            } finally {
+                getStorage().release();
+            }
+            try {
+                Thread.sleep(Persistit.SHORT_DELAY);
+            } catch (InterruptedException ie) {
+                throw new PersistitException(ie);
+            }
+        }
     }
 
     /**

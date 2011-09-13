@@ -61,8 +61,8 @@ import com.persistit.exception.VolumeFullException;
 import com.persistit.exception.VolumeNotFoundException;
 
 /**
- * Manage all details of file I/O for a <code>Volume</code> backing file
- * for Version 2.xx storage formats.
+ * Manage all details of file I/O for a <code>Volume</code> backing file for
+ * Version 2.xx storage formats.
  * 
  * @author peter
  */
@@ -327,19 +327,18 @@ class VolumeStorageV2 extends VolumeStorage {
         if (pe != null) {
             throw pe;
         }
-
     }
-    
+
     /**
-     * Truncate an existing volume.  This method deletes all existing data
-     * in the volume. It is equivalent to deleting the volume and creating
-     * a new one using the same VolumeSpecifications; however the file is
-     * never actually deleted by this operation.
+     * Truncate an existing volume. This method deletes all existing data in the
+     * volume. It is equivalent to deleting the volume and creating a new one
+     * using the same VolumeSpecifications; however the file is never actually
+     * deleted by this operation.
      * <p />
-     * This method assigns a new unique id value to the volume so that
-     * journal records pertaining to its state prior to being truncated are
-     * not confused with the new empty state. Caution: information in the
-     * volume is irrecoverably destroyed by this method.
+     * This method assigns a new unique id value to the volume so that journal
+     * records pertaining to its state prior to being truncated are not confused
+     * with the new empty state. Caution: information in the volume is
+     * irrecoverably destroyed by this method.
      */
 
     void truncate() throws PersistitException {
@@ -401,44 +400,55 @@ class VolumeStorageV2 extends VolumeStorage {
     }
 
     void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException {
-        final long page = buffer.getPageAddress();
-        if (page < 0 || page >= _nextAvailablePage) {
-            throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
-        }
-        if (_persistit.getJournalManager().readPageFromJournal(buffer)) {
-            return;
-        }
-
+        // non-exclusive claim here intended to conflict with exclusive claim in
+        // close and truncate
+        claim(false);
         try {
-            final ByteBuffer bb = buffer.getByteBuffer();
-            bb.position(0).limit(buffer.getBufferSize());
-            int read = 0;
-            while (read < buffer.getBufferSize()) {
-                long position = page * _volume.getStructure().getPageSize() + bb.position();
-                int bytesRead = _channel.read(bb, position);
-                if (bytesRead <= 0) {
-                    throw new PersistitIOException("Unable to read bytes at position " + position + " in " + this);
-                }
-                read += bytesRead;
+            final long page = buffer.getPageAddress();
+            if (page < 0 || page >= _nextAvailablePage) {
+                throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
             }
-            _persistit.getIOMeter().chargeReadPageFromVolume(this._volume, buffer.getPageAddress(),
-                    buffer.getBufferSize(), buffer.getIndex());
-            _volume.getStatistics().bumpReadCounter();
-            _persistit.getLogBase().readOk.log(this, page, buffer.getIndex());
-        } catch (IOException ioe) {
-            _persistit.getLogBase().readException.log(ioe, this, page, buffer.getIndex());
-            _lastIOException = ioe;
-            throw new PersistitIOException(ioe);
+            if (_persistit.getJournalManager().readPageFromJournal(buffer)) {
+                return;
+            }
+
+            try {
+                final ByteBuffer bb = buffer.getByteBuffer();
+                bb.position(0).limit(buffer.getBufferSize());
+                int read = 0;
+                while (read < buffer.getBufferSize()) {
+                    long position = page * _volume.getStructure().getPageSize() + bb.position();
+                    int bytesRead = _channel.read(bb, position);
+                    if (bytesRead <= 0) {
+                        throw new PersistitIOException("Unable to read bytes at position " + position + " in " + this);
+                    }
+                    read += bytesRead;
+                }
+                _persistit.getIOMeter().chargeReadPageFromVolume(this._volume, buffer.getPageAddress(),
+                        buffer.getBufferSize(), buffer.getIndex());
+                _volume.getStatistics().bumpReadCounter();
+                _persistit.getLogBase().readOk.log(this, page, buffer.getIndex());
+            } catch (IOException ioe) {
+                _persistit.getLogBase().readException.log(ioe, this, page, buffer.getIndex());
+                _lastIOException = ioe;
+                throw new PersistitIOException(ioe);
+            }
+        } finally {
+            release();
         }
     }
 
     void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
             ReadOnlyVolumeException, VolumeClosedException {
-        if (isTemp()) {
-            writePage(buffer.getByteBuffer(), buffer.getPageAddress());
-        } else {
+        // non-exclusive claim here intended to conflict with exclusive claim in
+        // close and truncate
+        claim(false);
+        try {
             _persistit.getJournalManager().writePageToJournal(buffer);
+        } finally {
+            release();
         }
+
     }
 
     void writePage(final ByteBuffer bb, final long page) throws PersistitIOException, InvalidPageAddressException,

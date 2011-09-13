@@ -62,14 +62,20 @@ public class BufferPool {
      */
     public final static int MAXIMUM_POOL_COUNT = Integer.MAX_VALUE;
     /**
+     * Ratio of FastIndex to buffers
+     */
+    final static float FAST_INDEX_RATIO = 1.0f;
+    
+    /**
      * The maximum number of lock buckets
      */
     private final static int HASH_LOCKS = 4096;
 
     /**
-     * Ratio of FastIndex to buffers
+     * Ratio determines which of two volume invalidation
+     * algorithms to invoke.
      */
-    final static float FAST_INDEX_RATIO = 1.0f;
+    private final static float SMALL_VOLUME_RATIO = 0.1f;
 
     /**
      * The Persistit instance that references this BufferBool.
@@ -148,7 +154,7 @@ public class BufferPool {
      * Count of valid buffers evicted to make room for another page.
      */
     private AtomicLong _evictCounter = new AtomicLong();
-    
+
     /**
      * Count of dirty pages
      */
@@ -459,15 +465,15 @@ public class BufferPool {
     void incrementDirtyPageCount() {
         _dirtyPageCount.incrementAndGet();
     }
-    
+
     void decrementDirtyPageCount() {
         _dirtyPageCount.decrementAndGet();
     }
-    
+
     int getDirtyPageCount() {
         return _dirtyClock.get();
     }
-    
+
     /**
      * Invalidate all buffers from a specified Volume.
      * 
@@ -475,11 +481,48 @@ public class BufferPool {
      *            The volume
      */
     boolean invalidate(Volume volume) {
+        final float ratio = volume.getStorage().getNextAvailablePage() / _bufferCount;
+        if (ratio < SMALL_VOLUME_RATIO) {
+            return invalidateSmallVolume(volume);
+        } else {
+            return invalidateLargeVolume(volume);
+        }
+    }
+
+    boolean invalidateSmallVolume(final Volume volume) {
+        boolean result = true;
+        for (long page = 1; page < volume.getStorage().getNextAvailablePage(); page++) {
+            int hashIndex = hashIndex(volume, page);
+            _hashLocks[hashIndex].lock();
+            try {
+                for (Buffer buffer = _hashTable[hashIndex]; buffer != null; buffer = buffer.getNext()) {
+                    if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
+                        if (buffer.claim(true)) {
+                            // re-check after claim
+                            if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed()
+                                    && buffer.isValid()) {
+                                invalidate(buffer);
+                            }
+                            buffer.release();
+                        } else {
+                            result = false;
+                        }
+                    }
+                }
+            } finally {
+                _hashLocks[hashIndex].unlock();
+            }
+        }
+        return result;
+
+    }
+
+    boolean invalidateLargeVolume(final Volume volume) {
         boolean result = true;
         for (int index = 0; index < _buffers.length; index++) {
             Buffer buffer = _buffers[index];
             if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
-                if (buffer.claim(true, 0)) {
+                if (buffer.claim(true)) {
                     // re-check after claim
                     if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
                         invalidate(buffer);
@@ -491,10 +534,11 @@ public class BufferPool {
             }
         }
         return result;
+
     }
 
     private void invalidate(Buffer buffer) {
-        Debug.$assert0.t(buffer.isValid()  && buffer.isMine());
+        Debug.$assert0.t(buffer.isValid() && buffer.isMine());
 
         while (!detach(buffer)) {
             pause();

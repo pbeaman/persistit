@@ -27,11 +27,12 @@ import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.VolumeClosedException;
 
 /**
- * Manage all details of file I/O for a temporary <code>Volume</code> backing file.
- * A temporary volume is intended to store data that does not need to be durable.
- * All trees in a temporary volume are lost when Persistit shuts down, whether abruptly
- * or gracefully.  Therefore pages writes are not logged, buffers are not flushed on
- * shutdown and there is no volume header page to hold metadata.
+ * Manage all details of file I/O for a temporary <code>Volume</code> backing
+ * file. A temporary volume is intended to store data that does not need to be
+ * durable. All trees in a temporary volume are lost when Persistit shuts down,
+ * whether abruptly or gracefully. Therefore pages writes are not logged,
+ * buffers are not flushed on shutdown and there is no volume header page to
+ * hold metadata.
  * 
  * @author peter
  */
@@ -255,30 +256,37 @@ class VolumeStorageT2 extends VolumeStorage {
     }
 
     void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException {
-        final long page = buffer.getPageAddress();
-        if (page < 1 || page >= _nextAvailablePage) {
-            throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
-        }
+        // non-exclusive claim here intended to conflict with exclusive claim in
+        // close and truncate
+        claim(false);
         try {
-            final ByteBuffer bb = buffer.getByteBuffer();
-            bb.position(0).limit(buffer.getBufferSize());
-            int read = 0;
-            while (read < buffer.getBufferSize()) {
-                long position = (page - 1) * _volume.getStructure().getPageSize() + bb.position();
-                int bytesRead = _channel.read(bb, position);
-                if (bytesRead <= 0) {
-                    throw new PersistitIOException("Unable to read bytes at position " + position + " in " + this);
-                }
-                read += bytesRead;
+            final long page = buffer.getPageAddress();
+            if (page < 1 || page >= _nextAvailablePage) {
+                throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
             }
-            _persistit.getIOMeter().chargeReadPageFromVolume(this._volume, buffer.getPageAddress(),
-                    buffer.getBufferSize(), buffer.getIndex());
-            _volume.getStatistics().bumpReadCounter();
-            _persistit.getLogBase().readOk.log(this, page, buffer.getIndex());
-        } catch (IOException ioe) {
-            _persistit.getLogBase().readException.log(ioe, this, page, buffer.getIndex());
-            _lastIOException = ioe;
-            throw new PersistitIOException(ioe);
+            try {
+                final ByteBuffer bb = buffer.getByteBuffer();
+                bb.position(0).limit(buffer.getBufferSize());
+                int read = 0;
+                while (read < buffer.getBufferSize()) {
+                    long position = (page - 1) * _volume.getStructure().getPageSize() + bb.position();
+                    int bytesRead = _channel.read(bb, position);
+                    if (bytesRead <= 0) {
+                        throw new PersistitIOException("Unable to read bytes at position " + position + " in " + this);
+                    }
+                    read += bytesRead;
+                }
+                _persistit.getIOMeter().chargeReadPageFromVolume(this._volume, buffer.getPageAddress(),
+                        buffer.getBufferSize(), buffer.getIndex());
+                _volume.getStatistics().bumpReadCounter();
+                _persistit.getLogBase().readOk.log(this, page, buffer.getIndex());
+            } catch (IOException ioe) {
+                _persistit.getLogBase().readException.log(ioe, this, page, buffer.getIndex());
+                _lastIOException = ioe;
+                throw new PersistitIOException(ioe);
+            }
+        } finally {
+            release();
         }
     }
 
@@ -289,16 +297,23 @@ class VolumeStorageT2 extends VolumeStorage {
 
     void writePage(final ByteBuffer bb, final long page) throws PersistitIOException, InvalidPageAddressException,
             ReadOnlyVolumeException, VolumeClosedException {
-        if (page < 0 || page >= _nextAvailablePage) {
-            throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
-        }
-
+        // non-exclusive claim here intended to conflict with exclusive claim in
+        // close and truncate
+        claim(false);
         try {
-            _channel.write(bb, page * _volume.getStructure().getPageSize());
-        } catch (IOException ioe) {
-            _persistit.getLogBase().writeException.log(ioe, this, page);
-            _lastIOException = ioe;
-            throw new PersistitIOException(ioe);
+            if (page < 0 || page >= _nextAvailablePage) {
+                throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
+            }
+
+            try {
+                _channel.write(bb, page * _volume.getStructure().getPageSize());
+            } catch (IOException ioe) {
+                _persistit.getLogBase().writeException.log(ioe, this, page);
+                _lastIOException = ioe;
+                throw new PersistitIOException(ioe);
+            }
+        } finally {
+            release();
         }
     }
 
