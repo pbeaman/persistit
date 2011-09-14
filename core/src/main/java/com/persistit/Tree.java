@@ -177,6 +177,8 @@ public class Tree extends SharedResource {
      */
     void invalidate() {
         super.clearValid();
+        _depth = -1;
+        _rootPageAddr = -1;
         _generation.set(-1);
     }
 

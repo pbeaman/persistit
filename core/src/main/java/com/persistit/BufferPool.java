@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.exception.InUseException;
@@ -65,15 +66,14 @@ public class BufferPool {
      * Ratio of FastIndex to buffers
      */
     final static float FAST_INDEX_RATIO = 1.0f;
-    
+
     /**
      * The maximum number of lock buckets
      */
     private final static int HASH_LOCKS = 4096;
 
     /**
-     * Ratio determines which of two volume invalidation
-     * algorithms to invoke.
+     * Ratio determines which of two volume invalidation algorithms to invoke.
      */
     private final static float SMALL_VOLUME_RATIO = 0.1f;
 
@@ -116,6 +116,15 @@ public class BufferPool {
     private final FastIndex[] _fastIndexes;
 
     /**
+     * Bit map for invalidated pages. Elements in this array, one bit per page,
+     * indicate buffers that have been invalidated and are therefore able to be
+     * allocated without evicting a valid page.
+     */
+    private final AtomicLongArray _availablePagesBits;
+
+    private final AtomicBoolean _availablePages = new AtomicBoolean();
+
+    /**
      * The maximum number of keys allowed Buffers in this pool
      */
     private final int _maxKeys;
@@ -123,27 +132,27 @@ public class BufferPool {
     /**
      * Pointer to next location to look for a replacement buffer
      */
-    private AtomicInteger _clock = new AtomicInteger();
+    private final AtomicInteger _clock = new AtomicInteger();
 
     /**
      * Pointer to next location to look for a dirty buffer
      */
-    private AtomicInteger _dirtyClock = new AtomicInteger();
+    private final AtomicInteger _dirtyClock = new AtomicInteger();
 
     /**
      * Pointer to next FastIndex to allocate
      */
-    private AtomicInteger _fastIndexClock = new AtomicInteger();
+    private final AtomicInteger _fastIndexClock = new AtomicInteger();
 
     /**
      * Count of buffer pool misses (buffer not found in pool)
      */
-    private AtomicLong _missCounter = new AtomicLong();
+    private final AtomicLong _missCounter = new AtomicLong();
 
     /**
      * Count of buffer pool hits (buffer found in pool)
      */
-    private AtomicLong _hitCounter = new AtomicLong();
+    private final AtomicLong _hitCounter = new AtomicLong();
 
     /**
      * Count of newly created pages
@@ -153,23 +162,23 @@ public class BufferPool {
     /**
      * Count of valid buffers evicted to make room for another page.
      */
-    private AtomicLong _evictCounter = new AtomicLong();
+    private final AtomicLong _evictCounter = new AtomicLong();
 
     /**
      * Count of dirty pages
      */
-    private AtomicInteger _dirtyPageCount = new AtomicInteger();
+    private final AtomicInteger _dirtyPageCount = new AtomicInteger();
 
     /**
      * Indicates that Persistit wants to shut down fast, without flushing all
      * the dirty buffers in the buffer pool.
      */
-    private AtomicBoolean _fastClose = new AtomicBoolean(false);
+    private final AtomicBoolean _fastClose = new AtomicBoolean(false);
 
     /**
      * Indicates that Persistit has closed this buffer pool.
      */
-    private AtomicBoolean _closed = new AtomicBoolean(false);
+    private final AtomicBoolean _closed = new AtomicBoolean(false);
 
     /**
      * Polling interval for PageWriter
@@ -211,6 +220,7 @@ public class BufferPool {
         _bufferCount = count;
         _bufferSize = size;
         _buffers = new Buffer[_bufferCount];
+        _availablePagesBits = new AtomicLongArray((count + 63) / 64);
         _hashTable = new Buffer[_bufferCount * HASH_MULTIPLE];
         _hashLocks = new ReentrantLock[HASH_LOCKS];
         _maxKeys = (_bufferSize - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO;
@@ -481,7 +491,7 @@ public class BufferPool {
      *            The volume
      */
     boolean invalidate(Volume volume) {
-        final float ratio = volume.getStorage().getNextAvailablePage() / _bufferCount;
+        final float ratio = (float) volume.getStorage().getNextAvailablePage() / (float) _bufferCount;
         if (ratio < SMALL_VOLUME_RATIO) {
             return invalidateSmallVolume(volume);
         } else {
@@ -491,27 +501,41 @@ public class BufferPool {
 
     boolean invalidateSmallVolume(final Volume volume) {
         boolean result = true;
+        int markedAvailable = 0;
         for (long page = 1; page < volume.getStorage().getNextAvailablePage(); page++) {
             int hashIndex = hashIndex(volume, page);
-            _hashLocks[hashIndex].lock();
+            _hashLocks[hashIndex % HASH_LOCKS].lock();
             try {
                 for (Buffer buffer = _hashTable[hashIndex]; buffer != null; buffer = buffer.getNext()) {
                     if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
-                        if (buffer.claim(true)) {
+                        if (buffer.claim(true, 0)) {
                             // re-check after claim
+                            boolean invalidated = false;
                             if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed()
                                     && buffer.isValid()) {
                                 invalidate(buffer);
+                                invalidated = true;
                             }
                             buffer.release();
+                            if (invalidated) {
+                                int q = buffer.getIndex() / 64;
+                                int p = buffer.getIndex() % 64;
+                                long bits = _availablePagesBits.get(q);
+                                if (_availablePagesBits.compareAndSet(q, bits, bits | (1L << p))) {
+                                    markedAvailable++;
+                                }
+                            }
                         } else {
                             result = false;
                         }
                     }
                 }
             } finally {
-                _hashLocks[hashIndex].unlock();
+                _hashLocks[hashIndex % HASH_LOCKS].unlock();
             }
+        }
+        if (markedAvailable > 0) {
+            _availablePages.set(true);
         }
         return result;
 
@@ -519,22 +543,35 @@ public class BufferPool {
 
     boolean invalidateLargeVolume(final Volume volume) {
         boolean result = true;
-        for (int index = 0; index < _buffers.length; index++) {
+        int markedAvailable = 0;
+        for (int index = 0; index < _bufferCount; index++) {
             Buffer buffer = _buffers[index];
             if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
-                if (buffer.claim(true)) {
+                if (buffer.claim(true, 0)) {
                     // re-check after claim
+                    boolean invalidated = false;
                     if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
                         invalidate(buffer);
+                        invalidated = true;
                     }
                     buffer.release();
+                    if (invalidated) {
+                        int q = buffer.getIndex() / 64;
+                        int p = buffer.getIndex() % 64;
+                        long bits = _availablePagesBits.get(q);
+                        if (_availablePagesBits.compareAndSet(q, bits, bits | (1L << p))) {
+                            markedAvailable++;
+                        }
+                    }
                 } else {
                     result = false;
                 }
             }
         }
+        if (markedAvailable > 0) {
+            _availablePages.set(true);
+        }
         return result;
-
     }
 
     private void invalidate(Buffer buffer) {
@@ -804,6 +841,39 @@ public class BufferPool {
      */
 
     private Buffer allocBuffer() throws PersistitException {
+        //
+        // Start by searching for an invalid page. It's preferable
+        // since no valid page will need to be evicted.
+        //
+        if (_availablePages.get()) {
+            int start = (_clock.get() / 64) * 64;
+            for (int q = start;;) {
+                q += 64;
+                if (q > _bufferCount) {
+                    q = 0;
+                }
+                if (q == start) {
+                    break;
+                }
+                long bits = _availablePagesBits.get(q / 64);
+                if (bits != 0) {
+                    for (int p = 0; p < 64; p++) {
+                        if ((bits & (1L << p)) != 0) {
+                            final Buffer buffer = _buffers[q + p];
+                            if (!buffer.isValid() && (buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0
+                                    && buffer.claim(true, 0)) {
+                                bits = _availablePagesBits.get(q / 64);
+                                if (_availablePagesBits.compareAndSet(q / 64, bits, bits & ~(1L << p))) {
+                                    buffer.clearDirty();
+                                    return buffer;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _availablePages.set(false);
+        }
         //
         // TODO - try to allocate an invalid buffer first.
         //

@@ -33,6 +33,23 @@ class VolumeStatistics {
     private AtomicLong _storeCounter = new AtomicLong();
     private AtomicLong _removeCounter = new AtomicLong();
 
+    void reset() {
+        _openTime = 0;
+        _lastReadTime = 0;
+        _lastWriteTime = 0;
+        _lastExtensionTime = 0;
+        _nextAvailablePage = 0;
+        _createTime = 0;
+        _readCounter.set(0);
+        _writeCounter.set(0);
+        _getCounter.set(0);
+        _fetchCounter.set(0);
+        _traverseCounter.set(0);
+        _storeCounter.set(0);
+        _readCounter.set(0);
+    }
+    
+    
     void bumpReadCounter() {
         _readCounter.incrementAndGet();
         _lastReadTime = System.currentTimeMillis();

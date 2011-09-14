@@ -1231,9 +1231,11 @@ public class Persistit {
         if (volume == null) {
             return false;
         } else {
+            if (!volume.isClosed()) {
+                volume.close();
+            }
             removeVolume(volume);
-            new File(volume.getPath()).delete();
-            return true;
+            return volume.delete();
         }
     }
 
@@ -1749,9 +1751,10 @@ public class Persistit {
         // the volumes - otherwise there will be left over channels
         // and FileLocks that interfere with subsequent tests.
         //
-        for (final Volume volume : _volumes) {
+        final List<Volume> volumes = new ArrayList<Volume>(_volumes);
+        for (final Volume volume : volumes) {
             try {
-                volume.getStorage().close();
+                volume.close();
             } catch (PersistitException pe) {
                 // ignore -
             }
@@ -2241,13 +2244,16 @@ public class Persistit {
      * @return Readable format of long value
      */
     static String displayableLongValue(final long value) {
+        if (value <= 0) {
+            return String.format("%d", value);
+        }
         long v = value;
         int scale = 0;
         while ((v / 1024) * 1024 == v && scale < 3) {
             scale++;
             v /= 1024;
         }
-        return String.format("%d%s", v, "KMGT".substring(scale, scale + 1));
+        return String.format("%d%s", v, " KMGT".substring(scale, scale + 1));
     }
 
     /**

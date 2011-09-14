@@ -85,9 +85,9 @@ public class VolumeSpecification {
      * @param readOnly
      *            <code>true</code> to open volume file in read-only mode
      */
-    public VolumeSpecification(final String path, final String name, final int pageSize,
-            final long initialPages, final long maximumPages, final long extensionPages, final boolean create,
-            final boolean createOnly, final boolean readOnly) {
+    public VolumeSpecification(final String path, final String name, final int pageSize, final long initialPages,
+            final long maximumPages, final long extensionPages, final boolean create, final boolean createOnly,
+            final boolean readOnly) {
         this.path = path;
         this.name = name == null ? new File(path).getName() : name;
         this.pageSize = pageSize;
@@ -236,21 +236,23 @@ public class VolumeSpecification {
             }
 
             // Validate initial, maximum and extension sizes
-            if (maximumPages == 0)
+            if (maximumPages <= 0) {
                 maximumPages = initialPages;
-
-            if (initialPages < 1 || initialPages > Long.MAX_VALUE / pageSize) {
-                throw new InvalidVolumeSpecificationException("Invalid initial page count: " + initialPages);
             }
 
-            if (extensionPages < 0 || extensionPages > Long.MAX_VALUE / pageSize) {
-                throw new InvalidVolumeSpecificationException("Invalid extension page count: " + extensionPages);
-            }
+            if (create || createOnly) {
+                if (initialPages < 1 || initialPages > Long.MAX_VALUE / pageSize) {
+                    throw new InvalidVolumeSpecificationException("Invalid initial page count: " + initialPages);
+                }
 
-            if (maximumPages < initialPages || maximumPages > Long.MAX_VALUE / pageSize) {
-                throw new InvalidVolumeSpecificationException("Invalid maximum page count: " + maximumPages);
-            }
+                if (extensionPages < 0 || extensionPages > Long.MAX_VALUE / pageSize) {
+                    throw new InvalidVolumeSpecificationException("Invalid extension page count: " + extensionPages);
+                }
 
+                if (maximumPages < initialPages || maximumPages > Long.MAX_VALUE / pageSize) {
+                    throw new InvalidVolumeSpecificationException("Invalid maximum page count: " + maximumPages);
+                }
+            }
         } catch (NumberFormatException nfe) {
             throw new InvalidVolumeSpecificationException(specification + ": invalid number");
         } catch (NoSuchElementException nste) {
@@ -310,7 +312,6 @@ public class VolumeSpecification {
         return pageSize;
     }
 
-
     public long getInitialPages() {
         return initialPages;
     }
@@ -338,7 +339,7 @@ public class VolumeSpecification {
     public int getVersion() {
         return version;
     }
-    
+
     public long getId() {
         return id;
     }
@@ -376,7 +377,7 @@ public class VolumeSpecification {
     private String ds(final long pages) {
         return Persistit.displayableLongValue(pages * pageSize);
     }
-    
+
     public String summary() {
         return name + "(" + path + ")";
     }

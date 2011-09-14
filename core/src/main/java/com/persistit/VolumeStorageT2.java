@@ -114,18 +114,7 @@ class VolumeStorageT2 extends VolumeStorage {
             final File file = File.createTempFile(TEMP_FILE_PREFIX, null, directory);
             _path = file.getAbsolutePath();
             _channel = new RandomAccessFile(file, "rw").getChannel();
-
-            VolumeStatistics stat = _volume.getStatistics();
-            VolumeStructure struc = _volume.getStructure();
-
-            long now = System.currentTimeMillis();
-            stat.setCreateTime(now);
-            stat.setOpenTime(now);
-
-            _nextAvailablePage = 1;
-
-            struc.init(0, 0);
-            flushMetaData();
+            truncate();
             _opened = true;
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
@@ -222,12 +211,24 @@ class VolumeStorageT2 extends VolumeStorage {
         if (pe != null) {
             throw pe;
         }
+        _persistit.removeVolume(_volume);
     }
 
-    void truncate() throws PersistitIOException {
+    void truncate() throws PersistitException {
         try {
             _channel.truncate(0);
+            VolumeStatistics stat = _volume.getStatistics();
+            VolumeStructure struc = _volume.getStructure();
+
+            long now = System.currentTimeMillis();
+            stat.setCreateTime(now);
+            stat.setOpenTime(now);
+
             _nextAvailablePage = 1;
+
+            struc.init(0, 0);
+            flushMetaData();
+
         } catch (IOException ioe) {
             throw new PersistitIOException(ioe);
         }
@@ -241,7 +242,7 @@ class VolumeStorageT2 extends VolumeStorage {
         return _closed;
     }
 
-    long getPageCount() {
+    long getExtentedPageCount() {
         return _nextAvailablePage;
     }
 
@@ -306,7 +307,7 @@ class VolumeStorageT2 extends VolumeStorage {
             }
 
             try {
-                _channel.write(bb, page * _volume.getStructure().getPageSize());
+                _channel.write(bb, (page - 1) * _volume.getStructure().getPageSize());
             } catch (IOException ioe) {
                 _persistit.getLogBase().writeException.log(ioe, this, page);
                 _lastIOException = ioe;
@@ -336,4 +337,8 @@ class VolumeStorageT2 extends VolumeStorage {
         return false;
     }
 
+    @Override
+    public String toString() {
+        return _volume.toString();
+    }
 }

@@ -52,7 +52,7 @@ class VolumeHeader {
     /**
      * Minimum product version that can handle Volumes created by this version.
      */
-    private final static int MAX_SUPPORTED_VERSION = 310;
+    private final static int MAX_SUPPORTED_VERSION = 299;
 
     static boolean verifySignature(final byte[] bytes) {
         return Util.bytesEqual(bytes, 0, SIGNATURE);

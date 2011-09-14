@@ -125,7 +125,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
             String s2 = f1.toString();
             assertEquals(s1, s2);
         }
-
+        b1.release();
     }
     
     

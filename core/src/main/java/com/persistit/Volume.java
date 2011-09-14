@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.ReadOnlyVolumeException;
+import com.persistit.exception.TruncateVolumeException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.exception.WrongVolumeException;
@@ -132,7 +134,9 @@ public class Volume {
                 // need to back off all locks and retry
                 //
                 if (getStructure().getPool().invalidate(this)) {
+                    getStructure().close();
                     getStorage().close();
+                    getStatistics().reset();
                     break;
                 }
             } finally {
@@ -156,6 +160,12 @@ public class Volume {
      * @throws PersistitException
      */
     public void truncate() throws PersistitException {
+        if (isReadOnly()) {
+            throw new ReadOnlyVolumeException();
+        }
+        if (!isTemporary() && !getSpecification().isCreate() && !getSpecification().isCreateOnly()) {
+            throw new TruncateVolumeException();
+        }
         for (;;) {
             //
             // Prevents read/write operations from starting while the
@@ -169,7 +179,9 @@ public class Volume {
                 // need to back off all locks and retry
                 //
                 if (getStructure().getPool().invalidate(this)) {
+                    getStructure().truncate();
                     getStorage().truncate();
+                    getStatistics().reset();
                     break;
                 }
             } finally {
@@ -182,6 +194,13 @@ public class Volume {
             }
         }
     }
+    
+    public boolean delete() throws PersistitException {
+        if (!getStorage().isClosed()) {
+            throw new IllegalStateException("Volume must be closed before deletion");
+        }
+        return getStorage().delete();
+    }
 
     /**
      * Returns the path name by which this volume was opened.
@@ -190,6 +209,14 @@ public class Volume {
      */
     public String getPath() {
         return getStorage().getPath();
+    }
+    
+    public long getNextAvailablePage() {
+        return getStorage().getNextAvailablePage();
+    }
+    
+    public long getExtendedPageCount() {
+        return getStorage().getExtentedPageCount();
     }
 
     BufferPool getPool() {

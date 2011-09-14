@@ -1393,7 +1393,7 @@ public interface Management extends Remote, ManagementMXBean {
             lastWrite = stat.getLastWriteTime();
             lastExtension = stat.getLastExtensionTime();
             maximumPage = stat.getNextAvailablePage();
-            currentPageCount = store.getPageCount();
+            currentPageCount = store.getExtentedPageCount();
             maximumPageCount = spec.getMaximumPages();
             extensionPageCount = spec.getExtensionPages();
             garbageRootPage = struc.getGarbageRoot();

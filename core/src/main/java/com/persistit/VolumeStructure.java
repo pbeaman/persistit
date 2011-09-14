@@ -67,6 +67,23 @@ class VolumeStructure {
         }
     }
 
+    void close() {
+        truncate();
+        _directoryRootPage = 0;
+        _garbageRoot = 0;
+        _directoryTree = null;
+    }
+
+    synchronized void truncate() {
+        for (final WeakReference<Tree> treeRef : _treeNameHashMap.values()) {
+            final Tree tree = treeRef.get();
+            if (tree != null) {
+                tree.invalidate();
+            }
+        }
+        _treeNameHashMap.clear();
+    }
+
     Exchange directoryExchange() {
         Exchange ex = new Exchange(_directoryTree);
         ex.ignoreTransactions();
@@ -121,32 +138,30 @@ class VolumeStructure {
      * 
      * @throws PersistitException
      */
-    public Tree getTree(String name, boolean createIfNecessary) throws PersistitException {
-        synchronized (_treeNameHashMap) {
-            Tree tree;
-            WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
-            if (treeRef != null) {
-                tree = treeRef.get();
-                if (tree != null) {
-                    return tree;
-                }
+    public synchronized Tree getTree(String name, boolean createIfNecessary) throws PersistitException {
+        Tree tree;
+        WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
+        if (treeRef != null) {
+            tree = treeRef.get();
+            if (tree != null) {
+                return tree;
             }
-            final Exchange ex = directoryExchange();
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(name);
-            Value value = ex.fetch().getValue();
-            tree = new Tree(_persistit, _volume, name);
-            if (value.isDefined()) {
-                tree.load(ex.getValue());
-            } else if (createIfNecessary) {
-                final long rootPageAddr = createTreeRoot(tree);
-                tree.setRootPageAddress(rootPageAddr);
-                updateDirectoryTree(tree);
-            } else {
-                return null;
-            }
-            _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
-            return tree;
         }
+        final Exchange ex = directoryExchange();
+        ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(name);
+        Value value = ex.fetch().getValue();
+        tree = new Tree(_persistit, _volume, name);
+        if (value.isDefined()) {
+            tree.load(ex.getValue());
+        } else if (createIfNecessary) {
+            final long rootPageAddr = createTreeRoot(tree);
+            tree.setRootPageAddress(rootPageAddr);
+            updateDirectoryTree(tree);
+        } else {
+            return null;
+        }
+        _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
+        return tree;
     }
 
     void updateDirectoryTree(Tree tree) throws PersistitException {

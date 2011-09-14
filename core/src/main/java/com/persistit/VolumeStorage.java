@@ -141,7 +141,7 @@ abstract class VolumeStorage extends SharedResource {
 
     abstract boolean isClosed();
 
-    abstract long getPageCount();
+    abstract long getExtentedPageCount();
 
     abstract long getNextAvailablePage();
 

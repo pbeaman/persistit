@@ -373,7 +373,6 @@ public class Exchange {
         if (_cachedTreeGeneration != _tree.getGeneration()) {
             _cachedTreeGeneration = _tree.getGeneration();
             _cacheDepth = _tree.getDepth();
-            // for (int index = 0; index < _cacheDepth; index++)
             for (int index = 0; index < MAX_TREE_DEPTH; index++) {
                 LevelCache lc = _levelCache[index];
                 lc.invalidate();

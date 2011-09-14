@@ -16,11 +16,14 @@ package com.persistit;
 
 import static com.persistit.VolumeHeader.changeDirectoryRoot;
 import static com.persistit.VolumeHeader.changeExtendedPageCount;
+import static com.persistit.VolumeHeader.changeExtensionPages;
 import static com.persistit.VolumeHeader.changeFetchCounter;
 import static com.persistit.VolumeHeader.changeGarbageRoot;
+import static com.persistit.VolumeHeader.changeInitialPages;
 import static com.persistit.VolumeHeader.changeLastExtensionTime;
 import static com.persistit.VolumeHeader.changeLastReadTime;
 import static com.persistit.VolumeHeader.changeLastWriteTime;
+import static com.persistit.VolumeHeader.changeMaximumPages;
 import static com.persistit.VolumeHeader.changeNextAvailablePage;
 import static com.persistit.VolumeHeader.changeReadCounter;
 import static com.persistit.VolumeHeader.changeRemoveCounter;
@@ -169,8 +172,10 @@ class VolumeStorageV2 extends VolumeStorage {
                     _headBuffer = null;
                 }
                 try {
-                    _channel.close();
-                    _channel = null;
+                    if (_channel != null) {
+                        _channel.close();
+                        _channel = null;
+                    }
                 } catch (IOException e) {
                     // Not much to do - we're going to try to delete
                     // the file anyway.
@@ -327,6 +332,7 @@ class VolumeStorageV2 extends VolumeStorage {
         if (pe != null) {
             throw pe;
         }
+        _persistit.removeVolume(_volume);
     }
 
     /**
@@ -364,11 +370,12 @@ class VolumeStorageV2 extends VolumeStorage {
         initMetaData(_headBuffer.getBytes());
         //
         // Lay down the initial version of the header page so that the
-        // volume file
-        // will be valid on restart
+        // volume file will be valid on restart
         //
         writePage(_headBuffer.getByteBuffer(), _headBuffer.getPageAddress());
-
+        //
+        // Now create directory root page, etc.
+        //
         struc.init(0, 0);
         flushMetaData();
     }
@@ -381,7 +388,7 @@ class VolumeStorageV2 extends VolumeStorage {
         return _closed;
     }
 
-    long getPageCount() {
+    long getExtentedPageCount() {
         return _extendedPageCount;
     }
 
@@ -475,7 +482,7 @@ class VolumeStorageV2 extends VolumeStorage {
         claim(true);
         try {
             for (;;) {
-                if (_nextAvailablePage <= _extendedPageCount) {
+                if (_nextAvailablePage < _extendedPageCount) {
                     long page = _nextAvailablePage++;
                     _volume.getStatistics().setNextAvailablePage(page);
                     flushMetaData();
@@ -525,6 +532,9 @@ class VolumeStorageV2 extends VolumeStorage {
 
         changeNextAvailablePage(bytes, _nextAvailablePage);
         changeExtendedPageCount(bytes, _extendedPageCount);
+        changeInitialPages(bytes, _volume.getSpecification().getInitialPages());
+        changeMaximumPages(bytes, _volume.getSpecification().getMaximumPages());
+        changeExtensionPages(bytes, _volume.getSpecification().getExtensionPages());
     }
 
     boolean updateMetaData(final byte[] bytes) {
@@ -591,4 +601,10 @@ class VolumeStorageV2 extends VolumeStorage {
             throw new PersistitIOException(ioe);
         }
     }
+    
+    @Override
+    public String toString() {
+        return _volume.toString();
+    }
+
 }
