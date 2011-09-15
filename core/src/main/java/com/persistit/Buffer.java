@@ -16,10 +16,10 @@
 package com.persistit;
 
 import static com.persistit.VolumeHeader.getDirectoryRoot;
+import static com.persistit.VolumeHeader.getExtendedPageCount;
 import static com.persistit.VolumeHeader.getGarbageRoot;
 import static com.persistit.VolumeHeader.getId;
 import static com.persistit.VolumeHeader.getNextAvailablePage;
-import static com.persistit.VolumeHeader.getExtendedPageCount;
 
 import java.nio.ByteBuffer;
 import java.util.BitSet;
@@ -451,6 +451,7 @@ public final class Buffer extends SharedResource {
         if (isDirty() && !isTemporary() && getTimestamp() < checkpoint.getTimestamp()
                 && timestamp > checkpoint.getTimestamp()) {
             writePage();
+            _pool.bumpForcedCheckpointWrites();
         }
     }
 
@@ -483,7 +484,9 @@ public final class Buffer extends SharedResource {
     }
 
     void setDirtyAtTimestamp(final long timestamp) {
-        super.setDirty();
+        if (super.setDirty()) {
+            _pool.incrementDirtyPageCount();
+        }
         _timestamp = timestamp;
         bumpGeneration();
     }

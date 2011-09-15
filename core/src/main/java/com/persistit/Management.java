@@ -870,6 +870,8 @@ public interface Management extends Remote, ManagementMXBean {
         long hitCount;
         long newCount;
         long evictCount;
+        long forcedWrites;
+        long forcedCheckpointWrites;
         int validPageCount;
         int dirtyPageCount;
         int readerClaimedPageCount;
@@ -880,10 +882,11 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         @ConstructorProperties({ "bufferSize", "bufferCount", "missCount", "hitCount", "newCount", "evictCount",
-                "validPageCount", "dirtyPageCount", "readerClaimedPageCount", "writerClaimedPageCount" })
+                "forcedWrites", "forcedCheckpointWrites", "validPageCount", "dirtyPageCount", "readerClaimedPageCount",
+                "writerClaimedPageCount" })
         public BufferPoolInfo(int bufferSize, int bufferCount, long missCount, long hitCount, long newCount,
-                long evictCount, long readCounter, int validPageCount, int dirtyPageCount, int readerClaimedPageCount,
-                int writerClaimedPageCount) {
+                long evictCount, long forcedWrites, long forcedCheckpointWrites, long readCounter, int validPageCount,
+                int dirtyPageCount, int readerClaimedPageCount, int writerClaimedPageCount) {
             super();
             this.bufferSize = bufferSize;
             this.bufferCount = bufferCount;
@@ -891,6 +894,8 @@ public interface Management extends Remote, ManagementMXBean {
             this.hitCount = hitCount;
             this.newCount = newCount;
             this.evictCount = evictCount;
+            this.forcedWrites = forcedWrites;
+            this.forcedCheckpointWrites = forcedCheckpointWrites;
             this.validPageCount = validPageCount;
             this.dirtyPageCount = dirtyPageCount;
             this.readerClaimedPageCount = readerClaimedPageCount;
@@ -955,6 +960,25 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public long getEvictCount() {
             return evictCount;
+        }
+
+        /**
+         * Return count of pages forced to be written when dirty on eviction
+         * 
+         * @return The forced write count
+         */
+        public long getForcedWrites() {
+            return forcedWrites;
+        }
+
+        /**
+         * Return count of pages forced to be written due to an updated after a
+         * checkpoint
+         * 
+         * @return The forced checkpoint write count
+         */
+        public long getForcedCheckpointWrites() {
+            return forcedCheckpointWrites;
         }
 
         /**

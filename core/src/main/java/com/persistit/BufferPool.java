@@ -135,11 +135,6 @@ public class BufferPool {
     private final AtomicInteger _clock = new AtomicInteger();
 
     /**
-     * Pointer to next location to look for a dirty buffer
-     */
-    private final AtomicInteger _dirtyClock = new AtomicInteger();
-
-    /**
      * Pointer to next FastIndex to allocate
      */
     private final AtomicInteger _fastIndexClock = new AtomicInteger();
@@ -174,7 +169,17 @@ public class BufferPool {
      * the dirty buffers in the buffer pool.
      */
     private final AtomicBoolean _fastClose = new AtomicBoolean(false);
+    
+    /**
+     * Count of pages written due to being dirty when selected by the
+     * buffer allocator.
+     */
+    private final AtomicLong _forcedWrites = new AtomicLong();
 
+    /**
+     * Count of pages written due to being dirty before a checkpoint
+     */
+    private final AtomicLong _forcedCheckpointWrites = new AtomicLong();
     /**
      * Indicates that Persistit has closed this buffer pool.
      */
@@ -329,26 +334,25 @@ public class BufferPool {
         info.hitCount = _hitCounter.get();
         info.newCount = _newCounter.get();
         info.evictCount = _evictCounter.get();
+        info.dirtyPageCount = _dirtyPageCount.get();
         int validPages = 0;
-        int dirtyPages = 0;
         int readerClaimedPages = 0;
         int writerClaimedPages = 0;
+        
         for (int index = 0; index < _bufferCount; index++) {
             Buffer buffer = _buffers[index];
             int status = buffer.getStatus();
             if ((status & SharedResource.VALID_MASK) != 0)
                 validPages++;
-            if ((status & SharedResource.DIRTY_MASK) != 0)
-                dirtyPages++;
             if ((status & SharedResource.WRITER_MASK) != 0)
                 writerClaimedPages++;
             else if ((status & SharedResource.CLAIMED_MASK) != 0)
                 readerClaimedPages++;
         }
         info.validPageCount = validPages;
-        info.dirtyPageCount = dirtyPages;
         info.readerClaimedPageCount = readerClaimedPages;
         info.writerClaimedPageCount = writerClaimedPages;
+        
         info.updateAcquisitonTime();
     }
 
@@ -455,6 +459,9 @@ public class BufferPool {
         _newCounter.incrementAndGet();
     }
 
+    void bumpForcedCheckpointWrites() {
+        _forcedCheckpointWrites.incrementAndGet();
+    }
     /**
      * Get the "hit ratio" - the number of hits divided by the number of overall
      * gets. A value close to 1.0 indicates that most attempts to find data in
@@ -481,7 +488,7 @@ public class BufferPool {
     }
 
     int getDirtyPageCount() {
-        return _dirtyClock.get();
+        return _dirtyPageCount.get();
     }
 
     /**
@@ -849,7 +856,7 @@ public class BufferPool {
             int start = (_clock.get() / 64) * 64;
             for (int q = start;;) {
                 q += 64;
-                if (q > _bufferCount) {
+                if (q >= _bufferCount) {
                     q = 0;
                 }
                 if (q == start) {
@@ -883,7 +890,6 @@ public class BufferPool {
             if (!_clock.compareAndSet(clock, (clock + 1) % _bufferCount)) {
                 continue;
             }
-            boolean resetDirtyClock = false;
             Buffer buffer = _buffers[clock];
             if (buffer.isTouched()) {
                 buffer.clearTouched();
@@ -892,18 +898,24 @@ public class BufferPool {
                         && buffer.claim(true, 0)) {
                     if (buffer.isDirty()) {
                         // An invalid dirty buffer is available and does not
-                        // need
-                        // to be written.
+                        // need to be written.
                         if (!buffer.isValid()) {
                             buffer.clearDirty();
                             return buffer;
+                        } else {
+                            // A dirty valid buffer needs to be written and then marked invalid
+                            buffer.writePage();
+                            _forcedWrites.incrementAndGet();
+                            buffer.clearValid();
+                            _evictCounter.incrementAndGet();
+                            _persistit.getIOMeter().chargeEvictPageFromPool(buffer.getVolume(),
+                                    buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());
                         }
-                        if (!resetDirtyClock) {
-                            resetDirtyClock = true;
-                            _dirtyClock.set(clock);
-                            _writer.urgent();
+                        if (!buffer.isValid()) {
+                            return buffer;
+                        } else {
+                            buffer.release();
                         }
-                        buffer.release();
                     } else {
                         if (buffer.isValid() && detach(buffer)) {
                             buffer.clearValid();
@@ -968,7 +980,7 @@ public class BufferPool {
 
     private int writeDirtyBuffers(final boolean urgent, final boolean all) {
         int unavailable = 0;
-        int start = _dirtyClock.get();
+        int start = _clock.get();
         int max = all ? _bufferCount : _bufferCount / 8;
         final int end = all ? start + _bufferCount : start + (_bufferCount / 8);
         int index = start;
@@ -990,18 +1002,12 @@ public class BufferPool {
                         _persistit.getLogBase().writeException.log(e, buffer.getVolume(), buffer.getPageAddress());
                     } finally {
                         buffer.release();
-                        if (urgent) {
-                            synchronized (BufferPool.this) {
-                                notify();
-                            }
-                        }
                     }
                 } else {
                     unavailable++;
                 }
             }
         }
-        _dirtyClock.compareAndSet(start, index % _bufferCount);
         return unavailable;
     }
 
