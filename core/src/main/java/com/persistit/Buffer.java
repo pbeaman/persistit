@@ -64,7 +64,7 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 
-public final class Buffer extends SharedResource {
+public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
     /**
      * Architectural lower bound on buffer size
@@ -3584,6 +3584,29 @@ public final class Buffer extends SharedResource {
         }
         info.updateAcquisitonTime();
 
+    }
+
+    /**
+     * Used to sort buffers in ascending page address order by volume.
+     * 
+     * @param buffer
+     * @return -1, 0 or 1 as this <code>Buffer</code> falls before, a, or after
+     *         the supplied <code>Buffer</code> in the desired page address
+     *         order.
+     */
+    @Override
+    public int compareTo(Buffer buffer) {
+        if (buffer.getVolume() == null) {
+            return 1;
+        }
+        if (getVolume() == null) {
+            return -1;
+        }
+        if (getVolume().equals(buffer.getVolume())) {
+            return getPageAddress() > buffer.getPageAddress() ? 1 : getPageAddress() < buffer.getPageAddress() ? -1 : 0;
+        }
+        return getVolume().getId() > buffer.getVolume().getId() ? 1
+                : getVolume().getId() < buffer.getVolume().getId() ? -1 : 0;
     }
 
 }

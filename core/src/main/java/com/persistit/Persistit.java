@@ -1175,8 +1175,8 @@ public class Persistit {
      * be used to hold temporary data such as intermediate sort or aggregation
      * results that can be recreated in the event the system restarts.
      * <p />
-     * The temporary volume page size is can be specified by the configuration property
-     * <code>tvpagesize</code>.  The default value is 16,384.
+     * The temporary volume page size is can be specified by the configuration
+     * property <code>tvpagesize</code>. The default value is 16,384.
      * <p />
      * The backing store file for a temporary volume is created in the directory
      * specified by the configuration property <code>tvdirectory</code>, or if
@@ -1553,7 +1553,7 @@ public class Persistit {
     final long earliestDirtyTimestamp() {
         long earliest = Long.MAX_VALUE;
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            earliest = Math.min(earliest, pool.earliestDirtyTimestamp());
+            earliest = Math.min(earliest, pool.getEarliestDirtyTimestamp());
         }
         return earliest;
     }
@@ -1805,25 +1805,24 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
-    public boolean flush() throws PersistitException {
-        boolean okay = true;
+    public void flush() throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
-            return false;
+            return;
         }
-
         for (final Volume volume : _volumes) {
             volume.getStructure().flushTrees();
             volume.getStorage().flushMetaData();
         }
-
+        flushBuffers(_timestampAllocator.getCurrentTimestamp());
+        _journalManager.force();
+    }
+    
+    void flushBuffers(final long timestamp) {
         for (final BufferPool pool : _bufferPoolTable.values()) {
             if (pool != null) {
-                okay &= pool.flush() == 0;
+                pool.flush(timestamp);
             }
         }
-
-        _journalManager.force();
-        return true;
     }
 
     void waitForIOTaskStop(final IOTaskRunnable task) {

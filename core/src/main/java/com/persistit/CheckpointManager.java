@@ -57,21 +57,19 @@ class CheckpointManager extends IOTaskRunnable {
         _persistit.getTimestampAllocator().forceCheckpoint();
         proposeCheckpoint();
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
+        _persistit.flushBuffers(checkpoint.getTimestamp());
+
         while (true) {
             urgent();
+            synchronized (this) {
+                if (!_outstandingCheckpoints.contains(checkpoint)) {
+                    return checkpoint;
+                }
+            }
             try {
-                synchronized (this) {
-                    if (!_outstandingCheckpoints.contains(checkpoint)) {
-                        return checkpoint;
-                    }
-                }
-                try {
-                    Thread.sleep(SHORT_DELAY);
-                } catch (InterruptedException ie) {
-                    return null;
-                }
-            } finally {
-                _urgent.set(false);
+                Thread.sleep(SHORT_DELAY);
+            } catch (InterruptedException ie) {
+                return null;
             }
         }
     }
@@ -118,6 +116,9 @@ class CheckpointManager extends IOTaskRunnable {
             if (validCheckpoint != null) {
                 _outstandingCheckpoints.remove(validCheckpoint);
             }
+        }
+        if (validCheckpoint != null) {
+            _urgent.set(false);
         }
     }
 

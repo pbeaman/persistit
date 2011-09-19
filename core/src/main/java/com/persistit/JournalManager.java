@@ -999,6 +999,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         if (ts == null) {
             throw new CorruptJournalException("TC Transaction timestamp " + timestamp + " never started");
         }
+ 
         if (timestamp != _unitTestNeverCloseTransactionTimestamp) {
             ts.setCommitTimestamp(commitTimestamp);
         }
@@ -2000,5 +2001,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
     void unitTestInjectTransactionMap(final Map<Long, TransactionStatus> transactionMap) {
         _liveTransactionMap.putAll(transactionMap);
+    }
+    
+    void unitTestClearTransactionMap() {
+        _liveTransactionMap.clear();
     }
 }

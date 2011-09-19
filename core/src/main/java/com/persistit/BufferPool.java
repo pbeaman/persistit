@@ -16,6 +16,7 @@
 package com.persistit;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -42,9 +43,11 @@ public class BufferPool {
     /**
      * Default PageWriter polling interval
      */
-    private final static long DEFAULT_WRITER_POLL_INTERVAL = 2000;
+    private final static long DEFAULT_WRITER_POLL_INTERVAL = 1000;
 
     private final static int MAX_FLUSH_RETRY_COUNT = 10;
+
+    private final static int PAGE_WRITER_TRANCHE_SIZE = 1000;
 
     /**
      * Sleep time when buffers are exhausted
@@ -165,19 +168,13 @@ public class BufferPool {
     private final AtomicInteger _dirtyPageCount = new AtomicInteger();
 
     /**
-     * Indicates that Persistit wants to shut down fast, without flushing all
-     * the dirty buffers in the buffer pool.
-     */
-    private final AtomicBoolean _fastClose = new AtomicBoolean(false);
-    
-    /**
-     * Count of pages written due to being dirty when selected by the
-     * buffer allocator.
+     * Count of pages written due to being dirty when selected by the buffer
+     * allocator.
      */
     private final AtomicLong _forcedWrites = new AtomicLong();
 
     /**
-     * Count of pages written due to being dirty before a checkpoint
+     * (with n Count of pages written due to being dirty before a checkpoint
      */
     private final AtomicLong _forcedCheckpointWrites = new AtomicLong();
     /**
@@ -186,10 +183,26 @@ public class BufferPool {
     private final AtomicBoolean _closed = new AtomicBoolean(false);
 
     /**
+     * Oldest update timestamp found during PAGE_WRITER's most recent scan.
+     * Value is Long.MAX_VALUE of there are no dirty non-temporary pages in the
+     * pool.
+     */
+    private volatile long _earliestDirtyTimestamp = Long.MAX_VALUE;
+
+    /**
+     * Timestamp to which all dirty pages should be written. PAGE_WRITER writes
+     * any page with a lower update timestamp regardless of urgency.
+     */
+    private AtomicLong _flushTimestamp = new AtomicLong(Long.MAX_VALUE);
+
+    /**
      * Polling interval for PageWriter
      */
     private long _writerPollInterval = DEFAULT_WRITER_POLL_INTERVAL;
 
+    /**
+     * The PAGE_WRITER IOTaskRunnable
+     */
     private PageWriter _writer;
 
     /**
@@ -266,7 +279,6 @@ public class BufferPool {
     }
 
     void close(final boolean flush) {
-        _fastClose.set(!flush);
         _closed.set(true);
         _persistit.waitForIOTaskStop(_writer);
         _writer = null;
@@ -288,16 +300,15 @@ public class BufferPool {
         }
     }
 
-    int flush() {
-        int unavailable = 0;
-        for (int retries = 0; retries < MAX_FLUSH_RETRY_COUNT; retries++) {
-            unavailable = writeDirtyBuffers(false, true);
-            if (unavailable == 0) {
-                break;
-            }
+    void flush() {
+        flush(_persistit.getTimestampAllocator().getCurrentTimestamp());
+    }
+    
+    void flush(final long timestamp) {
+        setFlushTimestamp(timestamp);
+        while (_flushTimestamp.get() != Long.MAX_VALUE) {
             pause();
         }
-        return unavailable;
     }
 
     int hashIndex(Volume vol, long page) {
@@ -338,7 +349,7 @@ public class BufferPool {
         int validPages = 0;
         int readerClaimedPages = 0;
         int writerClaimedPages = 0;
-        
+
         for (int index = 0; index < _bufferCount; index++) {
             Buffer buffer = _buffers[index];
             int status = buffer.getStatus();
@@ -352,7 +363,7 @@ public class BufferPool {
         info.validPageCount = validPages;
         info.readerClaimedPageCount = readerClaimedPages;
         info.writerClaimedPageCount = writerClaimedPages;
-        
+
         info.updateAcquisitonTime();
     }
 
@@ -462,6 +473,7 @@ public class BufferPool {
     void bumpForcedCheckpointWrites() {
         _forcedCheckpointWrites.incrementAndGet();
     }
+
     /**
      * Get the "hit ratio" - the number of hits divided by the number of overall
      * gets. A value close to 1.0 indicates that most attempts to find data in
@@ -902,8 +914,9 @@ public class BufferPool {
                         if (!buffer.isValid()) {
                             buffer.clearDirty();
                             return buffer;
-                        } else {
-                            // A dirty valid buffer needs to be written and then marked invalid
+                        } else if (detach(buffer)) {
+                            // A dirty valid buffer needs to be written and then
+                            // marked invalid
                             buffer.writePage();
                             _forcedWrites.incrementAndGet();
                             buffer.clearValid();
@@ -964,56 +977,158 @@ public class BufferPool {
         WRITTEN, UNAVAILABLE, ERROR
     };
 
-    long earliestDirtyTimestamp() {
-        long earliestDirtyTimestamp = Long.MAX_VALUE;
-        for (int index = 0; index < _buffers.length; index++) {
-            final Buffer buffer = _buffers[index];
-            if (buffer.isDirty() && !buffer.isTemporary()) {
-                long timestamp = buffer.getTimestamp();
-                if (timestamp < earliestDirtyTimestamp) {
-                    earliestDirtyTimestamp = timestamp;
-                }
-            }
-        }
-        return earliestDirtyTimestamp;
+    long getEarliestDirtyTimestamp() {
+        return _earliestDirtyTimestamp;
     }
 
-    private int writeDirtyBuffers(final boolean urgent, final boolean all) {
-        int unavailable = 0;
-        int start = _clock.get();
-        int max = all ? _bufferCount : _bufferCount / 8;
-        final int end = all ? start + _bufferCount : start + (_bufferCount / 8);
-        int index = start;
-        for (; index < end; index++) {
-            final Buffer buffer = _buffers[index % _bufferCount];
-            if (buffer.isDirty()) {
+    void setFlushTimestamp(final long timestamp) {
+        while (true) {
+            long current = _flushTimestamp.get();
+            if (timestamp > current) {
+                if (_flushTimestamp.compareAndSet(current, timestamp)) {
+                    break;
+                }
+                pause();
+            } else {
+                break;
+            }
+        }
+    }
+
+    private boolean writeDirtyBuffers(final boolean urgent, final boolean all, final int[] priorities,
+            final Buffer[] selectedBuffers) {
+        boolean written = false;
+        int count = selectDirtyBuffers(priorities, selectedBuffers, all);
+        if (count > 0) {
+            Arrays.sort(selectedBuffers, 0, count);
+            for (int index = 0; index < count; index++) {
+                final Buffer buffer = selectedBuffers[index];
                 if (buffer.claim(true, 0)) {
                     try {
-                        if (buffer.isValid() && buffer.isDirty()) {
-                            buffer.writePage();
-                            if (--max <= 0) {
-                                index++;
-                                break;
-                            }
-                        } else {
-                            buffer.clearDirty();
-                        }
-                    } catch (Exception e) {
-                        _persistit.getLogBase().writeException.log(e, buffer.getVolume(), buffer.getPageAddress());
+                        buffer.writePage();
+                        written |= true;
+                    } catch (PersistitException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
                     } finally {
                         buffer.release();
                     }
-                } else {
-                    unavailable++;
                 }
             }
         }
-        return unavailable;
+        return written;
     }
 
+    int selectDirtyBuffers(final int[] priorities, final Buffer[] buffers, final boolean all) {
+        int count = 0;
+        int max = Integer.MAX_VALUE;
+        final int clock = _clock.get();
+        final long checkpointTimestamp = _persistit.getTimestampAllocator().getCurrentCheckpoint().getTimestamp();
+        long earliestDirtyTimestamp = Long.MAX_VALUE;
+        long flushTimestamp = _flushTimestamp.get();
+        boolean flushed = true;
+        for (int index = clock; index < clock + _bufferCount; index++) {
+            final Buffer buffer = _buffers[index % _bufferCount];
+            final int priority = writePriority(buffer, clock, checkpointTimestamp);
+            if (priority > 0) {
+                if (priority <= max) {
+                    if (count < priorities.length) {
+                        priorities[count] = priority;
+                        buffers[count] = buffer;
+                        count++;
+                        max = priority;
+                    }
+                } else {
+                    int where;
+                    for (where = count - 1; priorities[where] < priority; where--) {
+                        if (where == 0) {
+                            break;
+                        }
+                    }
+                    count = Math.min(count, priorities.length - 1);
+                    System.arraycopy(priorities, where, priorities, where + 1, count - where);
+                    System.arraycopy(buffers, where, buffers, where + 1, count - where);
+                    count++;
+                }
+                if (buffer.getTimestamp() < earliestDirtyTimestamp) {
+                    earliestDirtyTimestamp = buffer.getTimestamp();
+                }
+                if (buffer.getTimestamp() < flushTimestamp) {
+                    flushed = false;
+                }
+            }
+        }
+        _earliestDirtyTimestamp = earliestDirtyTimestamp;
+        if (flushed) {
+            _flushTimestamp.compareAndSet(flushTimestamp, Long.MAX_VALUE);
+        }
+        return count;
+    }
+
+    /**
+     * Computes a priority for writing the specified Buffer. A larger value
+     * denotes a greater priority. Priority 0 indicates the buffer is ineligible
+     * to be written.
+     * <p />
+     * 
+     * @return priority
+     */
+    private int writePriority(final Buffer buffer, int clock, long checkpointTimestamp) {
+        int status = buffer.getStatus();
+        if ((status & Buffer.VALID_MASK) == 0 || (status & Buffer.DIRTY_MASK) == 0) {
+            // ineligible
+            return 0;
+        }
+        //
+        // compute "distance" between this buffer and the clock. A larger
+        // distance
+        // results in lower priority.
+        //
+        int distance = (buffer.getIndex() - _clock.get() + _bufferCount) % _bufferCount;
+        //
+        // If this buffer has been touched, then it won't be evicted for at
+        // least another
+        // _bufferCount cycles, and its distance is therefore increased.
+        //
+        if ((status & Buffer.TOUCHED_MASK) == 1) {
+            distance += _bufferCount;
+        }
+        if (!buffer.isTemporary()) {
+            //
+            // Give higher priority to dirty buffers that need to be
+            // check-pointed.
+            //
+            if (buffer.getTimestamp() < checkpointTimestamp) {
+                distance -= _bufferCount;
+            }
+            if (buffer.getTimestamp() < _flushTimestamp.get()) {
+                distance -= _bufferCount;
+            }
+        } else {
+            //
+            // Temporary buffer - don't write it at all until the clock goes
+            // through
+            // at least a full cycle.
+            //
+            if (distance > _bufferCount) {
+                return 0;
+            }
+        }
+        //
+        // Bias to a large positive integer (magnitude doesn't matter)
+        //
+        return 1000000000 - distance;
+    }
+
+    /**
+     * Implementation of PAGE_WRITER thread.
+     */
     private class PageWriter extends IOTaskRunnable {
         private boolean _clean;
         private boolean _wasClosed;
+
+        final int[] _priorities = new int[PAGE_WRITER_TRANCHE_SIZE];
+        final Buffer[] _selectedBuffers = new Buffer[PAGE_WRITER_TRANCHE_SIZE];
 
         PageWriter() {
             super(BufferPool.this._persistit);
@@ -1025,21 +1140,24 @@ public class BufferPool {
 
         @Override
         public void runTask() {
-            _wasClosed = _closed.get();
-            _clean = writeDirtyBuffers(_urgent.get(), _wasClosed) == 0;
-            if (_clean) {
+            int cleanCount = _bufferCount - _dirtyPageCount.get();
+            if (!_urgent.get() && cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8) {
+                return;
+            }
+            writeDirtyBuffers(_urgent.get(), _wasClosed, _priorities, _selectedBuffers);
+            if (_dirtyPageCount.get() == 0) {
                 _urgent.set(false);
             }
         }
 
         @Override
         protected boolean shouldStop() {
-            return _fastClose.get() || _clean && _wasClosed;
+            return _closed.get() && _flushTimestamp.get() == Long.MAX_VALUE;
         }
 
         @Override
         protected long pollInterval() {
-            return _wasClosed || _urgent.get() ? 0 : _writerPollInterval;
+            return _flushTimestamp.get() == Long.MAX_VALUE ? _writerPollInterval : 0;
         }
 
     }

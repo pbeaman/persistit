@@ -179,11 +179,11 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
         txn.begin();
         store1();
-        jman.setUnitTestNeverCloseTransactionId(txn.getId());
+        jman.setUnitTestNeverCloseTransactionId(txn.getStartTimestamp());
         txn.commit();
         txn.end();
         jman.setUnitTestNeverCloseTransactionId(Long.MIN_VALUE);
-
+        
         jman.rollover();
         _persistit.checkpoint();
         jman.copyBack();
@@ -193,24 +193,20 @@ public class RecoveryTest extends PersistitUnitTestCase {
         // it should preserve the journal file containing the TS record
         // for the transaction.
         //
-        assertEquals(2, jman.getBaseAddress() / blockSize);
         assertEquals(0, jman.getPageMapSize());
-
+        assertTrue(jman.getBaseAddress() < jman.getCurrentAddress());
         txn.begin();
         store1();
         txn.commit();
         txn.end();
 
-        // Using the same transaction resets the transaction status;
-        // after the commit() call above, JournalManager should not
-        // have any open transactions. Therefore rollover should
-        // delete the earlier files after copyBack.
-        //
+        jman.unitTestClearTransactionMap();
+
         jman.rollover();
         _persistit.checkpoint();
         jman.copyBack();
 
-        assertEquals(3, jman.getBaseAddress() / blockSize);
+        assertEquals(jman.getBaseAddress(), jman.getCurrentAddress());
         assertEquals(0, jman.getPageMapSize());
 
         fetch1a();

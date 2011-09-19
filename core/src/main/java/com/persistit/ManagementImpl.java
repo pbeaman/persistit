@@ -284,17 +284,13 @@ class ManagementImpl implements Management {
      * Attempts to flush and sync all dirty data in Persistit by invoking
      * {@link Persistit#flush} and {@link Persistit#sync}.
      * 
-     * @return <code>true</code> if the attempt to close Persistit was
-     *         successful; otherwise <code>false</code>
      * @throws RemoteException
      */
     @Override
-    public boolean flushAndSync() throws RemoteException {
+    public void flushAndSync() throws RemoteException {
         try {
-            boolean okay = _persistit.flush();
-            if (okay)
-                _persistit.sync();
-            return okay;
+            _persistit.flush();
+            _persistit.sync();
         } catch (PersistitException e) {
             throw new WrappedRemoteException(e);
         }
@@ -741,8 +737,8 @@ class ManagementImpl implements Management {
             status |= SharedResource.FIXED_MASK;
 
         if (statusCode.indexOf('a') >= 0)
-            status |= (SharedResource.FIXED_MASK | SharedResource.WRITER_MASK
-                    | SharedResource.CLAIMED_MASK | SharedResource.DIRTY_MASK | SharedResource.VALID_MASK);
+            status |= (SharedResource.FIXED_MASK | SharedResource.WRITER_MASK | SharedResource.CLAIMED_MASK
+                    | SharedResource.DIRTY_MASK | SharedResource.VALID_MASK);
 
         // select none
         if (status == 0)
