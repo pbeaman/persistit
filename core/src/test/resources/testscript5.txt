@@ -17,11 +17,11 @@ logpath $logpath$/result_$timestamp$.log
 
 #Stress-5 index file list, multithread, small pool
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 clearprops
 prop buffer.count.8192=200
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 

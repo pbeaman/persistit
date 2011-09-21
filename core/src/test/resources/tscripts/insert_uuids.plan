@@ -5,7 +5,7 @@ logpath $logpath$/result_$timestamp$.log
 
 clearprops
 prop buffer.count.8192=50000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:1G,extensionSize:1G,maximumSize:500G
+prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialSize:1G,extensionSize:1G,maximumSize:500G
 prop journalpath=$datapath$/persistit_journal
 prop logfile=$logpath$/persistit_$timestamp$.log
 prop rmiport=8081

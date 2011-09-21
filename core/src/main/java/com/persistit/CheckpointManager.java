@@ -108,13 +108,11 @@ class CheckpointManager extends IOTaskRunnable {
                     return;
                 }
                 _persistit.getJournalManager().writeCheckpointToJournal(validCheckpoint);
+                synchronized (this) {
+                    _outstandingCheckpoints.remove(validCheckpoint);
+                }
             } catch (PersistitIOException e) {
                 _persistit.getLogBase().exception.log(e);
-            }
-        }
-        synchronized (this) {
-            if (validCheckpoint != null) {
-                _outstandingCheckpoints.remove(validCheckpoint);
             }
         }
     }

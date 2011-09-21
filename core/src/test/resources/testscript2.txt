@@ -18,11 +18,11 @@ logpath $logpath$/result_$timestamp$.log
 
 #Stress-7 test mixture, multithread, small pool
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -58,7 +58,7 @@ close
 
 clearprops
 prop buffer.count.8192=10000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 prop syncio=true
@@ -91,7 +91,7 @@ close
 
 clearprops
 prop buffer.count.8192=10000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop logfile=$datapath$/persistit.log
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
@@ -125,11 +125,11 @@ close
 
 #Stress-10 test mixture, multithread, large pool
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal*
+delete $datapath$/persistit $datapath$/persistit_journal*
 
 clearprops
 prop buffer.count.8192=20000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop logfile=$datapath$/persistit.log
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
@@ -178,12 +178,12 @@ close
 
 clearprops
 prop buffer.count.8192=12000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop logfile=$datapath$/persistit.log
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 init
 multithread

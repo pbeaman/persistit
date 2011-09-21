@@ -50,7 +50,6 @@ import com.persistit.exception.PersistitClosedException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PropertiesNotFoundException;
-import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
 import com.persistit.exception.VolumeAlreadyExistsException;

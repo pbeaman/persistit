@@ -18,7 +18,7 @@ logpath $logpath$/result_$timestamp$.log
 // The -e flag causes TestRunner to exit with a non-zero status on failure.
 //
 prop buffer.count.8192=5000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M,alias:persistit
+prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M,alias:persistit
 prop journalpath=$datapath$/persistit_journal
 prop logfile=$logpath$/persistit_$timestamp$.log
 prop rmiport=8081
