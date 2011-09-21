@@ -4,9 +4,9 @@ logpath $logpath$/result_$timestamp$.log
 
 clearprops
 prop buffer.count.8192=20K
-prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
-prop volume.2=$datapath$/persistit_txn,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
-prop volume.3=$datapath$/persistit_sys,create,bufferSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop volume.2=$datapath$/persistit_txn,create,pageSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
+prop volume.3=$datapath$/persistit_sys,create,pageSize:8192,initialPages:100,extensionPages:100,maximumPages:1M
 prop sysvolume=persistit_sys
 prop txnvolume=persistit_txn
 prop journalpath=$datapath$/persistit_journal

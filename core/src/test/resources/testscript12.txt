@@ -23,7 +23,7 @@ delete $datapath$/persistit $datapath$/test_system $datapath$/test_txn $datapath
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -65,7 +65,7 @@ delete $datapath$/persistit $datapath$/test_system $datapath$/test_txn $datapath
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -107,7 +107,7 @@ delete $datapath$/persistit $datapath$/test_system $datapath$/test_txn $datapath
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -150,7 +150,7 @@ delete $datapath$/persistit $datapath$/test_system $datapath$/test_txn $datapath
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -193,7 +193,7 @@ delete $datapath$/persistit $datapath$/test_system $datapath$/test_txn $datapath
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -236,7 +236,7 @@ delete $datapath$/persistit $datapath$/test_system $datapath$/test_txn $datapath
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -279,7 +279,7 @@ delete $datapath$/persistit $datapath$/test_system $datapath$/test_txn $datapath
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 

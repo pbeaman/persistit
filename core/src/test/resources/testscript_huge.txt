@@ -23,7 +23,7 @@ delete $datapath$/persistit $datapath$/test_system $datapath$/test_txn $datapath
 
 
 prop buffer.count.8192=50000
-prop volume.1=$datapath$/persistit,create,bufferSize:8192,initialSize:100M,extensionSize:100M,maximumSize:10G
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialSize:100M,extensionSize:100M,maximumSize:10G
 prop journalpath=$datapath$/persistit_journal
 
 prop rmiport=1099
