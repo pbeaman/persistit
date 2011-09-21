@@ -39,8 +39,6 @@ abstract class IOTaskRunnable implements Runnable {
 
     private Exception _lastException;
 
-    protected AtomicBoolean _urgent = new AtomicBoolean();
-
     protected IOTaskRunnable(final Persistit persistit) {
         _persistit = persistit;
     }
@@ -56,7 +54,6 @@ abstract class IOTaskRunnable implements Runnable {
     }
 
     void urgent() {
-        _urgent.set(true);
         kick();
     }
 

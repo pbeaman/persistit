@@ -171,21 +171,23 @@ public class Volume {
             // Prevents read/write operations from starting while the
             // volume is being closed.
             //
-            getStorage().claim(true);
-            try {
-                //
-                // BufferPool#invalidate may fail and return false if other
-                // threads hold claims on pages of this volume. In that case we
-                // need to back off all locks and retry
-                //
-                if (getStructure().getPool().invalidate(this)) {
-                    getStructure().truncate();
-                    getStorage().truncate();
-                    getStatistics().reset();
-                    break;
+            if (getStorage().claim(true, 0)) {
+                try {
+                    //
+                    // BufferPool#invalidate may fail and return false if other
+                    // threads hold claims on pages of this volume. In that case
+                    // we
+                    // need to back off all locks and retry
+                    //
+                    if (getStructure().getPool().invalidate(this)) {
+                        getStructure().truncate();
+                        getStorage().truncate();
+                        getStatistics().reset();
+                        break;
+                    }
+                } finally {
+                    getStorage().release();
                 }
-            } finally {
-                getStorage().release();
             }
             try {
                 Thread.sleep(Persistit.SHORT_DELAY);
@@ -194,7 +196,7 @@ public class Volume {
             }
         }
     }
-    
+
     public boolean delete() throws PersistitException {
         if (!getStorage().isClosed()) {
             throw new IllegalStateException("Volume must be closed before deletion");
@@ -210,11 +212,11 @@ public class Volume {
     public String getPath() {
         return getStorage().getPath();
     }
-    
+
     public long getNextAvailablePage() {
         return getStorage().getNextAvailablePage();
     }
-    
+
     public long getExtendedPageCount() {
         return getStorage().getExtentedPageCount();
     }

@@ -240,6 +240,19 @@ class VolumeStructure {
         }
         return true;
     }
+    
+    /**
+     * Called by Exchange to recreate a Tree after a volume has been
+     * truncated.
+     * @param tree
+     * @throws PersistitException 
+     */
+    void recreateTree(final Tree tree) throws PersistitException {
+        Debug.$assert1.t(tree.getDepth() == -1);
+        final long rootPageAddr = createTreeRoot(tree);
+        tree.setRootPageAddress(rootPageAddr);
+        updateDirectoryTree(tree);
+    }
 
     /**
      * Returns an array of all currently defined <code>NewTree</code> names.
@@ -278,24 +291,6 @@ class VolumeStructure {
             }
         } catch (PersistitException pe) {
             return null;
-        }
-    }
-
-    /**
-     * Ensure that any dirty Tree instances are backed up in the Directory tree
-     * 
-     * @throws PersistitException
-     */
-    void flushTrees() throws PersistitException {
-        List<WeakReference<Tree>> trees = new ArrayList<WeakReference<Tree>>();
-        synchronized (this) {
-            trees.addAll(_treeNameHashMap.values());
-        }
-        for (final WeakReference<Tree> treeRef : trees) {
-            final Tree tree = treeRef.get();
-            if (tree != null && tree.isDirty()) {
-                updateDirectoryTree(tree);
-            }
         }
     }
 

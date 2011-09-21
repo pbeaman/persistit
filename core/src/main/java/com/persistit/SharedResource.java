@@ -82,12 +82,18 @@ class SharedResource {
      */
     final static int FIXED_MASK = 0x40000000;
 
+    final static AtomicLong ACQUIRE_LOOPS = new AtomicLong();
+    final static AtomicLong RELEASE_LOOPS = new AtomicLong();
+    final static AtomicLong SET_BIT_LOOPS = new AtomicLong();
+    final static AtomicLong CLEAR_BIT_LOOPS = new AtomicLong();
+    
+
     /**
      * Extension of {@link AbstractQueuedSynchronizer} with Persistit semantics.
      */
     private static class Sync extends AbstractQueuedSynchronizer {
         private static final long serialVersionUID = 1L;
-
+        
         @Override
         protected boolean tryAcquire(int arg) {
             assert arg == 1;
@@ -108,6 +114,7 @@ class SharedResource {
                     setExclusiveOwnerThread(thisThread);
                     return true;
                 }
+                ACQUIRE_LOOPS.incrementAndGet();
             }
         }
 
@@ -130,6 +137,7 @@ class SharedResource {
                 } else if (compareAndSetState(state, state + 1)) {
                     return CLAIMED_MASK - (state & CLAIMED_MASK) - 1;
                 }
+                ACQUIRE_LOOPS.incrementAndGet();
             }
         }
 
@@ -153,6 +161,7 @@ class SharedResource {
                     setExclusiveOwnerThread(thisThread);
                     return true;
                 }
+                ACQUIRE_LOOPS.incrementAndGet();
             }
         }
 
@@ -204,6 +213,7 @@ class SharedResource {
                 } else {
                     throw new IllegalMonitorStateException("Unmatched attempt to release " + this);
                 }
+                RELEASE_LOOPS.incrementAndGet();
             }
         }
 
@@ -223,6 +233,7 @@ class SharedResource {
                 if (compareAndSetState(state, newState)) {
                     return state != newState;
                 }
+                SET_BIT_LOOPS.incrementAndGet();
             }
         }
 
@@ -233,6 +244,7 @@ class SharedResource {
                 if (compareAndSetState(state, newState)) {
                     return state != newState;
                 }
+                CLEAR_BIT_LOOPS.incrementAndGet();
             }
         }
 

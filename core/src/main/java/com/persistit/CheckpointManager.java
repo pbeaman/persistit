@@ -25,7 +25,7 @@ class CheckpointManager extends IOTaskRunnable {
 
     private final static long SHORT_DELAY = 500;
 
-    private final static long FLUSH_CHECKPOINT_INTERVAL = 15000;
+    private final static long FLUSH_CHECKPOINT_INTERVAL = 5000;
 
     private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
@@ -117,9 +117,6 @@ class CheckpointManager extends IOTaskRunnable {
                 _outstandingCheckpoints.remove(validCheckpoint);
             }
         }
-        if (validCheckpoint != null) {
-            _urgent.set(false);
-        }
     }
 
     /**
@@ -147,11 +144,6 @@ class CheckpointManager extends IOTaskRunnable {
             }
         }
         return null;
-    }
-
-    @Override
-    protected long pollInterval() {
-        return _urgent.get() ? SHORT_DELAY : super.getPollInterval();
     }
 
     @Override

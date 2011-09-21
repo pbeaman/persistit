@@ -28,6 +28,7 @@ import java.util.Stack;
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
 import com.persistit.TimestampAllocator.Checkpoint;
+import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.InvalidPageTypeException;
@@ -397,9 +398,14 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
     /**
      * Extract fields from the buffer.
+     * @throws PersistitIOException
+     * @throws InvalidPageAddressException
+     * @throws InvalidPageStructureException
+     * @throws VolumeClosedException
+     * @throws InUseException 
      */
     void load(Volume vol, long page) throws PersistitIOException, InvalidPageAddressException,
-            InvalidPageStructureException, VolumeClosedException {
+            InvalidPageStructureException, VolumeClosedException, InUseException {
         _vol = vol;
         _page = page;
         vol.getStorage().readPage(this);
@@ -445,7 +451,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException,
-            VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException {
+            VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException, InUseException {
         Debug.$assert0.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         if (isDirty() && !isTemporary() && getTimestamp() < checkpoint.getTimestamp()
@@ -456,7 +462,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     void writePage() throws PersistitIOException, InvalidPageStructureException, VolumeClosedException,
-            ReadOnlyVolumeException, InvalidPageAddressException {
+            ReadOnlyVolumeException, InvalidPageAddressException, InUseException {
         final Volume volume = getVolume();
         if (volume != null) {
             clearSlack();

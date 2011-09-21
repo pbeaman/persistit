@@ -559,8 +559,7 @@ public class Transaction {
         int saveDepth = _nestedDepth;
         _nestedDepth = 0;
         try {
-            Volume txnVolume = _persistit.getTransactionVolume();
-
+            Volume txnVolume = _persistit.createTemporaryVolume();
             _ex1 = _persistit.getExchange(txnVolume, TRANSACTION_TREE_NAME + _id, true);
             _ex2 = new Exchange(_ex1);
             _ex1.ignoreTransactions();
@@ -1334,7 +1333,6 @@ public class Transaction {
             if (enqueued) {
                 writeUpdatesToTransactionWriter(_persistit.getJournalManager());
             }
-            clear();
             return committed;
         } finally {
             _longRecordDeallocationList.clear();
@@ -1382,8 +1380,9 @@ public class Transaction {
     private void clear() throws PersistitException {
         _visbilityOrder.clear();
         if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
-            if (_ex1 == null)
+            if (_ex1 == null) {
                 setupExchanges();
+            }
             _ex1.removeAll();
             _pendingStoreCount = 0;
             _pendingRemoveCount = 0;
@@ -1998,7 +1997,6 @@ public class Transaction {
             //
             // Remove the update list.
             //
-            clear();
         } else if (!_recoveryMode) {
             return;
         }

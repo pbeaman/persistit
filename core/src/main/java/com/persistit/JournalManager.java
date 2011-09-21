@@ -815,6 +815,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             checkpointWritten(checkpoint);
 
             _persistit.getLogBase().checkpointWritten.log(checkpoint, address);
+            _persistit.getIOMeter().chargeWriteOtherToJournal(CP.OVERHEAD, address);
         }
 
         _lastValidCheckpoint = checkpoint;
@@ -904,7 +905,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         prepareWriteBuffer(recordSize);
         writeStoreRecordToJournal(_writeBuffer, recordSize, timestamp, treeHandle, key, value);
         _currentAddress += recordSize;
-        _persistit.getIOMeter().chargeWriteSRtoJournal(recordSize, _currentAddress - recordSize);
         return true;
     }
 
@@ -918,6 +918,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         writeBuffer.position(writeBuffer.position() + SR.OVERHEAD);
         writeBuffer.put(key.getEncodedBytes(), 0, key.getEncodedSize());
         writeBuffer.put(value.getEncodedBytes(), 0, value.getEncodedSize());
+        _persistit.getIOMeter().chargeWriteSRtoJournal(recordSize, _currentAddress - recordSize);
     }
 
     @Override
@@ -927,7 +928,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         prepareWriteBuffer(recordSize);
         writeDeleteRecordToJournal(_writeBuffer, recordSize, timestamp, treeHandle, key1, key2);
         _currentAddress += recordSize;
-        _persistit.getIOMeter().chargeWriteDRtoJournal(recordSize, _currentAddress - recordSize);
         return true;
     }
 
@@ -941,6 +941,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         writeBuffer.position(writeBuffer.position() + DR.OVERHEAD);
         writeBuffer.put(key1.getEncodedBytes(), 0, key1.getEncodedSize());
         writeBuffer.put(key2.getEncodedBytes(), 0, key2.getEncodedSize());
+        _persistit.getIOMeter().chargeWriteDRtoJournal(recordSize, _currentAddress - recordSize);
     }
 
     @Override
@@ -949,7 +950,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         prepareWriteBuffer(DT.OVERHEAD);
         writeDeleteTreeToJournal(_writeBuffer, DT.OVERHEAD, timestamp, treeHandle);
         _currentAddress += DT.OVERHEAD;
-        _persistit.getIOMeter().chargeWriteDTtoJournal(DT.OVERHEAD, _currentAddress - DT.OVERHEAD);
         return true;
     }
 
@@ -978,7 +978,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         prepareWriteBuffer(TS.OVERHEAD);
         writeTransactionStartToJournal(_writeBuffer, TS.OVERHEAD, startTimestamp);
         _currentAddress += TS.OVERHEAD;
-        _persistit.getIOMeter().chargeWriteTStoJournal(TS.OVERHEAD, _currentAddress - TS.OVERHEAD);
         return true;
     }
 
@@ -988,6 +987,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         JournalRecord.putTimestamp(writeBuffer, startTimestamp);
         TS.putLength(writeBuffer, TS.OVERHEAD);
         writeBuffer.position(writeBuffer.position() + TS.OVERHEAD);
+        _persistit.getIOMeter().chargeWriteTStoJournal(TS.OVERHEAD, _currentAddress - TS.OVERHEAD);
     }
 
     @Override
@@ -1007,7 +1007,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         prepareWriteBuffer(TC.OVERHEAD);
         writeTransactionCommitToJournal(_writeBuffer, TC.OVERHEAD, timestamp, commitTimestamp);
         _currentAddress += TC.OVERHEAD;
-        _persistit.getIOMeter().chargeWriteTCtoJournal(TC.OVERHEAD, _currentAddress - TC.OVERHEAD);
         return true;
     }
 
@@ -1019,6 +1018,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         TC.putCommitTimestamp(writeBuffer, commitTimestamp);
         TC.putLength(writeBuffer, TC.OVERHEAD);
         writeBuffer.position(writeBuffer.position() + TC.OVERHEAD);
+        _persistit.getIOMeter().chargeWriteTCtoJournal(TC.OVERHEAD, _currentAddress - TC.OVERHEAD);
     }
 
     @Override

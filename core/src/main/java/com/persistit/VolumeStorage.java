@@ -18,10 +18,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
+import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.ReadOnlyVolumeException;
+import com.persistit.exception.InUseException;
 import com.persistit.exception.VolumeClosedException;
 
 /**
@@ -149,13 +151,14 @@ abstract class VolumeStorage extends SharedResource {
 
     abstract void releaseHeadBuffer();
 
-    abstract void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException;
+    abstract void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
+            VolumeClosedException, InUseException;
     
     abstract void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException;
+            ReadOnlyVolumeException, VolumeClosedException, InUseException;
 
     abstract void writePage(final ByteBuffer bb, final long page) throws PersistitIOException,
-            InvalidPageAddressException, ReadOnlyVolumeException, VolumeClosedException;
+            InvalidPageAddressException, ReadOnlyVolumeException, VolumeClosedException, InUseException;
 
     abstract long allocNewPage() throws PersistitException;
 

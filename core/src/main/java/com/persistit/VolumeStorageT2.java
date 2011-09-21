@@ -24,6 +24,7 @@ import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.ReadOnlyVolumeException;
+import com.persistit.exception.InUseException;
 import com.persistit.exception.VolumeClosedException;
 
 /**
@@ -215,8 +216,8 @@ class VolumeStorageT2 extends VolumeStorage {
     }
 
     void truncate() throws PersistitException {
-        try {
-            _channel.truncate(0);
+//        try {
+//            _channel.truncate(0);
             VolumeStatistics stat = _volume.getStatistics();
             VolumeStructure struc = _volume.getStructure();
 
@@ -229,9 +230,9 @@ class VolumeStorageT2 extends VolumeStorage {
             struc.init(0, 0);
             flushMetaData();
 
-        } catch (IOException ioe) {
-            throw new PersistitIOException(ioe);
-        }
+//        } catch (IOException ioe) {
+//            throw new PersistitIOException(ioe);
+//        }
     }
 
     boolean isOpened() {
@@ -256,10 +257,12 @@ class VolumeStorageT2 extends VolumeStorage {
     void releaseHeadBuffer() {
     }
 
-    void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException {
+    void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException, InUseException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
-        claim(false);
+        if (!claim(false, 0)) {
+            throw new InUseException("Unable to acquire claim on " + this);
+        }
         try {
             final long page = buffer.getPageAddress();
             if (page < 1 || page >= _nextAvailablePage) {
@@ -292,22 +295,28 @@ class VolumeStorageT2 extends VolumeStorage {
     }
 
     void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException {
+            ReadOnlyVolumeException, VolumeClosedException, InUseException {
         writePage(buffer.getByteBuffer(), buffer.getPageAddress());
     }
 
     void writePage(final ByteBuffer bb, final long page) throws PersistitIOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException {
+            ReadOnlyVolumeException, VolumeClosedException, InUseException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
-        claim(false);
+        int pageSize = _volume.getStructure().getPageSize();
+        if (!claim(false, 0)) {
+            throw new InUseException("Unable to acquire claim on " + this);
+        }
         try {
             if (page < 0 || page >= _nextAvailablePage) {
                 throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _nextAvailablePage + "]");
             }
 
             try {
-                _channel.write(bb, (page - 1) * _volume.getStructure().getPageSize());
+                bb.position(0).limit(pageSize);
+
+                _channel.write(bb, (page - 1) * pageSize);
+
             } catch (IOException ioe) {
                 _persistit.getLogBase().writeException.log(ioe, this, page);
                 _lastIOException = ioe;

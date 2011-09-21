@@ -1176,7 +1176,8 @@ public class Persistit {
      * results that can be recreated in the event the system restarts.
      * <p />
      * The temporary volume page size is can be specified by the configuration
-     * property <code>tvpagesize</code>. The default value is 16,384.
+     * property <code>tvpagesize</code>. The default value is determined by the
+     * {@link BufferPool} having the largest page size.
      * <p />
      * The backing store file for a temporary volume is created in the directory
      * specified by the configuration property <code>tvdirectory</code>, or if
@@ -1186,7 +1187,14 @@ public class Persistit {
      * @throws PersistitException
      */
     public Volume createTemporaryVolume() throws PersistitException {
-        final int pageSize = (int) getLongProperty(TEMPORARY_VOLUME_PAGE_SIZE_NAME, 16384, 0, 99999);
+        int pageSize = (int) getLongProperty(TEMPORARY_VOLUME_PAGE_SIZE_NAME, 0, 0, 99999);
+        if (pageSize == 0) {
+            for (int size : _bufferPoolTable.keySet()) {
+                if (size > pageSize) {
+                    pageSize = size;
+                }
+            }
+        }
         return createTemporaryVolume(pageSize);
     }
 
@@ -1620,7 +1628,7 @@ public class Persistit {
      *         invocation closed it, otherwise false.
      */
     public void close() throws PersistitException {
-        close(true, false);
+        close(true);
     }
 
     /**
@@ -1680,17 +1688,12 @@ public class Persistit {
      *         invocation closed it, otherwise false.
      */
     public void close(final boolean flush) throws PersistitException {
-        close(flush, false);
-    }
-
-    // TODO - can byHook ever be true? I don't think so.
-    private void close(final boolean flush, final boolean byHook) throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
             return;
         }
         synchronized (this) {
             // Wait for UI to go down.
-            while (!byHook && _suspendShutdown.get()) {
+            while (_suspendShutdown.get()) {
                 try {
                     wait(SHORT_DELAY);
                 } catch (InterruptedException ie) {
@@ -1698,11 +1701,11 @@ public class Persistit {
             }
         }
 
-        if (byHook) {
-            shutdownGUI();
+        if (flush) {
+            for (final Volume volume : _volumes) {
+                volume.getStorage().flushMetaData();
+            }
         }
-
-        flush();
 
         _checkpointManager.close(flush);
         waitForIOTaskStop(_checkpointManager);
@@ -1714,7 +1717,7 @@ public class Persistit {
         }
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.close(false);
+            pool.close();
             unregisterBufferPoolMXBean(pool.getBufferSize());
         }
         _journalManager.close();
@@ -1724,7 +1727,7 @@ public class Persistit {
         }
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            int count = pool.countDirty(null);
+            int count = pool.getDirtyPageCount();
             if (count > 0) {
                 _logBase.strandedPages.log(pool, count);
             }
@@ -1810,18 +1813,15 @@ public class Persistit {
             return;
         }
         for (final Volume volume : _volumes) {
-            volume.getStructure().flushTrees();
             volume.getStorage().flushMetaData();
         }
         flushBuffers(_timestampAllocator.getCurrentTimestamp());
         _journalManager.force();
     }
-    
+
     void flushBuffers(final long timestamp) {
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            if (pool != null) {
-                pool.flush(timestamp);
-            }
+            pool.flush(timestamp);
         }
     }
 

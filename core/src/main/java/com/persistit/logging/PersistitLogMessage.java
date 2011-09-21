@@ -15,6 +15,9 @@
 
 package com.persistit.logging;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
 /**
  * A template for a Persisit log message. See {@link LogBase} for usage. A
  * LogBase instance defines {@link LogItem} instances as fields. At various
@@ -212,6 +215,11 @@ public class PersistitLogMessage {
         public String logMessage(Object... args) {
             StringBuilder sb = new StringBuilder(String.format("[%s] %s ", Thread.currentThread().getName(), _level));
             try {
+                for (int i = 0; i < args.length; i++) {
+                    if (args[i] instanceof RuntimeException) {
+                        args[i] = throwableFormatter((RuntimeException)args[i]);
+                    }
+                }
                 sb.append(String.format(_message, args));
             } catch (Exception e) {
                 sb.append("Bad log message ");
@@ -250,5 +258,15 @@ public class PersistitLogMessage {
 
         }
 
+    }
+    
+    static String throwableFormatter(final Throwable t) {
+        final StringWriter sw = new StringWriter();
+        t.printStackTrace(new PrintWriter(sw));
+        final StringBuffer sb = sw.getBuffer();
+        for (int p = -1; (p = sb.indexOf("\n", p + 1)) >= 0; ) {
+            sb.insert(p + 1, "    ");
+        }
+        return sb.toString();
     }
 }

@@ -77,9 +77,9 @@ class IOMeter implements IOMeterMXBean {
 
     private final static int ITEM_COUNT = 14;
 
-    private long _ioRate;
+    private volatile long _ioRate;
 
-    private long _lastTick;
+    private volatile long _lastTick;
 
     private long _tickSize = DEFAULT_TICK_SIZE;
 
@@ -185,16 +185,14 @@ class IOMeter implements IOMeterMXBean {
     }
 
     private void charge(final long time, final int size, int item) {
-        synchronized (this) {
-            final long ticks = (time - _lastTick) / _tickSize;
-            if (ticks > 10) {
-                _ioRate = 0;
-            } else {
-                _ioRate >>>= ticks;
-            }
-            _lastTick = (time / _tickSize) * _tickSize;
-            _ioRate += size;
+        final long ticks = (time - _lastTick) / _tickSize;
+        if (ticks > 10) {
+            _ioRate = 0;
+        } else {
+            _ioRate >>>= ticks;
         }
+        _lastTick = (time / _tickSize) * _tickSize;
+        _ioRate += size;
         _count[item].incrementAndGet();
         _sum[item].addAndGet(size);
     }
@@ -219,11 +217,11 @@ class IOMeter implements IOMeterMXBean {
         }
     }
 
-    private void dump(final DataInputStream is) throws IOException {
+    private void dump(final DataInputStream is, int count) throws IOException {
         long start = 0;
         final Map<Integer, Integer> volMap = new HashMap<Integer, Integer>();
         int counter = 0;
-        while (true) {
+        for (int index = 0; index < count; index++) {
             try {
                 final int type = is.read();
                 if (type == -1) {
@@ -267,9 +265,7 @@ class IOMeter implements IOMeterMXBean {
         //
         long sleep = 0;
         if (urgency < URGENT - 2) {
-            synchronized (this) {
-                sleep = _ioRate > _quiescentIOthreshold ? _copyPageSleepInterval : 0;
-            }
+            sleep = _ioRate > _quiescentIOthreshold ? _copyPageSleepInterval : 0;
         }
         if (sleep > 0) {
             try {
@@ -407,14 +403,19 @@ class IOMeter implements IOMeterMXBean {
      * @throws Exception
      */
     public static void main(final String[] args) throws Exception {
-        final ArgParser ap = new ArgParser("com.persistit.IOMeter", args, new String[] { "file||log file name" });
+        final ArgParser ap = new ArgParser("com.persistit.IOMeter", args, new String[] { "file||log file name",
+                "skip|long:0:0:1000000000000|event skip count",
+                "count|long:0:0:2000000000|event count nlimit"});
         final String fileName = ap.getStringValue("file");
+        final long skip = ap.getLongValue("skip");
+        final int count = ap.getIntValue("count");
         if (fileName == null) {
             ap.usage();
         } else {
             IOMeter ioMeter = new IOMeter();
             final DataInputStream is = new DataInputStream(new BufferedInputStream(new FileInputStream(fileName)));
-            ioMeter.dump(is);
+            is.skip(skip * 37);
+            ioMeter.dump(is, count == 0 ? Integer.MAX_VALUE : count);
             is.close();
         }
     }

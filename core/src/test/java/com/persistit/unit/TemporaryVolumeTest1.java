@@ -390,18 +390,23 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
     public void testTruncate() throws Exception {
         for (int cycle = 0; cycle < 10; cycle++) {
             if (cycle > 1) {
-                assertEquals(1, _volume.getTreeNames().length);
+                assertEquals(2, _volume.getTreeNames().length);
             }
             _volume.truncate();
             assertEquals(0, _volume.getTreeNames().length);
             store1();
+            final Exchange ex = _persistit.getExchange(_volume, "T2", true);
+            ex.getValue().put(RED_FOX);
+            for (int i = 0; i < 1000000; i++) {
+                ex.to(i).store();
+            }
             fetch1a();
         }
     }
 
     @Test
     public void testInvalidateBuffers() throws Exception {
-        final Exchange exchange1 = _persistit.getExchange("persistit", "SimpleTest1", true);
+        final Exchange exchange1 = _persistit.getExchange("persistit", "TemporaryVolumeTest1", true);
         final Management management = _persistit.getManagement();
         final int bufferCount = management.getBufferPoolInfoArray()[0].getBufferCount();
         exchange1.getValue().put(RED_FOX);
