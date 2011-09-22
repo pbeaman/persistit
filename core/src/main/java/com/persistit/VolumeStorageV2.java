@@ -62,6 +62,7 @@ import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeFullException;
 import com.persistit.exception.VolumeNotFoundException;
+import com.persistit.util.Debug;
 
 /**
  * Manage all details of file I/O for a <code>Volume</code> backing file for
@@ -165,12 +166,6 @@ class VolumeStorageV2 extends VolumeStorage {
             throw new PersistitIOException(ioe);
         } finally {
             if (!_opened) {
-                if (_headBuffer != null) {
-                    _headBuffer.clearFixed();
-                    _headBuffer.clearValid();
-                    _headBuffer.release();
-                    _headBuffer = null;
-                }
                 try {
                     if (_channel != null) {
                         _channel.close();
@@ -181,9 +176,6 @@ class VolumeStorageV2 extends VolumeStorage {
                     // the file anyway.
                 }
                 new File(getPath()).delete();
-            }
-            if (_headBuffer != null) {
-                _headBuffer.release();
             }
         }
     }
@@ -244,16 +236,17 @@ class VolumeStorageV2 extends VolumeStorage {
             _opened = true;
 
         } catch (IOException ioe) {
-            if (_headBuffer != null) {
-                _headBuffer.clearFixed();
-                _headBuffer.clearValid();
-                _headBuffer.release();
-                _headBuffer = null;
-            }
             throw new PersistitIOException(ioe);
         } finally {
             if (_headBuffer != null) {
-                _headBuffer.release();
+                if (!_opened) {
+                    _headBuffer.clearFixed();
+                    _headBuffer.clearValid();
+                    _headBuffer.release();
+                    _headBuffer = null;
+                } else {
+                    _headBuffer.release();
+                }
             }
         }
     }
@@ -365,19 +358,32 @@ class VolumeStorageV2 extends VolumeStorage {
         _nextAvailablePage = 1;
 
         _headBuffer = _volume.getStructure().getPool().get(_volume, 0, true, false);
-        _headBuffer.setFixed();
+        boolean truncated = false;
+        try {
+            _headBuffer.setFixed();
 
-        initMetaData(_headBuffer.getBytes());
-        //
-        // Lay down the initial version of the header page so that the
-        // volume file will be valid on restart
-        //
-        writePage(_headBuffer.getByteBuffer(), _headBuffer.getPageAddress());
-        //
-        // Now create directory root page, etc.
-        //
-        struc.init(0, 0);
-        flushMetaData();
+            initMetaData(_headBuffer.getBytes());
+            //
+            // Lay down the initial version of the header page so that the
+            // volume file will be valid on restart
+            //
+            writePage(_headBuffer.getByteBuffer(), _headBuffer.getPageAddress());
+            //
+            // Now create directory root page, etc.
+            //
+            struc.init(0, 0);
+            flushMetaData();
+            truncated = true;
+        } finally {
+            if (!truncated) {
+                _headBuffer.clearValid();
+                _headBuffer.clearFixed();
+                _headBuffer.release();
+                _headBuffer = null;
+            } else {
+                _headBuffer.release();
+            }
+        }
     }
 
     boolean isOpened() {
@@ -495,8 +501,19 @@ class VolumeStorageV2 extends VolumeStorage {
         }
     }
 
+    void flush() throws PersistitException {
+        claimHeadBuffer();
+        try {
+            flushMetaData();
+        } finally {
+            releaseHeadBuffer();
+        }
+    }
+    
+    
     void flushMetaData() throws PersistitException {
         if (!isReadOnly()) {
+            Debug.$assert1.t(_headBuffer.isMine());
             final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
             _headBuffer.writePageOnCheckpoint(timestamp);
             if (updateMetaData(_headBuffer.getBytes())) {
@@ -601,7 +618,7 @@ class VolumeStorageV2 extends VolumeStorage {
             throw new PersistitIOException(ioe);
         }
     }
-    
+
     @Override
     public String toString() {
         return _volume.toString();

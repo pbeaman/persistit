@@ -29,7 +29,6 @@ import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.RetryException;
-import com.persistit.exception.TimeoutException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
 
@@ -44,8 +43,6 @@ public class BufferPool {
      * Default PageWriter polling interval
      */
     private final static long DEFAULT_WRITER_POLL_INTERVAL = 1000;
-
-    private final static int MAX_FLUSH_RETRY_COUNT = 10;
 
     private final static int PAGE_WRITER_TRANCHE_SIZE = 1000;
 
@@ -168,15 +165,19 @@ public class BufferPool {
     private final AtomicInteger _dirtyPageCount = new AtomicInteger();
 
     /**
+     * Count of pages written from this pool
+     */
+    private final AtomicLong _writeCounter = new AtomicLong();
+    /**
      * Count of pages written due to being dirty when selected by the buffer
      * allocator.
      */
-    private final AtomicLong _forcedWrites = new AtomicLong();
+    private final AtomicLong _forcedWriteCounter = new AtomicLong();
 
     /**
      * (with n Count of pages written due to being dirty before a checkpoint
      */
-    private final AtomicLong _forcedCheckpointWrites = new AtomicLong();
+    private final AtomicLong _forcedCheckpointWriteCounter = new AtomicLong();
     /**
      * Indicates that Persistit has closed this buffer pool.
      */
@@ -351,6 +352,8 @@ public class BufferPool {
         info.newCount = _newCounter.get();
         info.evictCount = _evictCounter.get();
         info.dirtyPageCount = _dirtyPageCount.get();
+        info.forcedCheckpointWriteCount = _forcedCheckpointWriteCounter.get();
+        info.forcedWriteCount = _forcedWriteCounter.get();
         int validPages = 0;
         int readerClaimedPages = 0;
         int writerClaimedPages = 0;
@@ -441,12 +444,35 @@ public class BufferPool {
     }
 
     /**
-     * 
      * @return The count of buffers newly created in this pool. Each time a new
      *         page is added to a Volume, this counter is incremented.
      */
     public long getNewCounter() {
         return _newCounter.get();
+    }
+
+    /**
+     * This counter is incremented ach time the eviction algorithm selects a
+     * dirty buffer to evict. Normally dirty pages are written by the background
+     * PAGE_WRITER thread, and therefore an abnormally large forcedWrite count
+     * indicates the PAGE_WRITER thread is falling behind.
+     * 
+     * @return The count of buffers written to disk when evicted.
+     */
+    public long getForcedWriteCounter() {
+        return _forcedWriteCounter.get();
+    }
+
+    /**
+     * This counter is incremented each time a application modifies a buffer
+     * that is (a) dirty, and (b) required to be written as part of a
+     * checkpoint. An abnormally large count indicates that the PAGE_WRITER
+     * thread is falling behind.
+     * 
+     * @return The count of buffers written to disk due to a checkpoint.
+     */
+    public long getForcedCheckpointWriteCounter() {
+        return _forcedCheckpointWriteCounter.get();
     }
 
     /**
@@ -474,9 +500,13 @@ public class BufferPool {
     private void bumpNewCounter() {
         _newCounter.incrementAndGet();
     }
+    
+    void bumpWriteCounter() {
+        _writeCounter.incrementAndGet();
+    }
 
     void bumpForcedCheckpointWrites() {
-        _forcedCheckpointWrites.incrementAndGet();
+        _forcedCheckpointWriteCounter.incrementAndGet();
     }
 
     /**
@@ -919,15 +949,18 @@ public class BufferPool {
                         if (!buffer.isValid()) {
                             buffer.clearDirty();
                             return buffer;
-                        } else if (detach(buffer)) {
+                        } else {
                             // A dirty valid buffer needs to be written and then
                             // marked invalid
                             buffer.writePage();
-                            _forcedWrites.incrementAndGet();
-                            buffer.clearValid();
-                            _evictCounter.incrementAndGet();
-                            _persistit.getIOMeter().chargeEvictPageFromPool(buffer.getVolume(),
-                                    buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());
+                            if (detach(buffer)) {
+                                buffer.clearValid();
+                                _forcedWriteCounter.incrementAndGet();
+                                buffer.clearValid();
+                                _evictCounter.incrementAndGet();
+                                _persistit.getIOMeter().chargeEvictPageFromPool(buffer.getVolume(),
+                                        buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());
+                            }
                         }
                         if (!buffer.isValid()) {
                             return buffer;

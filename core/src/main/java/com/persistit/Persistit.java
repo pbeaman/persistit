@@ -1702,7 +1702,7 @@ public class Persistit {
 
         if (flush) {
             for (final Volume volume : _volumes) {
-                volume.getStorage().flushMetaData();
+                volume.getStorage().flush();
             }
         }
 
@@ -1812,7 +1812,8 @@ public class Persistit {
             return;
         }
         for (final Volume volume : _volumes) {
-            volume.getStorage().flushMetaData();
+            volume.getStorage().flush();
+            volume.getStorage().force();
         }
         flushBuffers(_timestampAllocator.getCurrentTimestamp());
         _journalManager.force();
@@ -1852,7 +1853,7 @@ public class Persistit {
      * 
      * @throws IOException
      */
-    public void sync() throws PersistitIOException {
+    public void force() throws PersistitIOException {
         if (_closed.get() || !_initialized.get()) {
             return;
         }

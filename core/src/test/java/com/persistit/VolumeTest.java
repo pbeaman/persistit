@@ -81,7 +81,9 @@ public class VolumeTest extends PersistitUnitTestCase {
         assertEquals(1024 * 1024 / 16384, maxPages);
         for (int i = 2; i < 1000; i++) {
             try {
+                volume2.getStorage().claimHeadBuffer();
                 assertEquals(i, volume2.getStorage().allocNewPage());
+                volume2.getStorage().releaseHeadBuffer();
             } catch (VolumeFullException e) {
                 assertEquals(maxPages, i);
                 break;

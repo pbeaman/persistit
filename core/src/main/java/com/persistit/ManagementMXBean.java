@@ -18,7 +18,6 @@ package com.persistit;
 import java.rmi.RemoteException;
 
 /**
- * <p>
  * Interface for a service object that exposes information about the Persistit
  * environment. With this public API, embedding applications can query
  * performance metrics and resources within Persistit that are not exposed by
@@ -28,7 +27,6 @@ import java.rmi.RemoteException;
  * managing Persistit.
  * 
  * @version 1.0
- *          </p>
  */
 public interface ManagementMXBean {
 

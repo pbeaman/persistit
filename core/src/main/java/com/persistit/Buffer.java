@@ -470,6 +470,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             _vol.getStorage().writePage(this);
             clearDirty();
             volume.getStatistics().bumpWriteCounter();
+            _pool.bumpWriteCounter();
         }
     }
 

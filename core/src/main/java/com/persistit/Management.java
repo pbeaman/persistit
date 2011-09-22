@@ -870,8 +870,9 @@ public interface Management extends Remote, ManagementMXBean {
         long hitCount;
         long newCount;
         long evictCount;
-        long forcedWrites;
-        long forcedCheckpointWrites;
+        long writeCount;
+        long forcedWriteCount;
+        long forcedCheckpointWriteCount;
         int validPageCount;
         int dirtyPageCount;
         int readerClaimedPageCount;
@@ -882,10 +883,10 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         @ConstructorProperties({ "bufferSize", "bufferCount", "missCount", "hitCount", "newCount", "evictCount",
-                "forcedWrites", "forcedCheckpointWrites", "validPageCount", "dirtyPageCount", "readerClaimedPageCount",
+                "writeCount", "forcedWriteCount", "forcedCheckpointWriteCount", "validPageCount", "dirtyPageCount", "readerClaimedPageCount",
                 "writerClaimedPageCount" })
         public BufferPoolInfo(int bufferSize, int bufferCount, long missCount, long hitCount, long newCount,
-                long evictCount, long forcedWrites, long forcedCheckpointWrites, long readCounter, int validPageCount,
+                long writeCount, long evictCount, long forcedWriteCount, long forcedCheckpointWriteCount, long readCounter, int validPageCount,
                 int dirtyPageCount, int readerClaimedPageCount, int writerClaimedPageCount) {
             super();
             this.bufferSize = bufferSize;
@@ -894,8 +895,9 @@ public interface Management extends Remote, ManagementMXBean {
             this.hitCount = hitCount;
             this.newCount = newCount;
             this.evictCount = evictCount;
-            this.forcedWrites = forcedWrites;
-            this.forcedCheckpointWrites = forcedCheckpointWrites;
+            this.writeCount = writeCount;
+            this.forcedWriteCount = forcedWriteCount;
+            this.forcedCheckpointWriteCount = forcedCheckpointWriteCount;
             this.validPageCount = validPageCount;
             this.dirtyPageCount = dirtyPageCount;
             this.readerClaimedPageCount = readerClaimedPageCount;
@@ -963,12 +965,22 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
+         * Return count of pages written from this pool.
+         * 
+         * @return The forced write count
+         */
+        public long getWriteCount() {
+            return writeCount;
+        }
+
+        /**
+        /**
          * Return count of pages forced to be written when dirty on eviction
          * 
          * @return The forced write count
          */
-        public long getForcedWrites() {
-            return forcedWrites;
+        public long getForcedWriteCount() {
+            return forcedWriteCount;
         }
 
         /**
@@ -977,8 +989,8 @@ public interface Management extends Remote, ManagementMXBean {
          * 
          * @return The forced checkpoint write count
          */
-        public long getForcedCheckpointWrites() {
-            return forcedCheckpointWrites;
+        public long getForcedCheckpointWriteCount() {
+            return forcedCheckpointWriteCount;
         }
 
         /**

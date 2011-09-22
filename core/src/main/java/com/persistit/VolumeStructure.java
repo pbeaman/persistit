@@ -166,8 +166,13 @@ class VolumeStructure {
 
     void updateDirectoryTree(Tree tree) throws PersistitException {
         if (tree == _directoryTree) {
+            _volume.getStorage().claimHeadBuffer();
+            try {
             _directoryRootPage = tree.getRootPageAddr();
             _volume.getStorage().flushMetaData();
+            } finally {
+                _volume.getStorage().releaseHeadBuffer();
+            }
         } else {
             Exchange ex = directoryExchange();
             tree.store(ex.getValue());

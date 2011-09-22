@@ -333,6 +333,10 @@ class VolumeStorageT2 extends VolumeStorage {
         return page;
     }
 
+    void flush() throws PersistitException {
+        
+    }
+    
     void flushMetaData() throws PersistitException {
 
     }

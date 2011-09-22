@@ -136,6 +136,13 @@ abstract class VolumeStorage extends SharedResource {
      * @throws PersistitException
      */
     abstract void close() throws PersistitException;
+
+    /**
+     * Flush metadata to the volume backing store.
+     * 
+     * @throws PersistitException
+     */
+    abstract void flush() throws PersistitException;
     
     abstract void truncate() throws PersistitException;
 
@@ -162,11 +169,10 @@ abstract class VolumeStorage extends SharedResource {
 
     abstract long allocNewPage() throws PersistitException;
 
-    abstract void flushMetaData() throws PersistitException;
-
     abstract void extend(final long pageAddr) throws PersistitException;
 
-
+    abstract void flushMetaData() throws PersistitException;
+    
     abstract boolean updateMetaData(final byte[] bytes);
 
 }

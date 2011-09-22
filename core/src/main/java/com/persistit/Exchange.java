@@ -436,8 +436,8 @@ public class Exchange {
 
         private void update(Buffer buffer, Key key, int foundAt) {
             Debug.$assert0.t(_level + PAGE_TYPE_DATA == buffer.getPageType());
-            Debug.$assert0.t(foundAt == -1 || (foundAt & EXACT_MASK) == 0
-                    || Buffer.decodeDepth(foundAt) == key.getEncodedSize());
+//            Debug.$assert0.t(foundAt == -1 || (foundAt & EXACT_MASK) == 0
+//                    || Buffer.decodeDepth(foundAt) == key.getEncodedSize());
 
             _page = buffer.getPageAddress();
             _buffer = buffer;
@@ -3389,7 +3389,7 @@ public class Exchange {
                     if (segmentSize > maxSegmentSize)
                         segmentSize = maxSegmentSize;
 
-                    Debug.$assert0.t(segmentSize >= 0 && offset >= 0 && offset + segmentSize < longBytes.length
+                    Debug.$assert0.t(segmentSize >= 0 && offset >= 0 && offset + segmentSize <= longBytes.length
                             && HEADER_SIZE + segmentSize <= buffer.getBytes().length);
 
                     System.arraycopy(longBytes, offset, buffer.getBytes(), HEADER_SIZE, segmentSize);

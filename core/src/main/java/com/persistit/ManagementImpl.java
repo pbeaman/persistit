@@ -290,7 +290,7 @@ class ManagementImpl implements Management {
     public void flushAndSync() throws RemoteException {
         try {
             _persistit.flush();
-            _persistit.sync();
+            _persistit.force();
         } catch (PersistitException e) {
             throw new WrappedRemoteException(e);
         }
