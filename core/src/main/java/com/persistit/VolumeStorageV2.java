@@ -242,10 +242,10 @@ class VolumeStorageV2 extends VolumeStorage {
                 if (!_opened) {
                     _headBuffer.clearFixed();
                     _headBuffer.clearValid();
-                    _headBuffer.release();
+                    releaseHeadBuffer();
                     _headBuffer = null;
                 } else {
-                    _headBuffer.release();
+                    releaseHeadBuffer();
                 }
             }
         }
@@ -378,10 +378,10 @@ class VolumeStorageV2 extends VolumeStorage {
             if (!truncated) {
                 _headBuffer.clearValid();
                 _headBuffer.clearFixed();
-                _headBuffer.release();
+                releaseHeadBuffer();
                 _headBuffer = null;
             } else {
-                _headBuffer.release();
+                releaseHeadBuffer();
             }
         }
     }
@@ -409,7 +409,7 @@ class VolumeStorageV2 extends VolumeStorage {
     }
 
     void releaseHeadBuffer() {
-        _headBuffer.releaseTouched();
+        _headBuffer.release();
     }
 
     void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException {
