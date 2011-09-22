@@ -60,6 +60,12 @@ public class VolumeSpecification {
     private long initialSize = -1;
     private long extensionSize = -1;
     private long maximumSize = -1;
+    
+    public static String nameFromFile(final File file) {
+        String name = file.getName();
+        int p = name.lastIndexOf('.');
+        return p == -1 ? name : name.substring(0, p);
+    }
 
     /**
      * Construct a <code>VolumeSpecification</code> having the supplied
@@ -89,7 +95,7 @@ public class VolumeSpecification {
             final long maximumPages, final long extensionPages, final boolean create, final boolean createOnly,
             final boolean readOnly) {
         this.path = path;
-        this.name = name == null ? new File(path).getName() : name;
+        this.name = name == null ? nameFromFile(new File(path)) : name;
         this.pageSize = pageSize;
         this.initialPages = initialPages;
         this.maximumPages = maximumPages;
@@ -156,7 +162,7 @@ public class VolumeSpecification {
         StringTokenizer mainTokenizer = new StringTokenizer(specification, ",");
         try {
             path = mainTokenizer.nextToken().trim();
-            name = new File(path).getName();
+            name = nameFromFile(new File(path));
 
             while (mainTokenizer.hasMoreTokens()) {
                 String token = mainTokenizer.nextToken().trim();

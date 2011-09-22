@@ -143,6 +143,11 @@ public class VolumeTest extends PersistitUnitTestCase {
         assertFalse(vs.isCreateOnly());
         assertFalse(vs.isReadOnly());
 
+        vs = validVolumeSpecification("/a/b/c.v01");
+        assertEquals("c", vs.getName());
+        vs = validVolumeSpecification("/a/b/c.d.v01");
+        assertEquals("c.d", vs.getName());
+
         invalidVolumeSpecification("/a/b/c,name:crabcake,pagesize:16383,initialsize:10m,maximumsize:100m,extensionsize:10m,create");
         invalidVolumeSpecification("/a/b/c;name:crabcake,pagesize:16384,initialsize:10m,maximumsize:100m,extensionsize:10m,create");
         invalidVolumeSpecification("/a/b/c,name:crabcake,pagesize:16384,initialsize:10p,maximumsize:100p,extensionsize:10p,create");
