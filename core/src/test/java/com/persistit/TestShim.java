@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 
 /**
@@ -43,8 +44,13 @@ public class TestShim {
     public static Buffer buffer(final Volume volume, final long page) throws Exception {
         return volume.getPool().get(volume, page, false, true);
     }
-    
+
     public static TimestampAllocator timestampAllocator(final Persistit persistit) {
         return persistit.getTimestampAllocator();
     }
+
+    public static void closeTransaction(Transaction t) throws PersistitException {
+        t.close();
+    }
+
 }

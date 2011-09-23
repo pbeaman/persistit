@@ -30,10 +30,12 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -340,6 +342,7 @@ public class Persistit {
     private AtomicReference<CoderManager> _coderManager = new AtomicReference<CoderManager>();
 
     private ClassIndex _classIndex = new ClassIndex(this);
+
     private ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
         @Override
         protected SessionId initialValue() {
@@ -347,7 +350,7 @@ public class Persistit {
         }
     };
 
-    private final Map<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
+    private final Map<SessionId, Transaction> _transactionSessionMap = new HashMap<SessionId, Transaction>();
 
     private ManagementImpl _management;
 
@@ -1614,6 +1617,28 @@ public class Persistit {
         return _bufferPoolTable;
     }
 
+    public void cleanup() {
+        final Set<SessionId> sessionIds;
+        synchronized (_transactionSessionMap) {
+            sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
+        }
+        for (final SessionId sessionId : sessionIds) {
+            if (!sessionId.isAlive()) {
+                Transaction transaction = null;
+                synchronized (_transactionSessionMap) {
+                    transaction = _transactionSessionMap.remove(sessionId);
+                }
+                if (transaction != null) {
+                    try {
+                        transaction.close();
+                    } catch (PersistitException e) {
+                        _logBase.exception.log(e);
+                    }
+                }
+            }
+        }
+    }
+
     /**
      * <p>
      * Close the Persistit Journal and all {@link Volume}s. This method is
@@ -1779,7 +1804,18 @@ public class Persistit {
         _bufferPoolTable.clear();
         _transactionalCaches.clear();
         _exchangePoolMap.clear();
-        _transactionSessionMap.clear();
+        Set<Transaction> transactions;
+        synchronized (_transactionSessionMap) {
+            transactions = new HashSet<Transaction>(_transactionSessionMap.values());
+            _transactionSessionMap.clear();
+        }
+        for (final Transaction txn : transactions) {
+            try {
+                txn.close();
+            } catch (PersistitException e) {
+                _logBase.exception.log(e);
+            }
+        }
 
         if (_management != null) {
             unregisterMXBeans();
@@ -1909,6 +1945,7 @@ public class Persistit {
      * @param sessionId
      */
     public void setSessionId(final SessionId sessionId) {
+        sessionId.assign();
         _sessionIdThreadLocal.set(sessionId);
     }
 
@@ -1952,7 +1989,8 @@ public class Persistit {
         transactions.clear();
         synchronized (_transactionSessionMap) {
             for (final Transaction t : _transactionSessionMap.values()) {
-                if (t.getStartTimestamp() >= from && t.getCommitTimestamp() >= to) {
+                if (t != null && t.getStartTimestamp() >= from
+                        && t.getCommitTimestamp() >= to) {
                     transactions.add(t);
                 }
             }

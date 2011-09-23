@@ -17,14 +17,19 @@ package com.persistit;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.List;
 
+import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.ReadOnlyVolumeException;
-import com.persistit.exception.InUseException;
 import com.persistit.exception.VolumeClosedException;
 
 /**
@@ -40,6 +45,7 @@ import com.persistit.exception.VolumeClosedException;
 class VolumeStorageT2 extends VolumeStorage {
 
     private final static String TEMP_FILE_PREFIX = "persistit_tempvol_";
+
     private volatile String _path;
     private volatile FileChannel _channel;
 
@@ -47,6 +53,7 @@ class VolumeStorageT2 extends VolumeStorage {
     private volatile boolean _opened;
     private volatile boolean _closed;
     private volatile IOException _lastIOException;
+
 
     VolumeStorageT2(final Persistit persistit, final Volume volume) {
         super(persistit, volume);
@@ -216,23 +223,17 @@ class VolumeStorageT2 extends VolumeStorage {
     }
 
     void truncate() throws PersistitException {
-//        try {
-//            _channel.truncate(0);
-            VolumeStatistics stat = _volume.getStatistics();
-            VolumeStructure struc = _volume.getStructure();
+        VolumeStatistics stat = _volume.getStatistics();
+        VolumeStructure struc = _volume.getStructure();
 
-            long now = System.currentTimeMillis();
-            stat.setCreateTime(now);
-            stat.setOpenTime(now);
+        long now = System.currentTimeMillis();
+        stat.setCreateTime(now);
+        stat.setOpenTime(now);
 
-            _nextAvailablePage = 1;
+        _nextAvailablePage = 1;
 
-            struc.init(0, 0);
-            flushMetaData();
-
-//        } catch (IOException ioe) {
-//            throw new PersistitIOException(ioe);
-//        }
+        struc.init(0, 0);
+        flushMetaData();
     }
 
     boolean isOpened() {
@@ -257,7 +258,8 @@ class VolumeStorageT2 extends VolumeStorage {
     void releaseHeadBuffer() {
     }
 
-    void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException, InUseException {
+    void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException,
+            InUseException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
         if (!claim(false, 0)) {
@@ -334,9 +336,9 @@ class VolumeStorageT2 extends VolumeStorage {
     }
 
     void flush() throws PersistitException {
-        
+
     }
-    
+
     void flushMetaData() throws PersistitException {
 
     }

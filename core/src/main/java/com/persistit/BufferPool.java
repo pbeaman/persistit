@@ -1169,7 +1169,7 @@ public class BufferPool {
         //
         return 1000000000 - distance;
     }
-
+    
     /**
      * Implementation of PAGE_WRITER thread.
      */
@@ -1193,7 +1193,7 @@ public class BufferPool {
                 return;
             }
             writeDirtyBuffers(_priorities, _selectedBuffers);
-
+            _persistit.cleanup();
         }
 
         @Override

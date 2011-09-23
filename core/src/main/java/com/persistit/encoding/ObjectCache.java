@@ -16,7 +16,7 @@
 package com.persistit.encoding;
 
 import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
+import java.lang.ref.SoftReference;
 
 import com.persistit.Key;
 import com.persistit.KeyState;
@@ -56,11 +56,11 @@ public class ObjectCache {
     private int _deadCount;
     private int _deadCountThreshold = 25;
 
-    private ReferenceQueue<WeakReference<?>> _queue = new ReferenceQueue<WeakReference<?>>();
+    private ReferenceQueue<SoftReference<?>> _queue = new ReferenceQueue<SoftReference<?>>();
 
     private static class Entry {
         Object _key;
-        WeakReference<?> _reference;
+        SoftReference<?> _reference;
         Entry _next;
     }
 
@@ -75,7 +75,7 @@ public class ObjectCache {
 
     /**
      * Remove all dead entries from this cache. A dead reference is one for
-     * which the referent value of the <code>WeakReference</code> has been
+     * which the referent value of the <code>SoftReference</code> has been
      * removed by the garbage collector.
      */
     public synchronized void clean() {
@@ -94,10 +94,10 @@ public class ObjectCache {
      * access values in maps.
      * </p>
      * <p>
-     * The value is held within a <code>WeakReference</code>. This means that as
+     * The value is held within a <code>SoftReference</code>. This means that as
      * soon as no other object holds a strong reference to the value, the
      * garbage collector is permitted to remove it and to set the referent of
-     * the <code>WeakReference</code> to <code>null</code>. Therefore an
+     * the <code>SoftReference</code> to <code>null</code>. Therefore an
      * application may <code>put</code> a value into this cache and then at some
      * later time receive <code>null</code> from the <code>get</code> method.
      * </p>
@@ -156,7 +156,7 @@ public class ObjectCache {
             _entries[offset] = entry;
             _size++;
         }
-        entry._reference = new WeakReference(value, _queue);
+        entry._reference = new SoftReference(value, _queue);
         processQueue(_deadCountThreshold);
         if (_size > _entries.length * 0.75)
             resize();
