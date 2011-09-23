@@ -914,7 +914,11 @@ public class BufferPool {
                     for (int p = 0; p < 64; p++) {
                         if ((bits & (1L << p)) != 0) {
                             final Buffer buffer = _buffers[q + p];
-                            if (buffer.claim(true, 0)) {
+                            //
+                            // Note: need to verify that there are no claims -
+                            // including those of the current thread.
+                            //
+                            if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0 && buffer.claim(true, 0)) {
                                 if (!buffer.isValid()) {
                                     bits = _availablePagesBits.get(q / 64);
                                     if (_availablePagesBits.compareAndSet(q / 64, bits, bits & ~(1L << p))) {
@@ -944,7 +948,12 @@ public class BufferPool {
             if (buffer.isTouched()) {
                 buffer.clearTouched();
             } else {
-                if (!buffer.isFixed() && buffer.claim(true, 0)) {
+                //
+                // Note: need to verify that there are no claims - including
+                // those of the current thread.
+                //
+                if (!buffer.isFixed() && (buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0
+                        && buffer.claim(true, 0)) {
                     if (buffer.isDirty()) {
                         // An invalid dirty buffer is available and does not
                         // need to be written.
