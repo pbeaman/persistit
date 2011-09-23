@@ -64,7 +64,7 @@ public class VolumeSpecification {
     public static String nameFromFile(final File file) {
         String name = file.getName();
         int p = name.lastIndexOf('.');
-        return p == -1 ? name : name.substring(0, p);
+        return p < 1 ? name : name.substring(0, p);
     }
 
     /**

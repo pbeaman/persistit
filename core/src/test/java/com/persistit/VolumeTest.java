@@ -120,6 +120,16 @@ public class VolumeTest extends PersistitUnitTestCase {
         assertTrue(volume1.isClosed());
         assertTrue(!file.exists());
     }
+    
+    @Test
+    public void testDottedVolumeName() throws Exception {
+        VolumeSpecification vs = validVolumeSpecification(_persistit.substituteProperties(
+                "${datapath}/.thisStuffWontBeIgnored, pageSize:16k, initialSize:1k, maximumSize:1m, extensionSize:1K, create", _persistit
+                        .getProperties()));
+        Volume volume1 = _persistit.loadVolume(vs);
+        Exchange ex = _persistit.getExchange(".thisStuffWontBeIgnored", "emptyTreeTest", true);
+        assertEquals(ex.getVolume(), volume1);
+    }
 
 
     @Test

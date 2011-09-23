@@ -728,9 +728,9 @@ public class Persistit {
 
     synchronized void addVolume(Volume volume) throws VolumeAlreadyExistsException {
         Volume otherVolume;
-        otherVolume = getVolume(volume.getPath());
-        if (otherVolume != null && volume.getPath().equals(otherVolume.getPath())) {
-            throw new VolumeAlreadyExistsException("Volume " + otherVolume + " has same path");
+        otherVolume = getVolume(volume.getName());
+        if (otherVolume != null) {
+            throw new VolumeAlreadyExistsException("Volume " + otherVolume);
         }
         _volumes.add(volume);
     }
