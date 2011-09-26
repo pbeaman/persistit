@@ -1094,6 +1094,14 @@ public class Transaction {
     public SessionId getSessionId() {
         return _sessionId;
     }
+    
+    /**
+     * @return the temporary volume serving as the backing store for this <code>Transaction</code>
+     */
+    public Volume getTransactionTemporaryVolume() {
+        final Exchange exchange = _ex1;
+        return exchange == null ? null : exchange.getVolume();
+    }
 
     /**
      * Return the timestamp assigned at the beginning of the commit() process,

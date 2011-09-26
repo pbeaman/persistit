@@ -198,16 +198,6 @@ public class Persistit {
     public final static String SYSTEM_VOLUME_PROPERTY = "sysvolume";
 
     /**
-     * Default Transactions Volume Name
-     */
-    public final static String DEFAULT_TXN_VOLUME_NAME = "_txn";
-
-    /**
-     * Property name for specifying the transaction volume name
-     */
-    public final static String TXN_VOLUME_PROPERTY = "txnvolume";
-
-    /**
      * Property name for specifying default temporary volume page size
      */
     public final static String TEMPORARY_VOLUME_PAGE_SIZE_NAME = "tvpagesize";
@@ -1382,26 +1372,14 @@ public class Persistit {
 
     /**
      * <p>
-     * Returns the designated transaction volume. The transaction volume is used
-     * to transiently hold pending updates prior to transaction commit. It is
-     * specified by the <code>txnvolume</code> property with a default value of
-     * "_txn".
-     * </p>
-     * <p>
-     * This method handles a configuration with exactly one volume in a special
-     * way. If the <code>txnvolume</code> property is unspecified and there is
-     * exactly one volume, then this method returns that volume as the
-     * transaction volume even if its name does not match the default
-     * <code>txnvolume</code> property. This eliminates the need to specify a
-     * transaction volume property for configurations having only one volume.
+     * Returns the temporary volume used by the current Thread to transiently
+     * hold pending updates prior to transaction commit.
      * </p>
      * 
      * @return the <code>Volume</code>
-     * @throws VolumeNotFoundException
-     *             if the volume was not found
      */
-    public Volume getTransactionVolume() throws VolumeNotFoundException {
-        return getSpecialVolume(TXN_VOLUME_PROPERTY, DEFAULT_TXN_VOLUME_NAME);
+    public Volume getTransactionVolume() {
+        return getTransaction().getTransactionTemporaryVolume();
     }
 
     /**
@@ -1989,8 +1967,7 @@ public class Persistit {
         transactions.clear();
         synchronized (_transactionSessionMap) {
             for (final Transaction t : _transactionSessionMap.values()) {
-                if (t != null && t.getStartTimestamp() >= from
-                        && t.getCommitTimestamp() >= to) {
+                if (t != null && t.getStartTimestamp() >= from && t.getCommitTimestamp() >= to) {
                     transactions.add(t);
                 }
             }

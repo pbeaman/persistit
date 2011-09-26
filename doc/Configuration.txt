@@ -18,17 +18,13 @@ The following properties are defined for Persistit. Other properties may also re
 +buffer.memory._SSSS_+:: where _SSSS_ is 1024, 2048, 4096, 8192 or 16384. This property provides a way to specify the buffer pool size by heap memory consumption rather than count. This property and +buffer.count._SSSS_+ are mutually incompatible. Specify only one of these per buffer size. The memory specification format is described below.
 +volume._N_+:: where _N_ is an ordinal number 1, 2, etc. Specifies a Volume that Persistit is to manage. The value of this property is a specification string defined below. The ordinal number has no significance other than to provide a unique property name for each volume.
 +sysvolume+:: Identifies the system volume by name. The value name one of the volumes specified by the +volume._N_+ properties. The system volume holds class meta data for serialized objects.
-+txnvolume+:: Identifies the transaction log volume.The value name one of the volumes specified by the +volume._N_+ properties. Uncommitted transactions are written first to this volume before being committed.
 +journalpath+:: Path specification for the journal files. Each journal file name is constructed from this path plus a numeric suffix. These files are written to frequently and for maximum overall performance should be located on the fastest available physical disk drive (or SSD). These files are required for recovery after a system failure. Value defaults to +persistit_journal+ in the current working directory.
 +journalsize+:: Journal file block size. Default is 1,000,000,000 bytes. A new Persistit rolls over to a new journal file when this size is reached. Generally there is no reason to adjust this setting.
 +appendonly+:: True or false (default).  When true, Persistit’s journal starts up in _append-only_ mode in which modified pages are only written to the journal and not copied to their home volumes. As a consequence, all existing journal files are preserved, and new modifications are written only to newly created journal files. The append-only flag can also be enabled or disabled by application code and through the JMX and RMI interfaces.
-+syncio+:: True or false. If true then every time Persistit performs a file write operation, it subsequently also invokes the underlying operating system’s mechanism for flush all pending I/O to physical disk storage. Otherwise, the operating system may hold pending updates in its own write-behind cache. The default value is true.
 +verbose+:: True or false. If true, Persistit emits additional diagnostic log messages during its initialization. The default value is false.
 +rmiport+:: Specifies a port number on which Persistit will create a temporary Remote Method Invocation registry.  If this property is specified, Persistit creates a registry and register a com.persistit.Management server on it. This allows remote access to management facilities within Persistit and permits the Swing-based administrative utility to attach to and manage a Persistit instance running on a headless server. The rmihost and rmiport properties are mutually exclusive.
 +rmihost+:: Specifies the URL of an Remote Method Invocation registry.  If present, Persistit registers its a server for its com.persistit.Management interface at the specified external registry. The +rmihost+ and +rmiport+ properties are mutually exclusive.
 +jmx+::True of false. Specifies whether Persistit registers MXBeans with the platform MBean server. Set this value to +true+ to enable access from +jconsole+ and other management tools.
-+readretry+:: True or false. If true, Persistit retries file read operations that fail due to IOExceptions.  Retries are performed periodically until the requested read operation either succeeds or the Timeout interval is exceeded. If false, Persistit immediately throws any IOException on a read operation back to the application, wrapped in a com.persistit.exception.PersistitIOException. The default value is true.
-+timeout+:: The default I/O retry timeout. Note that the timeout for a particular com.persistit.Exchange can be individually modified.  The specified time, in milliseconds, is the maximum time any Persistit operation will wait for completion of disk I/O before throwing an IOException. The default value is 60000, or one minute.
 +serialOverride+, +constructorOverride+:: Control aspects of object serialization. See <<Serialization>>.
 +showgui+:: True of False.  If true, Persistit attempts to create and display an instance of the AdminUI utility panel within the current JVM. (Alternatively, AdminUI uses RMI and can be launched and run remotely if +rmiport+ or +rmihost+ has been specified.
 +logfile+:: Name of a log file to which Persistit’s default logger will write diagnostic log entries. Applications generally install a logging adapter to reroute messages through Log4J, SLF4J or other logger. The +logfile+ property is used only when no adapter has been installed.
@@ -77,14 +73,14 @@ Each volume specification in the configuration has the following form:
 
 [horizontal]
 +volume._N_ = _path_[,_attrname_[:_attrvalue_]]...+:: where _N_ is an arbitrary integer, _path_ is the path specification of the volume file, and _attrnames_ include:
-- +pageSize+: Fixed length unit representing one page. Value must be one of 1024, 2048, 4096, 8192 or 16384. To open and use the Volume, the buffer pool must have available buffers of the same size.
+- +name+: The name of this Volume. The name used within Persistit applications to construct +Exchange+ instances.  If unspecified, the +name+ is derived from the _path_ as the simple file name excluding its final dotted suffix. For example, the name derived from the path /a/b/c/ddd.eee is ddd.
+- +pageSize+: Fixed length of one page. Value must be one of 1024, 2048, 4096, 8192 or 16384. To open and use the Volume, the buffer pool must have available buffers of the same size.
 - +create+: Persistit attempts to open an existing volume file with the specified _path_, or create a new one if the file does not exist.
-- +createOnly+: Persistit throw a VolumeAlreadyExistsException if the file specified by path already exists. Otherwise it creates a new file with the specified path.
+- +createOnly+: Persistit throws a VolumeAlreadyExistsException if the file specified by path already exists. Otherwise it creates a new file with the specified path.
 - +readOnly+: Opens a volume in read-only mode. An attempt to modify the volume results in a ReadOnlyVolumeException.
 - +initialPages+ or +initialSize+: Specifies the initial size of the newly created volume file, either as the count of pages or as the size in bytes.
 - +extensionPages+ or +extensionSize+: Specifies the extension size of the newly created volume, either as the count of pages or as the size in bytes. This is the size by which the volume file will expand when the volume needs to be enlarged.
 - +maximumPages+ or +maximumSize+: An upper limit on the number of pages this Volume may hold, either as the count of pages or as the size in bytes. An attempt to further enlarge the Volume will generate a VolumeFullException.
-- +alias+: The name of this Volume used in constructing +Exchange+ instances.  If unspecified, the name is the simple file name given in the _path_, not including its dotted suffix.
 
 For example:
 
@@ -102,10 +98,6 @@ One volume in a Persistit configuration must be designated as the system volume.
 
 Alternatively, you can specify a different volume name with the +sysvolume+ property. The value specified for this name should be the name of the volume chosen to be the system volume.
 
-== Transaction Volume
-
-Analogous to the System Volume, Persistit uses a designated volume called the Transaction Volume to store a log of transaction data prior to transaction commit. A configuration with only one volume implicitly uses that one volume for this purpose.  However, in a multi-volume configuration you must specify which volume is to serve in this role.  By default Persistit looks for a volume whose name is “_txn”, or a volume named by the +txnvolume+ property.
-
 == A Configuration Example
 
 Following is an example of a Persistit configuration properties file:
@@ -122,22 +114,21 @@ logfile = ${logpath}/${timestamp}.log
 buffer.count.8192 = 5000
 
 volume.1 = ${datapath}/demo_data.v01, create, pageSize:8K, \
-	initialSize:1M, extensionSize:1M, maximumSize:10G, alias:data
+	initialSize:1M, extensionSize:1M, maximumSize:10G, name:data
 
-volume.2 = ${datapath}/demo_txn.v01, create, pageSize:8K, \
+volume.2 = ${datapath}/demo_sys.v01, create, pageSize:8K, \
 	initialSize:100K, extensionSize:100K, maximumSize:1G
 
-sysvolume = data
-txnvolume = demo_txn
+sysvolume = demo_sys
 
 journalpath = /ssd/persistit_journal
 ----
 
-With this configuration there will be 5,000 8K buffers in the buffer pool (consuming heap space of approximately 46MB including overhead). Persistit will open or create volume files named +/data/demo_data.v01+ and +/data/demo_txn.v01+ and a journal file named +/ssd/persistit_journal.0000000000000001+.
+With this configuration there will be 5,000 8K buffers in the buffer pool (consuming heap space of approximately 46MB including overhead). Persistit will open or create volume files named +/data/demo_data.v01+ and +/data/demo_sys.v01+ and a journal file named +/ssd/persistit_journal.0000000000000001+.
 
-The +demo_data.v01+ volume has the alias +data+. This means that application code uses the name "data" to refer to that volume. The +sysvolume+ property specifies that this volume is also designated to hold class meta data for serialized objects.
+The +demo_data.v01+ volume has the name +data+. This means that application code uses the name "data" to refer to that volume. The +sysvolume+ property specifies that this volume is also designated to hold class meta data for serialized objects.
 
-The +demo_txn.v01+ volume serves as the transaction volume for this configuration.
+The +demo_sys.v01+ volume serves as the system volume for this configuration.
 
 == Property Value Substitution
 

@@ -59,7 +59,7 @@ class IOMeter implements IOMeterMXBean {
     private final static long DEFAULT_TICK_SIZE = 500 * NANOS_TO_MILLIS;
     private final static int DEFAULT_QUIESCENT_IO_THRESHOLD = 100000;
     private final static long DEFAULT_COPY_PAGE_SLEEP_INTERVAL = 10;
-    private final static long DEFAULT_WRITE_PAGE_SLEEP_INTERVAL = 100;
+    private final static long DEFAULT_WRITE_PAGE_SLEEP_INTERVAL = 0;
 
     private final static int READ_PAGE_FROM_VOLUME = 1;
     private final static int READ_PAGE_FROM_JOURNAL = 2;
