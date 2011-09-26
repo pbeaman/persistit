@@ -44,7 +44,7 @@ public class BufferPool {
      */
     private final static long DEFAULT_WRITER_POLL_INTERVAL = 1000;
 
-    private final static int PAGE_WRITER_TRANCHE_SIZE = 1000;
+    private final static int PAGE_WRITER_TRANCHE_SIZE = 5000;
 
     /**
      * Sleep time when buffers are exhausted
