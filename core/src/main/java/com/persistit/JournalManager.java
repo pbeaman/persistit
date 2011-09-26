@@ -603,7 +603,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
      * 
      * @param address
      *            journal address
-     * @param bb
+     * @param _bb
      *            ByteBuffer in which to return the result
      * @return pageAddress of the page at the specified location, or -1 if the
      *         address does not reference a valid page
@@ -1671,6 +1671,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
     private class JournalCopier extends IOTaskRunnable {
 
+        private final ByteBuffer _bb = ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE);
+        int _lastCyclePagesWritten;
+
         JournalCopier() {
             super(JournalManager.this._persistit);
         }
@@ -1685,7 +1688,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             if (!_appendOnly.get()) {
                 _copying.set(true);
                 try {
-                    copierCycle();
+                    _lastCyclePagesWritten = copierCycle(_bb);
                 } finally {
                     _copying.set(false);
                 }
@@ -1705,9 +1708,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
          */
         public long getPollInterval() {
             int urgency = urgency();
-            if (urgency <= HALF_URGENT) {
+
+            if (urgency <= HALF_URGENT || _lastCyclePagesWritten == 0) {
                 return super.getPollInterval();
             }
+            
             if (urgency >= ALMOST_URGENT) {
                 return 0;
             }
@@ -1758,7 +1763,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         }
     }
 
-    private void copierCycle() throws PersistitException {
+    private int copierCycle(final ByteBuffer bb) throws PersistitException {
         final SortedMap<PageNode, PageNode> sortedMap = new TreeMap<PageNode, PageNode>();
         final boolean wasUrgent;
 
@@ -1776,7 +1781,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                         }
                     }
                     if (_appendOnly.get()) {
-                        return;
+                        return 0;
                     }
                     if (sortedMap.size() >= _copiesPerCycle) {
                         break;
@@ -1790,10 +1795,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
         final HashSet<Volume> volumes = new HashSet<Volume>();
 
-        final ByteBuffer bb = ByteBuffer.allocate(DEFAULT_READ_BUFFER_SIZE);
         for (final Iterator<PageNode> iterator = sortedMap.keySet().iterator(); iterator.hasNext();) {
             if (_closed.get() && !wasUrgent || _appendOnly.get()) {
-                return;
+                return 0;
             }
             final PageNode pageNode = iterator.next();
             if (pageNode.getVolumeHandle() != handle) {
@@ -1958,6 +1962,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         if (sortedMap.isEmpty() && wasUrgent) {
             _copyFast.set(false);
         }
+        
+        return sortedMap.size();
     }
 
     private long rolloverThreshold() {
