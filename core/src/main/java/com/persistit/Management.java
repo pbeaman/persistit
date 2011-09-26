@@ -974,7 +974,6 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-        /**
          * Return count of pages forced to be written when dirty on eviction
          * 
          * @return The forced write count

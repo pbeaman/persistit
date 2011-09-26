@@ -125,6 +125,34 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
     }
 
     /**
+     * Return count of pages written from this pool.
+     * 
+     * @return The forced write count
+     */
+    public long getWriteCount() {
+        return recent().getWriteCount();
+    }
+
+    /**
+     * Return count of pages forced to be written due to an updated after a
+     * checkpoint
+     * 
+     * @return The forced checkpoint write count
+     */
+    public long getForcedCheckpointWriteCount() {
+        return recent().getForcedCheckpointWriteCount();
+    }
+
+    /**
+     * Return count of pages forced to be written when dirty on eviction
+     * 
+     * @return The forced write count
+     */
+    public long getForcedWriteCount() {
+        return recent().getForcedWriteCount();
+    }
+
+    /**
      * Get the "hit ratio" - the number of hits divided by the number of overall
      * gets. A value close to 1.0 indicates that most attempts to find data in
      * the <code>BufferPool</code> are successful - i.e., that the cache is
