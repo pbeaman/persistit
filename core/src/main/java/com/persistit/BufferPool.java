@@ -352,6 +352,7 @@ public class BufferPool {
         info.newCount = _newCounter.get();
         info.evictCount = _evictCounter.get();
         info.dirtyPageCount = _dirtyPageCount.get();
+        info.writeCount = _writeCounter.get();
         info.forcedCheckpointWriteCount = _forcedCheckpointWriteCounter.get();
         info.forcedWriteCount = _forcedWriteCounter.get();
         int validPages = 0;
