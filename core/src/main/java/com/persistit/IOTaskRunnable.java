@@ -53,10 +53,6 @@ abstract class IOTaskRunnable implements Runnable {
         return _thread;
     }
 
-    void urgent() {
-        kick();
-    }
-
     synchronized void kick() {
         if (!_notified) {
             _notified = true;

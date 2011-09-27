@@ -307,7 +307,7 @@ public class BufferPool {
 
     void flush(final long timestamp) {
         setFlushTimestamp(timestamp);
-        _writer.urgent();
+        _writer.kick();
         while (isFlushing()) {
             pause();
         }
@@ -754,7 +754,7 @@ public class BufferPool {
                 _hashLocks[hash % HASH_LOCKS].unlock();
             }
             if (buffer == null) {
-                _writer.urgent();
+                _writer.kick();
                 synchronized (this) {
                     try {
                         wait(RETRY_SLEEP_TIME);
@@ -962,21 +962,6 @@ public class BufferPool {
                             buffer.clearDirty();
                             return buffer;
                         } else {
-                            // A dirty valid buffer needs to be written and then
-                            // marked invalid
-                            buffer.writePage();
-                            if (detach(buffer)) {
-                                buffer.clearValid();
-                                _forcedWriteCounter.incrementAndGet();
-                                buffer.clearValid();
-                                _evictCounter.incrementAndGet();
-                                _persistit.getIOMeter().chargeEvictPageFromPool(buffer.getVolume(),
-                                        buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());
-                            }
-                        }
-                        if (!buffer.isValid()) {
-                            return buffer;
-                        } else {
                             buffer.release();
                         }
                     } else {
@@ -1054,8 +1039,10 @@ public class BufferPool {
                 final Buffer buffer = selectedBuffers[index];
                 if (buffer.claim(true, 0)) {
                     try {
-                        buffer.writePage();
-                        written |= true;
+                        if (buffer.isDirty() && buffer.isValid()) {
+                            buffer.writePage();
+                            written |= true;
+                        }
                     } catch (PersistitException e) {
                         // TODO Auto-generated catch block
                         e.printStackTrace();
@@ -1170,7 +1157,7 @@ public class BufferPool {
         //
         return 1000000000 - distance;
     }
-    
+
     /**
      * Implementation of PAGE_WRITER thread.
      */

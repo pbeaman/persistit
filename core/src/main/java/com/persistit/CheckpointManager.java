@@ -60,7 +60,7 @@ class CheckpointManager extends IOTaskRunnable {
         _persistit.flushBuffers(checkpoint.getTimestamp());
 
         while (true) {
-            urgent();
+            kick();
             synchronized (this) {
                 if (!_outstandingCheckpoints.contains(checkpoint)) {
                     return checkpoint;
