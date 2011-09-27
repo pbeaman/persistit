@@ -374,9 +374,6 @@ public class VolumeSpecification {
         } else if (create) {
             sb.append(',').append(ATTR_CREATE);
         }
-        if (version != -1) {
-            sb.append(',').append(ATTR_VERSION).append(':').append(version);
-        }
         return sb.toString();
     }
 

@@ -2508,11 +2508,18 @@ public class Persistit {
             "cliport|int:-1:1024:99999999|Port on which to start a simple command-line interface server" };
 
     /**
-     * Initializes Persistit using a property file path supplied as the first
-     * argument, or if no arguments are supplied, the default property file name
-     * (<code>persistit.properties</code> in the default directory).
-     * Command-line argument flags can invoke the integrity checker, start the
-     * AdminUI and suspend shutdown. See {@link #USAGE} for details.
+     * Perform various utility functions. Specify arguments on the 
+     * command line conforming to {@value #ARG_TEMPLATE}. Options:
+     * <ul>
+     * <li>If the cliport=nnnn argument is set, then this method starts
+     * a CLI server on the specified port.</li>
+     * <li>Otherwise if the properties=filename argument is set, this method 
+     * initializes a Persistit instance using the specified properties. With
+     * an initialized instance the flags -i, -g, and -c take effect to invoke
+     * an integrity check, open the AdminUI or copy back all pages from the
+     * Journal.</li>
+     * </ul>
+     * 
      * 
      * @param args
      * @throws Exception
