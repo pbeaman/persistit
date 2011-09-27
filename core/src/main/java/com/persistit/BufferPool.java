@@ -44,7 +44,7 @@ public class BufferPool {
      */
     private final static long DEFAULT_WRITER_POLL_INTERVAL = 1000;
 
-    private final static int PAGE_WRITER_TRANCHE_SIZE = 1000;
+    private final static int PAGE_WRITER_TRANCHE_SIZE = 5000;
 
     /**
      * Sleep time when buffers are exhausted
@@ -962,6 +962,21 @@ public class BufferPool {
                             buffer.clearDirty();
                             return buffer;
                         } else {
+                            // A dirty valid buffer needs to be written and then
+                            // marked invalid
+                            buffer.writePage();
+                            if (detach(buffer)) {
+                                buffer.clearValid();
+                                _forcedWriteCounter.incrementAndGet();
+                                buffer.clearValid();
+                                _evictCounter.incrementAndGet();
+                                _persistit.getIOMeter().chargeEvictPageFromPool(buffer.getVolume(),
+                                        buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());
+                            }
+                        }
+                        if (!buffer.isValid()) {
+                            return buffer;
+                        } else {
                             buffer.release();
                         }
                     } else {
@@ -1030,8 +1045,7 @@ public class BufferPool {
         }
     }
 
-    private boolean writeDirtyBuffers(final int[] priorities, final Buffer[] selectedBuffers) {
-        boolean written = false;
+    private void writeDirtyBuffers(final int[] priorities, final Buffer[] selectedBuffers) {
         int count = selectDirtyBuffers(priorities, selectedBuffers);
         if (count > 0) {
             Arrays.sort(selectedBuffers, 0, count);
@@ -1041,7 +1055,6 @@ public class BufferPool {
                     try {
                         if (buffer.isDirty() && buffer.isValid()) {
                             buffer.writePage();
-                            written |= true;
                         }
                     } catch (PersistitException e) {
                         // TODO Auto-generated catch block
@@ -1052,7 +1065,6 @@ public class BufferPool {
                 }
             }
         }
-        return written;
     }
 
     int selectDirtyBuffers(final int[] priorities, final Buffer[] buffers) {
