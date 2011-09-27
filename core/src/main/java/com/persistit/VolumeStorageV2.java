@@ -57,6 +57,7 @@ import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
@@ -412,7 +413,8 @@ class VolumeStorageV2 extends VolumeStorage {
         _headBuffer.release();
     }
 
-    void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException {
+    void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException,
+            PersistitInterruptedException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
         claim(false);
@@ -452,7 +454,7 @@ class VolumeStorageV2 extends VolumeStorage {
     }
 
     void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException {
+            ReadOnlyVolumeException, VolumeClosedException, PersistitInterruptedException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
         claim(false);

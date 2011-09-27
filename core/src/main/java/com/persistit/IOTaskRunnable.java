@@ -104,7 +104,7 @@ abstract class IOTaskRunnable implements Runnable {
             try {
                 thread.join(THREAD_DEATH_WAIT_INTERVAL);
             } catch (InterruptedException e) {
-
+                throw new RuntimeException(e);
             }
         }
     }
@@ -137,7 +137,7 @@ abstract class IOTaskRunnable implements Runnable {
                     try {
                         wait(waitTime);
                     } catch (InterruptedException ie) {
-                        // do nothing
+                        break;
                     }
                 }
             }

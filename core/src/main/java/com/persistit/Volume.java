@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.TruncateVolumeException;
 import com.persistit.exception.VolumeAlreadyExistsException;
@@ -145,7 +146,7 @@ public class Volume {
             try {
                 Thread.sleep(Persistit.SHORT_DELAY);
             } catch (InterruptedException ie) {
-                throw new PersistitException(ie);
+                throw new PersistitInterruptedException(ie);
             }
         }
     }
@@ -192,7 +193,7 @@ public class Volume {
             try {
                 Thread.sleep(Persistit.SHORT_DELAY);
             } catch (InterruptedException ie) {
-                throw new PersistitException(ie);
+                throw new PersistitInterruptedException(ie);
             }
         }
     }

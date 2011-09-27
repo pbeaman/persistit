@@ -28,6 +28,7 @@ import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
@@ -293,19 +294,15 @@ public class BufferPool {
         IOTaskRunnable.crash(_writer);
     }
 
-    private void pause() {
+    private void pause() throws PersistitInterruptedException {
         try {
             Thread.sleep(RETRY_SLEEP_TIME);
         } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
+            throw new PersistitInterruptedException(ie);
         }
     }
 
-    void flush() {
-        flush(_persistit.getTimestampAllocator().getCurrentTimestamp());
-    }
-
-    void flush(final long timestamp) {
+    void flush(final long timestamp) throws PersistitInterruptedException {
         setFlushTimestamp(timestamp);
         _writer.kick();
         while (isFlushing()) {
@@ -544,8 +541,9 @@ public class BufferPool {
      * 
      * @param volume
      *            The volume
+     * @throws PersistitInterruptedException
      */
-    boolean invalidate(Volume volume) {
+    boolean invalidate(Volume volume) throws PersistitInterruptedException {
         final float ratio = (float) volume.getStorage().getNextAvailablePage() / (float) _bufferCount;
         if (ratio < SMALL_VOLUME_RATIO) {
             return invalidateSmallVolume(volume);
@@ -554,7 +552,7 @@ public class BufferPool {
         }
     }
 
-    boolean invalidateSmallVolume(final Volume volume) {
+    boolean invalidateSmallVolume(final Volume volume) throws PersistitInterruptedException {
         boolean result = true;
         int markedAvailable = 0;
         for (long page = 1; page < volume.getStorage().getNextAvailablePage(); page++) {
@@ -596,7 +594,7 @@ public class BufferPool {
 
     }
 
-    boolean invalidateLargeVolume(final Volume volume) {
+    boolean invalidateLargeVolume(final Volume volume) throws PersistitInterruptedException {
         boolean result = true;
         int markedAvailable = 0;
         for (int index = 0; index < _bufferCount; index++) {
@@ -629,7 +627,7 @@ public class BufferPool {
         return result;
     }
 
-    private void invalidate(Buffer buffer) {
+    private void invalidate(Buffer buffer) throws PersistitInterruptedException {
         Debug.$assert0.t(buffer.isValid() && buffer.isMine());
 
         while (!detach(buffer)) {
@@ -759,7 +757,7 @@ public class BufferPool {
                     try {
                         wait(RETRY_SLEEP_TIME);
                     } catch (InterruptedException e) {
-                        // ignore
+                        throw new PersistitInterruptedException(e);
                     }
                 }
             } else {
@@ -845,11 +843,13 @@ public class BufferPool {
      * @throws InvalidPageAddressException
      * @throws InvalidPageStructureException
      * @throws VolumeClosedException
+     * @throws PersistitInterruptedException
      * @throws RetryException
      * @throws IOException
      */
     public Buffer getBufferCopy(Volume vol, long page) throws InvalidPageAddressException,
-            InvalidPageStructureException, VolumeClosedException, InUseException, PersistitIOException {
+            InvalidPageStructureException, VolumeClosedException, InUseException, PersistitIOException,
+            PersistitInterruptedException {
         int hash = hashIndex(vol, page);
         Buffer buffer = null;
         _hashLocks[hash % HASH_LOCKS].lock();
@@ -999,7 +999,7 @@ public class BufferPool {
         return null;
     }
 
-    FastIndex allocFastIndex() {
+    FastIndex allocFastIndex() throws PersistitInterruptedException {
         for (int retry = 0; retry < _fastIndexCount * 2;) {
             int clock = _fastIndexClock.get();
             if (!_fastIndexClock.compareAndSet(clock, (clock + 1) % _fastIndexCount)) {
@@ -1038,14 +1038,14 @@ public class BufferPool {
                 if (_flushTimestamp.compareAndSet(current, timestamp)) {
                     break;
                 }
-                pause();
             } else {
                 break;
             }
         }
     }
 
-    private void writeDirtyBuffers(final int[] priorities, final Buffer[] selectedBuffers) {
+    private void writeDirtyBuffers(final int[] priorities, final Buffer[] selectedBuffers)
+            throws PersistitInterruptedException {
         int count = selectDirtyBuffers(priorities, selectedBuffers);
         if (count > 0) {
             Arrays.sort(selectedBuffers, 0, count);
@@ -1187,7 +1187,7 @@ public class BufferPool {
         }
 
         @Override
-        public void runTask() {
+        public void runTask() throws PersistitInterruptedException {
             int cleanCount = _bufferCount - _dirtyPageCount.get();
             if (!isFlushing() && cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8) {
                 return;

@@ -51,6 +51,7 @@ import com.persistit.encoding.ValueCoder;
 import com.persistit.exception.PersistitClosedException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
@@ -725,7 +726,7 @@ public class Persistit {
         _volumes.add(volume);
     }
 
-    synchronized void removeVolume(Volume volume) {
+    synchronized void removeVolume(Volume volume) throws PersistitInterruptedException {
         _volumes.remove(volume);
         volume.getPool().invalidate(volume);
     }
@@ -1485,8 +1486,9 @@ public class Persistit {
      * closed or not yet initialized, do nothing and return <code>null</code>.
      * 
      * @return the Checkpoint allocated by this process.
+     * @throws PersistitInterruptedException 
      */
-    public Checkpoint checkpoint() {
+    public Checkpoint checkpoint() throws PersistitInterruptedException {
         if (_closed.get() || !_initialized.get()) {
             return null;
         }
@@ -1699,6 +1701,7 @@ public class Persistit {
                 try {
                     wait(SHORT_DELAY);
                 } catch (InterruptedException ie) {
+                    throw new PersistitInterruptedException(ie);
                 }
             }
         }
@@ -1833,7 +1836,7 @@ public class Persistit {
         _journalManager.force();
     }
 
-    void flushBuffers(final long timestamp) {
+    void flushBuffers(final long timestamp) throws PersistitInterruptedException {
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.flush(timestamp);
         }

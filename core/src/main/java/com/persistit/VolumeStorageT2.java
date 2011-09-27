@@ -29,6 +29,7 @@ import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.VolumeClosedException;
 
@@ -259,7 +260,7 @@ class VolumeStorageT2 extends VolumeStorage {
     }
 
     void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException,
-            InUseException {
+            InUseException, PersistitInterruptedException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
         if (!claim(false, 0)) {
@@ -296,13 +297,15 @@ class VolumeStorageT2 extends VolumeStorage {
         }
     }
 
+    @Override
     void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException, InUseException {
+            ReadOnlyVolumeException, VolumeClosedException, InUseException, PersistitInterruptedException {
         writePage(buffer.getByteBuffer(), buffer.getPageAddress());
     }
 
+    @Override
     void writePage(final ByteBuffer bb, final long page) throws PersistitIOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException, InUseException {
+            ReadOnlyVolumeException, VolumeClosedException, InUseException, PersistitInterruptedException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
         int pageSize = _volume.getStructure().getPageSize();

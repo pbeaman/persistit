@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
 
 /**
@@ -299,11 +300,11 @@ class SharedResource {
         return (_sync.writerThread() == Thread.currentThread());
     }
 
-    boolean claim(boolean writer) {
+    boolean claim(boolean writer) throws PersistitInterruptedException {
         return claim(writer, DEFAULT_MAX_WAIT_TIME);
     }
 
-    boolean claim(boolean writer, long timeout) {
+    boolean claim(boolean writer, long timeout) throws PersistitInterruptedException {
         if (timeout == 0) {
             if (writer) {
                 return _sync.tryAcquire(1);
@@ -322,7 +323,7 @@ class SharedResource {
                     }
                 }
             } catch (InterruptedException e) {
-                // TODO - (Jack) - consider this.
+                throw new PersistitInterruptedException(e);
             }
             Debug.$assert1.t(false);
             return false;

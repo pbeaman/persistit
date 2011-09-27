@@ -18,12 +18,12 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Random;
 
-import com.persistit.exception.CorruptVolumeException;
+import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
-import com.persistit.exception.InUseException;
 import com.persistit.exception.VolumeClosedException;
 
 /**
@@ -93,7 +93,7 @@ abstract class VolumeStorage extends SharedResource {
      * @return <code>true</code> if this volume is temporary
      */
     abstract boolean isTemp();
-    
+
     /**
      * Create a new <code>Volume</code> backing file according to the
      * {@link Volume}'s volume specification.
@@ -101,12 +101,14 @@ abstract class VolumeStorage extends SharedResource {
      * @throws PersistitException
      */
     abstract void create() throws PersistitException;
+
     /**
      * Open an existing <code>Volume</code> backing file.
      * 
      * @throws PersistitException
      */
     abstract void open() throws PersistitException;
+
     /**
      * @return <code>true</code> if a backing file exists on the specified path.
      * @throws PersistitException
@@ -143,7 +145,7 @@ abstract class VolumeStorage extends SharedResource {
      * @throws PersistitException
      */
     abstract void flush() throws PersistitException;
-    
+
     abstract void truncate() throws PersistitException;
 
     abstract boolean isOpened();
@@ -159,20 +161,21 @@ abstract class VolumeStorage extends SharedResource {
     abstract void releaseHeadBuffer();
 
     abstract void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
-            VolumeClosedException, InUseException;
-    
+            VolumeClosedException, InUseException, PersistitInterruptedException;
+
     abstract void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException, InUseException;
+            ReadOnlyVolumeException, VolumeClosedException, InUseException, PersistitInterruptedException;
 
     abstract void writePage(final ByteBuffer bb, final long page) throws PersistitIOException,
-            InvalidPageAddressException, ReadOnlyVolumeException, VolumeClosedException, InUseException;
+            InvalidPageAddressException, ReadOnlyVolumeException, VolumeClosedException, InUseException,
+            PersistitInterruptedException;
 
     abstract long allocNewPage() throws PersistitException;
 
     abstract void extend(final long pageAddr) throws PersistitException;
 
     abstract void flushMetaData() throws PersistitException;
-    
+
     abstract boolean updateMetaData(final byte[] bytes);
 
 }

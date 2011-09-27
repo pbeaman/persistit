@@ -41,6 +41,7 @@ import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
@@ -756,6 +757,8 @@ public class Transaction {
                 } catch (PersistitException pe) {
                     _persistit.getLogBase().txnEndException.log(pe, this);
                 } catch (InterruptedException ie) {
+                    // reset for handling at a higher level
+                    Thread.currentThread().interrupt();
                 }
             } else {
                 _commitCount++;
@@ -1059,6 +1062,7 @@ public class Transaction {
                     try {
                         Thread.sleep(retryDelay);
                     } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
                         throw re;
                     }
                 }
