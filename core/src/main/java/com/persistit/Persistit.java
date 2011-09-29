@@ -1708,7 +1708,6 @@ public class Persistit {
         if (flush) {
             for (final Volume volume : _volumes) {
                 volume.getStorage().flush();
-                volume.closing();
             }
         }
 

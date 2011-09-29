@@ -299,7 +299,7 @@ class VolumeStorageV2 extends VolumeStorage {
             }
             _closed = true;
         }
-
+        _headBuffer = null;
         PersistitException pe = null;
         try {
             final FileLock lock = _fileLock;
@@ -510,8 +510,7 @@ class VolumeStorageV2 extends VolumeStorage {
             releaseHeadBuffer();
         }
     }
-    
-    
+
     void flushMetaData() throws PersistitException {
         if (!isReadOnly()) {
             Debug.$assert1.t(_headBuffer.isMine());

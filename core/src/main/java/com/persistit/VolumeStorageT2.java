@@ -193,6 +193,7 @@ class VolumeStorageT2 extends VolumeStorage {
         }
 
         PersistitException pe = null;
+        
         try {
             final FileChannel channel = _channel;
             _channel = null;
