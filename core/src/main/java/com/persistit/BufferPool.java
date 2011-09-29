@@ -29,6 +29,7 @@ import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
@@ -1044,8 +1045,7 @@ public class BufferPool {
         }
     }
 
-    private void writeDirtyBuffers(final int[] priorities, final Buffer[] selectedBuffers)
-            throws PersistitInterruptedException {
+    private void writeDirtyBuffers(final int[] priorities, final Buffer[] selectedBuffers) throws PersistitException {
         int count = selectDirtyBuffers(priorities, selectedBuffers);
         if (count > 0) {
             Arrays.sort(selectedBuffers, 0, count);
@@ -1056,9 +1056,6 @@ public class BufferPool {
                         if (buffer.isDirty() && buffer.isValid()) {
                             buffer.writePage();
                         }
-                    } catch (PersistitException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
                     } finally {
                         buffer.release();
                     }
@@ -1187,7 +1184,7 @@ public class BufferPool {
         }
 
         @Override
-        public void runTask() throws PersistitInterruptedException {
+        public void runTask() throws PersistitException {
             int cleanCount = _bufferCount - _dirtyPageCount.get();
             if (!isFlushing() && cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8) {
                 return;

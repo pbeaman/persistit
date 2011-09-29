@@ -23,6 +23,7 @@ import java.util.Map;
 
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
 
 class VolumeStructure {
@@ -38,7 +39,7 @@ class VolumeStructure {
     private final Persistit _persistit;
     private final Volume _volume;
     private final int _pageSize;
-    private final BufferPool _pool;
+    private BufferPool _pool;
 
     private volatile long _directoryRootPage;
     private volatile long _garbageRoot;
@@ -67,11 +68,13 @@ class VolumeStructure {
         }
     }
 
-    void close() {
+    void close() throws PersistitInterruptedException {
         truncate();
         _directoryRootPage = 0;
         _garbageRoot = 0;
         _directoryTree = null;
+        _persistit.removeVolume(_volume);
+        _pool = null;
     }
 
     synchronized void truncate() {

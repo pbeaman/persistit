@@ -728,8 +728,8 @@ public class Persistit {
 
     synchronized void removeVolume(Volume volume) throws PersistitInterruptedException {
         _volumes.remove(volume);
-        volume.getPool().invalidate(volume);
     }
+
 
     /**
      * Replaces substitution variables in a supplied string with values taken
@@ -1232,11 +1232,10 @@ public class Persistit {
         if (volume == null) {
             return false;
         } else {
-            if (!volume.isClosed()) {
-                volume.close();
-            }
-            removeVolume(volume);
-            return volume.delete();
+            volume.closing();
+            boolean deleted = volume.delete();
+            volume.close();
+            return deleted;
         }
     }
 
@@ -1486,7 +1485,7 @@ public class Persistit {
      * closed or not yet initialized, do nothing and return <code>null</code>.
      * 
      * @return the Checkpoint allocated by this process.
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      */
     public Checkpoint checkpoint() throws PersistitInterruptedException {
         if (_closed.get() || !_initialized.get()) {
@@ -1709,6 +1708,7 @@ public class Persistit {
         if (flush) {
             for (final Volume volume : _volumes) {
                 volume.getStorage().flush();
+                volume.closing();
             }
         }
 
@@ -1728,7 +1728,7 @@ public class Persistit {
         _journalManager.close();
 
         for (final Volume volume : volumes) {
-            volume.getStorage().close();
+            volume.close();
         }
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
@@ -1783,6 +1783,9 @@ public class Persistit {
     private void releaseAllResources() {
         _volumes.clear();
         _bufferPoolTable.clear();
+        for (final TransactionalCache cache : _transactionalCaches.values()) {
+            cache.close();
+        }
         _transactionalCaches.clear();
         _exchangePoolMap.clear();
         Set<Transaction> transactions;
@@ -1928,6 +1931,25 @@ public class Persistit {
     public void setSessionId(final SessionId sessionId) {
         sessionId.assign();
         _sessionIdThreadLocal.set(sessionId);
+    }
+
+    /**
+     * Close the session resources associated with the current thread.
+     * 
+     * @throws PersistitException
+     */
+    void closeSession() throws PersistitException {
+        final SessionId sessionId = _sessionIdThreadLocal.get();
+        if (sessionId != null) {
+            final Transaction txn;
+            synchronized (_transactionSessionMap) {
+                txn = _transactionSessionMap.remove(sessionId);
+            }
+            if (txn != null) {
+                txn.close();
+            }
+        }
+        _sessionIdThreadLocal.set(null);
     }
 
     /**
@@ -2511,15 +2533,15 @@ public class Persistit {
             "cliport|int:-1:1024:99999999|Port on which to start a simple command-line interface server" };
 
     /**
-     * Perform various utility functions. Specify arguments on the 
-     * command line conforming to {@value #ARG_TEMPLATE}. Options:
+     * Perform various utility functions. Specify arguments on the command line
+     * conforming to {@value #ARG_TEMPLATE}. Options:
      * <ul>
-     * <li>If the cliport=nnnn argument is set, then this method starts
-     * a CLI server on the specified port.</li>
-     * <li>Otherwise if the properties=filename argument is set, this method 
-     * initializes a Persistit instance using the specified properties. With
-     * an initialized instance the flags -i, -g, and -c take effect to invoke
-     * an integrity check, open the AdminUI or copy back all pages from the
+     * <li>If the cliport=nnnn argument is set, then this method starts a CLI
+     * server on the specified port.</li>
+     * <li>Otherwise if the properties=filename argument is set, this method
+     * initializes a Persistit instance using the specified properties. With an
+     * initialized instance the flags -i, -g, and -c take effect to invoke an
+     * integrity check, open the AdminUI or copy back all pages from the
      * Journal.</li>
      * </ul>
      * 

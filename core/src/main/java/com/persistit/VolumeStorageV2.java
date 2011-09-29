@@ -326,7 +326,6 @@ class VolumeStorageV2 extends VolumeStorage {
         if (pe != null) {
             throw pe;
         }
-        _persistit.removeVolume(_volume);
     }
 
     /**

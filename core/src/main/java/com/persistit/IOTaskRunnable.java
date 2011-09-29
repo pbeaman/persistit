@@ -15,7 +15,7 @@
 
 package com.persistit;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import com.persistit.exception.PersistitException;
 
 /**
  * Base class for the background threads that perform various IO tasks.
@@ -142,6 +142,12 @@ abstract class IOTaskRunnable implements Runnable {
                 }
             }
         }
+        try {
+            _persistit.closeSession();
+        } catch (PersistitException e) {
+            _persistit.getLogBase().exception.log(e);
+        }
+
     }
 
     static void crash(final IOTaskRunnable task) {

@@ -115,7 +115,7 @@ public abstract class TransactionalCache {
 
     private final static Update SAVED = new ReloadUpdate();
 
-    protected final Persistit _persistit;
+    protected Persistit _persistit;
 
     protected Checkpoint _checkpoint;
 
@@ -735,4 +735,12 @@ public abstract class TransactionalCache {
      */
     protected abstract void load() throws PersistitException;
 
+    /**
+     * Release all memory and other resources held by this
+     * <code>TransactionalCache</code>. Subclasses may extend this method, but
+     * should always call <code>super.close()</code>.
+     */
+    protected void close() {
+        _persistit = null;
+    }
 }

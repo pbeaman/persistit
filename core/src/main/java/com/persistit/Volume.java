@@ -14,6 +14,7 @@
  */
 package com.persistit;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -22,6 +23,7 @@ import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.TruncateVolumeException;
 import com.persistit.exception.VolumeAlreadyExistsException;
+import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.exception.WrongVolumeException;
 
@@ -41,7 +43,7 @@ public class Volume {
 
     private final String _name;
     private long _id;
-
+    private AtomicBoolean _closing = new AtomicBoolean();
     private final AtomicInteger _handle = new AtomicInteger();
     private final AtomicReference<Object> _appCache = new AtomicReference<Object>();
 
@@ -80,6 +82,14 @@ public class Volume {
             throw new IllegalStateException(this + " has no " + delegate);
         }
     }
+    
+    
+    private void checkClosing() throws VolumeClosedException {
+        if (_closing.get()) {
+            throw new VolumeClosedException();
+        }
+    }
+
 
     VolumeSpecification getSpecification() {
         final VolumeSpecification s = _specification;
@@ -114,6 +124,10 @@ public class Volume {
         }
     }
 
+    void closing() {
+        _closing.set(true);
+    }
+    
     /**
      * Closes all resources for this <code>Volume</code> and invalidates all its
      * buffers in the {@link BufferPool}. Exchanges based on this
@@ -122,12 +136,14 @@ public class Volume {
      * @throws PersistitException
      */
     public void close() throws PersistitException {
+        closing();
         for (;;) {
             //
             // Prevents read/write operations from starting while the
             // volume is being closed.
             //
-            getStorage().claim(true);
+            final VolumeStorage storage = getStorage();
+            storage.claim(true);
             try {
                 //
                 // BufferPool#invalidate may fail and return false if other
@@ -141,7 +157,7 @@ public class Volume {
                     break;
                 }
             } finally {
-                getStorage().release();
+                storage.release();
             }
             try {
                 Thread.sleep(Persistit.SHORT_DELAY);
@@ -199,7 +215,7 @@ public class Volume {
     }
 
     public boolean delete() throws PersistitException {
-        if (!getStorage().isClosed()) {
+        if (!isClosed()) {
             throw new IllegalStateException("Volume must be closed before deletion");
         }
         return getStorage().delete();
@@ -261,6 +277,7 @@ public class Volume {
      * @throws PersistitException
      */
     public Tree getTree(final String name, final boolean createIfNecessary) throws PersistitException {
+        checkClosing();
         return getStructure().getTree(name, createIfNecessary);
     }
 
@@ -272,6 +289,7 @@ public class Volume {
      * @throws PersistitException
      */
     public String[] getTreeNames() throws PersistitException {
+        checkClosing();
         return getStructure().getTreeNames();
     }
 
@@ -312,7 +330,7 @@ public class Volume {
      * @return <code>true</code> if this Volume is closed.
      */
     public boolean isClosed() {
-        return _storage != null && _storage.isClosed();
+        return _closing.get();
     }
 
     /**
@@ -331,6 +349,7 @@ public class Volume {
      * @throws PersistitException
      */
     void open(final Persistit persistit) throws PersistitException {
+        checkClosing();
         if (_specification == null) {
             throw new IllegalStateException("Missing VolumeSpecification");
         }
@@ -359,6 +378,7 @@ public class Volume {
     }
 
     void openTemporary(final Persistit persistit, final int pageSize) throws PersistitException {
+        checkClosing();
         if (_storage != null) {
             throw new IllegalStateException("This volume has already been opened");
         }
