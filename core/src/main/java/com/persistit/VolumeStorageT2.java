@@ -130,8 +130,7 @@ class VolumeStorageT2 extends VolumeStorage {
         } finally {
             if (!_opened) {
                 try {
-                    _channel.close();
-                    _channel = null;
+                    closeChannel();
                 } catch (IOException e) {
                     // Not much to do - we're going to try to delete
                     // the file anyway.
@@ -195,11 +194,7 @@ class VolumeStorageT2 extends VolumeStorage {
         PersistitException pe = null;
         
         try {
-            final FileChannel channel = _channel;
-            _channel = null;
-            if (channel != null) {
-                channel.close();
-            }
+            closeChannel();
         } catch (Exception e) {
             _persistit.getLogBase().exception.log(e);
             // has priority over Exception thrown by
@@ -220,6 +215,14 @@ class VolumeStorageT2 extends VolumeStorage {
 
         if (pe != null) {
             throw pe;
+        }
+    }
+    
+    private void closeChannel() throws IOException {
+        final FileChannel channel = _channel;
+        _channel = null;
+        if (channel != null) {
+            channel.close();
         }
     }
 
