@@ -173,7 +173,9 @@ class VolumeStorageV2 extends VolumeStorage {
                     // Not much to do - we're going to try to delete
                     // the file anyway.
                 }
-                new File(getPath()).delete();
+                if (getPath() != null) {
+                    delete();
+                }
             }
         }
     }
@@ -320,8 +322,7 @@ class VolumeStorageV2 extends VolumeStorage {
             throw pe;
         }
     }
-    
-    
+
     private void closeChannel() throws IOException {
         final FileChannel channel = _channel;
         _channel = null;

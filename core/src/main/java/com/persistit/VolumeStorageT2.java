@@ -55,7 +55,6 @@ class VolumeStorageT2 extends VolumeStorage {
     private volatile boolean _closed;
     private volatile IOException _lastIOException;
 
-
     VolumeStorageT2(final Persistit persistit, final Volume volume) {
         super(persistit, volume);
     }
@@ -121,7 +120,7 @@ class VolumeStorageT2 extends VolumeStorage {
         final File directory = directoryName == null ? null : new File(directoryName);
         try {
             final File file = File.createTempFile(TEMP_FILE_PREFIX, null, directory);
-            _path = file.getAbsolutePath();
+            _path = file.getPath();
             _channel = new RandomAccessFile(file, "rw").getChannel();
             truncate();
             _opened = true;
@@ -135,7 +134,9 @@ class VolumeStorageT2 extends VolumeStorage {
                     // Not much to do - we're going to try to delete
                     // the file anyway.
                 }
-                new File(getPath()).delete();
+                if (getPath() != null) {
+                    new File(getPath()).delete();
+                }
             }
         }
     }
@@ -192,7 +193,7 @@ class VolumeStorageT2 extends VolumeStorage {
         }
 
         PersistitException pe = null;
-        
+
         try {
             closeChannel();
         } catch (Exception e) {
@@ -217,7 +218,7 @@ class VolumeStorageT2 extends VolumeStorage {
             throw pe;
         }
     }
-    
+
     private void closeChannel() throws IOException {
         final FileChannel channel = _channel;
         _channel = null;
