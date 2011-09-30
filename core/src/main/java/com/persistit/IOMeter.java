@@ -298,37 +298,37 @@ class IOMeter implements IOMeterMXBean {
     }
 
     public void chargeWriteTStoJournal(final int size, final long journalAddress) {
-        final long time = System.nanoTime();
-        log(WRITE_TS_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
-        charge(time, size, WRITE_TS_TO_JOURNAL);
+        // final long time = System.nanoTime();
+        // log(WRITE_TS_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
+        // charge(time, size, WRITE_TS_TO_JOURNAL);
     }
 
     public void chargeWriteTCtoJournal(final int size, final long journalAddress) {
-        final long time = System.nanoTime();
-        log(WRITE_TC_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
-        charge(time, size, WRITE_TC_TO_JOURNAL);
+        // final long time = System.nanoTime();
+        // log(WRITE_TC_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
+        // charge(time, size, WRITE_TC_TO_JOURNAL);
     }
 
     public void chargeWriteSRtoJournal(final int size, final long journalAddress) {
-        final long time = System.nanoTime();
-        log(WRITE_SR_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
-        charge(time, size, WRITE_SR_TO_JOURNAL);
+        // final long time = System.nanoTime();
+        // log(WRITE_SR_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
+        // charge(time, size, WRITE_SR_TO_JOURNAL);
     }
 
     public void chargeWriteDRtoJournal(final int size, final long journalAddress) {
-        final long time = System.nanoTime();
-        log(WRITE_DR_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
-        charge(time, size, WRITE_DR_TO_JOURNAL);
+        // final long time = System.nanoTime();
+        // log(WRITE_DR_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
+        // charge(time, size, WRITE_DR_TO_JOURNAL);
     }
 
     public void chargeWriteDTtoJournal(final int size, final long journalAddress) {
-        final long time = System.nanoTime();
-        log(WRITE_DT_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
-        charge(time, size, WRITE_DT_TO_JOURNAL);
+        // final long time = System.nanoTime();
+        // log(WRITE_DT_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
+        // charge(time, size, WRITE_DT_TO_JOURNAL);
     }
 
     public void chargeWriteOtherToJournal(final int size, final long journalAddress) {
-        final long time = System.nanoTime();
+        final long time = 12345; //System.nanoTime();
         log(WRITE_OTHER_TO_JOURNAL, time, null, -1, size, journalAddress, -1);
         charge(time, size, WRITE_OTHER_TO_JOURNAL);
     }
@@ -393,8 +393,7 @@ class IOMeter implements IOMeterMXBean {
      */
     public static void main(final String[] args) throws Exception {
         final ArgParser ap = new ArgParser("com.persistit.IOMeter", args, new String[] { "file||log file name",
-                "skip|long:0:0:1000000000000|event skip count",
-                "count|long:0:0:2000000000|event count nlimit"});
+                "skip|long:0:0:1000000000000|event skip count", "count|long:0:0:2000000000|event count nlimit" });
         final String fileName = ap.getStringValue("file");
         final long skip = ap.getLongValue("skip");
         final int count = ap.getIntValue("count");

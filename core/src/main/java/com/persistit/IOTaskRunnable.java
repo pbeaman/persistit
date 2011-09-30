@@ -137,6 +137,7 @@ abstract class IOTaskRunnable implements Runnable {
                     try {
                         wait(waitTime);
                     } catch (InterruptedException ie) {
+                        _persistit.getLogBase().exception.log(ie);
                         break;
                     }
                 }

@@ -156,10 +156,12 @@ class VolumeStructure {
         tree = new Tree(_persistit, _volume, name);
         if (value.isDefined()) {
             tree.load(ex.getValue());
+            tree.setValid();
         } else if (createIfNecessary) {
             final long rootPageAddr = createTreeRoot(tree);
             tree.setRootPageAddress(rootPageAddr);
             updateDirectoryTree(tree);
+            tree.setValid();
         } else {
             return null;
         }

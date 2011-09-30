@@ -1826,9 +1826,9 @@ public class Persistit {
      * @throws PersistitException
      * @throws IOException
      */
-    public void flush() throws PersistitException {
+    public boolean flush() throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
-            return;
+            return false;
         }
         for (final Volume volume : _volumes) {
             volume.getStorage().flush();
@@ -1836,6 +1836,7 @@ public class Persistit {
         }
         flushBuffers(_timestampAllocator.getCurrentTimestamp());
         _journalManager.force();
+	return true;
     }
 
     void flushBuffers(final long timestamp) throws PersistitInterruptedException {
@@ -1887,9 +1888,12 @@ public class Persistit {
         _journalManager.force();
     }
 
-    void checkClosed() throws PersistitClosedException {
+    void checkClosed() throws PersistitClosedException, PersistitInterruptedException {
         if (isClosed()) {
             throw new PersistitClosedException();
+        }
+        if (Thread.currentThread().isInterrupted()) {
+            throw new PersistitInterruptedException(new InterruptedException());
         }
     }
 
@@ -1897,13 +1901,14 @@ public class Persistit {
      * Waits until updates are no longer suspended. The
      * {@link #setUpdateSuspended} method controls whether update operations are
      * currently suspended.
+     * @throws PersistitInterruptedException 
      */
-    public void checkSuspended() {
+    public void checkSuspended() throws PersistitInterruptedException {
         while (isUpdateSuspended()) {
             try {
                 Thread.sleep(SHORT_DELAY);
             } catch (InterruptedException ie) {
-                break;
+                throw new PersistitInterruptedException(ie);
             }
         }
     }

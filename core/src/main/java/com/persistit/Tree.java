@@ -140,7 +140,6 @@ public class Tree extends SharedResource {
         _rootPageAddr = Util.getLong(encoded, 0);
         _depth = Util.getShort(encoded, 12);
         _changeCount.set(Util.getLong(encoded, 16));
-        setValid();
     }
 
     /**
