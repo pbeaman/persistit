@@ -56,6 +56,7 @@ import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
 
 /**
@@ -823,7 +824,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         _lastValidCheckpointBaseAddress = _baseAddress;
     }
 
-    void writePageToJournal(final Buffer buffer) throws PersistitIOException {
+    void writePageToJournal(final Buffer buffer) throws PersistitException {
 
         final Volume volume;
         final int recordSize;
@@ -1391,7 +1392,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                     try {
                         wait(100);
                     } catch (InterruptedException ie) {
-                        // ignore;
+                        throw new PersistitInterruptedException(ie);
                     }
                 }
                 pagesLeft = _pageMap.size();

@@ -49,6 +49,7 @@ import com.persistit.encoding.ValueCoder;
 import com.persistit.exception.PersistitClosedException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.PropertiesNotFoundException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RollbackException;
@@ -728,7 +729,7 @@ public class Persistit {
         _volumesById.put(idKey, volume);
     }
 
-    synchronized void removeVolume(Volume volume, boolean delete) {
+    synchronized void removeVolume(Volume volume, boolean delete) throws PersistitInterruptedException {
         Long idKey = new Long(volume.getId());
         _volumesById.remove(idKey);
         _volumes.remove(volume);
@@ -1566,8 +1567,9 @@ public class Persistit {
      * closed or not yet initialized, do nothing and return <code>null</code>.
      * 
      * @return the Checkpoint allocated by this process.
+     * @throws PersistitInterruptedException
      */
-    public Checkpoint checkpoint() {
+    public Checkpoint checkpoint() throws PersistitInterruptedException {
         if (_closed.get() || !_initialized.get()) {
             return null;
         }
@@ -1763,6 +1765,7 @@ public class Persistit {
                 try {
                     wait(SHORT_DELAY);
                 } catch (InterruptedException ie) {
+                    throw new PersistitInterruptedException(ie);
                 }
             }
         }
@@ -1951,9 +1954,12 @@ public class Persistit {
         _journalManager.force();
     }
 
-    void checkClosed() throws PersistitClosedException {
+    void checkClosed() throws PersistitClosedException, PersistitInterruptedException {
         if (isClosed()) {
             throw new PersistitClosedException();
+        }
+        if (Thread.currentThread().isInterrupted()) {
+            throw new PersistitInterruptedException(new InterruptedException());
         }
     }
 
@@ -1961,13 +1967,15 @@ public class Persistit {
      * Waits until updates are no longer suspended. The
      * {@link #setUpdateSuspended} method controls whether update operations are
      * currently suspended.
+     * 
+     * @throws PersistitInterruptedException
      */
-    public void checkSuspended() {
+    public void checkSuspended() throws PersistitInterruptedException {
         while (isUpdateSuspended()) {
             try {
                 Thread.sleep(SHORT_DELAY);
             } catch (InterruptedException ie) {
-                break;
+                throw new PersistitInterruptedException(ie);
             }
         }
     }
@@ -2581,7 +2589,7 @@ public class Persistit {
             Task task = CLI.cliserver(cliport);
             task.runTask();
             task.setPersistit(null);
-            
+
         } else {
             if (propertiesFileName.isEmpty()) {
                 throw new IllegalArgumentException("Must specify a properties file");

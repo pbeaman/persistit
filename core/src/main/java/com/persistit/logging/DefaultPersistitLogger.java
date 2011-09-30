@@ -52,6 +52,7 @@ public class DefaultPersistitLogger implements PersistitLogger {
                 try {
                     Thread.sleep(FLUSH_DELAY_INTERVAL);
                 } catch (InterruptedException ie) {
+                    break;
                 }
                 flush();
             }

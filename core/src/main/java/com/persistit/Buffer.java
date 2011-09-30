@@ -27,6 +27,7 @@ import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.InvalidPageTypeException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RebalanceException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.policy.JoinPolicy;
@@ -440,7 +441,7 @@ public final class Buffer extends SharedResource {
         bumpGeneration();
     }
 
-    void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException {
+    void writePageOnCheckpoint(final long timestamp) throws PersistitException {
         Debug.$assert0.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         if (isDirty() && getTimestamp() < checkpoint.getTimestamp() && timestamp > checkpoint.getTimestamp()) {
@@ -448,7 +449,7 @@ public final class Buffer extends SharedResource {
         }
     }
 
-    void writePage() throws PersistitIOException, InvalidPageStructureException {
+    void writePage() throws PersistitException {
         final Volume volume = getVolume();
         if (volume != null) {
             clearSlack();
@@ -700,8 +701,9 @@ public final class Buffer extends SharedResource {
      * @return An encoded result (see above). Returns 0 if the supplied key
      *         precedes the first key in the page. Returns Integer.MAX_VALUE if
      *         it follows the last key in the page.
+     * @throws PersistitInterruptedException 
      */
-    int findKey(Key key) {
+    int findKey(Key key) throws PersistitInterruptedException {
         final FastIndex fastIndex = getFastIndex();
         byte[] kbytes = key.getEncodedBytes();
         int klength = key.getEncodedSize();
@@ -970,7 +972,7 @@ public final class Buffer extends SharedResource {
         return result;
     }
 
-    boolean hasValue(Key key) {
+    boolean hasValue(Key key) throws PersistitInterruptedException {
         int foundAt = findKey(key);
         return ((foundAt & EXACT_MASK) != 0);
     }
@@ -1242,8 +1244,9 @@ public final class Buffer extends SharedResource {
      *            The key on under which the value will be stored
      * @param value
      *            The value, converted to a byte array
+     * @throws PersistitInterruptedException 
      */
-    int putValue(Key key, Value value) {
+    int putValue(Key key, Value value) throws PersistitInterruptedException {
         int p = findKey(key);
         return putValue(key, value, p, false);
     }
@@ -2525,7 +2528,7 @@ public final class Buffer extends SharedResource {
         }
     }
 
-    synchronized FastIndex getFastIndex() {
+    synchronized FastIndex getFastIndex() throws PersistitInterruptedException {
         // TODO - replace synchronized with CAS instructions
         if (_fastIndex == null) {
             _fastIndex = _pool.allocFastIndex();
