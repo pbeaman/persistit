@@ -44,6 +44,7 @@ import com.persistit.Key.Direction;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.TreeNotFoundException;
@@ -889,8 +890,9 @@ public class Exchange {
      * @param key
      * @param lc
      * @return
+     * @throws PersistitInterruptedException 
      */
-    private int findKey(Buffer buffer, Key key, LevelCache lc) {
+    private int findKey(Buffer buffer, Key key, LevelCache lc) throws PersistitInterruptedException {
         //
         // Possibly we can accelerate.
         //

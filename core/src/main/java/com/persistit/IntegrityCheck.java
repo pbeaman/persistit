@@ -22,6 +22,7 @@ import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
@@ -166,7 +167,7 @@ public class IntegrityCheck extends Task {
                 } catch (PersistitException pe) {
                     postMessage(pe.toString(), LOG_NORMAL);
                 } catch (InterruptedException ie) {
-                    // Just repeat the operation...
+                    throw new PersistitInterruptedException(ie);
                 }
             }
             _currentVolume = null;

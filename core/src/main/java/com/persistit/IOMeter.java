@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.ArgParser;
 
 /**
@@ -255,7 +256,7 @@ public class IOMeter implements IOMeterMXBean {
     }
 
     public void chargeCopyPageToVolume(final Volume volume, final long pageAddress, final int size,
-            final long journalAddress, final int urgency) {
+            final long journalAddress, final int urgency) throws PersistitInterruptedException {
         final long time = System.nanoTime();
         log(COPY_PAGE_TO_VOLUME, time, volume, pageAddress, size, journalAddress, 0);
 
@@ -275,7 +276,7 @@ public class IOMeter implements IOMeterMXBean {
             try {
                 Thread.sleep(sleep);
             } catch (InterruptedException e) {
-                // Ignore
+                throw new PersistitInterruptedException(e);
             }
         }
     }
@@ -294,7 +295,7 @@ public class IOMeter implements IOMeterMXBean {
     }
 
     public void chargeWritePageToJournal(final Volume volume, final long pageAddress, final int size,
-            final long journalAddress, final int urgency, int bufferIndex) {
+            final long journalAddress, final int urgency, int bufferIndex) throws PersistitInterruptedException {
         final long time = System.nanoTime();
         log(WRITE_PAGE_TO_JOURNAL, time, volume, pageAddress, size, journalAddress, bufferIndex);
         charge(time, size, WRITE_PAGE_TO_JOURNAL);
@@ -307,7 +308,7 @@ public class IOMeter implements IOMeterMXBean {
             try {
                 Thread.sleep(_writePageSleepInterval);
             } catch (InterruptedException ie) {
-
+                throw new PersistitInterruptedException(ie);
             }
         }
     }

@@ -26,6 +26,7 @@ import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.exception.VolumeClosedException;
@@ -254,15 +255,15 @@ public class BufferPool {
         IOTaskRunnable.crash(_writer);
     }
     
-    private void pause() {
+    private void pause() throws PersistitInterruptedException {
         try {
             Thread.sleep(RETRY_SLEEP_TIME);
         } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
+            throw new PersistitInterruptedException(ie);
         }
     }
 
-    int flush() {
+    int flush() throws PersistitInterruptedException {
         int unavailable = 0;
         for (int retries = 0; retries < MAX_FLUSH_RETRY_COUNT; retries++) {
             unavailable = writeDirtyBuffers(false, true);
@@ -456,8 +457,9 @@ public class BufferPool {
      * 
      * @param volume
      *            The volume
+     * @throws PersistitInterruptedException 
      */
-    void invalidate(Volume volume) {
+    void invalidate(Volume volume) throws PersistitInterruptedException {
         for (int index = 0; index < _buffers.length; index++) {
             Buffer buffer = _buffers[index];
             if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
@@ -466,7 +468,7 @@ public class BufferPool {
         }
     }
 
-    void delete(Volume volume) {
+    void delete(Volume volume) throws PersistitInterruptedException {
         for (int index = 0; index < _buffers.length; index++) {
             Buffer buffer = _buffers[index];
             if (buffer.getVolume() == volume) {
@@ -475,7 +477,7 @@ public class BufferPool {
         }
     }
 
-    private void invalidate(Buffer buffer) {
+    private void invalidate(Buffer buffer) throws PersistitInterruptedException {
         Debug.$assert0.t(buffer.isValid());
         while (!detach(buffer)) {
             pause();
@@ -604,7 +606,7 @@ public class BufferPool {
                     try {
                         wait(RETRY_SLEEP_TIME);
                     } catch (InterruptedException e) {
-                        // ignore
+                        throw new PersistitInterruptedException(e);
                     }
                 }
             } else {
@@ -690,11 +692,12 @@ public class BufferPool {
      * @throws InvalidPageAddressException
      * @throws InvalidPageStructureException
      * @throws VolumeClosedException
+     * @throws PersistitInterruptedException 
      * @throws RetryException
      * @throws IOException
      */
     public Buffer getBufferCopy(Volume vol, long page) throws InvalidPageAddressException,
-            InvalidPageStructureException, VolumeClosedException, TimeoutException, PersistitIOException {
+            InvalidPageStructureException, VolumeClosedException, TimeoutException, PersistitIOException, PersistitInterruptedException {
         int hash = hashIndex(vol, page);
         Buffer buffer = null;
         _hashLocks[hash % HASH_LOCKS].lock();
@@ -781,7 +784,7 @@ public class BufferPool {
         return null;
     }
 
-    FastIndex allocFastIndex() {
+    FastIndex allocFastIndex() throws PersistitInterruptedException {
         for (int retry = 0; retry < _fastIndexCount * 2;) {
             int clock = _fastIndexClock.get();
             if (!_fastIndexClock.compareAndSet(clock, (clock + 1) % _fastIndexCount)) {
@@ -823,7 +826,7 @@ public class BufferPool {
         return earliestDirtyTimestamp;
     }
 
-    private int writeDirtyBuffers(final boolean urgent, final boolean all) {
+    private int writeDirtyBuffers(final boolean urgent, final boolean all) throws PersistitInterruptedException {
         int unavailable = 0;
         int start = _dirtyClock.get();
         int max = all ? _bufferCount : _bufferCount / 8;
@@ -875,7 +878,7 @@ public class BufferPool {
         }
 
         @Override
-        public void runTask() {
+        public void runTask() throws PersistitException {
             _wasClosed = _closed.get();
             _clean = writeDirtyBuffers(_urgent.get(), _wasClosed) == 0;
             if (_clean) {

@@ -546,7 +546,7 @@ public class Volume extends SharedResource {
      * 
      * @throws PMapException
      */
-    private void checkpointMetaData() throws ReadOnlyVolumeException, PersistitIOException,
+    private void checkpointMetaData() throws PersistitException,
             InvalidPageStructureException {
         final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
         _headBuffer.writePageOnCheckpoint(timestamp);
@@ -603,8 +603,7 @@ public class Volume extends SharedResource {
         return _garbageRoot;
     }
 
-    private void setGarbageRoot(long garbagePage) throws InUseException, ReadOnlyVolumeException, PersistitIOException,
-            InvalidPageStructureException {
+    private void setGarbageRoot(long garbagePage) throws PersistitException {
         _garbageRoot = garbagePage;
         checkpointMetaData();
     }

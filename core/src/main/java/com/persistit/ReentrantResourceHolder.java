@@ -14,6 +14,7 @@
  */
 package com.persistit;
 
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
 
 /**
@@ -38,11 +39,11 @@ public class ReentrantResourceHolder {
         _claimCount = 0;
     }
 
-    boolean claim(final boolean writer) {
+    boolean claim(final boolean writer) throws PersistitInterruptedException {
         return claim(writer, SharedResource.DEFAULT_MAX_WAIT_TIME);
     }
 
-    boolean claim(final boolean writer, final long timeout) {
+    boolean claim(final boolean writer, final long timeout) throws PersistitInterruptedException {
         if (_claimCount == 0) {
             if (!_resource.claim(writer, timeout)) {
                 return false;

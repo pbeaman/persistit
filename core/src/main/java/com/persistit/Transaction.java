@@ -745,6 +745,8 @@ public class Transaction {
                 } catch (PersistitException pe) {
                     _persistit.getLogBase().txnEndException.log(pe, this);
                 } catch (InterruptedException ie) {
+                    // reset for handling at a higher level
+                    Thread.currentThread().interrupt();
                 }
             } else {
                 _commitCount++;
@@ -1048,6 +1050,7 @@ public class Transaction {
                     try {
                         Thread.sleep(retryDelay);
                     } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
                         throw re;
                     }
                 }
