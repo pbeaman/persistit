@@ -15,10 +15,6 @@
 
 package com.persistit;
 
-import static com.persistit.IOMeter.ALMOST_URGENT;
-import static com.persistit.IOMeter.HALF_URGENT;
-import static com.persistit.IOMeter.URGENT;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -67,6 +63,10 @@ import com.persistit.util.Debug;
  * 
  */
 public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, TransactionWriter {
+
+    final static int URGENT = 10;
+    final static int ALMOST_URGENT = 8;
+    final static int HALF_URGENT = 5;
 
     /**
      * REGEX expression that recognizes the name of a journal file.
@@ -1000,7 +1000,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         if (ts == null) {
             throw new CorruptJournalException("TC Transaction timestamp " + timestamp + " never started");
         }
- 
+
         if (timestamp != _unitTestNeverCloseTransactionTimestamp) {
             ts.setCommitTimestamp(commitTimestamp);
         }
@@ -1705,19 +1705,34 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         /**
          * Return a nice interval, in milliseconds, to wait between
          * copierCycle invocations. The interval decreases as interval 
-         * goes up, and becomes zero when the urgency is 10.
+         * goes up, and becomes zero when the urgency is 10. The interval
+         * is also zero if there has be no recent I/O activity invoked
+         * by other activities.
          */
         public long getPollInterval() {
+            IOMeter iom = _persistit.getIOMeter();
+            long pollInterval = super.getPollInterval();
             int urgency = urgency();
 
-            if (urgency <= HALF_URGENT || _lastCyclePagesWritten == 0) {
-                return super.getPollInterval();
+            if (_lastCyclePagesWritten == 0) {
+                return pollInterval;
             }
-            
+
             if (urgency >= ALMOST_URGENT) {
                 return 0;
             }
-            return super.getPollInterval() / (urgency - HALF_URGENT);
+
+            int divisor = 1;
+            
+            if (iom.recentCharge() < iom.getQuiescentIOthreshold()) {
+                divisor = URGENT - HALF_URGENT;
+            } else if (urgency <= HALF_URGENT) {
+                divisor = 1;
+            } else {
+                divisor = urgency - HALF_URGENT;
+            }
+
+            return super.getPollInterval() / divisor;
         }
     }
 
@@ -1963,7 +1978,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         if (sortedMap.isEmpty() && wasUrgent) {
             _copyFast.set(false);
         }
-        
+
         return sortedMap.size();
     }
 
@@ -2009,7 +2024,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
     void unitTestInjectTransactionMap(final Map<Long, TransactionStatus> transactionMap) {
         _liveTransactionMap.putAll(transactionMap);
     }
-    
+
     void unitTestClearTransactionMap() {
         _liveTransactionMap.clear();
     }

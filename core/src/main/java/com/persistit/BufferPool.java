@@ -1190,6 +1190,7 @@ public class BufferPool {
                 return;
             }
             writeDirtyBuffers(_priorities, _selectedBuffers);
+            _persistit.getIOMeter().poll();
             _persistit.cleanup();
         }
 
