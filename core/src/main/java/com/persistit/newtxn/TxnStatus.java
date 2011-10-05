@@ -19,6 +19,10 @@ import com.persistit.Transaction;
 public class TxnStatus {
 
     /**
+     * Address of TS record on journal
+     */
+    long journalAddress;
+    /**
      * Start timestamp of the associated transaction
      */
     long ts;
@@ -26,10 +30,7 @@ public class TxnStatus {
      * Proposal timestamp
      */
     long tc;
-    /**
-     * Indicates whether the associated transaction has committed
-     */
-    boolean committed;
+
     /**
      * The associated Transaction (maybe does not even exist)
      */
@@ -44,10 +45,9 @@ public class TxnStatus {
     Semaphore semaphore;
     
     /**
-     * Another TxnStatus that is waiting for this one to commit or abort, or
-     * null if there is none.
+     * TxnStatus of another transaction this transaction is waiting for.
      */
-    TxnStatus dependent;
+    TxnStatus wwDependsOn;
     
     /**
      * Count of value versions added to MVV instances - used to reference

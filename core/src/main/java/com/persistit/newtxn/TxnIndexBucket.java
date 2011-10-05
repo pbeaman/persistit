@@ -10,9 +10,10 @@ import java.util.concurrent.locks.ReentrantLock;
 public class TxnIndexBucket {
 
     long floor;
-    long ceiling;
-    TxnStatus next;
-    TxnStatus nextAborted;
+    TxnStatus current;
+    TxnStatus aborted;
+    TxnStatus long_running;
+    TxnStatus free;
     ReentrantLock lock;
     
 }
