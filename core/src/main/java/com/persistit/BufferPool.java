@@ -29,7 +29,6 @@ import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
-import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
@@ -218,7 +217,6 @@ public class BufferPool {
      *            The size (in bytes) of each buffer
      */
     BufferPool(int count, int size, Persistit persistit) {
-        int created = 0;
         _persistit = persistit;
         if (count < MINIMUM_POOL_COUNT) {
             throw new IllegalArgumentException("Buffer pool count too small: " + count);
@@ -245,32 +243,46 @@ public class BufferPool {
         _hashTable = new Buffer[_bufferCount * HASH_MULTIPLE];
         _hashLocks = new ReentrantLock[HASH_LOCKS];
         _maxKeys = (_bufferSize - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO;
+        _fastIndexCount = (int) (count * FAST_INDEX_RATIO);
+        _fastIndexes = new FastIndex[_fastIndexCount];
 
         for (int index = 0; index < HASH_LOCKS; index++) {
             _hashLocks[index] = new ReentrantLock();
         }
 
+        int buffers = 0;
+        int fastIndexes = 0;
+        byte[] reserve = new byte[1024 * 1024];
         try {
             for (int index = 0; index < _bufferCount; index++) {
                 Buffer buffer = new Buffer(size, index, this, _persistit);
                 _buffers[index] = buffer;
-                created++;
+                buffers++;
             }
-        } catch (OutOfMemoryError e) {
-            System.err.println("Out of memory after creating " + created + " buffers");
-            throw e;
-        }
-        _fastIndexCount = (int) (count * FAST_INDEX_RATIO);
-        _fastIndexes = new FastIndex[_fastIndexCount];
-        created = 0;
-        try {
             for (int index = 0; index < _fastIndexCount; index++) {
                 _fastIndexes[index] = new FastIndex(_maxKeys + 1);
                 _fastIndexes[index].setBuffer(_buffers[index]);
-                created++;
+                fastIndexes++;
             }
         } catch (OutOfMemoryError e) {
-            System.err.println("Out of memory after creating " + created + " FastIndex instances");
+            //
+            // Note: written this way to try to avoid another OOME.
+            // Do not use String.format here.
+            //
+            reserve = null;
+            System.err.print("Out of memory with ");
+            System.err.print(Runtime.getRuntime().freeMemory());
+            System.err.print(" bytes free after creating ");
+            System.err.print(buffers);
+            System.err.print("/");
+            System.err.print(_bufferCount);
+            System.err.print(" buffers and ");
+            System.err.print(fastIndexes);
+            System.err.print("/");
+            System.err.print(_fastIndexCount);
+            System.err.print(" fast indexes ");
+            System.err.print(" from maximum heap ");
+            System.err.println(_persistit.getAvailableHeap());
             throw e;
         }
         _writer = new PageWriter();
@@ -1187,7 +1199,7 @@ public class BufferPool {
         public void runTask() throws PersistitException {
             _persistit.getIOMeter().poll();
             _persistit.cleanup();
-            
+
             int cleanCount = _bufferCount - _dirtyPageCount.get();
             if (!isFlushing() && cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8) {
                 return;
