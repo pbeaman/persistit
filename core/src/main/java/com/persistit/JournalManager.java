@@ -1726,9 +1726,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             
             if (iom.recentCharge() < iom.getQuiescentIOthreshold()) {
                 divisor = URGENT - HALF_URGENT;
-            } else if (urgency <= HALF_URGENT) {
-                divisor = 1;
-            } else {
+            } else if (urgency > HALF_URGENT) {
                 divisor = urgency - HALF_URGENT;
             }
 
