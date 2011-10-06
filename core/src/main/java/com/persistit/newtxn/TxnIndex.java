@@ -1,4 +1,3 @@
-package com.persistit.newtxn;
 /**
  * Copyright (C) 2011 Akiban Technologies Inc.
  * This program is free software: you can redistribute it and/or modify
@@ -14,6 +13,7 @@ package com.persistit.newtxn;
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
+package com.persistit.newtxn;
 
 import java.util.ArrayList;
 import java.util.List;
