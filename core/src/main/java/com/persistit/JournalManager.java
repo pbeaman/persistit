@@ -1176,12 +1176,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
      */
     synchronized long flush() throws PersistitIOException {
         final long address = _writeBufferAddress;
+        boolean flipped = false;
         if (address != Long.MAX_VALUE && _writeBuffer != null) {
             try {
                 if (_writeBuffer.position() > 0) {
                     final FileChannel channel = getFileChannel(address);
                     Debug.$assert0.t(channel.size() == addressToOffset(address));
                     _writeBuffer.flip();
+                    flipped = true;
                     final int size = _writeBuffer.remaining();
                     channel.write(_writeBuffer);
                     _writeBufferAddress += _writeBuffer.position();
@@ -1190,6 +1192,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                     } else {
                         _writeBuffer.clear();
                     }
+                    flipped = false;
                     final long remaining = _blockSize - (_writeBufferAddress % _blockSize);
                     if (remaining < _writeBuffer.limit()) {
                         _writeBuffer.limit((int) remaining);
@@ -1199,6 +1202,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                 }
             } catch (IOException e) {
                 throw new PersistitIOException("IOException while writing to file " + addressToFile(address), e);
+            } finally {
+                if (flipped) {
+                    _writeBuffer.flip();
+                }
             }
         }
         return Long.MAX_VALUE;
@@ -1723,7 +1730,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             }
 
             int divisor = 1;
-            
+
             if (iom.recentCharge() < iom.getQuiescentIOthreshold()) {
                 divisor = URGENT - HALF_URGENT;
             } else if (urgency > HALF_URGENT) {

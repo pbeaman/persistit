@@ -15,10 +15,13 @@
 
 package com.persistit;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
@@ -286,14 +289,6 @@ public class Persistit {
     public final static int MAX_POOLED_EXCHANGES = 10000;
 
     final static long SHORT_DELAY = 500;
-
-    /**
-     * Minimal command line documentation
-     */
-    private final static String[] USAGE = { "java.persistit.Persistit [options] [property_file_name]", "",
-            " where flags are", "  -g           to show the Admin UI",
-            "  -i           to perform integrity checks on all volumes",
-            "  -w           to wait for the Admin UI to connect", "  -? or -help  to show this help message", };
 
     private final static long KILO = 1024;
     private final static long MEGA = KILO * KILO;
@@ -729,7 +724,6 @@ public class Persistit {
     synchronized void removeVolume(Volume volume) throws PersistitInterruptedException {
         _volumes.remove(volume);
     }
-
 
     /**
      * Replaces substitution variables in a supplied string with values taken
@@ -1836,7 +1830,7 @@ public class Persistit {
         }
         flushBuffers(_timestampAllocator.getCurrentTimestamp());
         _journalManager.force();
-	return true;
+        return true;
     }
 
     void flushBuffers(final long timestamp) throws PersistitInterruptedException {
@@ -1901,7 +1895,8 @@ public class Persistit {
      * Waits until updates are no longer suspended. The
      * {@link #setUpdateSuspended} method controls whether update operations are
      * currently suspended.
-     * @throws PersistitInterruptedException 
+     * 
+     * @throws PersistitInterruptedException
      */
     public void checkSuspended() throws PersistitInterruptedException {
         while (isUpdateSuspended()) {
@@ -2534,7 +2529,8 @@ public class Persistit {
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",
             "_flag|i|Perform IntegrityCheck on all volumes", "_flag|w|Wait until AdminUI exists",
             "_flag|c|Perform copy-back", "properties|string|Property file name",
-            "cliport|int:-1:1024:99999999|Port on which to start a simple command-line interface server" };
+            "cliport|int:-1:1024:99999999|Port on which to start a simple command-line interface server",
+            "script|string|Pathname of CLI script to execute", };
 
     /**
      * Perform various utility functions. Specify arguments on the command line
@@ -2559,7 +2555,14 @@ public class Persistit {
             return;
         }
 
+        Persistit persistit = null;
         String propertiesFileName = ap.getStringValue("properties");
+        if (!propertiesFileName.isEmpty()) {
+            persistit = new Persistit();
+            persistit.initialize(propertiesFileName);
+        }
+        String scriptName = ap.getStringValue("script");
+
         int cliport = ap.getIntValue("cliport");
 
         if (cliport > -1 && !propertiesFileName.isEmpty()) {
@@ -2570,10 +2573,13 @@ public class Persistit {
             System.out.printf("Starting a Persistit CLI server on port %d\n", cliport);
             Task task = CLI.cliserver(cliport);
             task.runTask();
-            task.setPersistit(null);
-
+            task.setPersistit(persistit);
+        } else if (!scriptName.isEmpty()) {
+            final BufferedReader reader = new BufferedReader(new FileReader(scriptName));
+            final PrintWriter writer = new PrintWriter(System.out);
+            CLI.runScript(persistit, reader, writer);
         } else {
-            if (propertiesFileName.isEmpty()) {
+            if (persistit == null) {
                 throw new IllegalArgumentException("Must specify a properties file");
             }
             boolean gui = ap.isFlag('g');
@@ -2581,8 +2587,6 @@ public class Persistit {
             boolean wait = ap.isFlag('w');
             boolean copy = ap.isFlag('c');
 
-            Persistit persistit = new Persistit();
-            persistit.initialize(propertiesFileName);
             try {
                 if (gui) {
                     persistit.setupGUI(wait);
@@ -2603,12 +2607,5 @@ public class Persistit {
                 persistit.close();
             }
         }
-    }
-
-    private static void usage() {
-        for (int index = 0; index < USAGE.length; index++) {
-            System.out.println(USAGE[index]);
-        }
-        System.out.println();
     }
 }

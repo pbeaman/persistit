@@ -252,6 +252,10 @@ public class BufferPool {
 
         int buffers = 0;
         int fastIndexes = 0;
+        //
+        // Allocate this here so that in the event of an OOME we can release it
+        // to free enough memory to write the error information out.
+        //
         byte[] reserve = new byte[1024 * 1024];
         try {
             for (int index = 0; index < _bufferCount; index++) {
@@ -1105,6 +1109,8 @@ public class BufferPool {
                     count = Math.min(count, priorities.length - 1);
                     System.arraycopy(priorities, where, priorities, where + 1, count - where);
                     System.arraycopy(buffers, where, buffers, where + 1, count - where);
+                    priorities[where] = priority;
+                    buffers[where] = buffer;
                     count++;
                 }
                 if (!buffer.isTemporary()) {
@@ -1150,17 +1156,31 @@ public class BufferPool {
         // least another _bufferCount cycles, and its distance is therefore
         // increased.
         //
-        if ((status & Buffer.TOUCHED_MASK) == 1) {
+        if ((status & Buffer.TOUCHED_MASK) != 0) {
             distance += _bufferCount;
         }
+        
         if (!buffer.isTemporary()) {
             //
-            // Give higher priority to dirty buffers that need to be
+            // Give higher priority to a dirty buffer that needs to be
             // check-pointed.
             //
             if (buffer.getTimestamp() < checkpointTimestamp) {
                 distance -= _bufferCount;
+                //
+                // And give even higher priority to a dirty buffer that
+                // is older than the previous checkpoint since that buffer
+                // is preventing a new checkpoint from being written.
+                //
+                if (buffer.getTimestamp() < checkpointTimestamp - _persistit.getTimestampAllocator().getCheckpointInterval()) {
+                    distance -= _bufferCount;
+                }
             }
+            //
+            // If there's a flushTimestamp then increase the priority of
+            // writing this buffer it its timestamp is older than the 
+            // flushTimestamp.
+            //
             if (buffer.getTimestamp() < _flushTimestamp.get()) {
                 distance -= _bufferCount;
             }

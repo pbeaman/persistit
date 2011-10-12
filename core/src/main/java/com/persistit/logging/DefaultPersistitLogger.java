@@ -53,6 +53,7 @@ public class DefaultPersistitLogger implements PersistitLogger {
                 try {
                     Thread.sleep(FLUSH_DELAY_INTERVAL);
                 } catch (InterruptedException ie) {
+                    break;
                 }
                 flush();
             }
@@ -137,8 +138,9 @@ public class DefaultPersistitLogger implements PersistitLogger {
 
     /**
      * Closes the log file.
+     * @throws InterruptedException 
      */
-    public void close() {
+    public void close() throws InterruptedException {
         if (_logWriter != null) {
             _logWriter.close();
             _logWriter = null;
@@ -146,6 +148,8 @@ public class DefaultPersistitLogger implements PersistitLogger {
 
         if (_logFlusher != null) {
             _logFlusher._stop = true;
+            _logFlusher.interrupt();
+            _logFlusher.join();
             _logFlusher = null;
         }
     }

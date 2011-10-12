@@ -16,7 +16,6 @@
 package com.persistit;
 
 import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
 import java.util.Properties;
 
@@ -55,81 +54,11 @@ public class MemoryAllocationTest extends TestCase {
         Persistit persistit = new Persistit();
         final long available = persistit.getAvailableHeap();
         Properties properties = new Properties();
-        properties.setProperty("buffer.memory.16384", "0,1T,52M,1.0");
+        properties.setProperty("buffer.memory.16384", "0,1T,64M,0.8");
         persistit.initialize(properties);
         final MemoryUsage mu = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
         long used = mu.getUsed();
         System.out.printf("Initially available=%,d Used=%,d", available, used);
     }
 
-    @Test
-    public void testMemoryUtilization() throws Exception {
-        byte[] reserve = new byte[65536];
-        Persistit db = new Persistit();
-        System.out.printf("Available heap=%,d\n", db.getAvailableHeap());
-        int computed = db.computeBufferCountFromMemoryProperty("buffer.memory.16384", "0,1T,56M,1.0", 16384);
-        System.out.printf("Computed buffer count=%,d\n", computed);
-
-        int count = computed;
-        Buffer[] bufferArray = new Buffer[count];
-        FastIndex[] fastIndexArray = new FastIndex[count];
-
-        int buffers = 0;
-        int fastIndexes = 0;
-        boolean failed = true;
-        try {
-            for (; buffers < count; buffers++) {
-                bufferArray[buffers] = new Buffer(16384, buffers, null, null);
-                if (buffers % 1000 == 999) {
-                    printMemoryUsage(String.format("%8d Buffers: ", buffers + 1));
-                }
-            }
-
-            for (; fastIndexes < count; fastIndexes++) {
-                fastIndexArray[fastIndexes] = new FastIndex(1023);
-                if (fastIndexes % 1000 == 999) {
-                    printMemoryUsage(String.format("%8d FastIndexes: ", fastIndexes + 1));
-                }
-            }
-            failed = false;
-        } finally {
-            reserve = null;
-            System.err.print(failed ? "OOME: " : "OKAY: ");
-            System.err.print(Runtime.getRuntime().freeMemory());
-            System.err.print(" bytes free after creating ");
-            System.err.print(buffers);
-            System.err.print("/");
-            System.err.print(count);
-            System.err.print(" and ");
-            System.err.print(fastIndexes);
-            System.err.print("/");
-            System.err.print(count);
-            System.err.println(" fast indexes ");
-            System.err.println(db.getAvailableHeap());
-            for (final MemoryPoolMXBean bean : ManagementFactory.getMemoryPoolMXBeans()) {
-                System.err.println(bean.getName() + ": " + bean.getUsage() + "  avail="
-                        + (bean.getUsage().getMax() - bean.getUsage().getUsed()));
-            }
-            for (final MemoryPoolMXBean bean : ManagementFactory.getMemoryPoolMXBeans()) {
-                System.out.println(bean.getName() + ": " + bean.getUsage() + "  avail="
-                        + (bean.getUsage().getMax() - bean.getUsage().getUsed()));
-            }
-
-        }
-    }
-
-    long previous = 0;
-
-    private void printMemoryUsage(String msg) {
-        long free = Runtime.getRuntime().freeMemory();
-        if (previous == 0) {
-            previous = free;
-        }
-        System.out.printf("%s  %,12d  %,12d\n", msg, free, previous - free);
-        previous = free;
-    }
-    
-    public static void main(final String[] args) throws Exception {
-        new MemoryAllocationTest().testMemoryUtilization();
-    }
 }
