@@ -399,12 +399,13 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
     /**
      * Extract fields from the buffer.
+     * 
      * @throws PersistitIOException
      * @throws InvalidPageAddressException
      * @throws InvalidPageStructureException
      * @throws VolumeClosedException
-     * @throws InUseException 
-     * @throws PersistitInterruptedException 
+     * @throws InUseException
+     * @throws PersistitInterruptedException
      */
     void load(Volume vol, long page) throws PersistitIOException, InvalidPageAddressException,
             InvalidPageStructureException, VolumeClosedException, InUseException, PersistitInterruptedException {
@@ -453,7 +454,8 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException,
-            VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException, InUseException, PersistitInterruptedException {
+            VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException, InUseException,
+            PersistitInterruptedException {
         Debug.$assert0.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         if (isDirty() && !isTemporary() && getTimestamp() < checkpoint.getTimestamp()
@@ -485,11 +487,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     boolean setDirty() {
-        if (super.setDirty()) {
-            _pool.incrementDirtyPageCount();
-            return true;
-        }
-        return false;
+        throw new UnsupportedOperationException();
     }
 
     void setDirtyAtTimestamp(final long timestamp) {
@@ -733,7 +731,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      * @return An encoded result (see above). Returns 0 if the supplied key
      *         precedes the first key in the page. Returns Integer.MAX_VALUE if
      *         it follows the last key in the page.
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      */
     int findKey(Key key) throws PersistitInterruptedException {
         final FastIndex fastIndex = getFastIndex();
@@ -1277,7 +1275,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      *            The key on under which the value will be stored
      * @param value
      *            The value, converted to a byte array
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      */
     int putValue(Key key, Value value) throws PersistitInterruptedException {
         int p = findKey(key);
@@ -3274,19 +3272,18 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      *         this <code>Buffer</code>.
      */
     public String summarize() {
-        return "page=" + _page + " type=" + getPageTypeName() + " rightSibling=" + _rightSibling + " status="
-                + getStatusDisplayString() + " start=" + KEY_BLOCK_START + " end=" + _keyBlockEnd + " size="
-                + _bufferSize + " alloc=" + _alloc + " slack=" + _slack + " index=" + _poolIndex + " timestamp="
-                + _timestamp + " generation=" + _generation;
+        return String.format("Page=%,d type=%s rightSibling=%,d status=%s start=%d end=%d size=%d alloc=%d "
+                + "slack=%d index=%d timestamp=%,d generation=%,d", _page, getPageTypeName(), _rightSibling,
+                getStatusDisplayString(), KEY_BLOCK_START, _keyBlockEnd, _bufferSize, _alloc, _slack, _poolIndex,
+                _timestamp, _generation);
     }
 
     public String toString() {
         if (_toStringDebug) {
             return toStringDetail(-1);
         }
-
-        return "Page " + _page + " in Volume " + _vol + " at index " + _poolIndex + " status="
-                + getStatusDisplayString() + " type=" + getPageTypeName();
+        return String.format("Page %,d in volume %s at index %,d timestamp=%,d status=%s type=%s", _page, _vol,
+                _poolIndex, _timestamp, getStatusDisplayString(), getPageTypeName());
     }
 
     /**

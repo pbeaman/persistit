@@ -830,6 +830,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         final int recordSize;
 
         synchronized (this) {
+
+            if (!buffer.isTemporary() && buffer.getTimestamp() < _lastValidCheckpoint.getTimestamp()) {
+                _persistit.getLogBase().lateWrite.log(_lastValidCheckpoint, buffer);
+            }
+
             volume = buffer.getVolume();
             final int available = buffer.getAvailableSize();
             recordSize = PA.OVERHEAD + buffer.getBufferSize() - available;
