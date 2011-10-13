@@ -308,6 +308,7 @@ public class Exchange {
 
     void init(final Tree tree) {
         final Volume volume = tree.getVolume();
+        _ignoreTransactions = volume.isTemporary();
         _pool = _persistit.getBufferPool(volume.getPageSize());
         _transaction = _persistit.getTransaction();
         _key.clear();
@@ -328,6 +329,7 @@ public class Exchange {
     void init(Exchange exchange) {
         _persistit = exchange._persistit;
         _volume = exchange._volume;
+        _ignoreTransactions = _volume.isTemporary();
         _tree = exchange._tree;
         _treeHolder = new ReentrantResourceHolder(_tree);
         _pool = exchange._pool;
@@ -355,7 +357,7 @@ public class Exchange {
         _spareKey2.clear(secure);
         _spareValue.clear(secure);
         _transaction = null;
-        _ignoreTransactions = false;
+        _ignoreTransactions = _volume.isTemporary();
         _splitPolicy = _persistit.getDefaultSplitPolicy();
         _joinPolicy = _persistit.getDefaultJoinPolicy();
         _treeHolder.verifyReleased();
@@ -370,7 +372,15 @@ public class Exchange {
         }
     }
 
-    private void checkLevelCache() {
+    private void checkLevelCache() throws PersistitException {
+        if (!_tree.isValid()) {
+            if (_tree.getVolume().isTemporary()) {
+                _tree = _tree.getVolume().getTree(_tree.getName(), true);
+                _cachedTreeGeneration = -1;
+            } else {
+                throw new TreeNotFoundException();
+            }
+        }
         if (_cachedTreeGeneration != _tree.getGeneration()) {
             _cachedTreeGeneration = _tree.getGeneration();
             _cacheDepth = _tree.getDepth();
@@ -379,6 +389,7 @@ public class Exchange {
                 lc.invalidate();
             }
         }
+
     }
 
     private class LevelCache {
@@ -437,8 +448,8 @@ public class Exchange {
 
         private void update(Buffer buffer, Key key, int foundAt) {
             Debug.$assert0.t(_level + PAGE_TYPE_DATA == buffer.getPageType());
-//            Debug.$assert0.t(foundAt == -1 || (foundAt & EXACT_MASK) == 0
-//                    || Buffer.decodeDepth(foundAt) == key.getEncodedSize());
+            // Debug.$assert0.t(foundAt == -1 || (foundAt & EXACT_MASK) == 0
+            // || Buffer.decodeDepth(foundAt) == key.getEncodedSize());
 
             _page = buffer.getPageAddress();
             _buffer = buffer;
@@ -876,7 +887,7 @@ public class Exchange {
      * @param key
      * @param lc
      * @return
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      */
     private int findKey(Buffer buffer, Key key, LevelCache lc) throws PersistitInterruptedException {
         //
@@ -967,7 +978,8 @@ public class Exchange {
                     pageAddress = buffer.getPointer(p);
 
                     Debug.$assert0.t(pageAddress > 0 && pageAddress < MAX_VALID_PAGE_ADDR);
-                } /** TODO -- dead code **/ else {
+                }/** TODO -- dead code **/
+                else {
                     oldBuffer = buffer; // So it will be released
                     corrupt("Volume " + _volume + " level=" + currentLevel + " page=" + pageAddress + " key=<"
                             + key.toString() + ">" + " page type=" + buffer.getPageType() + " is invalid");
@@ -1170,7 +1182,7 @@ public class Exchange {
                                 fetch(_spareValue);
                             }
                         }
-                        
+
                         // TODO - check whether this can happen
                         if (value.getEncodedSize() > maxSimpleValueSize) {
                             newLongRecordPointer = storeOverlengthRecord(value, 0);
@@ -1252,7 +1264,8 @@ public class Exchange {
                     //
                     if (splitRequired && !treeClaimAcquired) {
                         //
-                        // TODO - is it worth it to try an instantaneous claim and retry?
+                        // TODO - is it worth it to try an instantaneous claim
+                        // and retry?
                         treeClaimRequired = true;
                         buffer.releaseTouched();
                         buffer = null;
@@ -1888,7 +1901,7 @@ public class Exchange {
             if (doModify) {
                 if (matches) {
                     _key.setEncodedSize(index);
-                    if (!fetchFromPendingTxn) {
+                    if (!fetchFromPendingTxn && !reverse) {
                         lc.update(buffer, _key, foundAt);
                     }
                 } else {

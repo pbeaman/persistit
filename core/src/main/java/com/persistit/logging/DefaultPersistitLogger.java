@@ -61,11 +61,23 @@ public class DefaultPersistitLogger implements PersistitLogger {
     }
 
     /**
-     * Constructs a logger that logs messages to a file named "persistit.log" in
-     * the current working directory.
+     * Construct a logger that logs messages at WARNING level or above to the
+     * system console.
      */
     public DefaultPersistitLogger() {
         this(null);
+    }
+
+    /**
+     * Construct a logger that logs messages to a file. If the supplied path
+     * name is <code>null</code> then log only WARNING and higher messages to
+     * the system console.
+     * 
+     * @param fileName
+     *            Log file path name
+     */
+    public DefaultPersistitLogger(String fileName) {
+        _logFileName = fileName;
     }
 
     public void setLevel(final String levelName) {
@@ -86,18 +98,6 @@ public class DefaultPersistitLogger implements PersistitLogger {
     }
 
     /**
-     * Constructs a logger that logs messages to a file.
-     * 
-     * @param fileName
-     *            Log file path name
-     */
-    public DefaultPersistitLogger(String fileName) {
-        if (fileName == null)
-            fileName = DEFAULT_LOG_FILE_NAME;
-        _logFileName = fileName;
-    }
-
-    /**
      * Writes a message to the log file and also displays high-significance
      * messages to <code>System.err</code>.
      * 
@@ -108,8 +108,8 @@ public class DefaultPersistitLogger implements PersistitLogger {
      */
     @Override
     public void log(PersistitLevel level, String message) {
-        if (_logWriter == null && level.compareTo(PersistitLevel.DEBUG) >= 0
-                || level.compareTo(PersistitLevel.WARNING) >= 0) {
+        if (_logWriter == null && level.compareTo(PersistitLevel.WARNING) >= 0
+                || level.compareTo(PersistitLevel.ERROR) >= 0) {
             System.err.println(message);
         }
         if (_logWriter != null) {
@@ -131,14 +131,17 @@ public class DefaultPersistitLogger implements PersistitLogger {
         if (_logWriter != null) {
             throw new IllegalStateException("Log already open");
         }
-        _logWriter = new PrintWriter(new BufferedWriter(new FileWriter(_logFileName)));
+        if (_logFileName != null) {
+            _logWriter = new PrintWriter(new BufferedWriter(new FileWriter(_logFileName)));
+        }
         _logFlusher = new DefaultPersistitLogFlusher();
         _logFlusher.start();
     }
 
     /**
      * Closes the log file.
-     * @throws InterruptedException 
+     * 
+     * @throws InterruptedException
      */
     public void close() throws InterruptedException {
         if (_logWriter != null) {

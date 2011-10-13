@@ -45,7 +45,9 @@ public abstract class PersistitUnitTestCase extends TestCase {
         _persistit = null;
     }
 
-    public abstract void runAllTests() throws Exception;
+    public void runAllTests() throws Exception {
+        
+    }
 
     public void setPersistit(final Persistit persistit) {
         _persistit = persistit;

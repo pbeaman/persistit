@@ -1229,8 +1229,8 @@ public class BufferPool {
             _persistit.cleanup();
 
             int cleanCount = _bufferCount - _dirtyPageCount.get();
-            if (!isFlushing() && cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8
-                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {
+            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8
+                    && !isFlushing() && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {
                 return;
             }
             writeDirtyBuffers(_priorities, _selectedBuffers);
