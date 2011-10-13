@@ -264,6 +264,14 @@ public class Persistit {
      * Property name for the optional RMI registry port
      */
     public final static String RMI_REGISTRY_PORT = "rmiport";
+    
+    /**
+     * Name of port on which RMI server accepts connects.
+     * If zero or unassigned, RMI picks a random port. Specifying
+     * a port can be helpful when using SSH to tunnel RMI to a server.
+     */
+    public final static String RMI_SERVER_PORT = "rmiserverport";
+    
     /**
      * Property name for enabling Persistit Open MBean for JMX
      */
@@ -584,11 +592,12 @@ public class Persistit {
     void initializeManagement() {
         String rmiHost = getProperty(RMI_REGISTRY_HOST_PROPERTY);
         String rmiPort = getProperty(RMI_REGISTRY_PORT);
+        String serverPort = getProperty(RMI_SERVER_PORT);
         boolean enableJmx = getBooleanProperty(JMX_PARAMS, true);
 
         if (rmiHost != null || rmiPort != null) {
             ManagementImpl management = (ManagementImpl) getManagement();
-            management.register(rmiHost, rmiPort);
+            management.register(rmiHost, rmiPort, serverPort);
         }
         if (enableJmx) {
             registerMXBeans();

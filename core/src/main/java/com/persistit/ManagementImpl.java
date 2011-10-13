@@ -1163,33 +1163,37 @@ class ManagementImpl implements Management {
         _displayFilter = displayFilter;
     }
 
-    void register(String hostName, String portString) {
+    void register(String hostName, String rmiPortString, String serverPortString) {
 
         try {
             ManagementImpl impl = (ManagementImpl) _persistit.getManagement();
-            int port = -1;
-            if (portString != null && portString.length() > 0) {
+            int rmiPort = -1;
+            int serverPort = 0;
+            if (rmiPortString != null && rmiPortString.length() > 0) {
                 try {
-                    port = Integer.parseInt(portString);
+                    rmiPort = Integer.parseInt(rmiPortString);
                     if (hostName == null) {
                         InetAddress addr = InetAddress.getLocalHost();
                         try {
-                            hostName = addr.getHostName() + ":" + port;
+                            hostName = addr.getHostName() + ":" + rmiPort;
                         } catch (Exception e) {
-                            hostName = addr.getHostAddress() + ":" + port;
+                            hostName = addr.getHostAddress() + ":" + rmiPort;
                         }
                     }
                 } catch (NumberFormatException nfe) {
                 }
             }
-            if (port != -1 && _localRegistryPort != port) {
-                LocateRegistry.createRegistry(port);
-                _localRegistryPort = port;
+            if (serverPortString != null && serverPortString.length() > 0) {
+                serverPort = Integer.parseInt(serverPortString);
+            }
+            if (rmiPort != -1 && _localRegistryPort != rmiPort) {
+                LocateRegistry.createRegistry(rmiPort);
+                _localRegistryPort = rmiPort;
             }
 
             if (hostName != null && hostName.length() > 0) {
                 String name = "//" + hostName + "/PersistitManagementServer";
-                UnicastRemoteObject.exportObject(impl);
+                UnicastRemoteObject.exportObject(impl, serverPort);
                 Naming.rebind(name, impl);
                 impl._registered = true;
                 impl._registeredHostName = hostName;
