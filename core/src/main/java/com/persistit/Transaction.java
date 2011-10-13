@@ -566,7 +566,6 @@ public class Transaction {
                 _ex2 = new Exchange(_ex1);
                 _ex1.ignoreTransactions();
                 _ex2.ignoreTransactions();
-                _ex1.removeAll();
             } finally {
                 _nestedDepth = saveDepth;
             }
@@ -1402,7 +1401,7 @@ public class Transaction {
         _visbilityOrder.clear();
         if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
             setupExchanges();
-            _ex1.removeAll();
+            _ex1.getVolume().truncate();
             _pendingStoreCount = 0;
             _pendingRemoveCount = 0;
         }
