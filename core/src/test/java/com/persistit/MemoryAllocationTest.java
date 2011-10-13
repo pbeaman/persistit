@@ -55,7 +55,8 @@ public class MemoryAllocationTest extends TestCase {
         final long available = persistit.getAvailableHeap();
         Properties properties = new Properties();
         properties.setProperty("buffer.memory.16384", "0,1T,64M,0.8");
-        persistit.initialize(properties);
+        persistit.initializeProperties(properties);
+        persistit.initializeBufferPools();
         final MemoryUsage mu = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
         long used = mu.getUsed();
         System.out.printf("Initially available=%,d Used=%,d", available, used);
