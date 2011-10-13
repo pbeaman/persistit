@@ -1083,11 +1083,11 @@ public class BufferPool {
         int count = 0;
         int min = Integer.MAX_VALUE;
         final int clock = _clock.get();
-        
+
         final long checkpointTimestamp = _persistit.getTimestampAllocator().getCurrentCheckpoint().getTimestamp();
         long earliestDirtyTimestamp = checkpointTimestamp;
         long flushTimestamp = _flushTimestamp.get();
-        
+
         boolean flushed = true;
         for (int index = clock; index < clock + _bufferCount; index++) {
             final Buffer buffer = _buffers[index % _bufferCount];
@@ -1108,7 +1108,7 @@ public class BufferPool {
                         } else {
                             count = Math.min(count, priorities.length - 1);
                             int where;
-                            for (where = count; --where >= 0 && priorities[where] < priority; ) {
+                            for (where = count; --where >= 0 && priorities[where] < priority;) {
                             }
                             System.arraycopy(priorities, where + 1, priorities, where + 2, count - where - 1);
                             System.arraycopy(buffers, where + 1, buffers, where + 2, count - where - 1);
@@ -1131,7 +1131,7 @@ public class BufferPool {
                 }
             }
         }
-        
+
         _earliestDirtyTimestamp = earliestDirtyTimestamp;
 
         if (flushed) {
@@ -1139,7 +1139,7 @@ public class BufferPool {
         }
         return count;
     }
-    
+
     /**
      * Computes a priority for writing the specified Buffer. A larger value
      * denotes a greater priority. Priority 0 indicates the buffer is ineligible
@@ -1229,7 +1229,8 @@ public class BufferPool {
             _persistit.cleanup();
 
             int cleanCount = _bufferCount - _dirtyPageCount.get();
-            if (!isFlushing() && cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8) {
+            if (!isFlushing() && cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8
+                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {
                 return;
             }
             writeDirtyBuffers(_priorities, _selectedBuffers);
