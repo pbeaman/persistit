@@ -405,6 +405,23 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
     }
 
     @Test
+    public void testTruncate2() throws Exception {
+        final Exchange ex = _persistit.getExchange(_volume, "T2", true);
+        ex.getValue().put(RED_FOX);
+        for (int cycle = 0; cycle < 50; cycle++) {
+            _volume.truncate();
+            for (int i = 0; i < 100000; i++) {
+                ex.clear().append(i).store();
+            }
+            if (cycle % 10 == 0) {
+                System.out.print(".");
+            }
+        }
+        System.out.println();
+        _persistit.releaseExchange(ex);
+    }
+
+    @Test
     public void testInvalidateBuffers() throws Exception {
         final Exchange exchange1 = _persistit.getExchange("persistit", "TemporaryVolumeTest1", true);
         final Management management = _persistit.getManagement();

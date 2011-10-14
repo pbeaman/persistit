@@ -581,12 +581,15 @@ public class BufferPool {
                         if (buffer.claim(true, 0)) {
                             // re-check after claim
                             boolean invalidated = false;
-                            if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed()
-                                    && buffer.isValid()) {
-                                invalidate(buffer);
-                                invalidated = true;
+                            try {
+                                if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed()
+                                        && buffer.isValid()) {
+                                    invalidate(buffer);
+                                    invalidated = true;
+                                }
+                            } finally {
+                                buffer.release();
                             }
-                            buffer.release();
                             if (invalidated) {
                                 int q = buffer.getIndex() / 64;
                                 int p = buffer.getIndex() % 64;
@@ -620,11 +623,14 @@ public class BufferPool {
                 if (buffer.claim(true, 0)) {
                     // re-check after claim
                     boolean invalidated = false;
-                    if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
-                        invalidate(buffer);
-                        invalidated = true;
+                    try {
+                        if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
+                            invalidate(buffer);
+                            invalidated = true;
+                        }
+                    } finally {
+                        buffer.release();
                     }
-                    buffer.release();
                     if (invalidated) {
                         int q = buffer.getIndex() / 64;
                         int p = buffer.getIndex() % 64;
@@ -943,9 +949,8 @@ public class BufferPool {
                                         buffer.clearDirty();
                                         return buffer;
                                     }
-                                } else {
-                                    buffer.release();
                                 }
+                                buffer.release();
                             }
                         }
                     }
@@ -978,9 +983,10 @@ public class BufferPool {
                         if (!buffer.isValid()) {
                             buffer.clearDirty();
                             return buffer;
-                        } else {
-                            // A dirty valid buffer needs to be written and then
-                            // marked invalid
+                        }
+                        // A dirty valid buffer needs to be written and then
+                        // marked invalid
+                        try {
                             buffer.writePage();
                             if (detach(buffer)) {
                                 buffer.clearValid();
@@ -989,11 +995,12 @@ public class BufferPool {
                                 _persistit.getIOMeter().chargeEvictPageFromPool(buffer.getVolume(),
                                         buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());
                             }
-                        }
-                        if (!buffer.isValid()) {
-                            return buffer;
-                        } else {
-                            buffer.release();
+                        } finally {
+                            if (!buffer.isValid()) {
+                                return buffer;
+                            } else {
+                                buffer.release();
+                            }
                         }
                     } else {
                         if (buffer.isValid() && detach(buffer)) {
@@ -1229,8 +1236,8 @@ public class BufferPool {
             _persistit.cleanup();
 
             int cleanCount = _bufferCount - _dirtyPageCount.get();
-            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8
-                    && !isFlushing() && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {
+            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8 && !isFlushing()
+                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {
                 return;
             }
             writeDirtyBuffers(_priorities, _selectedBuffers);
