@@ -53,7 +53,6 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
 
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volume, "TemporaryVolumeTest1", true);
-        exchange.removeAll();
         final StringBuilder sb = new StringBuilder();
 
         for (int i = 1; i < 400; i++) {
@@ -388,6 +387,7 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
 
     @Test
     public void testTruncate() throws Exception {
+        final Exchange ex = _persistit.getExchange(_volume, "T2", true);
         for (int cycle = 0; cycle < 10; cycle++) {
             if (cycle > 1) {
                 assertEquals(2, _volume.getTreeNames().length);
@@ -395,13 +395,13 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
             _volume.truncate();
             assertEquals(0, _volume.getTreeNames().length);
             store1();
-            final Exchange ex = _persistit.getExchange(_volume, "T2", true);
             ex.getValue().put(RED_FOX);
             for (int i = 0; i < 1000000; i++) {
                 ex.to(i).store();
             }
             fetch1a();
         }
+        _persistit.releaseExchange(ex);
     }
 
     @Test

@@ -42,6 +42,7 @@ public class Tree extends SharedResource {
         super(persistit);
         _name = name;
         _volume = volume;
+        _generation.set(1);
     }
 
     public Volume getVolume() {

@@ -495,7 +495,7 @@ class VolumeStorageV2 extends VolumeStorage {
                 if (_nextAvailablePage < _extendedPageCount) {
                     long page = _nextAvailablePage++;
                     _volume.getStatistics().setNextAvailablePage(page);
-                    flushMetaData();
+                    flush();
                     return page;
                 }
                 extend();
@@ -592,7 +592,7 @@ class VolumeStorageV2 extends VolumeStorage {
         // Do not extend past maximum pages
         long pageCount = Math.min(_extendedPageCount + extensionPages, maximumPages);
         resize(pageCount);
-        flushMetaData();
+        flush();
 
     }
 

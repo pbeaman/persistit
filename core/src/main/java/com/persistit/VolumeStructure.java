@@ -66,6 +66,7 @@ class VolumeStructure {
             _directoryTree.setRootPageAddress(rootPageAddr);
             updateDirectoryTree(_directoryTree);
         }
+        _directoryTree.setValid();
     }
 
     void close() throws PersistitInterruptedException {
@@ -146,7 +147,7 @@ class VolumeStructure {
         WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
         if (treeRef != null) {
             tree = treeRef.get();
-            if (tree != null) {
+            if (tree != null && tree.isValid()) {
                 return tree;
             }
         }

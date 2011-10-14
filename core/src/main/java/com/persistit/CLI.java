@@ -216,6 +216,15 @@ public class CLI {
         while ((c = reader.read()) != -1) {
             System.out.print((char) c);
         }
+        System.out.println();
+    }
+    
+    public static void runScript(final Persistit persistit, final BufferedReader reader, final PrintWriter writer) throws Exception {
+        CLI cli = new CLI(persistit, reader, writer);
+        cli.commandLoop();
+        cli.close(false);
+        writer.println();
+        writer.flush();
     }
 
     private static long availableMemory() {
@@ -346,6 +355,40 @@ public class CLI {
             }
         }
     }
+    
+    private static class ScriptReader implements LineReader {
+
+        private final BufferedReader _reader;
+        private final PrintWriter _writer;
+        
+        private ScriptReader(final BufferedReader reader, PrintWriter writer) {
+            _reader = reader;
+            _writer = writer;
+        }
+        
+        @Override
+        public String readLine() throws IOException {
+            String line = _reader.readLine();
+            if (line != null) {
+                _writer.println();
+                _writer.println(">> " + line);
+                _writer.flush();
+            }
+            return line;
+        }
+
+        @Override
+        public PrintWriter writer() {
+            return _writer;
+        }
+
+        @Override
+        public void close() throws IOException {
+            _reader.close();
+            _writer.close();
+        }
+        
+    }
 
     private static class Command {
         final String name;
@@ -434,8 +477,13 @@ public class CLI {
     private String _lastStatus;
 
     public CLI(final Persistit persistit, final int port) throws IOException {
-
         _lineReader = new NetworkReader(port);
+        _persistit = persistit;
+        _live = persistit != null;
+    }
+    
+    public CLI(final Persistit persistit, final BufferedReader reader, final PrintWriter writer) {
+        _lineReader = new ScriptReader(reader, writer);
         _persistit = persistit;
         _live = persistit != null;
     }
