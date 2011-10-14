@@ -152,11 +152,8 @@ class CheckpointManager extends IOTaskRunnable {
 
     @Override
     protected void runTask() throws Exception {
-        if (_persistit.isInitialized()) {
-            _persistit.getTimestampAllocator().updatedCheckpoint();
-            proposeCheckpoint();
-            flushCheckpoint();
-        }
+        proposeCheckpoint();
+        flushCheckpoint();
     }
 
 }
