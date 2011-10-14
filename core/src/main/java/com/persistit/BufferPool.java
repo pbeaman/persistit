@@ -51,6 +51,12 @@ public class BufferPool {
      * Sleep time when buffers are exhausted
      */
     private final static long RETRY_SLEEP_TIME = 50;
+    
+    /**
+     * Wait time in ms when assessing dirty buffers
+     */
+    private final static long SELECT_DIRTY_BUFFERS_WAIT_INTERVAL = 50;
+
     /**
      * The ratio of hash table slots per buffer in this pool
      */
@@ -1098,7 +1104,7 @@ public class BufferPool {
         boolean flushed = true;
         for (int index = clock; index < clock + _bufferCount; index++) {
             final Buffer buffer = _buffers[index % _bufferCount];
-            if (!buffer.claim(false, 0)) {
+            if (!buffer.claim(false, SELECT_DIRTY_BUFFERS_WAIT_INTERVAL)) {
                 earliestDirtyTimestamp = _earliestDirtyTimestamp;
                 flushed = false;
             } else {

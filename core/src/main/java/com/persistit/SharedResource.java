@@ -325,7 +325,6 @@ class SharedResource {
             } catch (InterruptedException e) {
                 throw new PersistitInterruptedException(e);
             }
-            Debug.$assert1.t(false);
             return false;
         }
     }
