@@ -23,18 +23,19 @@ package com.persistit.logging;
 public interface PersistitLogger {
 
     /**
-     * Emit the message to the log at the specified level. Configuration
-     * will ensure that this method is called only when the level is
-     * indeed loggable.
+     * Emit the message to the log at the specified level. Configuration will
+     * ensure that this method is called only when the level is indeed loggable.
+     * 
      * @param level
      * @param message
      */
     void log(final PersistitLevel level, final String message);
 
     /**
-     * Test whether a message at the specified level should be written to
-     * the log.  This method is called during configuration, not once per
-     * log message.
+     * Test whether a message at the specified level should be written to the
+     * log. This method is called during configuration, not once per log
+     * message.
+     * 
      * @param level
      * @return
      */
@@ -42,12 +43,14 @@ public interface PersistitLogger {
 
     /**
      * Called when Persistit starts using the log.
+     * 
      * @throws Exception
      */
     public void open() throws Exception;
 
     /**
      * Called when Persistit stos using the log.
+     * 
      * @throws Exception
      */
     public void close() throws Exception;

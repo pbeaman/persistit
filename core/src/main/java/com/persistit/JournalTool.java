@@ -137,7 +137,7 @@ public class JournalTool {
     public Action getAction() {
         return _action;
     }
-    
+
     public void setAction(final Action action) {
         _action = action;
     }
@@ -145,7 +145,7 @@ public class JournalTool {
     public PrintWriter getWriter() {
         return _writer;
     }
-    
+
     public void setWriter(PrintWriter writer) {
         _writer = writer;
     }

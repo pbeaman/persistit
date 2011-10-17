@@ -727,7 +727,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      * @return An encoded result (see above). Returns 0 if the supplied key
      *         precedes the first key in the page. Returns Integer.MAX_VALUE if
      *         it follows the last key in the page.
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      */
     int findKey(Key key) throws PersistitInterruptedException {
         final FastIndex fastIndex = getFastIndex();
@@ -1271,7 +1271,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      *            The key on under which the value will be stored
      * @param value
      *            The value, converted to a byte array
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      */
     int putValue(Key key, Value value) throws PersistitInterruptedException {
         int p = findKey(key);

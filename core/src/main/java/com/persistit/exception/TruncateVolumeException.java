@@ -16,8 +16,9 @@
 package com.persistit.exception;
 
 /**
- * Thrown when an application attempts to truncate a {@link com.persistit.Volume} 
- * that was opened without the create or createOnly attribute.
+ * Thrown when an application attempts to truncate a
+ * {@link com.persistit.Volume} that was opened without the create or createOnly
+ * attribute.
  * 
  * @version 1.0
  */

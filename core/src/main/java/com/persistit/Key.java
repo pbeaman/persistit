@@ -3157,11 +3157,11 @@ public final class Key implements Comparable<Object> {
     }
 
     /**
-     * Determine if the current segment would return <code>null</code>
-     * if {@link #decode()} were called. This is not only a fast test to
-     * perform but also allows for safe decoding of primitives, such
-     * as {@link #decodeInt()}, without object creation.
-     *
+     * Determine if the current segment would return <code>null</code> if
+     * {@link #decode()} were called. This is not only a fast test to perform
+     * but also allows for safe decoding of primitives, such as
+     * {@link #decodeInt()}, without object creation.
+     * 
      * @return <code>true</code> if the current segment is null,
      *         <code>false</code> otherwise.
      */
@@ -3378,9 +3378,9 @@ public final class Key implements Comparable<Object> {
         _bytes[size++] = (byte) TYPE_STRING;
         //
         // TODO - Embody the default behavior in a default KeyStringCoder to
-        // to eliminate the if statement.  Also provides a base implementation
+        // to eliminate the if statement. Also provides a base implementation
         // for developers to extend.
-        // 
+        //
         if (_stringCoder != null) {
             try {
                 _size = size;

@@ -161,6 +161,7 @@ class VolumeHeader {
     /**
      * +1 because the stored form of volumes created before 2.6.1 recorded
      * "highestUsedPage" rather than "nextAvailablePage" in this slot.
+     * 
      * @param bytes
      * @return page address of the next available page
      */
@@ -171,10 +172,12 @@ class VolumeHeader {
     /**
      * -1 because the stored form of volumes created before 2.6.1 recorded
      * "highestUsedPage" rather than "nextAvailablePage" in this slot.
+     * 
      * @param bytes
-     * @param value next available page
-     * @return whether the supplied value is different from the previously stored
-     * value
+     * @param value
+     *            next available page
+     * @return whether the supplied value is different from the previously
+     *         stored value
      */
     static boolean changeNextAvailablePage(final byte[] bytes, final long value) {
         return Util.changeLong(bytes, 104, value - 1);

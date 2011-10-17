@@ -217,7 +217,7 @@ public class PersistitLogMessage {
             try {
                 for (int i = 0; i < args.length; i++) {
                     if (args[i] instanceof RuntimeException) {
-                        args[i] = throwableFormatter((RuntimeException)args[i]);
+                        args[i] = throwableFormatter((RuntimeException) args[i]);
                     }
                 }
                 sb.append(String.format(_message, args));
@@ -259,12 +259,12 @@ public class PersistitLogMessage {
         }
 
     }
-    
+
     static String throwableFormatter(final Throwable t) {
         final StringWriter sw = new StringWriter();
         t.printStackTrace(new PrintWriter(sw));
         final StringBuffer sb = sw.getBuffer();
-        for (int p = -1; (p = sb.indexOf("\n", p + 1)) >= 0; ) {
+        for (int p = -1; (p = sb.indexOf("\n", p + 1)) >= 0;) {
             sb.insert(p + 1, "    ");
         }
         return sb.toString();

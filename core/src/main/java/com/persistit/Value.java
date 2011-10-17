@@ -301,7 +301,7 @@ public final class Value {
 
     private final static char TRUE_CHAR = 'T';
     private final static char FALSE_CHAR = 'F';
-    
+
     private final static int TYPE_ZERO = 0;
     //
     // Primitive values first. Codes allocated for .net types as well as
@@ -364,7 +364,7 @@ public final class Value {
     // object.
     //
     private final static int CLASS_REREF = 50;
-    
+
     //
     // Indicates a record in a directory tree.
     //

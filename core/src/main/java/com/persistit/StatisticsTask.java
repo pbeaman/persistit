@@ -32,6 +32,7 @@ import com.persistit.exception.PersistitInterruptedException;
 
 /**
  * Task that reports, either once or periodically, various runtime statistics.
+ * 
  * @author peter
  */
 public class StatisticsTask extends Task {
