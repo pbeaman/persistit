@@ -51,7 +51,7 @@ public class BufferPool {
      * Sleep time when buffers are exhausted
      */
     private final static long RETRY_SLEEP_TIME = 50;
-    
+
     /**
      * Wait time in ms when assessing dirty buffers
      */

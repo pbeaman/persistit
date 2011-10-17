@@ -35,7 +35,6 @@ import com.persistit.exception.InvalidPageTypeException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
-import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RebalanceException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.policy.JoinPolicy;
@@ -453,9 +452,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         bumpGeneration();
     }
 
-    void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException,
-            VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException, InUseException,
-            PersistitInterruptedException {
+    void writePageOnCheckpoint(final long timestamp) throws PersistitException {
         Debug.$assert0.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         if (isDirty() && !isTemporary() && getTimestamp() < checkpoint.getTimestamp()
@@ -465,8 +462,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         }
     }
 
-    void writePage() throws PersistitIOException, InvalidPageStructureException, VolumeClosedException,
-            ReadOnlyVolumeException, InvalidPageAddressException, InUseException, PersistitInterruptedException {
+    void writePage() throws PersistitException {
         final Volume volume = getVolume();
         if (volume != null) {
             clearSlack();
@@ -731,7 +727,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      * @return An encoded result (see above). Returns 0 if the supplied key
      *         precedes the first key in the page. Returns Integer.MAX_VALUE if
      *         it follows the last key in the page.
-     * @throws PersistitInterruptedException
+     * @throws PersistitInterruptedException 
      */
     int findKey(Key key) throws PersistitInterruptedException {
         final FastIndex fastIndex = getFastIndex();
@@ -1275,7 +1271,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      *            The key on under which the value will be stored
      * @param value
      *            The value, converted to a byte array
-     * @throws PersistitInterruptedException
+     * @throws PersistitInterruptedException 
      */
     int putValue(Key key, Value value) throws PersistitInterruptedException {
         int p = findKey(key);
