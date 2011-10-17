@@ -1097,9 +1097,10 @@ public class Transaction {
     public SessionId getSessionId() {
         return _sessionId;
     }
-    
+
     /**
-     * @return the temporary volume serving as the backing store for this <code>Transaction</code>
+     * @return the temporary volume serving as the backing store for this
+     *         <code>Transaction</code>
      */
     public Volume getTransactionTemporaryVolume() {
         final Exchange exchange = _ex1;

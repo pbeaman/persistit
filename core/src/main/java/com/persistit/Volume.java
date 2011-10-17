@@ -82,14 +82,12 @@ public class Volume {
             throw new IllegalStateException(this + " has no " + delegate);
         }
     }
-    
-    
+
     private void checkClosing() throws VolumeClosedException {
         if (_closing.get()) {
             throw new VolumeClosedException();
         }
     }
-
 
     VolumeSpecification getSpecification() {
         final VolumeSpecification s = _specification;
@@ -127,7 +125,7 @@ public class Volume {
     void closing() {
         _closing.set(true);
     }
-    
+
     /**
      * Closes all resources for this <code>Volume</code> and invalidates all its
      * buffers in the {@link BufferPool}. Exchanges based on this

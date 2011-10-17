@@ -89,7 +89,6 @@ public class Tree extends SharedResource {
         return _depth;
     }
 
-    
     void changeRootPageAddr(long rootPageAddr, int deltaDepth) throws PersistitException {
         Debug.$assert0.t(isMine());
         _rootPageAddr = rootPageAddr;

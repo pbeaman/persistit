@@ -65,7 +65,6 @@ public interface BufferPoolMXBean {
      */
     public long getEvictCount();
 
-
     /**
      * Return count of pages written from this pool.
      * 
@@ -87,7 +86,7 @@ public interface BufferPoolMXBean {
      * @return The forced write count
      */
     public long getForcedWriteCount();
-    
+
     /**
      * Get the "hit ratio" - the number of hits divided by the number of overall
      * gets. A value close to 1.0 indicates that most attempts to find data in

@@ -295,8 +295,8 @@ public class StreamLoader extends Task {
             if (_volume != null) {
                 _volume.verifyId(volumeId);
             } else if (_createMissingVolumes) {
-                _volume = new Volume(new VolumeSpecification(path, name, bufferSize, initialPages,
-                        maximumPages, extensionPages, false, true, false));
+                _volume = new Volume(new VolumeSpecification(path, name, bufferSize, initialPages, maximumPages,
+                        extensionPages, false, true, false));
                 _volume.setId(volumeId);
                 _volume.open(_persistit);
             }

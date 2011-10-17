@@ -36,7 +36,7 @@ import com.persistit.util.Debug;
 /**
  * A pool of {@link Buffer} objects, maintained on various lists that permit
  * rapid lookup and replacement of pages images within <code>Buffer</code>s.
- *
+ * 
  * @version 2.1
  */
 public class BufferPool {
@@ -477,7 +477,7 @@ public class BufferPool {
      * dirty buffer to evict. Normally dirty pages are written by the background
      * PAGE_WRITER thread, and therefore an abnormally large forcedWrite count
      * indicates the PAGE_WRITER thread is falling behind.
-     *
+     * 
      * @return The count of buffers written to disk when evicted.
      */
     public long getForcedWriteCounter() {
@@ -489,7 +489,7 @@ public class BufferPool {
      * that is (a) dirty, and (b) required to be written as part of a
      * checkpoint. An abnormally large count indicates that the PAGE_WRITER
      * thread is falling behind.
-     *
+     * 
      * @return The count of buffers written to disk due to a checkpoint.
      */
     public long getForcedCheckpointWriteCounter() {
@@ -535,7 +535,7 @@ public class BufferPool {
      * gets. A value close to 1.0 indicates that most attempts to find data in
      * the <code>BufferPool</code> are successful - i.e., that the cache is
      * effectively reducing the need for disk read operations.
-     *
+     * 
      * @return The ratio
      */
     public double getHitRatio() {
@@ -561,7 +561,7 @@ public class BufferPool {
 
     /**
      * Invalidate all buffers from a specified Volume.
-     *
+     * 
      * @param volume
      *            The volume
      * @throws PersistitInterruptedException
@@ -698,7 +698,7 @@ public class BufferPool {
      * Find or load a page given its Volume and address. The returned page has a
      * reader or a writer lock, depending on whether the writer parameter is
      * true on entry.
-     *
+     * 
      * @param vol
      *            The Volume
      * @param page
@@ -865,7 +865,7 @@ public class BufferPool {
      * the content of this copy is internally consistent because another thread
      * may be modifying the buffer while the copy is being made. The returned
      * Buffer should be used only for display and diagnostic purposes.
-     *
+     * 
      * @param vol
      * @param page
      * @return Copy of the Buffer
@@ -918,7 +918,7 @@ public class BufferPool {
      * that's already been marked invalid, if available. Otherwise traverse the
      * least-recently-used queue to find the least- recently-used buffer that is
      * not claimed. Throws a RetryException if there is no available buffer.
-     *
+     * 
      * @return Buffer An available buffer, or <i>null</i> if no buffer is
      *         currently available. The buffer has a writer claim.
      * @throws InvalidPageStructureException
@@ -1157,7 +1157,7 @@ public class BufferPool {
      * Computes a priority for writing the specified Buffer. A larger value
      * denotes a greater priority. Priority 0 indicates the buffer is ineligible
      * to be written.
-     *
+     * 
      * @return priority
      */
     private int writePriority(final Buffer buffer, int clock, long checkpointTimestamp) {
