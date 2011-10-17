@@ -887,7 +887,7 @@ public class Exchange {
      * @param key
      * @param lc
      * @return
-     * @throws PersistitInterruptedException
+     * @throws PersistitInterruptedException 
      */
     private int findKey(Buffer buffer, Key key, LevelCache lc) throws PersistitInterruptedException {
         //
