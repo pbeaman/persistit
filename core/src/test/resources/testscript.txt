@@ -19,11 +19,11 @@ logpath $logpath$/result_$timestamp$.log
 // ----------------------- Stress Tests ----------------------
 #Stress-1 simple test
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 clearprops
 
 prop buffer.count.8192=500
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M,alias:persistit
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M,alias:persistit
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -35,7 +35,7 @@ close
 
 #Stress-2 simple multithreaded test
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 
 init
@@ -54,11 +54,11 @@ close
 
 clearprops
 prop buffer.count.8192=1200
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:1K,extensionPages:1K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:1K,extensionPages:1K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 init
 multithread
@@ -71,7 +71,7 @@ close
 
 #Stress-4 index file list
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 init
 test com.persistit.stress.Stress3 repeat=10 count=5000 seed=115
@@ -80,11 +80,11 @@ close
 
 #Stress-5 index file list, multithread, small pool
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 clearprops
 prop buffer.count.8192=200
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -102,11 +102,11 @@ close
 
 #Stress-6 test long keys with deep elision
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 clearprops
 prop buffer.count.8192=200
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -118,11 +118,11 @@ close
 
 #Stress-7 test mixture, multithread, small pool
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -157,7 +157,7 @@ close
 
 clearprops
 prop buffer.count.8192=10000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -189,7 +189,7 @@ close
 
 clearprops
 prop buffer.count.8192=10000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -222,11 +222,11 @@ close
 
 #Stress-10 test mixture, multithread, large pool
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 clearprops
 prop buffer.count.8192=20000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
@@ -274,11 +274,11 @@ close
 
 clearprops
 prop buffer.count.8192=12000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 init
 multithread
@@ -304,12 +304,12 @@ close
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,temporary,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,temporary,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
 init
-test com.persistit.test.ConfirmEmptyVolumeTest persistit.v01
+test com.persistit.test.ConfirmEmptyVolumeTest persistit
 
 multithread
 test com.persistit.stress.Stress1 repeat=10 count=10000
@@ -338,7 +338,7 @@ close
 #
 
 init
-test com.persistit.test.ConfirmEmptyVolumeTest persistit.v01
+test com.persistit.test.ConfirmEmptyVolumeTest persistit
 close
 #
 

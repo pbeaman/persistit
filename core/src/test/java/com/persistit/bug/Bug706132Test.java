@@ -44,7 +44,7 @@ public class Bug706132Test extends PersistitUnitTestCase {
         final Properties p = getProperties(true);
         p.setProperty("buffer.count.1024", "20");
         p.remove("buffer.count.8192");
-        p.setProperty("volume.1", "${datapath}/persistit.v01,create,"
+        p.setProperty("volume.1", "${datapath}/persistit,create,"
                 + "pageSize:1024,initialPages:100,extensionPages:100," + "maximumPages:25000");
         _persistit.initialize(p);
     }

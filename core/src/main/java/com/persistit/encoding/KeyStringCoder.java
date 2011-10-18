@@ -153,5 +153,6 @@ public interface KeyStringCoder extends KeyRenderer {
      *            <code>String.class</code>.
      */
     @Override
-    public void renderKeySegment(Key key, Object target, Class<?> clazz, CoderContext context) throws ConversionException;
+    public void renderKeySegment(Key key, Object target, Class<?> clazz, CoderContext context)
+            throws ConversionException;
 }

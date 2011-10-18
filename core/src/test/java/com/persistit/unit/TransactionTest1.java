@@ -15,6 +15,8 @@
 
 package com.persistit.unit;
 
+import java.io.File;
+import java.io.FilenameFilter;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
@@ -24,6 +26,7 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
+import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
@@ -425,6 +428,57 @@ public class TransactionTest1 extends PersistitUnitTestCase {
             }
         }
         assertEquals(5, remainingKeys.size()); // 10, 12, 14, 16, 18
+
+    }
+
+    /**
+     * Verify that transactions remove their temporary volumes
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testTransactionCleanup() throws Exception {
+        final FilenameFilter fnf = new FilenameFilter() {
+            @Override
+            public boolean accept(final File dir, final String name) {
+                return name.startsWith("persistit_tempvol");
+            }
+        };
+        String dataPath = _persistit.getProperty("datapath");
+        assertEquals(0, new File(dataPath).listFiles(fnf).length);
+        final Transaction txn = _persistit.getTransaction();
+        txn.begin();
+        txn.commit();
+        txn.end();
+        assertEquals(1, new File(dataPath).listFiles(fnf).length);
+        TestShim.closeTransaction(txn);
+        assertEquals(0, new File(dataPath).listFiles(fnf).length);
+
+        Thread[] threads = new Thread[10];
+        for (int i = 0; i < threads.length; i++) {
+            final Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        final Transaction txn = _persistit.getTransaction();
+                        txn.begin();
+                        txn.commit();
+                        txn.end();
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            threads[i] = t;
+            t.start();
+        }
+        for (int i = 0; i < threads.length; i++) {
+            threads[i].join();
+        }
+        threads = null;
+        _persistit.cleanup();
+        assertEquals(0, new File(dataPath).listFiles(fnf).length);
 
     }
 

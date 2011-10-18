@@ -22,12 +22,12 @@ delete $datapath$/persistit* $datapath$/test_*
 
 clearprops
 prop buffer.count.8192=1000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M
 prop journalpath=$datapath$/persistit_journal
 prop rmiport=1099
 
 init
-test com.persistit.test.ConfirmEmptyVolumeTest persistit.v01
+test com.persistit.test.ConfirmEmptyVolumeTest persistit
 
 multithread
 test com.persistit.stress.Stress1 repeat=10 count=10000

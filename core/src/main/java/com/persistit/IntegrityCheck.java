@@ -124,7 +124,7 @@ public class IntegrityCheck extends Task {
             for (final Volume volume : _persistit.getVolumes()) {
                 if (_treeSelector.isSelected(volume)) {
                     volumes.add(volume);
-                    _totalPages += volume.getMaximumPageInUse();
+                    _totalPages += volume.getStorage().getNextAvailablePage();
                 }
             }
 
@@ -564,7 +564,7 @@ public class IntegrityCheck extends Task {
         _currentVolume = volume;
         String[] treeNames = volume.getTreeNames();
         // This is just for the progress counter.
-        _totalPages = volume.getMaximumPageInUse();
+        _totalPages = volume.getStorage().getNextAvailablePage();
         Tree directoryTree = volume.getDirectoryTree();
         if (directoryTree != null) {
             checkTree(directoryTree);
@@ -574,7 +574,7 @@ public class IntegrityCheck extends Task {
             if (tree != null)
                 checkTree(tree);
         }
-        final long garbageRoot = volume.getGarbageRoot();
+        final long garbageRoot = volume.getStructure().getGarbageRoot();
         checkGarbage(garbageRoot);
         return !hasFaults();
     }

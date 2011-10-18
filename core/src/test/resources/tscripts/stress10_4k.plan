@@ -2,11 +2,11 @@ logpath $logpath$/result_$timestamp$.log
 
 #Stress10 tests, multithread, large pool with 4K buffers
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 
 clearprops
 prop buffer.count.4096=128k
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:4096,initialSize:10M,extensionSize:10M,maximumSize:100G
+prop volume.1=$datapath$/persistit,create,pageSize:4096,initialSize:10M,extensionSize:10M,maximumSize:100G
 prop journalpath=$datapath$/persistit_journal
 prop logfile=$logpath$/persistit_$timestamp$.log
 prop rmiport=8081

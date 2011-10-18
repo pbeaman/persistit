@@ -147,8 +147,8 @@ class FastIndex {
      */
     private final short[] _findexElements;
     /**
-     * AtomicInteger used to house the "touched" bit for the clock
-     * replacement algorithm in BufferPool.
+     * AtomicInteger used to house the "touched" bit for the clock replacement
+     * algorithm in BufferPool.
      */
     private final AtomicInteger _bits = new AtomicInteger();
     /**

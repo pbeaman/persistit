@@ -41,7 +41,7 @@ import com.persistit.Management;
 
 public class AdminUITreePanel extends AdminPanel implements AdminCommand {
     AdminUI _adminUI;
-    private static final String PROTOTYPE_VOLUME_NAME = "c:/this/that/and/the/other/persistit.v01";
+    private static final String PROTOTYPE_VOLUME_NAME = "c:/this/that/and/the/other/persistit";
 
     private static double TOP_SPLITPANE_RESIZE_WEIGHT = .25;
     private static double BOTTOM_SPLITPANE_RESIZE_WEIGHT = .85;

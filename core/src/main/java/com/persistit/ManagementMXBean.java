@@ -18,7 +18,6 @@ package com.persistit;
 import java.rmi.RemoteException;
 
 /**
- * <p>
  * Interface for a service object that exposes information about the Persistit
  * environment. With this public API, embedding applications can query
  * performance metrics and resources within Persistit that are not exposed by
@@ -28,7 +27,6 @@ import java.rmi.RemoteException;
  * managing Persistit.
  * 
  * @version 1.0
- *          </p>
  */
 public interface ManagementMXBean {
 
@@ -144,14 +142,12 @@ public interface ManagementMXBean {
     public void setUpdateSuspended(boolean suspended) throws RemoteException;
 
     /**
-     * Attempt to flush and sync all dirty data in Persistit by invoking
+     * Flush and sync all dirty data in Persistit by invoking
      * {@link Persistit#flush} and {@link Persistit#sync}.
      * 
-     * @return <code>true</code> if the attempt to close Persistit was
-     *         successful; otherwise <code>false</code>
      * @throws RemoteException
      */
-    public boolean flushAndSync() throws RemoteException;
+    public void flushAndSync() throws RemoteException;
 
     /**
      * Use a simple command-line processor to invoke a task. Allows task

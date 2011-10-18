@@ -15,10 +15,13 @@
 
 package com.persistit;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
@@ -30,10 +33,12 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,7 +56,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.PropertiesNotFoundException;
-import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
 import com.persistit.exception.VolumeAlreadyExistsException;
@@ -198,14 +202,14 @@ public class Persistit {
     public final static String SYSTEM_VOLUME_PROPERTY = "sysvolume";
 
     /**
-     * Default Transactions Volume Name
+     * Property name for specifying default temporary volume page size
      */
-    public final static String DEFAULT_TXN_VOLUME_NAME = "_txn";
+    public final static String TEMPORARY_VOLUME_PAGE_SIZE_NAME = "tvpagesize";
 
     /**
-     * Property name for specifying the transaction volume name
+     * Property name for specifying default temporary volume directory
      */
-    public final static String TXN_VOLUME_PROPERTY = "txnvolume";
+    public final static String TEMPORARY_VOLUME_DIR_NAME = "tvdirectory";
 
     /**
      * Property name for specifying whether Persistit should display diagnostic
@@ -260,6 +264,14 @@ public class Persistit {
      * Property name for the optional RMI registry port
      */
     public final static String RMI_REGISTRY_PORT = "rmiport";
+
+    /**
+     * Name of port on which RMI server accepts connects. If zero or unassigned,
+     * RMI picks a random port. Specifying a port can be helpful when using SSH
+     * to tunnel RMI to a server.
+     */
+    public final static String RMI_SERVER_PORT = "rmiserverport";
+
     /**
      * Property name for enabling Persistit Open MBean for JMX
      */
@@ -286,14 +298,6 @@ public class Persistit {
 
     final static long SHORT_DELAY = 500;
 
-    /**
-     * Minimal command line documentation
-     */
-    private final static String[] USAGE = { "java.persistit.Persistit [options] [property_file_name]", "",
-            " where flags are", "  -g           to show the Admin UI",
-            "  -i           to perform integrity checks on all volumes",
-            "  -w           to wait for the Admin UI to connect", "  -? or -help  to show this help message", };
-
     private final static long KILO = 1024;
     private final static long MEGA = KILO * KILO;
     private final static long GIGA = MEGA * KILO;
@@ -314,7 +318,6 @@ public class Persistit {
     private final long _startTime = System.currentTimeMillis();
     private final HashMap<Integer, BufferPool> _bufferPoolTable = new HashMap<Integer, BufferPool>();
     private final ArrayList<Volume> _volumes = new ArrayList<Volume>();
-    private final HashMap<Long, Volume> _volumesById = new HashMap<Long, Volume>();
     private Properties _properties = new Properties();
 
     private AtomicBoolean _initialized = new AtomicBoolean();
@@ -333,6 +336,7 @@ public class Persistit {
     private AtomicReference<CoderManager> _coderManager = new AtomicReference<CoderManager>();
 
     private ClassIndex _classIndex = new ClassIndex(this);
+
     private ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
         @Override
         protected SessionId initialValue() {
@@ -340,7 +344,7 @@ public class Persistit {
         }
     };
 
-    private final Map<SessionId, Transaction> _transactionSessionMap = new WeakHashMap<SessionId, Transaction>();
+    private final Map<SessionId, Transaction> _transactionSessionMap = new HashMap<SessionId, Transaction>();
 
     private ManagementImpl _management;
 
@@ -577,8 +581,9 @@ public class Persistit {
                 }
                 if (isOne) {
                     VolumeSpecification volumeSpecification = new VolumeSpecification(getProperty(key));
-                    _logBase.openVolume.log(volumeSpecification.describe());
-                    Volume.loadVolume(this, volumeSpecification);
+                    _logBase.openVolume.log(volumeSpecification.getName());
+                    final Volume volume = new Volume(volumeSpecification);
+                    volume.open(this);
                 }
             }
         }
@@ -587,11 +592,12 @@ public class Persistit {
     void initializeManagement() {
         String rmiHost = getProperty(RMI_REGISTRY_HOST_PROPERTY);
         String rmiPort = getProperty(RMI_REGISTRY_PORT);
+        String serverPort = getProperty(RMI_SERVER_PORT);
         boolean enableJmx = getBooleanProperty(JMX_PARAMS, true);
 
         if (rmiHost != null || rmiPort != null) {
             ManagementImpl management = (ManagementImpl) getManagement();
-            management.register(rmiHost, rmiPort);
+            management.register(rmiHost, rmiPort, serverPort);
         }
         if (enableJmx) {
             registerMXBeans();
@@ -716,27 +722,16 @@ public class Persistit {
     }
 
     synchronized void addVolume(Volume volume) throws VolumeAlreadyExistsException {
-        Long idKey = new Long(volume.getId());
-        Volume otherVolume = _volumesById.get(idKey);
+        Volume otherVolume;
+        otherVolume = getVolume(volume.getName());
         if (otherVolume != null) {
-            throw new VolumeAlreadyExistsException("Volume " + otherVolume + " has same ID");
-        }
-        otherVolume = getVolume(volume.getPath());
-        if (otherVolume != null && volume.getPath().equals(otherVolume.getPath())) {
-            throw new VolumeAlreadyExistsException("Volume " + otherVolume + " has same path");
+            throw new VolumeAlreadyExistsException("Volume " + otherVolume);
         }
         _volumes.add(volume);
-        _volumesById.put(idKey, volume);
     }
 
-    synchronized void removeVolume(Volume volume, boolean delete) throws PersistitInterruptedException {
-        Long idKey = new Long(volume.getId());
-        _volumesById.remove(idKey);
+    synchronized void removeVolume(Volume volume) throws PersistitInterruptedException {
         _volumes.remove(volume);
-        // volume.getPool().invalidate(volume);
-        if (delete) {
-            volume.getPool().delete(volume);
-        }
     }
 
     /**
@@ -1128,111 +1123,9 @@ public class Persistit {
     }
 
     /**
-     * Opens a Volume. The volume must already exist.
-     * 
-     * @param pathName
-     *            The full pathname to the file containing the Volume.
-     * @param ro
-     *            <code>true</code> if the Volume should be opened in read- only
-     *            mode so that no updates can be performed against it.
-     * @return The Volume.
-     * @throws PersistitException
-     */
-    public Volume openVolume(final String pathName, final boolean ro) throws PersistitException {
-        return openVolume(pathName, null, 0, ro);
-    }
-
-    /**
-     * Opens a Volume with a confirming id. If the id value is non-zero, then it
-     * must match the id the volume being opened.
-     * 
-     * @param pathName
-     *            The full pathname to the file containing the Volume.
-     * 
-     * @param alias
-     *            A friendly name for this volume that may be used internally by
-     *            applications. The alias need not be related to the
-     *            <code>Volume</code>'s pathname, and typically will denote its
-     *            function rather than physical location.
-     * 
-     * @param id
-     *            The internal Volume id value - if non-zero this value must
-     *            match the id value stored in the Volume header.
-     * 
-     * @param ro
-     *            <code>true</code> if the Volume should be opened in read- only
-     *            mode so that no updates can be performed against it.
-     * 
-     * @return The <code>Volume</code>.
-     * 
-     * @throws PersistitException
-     */
-    public Volume openVolume(final String pathName, final String alias, final long id, final boolean ro)
-            throws PersistitException {
-        File file = new File(pathName);
-        if (file.exists() && file.isFile()) {
-            return Volume.openVolume(this, pathName, alias, id, ro);
-        }
-        throw new PersistitIOException(new FileNotFoundException(pathName));
-    }
-
-    /**
      * Look up, load and/or creates a volume based on a String-valued
-     * specification. The specification has the form: <br />
-     * <i>pathname</i>[,<i>options</i>]... <br />
-     * where options include: <br />
-     * <dl>
-     * <dt><code>alias</code></dt>
-     * <dd>An alias used in looking up the volume by name within Persistit
-     * programs (see {@link com.persistit.Persistit#getVolume(String)}). If the
-     * alias attribute is not specified, the the Volume's path name is used
-     * instead.</dd>
-     * <dt><code>drive<code></dt>
-     * <dd>Name of the drive on which the volume is located. Specifying the
-     * drive on which each volume is physically located is optional. If
-     * supplied, Persistit uses the information to improve I/O throughput in
-     * multi-volume configurations by interleaving write operations to different
-     * physical drives.</dd>
-     * <dt><code>readOnly</code></dt>
-     * <dd>Open in Read-Only mode. (Incompatible with create mode.)</dd>
-     * 
-     * <dt><code>create</code></dt>
-     * <dd>Creates the volume if it does not exist. Requires
-     * <code>bufferSize</code>, <code>initialPagesM</code>,
-     * <code>extensionPages</code> and <code>maximumPages</code> to be
-     * specified.</dd>
-     * 
-     * <dt><code>createOnly</code></dt>
-     * <dd>Creates the volume, or throw a {@link VolumeAlreadyExistsException}
-     * if it already exists.</dd>
-     * 
-     * <dt><code>temporary</code></dt>
-     * <dd>Creates the a new, empty volume regardless of whether an existing
-     * volume file already exists.</dd>
-     * 
-     * <dt><code>id:<i>NNN</i></code></dt>
-     * <dd>Specifies an ID value for the volume. If the volume already exists,
-     * this ID value must match the ID that was previously assigned to the
-     * volume when it was created. If this volume is being newly created, this
-     * becomes its ID number.</dd>
-     * 
-     * <dt><code>bufferSize:<i>NNN</i></code></dt>
-     * <dd>Specifies <i>NNN</i> as the volume's buffer size when creating a new
-     * volume. <i>NNN</i> must be 1024, 2048, 4096, 8192 or 16384</dd>.
-     * 
-     * <dt><code>initialPages:<i>NNN</i></code></dt>
-     * <dd><i>NNN</i> is the initial number of pages to be allocated when this
-     * volume is first created.</dd>
-     * 
-     * <dt><code>extensionPages:<i>NNN</i></code></dt>
-     * <dd><i>NNN</i> is the number of pages by which to extend the volume when
-     * more pages are required.</dd>
-     * 
-     * <dt><code>maximumPages:<i>NNN</i></code></dt>
-     * <dd><i>NNN</i> is the maximum number of pages to which this volume can
-     * extend.</dd>
-     * 
-     * </dl>
+     * specification. See {@link VolumeSpecification} for the specification
+     * String format.
      * <p>
      * If a Volume has already been loaded having the same ID or name, this
      * method returns that Volume. Otherwise it tries to open or create a volume
@@ -1265,13 +1158,64 @@ public class Persistit {
      * @throws PersistitException
      */
     public Volume loadVolume(final VolumeSpecification volumeSpec) throws PersistitException {
-        Volume volume = getVolume(volumeSpec.getId());
+        Volume volume = getVolume(volumeSpec.getName());
         if (volume == null) {
-            volume = getVolume(volumeSpec.describe());
+            volume = new Volume(volumeSpec);
+            volume.open(this);
         }
-        if (volume == null) {
-            volume = Volume.loadVolume(this, volumeSpec);
+        return volume;
+    }
+
+    /**
+     * Create a temporary volume. A temporary volume is not durable; it should
+     * be used to hold temporary data such as intermediate sort or aggregation
+     * results that can be recreated in the event the system restarts.
+     * <p />
+     * The temporary volume page size is can be specified by the configuration
+     * property <code>tvpagesize</code>. The default value is determined by the
+     * {@link BufferPool} having the largest page size.
+     * <p />
+     * The backing store file for a temporary volume is created in the directory
+     * specified by the configuration property <code>tvdirectory</code>, or if
+     * unspecified, the system temporary directory..
+     * 
+     * @return the temporary <code>Volume</code>.
+     * @throws PersistitException
+     */
+    public Volume createTemporaryVolume() throws PersistitException {
+        int pageSize = (int) getLongProperty(TEMPORARY_VOLUME_PAGE_SIZE_NAME, 0, 0, 99999);
+        if (pageSize == 0) {
+            for (int size : _bufferPoolTable.keySet()) {
+                if (size > pageSize) {
+                    pageSize = size;
+                }
+            }
         }
+        return createTemporaryVolume(pageSize);
+    }
+
+    /**
+     * Create a temporary volume. A temporary volume is not durable; it should
+     * be used to hold temporary data such as intermediate sort or aggregation
+     * results that can be recreated in the event the system restarts.
+     * <p />
+     * The backing store file for a temporary volume is created in the directory
+     * specified by the configuration property <code>tvdirectory</code>, or if
+     * unspecified, the system temporary directory..
+     * 
+     * @param pageSize
+     *            The page size for the volume. Must be one of 1024, 2048, 4096,
+     *            8192 or 16384, and the volume will be usable only if there are
+     *            buffers of the specified size in the {@link BufferPool}.
+     * @return the temporary <code>Volume</code>.
+     * @throws PersistitException
+     */
+    public Volume createTemporaryVolume(final int pageSize) throws PersistitException {
+        if (!Volume.isValidPageSize(pageSize)) {
+            throw new IllegalArgumentException("Invalid page size " + pageSize);
+        }
+        Volume volume = new Volume(Thread.currentThread().getName() + "_temporary_volume", 12345);
+        volume.openTemporary(this, pageSize);
         return volume;
     }
 
@@ -1281,8 +1225,8 @@ public class Persistit {
      * 
      * @param volumeName
      *            the Volume to delete
-     * @return <code>true</code> if the volume was previusly loaded and has been
-     *         successfully deleted.
+     * @return <code>true</code> if the volume was previously loaded and has
+     *         been successfully deleted.
      * @throws PersistitException
      */
 
@@ -1291,9 +1235,10 @@ public class Persistit {
         if (volume == null) {
             return false;
         } else {
-            removeVolume(volume, true);
-            new File(volume.getPath()).delete();
-            return true;
+            volume.closing();
+            boolean deleted = volume.delete();
+            volume.close();
+            return deleted;
         }
     }
 
@@ -1346,18 +1291,6 @@ public class Persistit {
      */
     public long elapsedTime() {
         return System.currentTimeMillis() - _startTime;
-    }
-
-    /**
-     * Looks up a {@link Volume} by id. At creation time, each
-     * <code>Volume</code> is assigned a unique long ID value.
-     * 
-     * @param id
-     * @return the <code>Volume</code>, or <i>null</i> if there is no open
-     *         <code>Volume</code> having the supplied ID value.
-     */
-    public Volume getVolume(long id) {
-        return _volumesById.get(new Long(id));
     }
 
     /**
@@ -1442,26 +1375,14 @@ public class Persistit {
 
     /**
      * <p>
-     * Returns the designated transaction volume. The transaction volume is used
-     * to transiently hold pending updates prior to transaction commit. It is
-     * specified by the <code>txnvolume</code> property with a default value of
-     * "_txn".
-     * </p>
-     * <p>
-     * This method handles a configuration with exactly one volume in a special
-     * way. If the <code>txnvolume</code> property is unspecified and there is
-     * exactly one volume, then this method returns that volume as the
-     * transaction volume even if its name does not match the default
-     * <code>txnvolume</code> property. This eliminates the need to specify a
-     * transaction volume property for configurations having only one volume.
+     * Returns the temporary volume used by the current Thread to transiently
+     * hold pending updates prior to transaction commit.
      * </p>
      * 
      * @return the <code>Volume</code>
-     * @throws VolumeNotFoundException
-     *             if the volume was not found
      */
-    public Volume getTransactionVolume() throws VolumeNotFoundException {
-        return getSpecialVolume(TXN_VOLUME_PROPERTY, DEFAULT_TXN_VOLUME_NAME);
+    public Volume getTransactionVolume() {
+        return getTransaction().getTransactionTemporaryVolume();
     }
 
     /**
@@ -1624,7 +1545,7 @@ public class Persistit {
     final long earliestDirtyTimestamp() {
         long earliest = Long.MAX_VALUE;
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            earliest = Math.min(earliest, pool.earliestDirtyTimestamp());
+            earliest = Math.min(earliest, pool.getEarliestDirtyTimestamp());
         }
         return earliest;
     }
@@ -1678,6 +1599,28 @@ public class Persistit {
         return _bufferPoolTable;
     }
 
+    public void cleanup() {
+        final Set<SessionId> sessionIds;
+        synchronized (_transactionSessionMap) {
+            sessionIds = new HashSet<SessionId>(_transactionSessionMap.keySet());
+        }
+        for (final SessionId sessionId : sessionIds) {
+            if (!sessionId.isAlive()) {
+                Transaction transaction = null;
+                synchronized (_transactionSessionMap) {
+                    transaction = _transactionSessionMap.remove(sessionId);
+                }
+                if (transaction != null) {
+                    try {
+                        transaction.close();
+                    } catch (PersistitException e) {
+                        _logBase.exception.log(e);
+                    }
+                }
+            }
+        }
+    }
+
     /**
      * <p>
      * Close the Persistit Journal and all {@link Volume}s. This method is
@@ -1691,7 +1634,7 @@ public class Persistit {
      *         invocation closed it, otherwise false.
      */
     public void close() throws PersistitException {
-        close(true, false);
+        close(true);
     }
 
     /**
@@ -1751,17 +1694,12 @@ public class Persistit {
      *         invocation closed it, otherwise false.
      */
     public void close(final boolean flush) throws PersistitException {
-        close(flush, false);
-    }
-
-    // TODO - can byHook ever be true? I don't think so.
-    private void close(final boolean flush, final boolean byHook) throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
             return;
         }
         synchronized (this) {
             // Wait for UI to go down.
-            while (!byHook && _suspendShutdown.get()) {
+            while (_suspendShutdown.get()) {
                 try {
                     wait(SHORT_DELAY);
                 } catch (InterruptedException ie) {
@@ -1770,11 +1708,11 @@ public class Persistit {
             }
         }
 
-        if (byHook) {
-            shutdownGUI();
+        if (flush) {
+            for (final Volume volume : _volumes) {
+                volume.getStorage().flush();
+            }
         }
-
-        flush();
 
         _checkpointManager.close(flush);
         waitForIOTaskStop(_checkpointManager);
@@ -1785,14 +1723,8 @@ public class Persistit {
             volumes = new ArrayList<Volume>(_volumes);
         }
 
-        for (final Volume volume : volumes) {
-            volume.flush();
-        }
-
-        // TODO - why do this if there can't be another checkpoint?
-
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.close(flush);
+            pool.close();
             unregisterBufferPoolMXBean(pool.getBufferSize());
         }
         _journalManager.close();
@@ -1801,14 +1733,8 @@ public class Persistit {
             volume.close();
         }
 
-        // TODO - why not removeAll volumes
-
-        while (!_volumes.isEmpty()) {
-            removeVolume(_volumes.get(0), false);
-        }
-
         for (final BufferPool pool : _bufferPoolTable.values()) {
-            int count = pool.countDirty(null);
+            int count = pool.getDirtyPageCount();
             if (count > 0) {
                 _logBase.strandedPages.log(pool, count);
             }
@@ -1835,7 +1761,8 @@ public class Persistit {
         // the volumes - otherwise there will be left over channels
         // and FileLocks that interfere with subsequent tests.
         //
-        for (final Volume volume : _volumes) {
+        final List<Volume> volumes = new ArrayList<Volume>(_volumes);
+        for (final Volume volume : volumes) {
             try {
                 volume.close();
             } catch (PersistitException pe) {
@@ -1857,9 +1784,24 @@ public class Persistit {
 
     private void releaseAllResources() {
         _volumes.clear();
-        _volumesById.clear();
         _bufferPoolTable.clear();
+        for (final TransactionalCache cache : _transactionalCaches.values()) {
+            cache.close();
+        }
         _transactionalCaches.clear();
+        _exchangePoolMap.clear();
+        Set<Transaction> transactions;
+        synchronized (_transactionSessionMap) {
+            transactions = new HashSet<Transaction>(_transactionSessionMap.values());
+            _transactionSessionMap.clear();
+        }
+        for (final Transaction txn : transactions) {
+            try {
+                txn.close();
+            } catch (PersistitException e) {
+                _logBase.exception.log(e);
+            }
+        }
 
         if (_management != null) {
             unregisterMXBeans();
@@ -1888,23 +1830,22 @@ public class Persistit {
      * @throws IOException
      */
     public boolean flush() throws PersistitException {
-        boolean okay = true;
         if (_closed.get() || !_initialized.get()) {
             return false;
         }
-
         for (final Volume volume : _volumes) {
-            volume.flush();
+            volume.getStorage().flush();
+            volume.getStorage().force();
         }
-
-        for (final BufferPool pool : _bufferPoolTable.values()) {
-            if (pool != null) {
-                okay &= pool.flush() == 0;
-            }
-        }
-
+        flushBuffers(_timestampAllocator.getCurrentTimestamp());
         _journalManager.force();
         return true;
+    }
+
+    void flushBuffers(final long timestamp) throws PersistitInterruptedException {
+        for (final BufferPool pool : _bufferPoolTable.values()) {
+            pool.flush(timestamp);
+        }
     }
 
     void waitForIOTaskStop(final IOTaskRunnable task) {
@@ -1935,7 +1876,7 @@ public class Persistit {
      * 
      * @throws IOException
      */
-    public void sync() throws PersistitIOException {
+    public void force() throws PersistitIOException {
         if (_closed.get() || !_initialized.get()) {
             return;
         }
@@ -1943,12 +1884,8 @@ public class Persistit {
 
         for (int index = 0; index < volumes.size(); index++) {
             Volume volume = volumes.get(index);
-            if (!volume.isReadOnly()) {
-                try {
-                    volume.sync();
-                } catch (ReadOnlyVolumeException rove) {
-                    // ignore, because it can't happen
-                }
+            if (!volume.getStorage().isReadOnly()) {
+                volume.getStorage().force();
             }
         }
         _journalManager.force();
@@ -2000,7 +1937,27 @@ public class Persistit {
      * @param sessionId
      */
     public void setSessionId(final SessionId sessionId) {
+        sessionId.assign();
         _sessionIdThreadLocal.set(sessionId);
+    }
+
+    /**
+     * Close the session resources associated with the current thread.
+     * 
+     * @throws PersistitException
+     */
+    void closeSession() throws PersistitException {
+        final SessionId sessionId = _sessionIdThreadLocal.get();
+        if (sessionId != null) {
+            final Transaction txn;
+            synchronized (_transactionSessionMap) {
+                txn = _transactionSessionMap.remove(sessionId);
+            }
+            if (txn != null) {
+                txn.close();
+            }
+        }
+        _sessionIdThreadLocal.set(null);
     }
 
     /**
@@ -2043,7 +2000,7 @@ public class Persistit {
         transactions.clear();
         synchronized (_transactionSessionMap) {
             for (final Transaction t : _transactionSessionMap.values()) {
-                if (t.getStartTimestamp() >= from && t.getCommitTimestamp() >= to) {
+                if (t != null && t.getStartTimestamp() >= from && t.getCommitTimestamp() >= to) {
                     transactions.add(t);
                 }
             }
@@ -2148,7 +2105,7 @@ public class Persistit {
         return _timestampAllocator;
     }
 
-    public IOMeter getIOMeter() {
+    IOMeter getIOMeter() {
         return _ioMeter;
     }
 
@@ -2322,6 +2279,28 @@ public class Persistit {
             throw new IllegalArgumentException("Value '" + str + "' of property " + propName + " is invalid");
         }
         return result;
+    }
+
+    /**
+     * Provide a displayable version of a long value, preferable using one of
+     * the suffixes 'K', 'M', 'G', or 'T' to abbreviate values that are integral
+     * multiples of powers of 1,024.
+     * 
+     * @param value
+     *            to convert
+     * @return Readable format of long value
+     */
+    static String displayableLongValue(final long value) {
+        if (value <= 0) {
+            return String.format("%d", value);
+        }
+        long v = value;
+        int scale = 0;
+        while ((v / 1024) * 1024 == v && scale < 3) {
+            scale++;
+            v /= 1024;
+        }
+        return String.format("%d%s", v, " KMGT".substring(scale, scale + 1));
     }
 
     /**
@@ -2559,14 +2538,22 @@ public class Persistit {
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",
             "_flag|i|Perform IntegrityCheck on all volumes", "_flag|w|Wait until AdminUI exists",
             "_flag|c|Perform copy-back", "properties|string|Property file name",
-            "cliport|int:-1:1024:99999999|Port on which to start a simple command-line interface server" };
+            "cliport|int:-1:1024:99999999|Port on which to start a simple command-line interface server",
+            "script|string|Pathname of CLI script to execute", };
 
     /**
-     * Initializes Persistit using a property file path supplied as the first
-     * argument, or if no arguments are supplied, the default property file name
-     * (<code>persistit.properties</code> in the default directory).
-     * Command-line argument flags can invoke the integrity checker, start the
-     * AdminUI and suspend shutdown. See {@link #USAGE} for details.
+     * Perform various utility functions. Specify arguments on the command line
+     * conforming to {@value #ARG_TEMPLATE}. Options:
+     * <ul>
+     * <li>If the cliport=nnnn argument is set, then this method starts a CLI
+     * server on the specified port.</li>
+     * <li>Otherwise if the properties=filename argument is set, this method
+     * initializes a Persistit instance using the specified properties. With an
+     * initialized instance the flags -i, -g, and -c take effect to invoke an
+     * integrity check, open the AdminUI or copy back all pages from the
+     * Journal.</li>
+     * </ul>
+     * 
      * 
      * @param args
      * @throws Exception
@@ -2577,7 +2564,14 @@ public class Persistit {
             return;
         }
 
+        Persistit persistit = null;
         String propertiesFileName = ap.getStringValue("properties");
+        if (!propertiesFileName.isEmpty()) {
+            persistit = new Persistit();
+            persistit.initialize(propertiesFileName);
+        }
+        String scriptName = ap.getStringValue("script");
+
         int cliport = ap.getIntValue("cliport");
 
         if (cliport > -1 && !propertiesFileName.isEmpty()) {
@@ -2588,10 +2582,13 @@ public class Persistit {
             System.out.printf("Starting a Persistit CLI server on port %d\n", cliport);
             Task task = CLI.cliserver(cliport);
             task.runTask();
-            task.setPersistit(null);
-
+            task.setPersistit(persistit);
+        } else if (!scriptName.isEmpty()) {
+            final BufferedReader reader = new BufferedReader(new FileReader(scriptName));
+            final PrintWriter writer = new PrintWriter(System.out);
+            CLI.runScript(persistit, reader, writer);
         } else {
-            if (propertiesFileName.isEmpty()) {
+            if (persistit == null) {
                 throw new IllegalArgumentException("Must specify a properties file");
             }
             boolean gui = ap.isFlag('g');
@@ -2599,8 +2596,6 @@ public class Persistit {
             boolean wait = ap.isFlag('w');
             boolean copy = ap.isFlag('c');
 
-            Persistit persistit = new Persistit();
-            persistit.initialize(propertiesFileName);
             try {
                 if (gui) {
                     persistit.setupGUI(wait);
@@ -2621,12 +2616,5 @@ public class Persistit {
                 persistit.close();
             }
         }
-    }
-
-    private static void usage() {
-        for (int index = 0; index < USAGE.length; index++) {
-            System.out.println(USAGE[index]);
-        }
-        System.out.println();
     }
 }

@@ -291,23 +291,14 @@ public class StreamLoader extends Task {
                 return;
             }
 
-            final Volume v1 = _persistit.getVolume(volumeId);
-            final Volume v2 = _persistit.getVolume(name);
-
-            if (v1 == null) {
-                _volume = v2;
-            } else if (v2 == null) {
-                _volume = v1;
-            } else if (v1 == v2) {
-                _volume = v1;
-            } else {
-                // handle mismatched volume name/id
-                return;
-            }
-
-            if (_volume == null && _createMissingVolumes) {
-                _volume = Volume.create(_persistit, path, name, volumeId, bufferSize, initialPages, extensionPages,
-                        maximumPages, false);
+            _volume = _persistit.getVolume(name);
+            if (_volume != null) {
+                _volume.verifyId(volumeId);
+            } else if (_createMissingVolumes) {
+                _volume = new Volume(new VolumeSpecification(path, name, bufferSize, initialPages, maximumPages,
+                        extensionPages, false, true, false));
+                _volume.setId(volumeId);
+                _volume.open(_persistit);
             }
             if (oldExchange != null && oldExchange.getVolume().equals(_volume)) {
                 _exchange = oldExchange;

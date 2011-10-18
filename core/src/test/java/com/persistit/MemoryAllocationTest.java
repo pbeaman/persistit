@@ -15,6 +15,10 @@
 
 package com.persistit;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryUsage;
+import java.util.Properties;
+
 import junit.framework.TestCase;
 
 import org.junit.Test;
@@ -26,7 +30,7 @@ public class MemoryAllocationTest extends TestCase {
     private final static String PNAME = "buffer.memory.";
 
     @Test
-    public void testMemoryAllocation() throws Exception {
+    public void testMemoryAllocationComputation() throws Exception {
         Persistit persistit = new Persistit();
         final long available = persistit.getAvailableHeap();
         for (int bufferSize = 1024; bufferSize <= 16384; bufferSize *= 2) {
@@ -43,6 +47,19 @@ public class MemoryAllocationTest extends TestCase {
             assertEquals(10 * MEGA / bsize, persistit.computeBufferCountFromMemoryProperty(pname, "10M,,,0.0",
                     bufferSize));
         }
+    }
+
+    @Test
+    public void testAllocateAlmostEverything() throws Exception {
+        Persistit persistit = new Persistit();
+        final long available = persistit.getAvailableHeap();
+        Properties properties = new Properties();
+        properties.setProperty("buffer.memory.16384", "0,1T,64M,0.8");
+        persistit.initializeProperties(properties);
+        persistit.initializeBufferPools();
+        final MemoryUsage mu = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+        long used = mu.getUsed();
+        System.out.printf("Initially available=%,d Used=%,d", available, used);
     }
 
 }

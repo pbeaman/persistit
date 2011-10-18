@@ -616,7 +616,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         assertEquals(ks, _key2);
         assertEquals(ks, _key1);
     }
-    
+
     public void testIndexTo() {
         _key1.clear().append("a").append("b").append("c").append("d");
         assertEquals("a", _key1.indexTo(0).decodeString());
@@ -631,7 +631,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
     @Test
     public void testIsNull() {
         _key1.clear().append(null);
-        assertTrue("seg0 is null: "+_key1, _key1.indexTo(0).isNull());
+        assertTrue("seg0 is null: " + _key1, _key1.indexTo(0).isNull());
         _key1.clear().append(1);
         assertFalse("seg0 is not null: " + _key1, _key1.indexTo(0).isNull());
         _key1.clear().append(5L).append(null);
@@ -644,8 +644,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         try {
             _key1.clear().reset().isNull();
             Assert.fail("Expected MissingKeySegmentException!");
-        }
-        catch(MissingKeySegmentException e) {
+        } catch (MissingKeySegmentException e) {
             // expected
         }
     }

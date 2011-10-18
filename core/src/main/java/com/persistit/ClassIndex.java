@@ -44,7 +44,7 @@ import com.persistit.exception.PersistitException;
  * 
  * @version 1.1
  */
-public class ClassIndex {
+class ClassIndex {
     private final static int INITIAL_CAPACITY = 123;
 
     private final static String BY_HANDLE = "byHandle";

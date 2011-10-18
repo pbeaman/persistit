@@ -21,10 +21,10 @@ package com.persistit.exception;
  * Exception. This allows the caller of a Persistit method to catch
  * {@link PersistitException}s without also needing to catch
  * InterruptedExceptions.
- * <p /> 
- * Before throwing a PersistitInterruptedException Persistit reasserts
- * the <code>interrupted</code> status of the current Thread so that
- * a subsequent call to sleep or wait will once again be interrupted.
+ * <p />
+ * Before throwing a PersistitInterruptedException Persistit reasserts the
+ * <code>interrupted</code> status of the current Thread so that a subsequent
+ * call to sleep or wait will once again be interrupted.
  * 
  * @version 1.0
  */

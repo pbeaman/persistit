@@ -22,11 +22,11 @@ import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 
-public class CheckpointManager extends IOTaskRunnable {
+class CheckpointManager extends IOTaskRunnable {
 
     private final static long SHORT_DELAY = 500;
 
-    private final static long FLUSH_CHECKPOINT_INTERVAL = 15000;
+    private final static long FLUSH_CHECKPOINT_INTERVAL = 5000;
 
     private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
 
@@ -58,8 +58,10 @@ public class CheckpointManager extends IOTaskRunnable {
         _persistit.getTimestampAllocator().forceCheckpoint();
         proposeCheckpoint();
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
+        _persistit.flushBuffers(checkpoint.getTimestamp());
+
         while (true) {
-            urgent();
+            kick();
             synchronized (this) {
                 if (!_outstandingCheckpoints.contains(checkpoint)) {
                     return checkpoint;
@@ -107,16 +109,11 @@ public class CheckpointManager extends IOTaskRunnable {
                     return;
                 }
                 _persistit.getJournalManager().writeCheckpointToJournal(validCheckpoint);
+                synchronized (this) {
+                    _outstandingCheckpoints.remove(validCheckpoint);
+                }
             } catch (PersistitIOException e) {
                 _persistit.getLogBase().exception.log(e);
-            }
-        }
-        synchronized (this) {
-            if (validCheckpoint != null) {
-                _outstandingCheckpoints.remove(validCheckpoint);
-                if (_outstandingCheckpoints.isEmpty()) {
-                    _urgent.set(false);
-                }
             }
         }
     }
@@ -149,22 +146,15 @@ public class CheckpointManager extends IOTaskRunnable {
     }
 
     @Override
-    protected long pollInterval() {
-        return _urgent.get() ? SHORT_DELAY : super.getPollInterval();
-    }
-
-    @Override
     protected synchronized boolean shouldStop() {
         return _closed.get() && (_outstandingCheckpoints.isEmpty() || _fastClose.get());
     }
 
     @Override
     protected void runTask() throws Exception {
-        if (_persistit.isInitialized()) {
-            _persistit.getTimestampAllocator().updatedCheckpoint();
-            proposeCheckpoint();
-            flushCheckpoint();
-        }
+        _persistit.getTimestampAllocator().updatedCheckpoint();
+        proposeCheckpoint();
+        flushCheckpoint();
     }
 
 }

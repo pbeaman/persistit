@@ -301,6 +301,8 @@ public final class Value {
 
     private final static char TRUE_CHAR = 'T';
     private final static char FALSE_CHAR = 'F';
+
+    private final static int TYPE_ZERO = 0;
     //
     // Primitive values first. Codes allocated for .net types as well as
     // Java and mutually available types.
@@ -362,6 +364,11 @@ public final class Value {
     // object.
     //
     private final static int CLASS_REREF = 50;
+
+    //
+    // Indicates a record in a directory tree.
+    //
+    private final static int CLASS_TREE = 60;
     //
     // Serialized type introducer. Followed by the Persistit handle for the
     // type (even though serialization also represents that type - we need to
@@ -772,7 +779,7 @@ public final class Value {
 
     /**
      * Copy a subarray from the encoded byte array to a target. This method is
-     * part of the <a href="#_lowLevelAPI">Low-Level API</a>. This method
+     * part of the <a href="#_lowLevelAPI">Low-Level API</a>.
      * 
      * @param dest
      *            The target byte array

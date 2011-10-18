@@ -41,6 +41,7 @@ import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
@@ -324,6 +325,7 @@ public class Transaction {
     private ArrayList<DeallocationChain> _longRecordDeallocationList = new ArrayList<DeallocationChain>();
 
     private Exchange _ex1;
+
     private Exchange _ex2;
 
     private final Key _rootKey;
@@ -493,7 +495,7 @@ public class Transaction {
 
         @Override
         public int hashCode() {
-            return ((int) _volume.getId()) ^ ((int) _pageAddr);
+            return _volume.hashCode() ^ ((int) _pageAddr);
         }
 
         @Override
@@ -515,7 +517,7 @@ public class Transaction {
 
         @Override
         public int hashCode() {
-            return (int) _leftPage ^ (int) _rightPage ^ (int) _volume.getId();
+            return (int) _leftPage ^ (int) _rightPage ^ _volume.hashCode();
         }
 
         @Override
@@ -545,7 +547,6 @@ public class Transaction {
     private Transaction(final Persistit persistit, final SessionId sessionId, final long id) {
         _persistit = persistit;
         _sessionId = sessionId;
-
         _id = id;
         _rollbackDelay = persistit.getLongProperty("rollbackDelay", 10, 0, 100000);
         _rootKey = new Key(_persistit);
@@ -556,18 +557,27 @@ public class Transaction {
     }
 
     void setupExchanges() throws PersistitException {
-        int saveDepth = _nestedDepth;
-        _nestedDepth = 0;
-        try {
-            Volume txnVolume = _persistit.getTransactionVolume();
+        if (_ex1 == null) {
+            int saveDepth = _nestedDepth;
+            _nestedDepth = 0;
+            try {
+                Volume txnVolume = _persistit.createTemporaryVolume();
+                _ex1 = _persistit.getExchange(txnVolume, TRANSACTION_TREE_NAME + _id, true);
+                _ex2 = new Exchange(_ex1);
+                _ex1.ignoreTransactions();
+                _ex2.ignoreTransactions();
+            } finally {
+                _nestedDepth = saveDepth;
+            }
+        }
+    }
 
-            _ex1 = _persistit.getExchange(txnVolume, TRANSACTION_TREE_NAME + _id, true);
-            _ex2 = new Exchange(_ex1);
-            _ex1.ignoreTransactions();
-            _ex2.ignoreTransactions();
-            _ex1.removeAll();
-        } finally {
-            _nestedDepth = saveDepth;
+    void close() throws PersistitException {
+        final Exchange ex = _ex1;
+        if (ex != null) {
+            ex.getVolume().close();
+            _ex1 = null;
+            _ex2 = null;
         }
     }
 
@@ -668,6 +678,7 @@ public class Transaction {
 
         if (_nestedDepth == 0) {
             try {
+                setupExchanges();
                 clear();
                 _commitListeners.clear();
                 _transactionCacheUpdates.clear();
@@ -1081,11 +1092,19 @@ public class Transaction {
     }
 
     /**
-     * @return The SessionId of the session in which this Transaction was
-     *         created.
+     * @return the SessionId this Transaction context belongs too.
      */
     public SessionId getSessionId() {
         return _sessionId;
+    }
+
+    /**
+     * @return the temporary volume serving as the backing store for this
+     *         <code>Transaction</code>
+     */
+    public Volume getTransactionTemporaryVolume() {
+        final Exchange exchange = _ex1;
+        return exchange == null ? null : exchange.getVolume();
     }
 
     /**
@@ -1197,7 +1216,7 @@ public class Transaction {
     }
 
     void touchedPage(Exchange exchange, Buffer buffer) throws PersistitException {
-        int hashCode = ((int) buffer.getVolume().getId()) ^ ((int) buffer.getPageAddress());
+        int hashCode = buffer.getVolume().hashCode() ^ ((int) buffer.getPageAddress());
         TouchedPage entry = (TouchedPage) _touchedPagesSet.lookup(hashCode);
         while (entry != null) {
             if (entry._volume == buffer.getVolume() && entry._pageAddr == buffer.getPageAddress()) {
@@ -1337,7 +1356,6 @@ public class Transaction {
             if (enqueued) {
                 writeUpdatesToTransactionWriter(_persistit.getJournalManager());
             }
-            clear();
             return committed;
         } finally {
             _longRecordDeallocationList.clear();
@@ -1346,9 +1364,7 @@ public class Transaction {
     }
 
     private void prepareTxnExchange(Tree tree, Key key, char type) throws PersistitException {
-        if (_ex1 == null) {
-            setupExchanges();
-        }
+        setupExchanges();
         int treeHandle = handleForTree(tree);
         _ex1.clear().append(treeHandle).append(type);
         _ex1.getKey().copyTo(_rootKey);
@@ -1385,9 +1401,8 @@ public class Transaction {
     private void clear() throws PersistitException {
         _visbilityOrder.clear();
         if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
-            if (_ex1 == null)
-                setupExchanges();
-            _ex1.removeAll();
+            setupExchanges();
+            _ex1.getVolume().truncate();
             _pendingStoreCount = 0;
             _pendingRemoveCount = 0;
         }
@@ -1426,9 +1441,7 @@ public class Transaction {
         if (_pendingRemoveCount == 0 && _pendingStoreCount == 0) {
             return null;
         }
-        if (_ex1 == null) {
-            setupExchanges();
-        }
+        setupExchanges();
         Tree tree = exchange.getTree();
         Key key = exchange.getKey();
         if (_pendingStoreCount > 0) {
@@ -1509,9 +1522,7 @@ public class Transaction {
             return null;
         }
 
-        if (_ex1 == null)
-            setupExchanges();
-
+        setupExchanges();
         if (_pendingStoreCount > 0) {
             Key candidateKey2 = _ex1.getKey();
             //
@@ -1626,8 +1637,7 @@ public class Transaction {
         //
         // Remove any applicable store operations
         //
-        if (_ex1 == null)
-            setupExchanges();
+        setupExchanges();
         Key spareKey1 = _ex1.getAuxiliaryKey1();
         Key spareKey2 = _ex1.getAuxiliaryKey2();
         Tree tree = exchange.getTree();
@@ -1783,8 +1793,7 @@ public class Transaction {
             return writeUpdatesToTransactionWriterFast(tw);
         }
 
-        if (_ex1 == null)
-            setupExchanges();
+        setupExchanges();
 
         _ex1.clear();
         Value txnValue = _ex1.getValue();
@@ -1853,10 +1862,7 @@ public class Transaction {
     }
 
     private void applyUpdatesFast() throws PersistitException {
-        if (_ex1 == null) {
-            setupExchanges();
-        }
-
+        setupExchanges();
         final Set<Tree> removedTrees = new HashSet<Tree>();
         final ByteBuffer bb = _txnBuffer._bb;
         bb.mark();
@@ -1930,9 +1936,7 @@ public class Transaction {
     }
 
     private void applyUpdates() throws PersistitException {
-        if (_ex1 == null) {
-            setupExchanges();
-        }
+        setupExchanges();
         Value txnValue = _ex1.getValue();
 
         final Set<Tree> removedTrees = new HashSet<Tree>();
@@ -1987,13 +1991,12 @@ public class Transaction {
             }
         }
         for (final Tree tree : removedTrees) {
-            tree.getVolume().removeTree(tree);
+            tree.getVolume().getStructure().removeTree(tree);
         }
     }
 
     void rollbackUpdates() throws PersistitException {
-        if (_ex1 == null)
-            setupExchanges();
+        setupExchanges();
         _touchedPagesSet.clear();
         harvestLongRecords();
 
@@ -2001,7 +2004,6 @@ public class Transaction {
             //
             // Remove the update list.
             //
-            clear();
         } else if (!_recoveryMode) {
             return;
         }
@@ -2021,7 +2023,7 @@ public class Transaction {
                     buffer.releaseTouched();
                 }
 
-                dc._volume.deallocateGarbageChain(dc._leftPage, dc._rightPage);
+                dc._volume.getStructure().deallocateGarbageChain(dc._leftPage, dc._rightPage);
 
                 _longRecordDeallocationList.remove(index);
             }
@@ -2098,5 +2100,4 @@ public class Transaction {
         }
         return list;
     }
-
 }

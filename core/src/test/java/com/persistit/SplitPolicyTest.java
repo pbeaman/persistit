@@ -216,21 +216,21 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
         ex.getValue().put("aaabbbcccdddeee");
 
         ex.removeAll();
-        for (int i = 0; ex.getVolume().getMaximumPageInUse() < 20; i++) {
+        for (int i = 0; ex.getVolume().getStorage().getNextAvailablePage() < 20; i++) {
             ex.to(i).store();
         }
         final float ratioFowardSequential = inuseRatio(ex);
         assertTrue(ratioFowardSequential > .85);
 
         ex.removeAll();
-        for (int i = 1000000; ex.getVolume().getMaximumPageInUse() < 21; i--) {
+        for (int i = 1000000; ex.getVolume().getStorage().getNextAvailablePage() < 21; i--) {
             ex.to(i).store();
         }
         final float ratioReverseSequential = inuseRatio(ex);
         assertTrue(ratioReverseSequential > .85);
 
         ex.removeAll();
-        for (; ex.getVolume().getMaximumPageInUse() < 22;) {
+        for (; ex.getVolume().getStorage().getNextAvailablePage() < 22;) {
             ex.to(random.nextInt()).store();
         }
         final float ratioRandom = inuseRatio(ex);

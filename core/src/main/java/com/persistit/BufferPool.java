@@ -16,9 +16,11 @@
 package com.persistit;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.exception.InUseException;
@@ -28,7 +30,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RetryException;
-import com.persistit.exception.TimeoutException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
 
@@ -42,14 +43,20 @@ public class BufferPool {
     /**
      * Default PageWriter polling interval
      */
-    private final static long DEFAULT_WRITER_POLL_INTERVAL = 2000;
+    private final static long DEFAULT_WRITER_POLL_INTERVAL = 1000;
 
-    private final static int MAX_FLUSH_RETRY_COUNT = 10;
+    private final static int PAGE_WRITER_TRANCHE_SIZE = 1000;
 
     /**
      * Sleep time when buffers are exhausted
      */
     private final static long RETRY_SLEEP_TIME = 50;
+
+    /**
+     * Wait time in ms when assessing dirty buffers
+     */
+    private final static long SELECT_DIRTY_BUFFERS_WAIT_INTERVAL = 50;
+
     /**
      * The ratio of hash table slots per buffer in this pool
      */
@@ -63,14 +70,19 @@ public class BufferPool {
      */
     public final static int MAXIMUM_POOL_COUNT = Integer.MAX_VALUE;
     /**
+     * Ratio of FastIndex to buffers
+     */
+    final static float FAST_INDEX_RATIO = 1.0f;
+
+    /**
      * The maximum number of lock buckets
      */
     private final static int HASH_LOCKS = 4096;
 
     /**
-     * Ratio of FastIndex to buffers
+     * Ratio determines which of two volume invalidation algorithms to invoke.
      */
-    final static float FAST_INDEX_RATIO = 1.0f;
+    private final static float SMALL_VOLUME_RATIO = 0.1f;
 
     /**
      * The Persistit instance that references this BufferBool.
@@ -111,6 +123,15 @@ public class BufferPool {
     private final FastIndex[] _fastIndexes;
 
     /**
+     * Bit map for invalidated pages. Elements in this array, one bit per page,
+     * indicate buffers that have been invalidated and are therefore able to be
+     * allocated without evicting a valid page.
+     */
+    private final AtomicLongArray _availablePagesBits;
+
+    private final AtomicBoolean _availablePages = new AtomicBoolean();
+
+    /**
      * The maximum number of keys allowed Buffers in this pool
      */
     private final int _maxKeys;
@@ -118,27 +139,22 @@ public class BufferPool {
     /**
      * Pointer to next location to look for a replacement buffer
      */
-    private AtomicInteger _clock = new AtomicInteger();
-
-    /**
-     * Pointer to next location to look for a dirty buffer
-     */
-    private AtomicInteger _dirtyClock = new AtomicInteger();
+    private final AtomicInteger _clock = new AtomicInteger();
 
     /**
      * Pointer to next FastIndex to allocate
      */
-    private AtomicInteger _fastIndexClock = new AtomicInteger();
+    private final AtomicInteger _fastIndexClock = new AtomicInteger();
 
     /**
      * Count of buffer pool misses (buffer not found in pool)
      */
-    private AtomicLong _missCounter = new AtomicLong();
+    private final AtomicLong _missCounter = new AtomicLong();
 
     /**
      * Count of buffer pool hits (buffer found in pool)
      */
-    private AtomicLong _hitCounter = new AtomicLong();
+    private final AtomicLong _hitCounter = new AtomicLong();
 
     /**
      * Count of newly created pages
@@ -148,24 +164,53 @@ public class BufferPool {
     /**
      * Count of valid buffers evicted to make room for another page.
      */
-    private AtomicLong _evictCounter = new AtomicLong();
+    private final AtomicLong _evictCounter = new AtomicLong();
 
     /**
-     * Indicates that Persistit wants to shut down fast, without flushing all
-     * the dirty buffers in the buffer pool.
+     * Count of dirty pages
      */
-    private AtomicBoolean _fastClose = new AtomicBoolean(false);
+    private final AtomicInteger _dirtyPageCount = new AtomicInteger();
 
+    /**
+     * Count of pages written from this pool
+     */
+    private final AtomicLong _writeCounter = new AtomicLong();
+    /**
+     * Count of pages written due to being dirty when selected by the buffer
+     * allocator.
+     */
+    private final AtomicLong _forcedWriteCounter = new AtomicLong();
+
+    /**
+     * (with n Count of pages written due to being dirty before a checkpoint
+     */
+    private final AtomicLong _forcedCheckpointWriteCounter = new AtomicLong();
     /**
      * Indicates that Persistit has closed this buffer pool.
      */
-    private AtomicBoolean _closed = new AtomicBoolean(false);
+    private final AtomicBoolean _closed = new AtomicBoolean(false);
+
+    /**
+     * Oldest update timestamp found during PAGE_WRITER's most recent scan.
+     * Value is Long.MAX_VALUE if there are no dirty non-temporary pages in the
+     * pool.
+     */
+    private volatile long _earliestDirtyTimestamp = Long.MIN_VALUE;
+
+    /**
+     * Timestamp to which all dirty pages should be written. PAGE_WRITER writes
+     * any page with a lower update timestamp regardless of urgency.
+     */
+    private AtomicLong _flushTimestamp = new AtomicLong();
 
     /**
      * Polling interval for PageWriter
      */
     private long _writerPollInterval = DEFAULT_WRITER_POLL_INTERVAL;
 
+    /**
+     * The PAGE_WRITER IOTaskRunnable
+     */
     private PageWriter _writer;
 
     /**
@@ -178,7 +223,6 @@ public class BufferPool {
      *            The size (in bytes) of each buffer
      */
     BufferPool(int count, int size, Persistit persistit) {
-        int created = 0;
         _persistit = persistit;
         if (count < MINIMUM_POOL_COUNT) {
             throw new IllegalArgumentException("Buffer pool count too small: " + count);
@@ -201,35 +245,54 @@ public class BufferPool {
         _bufferCount = count;
         _bufferSize = size;
         _buffers = new Buffer[_bufferCount];
+        _availablePagesBits = new AtomicLongArray((count + 63) / 64);
         _hashTable = new Buffer[_bufferCount * HASH_MULTIPLE];
         _hashLocks = new ReentrantLock[HASH_LOCKS];
         _maxKeys = (_bufferSize - Buffer.HEADER_SIZE) / Buffer.MAX_KEY_RATIO;
+        _fastIndexCount = (int) (count * FAST_INDEX_RATIO);
+        _fastIndexes = new FastIndex[_fastIndexCount];
 
         for (int index = 0; index < HASH_LOCKS; index++) {
             _hashLocks[index] = new ReentrantLock();
         }
 
+        int buffers = 0;
+        int fastIndexes = 0;
+        //
+        // Allocate this here so that in the event of an OOME we can release it
+        // to free enough memory to write the error information out.
+        //
+        byte[] reserve = new byte[1024 * 1024];
         try {
             for (int index = 0; index < _bufferCount; index++) {
                 Buffer buffer = new Buffer(size, index, this, _persistit);
                 _buffers[index] = buffer;
-                created++;
+                buffers++;
             }
-        } catch (OutOfMemoryError e) {
-            System.err.println("Out of memory after creating " + created + " buffers");
-            throw e;
-        }
-        _fastIndexCount = (int) (count * FAST_INDEX_RATIO);
-        _fastIndexes = new FastIndex[_fastIndexCount];
-        created = 0;
-        try {
             for (int index = 0; index < _fastIndexCount; index++) {
                 _fastIndexes[index] = new FastIndex(_maxKeys + 1);
                 _fastIndexes[index].setBuffer(_buffers[index]);
-                created++;
+                fastIndexes++;
             }
         } catch (OutOfMemoryError e) {
-            System.err.println("Out of memory after creating " + created + " FastIndex instances");
+            //
+            // Note: written this way to try to avoid another OOME.
+            // Do not use String.format here.
+            //
+            reserve = null;
+            System.err.print("Out of memory with ");
+            System.err.print(Runtime.getRuntime().freeMemory());
+            System.err.print(" bytes free after creating ");
+            System.err.print(buffers);
+            System.err.print("/");
+            System.err.print(_bufferCount);
+            System.err.print(" buffers and ");
+            System.err.print(fastIndexes);
+            System.err.print("/");
+            System.err.print(_fastIndexCount);
+            System.err.print(" fast indexes ");
+            System.err.print(" from maximum heap ");
+            System.err.println(_persistit.getAvailableHeap());
             throw e;
         }
         _writer = new PageWriter();
@@ -240,8 +303,7 @@ public class BufferPool {
         _writer.start();
     }
 
-    void close(final boolean flush) {
-        _fastClose.set(!flush);
+    void close() {
         _closed.set(true);
         _persistit.waitForIOTaskStop(_writer);
         _writer = null;
@@ -254,7 +316,7 @@ public class BufferPool {
     void crash() {
         IOTaskRunnable.crash(_writer);
     }
-    
+
     private void pause() throws PersistitInterruptedException {
         try {
             Thread.sleep(RETRY_SLEEP_TIME);
@@ -263,27 +325,27 @@ public class BufferPool {
         }
     }
 
-    int flush() throws PersistitInterruptedException {
-        int unavailable = 0;
-        for (int retries = 0; retries < MAX_FLUSH_RETRY_COUNT; retries++) {
-            unavailable = writeDirtyBuffers(false, true);
-            if (unavailable == 0) {
-                break;
-            }
+    void flush(final long timestamp) throws PersistitInterruptedException {
+        setFlushTimestamp(timestamp);
+        _writer.kick();
+        while (isFlushing()) {
             pause();
         }
-        return unavailable;
+    }
+
+    boolean isFlushing() {
+        return _flushTimestamp.get() != 0;
     }
 
     int hashIndex(Volume vol, long page) {
-        return (int) ((page ^ vol.getId()) % _hashTable.length);
+        return (int) (((page ^ vol.hashCode()) & Integer.MAX_VALUE) % _hashTable.length);
     }
 
     int countDirty(Volume vol) {
         int count = 0;
         for (int i = 0; i < _bufferCount; i++) {
             Buffer buffer = _buffers[i];
-            if ((vol == null || buffer.getVolume() == vol) && buffer.isDirty() && !buffer.isTransient()) {
+            if ((vol == null || buffer.getVolume() == vol) && buffer.isDirty() && !buffer.isTemporary()) {
                 count++;
             }
         }
@@ -309,26 +371,28 @@ public class BufferPool {
         info.hitCount = _hitCounter.get();
         info.newCount = _newCounter.get();
         info.evictCount = _evictCounter.get();
+        info.dirtyPageCount = _dirtyPageCount.get();
+        info.writeCount = _writeCounter.get();
+        info.forcedCheckpointWriteCount = _forcedCheckpointWriteCounter.get();
+        info.forcedWriteCount = _forcedWriteCounter.get();
         int validPages = 0;
-        int dirtyPages = 0;
         int readerClaimedPages = 0;
         int writerClaimedPages = 0;
+
         for (int index = 0; index < _bufferCount; index++) {
             Buffer buffer = _buffers[index];
             int status = buffer.getStatus();
             if ((status & SharedResource.VALID_MASK) != 0)
                 validPages++;
-            if ((status & SharedResource.DIRTY_MASK) != 0)
-                dirtyPages++;
             if ((status & SharedResource.WRITER_MASK) != 0)
                 writerClaimedPages++;
             else if ((status & SharedResource.CLAIMED_MASK) != 0)
                 readerClaimedPages++;
         }
         info.validPageCount = validPages;
-        info.dirtyPageCount = dirtyPages;
         info.readerClaimedPageCount = readerClaimedPages;
         info.writerClaimedPageCount = writerClaimedPages;
+
         info.updateAcquisitonTime();
     }
 
@@ -401,12 +465,35 @@ public class BufferPool {
     }
 
     /**
-     * 
      * @return The count of buffers newly created in this pool. Each time a new
      *         page is added to a Volume, this counter is incremented.
      */
     public long getNewCounter() {
         return _newCounter.get();
+    }
+
+    /**
+     * This counter is incremented ach time the eviction algorithm selects a
+     * dirty buffer to evict. Normally dirty pages are written by the background
+     * PAGE_WRITER thread, and therefore an abnormally large forcedWrite count
+     * indicates the PAGE_WRITER thread is falling behind.
+     * 
+     * @return The count of buffers written to disk when evicted.
+     */
+    public long getForcedWriteCounter() {
+        return _forcedWriteCounter.get();
+    }
+
+    /**
+     * This counter is incremented each time a application modifies a buffer
+     * that is (a) dirty, and (b) required to be written as part of a
+     * checkpoint. An abnormally large count indicates that the PAGE_WRITER
+     * thread is falling behind.
+     * 
+     * @return The count of buffers written to disk due to a checkpoint.
+     */
+    public long getForcedCheckpointWriteCounter() {
+        return _forcedCheckpointWriteCounter.get();
     }
 
     /**
@@ -435,6 +522,14 @@ public class BufferPool {
         _newCounter.incrementAndGet();
     }
 
+    void bumpWriteCounter() {
+        _writeCounter.incrementAndGet();
+    }
+
+    void bumpForcedCheckpointWrites() {
+        _forcedCheckpointWriteCounter.incrementAndGet();
+    }
+
     /**
      * Get the "hit ratio" - the number of hits divided by the number of overall
      * gets. A value close to 1.0 indicates that most attempts to find data in
@@ -452,38 +547,123 @@ public class BufferPool {
             return ((double) hitCounter) / ((double) getCounter);
     }
 
+    void incrementDirtyPageCount() {
+        _dirtyPageCount.incrementAndGet();
+    }
+
+    void decrementDirtyPageCount() {
+        _dirtyPageCount.decrementAndGet();
+    }
+
+    int getDirtyPageCount() {
+        return _dirtyPageCount.get();
+    }
+
     /**
      * Invalidate all buffers from a specified Volume.
      * 
      * @param volume
      *            The volume
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      */
-    void invalidate(Volume volume) throws PersistitInterruptedException {
-        for (int index = 0; index < _buffers.length; index++) {
-            Buffer buffer = _buffers[index];
-            if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
-                invalidate(buffer);
-            }
+    boolean invalidate(Volume volume) throws PersistitInterruptedException {
+        final float ratio = (float) volume.getStorage().getNextAvailablePage() / (float) _bufferCount;
+        if (ratio < SMALL_VOLUME_RATIO) {
+            return invalidateSmallVolume(volume);
+        } else {
+            return invalidateLargeVolume(volume);
         }
     }
 
-    void delete(Volume volume) throws PersistitInterruptedException {
-        for (int index = 0; index < _buffers.length; index++) {
-            Buffer buffer = _buffers[index];
-            if (buffer.getVolume() == volume) {
-                invalidate(buffer);
+    boolean invalidateSmallVolume(final Volume volume) throws PersistitInterruptedException {
+        boolean result = true;
+        int markedAvailable = 0;
+        for (long page = 1; page < volume.getStorage().getNextAvailablePage(); page++) {
+            int hashIndex = hashIndex(volume, page);
+            _hashLocks[hashIndex % HASH_LOCKS].lock();
+            try {
+                for (Buffer buffer = _hashTable[hashIndex]; buffer != null; buffer = buffer.getNext()) {
+                    if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
+                        if (buffer.claim(true, 0)) {
+                            // re-check after claim
+                            boolean invalidated = false;
+                            try {
+                                if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed()
+                                        && buffer.isValid()) {
+                                    invalidate(buffer);
+                                    invalidated = true;
+                                }
+                            } finally {
+                                buffer.release();
+                            }
+                            if (invalidated) {
+                                int q = buffer.getIndex() / 64;
+                                int p = buffer.getIndex() % 64;
+                                long bits = _availablePagesBits.get(q);
+                                if (_availablePagesBits.compareAndSet(q, bits, bits | (1L << p))) {
+                                    markedAvailable++;
+                                }
+                            }
+                        } else {
+                            result = false;
+                        }
+                    }
+                }
+            } finally {
+                _hashLocks[hashIndex % HASH_LOCKS].unlock();
             }
         }
+        if (markedAvailable > 0) {
+            _availablePages.set(true);
+        }
+        return result;
+
+    }
+
+    boolean invalidateLargeVolume(final Volume volume) throws PersistitInterruptedException {
+        boolean result = true;
+        int markedAvailable = 0;
+        for (int index = 0; index < _bufferCount; index++) {
+            Buffer buffer = _buffers[index];
+            if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
+                if (buffer.claim(true, 0)) {
+                    // re-check after claim
+                    boolean invalidated = false;
+                    try {
+                        if ((buffer.getVolume() == volume || volume == null) && !buffer.isFixed() && buffer.isValid()) {
+                            invalidate(buffer);
+                            invalidated = true;
+                        }
+                    } finally {
+                        buffer.release();
+                    }
+                    if (invalidated) {
+                        int q = buffer.getIndex() / 64;
+                        int p = buffer.getIndex() % 64;
+                        long bits = _availablePagesBits.get(q);
+                        if (_availablePagesBits.compareAndSet(q, bits, bits | (1L << p))) {
+                            markedAvailable++;
+                        }
+                    }
+                } else {
+                    result = false;
+                }
+            }
+        }
+        if (markedAvailable > 0) {
+            _availablePages.set(true);
+        }
+        return result;
     }
 
     private void invalidate(Buffer buffer) throws PersistitInterruptedException {
-        Debug.$assert0.t(buffer.isValid());
+        Debug.$assert0.t(buffer.isValid() && buffer.isMine());
+
         while (!detach(buffer)) {
             pause();
         }
         buffer.clearValid();
-        buffer.setClean();
+        buffer.clearDirty();
         buffer.setPageAddressAndVolume(0, null);
     }
 
@@ -551,7 +731,7 @@ public class BufferPool {
                         // Found it - now claim it.
                         //
                         if (buffer.claim(writer, 0)) {
-                            vol.bumpGetCounter();
+                            vol.getStatistics().bumpGetCounter();
                             bumpHitCounter();
                             return buffer;
                         } else {
@@ -588,10 +768,10 @@ public class BufferPool {
                         // page will find it.
                         //
                         buffer.setValid();
-                        if (vol.isTransient()) {
-                            buffer.setTransient();
+                        if (vol.isTemporary()) {
+                            buffer.setTemporary();
                         } else {
-                            buffer.clearTransient();
+                            buffer.clearTemporary();
                         }
                         Debug.$assert0.t(buffer.getNext() != buffer);
                         mustRead = true;
@@ -601,7 +781,7 @@ public class BufferPool {
                 _hashLocks[hash % HASH_LOCKS].unlock();
             }
             if (buffer == null) {
-                _writer.urgent();
+                _writer.kick();
                 synchronized (this) {
                     try {
                         wait(RETRY_SLEEP_TIME);
@@ -624,7 +804,7 @@ public class BufferPool {
                         //
                         // If so, then we're done.
                         //
-                        vol.bumpGetCounter();
+                        vol.getStatistics().bumpGetCounter();
                         bumpHitCounter();
                         return buffer;
                     }
@@ -657,7 +837,7 @@ public class BufferPool {
                                     && hashIndex(buffer.getVolume(), buffer.getPageAddress()) == hash);
                             buffer.load(vol, page);
                             loaded = true;
-                            vol.bumpGetCounter();
+                            vol.getStatistics().bumpGetCounter();
                             bumpMissCounter();
                         } finally {
                             if (!loaded) {
@@ -692,12 +872,13 @@ public class BufferPool {
      * @throws InvalidPageAddressException
      * @throws InvalidPageStructureException
      * @throws VolumeClosedException
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      * @throws RetryException
      * @throws IOException
      */
     public Buffer getBufferCopy(Volume vol, long page) throws InvalidPageAddressException,
-            InvalidPageStructureException, VolumeClosedException, TimeoutException, PersistitIOException, PersistitInterruptedException {
+            InvalidPageStructureException, VolumeClosedException, InUseException, PersistitIOException,
+            PersistitInterruptedException {
         int hash = hashIndex(vol, page);
         Buffer buffer = null;
         _hashLocks[hash % HASH_LOCKS].lock();
@@ -744,26 +925,89 @@ public class BufferPool {
      */
 
     private Buffer allocBuffer() throws PersistitException {
+        //
+        // Start by searching for an invalid page. It's preferable
+        // since no valid page will need to be evicted.
+        //
+        if (_availablePages.get()) {
+            int start = (_clock.get() / 64) * 64;
+            for (int q = start;;) {
+                q += 64;
+                if (q >= _bufferCount) {
+                    q = 0;
+                }
+                if (q == start) {
+                    break;
+                }
+                long bits = _availablePagesBits.get(q / 64);
+                if (bits != 0) {
+                    for (int p = 0; p < 64; p++) {
+                        if ((bits & (1L << p)) != 0) {
+                            final Buffer buffer = _buffers[q + p];
+                            //
+                            // Note: need to verify that there are no claims -
+                            // including those of the current thread.
+                            //
+                            if ((buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0 && buffer.claim(true, 0)) {
+                                if (!buffer.isValid()) {
+                                    bits = _availablePagesBits.get(q / 64);
+                                    if (_availablePagesBits.compareAndSet(q / 64, bits, bits & ~(1L << p))) {
+                                        buffer.clearDirty();
+                                        return buffer;
+                                    }
+                                }
+                                buffer.release();
+                            }
+                        }
+                    }
+                }
+            }
+            _availablePages.set(false);
+        }
+        //
+        // Look for a page to evict.
+        //
         for (int retry = 0; retry < _bufferCount * 2;) {
             int clock = _clock.get();
             assert clock < _bufferCount;
             if (!_clock.compareAndSet(clock, (clock + 1) % _bufferCount)) {
                 continue;
             }
-            boolean resetDirtyClock = false;
             Buffer buffer = _buffers[clock];
             if (buffer.isTouched()) {
                 buffer.clearTouched();
             } else {
+                //
+                // Note: need to verify that there are no claims - including
+                // those of the current thread.
+                //
                 if (!buffer.isFixed() && (buffer.getStatus() & SharedResource.CLAIMED_MASK) == 0
                         && buffer.claim(true, 0)) {
                     if (buffer.isDirty()) {
-                        if (!resetDirtyClock) {
-                            resetDirtyClock = true;
-                            _dirtyClock.set(clock);
-                            _writer.urgent();
+                        // An invalid dirty buffer is available and does not
+                        // need to be written.
+                        if (!buffer.isValid()) {
+                            buffer.clearDirty();
+                            return buffer;
                         }
-                        buffer.release();
+                        // A dirty valid buffer needs to be written and then
+                        // marked invalid
+                        try {
+                            buffer.writePage();
+                            if (detach(buffer)) {
+                                buffer.clearValid();
+                                _forcedWriteCounter.incrementAndGet();
+                                _evictCounter.incrementAndGet();
+                                _persistit.getIOMeter().chargeEvictPageFromPool(buffer.getVolume(),
+                                        buffer.getPageAddress(), buffer.getBufferSize(), buffer.getIndex());
+                            }
+                        } finally {
+                            if (!buffer.isValid()) {
+                                return buffer;
+                            } else {
+                                buffer.release();
+                            }
+                        }
                     } else {
                         if (buffer.isValid() && detach(buffer)) {
                             buffer.clearValid();
@@ -812,62 +1056,177 @@ public class BufferPool {
         WRITTEN, UNAVAILABLE, ERROR
     };
 
-    long earliestDirtyTimestamp() {
-        long earliestDirtyTimestamp = Long.MAX_VALUE;
-        for (int index = 0; index < _buffers.length; index++) {
-            final Buffer buffer = _buffers[index];
-            if (buffer.isDirty() && !buffer.isTransient()) {
-                long timestamp = buffer.getTimestamp();
-                if (timestamp < earliestDirtyTimestamp) {
-                    earliestDirtyTimestamp = timestamp;
+    long getEarliestDirtyTimestamp() {
+        return _earliestDirtyTimestamp;
+    }
+
+    void setFlushTimestamp(final long timestamp) {
+        while (true) {
+            long current = _flushTimestamp.get();
+            if (timestamp > current) {
+                if (_flushTimestamp.compareAndSet(current, timestamp)) {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    private void writeDirtyBuffers(final int[] priorities, final Buffer[] selectedBuffers) throws PersistitException {
+        int count = selectDirtyBuffers(priorities, selectedBuffers);
+        if (count > 0) {
+            Arrays.sort(selectedBuffers, 0, count);
+            for (int index = 0; index < count; index++) {
+                final Buffer buffer = selectedBuffers[index];
+                if (buffer.claim(true, 0)) {
+                    try {
+                        if (buffer.isDirty() && buffer.isValid()) {
+                            buffer.writePage();
+                        }
+                    } finally {
+                        buffer.release();
+                    }
                 }
             }
         }
-        return earliestDirtyTimestamp;
     }
 
-    private int writeDirtyBuffers(final boolean urgent, final boolean all) throws PersistitInterruptedException {
-        int unavailable = 0;
-        int start = _dirtyClock.get();
-        int max = all ? _bufferCount : _bufferCount / 8;
-        final int end = all ? start + _bufferCount : start + (_bufferCount / 8);
-        int index = start;
-        for (; index < end; index++) {
+    int selectDirtyBuffers(final int[] priorities, final Buffer[] buffers) throws PersistitException {
+        int count = 0;
+        int min = Integer.MAX_VALUE;
+        final int clock = _clock.get();
+
+        final long checkpointTimestamp = _persistit.getTimestampAllocator().getCurrentCheckpoint().getTimestamp();
+        long earliestDirtyTimestamp = checkpointTimestamp;
+        long flushTimestamp = _flushTimestamp.get();
+
+        boolean flushed = true;
+        for (int index = clock; index < clock + _bufferCount; index++) {
             final Buffer buffer = _buffers[index % _bufferCount];
-            if (buffer.isDirty()) {
-                if (buffer.claim(true, 0)) {
-                    try {
-                        if (buffer.isValid() && buffer.isDirty()) {
-                            buffer.writePage();
-                            if (--max <= 0) {
-                                index++;
-                                break;
+            if (!buffer.claim(false, SELECT_DIRTY_BUFFERS_WAIT_INTERVAL)) {
+                earliestDirtyTimestamp = _earliestDirtyTimestamp;
+                flushed = false;
+            } else {
+                try {
+                    final int priority = writePriority(buffer, clock, checkpointTimestamp);
+                    if (priority > 0) {
+                        if (priority <= min) {
+                            if (count < priorities.length) {
+                                priorities[count] = priority;
+                                buffers[count] = buffer;
+                                count++;
+                                min = priority;
                             }
                         } else {
-                            buffer.setClean();
+                            count = Math.min(count, priorities.length - 1);
+                            int where;
+                            for (where = count; --where >= 0 && priorities[where] < priority;) {
+                            }
+                            System.arraycopy(priorities, where + 1, priorities, where + 2, count - where - 1);
+                            System.arraycopy(buffers, where + 1, buffers, where + 2, count - where - 1);
+                            priorities[where + 1] = priority;
+                            buffers[where + 1] = buffer;
+                            count++;
                         }
-                    } catch (Exception e) {
-                        _persistit.getLogBase().writeException.log(e, buffer.getVolume(), buffer.getPageAddress());
-                    } finally {
-                        buffer.release();
-                        if (urgent) {
-                            synchronized (BufferPool.this) {
-                                notify();
+                        if (!buffer.isTemporary()) {
+                            if (buffer.getTimestamp() < earliestDirtyTimestamp) {
+                                earliestDirtyTimestamp = buffer.getTimestamp();
+                            }
+
+                            if (buffer.getTimestamp() <= flushTimestamp) {
+                                flushed = false;
                             }
                         }
                     }
-                } else {
-                    unavailable++;
+                } finally {
+                    buffer.release();
                 }
             }
         }
-        _dirtyClock.compareAndSet(start, index % _bufferCount);
-        return unavailable;
+
+        _earliestDirtyTimestamp = earliestDirtyTimestamp;
+
+        if (flushed) {
+            _flushTimestamp.compareAndSet(flushTimestamp, 0);
+        }
+        return count;
     }
 
+    /**
+     * Computes a priority for writing the specified Buffer. A larger value
+     * denotes a greater priority. Priority 0 indicates the buffer is ineligible
+     * to be written.
+     * 
+     * @return priority
+     */
+    private int writePriority(final Buffer buffer, int clock, long checkpointTimestamp) {
+        int status = buffer.getStatus();
+        if ((status & Buffer.VALID_MASK) == 0 || (status & Buffer.DIRTY_MASK) == 0) {
+            // ineligible
+            return 0;
+        }
+        //
+        // compute "distance" between this buffer and the clock. A larger
+        // distance results in lower priority.
+        //
+        int distance = (buffer.getIndex() - _clock.get() + _bufferCount) % _bufferCount;
+        //
+        // If this buffer has been touched, then it won't be evicted for at
+        // least another _bufferCount cycles, and its distance is therefore
+        // increased.
+        //
+        if ((status & Buffer.TOUCHED_MASK) != 0) {
+            distance += _bufferCount;
+        }
+
+        if (!buffer.isTemporary()) {
+            //
+            // Give higher priority to a dirty buffer that needs to be
+            // check-pointed.
+            //
+            if (buffer.getTimestamp() < checkpointTimestamp) {
+                distance -= _bufferCount;
+                //
+                // And give even higher priority to a dirty buffer that
+                // is older than the previous checkpoint since that buffer
+                // is preventing a new checkpoint from being written.
+                //
+                if (buffer.getTimestamp() < checkpointTimestamp
+                        - _persistit.getTimestampAllocator().getCheckpointInterval()) {
+                    distance -= _bufferCount;
+                }
+            }
+            //
+            // If there's a flushTimestamp then increase the priority of
+            // writing this buffer it its timestamp is older than the
+            // flushTimestamp.
+            //
+            if (buffer.getTimestamp() < _flushTimestamp.get()) {
+                distance -= _bufferCount;
+            }
+        } else {
+            //
+            // Temporary buffer - don't write it at all until the clock goes
+            // through at least a full cycle.
+            //
+            if (distance > _bufferCount) {
+                return 0;
+            }
+        }
+        //
+        // Bias to a large positive integer (magnitude doesn't matter)
+        //
+        return Integer.MAX_VALUE / 2 - distance;
+    }
+
+    /**
+     * Implementation of PAGE_WRITER thread.
+     */
     private class PageWriter extends IOTaskRunnable {
-        private boolean _clean;
-        private boolean _wasClosed;
+
+        final int[] _priorities = new int[PAGE_WRITER_TRANCHE_SIZE];
+        final Buffer[] _selectedBuffers = new Buffer[PAGE_WRITER_TRANCHE_SIZE];
 
         PageWriter() {
             super(BufferPool.this._persistit);
@@ -879,27 +1238,27 @@ public class BufferPool {
 
         @Override
         public void runTask() throws PersistitException {
-            _wasClosed = _closed.get();
-            _clean = writeDirtyBuffers(_urgent.get(), _wasClosed) == 0;
-            if (_clean) {
-                _urgent.set(false);
+            _persistit.getIOMeter().poll();
+            _persistit.cleanup();
+
+            int cleanCount = _bufferCount - _dirtyPageCount.get();
+            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8 && !isFlushing()
+                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {
+                return;
             }
+            writeDirtyBuffers(_priorities, _selectedBuffers);
         }
 
         @Override
         protected boolean shouldStop() {
-            return _fastClose.get() || _clean && _wasClosed;
+            return _closed.get() && !isFlushing();
         }
 
         @Override
         protected long pollInterval() {
-            return _wasClosed || _urgent.get() ? 0 : _writerPollInterval;
+            return isFlushing() ? 0 : _writerPollInterval;
         }
 
-        @Override
-        protected void urgent() {
-            super.urgent();
-        }
     }
 
     @Override

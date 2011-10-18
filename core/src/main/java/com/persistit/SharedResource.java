@@ -69,7 +69,7 @@ class SharedResource {
      * Status field mask for a resource that is dirty but not required to be
      * written with any checkpoint.
      */
-    final static int TRANSIENT_MASK = 0x00400000;
+    final static int TEMPORARY_MASK = 0x00400000;
 
     /**
      * Status field mask indicating a resource has been touched. Used by
@@ -82,6 +82,11 @@ class SharedResource {
      * replaced. The buffer houses a Volume's head page.
      */
     final static int FIXED_MASK = 0x40000000;
+
+    final static AtomicLong ACQUIRE_LOOPS = new AtomicLong();
+    final static AtomicLong RELEASE_LOOPS = new AtomicLong();
+    final static AtomicLong SET_BIT_LOOPS = new AtomicLong();
+    final static AtomicLong CLEAR_BIT_LOOPS = new AtomicLong();
 
     /**
      * Extension of {@link AbstractQueuedSynchronizer} with Persistit semantics.
@@ -109,6 +114,7 @@ class SharedResource {
                     setExclusiveOwnerThread(thisThread);
                     return true;
                 }
+                ACQUIRE_LOOPS.incrementAndGet();
             }
         }
 
@@ -131,6 +137,7 @@ class SharedResource {
                 } else if (compareAndSetState(state, state + 1)) {
                     return CLAIMED_MASK - (state & CLAIMED_MASK) - 1;
                 }
+                ACQUIRE_LOOPS.incrementAndGet();
             }
         }
 
@@ -139,7 +146,7 @@ class SharedResource {
          * acquired shared access. This method upgrades the state to exclusive,
          * but only if there is exactly one shared acquire.
          * 
-         * TODO  - prove that caller already a reader claim
+         * TODO - prove that caller already a reader claim
          * 
          * @return
          */
@@ -154,6 +161,7 @@ class SharedResource {
                     setExclusiveOwnerThread(thisThread);
                     return true;
                 }
+                ACQUIRE_LOOPS.incrementAndGet();
             }
         }
 
@@ -205,6 +213,7 @@ class SharedResource {
                 } else {
                     throw new IllegalMonitorStateException("Unmatched attempt to release " + this);
                 }
+                RELEASE_LOOPS.incrementAndGet();
             }
         }
 
@@ -217,21 +226,25 @@ class SharedResource {
             return getExclusiveOwnerThread();
         }
 
-        private void setBitsInState(final int mask) {
+        private boolean setBitsInState(final int mask) {
             for (;;) {
                 final int state = getState();
-                if (compareAndSetState(state, state | mask)) {
-                    break;
+                final int newState = state | mask;
+                if (compareAndSetState(state, newState)) {
+                    return state != newState;
                 }
+                SET_BIT_LOOPS.incrementAndGet();
             }
         }
 
-        private void clearBitsInState(final int mask) {
+        private boolean clearBitsInState(final int mask) {
             for (;;) {
                 final int state = getState();
-                if (compareAndSetState(state, state & ~mask)) {
-                    break;
+                final int newState = state & ~mask;
+                if (compareAndSetState(state, newState)) {
+                    return state != newState;
                 }
+                CLEAR_BIT_LOOPS.incrementAndGet();
             }
         }
 
@@ -265,8 +278,8 @@ class SharedResource {
         return _sync.testBitsInState(VALID_MASK);
     }
 
-    public boolean isTransient() {
-        return _sync.testBitsInState(TRANSIENT_MASK);
+    public boolean isTemporary() {
+        return _sync.testBitsInState(TEMPORARY_MASK);
     }
 
     boolean isFixed() {
@@ -311,7 +324,6 @@ class SharedResource {
             } catch (InterruptedException e) {
                 throw new PersistitInterruptedException(e);
             }
-            Debug.$assert1.t(false);
             return false;
         }
     }
@@ -328,12 +340,12 @@ class SharedResource {
         _sync.release(0);
     }
 
-    void setClean() {
-        _sync.clearBitsInState(DIRTY_MASK);
+    boolean setDirty() {
+        return _sync.setBitsInState(DIRTY_MASK);
     }
 
-    void setDirty() {
-        _sync.setBitsInState(DIRTY_MASK);
+    boolean clearDirty() {
+        return _sync.clearBitsInState(DIRTY_MASK);
     }
 
     void setTouched() {
@@ -360,12 +372,12 @@ class SharedResource {
         return _generation.get();
     }
 
-    void setTransient() {
-        _sync.setBitsInState(TRANSIENT_MASK);
+    void setTemporary() {
+        _sync.setBitsInState(TEMPORARY_MASK);
     }
 
-    void clearTransient() {
-        _sync.clearBitsInState(TRANSIENT_MASK);
+    void clearTemporary() {
+        _sync.clearBitsInState(TEMPORARY_MASK);
     }
 
     void setValid() {
@@ -430,13 +442,13 @@ class SharedResource {
         default:
             StringBuilder sb = new StringBuilder(8);
 
-            if ((state & VALID_MASK) != 0) { //TODO chars
+            if ((state & VALID_MASK) != 0) { // TODO chars
                 sb.append("v");
             }
             if ((state & DIRTY_MASK) != 0) {
                 sb.append("d");
             }
-            if ((state & TRANSIENT_MASK) != 0) {
+            if ((state & TEMPORARY_MASK) != 0) {
                 sb.append("t");
             }
             if ((state & WRITER_MASK) != 0) {

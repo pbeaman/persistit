@@ -15,9 +15,9 @@
 
 package com.persistit;
 
-import com.persistit.JournalManager.VolumeDescriptor;
+import com.persistit.Volume;
 
 interface VolumeHandleLookup {
 
-    VolumeDescriptor lookupVolumeHandle(final int handle);
+    Volume lookupVolumeHandle(final int handle);
 }

@@ -15,6 +15,12 @@
 
 package com.persistit;
 
+import static com.persistit.VolumeHeader.getDirectoryRoot;
+import static com.persistit.VolumeHeader.getExtendedPageCount;
+import static com.persistit.VolumeHeader.getGarbageRoot;
+import static com.persistit.VolumeHeader.getId;
+import static com.persistit.VolumeHeader.getNextAvailablePage;
+
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
@@ -22,6 +28,7 @@ import java.util.Stack;
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
 import com.persistit.TimestampAllocator.Checkpoint;
+import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.InvalidPageTypeException;
@@ -58,7 +65,7 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 
-public final class Buffer extends SharedResource {
+public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
     /**
      * Architectural lower bound on buffer size
@@ -391,15 +398,19 @@ public final class Buffer extends SharedResource {
 
     /**
      * Extract fields from the buffer.
+     * 
+     * @throws PersistitIOException
+     * @throws InvalidPageAddressException
+     * @throws InvalidPageStructureException
+     * @throws VolumeClosedException
+     * @throws InUseException
+     * @throws PersistitInterruptedException
      */
     void load(Volume vol, long page) throws PersistitIOException, InvalidPageAddressException,
-            InvalidPageStructureException, VolumeClosedException {
+            InvalidPageStructureException, VolumeClosedException, InUseException, PersistitInterruptedException {
         _vol = vol;
         _page = page;
-        final boolean readFromLog = _persistit.getJournalManager().readPageFromJournal(this);
-        if (!readFromLog) {
-            vol.readPage(this, page);
-        }
+        vol.getStorage().readPage(this);
         load();
     }
 
@@ -444,8 +455,10 @@ public final class Buffer extends SharedResource {
     void writePageOnCheckpoint(final long timestamp) throws PersistitException {
         Debug.$assert0.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
-        if (isDirty() && getTimestamp() < checkpoint.getTimestamp() && timestamp > checkpoint.getTimestamp()) {
+        if (isDirty() && !isTemporary() && getTimestamp() < checkpoint.getTimestamp()
+                && timestamp > checkpoint.getTimestamp()) {
             writePage();
+            _pool.bumpForcedCheckpointWrites();
         }
     }
 
@@ -454,16 +467,29 @@ public final class Buffer extends SharedResource {
         if (volume != null) {
             clearSlack();
             save();
-            _persistit.getJournalManager().writePageToJournal(this);
-            setClean();
-            if (!volume.isClosed()) {
-                volume.bumpWriteCounter();
-            }
+            _vol.getStorage().writePage(this);
+            clearDirty();
+            volume.getStatistics().bumpWriteCounter();
+            _pool.bumpWriteCounter();
         }
     }
 
+    boolean clearDirty() {
+        if (super.clearDirty()) {
+            _pool.decrementDirtyPageCount();
+            return true;
+        }
+        return false;
+    }
+
+    boolean setDirty() {
+        throw new UnsupportedOperationException();
+    }
+
     void setDirtyAtTimestamp(final long timestamp) {
-        super.setDirty();
+        if (super.setDirty()) {
+            _pool.incrementDirtyPageCount();
+        }
         _timestamp = timestamp;
         bumpGeneration();
     }
@@ -514,8 +540,8 @@ public final class Buffer extends SharedResource {
      * Post fields back into the buffer in preparation for writing it to disk.
      */
     void save() {
+        putLong(TIMESTAMP_OFFSET, _timestamp);
         if (_page != 0) {
-            putLong(TIMESTAMP_OFFSET, _timestamp);
             putByte(TYPE_OFFSET, _type);
             putByte(BUFFER_LENGTH_OFFSET, _bufferSize / 256);
             putChar(KEY_BLOCK_END_OFFSET, _keyBlockEnd);
@@ -670,7 +696,7 @@ public final class Buffer extends SharedResource {
         Debug.$assert0.t(buffer != this);
         _next = buffer;
     }
-    
+
     Buffer getNext() {
         return _next;
     }
@@ -701,7 +727,7 @@ public final class Buffer extends SharedResource {
      * @return An encoded result (see above). Returns 0 if the supplied key
      *         precedes the first key in the page. Returns Integer.MAX_VALUE if
      *         it follows the last key in the page.
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      */
     int findKey(Key key) throws PersistitInterruptedException {
         final FastIndex fastIndex = getFastIndex();
@@ -785,7 +811,8 @@ public final class Buffer extends SharedResource {
                                 // The key at the end of the run is still less
                                 // than kb so we just skip the entire run and
                                 // increment p. One possibility is that the
-                                // run is interrupted by a series of deeper keys -
+                                // run is interrupted by a series of deeper keys
+                                // -
                                 // in that case we use the cross count to skip
                                 // all of them.
                                 int runCount2 = fastIndex.getRunCount(index + runCount);
@@ -1244,7 +1271,7 @@ public final class Buffer extends SharedResource {
      *            The key on under which the value will be stored
      * @param value
      *            The value, converted to a byte array
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      */
     int putValue(Key key, Value value) throws PersistitInterruptedException {
         int p = findKey(key);
@@ -3241,19 +3268,18 @@ public final class Buffer extends SharedResource {
      *         this <code>Buffer</code>.
      */
     public String summarize() {
-        return "page=" + _page + " type=" + getPageTypeName() + " rightSibling=" + _rightSibling + " status="
-                + getStatusDisplayString() + " start=" + KEY_BLOCK_START + " end=" + _keyBlockEnd + " size="
-                + _bufferSize + " alloc=" + _alloc + " slack=" + _slack + " index=" + _poolIndex + " timestamp="
-                + _timestamp + " generation=" + _generation;
+        return String.format("Page=%,d type=%s rightSibling=%,d status=%s start=%d end=%d size=%d alloc=%d "
+                + "slack=%d index=%d timestamp=%,d generation=%,d", _page, getPageTypeName(), _rightSibling,
+                getStatusDisplayString(), KEY_BLOCK_START, _keyBlockEnd, _bufferSize, _alloc, _slack, _poolIndex,
+                _timestamp, _generation);
     }
 
     public String toString() {
         if (_toStringDebug) {
             return toStringDetail(-1);
         }
-
-        return "Page " + _page + " in Volume " + _vol + " at index " + _poolIndex + " status="
-                + getStatusDisplayString() + " type=" + getPageTypeName();
+        return String.format("Page %,d in volume %s at index %,d timestamp=%,d status=%s type=%s", _page, _vol,
+                _poolIndex, _timestamp, getStatusDisplayString(), getPageTypeName());
     }
 
     /**
@@ -3331,16 +3357,11 @@ public final class Buffer extends SharedResource {
                 sb.append(" - " + e);
             }
         } else if (isHeadPage()) {
-            //
-            // TODO - Desperately needs to be refactored so that Volume and this
-            // method don't need all these constant byte references.
-            //
             sb.append(String.format("\n  type=%,d  " + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
                     getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
-            sb.append(String.format("\n  highestPageUsed=%,d pageCount=%,d "
-                    + "firstAvailablePage=%,d directoryRootPage=%,d garbageRootPage=%,d id=%,d ", Util.getLong(_bytes,
-                    104), Util.getLong(_bytes, 112), Util.getLong(_bytes, 136), Util.getLong(_bytes, 144), Util
-                    .getLong(_bytes, 152), Util.getLong(_bytes, 32)));
+            sb.append(String.format("\n  nextAvailablePage=%,d extendedPageCount=%,d "
+                    + " directoryRootPage=%,d garbageRootPage=%,d id=%,d ", getNextAvailablePage(_bytes),
+                    getExtendedPageCount(_bytes), getDirectoryRoot(_bytes), getGarbageRoot(_bytes), getId(_bytes)));
         } else if (isGarbagePage()) {
             sb.append(String.format("\n  type=%,d  " + "timestamp=%,d generation=%,d right=%,d hash=%,d", _type,
                     getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
@@ -3544,10 +3565,8 @@ public final class Buffer extends SharedResource {
         info.rightSiblingAddress = _rightSibling;
         Volume vol = _vol;
         if (vol != null) {
-            info.volumeId = vol.getId();
             info.volumeName = vol.getPath();
         } else {
-            info.volumeId = 0;
             info.volumeName = null;
         }
         info.type = _type;
@@ -3569,6 +3588,29 @@ public final class Buffer extends SharedResource {
         }
         info.updateAcquisitonTime();
 
+    }
+
+    /**
+     * Used to sort buffers in ascending page address order by volume.
+     * 
+     * @param buffer
+     * @return -1, 0 or 1 as this <code>Buffer</code> falls before, a, or after
+     *         the supplied <code>Buffer</code> in the desired page address
+     *         order.
+     */
+    @Override
+    public int compareTo(Buffer buffer) {
+        if (buffer.getVolume() == null) {
+            return 1;
+        }
+        if (getVolume() == null) {
+            return -1;
+        }
+        if (getVolume().equals(buffer.getVolume())) {
+            return getPageAddress() > buffer.getPageAddress() ? 1 : getPageAddress() < buffer.getPageAddress() ? -1 : 0;
+        }
+        return getVolume().getId() > buffer.getVolume().getId() ? 1
+                : getVolume().getId() < buffer.getVolume().getId() ? -1 : 0;
     }
 
 }

@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.io.RandomAccessFile;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -114,6 +113,7 @@ public class CLI {
             registerCommands(clazz);
         }
     }
+
     /**
      * Registers command methods provided by the supplied Class. To be
      * registered as a CLI command, a method must be identified by a @Cmd
@@ -217,6 +217,16 @@ public class CLI {
         while ((c = reader.read()) != -1) {
             System.out.print((char) c);
         }
+        System.out.println();
+    }
+
+    public static void runScript(final Persistit persistit, final BufferedReader reader, final PrintWriter writer)
+            throws Exception {
+        CLI cli = new CLI(persistit, reader, writer);
+        cli.commandLoop();
+        cli.close(false);
+        writer.println();
+        writer.flush();
     }
 
     private static long availableMemory() {
@@ -348,6 +358,40 @@ public class CLI {
         }
     }
 
+    private static class ScriptReader implements LineReader {
+
+        private final BufferedReader _reader;
+        private final PrintWriter _writer;
+
+        private ScriptReader(final BufferedReader reader, PrintWriter writer) {
+            _reader = reader;
+            _writer = writer;
+        }
+
+        @Override
+        public String readLine() throws IOException {
+            String line = _reader.readLine();
+            if (line != null) {
+                _writer.println();
+                _writer.println(">> " + line);
+                _writer.flush();
+            }
+            return line;
+        }
+
+        @Override
+        public PrintWriter writer() {
+            return _writer;
+        }
+
+        @Override
+        public void close() throws IOException {
+            _reader.close();
+            _writer.close();
+        }
+
+    }
+
     private static class Command {
         final String name;
         final String[] argTemplate;
@@ -435,8 +479,13 @@ public class CLI {
     private String _lastStatus;
 
     public CLI(final Persistit persistit, final int port) throws IOException {
-
         _lineReader = new NetworkReader(port);
+        _persistit = persistit;
+        _live = persistit != null;
+    }
+
+    public CLI(final Persistit persistit, final BufferedReader reader, final PrintWriter writer) {
+        _lineReader = new ScriptReader(reader, writer);
         _persistit = persistit;
         _live = persistit != null;
     }
@@ -534,7 +583,7 @@ public class CLI {
                 : volumepath));
         Set<Integer> bufferSizes = new HashSet<Integer>();
         for (final VolumeSpecification vs : volumeSpecifications) {
-            bufferSizes.add(vs.getBufferSize());
+            bufferSizes.add(vs.getPageSize());
         }
         final Properties properties = new Properties();
         long bpoolMemory = availableMemory() / 2;
@@ -569,12 +618,12 @@ public class CLI {
             persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         }
         persistit.initialize(properties);
-        
+
         /**
          * Following is a hack to figure ought whether there is a classIndex in
-         * exactly one volume, and if so, make is the system volume. There should
-         * be an API in the Persistit class itself to do this, but currently there
-         * isn't one.
+         * exactly one volume, and if so, make is the system volume. There
+         * should be an API in the Persistit class itself to do this, but
+         * currently there isn't one.
          */
         Volume sysvol = null;
         for (final Volume volume : persistit.getVolumes()) {
@@ -590,8 +639,7 @@ public class CLI {
         if (sysvol != null) {
             properties.put(Persistit.SYSTEM_VOLUME_PROPERTY, sysvol.getName());
         }
-        
-        
+
         _persistit = persistit;
         return "Last valid checkpoint=" + persistit.getRecoveryManager().getLastValidCheckpoint().toString();
     }
@@ -910,14 +958,10 @@ public class CLI {
                 continue;
             }
             try {
-                final File file = new File(path);
-                final VolumeInfo volumeInfo = volumeInfo(file);
-                if (volumeInfo != null) {
-                    list.add(new VolumeSpecification(path + ",pageSize:" + volumeInfo._bufferSize + ",id:"
-                            + volumeInfo._id));
+                final VolumeSpecification specification = new VolumeSpecification(path);
+                if (VolumeHeader.verifyVolumeHeader(specification)) {
+                    list.add(specification);
                 }
-            } catch (IOException e) {
-                // ignore this file
             } catch (PersistitException e) {
                 // ignore this file
             }
@@ -941,25 +985,6 @@ public class CLI {
         }
         Collections.sort(list);
         return list;
-    }
-
-    private VolumeInfo volumeInfo(final File candidate) throws IOException {
-        if (!candidate.exists() || !candidate.isFile()) {
-            return null;
-        }
-        RandomAccessFile raf = null;
-        try {
-            raf = new RandomAccessFile(candidate, "r");
-            final VolumeHeader header = new VolumeHeader(raf.getChannel());
-            final byte[] bytes = header.validate().array();
-            return new VolumeInfo(bytes);
-        } catch (PersistitException pe) {
-            return null;
-        } finally {
-            if (raf != null) {
-                raf.close();
-            }
-        }
     }
 
     // TODO - we REALLY need to refactor Volume!

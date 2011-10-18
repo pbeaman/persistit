@@ -23,7 +23,7 @@ import java.io.ObjectStreamClass;
  * 
  */
 
-public class ClassInfo {
+class ClassInfo {
     private Class<?> _class;
     private long _suid;
     private int _handle;

@@ -870,6 +870,9 @@ public interface Management extends Remote, ManagementMXBean {
         long hitCount;
         long newCount;
         long evictCount;
+        long writeCount;
+        long forcedWriteCount;
+        long forcedCheckpointWriteCount;
         int validPageCount;
         int dirtyPageCount;
         int readerClaimedPageCount;
@@ -880,9 +883,11 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         @ConstructorProperties({ "bufferSize", "bufferCount", "missCount", "hitCount", "newCount", "evictCount",
-                "validPageCount", "dirtyPageCount", "readerClaimedPageCount", "writerClaimedPageCount" })
+                "writeCount", "forcedWriteCount", "forcedCheckpointWriteCount", "validPageCount", "dirtyPageCount",
+                "readerClaimedPageCount", "writerClaimedPageCount" })
         public BufferPoolInfo(int bufferSize, int bufferCount, long missCount, long hitCount, long newCount,
-                long evictCount, long readCounter, int validPageCount, int dirtyPageCount, int readerClaimedPageCount,
+                long writeCount, long evictCount, long forcedWriteCount, long forcedCheckpointWriteCount,
+                long readCounter, int validPageCount, int dirtyPageCount, int readerClaimedPageCount,
                 int writerClaimedPageCount) {
             super();
             this.bufferSize = bufferSize;
@@ -891,6 +896,9 @@ public interface Management extends Remote, ManagementMXBean {
             this.hitCount = hitCount;
             this.newCount = newCount;
             this.evictCount = evictCount;
+            this.writeCount = writeCount;
+            this.forcedWriteCount = forcedWriteCount;
+            this.forcedCheckpointWriteCount = forcedCheckpointWriteCount;
             this.validPageCount = validPageCount;
             this.dirtyPageCount = dirtyPageCount;
             this.readerClaimedPageCount = readerClaimedPageCount;
@@ -955,6 +963,34 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public long getEvictCount() {
             return evictCount;
+        }
+
+        /**
+         * Return count of pages written from this pool.
+         * 
+         * @return The forced write count
+         */
+        public long getWriteCount() {
+            return writeCount;
+        }
+
+        /**
+         * Return count of pages forced to be written when dirty on eviction
+         * 
+         * @return The forced write count
+         */
+        public long getForcedWriteCount() {
+            return forcedWriteCount;
+        }
+
+        /**
+         * Return count of pages forced to be written due to an updated after a
+         * checkpoint
+         * 
+         * @return The forced checkpoint write count
+         */
+        public long getForcedCheckpointWriteCount() {
+            return forcedCheckpointWriteCount;
         }
 
         /**
@@ -1368,32 +1404,36 @@ public interface Management extends Remote, ManagementMXBean {
         long traverseCounter;
         long storeCounter;
         long removeCounter;
-        boolean isTransient;
+        boolean isTemporary;
 
         VolumeInfo(Volume vol) {
             super();
             path = vol.getPath();
             id = vol.getId();
-            createTime = vol.getCreateTime();
-            generation = vol.getGeneration();
-            getCounter = vol.getGetCounter();
-            readCounter = vol.getReadCounter();
-            writeCounter = vol.getWriteCounter();
-            fetchCounter = vol.getFetchCounter();
-            storeCounter = vol.getStoreCounter();
-            removeCounter = vol.getRemoveCounter();
-            traverseCounter = vol.getTraverseCounter();
-            pageSize = vol.getPageSize();
-            openTime = vol.getOpenTime();
-            lastRead = vol.getLastReadTime();
-            lastWrite = vol.getLastWriteTime();
-            lastExtension = vol.getLastExtensionTime();
-            maximumPage = vol.getMaximumPageInUse();
-            currentPageCount = vol.getPageCount();
-            maximumPageCount = vol.getMaximumPages();
-            extensionPageCount = vol.getExtensionPages();
-            garbageRootPage = vol.getGarbageRoot();
-            isTransient = vol.isTransient();
+            VolumeStatistics stat = vol.getStatistics();
+            VolumeStructure struc = vol.getStructure();
+            VolumeStorage store = vol.getStorage();
+            VolumeSpecification spec = vol.getSpecification();
+            createTime = stat.getCreateTime();
+            generation = store.getGeneration();
+            getCounter = stat.getGetCounter();
+            readCounter = stat.getReadCounter();
+            writeCounter = stat.getWriteCounter();
+            fetchCounter = stat.getFetchCounter();
+            storeCounter = stat.getStoreCounter();
+            removeCounter = stat.getRemoveCounter();
+            traverseCounter = stat.getTraverseCounter();
+            pageSize = struc.getPageSize();
+            openTime = stat.getOpenTime();
+            lastRead = stat.getLastReadTime();
+            lastWrite = stat.getLastWriteTime();
+            lastExtension = stat.getLastExtensionTime();
+            maximumPage = stat.getNextAvailablePage();
+            currentPageCount = store.getExtentedPageCount();
+            maximumPageCount = spec.getMaximumPages();
+            extensionPageCount = spec.getExtensionPages();
+            garbageRootPage = struc.getGarbageRoot();
+            isTemporary = vol.isTemporary();
             name = vol.getName();
         }
 
@@ -1429,7 +1469,7 @@ public interface Management extends Remote, ManagementMXBean {
             this.traverseCounter = traverseCounter;
             this.storeCounter = storeCounter;
             this.removeCounter = removeCounter;
-            this.isTransient = isTransient;
+            this.isTemporary = isTransient;
         }
 
         /**
@@ -1650,7 +1690,7 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         public boolean isTransient() {
-            return isTransient;
+            return isTemporary;
         }
 
         /**

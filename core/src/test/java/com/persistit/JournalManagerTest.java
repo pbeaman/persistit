@@ -50,7 +50,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final String path = UnitTestProperties.DATA_PATH + "/JournalManagerTest_journal_";
         jman.init(null, path, 100 * 1000 * 1000);
         final BufferPool pool = _persistit.getBufferPool(16384);
-        final long pages = Math.min(1000, volume.getPageCount());
+        final long pages = Math.min(1000, volume.getStorage().getNextAvailablePage() - 1);
         for (int i = 0; i < 1000; i++) {
             final Buffer buffer = pool.get(volume, i % pages, false, true);
             if ((i % 400) == 0) {
@@ -194,7 +194,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final String path = UnitTestProperties.DATA_PATH + "/JournalManagerTest_journal_";
         jman.init(null, path, 100 * 1000 * 1000);
         final BufferPool pool = _persistit.getBufferPool(16384);
-        final long pages = Math.min(1000, volume.getPageCount());
+        final long pages = Math.min(1000, volume.getStorage().getNextAvailablePage() - 1);
         for (int i = 0; jman.getCurrentAddress() < 300 * 1000 * 1000; i++) {
             final Buffer buffer = pool.get(volume, i % pages, false, true);
             buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
@@ -221,7 +221,6 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final JournalManager jman = new JournalManager(_persistit);
         final String path = UnitTestProperties.DATA_PATH + "/JournalManagerTest_journal_";
         jman.init(null, path, 100 * 1000 * 1000);
-        final int treeHandle = jman.handleForTree(exchange.getTree());
         exchange.clear().append("key");
         final StringBuilder sb = new StringBuilder(1000000);
         for (int i = 0; sb.length() < 1000; i++) {
@@ -244,7 +243,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             } else {
                 exchange.getValue().put(kilo);
             }
-            jman.writeStoreRecordToJournal(++timestamp, treeHandle, exchange.getKey(), exchange.getValue());
+            jman.writeStoreRecordToJournal(++timestamp, 12345, exchange.getKey(), exchange.getValue());
             if (remaining == JournalRecord.JE.OVERHEAD) {
                 addressAfterRollover = jman.getCurrentAddress();
                 assertTrue(addressAfterRollover - addressBeforeRollover < 2000);

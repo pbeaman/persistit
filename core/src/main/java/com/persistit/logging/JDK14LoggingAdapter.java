@@ -34,7 +34,7 @@ public class JDK14LoggingAdapter implements PersistitLogger {
 
     private final static EnumMap<PersistitLevel, Level> LEVEL_MAP = new EnumMap<PersistitLevel, Level>(
             PersistitLevel.class);
-    
+
     static {
         LEVEL_MAP.put(PersistitLevel.NONE, Level.OFF);
         LEVEL_MAP.put(PersistitLevel.TRACE, Level.FINER);
@@ -85,12 +85,14 @@ public class JDK14LoggingAdapter implements PersistitLogger {
 
     @Override
     public void open() {
-        // Nothing to do - the log is created and destroyed by the embedding application
+        // Nothing to do - the log is created and destroyed by the embedding
+        // application
     }
-    
+
     @Override
     public void close() {
-        // Nothing to do - the log is created and destroyed by the embedding application
+        // Nothing to do - the log is created and destroyed by the embedding
+        // application
     }
 
 }

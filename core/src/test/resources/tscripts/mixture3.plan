@@ -4,12 +4,12 @@ logpath $logpath$/result_$timestamp$.log
 
 // Large multi-threaded test with huge buffer pool
 
-delete $datapath$/persistit.v01 $datapath$/persistit_journal.*
+delete $datapath$/persistit $datapath$/persistit_journal.*
 #Stress huge test mixture, multithread
 
 
 prop buffer.count.8192=50000
-prop volume.1=$datapath$/persistit.v01,create,bufferSize:8192,initialSize:100M,extensionSize:100M,maximumSize:10G
+prop volume.1=$datapath$/persistit,create,pageSize:8192,initialSize:100M,extensionSize:100M,maximumSize:10G
 prop logfile=$logpath$/persistit_$timestamp$.log
 prop journalpath=$datapath$/persistit_journal
 

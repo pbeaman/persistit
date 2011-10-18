@@ -20,7 +20,7 @@ import java.util.List;
 import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.PersistitIOException;
 
-public interface TransactionWriter {
+interface TransactionWriter {
 
     boolean writeTransactionStartToJournal(final long startTimestamp) throws PersistitIOException;
 

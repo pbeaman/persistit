@@ -12,557 +12,211 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
-
 package com.persistit;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
-import java.nio.channels.OverlappingFileLockException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.persistit.exception.BufferSizeUnavailableException;
-import com.persistit.exception.CorruptVolumeException;
-import com.persistit.exception.InUseException;
-import com.persistit.exception.InvalidPageAddressException;
-import com.persistit.exception.InvalidPageStructureException;
-import com.persistit.exception.InvalidVolumeSpecificationException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
-import com.persistit.exception.RetryException;
+import com.persistit.exception.TruncateVolumeException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
-import com.persistit.exception.VolumeFullException;
-import com.persistit.util.Debug;
-import com.persistit.util.Util;
+import com.persistit.exception.VolumeNotFoundException;
+import com.persistit.exception.WrongVolumeException;
 
 /**
- * Holds a collection of data organized logically into trees and physically into
- * blocks called pages. All pages within a volume are the same size. A page must
- * be 1024, 2048, 8192 or 16384 bytes in length. Page 0 is a special control
- * page for the volume.
- * <p>
- * A Volume can contain any number of {@link Tree}s. Each tree has a unique root
- * page. Each Volume also contains one special directory tree that holds
- * information about all other trees.
- * <p>
- * Currently a Volume is hosted inside of a single file. Future implementations
- * may permit a Volume to be split across multiple files, allowing
- * drive-spanning.
+ * Represent the identity and optionally the service classes that manage a
+ * volume. A newly constructed Volume is "hollow" in the sense that it has no
+ * ability to perform I/O on a backing file or allocate pages. In this state it
+ * represents the identity, but not the content, of the volume.
+ * <p />
+ * To enable the <code>Volume</code> to act on data, you must supply a
+ * {@link VolumeSpecification} object, either through the constructor or with
+ * #setSpecification call either the {@link #open(Persistit)} method.
+ * 
+ * @author peter
  */
-public class Volume extends SharedResource {
-    /**
-     * Designated Tree name for the special directory "tree of trees".
-     */
-    public final static String DIRECTORY_TREE_NAME = "_directory";
-    /**
-     * Key segment name for index by directory tree name.
-     */
-    private final static String BY_NAME = "byName";
+public class Volume {
 
-    private VolumeHeader _header;
-    private FileChannel _channel;
-    private FileLock _fileLock;
-    private String _path;
-    private String _name;
+    private final String _name;
     private long _id;
-    private volatile long _timestamp;
-    private long _initialPages;
-    private long _maximumPages;
-    private long _extensionPages;
-    private volatile long _openTime;
-    private volatile long _lastReadTime;
-    private volatile long _lastWriteTime;
-    private volatile long _lastExtensionTime;
-    private volatile long _highestPageUsed;
-    private volatile long _firstAvailablePage;
-    private volatile long _createTime;
-    private volatile long _pageCount;
-    private volatile long _directoryRootPage;
-    private volatile long _garbageRoot;
-    private int _bufferSize;
-    private AtomicReference<Object> _appCache = new AtomicReference<Object>();
+    private AtomicBoolean _closing = new AtomicBoolean();
+    private final AtomicInteger _handle = new AtomicInteger();
+    private final AtomicReference<Object> _appCache = new AtomicReference<Object>();
 
-    private AtomicLong _readCounter = new AtomicLong();
-    private AtomicLong _writeCounter = new AtomicLong();
-    private AtomicLong _getCounter = new AtomicLong();
-    private AtomicLong _fetchCounter = new AtomicLong();
-    private AtomicLong _traverseCounter = new AtomicLong();
-    private AtomicLong _storeCounter = new AtomicLong();
-    private AtomicLong _removeCounter = new AtomicLong();
-    private AtomicInteger _handle = new AtomicInteger();
+    private VolumeSpecification _specification;
+    private volatile VolumeStorage _storage;
+    private volatile VolumeStatistics _statistics;
+    private volatile VolumeStructure _structure;
 
-    private Buffer _headBuffer;
-    private BufferPool _pool;
-    private boolean _readOnly;
-
-    private volatile IOException _lastIOException;
-
-    // String name --> Tree tree
-
-    private HashMap<String, Tree> _treeNameHashMap = new HashMap<String, Tree>();
-
-    private volatile boolean _closed;
-    private final Tree _directoryTree;
-
-    /**
-     * Opens a Volume. The volume must already exist.
-     * 
-     * @param pathName
-     *            The full pathname to the file containing the Volume.
-     * @param ro
-     *            <code>true</code> if the Volume should be opened in read- only
-     *            mode so that no updates can be performed against it.
-     * @return The Volume.
-     * @throws PersistitException
-     */
-    static Volume openVolume(final Persistit persistit, final String pathName, final boolean ro)
-            throws PersistitException {
-        return openVolume(persistit, pathName, null, 0, ro);
-    }
-
-    /**
-     * Opens a Volume with a confirming id. If the id value is non-zero, then it
-     * must match the id the volume being opened.
-     * 
-     * @param pathName
-     *            The full pathname to the file containing the Volume.
-     * 
-     * @param alias
-     *            A friendly name for this volume that may be used internally by
-     *            applications. The alias need not be related to the
-     *            <code>Volume</code>'s pathname, and typically will denote its
-     *            function rather than physical location.
-     * 
-     * @param id
-     *            The internal Volume id value - if non-zero this value must
-     *            match the id value stored in the Volume header.
-     * 
-     * @param ro
-     *            <code>true</code> if the Volume should be opened in read- only
-     *            mode so that no updates can be performed against it.
-     * 
-     * @return The <code>Volume</code>.
-     * 
-     * @throws PersistitException
-     */
-    static Volume openVolume(final Persistit persistit, final String pathName, final String alias, final long id,
-            final boolean ro) throws PersistitException {
-        File file = new File(pathName);
-        if (file.exists() && file.isFile()) {
-            return new Volume(persistit, file.getPath(), alias, id, ro);
+    public static boolean isValidPageSize(final int pageSize) {
+        for (int b = 1024; b <= 16384; b *= 2) {
+            if (b == pageSize) {
+                return true;
+            }
         }
-        throw new PersistitIOException(new FileNotFoundException(pathName));
+        return false;
     }
 
     /**
-     * Loads and/or creates a volume based on a String-valued specification. The
-     * specification has the form: <br />
-     * <i>pathname</i>[,<i>options</i>]... <br />
-     * where options include: <br />
-     * <dl>
-     * <dt><code>alias</code></dt>
-     * <dd>An alias used in looking up the volume by name within Persistit
-     * programs (see {@link com.persistit.Persistit#getVolume(String)}). If the
-     * alias attribute is not specified, the the Volume's path name is used
-     * instead.</dd>
-     * <dt><code>drive<code></dt>
-     * <dd>Name of the drive on which the volume is located. Specifying the
-     * drive on which each volume is physically located is optional. If
-     * supplied, Persistit uses the information to improve I/O throughput in
-     * multi-volume configurations by interleaving write operations to different
-     * physical drives.</dd>
-     * <dt><code>readOnly</code></dt>
-     * <dd>Open in Read-Only mode. (Incompatible with create mode.)</dd>
+     * Construct a hollow Volume - used by JournalManager
      * 
-     * <dt><code>create</code></dt>
-     * <dd>Creates the volume if it does not exist. Requires
-     * <code>bufferSize</code>, <code>initialPagesM</code>,
-     * <code>extensionPages</code> and <code>maximumPages</code> to be
-     * specified.</dd>
-     * 
-     * <dt><code>createOnly</code></dt>
-     * <dd>Creates the volume, or throw a {@link VolumeAlreadyExistsException}
-     * if it already exists.</dd>
-     * 
-     * <dt><code>id:<i>NNN</i></code></dt>
-     * <dd>Specifies an ID value for the volume. If the volume already exists,
-     * this ID value must match the ID that was previously assigned to the
-     * volume when it was created. If this volume is being newly created, this
-     * becomes its ID number.</dd>
-     * 
-     * <dt><code>bufferSize:<i>NNN</i></code></dt>
-     * <dd>Specifies <i>NNN</i> as the volume's buffer size when creating a new
-     * volume. <i>NNN</i> must be 1024, 2048, 4096, 8192 or 16384</dd>.
-     * 
-     * <dt><code>initialPages:<i>NNN</i></code></dt>
-     * <dd><i>NNN</i> is the initial number of pages to be allocated when this
-     * volume is first created.</dd>
-     * 
-     * <dt><code>extensionPages:<i>NNN</i></code></dt>
-     * <dd><i>NNN</i> is the number of pages by which to extend the volume when
-     * more pages are required.</dd>
-     * 
-     * <dt><code>maximumPages:<i>NNN</i></code></dt>
-     * <dd><i>NNN</i> is the maximum number of pages to which this volume can
-     * extend.</dd>
-     * 
-     * </dl>
-     * 
-     * 
-     * @param volumeSpec
-     *            Volume specification
-     * 
-     * @return The <code>Volume</code>
-     * 
-     * @throws PersistitException
-     */
-    static Volume loadVolume(final Persistit persistit, final VolumeSpecification volumeSpec) throws PersistitException {
-        if (volumeSpec.isCreate() || volumeSpec.isCreateOnly()) {
-            return create(persistit, volumeSpec.getPath(), volumeSpec.getName(), volumeSpec.getId(), volumeSpec
-                    .getBufferSize(), volumeSpec.getInitialPages(), volumeSpec.getExtensionPages(), volumeSpec
-                    .getMaximumPages(), volumeSpec.isCreateOnly());
-        } else {
-            return openVolume(persistit, volumeSpec.getPath(), volumeSpec.getName(), volumeSpec.getId(), volumeSpec
-                    .isReadOnly());
-        }
-    }
-
-    /**
-     * Creates a new volume
-     * 
-     * @param persistit
-     * @param path
      * @param name
      * @param id
-     * @param bufferSize
-     * @param initialPages
-     * @param extensionPages
-     * @param maximumPages
+     */
+    Volume(final String name, final long id) {
+        _name = name;
+        _id = id;
+    }
+
+    Volume(final VolumeSpecification specification) {
+        this(specification.getName(), specification.getId());
+        _specification = specification;
+    }
+
+    private void checkNull(final Object o, final String delegate) {
+        if (o == null) {
+            throw new IllegalStateException(this + " has no " + delegate);
+        }
+    }
+
+    private void checkClosing() throws VolumeClosedException {
+        if (_closing.get()) {
+            throw new VolumeClosedException();
+        }
+    }
+
+    VolumeSpecification getSpecification() {
+        final VolumeSpecification s = _specification;
+        checkNull(s, "VolumeSpecification");
+        return s;
+    }
+
+    VolumeStorage getStorage() {
+        final VolumeStorage s = _storage;
+        checkNull(s, "VolumeStorage");
+        return s;
+    }
+
+    VolumeStatistics getStatistics() {
+        final VolumeStatistics s = _statistics;
+        checkNull(s, "VolumeStatistics");
+        return s;
+    }
+
+    VolumeStructure getStructure() {
+        return _structure;
+    }
+
+    void setSpecification(final VolumeSpecification specification) {
+        if (_specification != null) {
+            throw new IllegalStateException("Volume " + this + " already has a VolumeSpecification");
+        }
+        if (specification.getName().equals(_name) && specification.getId() == _id) {
+            _specification = specification;
+        } else {
+            throw new IllegalStateException("Volume " + this + " is incompatible with " + specification);
+        }
+    }
+
+    void closing() {
+        _closing.set(true);
+    }
+
+    /**
+     * Closes all resources for this <code>Volume</code> and invalidates all its
+     * buffers in the {@link BufferPool}. Exchanges based on this
+     * <code>Volume</code> may no longer be used after this call.
+     * 
      * @throws PersistitException
      */
-    private Volume(final Persistit persistit, final String path, final String name, final long id,
-            final int bufferSize, long initialPages, long extensionPages, long maximumPages) throws PersistitException {
-        super(persistit);
-
-        boolean sizeOkay = false;
-        for (int b = Buffer.MIN_BUFFER_SIZE; !sizeOkay && b <= Buffer.MAX_BUFFER_SIZE; b *= 2) {
-            if (bufferSize == b)
-                sizeOkay = true;
-        }
-
-        if (!sizeOkay) {
-            throw new InvalidVolumeSpecificationException("Invalid buffer size: " + bufferSize);
-        }
-
-        _pool = _persistit.getBufferPool(bufferSize);
-        if (_pool == null) {
-            throw new BufferSizeUnavailableException("size: " + bufferSize);
-        }
-
-        if (initialPages == 0)
-            initialPages = 1;
-        if (maximumPages == 0)
-            maximumPages = initialPages;
-
-        if (initialPages < 0 || initialPages > Long.MAX_VALUE / bufferSize) {
-            throw new InvalidVolumeSpecificationException("Invalid initial page count: " + initialPages);
-        }
-
-        if (extensionPages < 0 || extensionPages > Long.MAX_VALUE / bufferSize) {
-            throw new InvalidVolumeSpecificationException("Invalid extension page count: " + extensionPages);
-        }
-
-        if (maximumPages < initialPages || maximumPages > Long.MAX_VALUE / bufferSize) {
-            throw new InvalidVolumeSpecificationException("Invalid maximum page count: " + maximumPages);
-        }
-
-        boolean open = false;
-
-        try {
-            initializePathAndName(path, name, true);
-            _readOnly = false;
-            _bufferSize = bufferSize;
-
-            long now = System.currentTimeMillis();
-            if (id == 0) {
-                _id = (now ^ (((long) path.hashCode()) << 32)) & Long.MAX_VALUE;
-            } else
-                _id = id;
-
-            _highestPageUsed = 0;
-            _createTime = now;
-            _lastExtensionTime = 0;
-            _lastReadTime = 0;
-            _lastWriteTime = 0;
-            _firstAvailablePage = 1;
-            _garbageRoot = 0;
-            _pageCount = 1;
-
-            _persistit.addVolume(this);
-
-            _headBuffer = _pool.get(this, 0, true, false);
-            _headBuffer.setFixed();
-            _header = new VolumeHeader(_channel);
-
-            _headBuffer.clear();
-
-            _initialPages = initialPages;
-            _extensionPages = extensionPages;
-            _maximumPages = maximumPages;
-
-            _pageCount = initialPages;
-            _firstAvailablePage = 1;
-            _highestPageUsed = 0;
-            _garbageRoot = 0;
-            _directoryRootPage = 0;
-            _pool.invalidate(this);
-
-            updateHeaderInfo(_headBuffer.getBytes());
-
-            _channel = new RandomAccessFile(_path, "rw").getChannel();
-            lockChannel();
-            _headBuffer.getByteBuffer().position(0).limit(_headBuffer.getBufferSize());
-            _channel.write(_headBuffer.getByteBuffer(), 0);
-            _channel.force(true);
-
-            if (initialPages > 1) {
-                extend(initialPages);
-            }
-
-            _directoryTree = new Tree(_persistit, this, DIRECTORY_TREE_NAME);
-            initTree(_directoryTree);
-            checkpointMetaData();
-
-            open = true;
-
-        } catch (IOException ioe) {
-            throw new PersistitIOException(ioe);
-        } finally {
-            if (_headBuffer != null) {
-                if (!open) {
-                    _headBuffer.clearFixed();
+    public void close() throws PersistitException {
+        closing();
+        for (;;) {
+            //
+            // Prevents read/write operations from starting while the
+            // volume is being closed.
+            //
+            final VolumeStorage storage = getStorage();
+            storage.claim(true);
+            try {
+                //
+                // BufferPool#invalidate may fail and return false if other
+                // threads hold claims on pages of this volume. In that case we
+                // need to back off all locks and retry
+                //
+                if (getStructure().getPool().invalidate(this)) {
+                    getStructure().close();
+                    getStorage().close();
+                    getStatistics().reset();
+                    break;
                 }
-                releaseHeadBuffer();
+            } finally {
+                storage.release();
             }
-            if (!open) {
-                _persistit.removeVolume(this, false);
+            try {
+                Thread.sleep(Persistit.SHORT_DELAY);
+            } catch (InterruptedException ie) {
+                throw new PersistitInterruptedException(ie);
             }
         }
-
     }
 
     /**
-     * Opens an existing Volume. Throws CorruptVolumeException if the volume
-     * file does not exist, is too short, or is malformed.
+     * Remove all data from this volume. This is equivalent to deleting and then
+     * recreating the <code>Volume</code> except that it does not actually
+     * delete and close the file. Instead, this method truncates the file,
+     * rewrites the head page, and invalidates all buffers belonging to this
+     * <code>Volume</code> in the {@link BufferPool}.
      * 
-     * @param pathName
-     * @param alias
-     * @param id
-     * @param readOnly
      * @throws PersistitException
      */
-    private Volume(final Persistit persistit, String path, String name, long id, boolean readOnly)
-            throws PersistitException {
-        super(persistit);
-        try {
-            initializePathAndName(path, name, false);
-
-            _readOnly = readOnly;
-            _channel = new RandomAccessFile(_path, readOnly ? "r" : "rw").getChannel();
-            lockChannel();
-            _header = new VolumeHeader(_channel);
-            final ByteBuffer bb = _header.validate();
-
+    public void truncate() throws PersistitException {
+        if (isReadOnly()) {
+            throw new ReadOnlyVolumeException();
+        }
+        if (!isTemporary() && !getSpecification().isCreate() && !getSpecification().isCreateOnly()) {
+            throw new TruncateVolumeException();
+        }
+        for (;;) {
             //
-            // Just to populate _bufferSize. getHeaderInfo will be called
-            // again below.
+            // Prevents read/write operations from starting while the
+            // volume is being closed.
             //
-            final byte[] bytes = bb.array();
-            getHeaderInfo(bytes);
-            _pool = _persistit.getBufferPool(_bufferSize);
-            if (_pool == null) {
-                throw new BufferSizeUnavailableException("size: " + _bufferSize);
+            if (getStorage().claim(true, 0)) {
+                try {
+                    //
+                    // BufferPool#invalidate may fail and return false if other
+                    // threads hold claims on pages of this volume. In that case
+                    // we
+                    // need to back off all locks and retry
+                    //
+                    if (getStructure().getPool().invalidate(this)) {
+                        getStructure().truncate();
+                        getStorage().truncate();
+                        getStatistics().reset();
+                        break;
+                    }
+                } finally {
+                    getStorage().release();
+                }
             }
-            //
-            // Now use the pool to get the page. This may read a
-            // recently updated copy from the log.
-            //
-            _headBuffer = _pool.get(this, 0, true, true);
-            getHeaderInfo(_headBuffer.getBytes());
-
-            if (id != 0 && id != _id) {
-                throw new CorruptVolumeException("Attempt to open with invalid id " + id + " (!= " + _id + ")");
+            try {
+                Thread.sleep(Persistit.SHORT_DELAY);
+            } catch (InterruptedException ie) {
+                throw new PersistitInterruptedException(ie);
             }
-            // TODO -- synchronize opening of Volumes.
-            _persistit.addVolume(this);
-
-            if (_directoryRootPage != 0) {
-                _directoryTree = new Tree(_persistit, this, DIRECTORY_TREE_NAME);
-                _directoryTree.init(_directoryRootPage);
-            } else {
-                _directoryTree = new Tree(_persistit, this, DIRECTORY_TREE_NAME);
-                initTree(_directoryTree);
-                checkpointMetaData();
-            }
-
-            _headBuffer.setFixed();
-            releaseHeadBuffer();
-        } catch (IOException ioe) {
-            throw new PersistitIOException(ioe);
         }
     }
 
-    private void lockChannel() throws InUseException, IOException {
-        try {
-            _fileLock = _channel.tryLock(0, Long.MAX_VALUE, isReadOnly());
-        } catch (OverlappingFileLockException e) {
-            // Note: OverlappingFileLockException is a RuntimeException
-            throw new InUseException("Volume file " + _path + " is locked by another thread in this JVM");
+    public boolean delete() throws PersistitException {
+        if (!isClosed()) {
+            throw new IllegalStateException("Volume must be closed before deletion");
         }
-        if (_fileLock == null) {
-            throw new InUseException("Volume file " + _path + " is locked by another process");
-        }
-    }
-
-    private void initializePathAndName(final String path, final String name, final boolean create) throws IOException,
-            PersistitException {
-        File file = new File(path);
-        if (create) {
-            if (file.exists() && !file.isDirectory()) {
-                throw new VolumeAlreadyExistsException(file.getPath());
-            }
-        } else {
-            if (!file.exists()) {
-                throw new FileNotFoundException(path);
-            }
-        }
-        if (file.exists() && file.isDirectory() && name != null && !name.isEmpty()) {
-            file = new File(file, name);
-        }
-        _path = file.getPath();
-        if (name == null || name.isEmpty()) {
-            _name = file.getName();
-            final int p = _name.lastIndexOf('.');
-            if (p > 0) {
-                _name = _name.substring(0, p);
-            }
-
-        } else {
-            _name = name;
-        }
-    }
-
-    /**
-     * Creates a new Volume or open an existing Volume. If a volume having the
-     * specified <code>id</code> and <code>pathname</code> already exists, and
-     * if the mustCreate parameter is false, then this method opens and returns
-     * a previously existing <code>Volume</code>. If <code>mustCreate</code> is
-     * true and a file of the specified name already exists, then this method
-     * throws a <code>VolumeAlreadyExistsException</code>. Otherwise this method
-     * creates a new empty volume.
-     * 
-     * @param persistit
-     *            The Persistit instance in which the Volume will be opened
-     * 
-     * @param path
-     *            The full pathname to the file containing the Volume.
-     * 
-     * @param name
-     *            A friendly name for this volume that may be used internally by
-     *            applications. The name need not be related to the
-     *            <code>Volume</code>'s pathname, and typically will denote its
-     *            function rather than physical location.
-     * 
-     * @param id
-     *            The internal Volume id value or zero to if Persistit should
-     *            assign a new id.
-     * 
-     * @param bufferSize
-     *            The buffer size (one of 1024, 2048, 4096, 8192 or 16384).
-     * 
-     * @param initialPages
-     *            Initialize number of pages to allocate.
-     * 
-     * @param extensionPages
-     *            Number of additional pages to allocate when all existing pages
-     *            have been used.
-     * 
-     * @param maximumPages
-     *            A hard upper bound on the number of pages that can be created
-     *            within this volume.
-     * 
-     * @param mustCreate
-     *            <code>true</code> ensure that there is previously no matching
-     *            Volume, and that the Volume returned by this method is newly
-     *            created.
-     * 
-     * @return the Volume
-     * @throws PersistitException
-     */
-    public static Volume create(final Persistit persistit, final String path, final String name, final long id,
-            final int bufferSize, final long initialPages, final long extensionPages, final long maximumPages,
-            final boolean mustCreate) throws PersistitException {
-        File file = new File(path);
-        if (file.exists()) {
-            if (mustCreate) {
-                throw new VolumeAlreadyExistsException(path);
-            }
-            Volume vol = openVolume(persistit, file.getPath(), name, id, false);
-            if (vol._bufferSize != bufferSize) {
-                throw new VolumeAlreadyExistsException("Different buffer size expected/actual=" + bufferSize + "/"
-                        + vol._bufferSize + ": " + vol);
-            }
-            //
-            // Here we overwrite the former growth parameters
-            // with those supplied to the create method.
-            //
-            vol._initialPages = initialPages;
-            vol._extensionPages = extensionPages;
-            vol._maximumPages = maximumPages;
-
-            return vol;
-        } else {
-            return new Volume(persistit, file.getPath(), name, id, bufferSize, initialPages, extensionPages,
-                    maximumPages);
-        }
-    }
-
-    /**
-     * Updates head page information.
-     * 
-     * @throws InvalidPageStructureException
-     * @throws PersistitIOException
-     * 
-     * @throws PMapException
-     */
-    private void checkpointMetaData() throws PersistitException,
-            InvalidPageStructureException {
-        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-        _headBuffer.writePageOnCheckpoint(timestamp);
-        if (!_readOnly && updateHeaderInfo(_headBuffer.getBytes())) {
-            _headBuffer.setDirtyAtTimestamp(timestamp);
-        }
-    }
-
-    /**
-     * Returns the <code>id</code> of this <code>Volume</code>. The
-     * <code>id</code> is a 64-bit long that uniquely identifies this volume.
-     * 
-     * @return The id value
-     */
-    public long getId() {
-        return _id;
+        return getStorage().delete();
     }
 
     /**
@@ -571,365 +225,38 @@ public class Volume extends SharedResource {
      * @return The path name
      */
     public String getPath() {
-        return _path;
+        return getStorage().getPath();
+    }
+
+    public long getNextAvailablePage() {
+        return getStorage().getNextAvailablePage();
+    }
+
+    public long getExtendedPageCount() {
+        return getStorage().getExtentedPageCount();
+    }
+
+    BufferPool getPool() {
+        return getStructure().getPool();
+    }
+
+    Tree getDirectoryTree() {
+        return getStructure().getDirectoryTree();
+    }
+
+    boolean isTemporary() { // TODO
+        return getStorage().isTemp();
     }
 
     /**
-     * Returns the name specified for the Volume.
-     * 
-     * @return The alias, or <code>null</code> if there is none.
-     */
-    public String getName() {
-        return _name;
-    }
-
-    /**
-     * Returns the buffer size for this volume, one of 1024, 2048, 4096, 8192 or
-     * 16384.
-     * 
-     * @return The buffer size.
+     * @return The size in bytes of one page in this <code>Volume</code>.
      */
     public int getPageSize() {
-        return _bufferSize;
+        return getStructure().getPageSize();
     }
 
     /**
-     * Returns the page address of the garbage tree. This method is useful to
-     * diagnostic utility programs.
-     * 
-     * @return The page address
-     */
-    public long getGarbageRoot() {
-        return _garbageRoot;
-    }
-
-    private void setGarbageRoot(long garbagePage) throws PersistitException {
-        _garbageRoot = garbagePage;
-        checkpointMetaData();
-    }
-
-    /**
-     * Returns the directory <code>Tree</code> for this volume
-     * 
-     * @return The directory <code>Tree</code>
-     */
-    public Tree getDirectoryTree() {
-        return _directoryTree;
-    }
-
-    /**
-     * Returns the count of physical disk read requests performed on this
-     * <code>Volume</code>.
-     * 
-     * @return The count
-     */
-    public long getReadCounter() {
-        return _readCounter.get();
-    }
-
-    /**
-     * Returns the count of physical disk write requests performed on this
-     * <code>Volume</code>.
-     * 
-     * @return The count
-     */
-    public long getWriteCounter() {
-        return _writeCounter.get();
-    }
-
-    /**
-     * Returns the count of logical buffer fetches performed against this
-     * <code>Volume</code>. The ratio of get to read operations indicates how
-     * effectively the buffer pool is reducing disk I/O.
-     * 
-     * @return The count
-     */
-    public long getGetCounter() {
-        return _getCounter.get();
-    }
-
-    /**
-     * Returns the count of {@link Exchange#fetch} operations. These include
-     * {@link Exchange#traverse}, {@link Exchange#fetchAndStore} and
-     * {@link Exchange#fetchAndRemove} operations. This count is maintained with
-     * the stored Volume and is not reset when Persistit closes. It is provided
-     * to assist application performance tuning.
-     * 
-     * @return The count of records fetched from this Volume.
-     */
-    public long getFetchCounter() {
-        return _fetchCounter.get();
-    }
-
-    /**
-     * Returns the count of {@link Exchange#traverse} operations. These include
-     * {@link Exchange#next} and {@link Exchange#_previous} operations. This
-     * count is maintained with the stored Volume and is not reset when
-     * Persistit closes. It is provided to assist application performance
-     * tuning.
-     * 
-     * @return The count of key traversal operations performed on this in this
-     *         Volume.
-     */
-    public long getTraverseCounter() {
-        return _traverseCounter.get();
-    }
-
-    /**
-     * Returns the count of {@link Exchange#store} operations, including
-     * {@link Exchange#fetchAndStore} and {@link Exchange#incrementValue}
-     * operations. This count is maintained with the stored Volume and is not
-     * reset when Persistit closes. It is provided to assist application
-     * performance tuning.
-     * 
-     * @return The count of records fetched from this Volume.
-     */
-    public long getStoreCounter() {
-        return _storeCounter.get();
-    }
-
-    /**
-     * Returns the count of {@link Exchange#remove} operations, including
-     * {@link Exchange#fetchAndRemove} operations. This count is maintained with
-     * the stored Volume and is not reset when Persistit closes. It is provided
-     * to assist application performance tuning.
-     * 
-     * @return The count of records fetched from this Volume.
-     */
-    public long getRemoveCounter() {
-        return _removeCounter.get();
-    }
-
-    /**
-     * Returns the time at which this <code>Volume</code> was created.
-     * 
-     * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
-     */
-    public long getCreateTime() {
-        return _createTime;
-    }
-
-    /**
-     * Returns the time at which this <code>Volume</code> was last opened.
-     * 
-     * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
-     */
-    public long getOpenTime() {
-        return _openTime;
-    }
-
-    /**
-     * Returns the time at which the last physical read operation was performed
-     * on <code>Volume</code>.
-     * 
-     * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
-     */
-    public long getLastReadTime() {
-        return _lastReadTime;
-    }
-
-    /**
-     * Returns the time at which the last physical write operation was performed
-     * on <code>Volume</code>.
-     * 
-     * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
-     */
-    public long getLastWriteTime() {
-        return _lastWriteTime;
-    }
-
-    /**
-     * Returns the time at which this <code>Volume</code> was last extended
-     * (increased in physical size).
-     * 
-     * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
-     */
-    public long getLastExtensionTime() {
-        return _lastExtensionTime;
-    }
-
-    /**
-     * Returns the last <code>IOException</code> that was encountered while
-     * reading, writing, extending or closing the underlying volume file.
-     * Returns <code>null</code> if there have been no <code>IOException</code>s
-     * since the volume was opened. If <code>reset</code> is <code>true</code>,
-     * the lastException field is cleared so that a subsequent call to this
-     * method will return <code>null</code> unless another
-     * <code>IOException</code> has occurred.
-     * 
-     * @param reset
-     *            If <code>true</code> then this method clears the last
-     *            exception field
-     * 
-     * @return The most recently encountered <code>IOException</code>, or
-     *         <code>null</code> if there has been none.
-     */
-    public IOException lastException(boolean reset) {
-        IOException ioe = _lastIOException;
-        if (reset)
-            _lastIOException = null;
-        return ioe;
-    }
-
-    long getPageCount() {
-        return _pageCount;
-    }
-
-    long getMaximumPageInUse() {
-        return _highestPageUsed;
-    }
-
-    long getInitialPages() {
-        return _initialPages;
-    }
-
-    long getMaximumPages() {
-        return _maximumPages;
-    }
-
-    long getExtensionPages() {
-        return _extensionPages;
-    }
-
-    void bumpReadCounter() {
-        _readCounter.incrementAndGet();
-        _lastReadTime = System.currentTimeMillis();
-    }
-
-    void bumpWriteCounter() {
-        _writeCounter.incrementAndGet();
-        _lastWriteTime = System.currentTimeMillis();
-    }
-
-    void bumpGetCounter() {
-        _getCounter.incrementAndGet();
-    }
-
-    void bumpFetchCounter() {
-        _fetchCounter.incrementAndGet();
-    }
-
-    void bumpTraverseCounter() {
-        _traverseCounter.incrementAndGet();
-    }
-
-    void bumpStoreCounter() {
-        _storeCounter.incrementAndGet();
-    }
-
-    void bumpRemoveCounter() {
-        _removeCounter.incrementAndGet();
-    }
-
-    private String garbageBufferInfo(Buffer buffer) {
-        if (buffer.getPageType() != Buffer.PAGE_TYPE_GARBAGE) {
-            return "!!!" + buffer.getPageAddress() + " is not a garbage page!!!";
-        }
-        return "@<" + buffer.getPageAddress() + ":" + buffer.getAlloc() + ">";
-    }
-
-    void deallocateGarbageChain(long left, long right) throws PersistitException {
-        Debug.$assert0.t(left > 0);
-
-        claimHeadBuffer();
-
-        Buffer garbageBuffer = null;
-
-        try {
-            long garbagePage = getGarbageRoot();
-            if (garbagePage != 0) {
-                Debug.$assert0.t(left != garbagePage && right != garbagePage);
-
-                garbageBuffer = _pool.get(this, garbagePage, true, true);
-
-                final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                garbageBuffer.writePageOnCheckpoint(timestamp);
-
-                boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
-
-                if (fits) {
-                    _persistit.getLogBase().newGarbageChain.log(left, right, garbageBufferInfo(garbageBuffer));
-                    garbageBuffer.setDirtyAtTimestamp(timestamp);
-                    return;
-                } else {
-                    _persistit.getLogBase().garbagePageFull.log(left, right, garbageBufferInfo(garbageBuffer));
-                    garbageBuffer.releaseTouched();
-                    garbageBuffer = null;
-                }
-            }
-            boolean solitaire = (right == -1);
-            garbageBuffer = _pool.get(this, left, true, !solitaire);
-
-            final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-            garbageBuffer.writePageOnCheckpoint(timestamp);
-
-            Debug.$assert0.t((garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())
-                    || garbageBuffer.isLongRecordPage() || (solitaire && garbageBuffer.isUnallocatedPage()));
-
-            long nextGarbagePage = solitaire ? 0 : garbageBuffer.getRightSibling();
-
-            Debug.$assert0.t(nextGarbagePage > 0 || right == 0 || solitaire);
-
-            harvestLongRecords(garbageBuffer, 0, Integer.MAX_VALUE);
-
-            garbageBuffer.init(Buffer.PAGE_TYPE_GARBAGE);
-
-            _persistit.getLogBase().newGarbageRoot.log(garbageBufferInfo(garbageBuffer));
-
-            if (!solitaire && nextGarbagePage != right) {
-                // Will always fit because this is a freshly initialized page
-                garbageBuffer.addGarbageChain(nextGarbagePage, right, -1);
-                _persistit.getLogBase().newGarbageChain.log(nextGarbagePage, right, garbageBufferInfo(garbageBuffer));
-            }
-            garbageBuffer.setRightSibling(garbagePage);
-            garbageBuffer.setDirtyAtTimestamp(timestamp);
-            setGarbageRoot(garbageBuffer.getPageAddress());
-        } finally {
-            if (garbageBuffer != null) {
-                garbageBuffer.releaseTouched();
-            }
-            releaseHeadBuffer();
-        }
-    }
-
-    // TODO - no one needs the return value
-    boolean harvestLongRecords(Buffer buffer, int start, int end) throws PersistitException {
-        boolean anyLongRecords = false;
-        if (buffer.isDataPage()) {
-            int p1 = buffer.toKeyBlock(start);
-            int p2 = buffer.toKeyBlock(end);
-            for (int p = p1; p < p2 && p != -1; p = buffer.nextKeyBlock(p)) {
-                long pointer = buffer.fetchLongRecordPointer(p);
-                if (pointer != 0) {
-                    deallocateGarbageChain(pointer, 0);
-                    anyLongRecords |= true;
-                }
-            }
-        }
-        return anyLongRecords;
-    }
-
-    /**
-     * Commit all dirty Trees.
-     * 
-     * @throws RetryException
-     * @throws PersistitException
-     */
-    void commitAllTreeUpdates() throws PersistitException {
-        _directoryTree.commit();
-        for (final Tree tree : _treeNameHashMap.values()) {
-            tree.commit();
-        }
-    }
-
-    Exchange directoryExchange() {
-        Exchange ex = new Exchange(_directoryTree);
-        ex.ignoreTransactions();
-        return ex;
-    }
-
-    /**
-     * Looks up by name and returns a <code>Tree</code> within this
+     * Looks up by name and returns a <code>NewTree</code> within this
      * <code>Volume</code>. If no such tree exists, this method either creates a
      * new tree or returns null depending on whether the
      * <code>createIfNecessary</code> parameter is <code>true</code>.
@@ -941,200 +268,32 @@ public class Volume extends SharedResource {
      *            Determines whether this method will create a new tree if there
      *            is no tree having the specified name.
      * 
-     * @return The <code>Tree</code>, or <code>null</code> if
+     * @return The <code>NewTree</code>, or <code>null</code> if
      *         <code>createIfNecessary</code> is false and there is no such tree
      *         in this <code>Volume</code>.
      * 
      * @throws PersistitException
      */
-    public Tree getTree(String name, boolean createIfNecessary) throws PersistitException {
-        synchronized (_treeNameHashMap) {
-            Tree tree = _treeNameHashMap.get(name);
-            if (tree != null) {
-                return tree;
-            }
-            final Exchange ex = directoryExchange();
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(name);
-            Value value = ex.fetch().getValue();
-            tree = new Tree(_persistit, this, name);
-            if (value.isDefined()) {
-                tree.load(ex.getValue());
-            } else if (createIfNecessary) {
-                initTree(tree);
-                tree.commit();
-            } else {
-                return null;
-            }
-            _treeNameHashMap.put(name, tree);
-            return tree;
-        }
-    }
-
-    void updateTree(Tree tree) throws PersistitException {
-        if (tree == _directoryTree) {
-            claimHeadBuffer();
-            try {
-                _directoryRootPage = tree.getRootPageAddr();
-                checkpointMetaData();
-            } finally {
-                releaseHeadBuffer();
-            }
-        } else {
-            Exchange ex = directoryExchange();
-            tree.store(ex.getValue());
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(tree.getName()).store();
-        }
+    public Tree getTree(final String name, final boolean createIfNecessary) throws PersistitException {
+        checkClosing();
+        return getStructure().getTree(name, createIfNecessary);
     }
 
     /**
-     * Removes a <code>Tree</code> and makes all the index and data pages
-     * formerly associated with that <code>Tree</code> available for reuse.
-     * 
-     * @param treeName
-     *            The name of the <code>Tree</code> to remove.
-     * @return <code>true</code> if a there was a <code>Tree</code> of the
-     *         specified name and it was removed, otherwise <code>false</code>.
-     * @throws PersistitException
-     */
-    boolean removeTree(String treeName) throws PersistitException {
-        Tree tree = null;
-        synchronized (this) {
-            tree = _treeNameHashMap.get(treeName);
-        }
-        if (tree != null)
-            return removeTree(tree);
-        else
-            return false;
-    }
-
-    boolean removeTree(Tree tree) throws PersistitException {
-        if (tree == _directoryTree) {
-            throw new IllegalArgumentException("Can't delete the Directory tree");
-        }
-        _persistit.checkSuspended();
-
-        int depth = -1;
-        long page = -1;
-
-        tree.claim(true);
-
-        try {
-            final long rootPage = tree.getRootPageAddr();
-            tree.changeRootPageAddr(-1, 0);
-            page = rootPage;
-            depth = tree.getDepth();
-            Exchange ex = directoryExchange();
-
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(tree.getName()).remove();
-
-            synchronized (this) {
-                _treeNameHashMap.remove(tree.getName());
-                tree.bumpGeneration();
-                tree.invalidate();
-            }
-        } finally {
-            tree.release();
-        }
-        // The Tree is now gone. The following deallocates the
-        // pages formerly associated with it. If this fails we'll be
-        // left with allocated pages that are not available on the garbage
-        // chain for reuse.
-
-        while (page != -1) {
-            Buffer buffer = null;
-            long deallocate = -1;
-            try {
-                buffer = _pool.get(this, page, false, true);
-                if (buffer.getPageType() != depth) {
-                    throw new CorruptVolumeException(buffer + " type code=" + buffer.getPageType()
-                            + " is not equal to expected value " + depth);
-                }
-                if (buffer.isIndexPage()) {
-                    deallocate = page;
-                    int p = buffer.toKeyBlock(0);
-                    if (p > 0) {
-                        page = buffer.getPointer(p);
-                    } else {
-                        page = -1;
-                    }
-                    depth--;
-                } else if (buffer.isDataPage()) {
-                    deallocate = page;
-                    page = -1;
-                }
-            } finally {
-                if (buffer != null)
-                    buffer.releaseTouched();
-                buffer = null;
-            }
-            if (deallocate != -1) {
-                deallocateGarbageChain(deallocate, 0);
-            }
-        }
-
-        return true;
-
-    }
-
-    /**
-     * Returns an array of all currently defined <code>Tree</code> names.
+     * Returns an array of all currently defined <code>NewTree</code> names.
      * 
      * @return The array
      * 
      * @throws PersistitException
      */
     public String[] getTreeNames() throws PersistitException {
-        List<String> list = new ArrayList<String>();
-        Exchange ex = directoryExchange();
-        ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append("");
-        while (ex.next()) {
-            String treeName = ex.getKey().indexTo(-1).decodeString();
-            list.add(treeName);
-        }
-        String[] names = list.toArray(new String[list.size()]);
-        return names;
-    }
-
-    /**
-     * Returns the next tree name in alphabetical order within this volume.
-     * 
-     * @param treeName
-     *            The starting tree name
-     * 
-     * @return The name of the first tree in alphabetical order that is larger
-     *         than <code>treeName</code>.
-     * 
-     * @throws PersistitException
-     */
-    String nextTreeName(String treeName) throws PersistitException {
-        Exchange ex = directoryExchange();
-        ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(treeName);
-        if (ex.next()) {
-            return ex.getKey().indexTo(-1).decodeString();
-        }
-        return null;
-    }
-
-    /**
-     * Returns an array of all Trees currently open within this Volume.
-     * 
-     * @return The array.
-     */
-    Tree[] getTrees() {
-        synchronized (this) {
-            int size = _treeNameHashMap.values().size();
-            Tree[] trees = new Tree[size];
-            int index = 0;
-            for (final Tree tree : _treeNameHashMap.values()) {
-                trees[index++] = tree;
-            }
-            return trees;
-        }
+        checkClosing();
+        return getStructure().getTreeNames();
     }
 
     /**
      * Return a TreeInfo structure for a tree by the specified name. If there is
-     * no such tree, then return <i>null</i>.
+     * no such tree, then return <code>null</code>.
      * 
      * @param tree
      *            name
@@ -1154,399 +313,99 @@ public class Volume extends SharedResource {
     }
 
     /**
-     * Indicates whether this <code>Volume</code> has been closed.
+     * Indicate whether this <code>Volume</code> has been opened or created,
+     * i.e., whether a backing volume file has been created or opened.
      * 
-     * @return <i>true</i> if this Volume is closed.
+     * @return <code>true</code> if there is a backing volume file.
+     */
+    public boolean isOpened() {
+        return _storage != null && _storage.isOpened();
+    }
+
+    /**
+     * Indicate whether this <code>Volume</code> has been closed.
+     * 
+     * @return <code>true</code> if this Volume is closed.
      */
     public boolean isClosed() {
-        return _closed;
+        return _closing.get();
     }
 
     /**
      * Indicates whether this <code>Volume</code> prohibits updates.
      * 
-     * @return <i>true</i> if this Volume prohibits updates.
+     * @return <code>true</code> if this Volume prohibits updates.
      */
     public boolean isReadOnly() {
-        return _readOnly;
+        return getStorage().isReadOnly();
     }
 
     /**
-     * Read all pages used within this <code>Volume</code> to "warm up" the
-     * buffer pool. The primary purpose is to support benchmarks.
+     * Open an existing Volume file or create a new one, depending on the
+     * settings of the {@link VolumeSpecification}.
      * 
      * @throws PersistitException
      */
-    public void warm() throws PersistitException {
-        for (long page = 1; page < _firstAvailablePage; page++) {
-            Buffer buffer = _pool.get(this, page, false, true);
-            buffer.releaseTouched();
+    void open(final Persistit persistit) throws PersistitException {
+        checkClosing();
+        if (_specification == null) {
+            throw new IllegalStateException("Missing VolumeSpecification");
         }
-    }
-
-    /**
-     * Create a new tree in this volume. A tree is represented by an index root
-     * page and all the index and data pages pointed to by that root page.
-     * 
-     * @return newly create Tree object
-     * @throws PersistitException
-     */
-    private Tree initTree(final Tree tree) throws PersistitException {
-        _persistit.checkSuspended();
-        Buffer rootPageBuffer = null;
-
-        rootPageBuffer = allocPage();
-
-        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-        rootPageBuffer.writePageOnCheckpoint(timestamp);
-
-        long rootPage = rootPageBuffer.getPageAddress();
-
-        try {
-            rootPageBuffer.init(Buffer.PAGE_TYPE_DATA);
-            rootPageBuffer.putValue(Key.LEFT_GUARD_KEY, Value.EMPTY_VALUE);
-            rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
-            rootPageBuffer.setDirtyAtTimestamp(timestamp);
-        } finally {
-            rootPageBuffer.releaseTouched();
+        if (_storage != null) {
+            throw new IllegalStateException("This volume has already been opened");
         }
+        final boolean exists = VolumeHeader.verifyVolumeHeader(_specification);
 
-        tree.claim(true);
-        tree.init(rootPage);
-        tree.release();
-        tree.setValid();
-        tree.commit();
-        return tree;
-    }
+        _structure = new VolumeStructure(persistit, this, _specification.getPageSize());
+        _storage = new VolumeStorageV2(persistit, this);
+        _statistics = new VolumeStatistics();
 
-    /**
-     * Returns the <code>BufferPool</code> in which this volume's pages are
-     * cached.
-     * 
-     * @return This volume's </code>BufferPool</code>
-     */
-    BufferPool getPool() {
-        return _pool;
-    }
-
-    private void claimHeadBuffer() throws PersistitException {
-        if (!_headBuffer.claim(true)) {
-            throw new InUseException(this + " head buffer " + _headBuffer + " is unavailable");
-        }
-    }
-
-    private void releaseHeadBuffer() {
-        _headBuffer.releaseTouched();
-    }
-
-    void readPage(Buffer buffer, long page) throws PersistitIOException, InvalidPageAddressException,
-            VolumeClosedException {
-        if (page < 0 || page >= _pageCount) {
-            throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _pageCount + ")");
-        }
-
-        try {
-            final ByteBuffer bb = buffer.getByteBuffer();
-            bb.position(0).limit(buffer.getBufferSize());
-            int read = 0;
-            while (read < buffer.getBufferSize()) {
-                long position = page * _bufferSize + bb.position();
-                int bytesRead = _channel.read(bb, position);
-                if (bytesRead <= 0) {
-                    throw new PersistitIOException("Unable to read bytes at position " + position + " in " + this);
-                }
-                read += bytesRead;
+        if (exists) {
+            if (_specification.isCreateOnly()) {
+                throw new VolumeAlreadyExistsException(_specification.getPath());
             }
-            _persistit.getIOMeter().chargeReadPageFromVolume(this, buffer.getPageAddress(), buffer.getBufferSize(),
-                    buffer.getIndex());
-            bumpReadCounter();
-            _persistit.getLogBase().readOk.log(this, page, buffer.getIndex());
-        } catch (IOException ioe) {
-            _persistit.getLogBase().readException.log(ioe, this, page, buffer.getIndex());
-            _lastIOException = ioe;
-            throw new PersistitIOException(ioe);
-        }
-    }
-
-    void writePage(final ByteBuffer bb, final long page) throws IOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException {
-        if (page < 0 || page >= _pageCount) {
-            throw new InvalidPageAddressException("Page " + page + " out of bounds [0-" + _pageCount + ")");
-        }
-
-        if (_readOnly) {
-            throw new ReadOnlyVolumeException(this.getPath());
-        }
-
-        try {
-            _channel.write(bb, page * _bufferSize);
-        } catch (IOException ioe) {
-            _persistit.getLogBase().writeException.log(ioe, this, page);
-            _lastIOException = ioe;
-            throw ioe;
-        }
-
-    }
-
-    /**
-     * Allocates a previously unused page. Returns a Buffer containing that
-     * page. Empties all previous content of that page and sets its type to
-     * UNUSED.
-     * 
-     * @return a Buffer containing the newly allocated page. The returned buffer
-     *         has a writer claim on it.
-     */
-    Buffer allocPage() throws PersistitException {
-        Buffer buffer = null;
-        claimHeadBuffer();
-        try {
-            long garbageRoot = getGarbageRoot();
-            if (garbageRoot != 0) {
-                Buffer garbageBuffer = _pool.get(this, garbageRoot, true, true);
-                final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                garbageBuffer.writePageOnCheckpoint(timestamp);
-                try {
-                    Debug.$assert0.t(garbageBuffer.isGarbagePage());
-                    Debug.$assert0.t((garbageBuffer.getStatus() & CLAIMED_MASK) == 1);
-
-                    long page = garbageBuffer.getGarbageChainLeftPage();
-                    long rightPage = garbageBuffer.getGarbageChainRightPage();
-
-                    Debug.$assert0.t(page != 0);
-
-                    if (page == -1) {
-                        long newGarbageRoot = garbageBuffer.getRightSibling();
-                        _persistit.getLogBase().garbagePageExhausted.log(garbageRoot, newGarbageRoot,
-                                garbageBufferInfo(garbageBuffer));
-                        setGarbageRoot(newGarbageRoot);
-                        buffer = garbageBuffer;
-                        garbageBuffer = null;
-                    } else {
-                        _persistit.getLogBase().allocateFromGarbageChain.log(page, garbageBufferInfo(garbageBuffer));
-                        boolean solitaire = rightPage == -1;
-                        buffer = _pool.get(this, page, true, !solitaire);
-
-                        Debug.$assert0.t(buffer.getPageAddress() > 0);
-
-                        long nextGarbagePage = solitaire ? -1 : buffer.getRightSibling();
-
-                        if (nextGarbagePage == rightPage || nextGarbagePage == 0) {
-                            _persistit.getLogBase().garbageChainDone.log(garbageBufferInfo(garbageBuffer), rightPage);
-                            garbageBuffer.removeGarbageChain();
-                        } else {
-                            _persistit.getLogBase().garbageChainUpdate.log(garbageBufferInfo(garbageBuffer),
-                                    nextGarbagePage, rightPage);
-                            Debug.$assert0.t(nextGarbagePage > 0);
-                            garbageBuffer.setGarbageLeftPage(nextGarbagePage);
-                        }
-                        garbageBuffer.setDirtyAtTimestamp(timestamp);
-                    }
-
-                    Debug.$assert0
-                            .t(buffer != null && buffer.getPageAddress() != 0
-                                    && buffer.getPageAddress() != _garbageRoot
-                                    && buffer.getPageAddress() != _directoryRootPage);
-
-                    harvestLongRecords(buffer, 0, Integer.MAX_VALUE);
-
-                    buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
-                    buffer.clear();
-                    return buffer;
-                } finally {
-                    if (garbageBuffer != null) {
-                        garbageBuffer.releaseTouched();
-                    }
-                }
-            } else {
-                if (_firstAvailablePage >= _pageCount) {
-                    extend();
-                }
-                long page;
-                page = _firstAvailablePage++;
-
-                // No need to read the prior content of the page - we trust
-                // it's never been used before.
-                buffer = _pool.get(this, page, true, false);
-                buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
-                // -
-                // debug
-                if (page > _highestPageUsed) {
-                    _highestPageUsed = page;
-                }
-
-                checkpointMetaData();
-
-                Debug.$assert0.t(buffer.getPageAddress() != 0);
-                return buffer;
+            _storage.open();
+        } else {
+            if (!_specification.isCreate()) {
+                throw new VolumeNotFoundException(_specification.getPath());
             }
-        } finally {
-            releaseHeadBuffer();
+            _storage.create();
+
         }
+        persistit.addVolume(this);
     }
 
-    private void extend() throws PersistitException {
-
-        if (_pageCount >= _maximumPages || _extensionPages <= 0) {
-            throw new VolumeFullException(this + " is full: " + _pageCount + " pages");
+    void openTemporary(final Persistit persistit, final int pageSize) throws PersistitException {
+        checkClosing();
+        if (_storage != null) {
+            throw new IllegalStateException("This volume has already been opened");
         }
-        // Do not extend past maximum pages
-        long pageCount = Math.min(_pageCount + _extensionPages, _maximumPages);
-        extend(pageCount);
+        _structure = new VolumeStructure(persistit, this, pageSize);
+        _storage = new VolumeStorageT2(persistit, this);
+        _statistics = new VolumeStatistics();
+
+        _storage.create();
     }
 
-    private void extend(final long pageCount) throws PersistitException {
-        long newSize = pageCount * _bufferSize;
-        long currentSize = -1;
-
-        claimHeadBuffer();
-        try {
-            currentSize = _channel.size();
-            if (currentSize > newSize) {
-                _persistit.getLogBase().extendLonger.log(this, currentSize, newSize);
-            }
-            if (currentSize < newSize) {
-                final ByteBuffer bb = ByteBuffer.allocate(1);
-                bb.position(0).limit(1);
-                _channel.write(bb, newSize - 1);
-                _channel.force(true);
-                _persistit.getLogBase().extendNormal.log(this, currentSize, newSize);
-            }
-
-            _pageCount = pageCount;
-            _lastExtensionTime = System.currentTimeMillis();
-            checkpointMetaData();
-
-        } catch (IOException ioe) {
-            _lastIOException = ioe;
-            _persistit.getLogBase().extendException.log(ioe, this, currentSize, newSize);
-            throw new PersistitIOException(ioe);
-        } finally {
-            releaseHeadBuffer();
-        }
+    public String getName() {
+        return _name;
     }
 
-    void close() throws PersistitException {
-        _headBuffer.clearFixed();
-        _closed = true;
-
-        PersistitException pe = null;
-        try {
-            final FileLock lock = _fileLock;
-            _fileLock = null;
-            if (lock != null) {
-                lock.release();
-            }
-        } catch (Exception e) {
-            _persistit.getLogBase().exception.log(e);
-            pe = new PersistitException(e);
-        }
-        try {
-            final FileChannel channel = _channel;
-            _channel = null;
-            if (channel != null) {
-                channel.close();
-            }
-        } catch (Exception e) {
-            _persistit.getLogBase().exception.log(e);
-            // has priority over Exception throw by
-            // releasing file lock.
-            pe = new PersistitException(e);
-        }
-        if (pe != null) {
-            throw pe;
-        }
+    public long getId() {
+        return _id;
     }
 
-    void flush() throws PersistitException {
-        claimHeadBuffer();
-        commitAllTreeUpdates();
-        setClean();
-        checkpointMetaData();
-        releaseHeadBuffer();
-    }
-
-    void sync() throws PersistitIOException, ReadOnlyVolumeException {
-        if (isReadOnly()) {
-            throw new ReadOnlyVolumeException(this.toString());
+    void setId(final long id) {
+        if (id != 0 && _id != 0 && _id != id) {
+            throw new IllegalStateException("Volume " + this + " already has id=" + _id);
         }
-        try {
-            if (_channel != null && _channel.isOpen()) {
-                _channel.force(true);
-            }
-        } catch (IOException ioe) {
-            _lastIOException = ioe;
-            throw new PersistitIOException(ioe);
+        _id = id;
+    }
+
+    void verifyId(final long id) throws WrongVolumeException {
+        if (id != 0 && _id != 0 && id != _id) {
+            throw new WrongVolumeException(this + "id " + _id + " does not match expected id " + id);
         }
-    }
-
-    private boolean updateHeaderInfo(byte[] bytes) {
-        boolean changed = false;
-        changed |= Util.changeBytes(bytes, 0, _header.getSignature());
-        changed |= Util.changeInt(bytes, 16, _header.getVersion());
-        changed |= Util.changeInt(bytes, 20, _bufferSize);
-        changed |= Util.changeLong(bytes, 24, _timestamp);
-        changed |= Util.changeLong(bytes, 32, _id);
-        changed |= Util.changeLong(bytes, 40, _readCounter.get());
-        // Ugly, but the act of closing the system increments this
-        // counter, leading to an extra write. So basically we
-        // ignore the final write by not setting the changed flag.
-        Util.putLong(bytes, 48, _writeCounter.get());
-        changed |= Util.changeLong(bytes, 56, _getCounter.get());
-        changed |= Util.changeLong(bytes, 64, _openTime);
-        changed |= Util.changeLong(bytes, 72, _createTime);
-        changed |= Util.changeLong(bytes, 80, _lastReadTime);
-        // See comment above for _writeCounter
-        Util.putLong(bytes, 88, _lastWriteTime);
-        changed |= Util.changeLong(bytes, 96, _lastExtensionTime);
-        changed |= Util.changeLong(bytes, 104, _highestPageUsed);
-        changed |= Util.changeLong(bytes, 112, _pageCount);
-        changed |= Util.changeLong(bytes, 120, _extensionPages);
-        changed |= Util.changeLong(bytes, 128, _maximumPages);
-        changed |= Util.changeLong(bytes, 136, _firstAvailablePage);
-        changed |= Util.changeLong(bytes, 144, _directoryRootPage);
-        changed |= Util.changeLong(bytes, 152, _garbageRoot);
-        changed |= Util.changeLong(bytes, 160, _fetchCounter.get());
-        changed |= Util.changeLong(bytes, 168, _traverseCounter.get());
-        changed |= Util.changeLong(bytes, 176, _storeCounter.get());
-        changed |= Util.changeLong(bytes, 184, _removeCounter.get());
-        changed |= Util.changeLong(bytes, 192, _initialPages);
-        return changed;
-    }
-
-    private void getHeaderInfo(byte[] bytes) {
-        _bufferSize = Util.getInt(bytes, 20);
-        _timestamp = Util.getLong(bytes, 24);
-        _id = Util.getLong(bytes, 32);
-        _readCounter.set(Util.getLong(bytes, 40));
-        _writeCounter.set(Util.getLong(bytes, 48));
-        _getCounter.set(Util.getLong(bytes, 56));
-        _openTime = Util.getLong(bytes, 64);
-        _createTime = Util.getLong(bytes, 72);
-        _lastReadTime = Util.getLong(bytes, 80);
-        _lastWriteTime = Util.getLong(bytes, 88);
-        _lastExtensionTime = Util.getLong(bytes, 96);
-        _highestPageUsed = Util.getLong(bytes, 104);
-        _pageCount = Util.getLong(bytes, 112);
-        _extensionPages = Util.getLong(bytes, 120);
-        _maximumPages = Util.getLong(bytes, 128);
-        _firstAvailablePage = Util.getLong(bytes, 136);
-        _directoryRootPage = Util.getLong(bytes, 144);
-        _garbageRoot = Util.getLong(bytes, 152);
-        _fetchCounter.set(Util.getLong(bytes, 160));
-        _traverseCounter.set(Util.getLong(bytes, 168));
-        _storeCounter.set(Util.getLong(bytes, 176));
-        _removeCounter.set(Util.getLong(bytes, 184));
-        _initialPages = Util.getLong(bytes, 192);
-    }
-
-    /**
-     * Returns a displayable string describing this <code>Volume</code>.
-     * 
-     * @return The description
-     */
-    @Override
-    public String toString() {
-        return getName() + "(" + getPath() + ")";
     }
 
     /**
@@ -1566,13 +425,52 @@ public class Volume extends SharedResource {
         return _appCache.get();
     }
 
-    int getHandle() {
+    /**
+     * @return The handle value used to identify this Tree in the journal
+     */
+    public int getHandle() {
         return _handle.get();
     }
 
+    /**
+     * Set the handle used to identify this Tree in the journal. May be invoked
+     * only once.
+     * 
+     * @param handle
+     * @return
+     * @throws IllegalStateException
+     *             if the handle has already been set
+     */
     int setHandle(final int handle) {
-        _handle.set(handle);
+        if (handle == 0) {
+            _handle.set(0);
+        } else if (!_handle.compareAndSet(0, handle)) {
+            throw new IllegalStateException("Tree handle already set");
+        }
         return handle;
     }
 
+    @Override
+    public String toString() {
+        VolumeSpecification specification = _specification;
+        if (specification != null) {
+            return specification.summary();
+        } else {
+            return _name;
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        return _name.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof Volume) {
+            final Volume volume = (Volume) o;
+            return volume.getName().equals(getName()) && volume.getId() == getId();
+        }
+        return false;
+    }
 }

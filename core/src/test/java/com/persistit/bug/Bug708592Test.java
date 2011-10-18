@@ -30,10 +30,10 @@ import com.persistit.unit.PersistitUnitTestCase;
  * splits a data page at the right edge, leading to this Exception when 
  * inserting an invalid key in the index level.
  * Caused by: com.persistit.exception.CorruptVolumeException: Volume
- * akiban_data(/var/lib/akiban/akiban_data.v01) level=1 page=0
+ * akiban_data(/var/lib/akiban/akiban_data) level=1 page=0
  * previousPage=331207 initialPage=331207 key=<{{right edge}}>
  * oldBuffer=<Page 331207 in Volume
- * akiban_data(/var/lib/akiban/akiban_data.v01) at index 66715
+ * akiban_data(/var/lib/akiban/akiban_data) at index 66715
  * status=vdswr1 <Network-Worker-Thread-0>> invalid page address
  *    at com.persistit.Exchange.searchLevel(Exchange.java:1090)
  *    at com.persistit.Exchange.searchTree(Exchange.java:999)

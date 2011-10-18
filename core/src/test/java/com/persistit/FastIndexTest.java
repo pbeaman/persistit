@@ -57,7 +57,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
         assertEquals(false, fi.verify());
         b1.release();
     }
-    
+
     public void testFastIndexRecompute() throws Exception {
         Buffer b1 = getABuffer();
         b1.init(Buffer.PAGE_TYPE_DATA);
@@ -89,7 +89,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
         b1.putValue(key, value);
         fakeKey(key, "ABJ");
         b1.putValue(key, value);
-        
+
         FastIndex fi = b1.getFastIndex();
         String inserteds = fi.toString();
         fi.recompute();
@@ -97,8 +97,8 @@ public class FastIndexTest extends PersistitUnitTestCase {
         assertEquals(inserteds, computeds);
         b1.release();
     }
-    
-    private void fakeKey( final Key key, final String v) {
+
+    private void fakeKey(final Key key, final String v) {
         key.clear().append(v);
         System.arraycopy(key.getEncodedBytes(), 1, key.getEncodedBytes(), 0, key.getEncodedSize());
         key.setEncodedSize(key.getEncodedSize() - 1);
@@ -108,7 +108,7 @@ public class FastIndexTest extends PersistitUnitTestCase {
         Random random = new Random(3);
         Buffer b1 = getABuffer();
         FastIndex f1 = b1.getFastIndex();
-        
+
         b1.init(Buffer.PAGE_TYPE_DATA);
         Key key = new Key(_persistit);
         Value value = new Value(_persistit);
@@ -125,10 +125,9 @@ public class FastIndexTest extends PersistitUnitTestCase {
             String s2 = f1.toString();
             assertEquals(s1, s2);
         }
-
+        b1.release();
     }
-    
-    
+
     @Override
     public void runAllTests() {
     }

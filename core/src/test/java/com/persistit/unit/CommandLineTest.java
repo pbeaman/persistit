@@ -1,4 +1,5 @@
 /**
+
  * Copyright (C) 2011 Akiban Technologies Inc.
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
@@ -15,7 +16,11 @@
 
 package com.persistit.unit;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.PrintWriter;
+import java.io.StringReader;
+import java.io.StringWriter;
 
 import org.junit.Test;
 
@@ -62,6 +67,25 @@ public class CommandLineTest extends PersistitUnitTestCase {
         waitForCompletion(taskId(status));
 
         assertEquals(300, pmap.size());
+    }
+
+    @Test
+    public void testScript() throws Exception {
+        final PersistitMap<Integer, String> pmap = new PersistitMap<Integer, String>(_persistit.getExchange(
+                "persistit", "CommandLineTest", true));
+        for (int index = 0; index < 500; index++) {
+            pmap.put(new Integer(index), "This is the record for index=" + index);
+        }
+        _persistit.close();
+
+        final String datapath = _persistit.getProperty("datapath");
+        final StringReader stringReader = new StringReader(String.format("open datapath=%s\nicheck -v\n", datapath));
+        final BufferedReader reader = new BufferedReader(stringReader);
+        final StringWriter stringWriter = new StringWriter();
+        final PrintWriter writer = new PrintWriter(stringWriter);
+        CLI.runScript(null, reader, writer);
+        final String result = stringWriter.toString();
+        assertTrue(result.contains("data"));
     }
 
     private long taskId(final String status) {

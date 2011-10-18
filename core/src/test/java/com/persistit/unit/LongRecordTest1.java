@@ -80,13 +80,11 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         final StringBuilder sb1 = new StringBuilder(1000000);
         final StringBuilder sb2 = new StringBuilder(1000000);
         ex.getKey().append("foo");
-        System.out.println();
         final int size = 100000;
         for (int count = 0; count < 10; count++) {
             store(ex, size, sb1);
             check(ex, size, sb1, sb2);
         }
-        System.out.println();
         for (int count = 0; count < 10; count++) {
             store(ex, size, sb1);
             check(ex, size, sb1, sb2);
@@ -102,12 +100,10 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
             final StringBuilder sb1 = new StringBuilder(1000000);
             final StringBuilder sb2 = new StringBuilder(1000000);
             ex.getKey().append("foo");
-            System.out.println();
             for (int size = 0; size < 500000; size += 10000) {
                 store(ex, size, sb1);
                 check(ex, size, sb1, sb2);
             }
-            System.out.println();
             for (int size = 500000; (size -= 10000) >= 0;) {
                 store(ex, size, sb1);
                 check(ex, size, sb1, sb2);

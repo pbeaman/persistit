@@ -284,17 +284,13 @@ class ManagementImpl implements Management {
      * Attempts to flush and sync all dirty data in Persistit by invoking
      * {@link Persistit#flush} and {@link Persistit#sync}.
      * 
-     * @return <code>true</code> if the attempt to close Persistit was
-     *         successful; otherwise <code>false</code>
      * @throws RemoteException
      */
     @Override
-    public boolean flushAndSync() throws RemoteException {
+    public void flushAndSync() throws RemoteException {
         try {
-            boolean okay = _persistit.flush();
-            if (okay)
-                _persistit.sync();
-            return okay;
+            _persistit.flush();
+            _persistit.force();
         } catch (PersistitException e) {
             throw new WrappedRemoteException(e);
         }
@@ -624,7 +620,7 @@ class ManagementImpl implements Management {
                 return null;
             }
             if (treeName == null) {
-                exchange = volume.directoryExchange();
+                exchange = volume.getStructure().directoryExchange();
             } else {
                 exchange = _persistit.getExchange(volume, treeName, false);
             }
@@ -741,8 +737,8 @@ class ManagementImpl implements Management {
             status |= SharedResource.FIXED_MASK;
 
         if (statusCode.indexOf('a') >= 0)
-            status |= (SharedResource.FIXED_MASK | SharedResource.WRITER_MASK
-                    | SharedResource.CLAIMED_MASK | SharedResource.DIRTY_MASK | SharedResource.VALID_MASK);
+            status |= (SharedResource.FIXED_MASK | SharedResource.WRITER_MASK | SharedResource.CLAIMED_MASK
+                    | SharedResource.DIRTY_MASK | SharedResource.VALID_MASK);
 
         // select none
         if (status == 0)
@@ -847,7 +843,7 @@ class ManagementImpl implements Management {
             return null;
         try {
             Tree tree = null;
-            if (Volume.DIRECTORY_TREE_NAME.equals(treeName)) {
+            if (VolumeStructure.DIRECTORY_TREE_NAME.equals(treeName)) {
                 tree = volume.getDirectoryTree();
             } else {
                 tree = volume.getTree(treeName, false);
@@ -1167,33 +1163,37 @@ class ManagementImpl implements Management {
         _displayFilter = displayFilter;
     }
 
-    void register(String hostName, String portString) {
+    void register(String hostName, String rmiPortString, String serverPortString) {
 
         try {
             ManagementImpl impl = (ManagementImpl) _persistit.getManagement();
-            int port = -1;
-            if (portString != null && portString.length() > 0) {
+            int rmiPort = -1;
+            int serverPort = 0;
+            if (rmiPortString != null && rmiPortString.length() > 0) {
                 try {
-                    port = Integer.parseInt(portString);
+                    rmiPort = Integer.parseInt(rmiPortString);
                     if (hostName == null) {
                         InetAddress addr = InetAddress.getLocalHost();
                         try {
-                            hostName = addr.getHostName() + ":" + port;
+                            hostName = addr.getHostName() + ":" + rmiPort;
                         } catch (Exception e) {
-                            hostName = addr.getHostAddress() + ":" + port;
+                            hostName = addr.getHostAddress() + ":" + rmiPort;
                         }
                     }
                 } catch (NumberFormatException nfe) {
                 }
             }
-            if (port != -1 && _localRegistryPort != port) {
-                LocateRegistry.createRegistry(port);
-                _localRegistryPort = port;
+            if (serverPortString != null && serverPortString.length() > 0) {
+                serverPort = Integer.parseInt(serverPortString);
+            }
+            if (rmiPort != -1 && _localRegistryPort != rmiPort) {
+                LocateRegistry.createRegistry(rmiPort);
+                _localRegistryPort = rmiPort;
             }
 
             if (hostName != null && hostName.length() > 0) {
                 String name = "//" + hostName + "/PersistitManagementServer";
-                UnicastRemoteObject.exportObject(impl);
+                UnicastRemoteObject.exportObject(impl, serverPort);
                 Naming.rebind(name, impl);
                 impl._registered = true;
                 impl._registeredHostName = hostName;

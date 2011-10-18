@@ -19,13 +19,13 @@ import com.persistit.util.Debug;
 
 /**
  * A container for a SharedResource that experiences reentrant claims (locks).
- * {@link Exchange} uses this to hold a Tree object, which experiences this pattern.
- * The purpose is to keep a count of so that when an Exchange has finished using
- * the Tree, it can verify that all claims were released. This is primarily for
- * debugging; correct code will always release each claim.
+ * {@link Exchange} uses this to hold a Tree object, which experiences this
+ * pattern. The purpose is to keep a count of so that when an Exchange has
+ * finished using the Tree, it can verify that all claims were released. This is
+ * primarily for debugging; correct code will always release each claim.
  */
 
-public class ReentrantResourceHolder {
+class ReentrantResourceHolder {
 
     private final SharedResource _resource;
     private int _claimCount;

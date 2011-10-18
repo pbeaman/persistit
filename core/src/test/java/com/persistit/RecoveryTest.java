@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -28,7 +29,6 @@ import org.junit.Test;
 
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TreeDescriptor;
-import com.persistit.JournalManager.VolumeDescriptor;
 import com.persistit.RecoveryManager.RecoveryListener;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
@@ -81,7 +81,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit = new Persistit();
         _persistit.initialize(saveProperties);
         jman = _persistit.getJournalManager();
-        assertEquals(0, jman.getPageMapSize());
+        // opening a volume modifies its head page
+        assertTrue(jman.getPageMapSize() <= 1);
         fetch1a();
         fetch1b();
     }
@@ -179,7 +180,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
         txn.begin();
         store1();
-        jman.setUnitTestNeverCloseTransactionId(txn.getId());
+        jman.setUnitTestNeverCloseTransactionId(txn.getStartTimestamp());
         txn.commit();
         txn.end();
         jman.setUnitTestNeverCloseTransactionId(Long.MIN_VALUE);
@@ -193,24 +194,20 @@ public class RecoveryTest extends PersistitUnitTestCase {
         // it should preserve the journal file containing the TS record
         // for the transaction.
         //
-        assertEquals(2, jman.getBaseAddress() / blockSize);
         assertEquals(0, jman.getPageMapSize());
-
+        assertTrue(jman.getBaseAddress() < jman.getCurrentAddress());
         txn.begin();
         store1();
         txn.commit();
         txn.end();
 
-        // Using the same transaction resets the transaction status;
-        // after the commit() call above, JournalManager should not
-        // have any open transactions. Therefore rollover should
-        // delete the earlier files after copyBack.
-        //
+        jman.unitTestClearTransactionMap();
+
         jman.rollover();
         _persistit.checkpoint();
         jman.copyBack();
 
-        assertEquals(3, jman.getBaseAddress() / blockSize);
+        assertEquals(jman.getBaseAddress(), jman.getCurrentAddress());
         assertEquals(0, jman.getPageMapSize());
 
         fetch1a();
@@ -285,11 +282,11 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     @Test
     public void testLargePageMap() throws Exception {
-        final VolumeDescriptor vd = new VolumeDescriptor("foo", 123);
-        final Map<Integer, VolumeDescriptor> volumeMap = new TreeMap<Integer, VolumeDescriptor>();
+        final Volume vd = new Volume("foo", 123);
+        final Map<Integer, Volume> volumeMap = new TreeMap<Integer, Volume>();
         volumeMap.put(1, vd);
         // sorted to make reading hex dumps easier
-        final Map<PageNode, PageNode> pageMap = new TreeMap<PageNode, PageNode>();
+        final Map<PageNode, PageNode> pageMap = new HashMap<PageNode, PageNode>();
         for (long pageAddr = 0; pageAddr < 100000; pageAddr++) {
             PageNode lastPageNode = new PageNode(1, pageAddr, pageAddr * 100, 0);
             for (long ts = 1; ts < 10; ts++) {
@@ -312,8 +309,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
         rman.init(path);
         rman.buildRecoveryPlan();
         assertTrue(rman.getKeystoneAddress() != -1);
-        final Map<PageNode, PageNode> pageMapCopy = new TreeMap<PageNode, PageNode>();
-        final Map<PageNode, PageNode> branchMapCopy = new TreeMap<PageNode, PageNode>();
+        final Map<PageNode, PageNode> pageMapCopy = new HashMap<PageNode, PageNode>();
+        final Map<PageNode, PageNode> branchMapCopy = new HashMap<PageNode, PageNode>();
         rman.collectRecoveredPages(pageMapCopy, branchMapCopy);
         assertEquals(pageMap.size(), pageMapCopy.size());
         PageNode key = new PageNode(1, 42, -1, -1);
@@ -331,7 +328,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     public void testVolumeMetadataValid() throws Exception {
         // create a junk volume to make sure the internal handle count is bumped
         // up
-        VolumeDescriptor vd = new VolumeDescriptor("foo", 123);
+        Volume vd = new Volume("foo", 123);
         int volumeHandle = _persistit.getJournalManager().handleForVolume(vd);
         // retrieve the value of the handle counter before crashing
         int initialHandleValue = _persistit.getJournalManager().getHandleCount();
@@ -413,9 +410,9 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit.getJournalManager().setAppendOnly(true);
         _persistit.initialize(saveProperties);
         _persistit.checkAllVolumes();
-        
+
         final Volume volume = _persistit.getVolume("persistit");
-        
+
         long page = volume.getDirectoryTree().getRootPageAddr();
         Buffer buffer = _persistit.getBufferPool(volume.getPageSize()).getBufferCopy(volume, page);
         assertEquals(0, buffer.getRightSibling());

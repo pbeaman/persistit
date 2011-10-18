@@ -84,7 +84,7 @@ public class JournalTool {
 
     private final Persistit _persistit;
 
-    private final Action _action;
+    private Action _action;
 
     private String _journalFilePath;
 
@@ -132,6 +132,14 @@ public class JournalTool {
 
     public void setEndAddr(long endAddr) {
         _endAddr = endAddr;
+    }
+
+    public Action getAction() {
+        return _action;
+    }
+
+    public void setAction(final Action action) {
+        _action = action;
     }
 
     public PrintWriter getWriter() {
@@ -190,7 +198,7 @@ public class JournalTool {
         _verbose = verbose;
     }
 
-    interface Action {
+    public interface Action {
         public void je(final long address, final long timestamp, final int recordSize) throws Exception;
 
         public void jh(final long address, final long timestamp, final int recordSize) throws Exception;
@@ -222,7 +230,7 @@ public class JournalTool {
         public void eof(final long address) throws Exception;
     }
 
-    static class RangePredicate {
+    protected static class RangePredicate {
         private final long[] _left;
         private final long[] _right;
 
@@ -284,13 +292,13 @@ public class JournalTool {
         }
     }
 
-    JournalTool(final Persistit persistit) {
+    public JournalTool(final Persistit persistit) {
         _persistit = persistit;
         _action = new SimpleDumpAction();
         _selectedTypes.set(0, 65535, true);
     }
 
-    void init(final String[] args) {
+    public void init(final String[] args) {
         ArgParser ap = new ArgParser("com.persistit.JournalTool", args, ARGS_TEMPLATE);
         if (ap.isUsageOnly()) {
             return;

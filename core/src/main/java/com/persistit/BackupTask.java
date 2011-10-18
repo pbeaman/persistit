@@ -58,7 +58,7 @@ import com.persistit.util.Util;
  * @author peter
  * 
  */
-public class BackupTask extends Task {
+class BackupTask extends Task {
 
     private final static int BUFFER_SIZE = 1024 * 1024;
     private final static int PROGRESS_MARK_AT = 100 * 1000 * 1000;
