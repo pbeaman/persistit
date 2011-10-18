@@ -299,7 +299,10 @@ class VolumeStorageT2 extends VolumeStorage {
     @Override
     void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
             ReadOnlyVolumeException, VolumeClosedException, InUseException, PersistitInterruptedException {
-        writePage(buffer.getByteBuffer(), buffer.getPageAddress());
+        int pageSize = _volume.getStructure().getPageSize();
+        final ByteBuffer bb = buffer.getByteBuffer();
+        bb.position(0).limit(pageSize);
+        writePage(bb, buffer.getPageAddress());
     }
 
     @Override
@@ -317,8 +320,6 @@ class VolumeStorageT2 extends VolumeStorage {
             }
 
             try {
-                bb.position(0).limit(pageSize);
-
                 _channel.write(bb, (page - 1) * pageSize);
 
             } catch (IOException ioe) {

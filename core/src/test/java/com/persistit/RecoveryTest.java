@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -285,7 +286,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         final Map<Integer, Volume> volumeMap = new TreeMap<Integer, Volume>();
         volumeMap.put(1, vd);
         // sorted to make reading hex dumps easier
-        final Map<PageNode, PageNode> pageMap = new TreeMap<PageNode, PageNode>();
+        final Map<PageNode, PageNode> pageMap = new HashMap<PageNode, PageNode>();
         for (long pageAddr = 0; pageAddr < 100000; pageAddr++) {
             PageNode lastPageNode = new PageNode(1, pageAddr, pageAddr * 100, 0);
             for (long ts = 1; ts < 10; ts++) {
@@ -308,8 +309,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
         rman.init(path);
         rman.buildRecoveryPlan();
         assertTrue(rman.getKeystoneAddress() != -1);
-        final Map<PageNode, PageNode> pageMapCopy = new TreeMap<PageNode, PageNode>();
-        final Map<PageNode, PageNode> branchMapCopy = new TreeMap<PageNode, PageNode>();
+        final Map<PageNode, PageNode> pageMapCopy = new HashMap<PageNode, PageNode>();
+        final Map<PageNode, PageNode> branchMapCopy = new HashMap<PageNode, PageNode>();
         rman.collectRecoveredPages(pageMapCopy, branchMapCopy);
         assertEquals(pageMap.size(), pageMapCopy.size());
         PageNode key = new PageNode(1, 42, -1, -1);
