@@ -298,7 +298,7 @@ public class Transaction {
 
     private final static String TRANSACTION_TREE_NAME = "_txn_";
 
-    private final static long COMMIT_CLAIM_TIMEOUT = 30000;
+    private final static long COMMIT_CLAIM_TIMEOUT = 300000;
 
     private final static int NEUTERED_LONGREC = 254;
 
