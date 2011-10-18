@@ -1126,10 +1126,17 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
         rollover();
 
-        _persistit.waitForIOTaskStop(_copier);
+        JournalCopier copier = _copier;
         _copier = null;
-        _persistit.waitForIOTaskStop(_flusher);
+        if (copier != null) {
+            _persistit.waitForIOTaskStop(copier);
+        }
+        
+        JournalFlusher flusher = _flusher;
         _flusher = null;
+        if (flusher != null) {
+            _persistit.waitForIOTaskStop(flusher);
+        }
 
         synchronized (this) {
             try {
