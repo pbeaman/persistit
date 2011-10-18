@@ -109,12 +109,14 @@ public class ApacheCommonsLogAdapter implements PersistitLogger {
 
     @Override
     public void open() {
-        // Nothing to do - the log is created and destroyed by the embedding application
+        // Nothing to do - the log is created and destroyed by the embedding
+        // application
     }
 
     @Override
     public void close() {
-        // Nothing to do - the log is created and destroyed by the embedding application
+        // Nothing to do - the log is created and destroyed by the embedding
+        // application
     }
 
 }

@@ -87,14 +87,13 @@ class SharedResource {
     final static AtomicLong RELEASE_LOOPS = new AtomicLong();
     final static AtomicLong SET_BIT_LOOPS = new AtomicLong();
     final static AtomicLong CLEAR_BIT_LOOPS = new AtomicLong();
-    
 
     /**
      * Extension of {@link AbstractQueuedSynchronizer} with Persistit semantics.
      */
     private static class Sync extends AbstractQueuedSynchronizer {
         private static final long serialVersionUID = 1L;
-        
+
         @Override
         protected boolean tryAcquire(int arg) {
             assert arg == 1;
@@ -147,7 +146,7 @@ class SharedResource {
          * acquired shared access. This method upgrades the state to exclusive,
          * but only if there is exactly one shared acquire.
          * 
-         * TODO  - prove that caller already a reader claim
+         * TODO - prove that caller already a reader claim
          * 
          * @return
          */
@@ -325,7 +324,6 @@ class SharedResource {
             } catch (InterruptedException e) {
                 throw new PersistitInterruptedException(e);
             }
-            Debug.$assert1.t(false);
             return false;
         }
     }
@@ -444,7 +442,7 @@ class SharedResource {
         default:
             StringBuilder sb = new StringBuilder(8);
 
-            if ((state & VALID_MASK) != 0) { //TODO chars
+            if ((state & VALID_MASK) != 0) { // TODO chars
                 sb.append("v");
             }
             if ((state & DIRTY_MASK) != 0) {

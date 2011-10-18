@@ -15,4 +15,5 @@
 package com.persistit.logging;
 
 public enum PersistitLevel {
-    NONE, TRACE, DEBUG, INFO, WARNING, ERROR, };
+    NONE, TRACE, DEBUG, INFO, WARNING, ERROR,
+};

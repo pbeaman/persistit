@@ -113,6 +113,7 @@ public class CLI {
             registerCommands(clazz);
         }
     }
+
     /**
      * Registers command methods provided by the supplied Class. To be
      * registered as a CLI command, a method must be identified by a @Cmd
@@ -218,8 +219,9 @@ public class CLI {
         }
         System.out.println();
     }
-    
-    public static void runScript(final Persistit persistit, final BufferedReader reader, final PrintWriter writer) throws Exception {
+
+    public static void runScript(final Persistit persistit, final BufferedReader reader, final PrintWriter writer)
+            throws Exception {
         CLI cli = new CLI(persistit, reader, writer);
         cli.commandLoop();
         cli.close(false);
@@ -355,17 +357,17 @@ public class CLI {
             }
         }
     }
-    
+
     private static class ScriptReader implements LineReader {
 
         private final BufferedReader _reader;
         private final PrintWriter _writer;
-        
+
         private ScriptReader(final BufferedReader reader, PrintWriter writer) {
             _reader = reader;
             _writer = writer;
         }
-        
+
         @Override
         public String readLine() throws IOException {
             String line = _reader.readLine();
@@ -387,7 +389,7 @@ public class CLI {
             _reader.close();
             _writer.close();
         }
-        
+
     }
 
     private static class Command {
@@ -481,7 +483,7 @@ public class CLI {
         _persistit = persistit;
         _live = persistit != null;
     }
-    
+
     public CLI(final Persistit persistit, final BufferedReader reader, final PrintWriter writer) {
         _lineReader = new ScriptReader(reader, writer);
         _persistit = persistit;
@@ -616,12 +618,12 @@ public class CLI {
             persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
         }
         persistit.initialize(properties);
-        
+
         /**
          * Following is a hack to figure ought whether there is a classIndex in
-         * exactly one volume, and if so, make is the system volume. There should
-         * be an API in the Persistit class itself to do this, but currently there
-         * isn't one.
+         * exactly one volume, and if so, make is the system volume. There
+         * should be an API in the Persistit class itself to do this, but
+         * currently there isn't one.
          */
         Volume sysvol = null;
         for (final Volume volume : persistit.getVolumes()) {
@@ -637,8 +639,7 @@ public class CLI {
         if (sysvol != null) {
             properties.put(Persistit.SYSTEM_VOLUME_PROPERTY, sysvol.getName());
         }
-        
-        
+
         _persistit = persistit;
         return "Last valid checkpoint=" + persistit.getRecoveryManager().getLastValidCheckpoint().toString();
     }

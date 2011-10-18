@@ -35,7 +35,6 @@ import com.persistit.exception.InvalidPageTypeException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
-import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RebalanceException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.policy.JoinPolicy;
@@ -453,9 +452,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         bumpGeneration();
     }
 
-    void writePageOnCheckpoint(final long timestamp) throws PersistitIOException, InvalidPageStructureException,
-            VolumeClosedException, ReadOnlyVolumeException, InvalidPageAddressException, InUseException,
-            PersistitInterruptedException {
+    void writePageOnCheckpoint(final long timestamp) throws PersistitException {
         Debug.$assert0.t(isMine());
         final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
         if (isDirty() && !isTemporary() && getTimestamp() < checkpoint.getTimestamp()
@@ -465,8 +462,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         }
     }
 
-    void writePage() throws PersistitIOException, InvalidPageStructureException, VolumeClosedException,
-            ReadOnlyVolumeException, InvalidPageAddressException, InUseException, PersistitInterruptedException {
+    void writePage() throws PersistitException {
         final Volume volume = getVolume();
         if (volume != null) {
             clearSlack();

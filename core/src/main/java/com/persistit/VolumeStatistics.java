@@ -48,8 +48,7 @@ class VolumeStatistics {
         _storeCounter.set(0);
         _readCounter.set(0);
     }
-    
-    
+
     void bumpReadCounter() {
         _readCounter.incrementAndGet();
         _lastReadTime = System.currentTimeMillis();
@@ -214,8 +213,6 @@ class VolumeStatistics {
     public long getLastExtensionTime() {
         return _lastExtensionTime;
     }
-
-    
 
     void setOpenTime(long openTime) {
         _openTime = openTime;

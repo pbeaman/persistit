@@ -60,7 +60,7 @@ public class VolumeSpecification {
     private long initialSize = -1;
     private long extensionSize = -1;
     private long maximumSize = -1;
-    
+
     public static String nameFromFile(final File file) {
         String name = file.getName();
         int p = name.lastIndexOf('.');

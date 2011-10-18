@@ -42,7 +42,7 @@ public class TreeSelectorTest {
         assertNotNull(ts.keyFilter("mydata", "anindex"));
         assertNull(ts.keyFilter("mydata", "someothertree"));
     }
-    
+
     @Test
     public void simpleTreeList() throws Exception {
         TreeSelector ts = TreeSelector.parseSelector("v1:t1,v1:t2,v1:t3,v1:t4", false, '\\');

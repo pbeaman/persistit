@@ -23,7 +23,6 @@ import java.lang.reflect.Field;
 
 import com.persistit.logging.PersistitLogMessage.LogItem;
 
-
 /**
  *
  */
@@ -178,7 +177,7 @@ public class LogBase {
 
     @Message("INFO|Waited %,d seconds for IO operations to finish")
     public final LogItem waitForClose = PersistitLogMessage.empty();
-    
+
     @Message("WARNING|Checkpoint %s written to journal before dirty page %d")
     public final LogItem lateWrite = PersistitLogMessage.empty();
 
@@ -196,7 +195,7 @@ public class LogBase {
                     final String[] v = annotation.value().split("\\|");
                     final PersistitLevel level = PersistitLevel.valueOf(v[0]);
                     final String message = v[1];
-                    LogItem logItem = (LogItem)field.get(this);
+                    LogItem logItem = (LogItem) field.get(this);
                     logItem.configure(logger, level, message);
                 } catch (Exception e) {
                     System.err.printf("%s on field %s with annotation %s", e, field, annotation);

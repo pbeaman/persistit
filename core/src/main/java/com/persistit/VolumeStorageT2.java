@@ -17,13 +17,8 @@ package com.persistit;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.lang.ref.Reference;
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.List;
 
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
@@ -304,7 +299,10 @@ class VolumeStorageT2 extends VolumeStorage {
     @Override
     void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
             ReadOnlyVolumeException, VolumeClosedException, InUseException, PersistitInterruptedException {
-        writePage(buffer.getByteBuffer(), buffer.getPageAddress());
+        int pageSize = _volume.getStructure().getPageSize();
+        final ByteBuffer bb = buffer.getByteBuffer();
+        bb.position(0).limit(pageSize);
+        writePage(bb, buffer.getPageAddress());
     }
 
     @Override
@@ -322,8 +320,6 @@ class VolumeStorageT2 extends VolumeStorage {
             }
 
             try {
-                bb.position(0).limit(pageSize);
-
                 _channel.write(bb, (page - 1) * pageSize);
 
             } catch (IOException ioe) {

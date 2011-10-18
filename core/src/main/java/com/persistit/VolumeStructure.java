@@ -174,8 +174,8 @@ class VolumeStructure {
         if (tree == _directoryTree) {
             _volume.getStorage().claimHeadBuffer();
             try {
-            _directoryRootPage = tree.getRootPageAddr();
-            _volume.getStorage().flushMetaData();
+                _directoryRootPage = tree.getRootPageAddr();
+                _volume.getStorage().flushMetaData();
             } finally {
                 _volume.getStorage().releaseHeadBuffer();
             }
@@ -251,12 +251,12 @@ class VolumeStructure {
         }
         return true;
     }
-    
+
     /**
-     * Called by Exchange to recreate a Tree after a volume has been
-     * truncated.
+     * Called by Exchange to recreate a Tree after a volume has been truncated.
+     * 
      * @param tree
-     * @throws PersistitException 
+     * @throws PersistitException
      */
     void recreateTree(final Tree tree) throws PersistitException {
         Debug.$assert1.t(tree.getDepth() == -1);

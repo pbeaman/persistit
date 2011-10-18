@@ -264,14 +264,14 @@ public class Persistit {
      * Property name for the optional RMI registry port
      */
     public final static String RMI_REGISTRY_PORT = "rmiport";
-    
+
     /**
-     * Name of port on which RMI server accepts connects.
-     * If zero or unassigned, RMI picks a random port. Specifying
-     * a port can be helpful when using SSH to tunnel RMI to a server.
+     * Name of port on which RMI server accepts connects. If zero or unassigned,
+     * RMI picks a random port. Specifying a port can be helpful when using SSH
+     * to tunnel RMI to a server.
      */
     public final static String RMI_SERVER_PORT = "rmiserverport";
-    
+
     /**
      * Property name for enabling Persistit Open MBean for JMX
      */

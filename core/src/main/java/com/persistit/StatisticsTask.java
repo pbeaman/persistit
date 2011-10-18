@@ -28,9 +28,11 @@ import com.persistit.CLI.Cmd;
 import com.persistit.Management.BufferPoolInfo;
 import com.persistit.Management.JournalInfo;
 import com.persistit.Management.TransactionInfo;
+import com.persistit.exception.PersistitInterruptedException;
 
 /**
  * Task that reports, either once or periodically, various runtime statistics.
+ * 
  * @author peter
  */
 public class StatisticsTask extends Task {
@@ -171,7 +173,7 @@ public class StatisticsTask extends Task {
                         Thread.sleep(sleep);
                     }
                 } catch (InterruptedException e) {
-                    break;
+                    throw new PersistitInterruptedException(e);
                 }
             }
             updateStatistics(now);

@@ -430,9 +430,10 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         assertEquals(5, remainingKeys.size()); // 10, 12, 14, 16, 18
 
     }
-    
+
     /**
      * Verify that transactions remove their temporary volumes
+     * 
      * @throws Exception
      */
     @Test
@@ -456,18 +457,18 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         Thread[] threads = new Thread[10];
         for (int i = 0; i < threads.length; i++) {
             final Thread t = new Thread(new Runnable() {
-               @Override
-               public void run() {
-                   try {
-                       final Transaction txn = _persistit.getTransaction();
-                       txn.begin();
-                       txn.commit();
-                       txn.end();
-                       
-                   } catch (Exception e) {
-                       e.printStackTrace();
-                   }
-               }
+                @Override
+                public void run() {
+                    try {
+                        final Transaction txn = _persistit.getTransaction();
+                        txn.begin();
+                        txn.commit();
+                        txn.end();
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
             });
             threads[i] = t;
             t.start();
@@ -478,7 +479,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         threads = null;
         _persistit.cleanup();
         assertEquals(0, new File(dataPath).listFiles(fnf).length);
-        
+
     }
 
     private void checkTest7(final Set<Integer> remainingKeys, final Exchange ex) throws PersistitException {

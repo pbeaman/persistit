@@ -54,12 +54,12 @@ public interface JournalManagerMXBean {
     /**
      * Default size of journal write buffer.
      */
-    public final static int DEFAULT_BUFFER_SIZE = 4 * 1024 * 1024;
+    public final static int DEFAULT_BUFFER_SIZE = 16 * 1024 * 1024;
 
     /**
      * Default size of journal read buffer.
      */
-    public final static int DEFAULT_READ_BUFFER_SIZE = 64 * 1024;
+    public final static int DEFAULT_COPY_BUFFER_SIZE = 16 * 1024 * 1024;
 
     /**
      * Default time interval (in milliseconds) between calls to the

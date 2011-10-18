@@ -22,7 +22,7 @@ import java.util.StringTokenizer;
 
 public class Debug {
 
-    public final static boolean ENABLED = false;
+    public final static boolean ENABLED = true;
 
     public final static boolean VERIFY_PAGES = false;
 
@@ -142,7 +142,7 @@ public class Debug {
         }
         return true;
     }
-    
+
     public static String asString(Throwable t) {
         StringWriter sw = new StringWriter();
         t.printStackTrace(new PrintWriter(sw));

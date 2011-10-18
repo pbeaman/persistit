@@ -77,8 +77,8 @@ public class CommandLineTest extends PersistitUnitTestCase {
             pmap.put(new Integer(index), "This is the record for index=" + index);
         }
         _persistit.close();
-        
-        final String datapath=_persistit.getProperty("datapath");
+
+        final String datapath = _persistit.getProperty("datapath");
         final StringReader stringReader = new StringReader(String.format("open datapath=%s\nicheck -v\n", datapath));
         final BufferedReader reader = new BufferedReader(stringReader);
         final StringWriter stringWriter = new StringWriter();

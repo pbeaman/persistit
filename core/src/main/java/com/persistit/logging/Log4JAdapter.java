@@ -82,14 +82,16 @@ public class Log4JAdapter implements PersistitLogger {
     public void log(PersistitLevel level, String message) {
         _logger.log(LEVEL_MAP.get(level), message);
     }
-    
+
     @Override
     public void open() {
-        // Nothing to do - the log is created and destroyed by the embedding application
+        // Nothing to do - the log is created and destroyed by the embedding
+        // application
     }
-    
+
     @Override
     public void close() {
-        // Nothing to do - the log is created and destroyed by the embedding application
+        // Nothing to do - the log is created and destroyed by the embedding
+        // application
     }
 }

@@ -15,10 +15,10 @@
 package com.persistit.logging;
 
 import org.slf4j.Logger;
+
 /**
- * Wraps an <code>org.slf4j.Logger</code> instance for Persistit logging.
- * Code to enable default logging through Slf4j is shown here:
- * <code><pre>
+ * Wraps an <code>org.slf4j.Logger</code> instance for Persistit logging. Code
+ * to enable default logging through Slf4j is shown here: <code><pre>
  *    Logger log = ... instance of org.slf4j.Logger ...
  *    Persistit.setPersistitLogger(new Slf4jAdapter(logger));
  * </pre></code>
@@ -104,11 +104,13 @@ public class Slf4jAdapter implements PersistitLogger {
 
     @Override
     public void open() {
-        // Nothing to do - the log is created and destroyed by the embedding application
+        // Nothing to do - the log is created and destroyed by the embedding
+        // application
     }
 
     @Override
     public void close() {
-        // Nothing to do - the log is created and destroyed by the embedding application
+        // Nothing to do - the log is created and destroyed by the embedding
+        // application
     }
 }

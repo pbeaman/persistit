@@ -376,6 +376,7 @@ public class Exchange {
         if (!_tree.isValid()) {
             if (_tree.getVolume().isTemporary()) {
                 _tree = _tree.getVolume().getTree(_tree.getName(), true);
+                _treeHolder = new ReentrantResourceHolder(_tree);
                 _cachedTreeGeneration = -1;
             } else {
                 throw new TreeNotFoundException();
