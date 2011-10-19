@@ -1852,11 +1852,6 @@ public class Exchange {
                                     }
                                 }
                             }
-
-                            if (direction == LTEQ && !_key.isSpecial()) {
-                                _key.nudgeLeft();
-                                nudged = true;
-                            }
                             continue;
                         }
                     }
