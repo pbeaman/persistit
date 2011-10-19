@@ -1708,6 +1708,9 @@ public class Persistit {
             }
         }
 
+        getTransaction().close();
+        cleanup();
+        
         if (flush) {
             for (final Volume volume : _volumes) {
                 volume.getStorage().flush();
