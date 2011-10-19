@@ -1537,7 +1537,7 @@ public class Exchange {
      * greater than or less then the supplied key.
      * </p>
      * <p>
-     * The direction value must be one of:
+     * The <code>direction</code> value must be one of:
      * <dl>
      * <dt>Key.GT:</dt>
      * <dd>Find the next key that is strictly greater than the supplied key. If
@@ -1566,7 +1566,7 @@ public class Exchange {
      *            restricted to just the logical siblings of the current key.
      *            (See <a href="Key.html#_keyChildren">Logical Key Children and
      *            Siblings</a>).
-     * @return <code>true</code> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else <code>false</code>.
      * @throws PersistitException
      */
     public boolean traverse(Direction direction, boolean deep) throws PersistitException {
@@ -1581,7 +1581,18 @@ public class Exchange {
      * supplied key.
      * </p>
      * <p>
-     * The direction value must be one of:
+     * This method normally modifies both the <code>Key</code> and
+     * <code>Value</code> fields of this <code>Exchange</code>: the
+     * <code>Key</code> is modified to reflect the key found through traversal,
+     * and the <code>Value</code> field is modified to contain the value
+     * associated with that key. However, this behavior can be modified by the
+     * <code>minimumBytes</code> parameter. If <code>minimumBytes</code> is less
+     * than 0 then this method modifies neither the <code>Key</code> nor the
+     * <code>Value</code> field. If it is equal to zero then only the
+     * <code>Key</code> is modified.
+     * </p>
+     * <p>
+     * The <code>direction</code> value must be one of:
      * <dl>
      * <dt>Key.GT:</dt>
      * <dd>Find the next key that is strictly greater than the supplied key. If
@@ -1613,10 +1624,8 @@ public class Exchange {
      * 
      * @param minimumBytes
      *            The minimum number of bytes to fetch. See {@link #fetch(int)}.
-     *            If minBytes is less than or equal to 0 then this method does
-     *            not update the Key and Value fields of the Exchange.
      * 
-     * @return <code>true</code> if there is a key to traverse to, else null.
+     * @return <code>true</code> if there is a key to traverse to, else <code>false</code>.
      * 
      * @throws PersistitException
      */
@@ -1831,6 +1840,19 @@ public class Exchange {
                             // on direction, of the remove range, and then
                             // we must go back and traverse again.
                             //
+                            if (!_key.isSpecial()) {
+                                if (direction == LTEQ) {
+                                    _key.nudgeLeft();
+                                    nudged = true;
+                                } else if (direction == GTEQ) {
+                                    if (deep) {
+                                        _key.nudgeDeeper();
+                                    } else {
+                                        _key.nudgeRight();
+                                    }
+                                }
+                            }
+
                             if (direction == LTEQ && !_key.isSpecial()) {
                                 _key.nudgeLeft();
                                 nudged = true;
@@ -1913,9 +1935,9 @@ public class Exchange {
                     }
                     _key.cut();
                     if (reverse) {
-                        _key.appendAfter();
-                    } else {
                         _key.appendBefore();
+                    } else {
+                        _key.appendAfter();
                     }
                 }
             } else {
