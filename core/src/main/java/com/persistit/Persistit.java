@@ -1708,6 +1708,9 @@ public class Persistit {
             }
         }
 
+        getTransaction().close();
+        cleanup();
+        
         if (flush) {
             for (final Volume volume : _volumes) {
                 volume.getStorage().flush();
@@ -1733,10 +1736,12 @@ public class Persistit {
             volume.close();
         }
 
-        for (final BufferPool pool : _bufferPoolTable.values()) {
-            int count = pool.getDirtyPageCount();
-            if (count > 0) {
-                _logBase.strandedPages.log(pool, count);
+        if (flush) {
+            for (final BufferPool pool : _bufferPoolTable.values()) {
+                int count = pool.getDirtyPageCount();
+                if (count > 0) {
+                    _logBase.strandedPages.log(pool, count);
+                }
             }
         }
 
