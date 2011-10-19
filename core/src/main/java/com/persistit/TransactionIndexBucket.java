@@ -33,7 +33,7 @@ public class TransactionIndexBucket {
      * long_running list, or it aborted, in which case its TransactionStatus has
      * moved to the aborted list.
      */
-    long _floor;
+    volatile long _floor;
     /**
      * Singly-linked list of TransactionStatus instances for transactions
      * currently running or recently either committed or aborted. A
@@ -43,14 +43,14 @@ public class TransactionIndexBucket {
      * transaction committed), the _aborted list (because it aborted) or the
      * _longRunning list because it is still running.
      */
-    TransactionStatus _current;
+    volatile TransactionStatus _current;
     /**
      * Singly-linked list of TransactionStatus instances for aborted transactions.
      * A TransactionStatus enters this list after the transaction has aborted; it
      * leaves this list when all of the MVV versions created by the transaction
      * have been pruned.
      */
-    TransactionStatus _aborted;
+    volatile TransactionStatus _aborted;
     /**
      * Singly-linked list of TransactionStatus instances for transactions that started
      * before the floor value.  A TransactionStatus enters this list when its
@@ -58,13 +58,13 @@ public class TransactionIndexBucket {
      * has a large number of TransactionStatus instances that could be removed by increasing
      * the floor value.
      */
-    TransactionStatus _longRunning;
+    volatile TransactionStatus _longRunning;
     /**
      * Singly-linked list of TransactionStatus instances that no longer represent
      * concurrent or recent transactions.  These are recycled when a new transaction
      * is registered.
      */
-    TransactionStatus _free;
+    volatile TransactionStatus _free;
     /**
      * Lock used to prevent multi-threaded access to the lists in this structure.
      */
@@ -79,6 +79,7 @@ public class TransactionIndexBucket {
     }
     
     TransactionStatus allocateTransactionStatus() {
+        assert _lock.isHeldByCurrentThread();
         TransactionStatus status = _free;
         if (status != null) {
             _free = status.getNext();
@@ -89,9 +90,27 @@ public class TransactionIndexBucket {
         }
     }
     
+    void releaseTransactionStatus(final TransactionStatus status) {
+        assert _lock.isHeldByCurrentThread();
+        status.setNext(_free);
+        _free = status;
+    }
+    
     void addCurrent(final TransactionStatus status) {
         status.setNext(_current);
         _current = status;
+    }
+    
+    TransactionStatus getCurrent() {
+        return _current;
+    }
+    
+    TransactionStatus getAborted() {
+        return _aborted;
+    }
+    
+    TransactionStatus getLongRunning() {
+        return _longRunning;
     }
     
 }

@@ -15,6 +15,9 @@
 
 package com.persistit;
 
+import java.util.Arrays;
+import java.util.concurrent.locks.ReentrantLock;
+
 import com.persistit.exception.TimeoutException;
 
 /**
@@ -25,18 +28,89 @@ import com.persistit.exception.TimeoutException;
  */
 public class TransactionIndex {
 
-    private final static int INITIAL_RUNNING_TRANSACTIONS_SIZE = 1000;
-    
+    private final static int INITIAL_active_TRANSACTIONS_SIZE = 1000;
+
     private final Persistit _persistit;
-    
+
     private final TransactionIndexBucket[] _hashTable;
-    
-    private long[] _runningTransactions1 = new long[INITIAL_RUNNING_TRANSACTIONS_SIZE];
-    
-    private long[] _runningTransactions2 = new long[INITIAL_RUNNING_TRANSACTIONS_SIZE];
-    
-    private long _runningTransactionsCeiling;
-    
+
+    private ActiveTransactionCache _atCache1 = new ActiveTransactionCache();
+
+    private ActiveTransactionCache _atCache2 = new ActiveTransactionCache();
+
+    private ActiveTransactionCache _atCache = _atCache1;
+
+    private ReentrantLock _atCacheLock = new ReentrantLock();
+
+    /**
+     * <p>
+     * Cache copy of currently active transactions. We think in general it is
+     * expensive to look at transaction status directly while pruning due to the
+     * need to lock the TransactionIndexBuckets to read their lists. Instead of
+     * scanning all of these on each pruning operation we periodically compute
+     * an array of ts values for transactions that are currently running. These
+     * are assembled into a sorted array in this Class. There are two instances
+     * of this class in the TransactionIndex, one used for concurrent pruning
+     * and the other available to recompute a more recent array of transactions.
+     * </p>
+     * <p>
+     * Any thread may call recompute on the ActiveTransactionCache that is not
+     * in service, but it must first lock the atCacheLock to prevent another
+     * from overwriting its work.
+     * </p>
+     * 
+     */
+    private class ActiveTransactionCache {
+        /**
+         * Largest timestamp for which the current copy of runningTransactions
+         * is accurate.
+         */
+        private volatile long _activeTransactionsCeiling;
+
+        /**
+         * Cache for a recent concurrent transaction scan.
+         */
+        private volatile long[] _activeTransactions = new long[INITIAL_active_TRANSACTIONS_SIZE];
+
+        private volatile int _activeTransactionCount;
+
+        void recompute() {
+            _activeTransactionCount = 0;
+            long timestampAtStart = _persistit.getTimestampAllocator().getCurrentTimestamp();
+            for (TransactionIndexBucket bucket : _hashTable) {
+                if (bucket.getCurrent() != null || bucket.getLongRunning() != null) {
+                    bucket.lock();
+                    try {
+                        for (TransactionStatus status = bucket.getCurrent(); status != null; status = status.getNext()) {
+                            if (status.getTc() == TransactionStatus.UNCOMMITTED && status.getTs() <= timestampAtStart) {
+                                add(status.getTs());
+                            }
+                        }
+                        for (TransactionStatus status = bucket.getLongRunning(); status != null; status = status
+                                .getNext()) {
+                            if (status.getTc() == TransactionStatus.UNCOMMITTED && status.getTs() <= timestampAtStart) {
+                                add(status.getTs());
+                            }
+                        }
+                    } finally {
+                        bucket.unlock();
+                    }
+                }
+            }
+            Arrays.sort(_activeTransactions, 0, _activeTransactionCount);
+        }
+
+        private void add(final long ts) {
+            int index = _activeTransactionCount;
+            if (++_activeTransactionCount >= _activeTransactions.length) {
+                long[] temp = new long[_activeTransactionCount + INITIAL_active_TRANSACTIONS_SIZE];
+                System.arraycopy(_activeTransactions, 0, temp, 0, _activeTransactions.length);
+                _activeTransactions = temp;
+            }
+            _activeTransactions[index] = ts;
+        }
+    }
+
     TransactionIndex(final Persistit persistit, final int hashTableSize) {
         _persistit = persistit;
         _hashTable = new TransactionIndexBucket[hashTableSize];
@@ -179,5 +253,16 @@ public class TransactionIndex {
 
     private int hashIndex(final long ts) {
         return (((int) ts ^ (int) (ts >>> 32)) & Integer.MAX_VALUE) % _hashTable.length;
+    }
+    
+    private void updateActiveTransactionCache() {
+        _atCacheLock.lock();
+        try {
+            ActiveTransactionCache atCache = _atCache == _atCache1 ? _atCache2 : _atCache1;
+            atCache.recompute();
+            _atCache = atCache;
+        } finally {
+            _atCacheLock.unlock();
+        }
     }
 }

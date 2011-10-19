@@ -65,6 +65,10 @@ public class TransactionStatus {
         return _ts;
     }
     
+    long getTc() {
+        return _tc;
+    }
+    
     void initialize(final long ts) {
         _ts = ts;
         _tc = UNCOMMITTED;
