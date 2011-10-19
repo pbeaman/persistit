@@ -1930,9 +1930,9 @@ public class Exchange {
                     }
                     _key.cut();
                     if (reverse) {
-                        _key.appendBefore();
-                    } else {
                         _key.appendAfter();
+                    } else {
+                        _key.appendBefore();
                     }
                 }
             } else {
