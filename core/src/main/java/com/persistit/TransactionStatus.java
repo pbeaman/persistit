@@ -169,6 +169,13 @@ public class TransactionStatus {
     }
 
     /**
+     * @return The count of MVV modifications made by the associated transaction.
+     */
+    int getMvvCount() {
+        return _mvvCount.get();
+    }
+    
+    /**
      * Sets the MVV modification count to Integer.MAX_VALUE. This is done only
      * during recovery, where every aborted transaction is proactively rolled
      * back and then discarded. The count is set to "infinity" so that the

@@ -15,12 +15,13 @@
 
 package com.persistit;
 
+import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.TransactionStatus.UNCOMMITTED;
+
 import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.exception.TimeoutException;
-
-import static com.persistit.TransactionStatus.*;
 
 /**
  * Keep track of concurrent transactions and those that committed or aborted
@@ -369,9 +370,11 @@ public class TransactionIndex {
      * or aborted. This method allows the TransactionIndex to awaken any threads
      * waiting for resolution of commit status or a write-write dependency.
      * 
-     * @param txn
+     * @param ts
+     *            The start timestamp of a transaction that has committed or
+     *            aborted.
      */
-    void notifyCompleted(Transaction txn) {
+    void notifyCompleted(final long ts) {
 
     }
 
