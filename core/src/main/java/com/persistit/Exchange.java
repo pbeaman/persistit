@@ -1850,6 +1850,7 @@ public class Exchange {
                                     } else {
                                         _key.nudgeRight();
                                     }
+                                    nudged = true;
                                 }
                             }
                             continue;

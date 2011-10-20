@@ -113,4 +113,8 @@ public class TransactionIndexBucket {
         return _longRunning;
     }
     
+    long getFloor() {
+        return _floor;
+    }
+    
 }
