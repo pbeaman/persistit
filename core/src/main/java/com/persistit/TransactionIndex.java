@@ -29,6 +29,11 @@ import com.persistit.exception.TimeoutException;
 public class TransactionIndex {
 
     /**
+     * TODO - more thought on timeout processing.
+     */
+    final static long VERY_LONG_TIMEOUT = 60000; // sixty seconds
+
+    /**
      * Initial size of arrays in ActiveTransactionCaches.
      */
     private final static int INITIAL_ACTIVE_TRANSACTIONS_SIZE = 1000;
@@ -92,23 +97,23 @@ public class TransactionIndex {
      * <p>
      * Each time the cache is recomputed, this instance first gets the current
      * timestamp t. Due to the write-ordering protocol, it is guaranteed that if
-     * a transaction having a start timestamp &lt; t is currently active, it's
-     * entry will be in the hash table. Therefore, scanning the hash table will
-     * find every currently active transaction having a start timestamp &lt; t.
-     * Note that by the time the scan is done some of those transactions may
-     * have committed or aborted; therefore the set of transactions added to the
-     * cache may be a superset of those that are active at the conclusion of the
-     * scan, but that is okay. The result of that imprecision is that in some
-     * cases an MVV may not be optimally pruned until a later attempt.
+     * a transaction having a start timestamp less than t is currently active,
+     * its entry will be in the hash table. Therefore, scanning the hash table
+     * will find every currently active transaction having a start timestamp
+     * less than t. Note that by the time the scan is done some of those transactions
+     * may have committed or aborted; therefore the set of transactions added to
+     * the cache may be a superset of those that are active at the conclusion of
+     * the scan, but that is okay. The result of that imprecision is that in
+     * some cases an MVV may not be optimally pruned until a later attempt.
      * </p>
      * <p>
      * By the time this cache is read there may be newly registered transactions
-     * having timestamps &gt; t. Again, such a transaction may have registered
-     * and committed in the time since the scan was performed; nonetheless the
-     * {@link #hasConcurrentTransaction(long, long)} method will indicate that
-     * such a transaction is still active. Again, the result of that imprecision
-     * is that in some cases an MVV may not be optimally pruned until a later
-     * attempt.
+     * having start timestamps greater than t. Again, such a transaction may
+     * have registered and committed in the time since the scan was performed;
+     * nonetheless the {@link #hasConcurrentTransaction(long, long)} method will
+     * indicate that such a transaction is still active. Again, the result of
+     * that imprecision is that in some cases an MVV may not be optimally pruned
+     * until a later attempt.
      * 
      */
     private class ActiveTransactionCache {
@@ -309,11 +314,11 @@ public class TransactionIndex {
     }
 
     /**
-     * Atomically assign a start timestamp and registers a transaction within
+     * Atomically assign a start timestamp and register a transaction within
      * the <code>TransactionIndex</code>. Once registered, the transaction's
      * commit status can be found by calling {@link #commitStatus(long, long)}.
      * It is important that assigning the timestamp and making the transaction
-     * accessible within the TransactioIndex is atomic because otherwise a
+     * accessible within the TransactionIndex is atomic because otherwise a
      * concurrent transaction with a larger start timestamp could fail to see
      * this one and cause inconsistent results.
      * 
@@ -327,14 +332,22 @@ public class TransactionIndex {
         final long ts = _persistit.getTimestampAllocator().updateTimestamp();
         int index = hashIndex(ts);
         TransactionIndexBucket bucket = _hashTable[index];
+        final TransactionStatus status;
         bucket.lock();
         try {
-            TransactionStatus status = bucket.allocateTransactionStatus();
+            status = bucket.allocateTransactionStatus();
             status.initialize(ts);
             bucket.addCurrent(status);
         } finally {
             bucket.unlock();
         }
+        /*
+         * The TransactionStatus is locked for the entire duration of the
+         * running transaction. The following call should always succeed
+         * immediately; a TimeoutException here signifies a software failure or
+         * a thread terminated by {@link Thread#stop()} somewhere else.
+         */
+        status.wwLock(VERY_LONG_TIMEOUT);
         return ts;
     }
 

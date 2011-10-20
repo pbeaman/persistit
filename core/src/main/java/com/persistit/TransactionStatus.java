@@ -23,14 +23,24 @@ import com.persistit.exception.TimeoutException;
 
 public class TransactionStatus {
 
+    /**
+     * Distinguished commit timestamp for any value that has become
+     * primordial, meaning that there are no longer any active
+     * concurrent transactions.
+     */
     final static long PRIMORDIAL = 0;
+    
+    /**
+     * Distinguished commit timestamp for any value created by a
+     * transaction which subsequently aborted.
+     */
     final static long ABORTED = Long.MIN_VALUE;
+    
+    /**
+     * Distinguished commit timestamp for any value created by
+     * a transaction that is still running.
+     */
     final static long UNCOMMITTED = Long.MAX_VALUE;
-
-    final static long SPIN_WAIT = 10;
-    final static long BROKEN_TIMEOUT = 600000;
-
-    final static AtomicInteger SPIN_WAIT_RETRY_COUNT = new AtomicInteger();
 
     /**
      * Start timestamp. This value may only be assigned by
@@ -58,10 +68,12 @@ public class TransactionStatus {
      * <dd>Any positive value other than Long.MAX_VALUE indicates the commit
      * timestamp; the transaction commit is complete.</dd>
      * </dl>
-     * Long.MAX_VALUE:
      */
     private volatile long _tc;
 
+    /**
+     * Count of MVV versions created by associated transaction.
+     */
     private AtomicInteger _mvvCount = new AtomicInteger();
 
     /**
@@ -112,17 +124,18 @@ public class TransactionStatus {
      * <p>
      * If the associated transaction is in the process of committing, this
      * method will wait until the commit is either finished or aborted. (The
-     * latter will only happen when SSI is implemented.)
+     * latter will only happen when SSI is implemented.) For now this method
+     * simply waits for another thread to complete a very fast process.
      * </p>
      * 
      * @return the commit status of the associated transaction.
      * @throws InterruptedException
-     * @throws TimeoutException 
+     * @throws TimeoutException
      */
     long getSettledTc() throws InterruptedException, TimeoutException {
         long tc = _tc;
         while (tc != Long.MIN_VALUE && tc < 0) {
-            if (wwLock(BROKEN_TIMEOUT)) {
+            if (wwLock(TransactionIndex.VERY_LONG_TIMEOUT)) {
                 tc = _tc;
                 wwUnlock();
             } else {
@@ -191,14 +204,22 @@ public class TransactionStatus {
         return _wwLock.tryLock(timeout, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * Release the lock acquired by {@link #wwLock(long)}.
+     */
     void wwUnlock() {
         _wwLock.unlock();
     }
 
+    /**
+     * Initialize this <code>TransactionStatus</code> instance for a new
+     * transaction.
+     * 
+     * @param ts
+     * @throws InterruptedException
+     * @throws TimeoutException
+     */
     void initialize(final long ts) throws InterruptedException, TimeoutException {
-        if (!wwLock(BROKEN_TIMEOUT)) {
-            throw new TimeoutException();
-        }
         _ts = ts;
         _tc = UNCOMMITTED;
         _next = null;
