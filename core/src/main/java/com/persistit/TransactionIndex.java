@@ -20,6 +20,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.exception.TimeoutException;
 
+import static com.persistit.TransactionStatus.*;
+
 /**
  * Keep track of concurrent transactions and those that committed or aborted
  * recently.
@@ -59,17 +61,15 @@ public class TransactionIndex {
     private ActiveTransactionCache _atCache2 = new ActiveTransactionCache();
 
     /**
-     * Reference to the more recently updated ActiveTransactionCache instance.
-     * In all the cases the new instance is used and the older instance is
-     * eligible to be updated to become an even new instance.
-     */
-    private ActiveTransactionCache _atCache = _atCache1;
-
-    /**
      * Lock held by a thread updating the ActiveTransactionCache to prevent a
      * race by another thread attempting also to update.
      */
     private ReentrantLock _atCacheLock = new ReentrantLock();
+    /**
+     * Reference to the more recently updated of two ActiveTransactionCache
+     * instances.
+     */
+    private volatile ActiveTransactionCache _atCache = _atCache1;
 
     /**
      * The base Persistit instance
@@ -100,11 +100,12 @@ public class TransactionIndex {
      * a transaction having a start timestamp less than t is currently active,
      * its entry will be in the hash table. Therefore, scanning the hash table
      * will find every currently active transaction having a start timestamp
-     * less than t. Note that by the time the scan is done some of those transactions
-     * may have committed or aborted; therefore the set of transactions added to
-     * the cache may be a superset of those that are active at the conclusion of
-     * the scan, but that is okay. The result of that imprecision is that in
-     * some cases an MVV may not be optimally pruned until a later attempt.
+     * less than t. Note that by the time the scan is done some of those
+     * transactions may have committed or aborted; therefore the set of
+     * transactions added to the cache may be a superset of those that are
+     * active at the conclusion of the scan, but that is okay. The result of
+     * that imprecision is that in some cases an MVV may not be optimally pruned
+     * until a later attempt.
      * </p>
      * <p>
      * By the time this cache is read there may be newly registered transactions
@@ -138,13 +139,13 @@ public class TransactionIndex {
                     bucket.lock();
                     try {
                         for (TransactionStatus status = bucket.getCurrent(); status != null; status = status.getNext()) {
-                            if (status.getTc() == TransactionStatus.UNCOMMITTED && status.getTs() <= timestampAtStart) {
+                            if (status.getTc() == UNCOMMITTED && status.getTs() <= timestampAtStart) {
                                 add(status.getTs());
                             }
                         }
                         for (TransactionStatus status = bucket.getLongRunning(); status != null; status = status
                                 .getNext()) {
-                            if (status.getTc() == TransactionStatus.UNCOMMITTED && status.getTs() <= timestampAtStart) {
+                            if (status.getTc() == UNCOMMITTED && status.getTs() <= timestampAtStart) {
                                 add(status.getTs());
                             }
                         }
@@ -218,12 +219,23 @@ public class TransactionIndex {
      * <code>versionHandle</code>. The result depends on the status of the
      * transaction T identified by the <code>versionHandle</code> as follows:
      * <ul>
+     * <li>If T is the same transaction as this one (the transaction identified
+     * by <code>ts</code>) then the result depends on the relationship between
+     * the "step" number encoded in the supplied <code>versionHandle</code>
+     * (stepv) and the supplied <code>step</code>parameter:
+     * <ul>
+     * <li>If stepv &eq; 0 or stepv &lt; step then return tsv as the "commit"
+     * timestamp. (Note that the transaction has not actually committed, but for
+     * the purpose of reading values during the execution of the transaction it
+     * is as if that transaction's own updates are present.)</li>
+     * <li>Else return {@link TransactionStatus#UNCOMMITTED}.</li>
+     * </ul>
      * <li>If T has committed, the result is T's commit timestamp
      * <code>tc</code>.</li>
-     * <li>If T has aborted, the result is Long.MIN_VALUE.</li>
+     * <li>If T has aborted, the result is {@link TransactionStatus#ABORTED}.</li>
      * <li>If T has not requested to commit, i.e., does not have proposal
      * timestamp <code>tp</code>, or than proposal timestamp is greater than
-     * <code>ts</code> the result is Long.MAX_VALUE.</li>
+     * <code>ts</code> the result is {@link TransactionStatus#UNCOMMITTED}.</li>
      * <li>If T has requested to commit and its proposal timestamp is less than
      * <code>ts</code>, but has neither completed nor failed yet, then this
      * method waits until T's commit status has been determined.</li>
@@ -256,7 +268,7 @@ public class TransactionIndex {
             if (stepv == 0 || stepv < step) {
                 return tsv;
             } else {
-                return TransactionStatus.UNCOMMITTED;
+                return UNCOMMITTED;
             }
         }
         final int hashIndex = hashIndex(tsv);
@@ -267,15 +279,16 @@ public class TransactionIndex {
          * can assume the value did commit, and do so without locking the
          * bucket.
          * 
-         * We can read these without locking because (a) they are volatile, and
-         * (b) write-ordering guarantees that a TransactionStatus that is being
-         * moved to either the aborted or long-running list will be added to the
-         * new list before being removed from the current list. These values are
-         * all visible to us with respect to a particular tsv because we could
-         * not have seen the tsv without its corresponding transaction status
-         * having been registered.
+         * We can read these members without locking because (a) they are
+         * volatile, and (b) write-ordering guarantees that a TransactionStatus
+         * that is being moved to either the aborted or long-running list will
+         * be added to the new list before being removed from the current list.
+         * These values are all visible to us with respect to a particular tsv
+         * because we could not have seen the tsv without its corresponding
+         * transaction status having been registered.
          */
-        if (bucket.getCurrent() == null && bucket.getLongRunning() == null && bucket.getAborted() == null) {
+        if ((bucket.getCurrent() == null || tsv <= bucket.getFloor()) && bucket.getLongRunning() == null
+                && bucket.getAborted() == null) {
             return tsv;
         }
         long commitTimestamp = tsv;
@@ -314,10 +327,10 @@ public class TransactionIndex {
     }
 
     /**
-     * Atomically assign a start timestamp and register a transaction within
-     * the <code>TransactionIndex</code>. Once registered, the transaction's
-     * commit status can be found by calling {@link #commitStatus(long, long)}.
-     * It is important that assigning the timestamp and making the transaction
+     * Atomically assign a start timestamp and register a transaction within the
+     * <code>TransactionIndex</code>. Once registered, the transaction's commit
+     * status can be found by calling {@link #commitStatus(long, long)}. It is
+     * important that assigning the timestamp and making the transaction
      * accessible within the TransactionIndex is atomic because otherwise a
      * concurrent transaction with a larger start timestamp could fail to see
      * this one and cause inconsistent results.
@@ -384,11 +397,12 @@ public class TransactionIndex {
     }
 
     /**
+     * <p>
      * Detects a write-write dependency from one transaction to another. This
      * method is called when transaction having start timestamp <code>ts</code>
-     * detects that there is an update from another transaction identified by
-     * <code>versionHandle</code>. If the other transaction has already
-     * committed or aborted then this method immediately returns a value
+     * detects that there is already an update from another transaction
+     * identified by <code>versionHandle</code>. If the other transaction has
+     * already committed or aborted then this method immediately returns a value
      * depending on its outcome:
      * <ul>
      * <li>If the transaction identified by <code>versionHandle</code> is
@@ -402,6 +416,13 @@ public class TransactionIndex {
      * </ul>
      * If the <code>to</code> transaction has neither committed nor blocked,
      * then this method waits for the other transaction's status to be resolved.
+     * </p>
+     * <p>
+     * It is invalid for <code>versionHandle</code> to refer to the current
+     * transaction. The caller should recognize versions written by the current
+     * transaction and handle the "step" logic independently of this method. If
+     * <code>versionHandle</code> refers to the same transaction as
+     * <code>ts</code> then this code throws an IllegalArgumentException.
      * 
      * @param versionHandle
      *            versionHandle of a value version found in an MVV that the
@@ -418,8 +439,100 @@ public class TransactionIndex {
      *             if the timeout interval is exceeded
      * @throws InterruptedException
      *             if the waiting thread is interrupted
+     * @throws IllegalArgumentException
+     *             if <code>versionHandle</code> and <code>ts</code> do not
+     *             refer to different valid transactions
      */
-    boolean wwDependency(long versionHandle, long ts, long timeout) throws TimeoutException, InterruptedException {
+    boolean wwDependency(long versionHandle, long ts, long timeout) throws TimeoutException, InterruptedException,
+            IllegalArgumentException {
+        final long tsv = vh2ts(versionHandle);
+        if (tsv == ts) {
+            throw new IllegalArgumentException("Attempt to create ww-dependency on self");
+        }
+        final int hashIndex = hashIndex(tsv);
+        TransactionIndexBucket bucket = _hashTable[hashIndex];
+        /*
+         * First check whether there are any TransactionStatus instances in the
+         * bucket. If not then the transaction that committed this value is not
+         * concurrent.
+         * 
+         * We can read these members without locking because (a) they are
+         * volatile, and (b) write-ordering guarantees that a TransactionStatus
+         * that is being moved to either the aborted or long-running list will
+         * be added to the new list before being removed from the current list.
+         * These values are all visible to us with respect to a particular tsv
+         * because we could not have seen the tsv without its corresponding
+         * transaction status having been registered.
+         */
+        if ((bucket.getCurrent() == null || tsv <= bucket.getFloor()) && bucket.getLongRunning() == null
+                && bucket.getAborted() == null) {
+            return false;
+        }
+
+        /*
+         * There were members on at least one of the lists. Need to lock the
+         * bucket so we can traverse the lists.
+         */
+        TransactionStatus status = null;
+        bucket.lock();
+        try {
+            /*
+             * A transaction with a start timestamp less than or equal to the
+             * floor is committed unless it is found on either the aborted or
+             * longRunning lists.
+             */
+            if (tsv > bucket.getFloor()) {
+                for (TransactionStatus s = bucket.getCurrent(); status != null; status = status.getNext()) {
+                    if (status.getTs() == tsv) {
+                        status = s;
+                        break;
+                    }
+                }
+            }
+            for (TransactionStatus s = bucket.getAborted(); status != null; status = status.getNext()) {
+                if (status.getTs() == tsv) {
+                    status = s;
+                    break;
+                }
+            }
+            for (TransactionStatus s = bucket.getLongRunning(); status != null; status = status.getNext()) {
+                if (status.getTs() == tsv) {
+                    status = s;
+                    break;
+                }
+            }
+        } finally {
+            bucket.unlock();
+        }
+        if (status == null) {
+            return false;
+        }
+        /*
+         * Blocks until the target transaction finishes, either by committing or
+         * aborting.
+         * 
+         * TODO: I'm concerned that by the time we get here the
+         * TransactionStatus object may have cycled to the free list and then
+         * been initialized for a different transaction.
+         */
+        if (status.wwLock(timeout)) {
+            try {
+                final long tc = status.getTc();
+                if (tc == ABORTED) {
+                    return false;
+                }
+                if (tc < 0 || tc == UNCOMMITTED) {
+                    throw new IllegalStateException("Commit incomplete");
+                }
+                /*
+                 * true iff this is a concurrent transaction
+                 */
+                return tc > ts;
+
+            } finally {
+                status.wwUnlock();
+            }
+        }
         return false;
     }
 
@@ -433,12 +546,19 @@ public class TransactionIndex {
         return (((int) ts ^ (int) (ts >>> 32)) & Integer.MAX_VALUE) % _hashTable.length;
     }
 
-    private void updateActiveTransactionCache() {
+    /**
+     * Refresh the ActiveTransactionCache. This method walks the hashTable to
+     * update the non-current ActiveTransactionCache instance and then makes it
+     * current. This method will block until it can acquire an exclusive lock on
+     * _atCacheLock. Therefore there can never be more than one thread
+     * performing this method at a time.
+     */
+    void updateActiveTransactionCache() {
         _atCacheLock.lock();
         try {
-            ActiveTransactionCache atCache = _atCache == _atCache1 ? _atCache2 : _atCache1;
-            atCache.recompute();
-            _atCache = atCache;
+            ActiveTransactionCache alternate = _atCache == _atCache1 ? _atCache2 : _atCache1;
+            alternate.recompute();
+            _atCache = alternate;
         } finally {
             _atCacheLock.unlock();
         }

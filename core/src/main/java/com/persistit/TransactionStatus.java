@@ -24,21 +24,20 @@ import com.persistit.exception.TimeoutException;
 public class TransactionStatus {
 
     /**
-     * Distinguished commit timestamp for any value that has become
-     * primordial, meaning that there are no longer any active
-     * concurrent transactions.
+     * Distinguished commit timestamp for any value that has become primordial,
+     * meaning that there are no longer any active concurrent transactions.
      */
     final static long PRIMORDIAL = 0;
-    
+
     /**
-     * Distinguished commit timestamp for any value created by a
-     * transaction which subsequently aborted.
+     * Distinguished commit timestamp for any value created by a transaction
+     * which subsequently aborted.
      */
     final static long ABORTED = Long.MIN_VALUE;
-    
+
     /**
-     * Distinguished commit timestamp for any value created by
-     * a transaction that is still running.
+     * Distinguished commit timestamp for any value created by a transaction
+     * that is still running.
      */
     final static long UNCOMMITTED = Long.MAX_VALUE;
 
@@ -187,8 +186,8 @@ public class TransactionStatus {
      * {@link TransactionIndex#wwDependency(long, long, long)} method. While a
      * transaction is running this lock is in a locked state. The lock is
      * acquired when the transaction is registered (see
-     * {@link #initialize(long)} and released once the transaction is either
-     * committed or aborted.
+     * {@link TransactionIndex#registerTransaction(Transaction)} and released
+     * once the transaction is either committed or aborted.
      * </p>
      * <p>
      * The <code>wwDependency</code> method also attempts to acquire, and then
