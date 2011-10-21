@@ -87,6 +87,13 @@ public class TransactionStatus {
     private TransactionStatus _next;
 
     /**
+     * Indicates whether the transaction has called
+     * {@link TransactionIndexBucket#notifyCompleted(long)}. Until then the
+     * <code>TransactionStatus</code> may not be placed on the free list.
+     */
+    boolean _notified;
+
+    /**
      * @return The next TransactionStatus on linked list, or <code>null</code>
      *         if there is none
      */
@@ -117,6 +124,50 @@ public class TransactionStatus {
      */
     long getTc() {
         return _tc;
+    }
+
+    /**
+     * @return whether the {@link TransactionIndexBucket#notifyCompleted(long)}
+     *         has been called.
+     */
+    boolean isNotified() {
+        return _notified;
+    }
+
+    /**
+     * Start commit processing. This method leaves the
+     * <code>TransactionStatus</code> in a state indicating commit processing us
+     * underway. The {@link #commit(long)} method completes the process. Note
+     * that until we implement SSI this method is unnecessary, but is included
+     * so that unit tests can test the interim state.
+     * 
+     * @param timestamp
+     */
+    void commit(final long timestamp) {
+        if (timestamp <= _ts || timestamp == UNCOMMITTED) {
+            throw new IllegalArgumentException("Attempt to commit before start: " + this);
+        }
+        if (_tc != UNCOMMITTED) {
+            throw new IllegalArgumentException("Already committed or aborted: " + this);
+        }
+        _tc = -timestamp;
+    }
+
+    void abort() {
+        if (_tc != UNCOMMITTED) {
+            throw new IllegalArgumentException("Already committed or aborted: " + this);
+        }
+        _tc = ABORTED;
+    }
+
+    void complete() {
+        if (_tc > 0) {
+            throw new IllegalStateException("Transaction not ready to complete: " + this);
+        }
+        if (_tc < 0 && _tc != ABORTED) {
+            _tc = -_tc;
+        }
+        _notified = true;
     }
 
     /**
@@ -169,22 +220,21 @@ public class TransactionStatus {
     }
 
     /**
-     * @return The count of MVV modifications made by the associated transaction.
+     * @return The count of MVV modifications made by the associated
+     *         transaction.
      */
     int getMvvCount() {
         return _mvvCount.get();
     }
-    
+
     /**
-     * Sets the MVV modification count to Integer.MAX_VALUE. This is done only
-     * during recovery, where every aborted transaction is proactively rolled
-     * back and then discarded. The count is set to "infinity" so that the
-     * pruning code does not remove aborted transactions from the abort set
-     * prematurely. Note that we do not attempt to recover an accurate count
-     * after a crash.
+     * Sets the MVV modification count. In recovery, this is initially set to
+     * Integer.MAX_VALUE to prevent pruning code from removing aborted
+     * transactions from the abort set prematurely. Note that we do not attempt
+     * to recover an accurate count after a crash.
      */
-    void maxMvvCount() {
-        _mvvCount.set(Integer.MAX_VALUE);
+    void setMvvCount(final int count) {
+        _mvvCount.set(count);
     }
 
     /**
@@ -230,5 +280,21 @@ public class TransactionStatus {
         _tc = UNCOMMITTED;
         _next = null;
         _mvvCount.set(0);
+        _notified = false;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("<ts=%d tc=%s mvv=%d>", _ts, tcString(_tc), _mvvCount.get());
+    }
+
+    static String tcString(final long ts) {
+        if (ts == ABORTED) {
+            return "ABORTED";
+        } else if (ts == UNCOMMITTED) {
+            return "UNCOMMITTED";
+        } else {
+            return String.format("%,d", ts);
+        }
     }
 }

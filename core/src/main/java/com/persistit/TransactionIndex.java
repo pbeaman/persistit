@@ -42,7 +42,7 @@ public class TransactionIndex {
      * list.
      */
     final static int DEFAULT_MAX_FREE_LIST_SIZE = 20;
-    
+
     /**
      * TODO - more thought on timeout processing.
      */
@@ -75,7 +75,7 @@ public class TransactionIndex {
      * Once this number is reached any addition deallocated instances are
      * released for garbage collection.
      */
-    volatile int _maxFreeListSize;
+    volatile int _maxFreeListSize = DEFAULT_MAX_FREE_LIST_SIZE;
 
     /**
      * One of two ActiveTransactionCache instances
@@ -99,9 +99,9 @@ public class TransactionIndex {
     private volatile ActiveTransactionCache _atCache = _atCache1;
 
     /**
-     * The base Persistit instance
+     * The system-wide timestamp allocator
      */
-    private final Persistit _persistit;
+    private final TimestampAllocator _timestampAllocator;
 
     /**
      * <p>
@@ -146,10 +146,14 @@ public class TransactionIndex {
      */
     private class ActiveTransactionCache {
         /**
-         * Largest timestamp for which the current copy of runningTransactions
-         * is accurate.
+         * Largest timestamp for which the current copy of _tsArray is accurate.
          */
-        private volatile long _ceilingTimestamp;
+        private volatile long _ceiling;
+
+        /**
+         * Smallest timestamp in _tsArray
+         */
+        private volatile long _floor;
 
         /**
          * Cache for a recent concurrent transaction scan.
@@ -160,7 +164,8 @@ public class TransactionIndex {
 
         void recompute() {
             _count = 0;
-            long timestampAtStart = _persistit.getTimestampAllocator().getCurrentTimestamp();
+            long timestampAtStart = _timestampAllocator.getCurrentTimestamp();
+            long floor = timestampAtStart;
             for (TransactionIndexBucket bucket : _hashTable) {
                 if (bucket.getCurrent() != null || bucket.getLongRunning() != null) {
                     bucket.lock();
@@ -168,12 +173,18 @@ public class TransactionIndex {
                         for (TransactionStatus status = bucket.getCurrent(); status != null; status = status.getNext()) {
                             if (status.getTc() == UNCOMMITTED && status.getTs() <= timestampAtStart) {
                                 add(status.getTs());
+                                if (status.getTs() < floor) {
+                                    floor = status.getTs();
+                                }
                             }
                         }
                         for (TransactionStatus status = bucket.getLongRunning(); status != null; status = status
                                 .getNext()) {
                             if (status.getTc() == UNCOMMITTED && status.getTs() <= timestampAtStart) {
                                 add(status.getTs());
+                                if (status.getTs() < floor) {
+                                    floor = status.getTs();
+                                }
                             }
                         }
                     } finally {
@@ -182,7 +193,8 @@ public class TransactionIndex {
                 }
             }
             Arrays.sort(_tsArray, 0, _count);
-            _ceilingTimestamp = timestampAtStart;
+            _ceiling = timestampAtStart;
+            _floor = floor;
         }
 
         private void add(final long ts) {
@@ -196,7 +208,7 @@ public class TransactionIndex {
         }
 
         boolean hasConcurrentTransaction(final long ts1, final long ts2) {
-            if (ts2 > _ceilingTimestamp) {
+            if (ts2 > _ceiling) {
                 return true;
             }
             if (ts1 > ts2) {
@@ -232,18 +244,18 @@ public class TransactionIndex {
         return (int) (versionHandle % VERSION_HANDLE_MULTIPLIER);
     }
 
-    TransactionIndex(final Persistit persistit, final int hashTableSize) {
-        _persistit = persistit;
+    TransactionIndex(final TimestampAllocator timestampAllocator, final int hashTableSize) {
+        _timestampAllocator = timestampAllocator;
         _hashTable = new TransactionIndexBucket[hashTableSize];
         for (int index = 0; index < hashTableSize; index++) {
             _hashTable[index] = new TransactionIndexBucket(this);
         }
     }
-    
+
     int getMaxFreeListSize() {
         return _maxFreeListSize;
     }
-    
+
     int getLongRunningThreshold() {
         return _longRunningThreshold;
     }
@@ -322,7 +334,7 @@ public class TransactionIndex {
          * because we could not have seen the tsv without its corresponding
          * transaction status having been registered.
          */
-        if ((bucket.getCurrent() == null || tsv <= bucket.getFloor()) && bucket.getLongRunning() == null
+        if ((bucket.getCurrent() == null || tsv < bucket.getFloor()) && bucket.getLongRunning() == null
                 && bucket.getAborted() == null) {
             return tsv;
         }
@@ -338,7 +350,7 @@ public class TransactionIndex {
              * floor is committed unless it is found on either the aborted or
              * longRunning lists.
              */
-            if (tsv > bucket.getFloor()) {
+            if (tsv >= bucket.getFloor()) {
                 for (TransactionStatus status = bucket.getCurrent(); status != null; status = status.getNext()) {
                     if (status.getTs() == tsv) {
                         return status.getSettledTc();
@@ -370,14 +382,12 @@ public class TransactionIndex {
      * concurrent transaction with a larger start timestamp could fail to see
      * this one and cause inconsistent results.
      * 
-     * @param txn
-     *            the Transaction to register
-     * @return the Transaction's start timestamp.
+     * @return the TransactionStatus.
      * @throws InterruptedException
      * @throws TimeoutException
      */
-    synchronized long registerTransaction(Transaction txn) throws TimeoutException, InterruptedException {
-        final long ts = _persistit.getTimestampAllocator().updateTimestamp();
+    synchronized TransactionStatus registerTransaction() throws TimeoutException, InterruptedException {
+        final long ts = _timestampAllocator.updateTimestamp();
         int index = hashIndex(ts);
         TransactionIndexBucket bucket = _hashTable[index];
         final TransactionStatus status;
@@ -396,7 +406,7 @@ public class TransactionIndex {
          * a thread terminated by {@link Thread#stop()} somewhere else.
          */
         status.wwLock(VERY_LONG_TIMEOUT);
-        return ts;
+        return status;
     }
 
     /**
@@ -422,10 +432,34 @@ public class TransactionIndex {
     }
 
     /**
+     * Notify the TransactionIndex that the MVV count for an aborted transaction
+     * has become zero. The caller determines this when the value returned by
+     * {@link TransactionStatus#decrementMvvCount()} is zero. This method cleans
+     * now-obsolete <code>TransactionStatus</code> instances from the aborted
+     * list.
+     * 
+     * @param ts
+     *            Timestamp of an aborted transaction which no longer hasany
+     *            remaining MVV version values.
+     */
+    void notifyPruned(final long ts) {
+        final int hashIndex = hashIndex(ts);
+        final TransactionIndexBucket bucket = _hashTable[hashIndex];
+        bucket.lock();
+        try {
+            bucket.notifyPruned();
+        } finally {
+            bucket.unlock();
+        }
+    }
+
+    /**
+     * <p>
      * Determine whether there exists a registered transaction that has neither
      * committed nor aborted having a starting timestamp <code>ts</code> such
      * that <code>ts1</code> &lt; <code>ts</code> &lt; <code>ts2</code>.
-     * <p />
+     * </p>
+     * <p>
      * This method is not synchronized and therefore may return a
      * <code>true</code> value for a transaction which then immediately before
      * the caller acts on the result value either commits or aborts. However,
@@ -433,6 +467,7 @@ public class TransactionIndex {
      * value created by the {@link TimestampAllocator}, then if there exists a
      * concurrent transaction with a start timestamp in the specified range,
      * this method is guaranteed to return <code>true</code>
+     * </p>
      * 
      * @param ts1
      * @param ts2
@@ -440,6 +475,48 @@ public class TransactionIndex {
      */
     boolean hasConcurrentTransaction(long ts1, long ts2) {
         return _atCache.hasConcurrentTransaction(ts1, ts2);
+    }
+
+    /**
+     * Timestamp known to be less than or equal to the start timestamp of any
+     * currently executing transaction. This value is computed by
+     * {@link #updateActiveTransactionCache()} and is therefore may be less the
+     * timestamp of any currently executing transaction at the instant this
+     * value is returned. However, it is guaranteed that no running transaction
+     * has a lower start timestamp.
+     * 
+     * @return Lower bound on start timestamps of currently active transactions.
+     */
+    public long getActiveTransactionFloor() {
+        return _atCache._floor;
+    }
+
+    /**
+     * Timestamp recorded at the last invocation of
+     * {@link #updateActiveTransactionCache()}. The
+     * {@link #hasConcurrentTransaction(long, long)} method will indicate that
+     * any transaction starting after the ceiling is currently active even if
+     * that is no longer true.
+     * 
+     * @return Upper bound on timestamps for which
+     *         {@link #hasConcurrentTransaction(long, long)} returns accurate
+     *         information.
+     */
+    public long getActiveTransactionCeiling() {
+        return _atCache._ceiling;
+    }
+
+    /**
+     * Count of active transactions measured when
+     * {@link #updateActiveTransactionCache()} was last called. The count may
+     * have changed to due new transactions starting or existing transactions
+     * committing since that invocation, and therefore the value returned by
+     * this method is an estimate.
+     * 
+     * @return the count
+     */
+    public long getActiveTransactionCount() {
+        return _atCache._count;
     }
 
     /**
@@ -523,7 +600,7 @@ public class TransactionIndex {
         bucket.lock();
         try {
             /*
-             * A transaction with a start timestamp less than or equal to the
+             * > A transaction with a start timestamp less than or equal to the
              * floor is committed unless it is found on either the aborted or
              * longRunning lists.
              */
@@ -559,8 +636,9 @@ public class TransactionIndex {
          * 
          * TODO: I'm concerned that by the time we get here the
          * TransactionStatus object may have recycled to the free list and then
-         * become initialized for a different transaction. That would cause the current
-         * thread to wait for completion of an entirely different transaction.
+         * become initialized for a different transaction. That would cause the
+         * current thread to wait for completion of an entirely different
+         * transaction.
          */
         if (status.wwLock(timeout)) {
             try {
@@ -610,4 +688,47 @@ public class TransactionIndex {
             _atCacheLock.unlock();
         }
     }
+
+    int getCurrentCount() {
+        int currentCount = 0;
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            currentCount += bucket.getCurrentCount();
+        }
+        return currentCount;
+    }
+
+    int getLongRunningCount() {
+        int longRunningCount = 0;
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            longRunningCount += bucket.getLongRunningCount();
+        }
+        return longRunningCount;
+    }
+
+    int getAbortedCount() {
+        int aortedCount = 0;
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            aortedCount += bucket.getAbortedCount();
+        }
+        return aortedCount;
+    }
+
+    int getFreeCount() {
+        int freeCount = 0;
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            freeCount += bucket.getFreeCount();
+        }
+        return freeCount;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        for (int index = 0; index < _hashTable.length; index++) {
+            final TransactionIndexBucket bucket = _hashTable[index];
+            sb.append(String.format("%5d: %s\n", index, bucket));
+        }
+        return sb.toString();
+    }
+
 }
