@@ -18,42 +18,56 @@ package com.persistit;
 import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Sketch of an object that could sit at the root of a TransactionIndex hash
- * table bucket.
+ * <p>
+ * Representation of one {@link TransactionIndex} hash table bucket. This class
+ * contains much of the important logic for managing active and recently
+ * committed or aborted transactions. It contains four singly-linked lists of
+ * {@link TransactionStatus} objects:
+ * <dl>
+ * <dt>current</dt>
+ * <dd>List of transactions having start timestamps greater than or equal to the
+ * <i>floor</i> (defined below). <code>TransactionStatus</code> objects leave
+ * this list when the floor is raised. This is done by the {@link #reduce()}
+ * method.</dt>
+ * <dt>aborted</dt>
+ * <dd>List of aborted transactions having start times less than the floor.
+ * <code>TransactionStatus</code> objects leave this list once their MvvCount
+ * becomes zero, meaning that no MVV instances in the database containing
+ * updates from that transaction still exist.</dd>
+ * <dt>longRunning</dt>
+ * <dd>List of active transactions having start times less than the floor which
+ * have neither committed nor aborted. The {@link #reduce()} method moves long
+ * running transactions to this list so that it can increase the floor.</dd>
+ * <dt>free</dt>
+ * <dd>List of currently unused <code>TransactionStatus</code> instances that
+ * can be allocated and reused for new transactions.</dd>
+ * </dl>
+ * </p>
+ * <p>
+ * The <i>floor</i> value is a timestamp that divides transactions on the
+ * current list from those moved to the longRunning, aborted or free list. The
+ * status of any transaction started after the current value of floor is denoted
+ * by a <code>TransactionStatus</code> object on the current list. For any
+ * transaction started before the current floor, the transaction is known to
+ * have committed unless a <code>TransactionStatus</code> object is found on
+ * either the aborted or longRunning lists. These are intended as exceptional
+ * cases, and are expected to remain relatively short. The
+ * <code>TransactionStatus</code> for a committed transaction (the usual case)
+ * is simply moved to the free list once the floor is raised.
+ * </p>
  * 
  * @author peter
  * 
  */
 public class TransactionIndexBucket {
     /**
-     * Default threshold value for moving long-running transactions to the
-     * {@link #_longRunning} list.
+     * The owner of the hash table that contains this bucket
      */
-    final static int DEFAULT_LONG_RUNNING_THRESHOLD = 5;
+    final TransactionIndex _transactionIndex;
 
-    /**
-     * Default maximum number of TransactionStatus instances to hold on the free
-     * list.
-     */
-    final static int DEFAULT_MAX_FREE_LIST_SIZE = 20;
-
-    /**
-     * Adjustable threshold count at which a transaction on the _current list is
-     * moved to the {@link #_longRunning} list so that the {@link #_floor} can
-     * be raised.
-     */
-    volatile int _longRunningThreshold = DEFAULT_LONG_RUNNING_THRESHOLD;
-
-    /**
-     * Maximum number of TransactionStatus objects to hold on the free list.
-     * Once this number is reached any addition deallocated instances are
-     * released for garbage collection.
-     */
-    volatile int _maxFreeListSize;
     /**
      * Floor timestamp. A transaction that started before this time is usually
      * committed, in which case there no longer exists a TransactionStatus
@@ -118,6 +132,10 @@ public class TransactionIndexBucket {
      */
     ReentrantLock _lock = new ReentrantLock();
 
+    TransactionIndexBucket(final TransactionIndex index) {
+        _transactionIndex = index;
+    }
+
     void lock() {
         _lock.lock();
     }
@@ -152,7 +170,7 @@ public class TransactionIndexBucket {
         _current = status;
         _currentCount++;
         _highestTimestamp = status.getTs();
-        if (_currentCount > _longRunningThreshold) {
+        if (_currentCount > _transactionIndex.getLongRunningThreshold()) {
             reduce();
         }
     }
@@ -187,6 +205,42 @@ public class TransactionIndexBucket {
 
     int getFreeCount() {
         return _freeCount;
+    }
+    
+    TransactionStatus notifyCompleted(final long ts) {
+        assert _lock.isHeldByCurrentThread();
+        if (ts >= getFloor()) {
+            for (TransactionStatus status = getCurrent(); status != null; status = status.getNext()) {
+                if (status.getTs() == ts) {
+                    if (ts == getFloor()) {
+                        reduce();
+                    }
+                    return status;
+                }
+            }
+            TransactionStatus previous = null;
+            for (TransactionStatus status = getLongRunning(); status != null; status = status.getNext()) {
+                if (status.getTs() == ts) {
+                    TransactionStatus next = status.getNext();
+                    assert status.getTc() != UNCOMMITTED;
+                    if (status.getTc() == ABORTED) {
+                        status.setNext(_aborted);
+                        _aborted = status;
+                    } else if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+                        status.setNext(_free);
+                        _free = status;
+                    }
+                    if (previous == null) {
+                        _current = next;
+                    } else {
+                        previous.setNext(next);
+                    }
+                    return status;
+                }
+                previous = status;
+            }
+        }
+        throw new IllegalStateException("No such transaction  " + ts);
     }
 
     /**
@@ -226,7 +280,7 @@ public class TransactionIndexBucket {
                 final boolean uncommitted = status.getTc() == UNCOMMITTED;
                 final boolean committed = status.getTc() > 0 && !uncommitted;
                 if (status.getTs() == _floor) {
-                    if (aborted || committed || uncommitted && _currentCount > _maxFreeListSize) {
+                    if (aborted || committed || uncommitted && _currentCount > _transactionIndex.getMaxFreeListSize()) {
                         /*
                          * Essential invariant: the TransactionStatus is added
                          * to its new list before being removed from _current.
@@ -249,7 +303,7 @@ public class TransactionIndexBucket {
                             status.setNext(_longRunning);
                             _longRunning = status;
                             _longRunningCount++;
-                        } else if (_freeCount < _maxFreeListSize) {
+                        } else if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
                             status.setNext(_free);
                             _free = status;
                             _freeCount++;

@@ -32,6 +32,18 @@ import com.persistit.exception.TimeoutException;
 public class TransactionIndex {
 
     /**
+     * Default threshold value for moving long-running transactions to the
+     * {@link #_longRunning} list.
+     */
+    final static int DEFAULT_LONG_RUNNING_THRESHOLD = 5;
+
+    /**
+     * Default maximum number of TransactionStatus instances to hold on the free
+     * list.
+     */
+    final static int DEFAULT_MAX_FREE_LIST_SIZE = 20;
+    
+    /**
      * TODO - more thought on timeout processing.
      */
     final static long VERY_LONG_TIMEOUT = 60000; // sixty seconds
@@ -50,6 +62,20 @@ public class TransactionIndex {
      * The hash table.
      */
     private final TransactionIndexBucket[] _hashTable;
+
+    /**
+     * Adjustable threshold count at which a transaction on the _current list is
+     * moved to the {@link #_longRunning} list so that the {@link #_floor} can
+     * be raised.
+     */
+    volatile int _longRunningThreshold = DEFAULT_LONG_RUNNING_THRESHOLD;
+
+    /**
+     * Maximum number of TransactionStatus objects to hold on the free list.
+     * Once this number is reached any addition deallocated instances are
+     * released for garbage collection.
+     */
+    volatile int _maxFreeListSize;
 
     /**
      * One of two ActiveTransactionCache instances
@@ -194,14 +220,6 @@ public class TransactionIndex {
         }
     }
 
-    TransactionIndex(final Persistit persistit, final int hashTableSize) {
-        _persistit = persistit;
-        _hashTable = new TransactionIndexBucket[hashTableSize];
-        for (int index = 0; index < hashTableSize; index++) {
-            _hashTable[index] = new TransactionIndexBucket();
-        }
-    }
-
     static long vh2ts(final long versionHandle) {
         return versionHandle / VERSION_HANDLE_MULTIPLIER;
     }
@@ -212,6 +230,22 @@ public class TransactionIndex {
 
     static int vh2step(final long versionHandle) {
         return (int) (versionHandle % VERSION_HANDLE_MULTIPLIER);
+    }
+
+    TransactionIndex(final Persistit persistit, final int hashTableSize) {
+        _persistit = persistit;
+        _hashTable = new TransactionIndexBucket[hashTableSize];
+        for (int index = 0; index < hashTableSize; index++) {
+            _hashTable[index] = new TransactionIndexBucket(this);
+        }
+    }
+    
+    int getMaxFreeListSize() {
+        return _maxFreeListSize;
+    }
+    
+    int getLongRunningThreshold() {
+        return _longRunningThreshold;
     }
 
     /**
@@ -375,7 +409,16 @@ public class TransactionIndex {
      *            aborted.
      */
     void notifyCompleted(final long ts) {
-
+        final int hashIndex = hashIndex(ts);
+        final TransactionIndexBucket bucket = _hashTable[hashIndex];
+        final TransactionStatus status;
+        bucket.lock();
+        try {
+            status = bucket.notifyCompleted(ts);
+        } finally {
+            bucket.unlock();
+        }
+        status.wwUnlock();
     }
 
     /**
@@ -515,8 +558,9 @@ public class TransactionIndex {
          * aborting.
          * 
          * TODO: I'm concerned that by the time we get here the
-         * TransactionStatus object may have cycled to the free list and then
-         * been initialized for a different transaction.
+         * TransactionStatus object may have recycled to the free list and then
+         * become initialized for a different transaction. That would cause the current
+         * thread to wait for completion of an entirely different transaction.
          */
         if (status.wwLock(timeout)) {
             try {
@@ -528,7 +572,7 @@ public class TransactionIndex {
                     throw new IllegalStateException("Commit incomplete");
                 }
                 /*
-                 * true iff this is a concurrent transaction
+                 * true if and only if this is a concurrent transaction
                  */
                 return tc > ts;
 
