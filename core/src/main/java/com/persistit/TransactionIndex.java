@@ -739,6 +739,14 @@ public class TransactionIndex {
         return freeCount;
     }
 
+    int getDroppedCount() {
+        int droppedCount = 0;
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            droppedCount += bucket.getDroppedCount();
+        }
+        return droppedCount;
+    }
+    
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();

@@ -126,6 +126,12 @@ public class TransactionIndexBucket {
     int _freeCount;
 
     /**
+     * Number of allocated TransactionStatus instances that were released for
+     * garbage collection due to full free list.
+     */
+    int _droppedCount;
+
+    /**
      * Lock used to prevent multi-threaded access to the lists in this
      * structure.
      */
@@ -208,6 +214,10 @@ public class TransactionIndexBucket {
         return _freeCount;
     }
 
+    int getDroppedCount() {
+        return _droppedCount;
+    }
+
     TimestampAllocator getTimestampAllocator() {
         return _transactionIndex.getTimestampAllocator();
     }
@@ -224,27 +234,33 @@ public class TransactionIndexBucket {
                     return status;
                 }
             }
-            TransactionStatus previous = null;
-            for (TransactionStatus status = getLongRunning(); status != null; status = status.getNext()) {
-                if (status.getTs() == ts) {
-                    TransactionStatus next = status.getNext();
-                    assert status.getTc() != UNCOMMITTED;
-                    if (status.getTc() == ABORTED) {
-                        status.setNext(_aborted);
-                        _aborted = status;
-                    } else if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
-                        status.setNext(_free);
-                        _free = status;
-                    }
-                    if (previous == null) {
-                        _longRunning = next;
-                    } else {
-                        previous.setNext(next);
-                    }
-                    return status;
+        }
+        TransactionStatus previous = null;
+        for (TransactionStatus status = getLongRunning(); status != null; status = status.getNext()) {
+            if (status.getTs() == ts) {
+                TransactionStatus next = status.getNext();
+                assert status.getTc() != UNCOMMITTED;
+                status.complete();
+                if (status.getTc() == ABORTED) {
+                    status.setNext(_aborted);
+                    _aborted = status;
+                    _abortedCount++;
+                } else if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+                    status.setNext(_free);
+                    _free = status;
+                    _freeCount++;
+                } else {
+                    _droppedCount++;
                 }
-                previous = status;
+                if (previous == null) {
+                    _longRunning = next;
+                } else {
+                    previous.setNext(next);
+                }
+                _longRunningCount--;
+                return status;
             }
+            previous = status;
         }
         throw new IllegalStateException("No such transaction  " + ts);
     }
@@ -331,7 +347,7 @@ public class TransactionIndexBucket {
                      * Move the TransactionStatus somewhere if any of these
                      * conditions hold
                      */
-                    if (aborted || eligible || _currentCount > _transactionIndex.getMaxFreeListSize()) {
+                    if (aborted || eligible || _currentCount > _transactionIndex.getLongRunningThreshold()) {
                         /*
                          * Essential invariant: the TransactionStatus is added
                          * to its new list before being removed from _current.
@@ -357,8 +373,9 @@ public class TransactionIndexBucket {
                             }
                         } else if (!eligible) {
                             /*
-                             * If not aborted and not eligible to be freed, then move the
-                             * TransactionStatus to the longRunning list.
+                             * If not aborted and not eligible to be freed, then
+                             * move the TransactionStatus to the longRunning
+                             * list.
                              */
                             status.setNext(_longRunning);
                             _longRunning = status;
@@ -371,10 +388,14 @@ public class TransactionIndexBucket {
                          * in which more than maxFreeListSize transactions are
                          * currently active for this bucket.)
                          */
-                        if (eligible && _freeCount < _transactionIndex.getMaxFreeListSize()) {
-                            status.setNext(_free);
-                            _free = status;
-                            _freeCount++;
+                        if (eligible) {
+                            if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+                                status.setNext(_free);
+                                _free = status;
+                                _freeCount++;
+                            } else {
+                                _droppedCount++;
+                            }
                         } else {
                             /*
                              * Simply let this TransactionStatus go away and be

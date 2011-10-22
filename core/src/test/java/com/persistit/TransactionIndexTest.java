@@ -90,6 +90,63 @@ public class TransactionIndexTest extends TestCase {
         ts3.commit(_tsa.updateTimestamp());
     }
 
+    public void testReduce() throws Exception {
+        final TransactionStatus[] array = new TransactionStatus[100];
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+
+        for (int count = 0; count < array.length; count++) {
+            array[count] = ti.registerTransaction();
+            array[count].incrementMvvCount();
+        }
+        assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());
+        assertEquals(array.length - ti.getLongRunningThreshold(), ti.getLongRunningCount());
+
+        for (int count = 20; count < 70; count++) {
+            array[count].abort();
+            ti.notifyCompleted(array[count].getTs());
+        }
+        for (int count = 50; count < 60; count++) {
+            array[count].decrementMvvCount();
+            ti.notifyPruned(array[count].getTs());
+        }
+        assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());
+        assertEquals(array.length - ti.getLongRunningThreshold() - ti.getAbortedCount() - ti.getFreeCount(), ti
+                .getLongRunningCount());
+        assertEquals(50, ti.getAbortedCount());
+        for (int count = 0; count < 20; count++) {
+            array[count].commit(array[20].getTs());
+            ti.notifyCompleted(array[count].getTs());
+        }
+        assertEquals(ti.getMaxFreeListSize(), ti.getFreeCount());
+        assertEquals(50, ti.getAbortedCount());
+        assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());
+        assertEquals(array.length - ti.getCurrentCount() - ti.getAbortedCount() - ti.getFreeCount()
+                - ti.getDroppedCount(), ti.getLongRunningCount());
+        
+        ti.updateActiveTransactionCache();
+        ti.cleanup();
+        /*
+         * aborted set retained due to currently active transactions
+         * that started before the mvvCount was decremented
+         */
+        assertEquals(50, ti.getAbortedCount());
+        /*
+         * Commit all remaining transactions so that there no currently active
+         * transactions.
+         */
+        for (int count=70; count < array.length; count++) {
+            array[count].commit(_tsa.updateTimestamp());
+            ti.notifyCompleted(array[count].getTs());
+        }
+        /*
+         * Refresh ActiveTransactionCache to recognize new commits. 
+         */
+        ti.updateActiveTransactionCache();
+        assertEquals(50, ti.getAbortedCount());
+        ti.cleanup();
+        assertEquals(40, ti.getAbortedCount());
+    }
+
     public void testBlockingWwDependency() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
         final TransactionStatus ts1 = ti.registerTransaction();
