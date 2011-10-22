@@ -15,7 +15,12 @@
 
 package com.persistit;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+
 import junit.framework.TestCase;
+
+import com.persistit.exception.TimeoutException;
 
 public class TransactionIndexTest extends TestCase {
 
@@ -38,11 +43,13 @@ public class TransactionIndexTest extends TestCase {
         assertFalse(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
         TransactionStatus ts3 = ti.registerTransaction();
         _tsa.updateTimestamp();
-        assertEquals(TransactionStatus.UNCOMMITTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa.getCurrentTimestamp(), 0));
+        assertEquals(TransactionStatus.UNCOMMITTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
+                .getCurrentTimestamp(), 0));
         assertEquals(ts3.getTs(), ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), ts3.getTs(), 0));
         ts3.incrementMvvCount();
         ts3.abort();
-        assertEquals(TransactionStatus.ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa.getCurrentTimestamp(), 0));
+        assertEquals(TransactionStatus.ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
+                .getCurrentTimestamp(), 0));
         assertEquals(3, ti.getCurrentCount());
         ti.notifyCompleted(ts1.getTs());
         assertEquals(ts1.getTs(), ti.commitStatus(TransactionIndex.ts2vh(ts1.getTs()), _tsa.getCurrentTimestamp(), 0));
@@ -52,12 +59,78 @@ public class TransactionIndexTest extends TestCase {
         assertEquals(2, ti.getFreeCount());
         assertEquals(1, ti.getAbortedCount());
         ts3.decrementMvvCount();
-        
+        ti.updateActiveTransactionCache();
+        ti.cleanup();
+        assertEquals(0, ti.getCurrentCount());
+        assertEquals(3, ti.getFreeCount());
+        assertEquals(0, ti.getAbortedCount());
     }
-    
-    public void testWwDependency() throws Exception {
+
+    public void testNonBlockingWwDependency() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
         final TransactionStatus ts1 = ti.registerTransaction();
+        final TransactionStatus ts2 = ti.registerTransaction();
+        ts1.commit(_tsa.updateTimestamp());
+        ti.notifyCompleted(ts1.getTs());
+        /*
+         * Should return true because ts1 and ts2 are concurrent.
+         */
+        assertTrue(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2.getTs(), 1000));
+        final TransactionStatus ts3 = ti.registerTransaction();
+        ts2.abort();
+        ti.notifyCompleted(ts2.getTs());
+        /*
+         * Should return false because ts1 and ts3 are not concurrent
+         */
+        assertFalse(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3.getTs(), 1000));
+        /*
+         * Should return false because ts2 aborted
+         */
+        assertFalse(ti.wwDependency(TransactionIndex.ts2vh(ts2.getTs()), ts3.getTs(), 1000));
+        ts3.commit(_tsa.updateTimestamp());
+    }
 
+    public void testBlockingWwDependency() throws Exception {
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+        final TransactionStatus ts1 = ti.registerTransaction();
+        final TransactionStatus ts2 = ti.registerTransaction();
+        final AtomicLong elapsed = new AtomicLong();
+        final boolean result1 = tryBlockingWwDependency(ti, ts1, ts2.getTs(), 1000, 10000, elapsed, true);
+        assertTrue(result1);
+        assertTrue(elapsed.get() >= 900);
+        final TransactionStatus ts3 = ti.registerTransaction();
+        final boolean result2 = tryBlockingWwDependency(ti, ts2, ts3.getTs(), 1000, 10000, elapsed, false);
+        assertFalse(result2);
+        assertTrue(elapsed.get() >= 900);
+    }
+
+    boolean tryBlockingWwDependency(final TransactionIndex ti, final TransactionStatus ts1, final long ts,
+            final long wait, final long timeout, final AtomicLong elapsed, boolean commit) throws Exception {
+        final AtomicBoolean result = new AtomicBoolean(true);
+        final Thread t = new Thread(new Runnable() {
+            public void run() {
+                try {
+                    final long start = System.currentTimeMillis();
+                    result.set(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts, timeout));
+                    elapsed.set(System.currentTimeMillis() - start);
+                } catch (TimeoutException e) {
+                    e.printStackTrace();
+                } catch (IllegalArgumentException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        t.start();
+        Thread.sleep(wait);
+        if (commit) {
+            ts1.commit(_tsa.updateTimestamp());
+        } else {
+            ts1.abort();
+        }
+        ti.notifyCompleted(ts1.getTs());
+        t.join();
+        return result.get();
     }
 }

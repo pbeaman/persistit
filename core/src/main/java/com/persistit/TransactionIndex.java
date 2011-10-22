@@ -164,7 +164,7 @@ public class TransactionIndex {
 
         void recompute() {
             _count = 0;
-            long timestampAtStart = _timestampAllocator.getCurrentTimestamp();
+            final long timestampAtStart = _timestampAllocator.updateTimestamp();
             long floor = timestampAtStart;
             for (TransactionIndexBucket bucket : _hashTable) {
                 if (bucket.getCurrent() != null || bucket.getLongRunning() != null) {
@@ -258,6 +258,10 @@ public class TransactionIndex {
 
     int getLongRunningThreshold() {
         return _longRunningThreshold;
+    }
+
+    TimestampAllocator getTimestampAllocator() {
+        return _timestampAllocator;
     }
 
     /**
@@ -359,7 +363,7 @@ public class TransactionIndex {
             }
             for (TransactionStatus status = bucket.getAborted(); status != null; status = status.getNext()) {
                 if (status.getTs() == tsv) {
-                    return status.getSettledTc();
+                    return ABORTED;
                 }
             }
             for (TransactionStatus status = bucket.getLongRunning(); status != null; status = status.getNext()) {
@@ -447,7 +451,7 @@ public class TransactionIndex {
         final TransactionIndexBucket bucket = _hashTable[hashIndex];
         bucket.lock();
         try {
-            bucket.notifyPruned();
+            bucket.pruned();
         } finally {
             bucket.unlock();
         }
@@ -492,11 +496,11 @@ public class TransactionIndex {
     }
 
     /**
-     * Timestamp recorded at the last invocation of
+     * Timestamp recorded at the start of the last invocation of
      * {@link #updateActiveTransactionCache()}. The
      * {@link #hasConcurrentTransaction(long, long)} method will indicate that
-     * any transaction starting after the ceiling is currently active even if
-     * that is no longer true.
+     * any transaction newer than that ceiling is currently active even if that
+     * transaction subsequently committed or aborted.
      * 
      * @return Upper bound on timestamps for which
      *         {@link #hasConcurrentTransaction(long, long)} returns accurate
@@ -587,7 +591,7 @@ public class TransactionIndex {
          * because we could not have seen the tsv without its corresponding
          * transaction status having been registered.
          */
-        if ((bucket.getCurrent() == null || tsv <= bucket.getFloor()) && bucket.getLongRunning() == null
+        if ((bucket.getCurrent() == null || tsv < bucket.getFloor()) && bucket.getLongRunning() == null
                 && bucket.getAborted() == null) {
             return false;
         }
@@ -604,24 +608,21 @@ public class TransactionIndex {
              * floor is committed unless it is found on either the aborted or
              * longRunning lists.
              */
-            if (tsv > bucket.getFloor()) {
-                for (TransactionStatus s = bucket.getCurrent(); status != null; status = status.getNext()) {
-                    if (status.getTs() == tsv) {
+            if (tsv >= bucket.getFloor()) {
+                for (TransactionStatus s = bucket.getCurrent(); s != null && status == null; s = s.getNext()) {
+                    if (s.getTs() == tsv) {
                         status = s;
-                        break;
                     }
                 }
             }
-            for (TransactionStatus s = bucket.getAborted(); status != null; status = status.getNext()) {
-                if (status.getTs() == tsv) {
+            for (TransactionStatus s = bucket.getAborted(); s != null && status == null; s = s.getNext()) {
+                if (s.getTs() == tsv) {
                     status = s;
-                    break;
                 }
             }
-            for (TransactionStatus s = bucket.getLongRunning(); status != null; status = status.getNext()) {
-                if (status.getTs() == tsv) {
+            for (TransactionStatus s = bucket.getLongRunning(); s != null && status == null; s = s.getNext()) {
+                if (s.getTs() == tsv) {
                     status = s;
-                    break;
                 }
             }
         } finally {
@@ -659,6 +660,23 @@ public class TransactionIndex {
             }
         }
         return false;
+    }
+
+    /**
+     * Apply {@link TransactionIndexBucket#reduce()} and
+     * {@link TransactionIndexBucket#pruned()} to each bucket. This is useful
+     * primarily in unit tests to yield a canonical state.
+     */
+    void cleanup() {
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            bucket.lock();
+            try {
+                bucket.reduce();
+                bucket.pruned();
+            } finally {
+                bucket.unlock();
+            }
+        }
     }
 
     /**

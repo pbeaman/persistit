@@ -152,7 +152,7 @@ public class TransactionIndexBucket {
             status.setNext(null);
             return status;
         } else {
-            return new TransactionStatus();
+            return new TransactionStatus(this);
         }
     }
 
@@ -208,6 +208,10 @@ public class TransactionIndexBucket {
         return _freeCount;
     }
 
+    TimestampAllocator getTimestampAllocator() {
+        return _transactionIndex.getTimestampAllocator();
+    }
+
     TransactionStatus notifyCompleted(final long ts) {
         assert _lock.isHeldByCurrentThread();
         if (ts >= getFloor()) {
@@ -246,16 +250,17 @@ public class TransactionIndexBucket {
     }
 
     /**
-     * Remove all obsolete <code>TransactionStatus</code> instances from the
-     * aborted list.
+     * Remove obsolete <code>TransactionStatus</code> instances from the aborted
+     * list.
      * 
      * @return
      */
-    void notifyPruned() {
+    void pruned() {
         assert _lock.isHeldByCurrentThread();
         TransactionStatus previous = null;
         for (TransactionStatus status = _aborted; status != null;) {
-            if (status.getMvvCount() == 0) {
+            final TransactionStatus next = status.getNext();
+            if (status.getMvvCount() == 0 && _transactionIndex.getActiveTransactionFloor() > status.getTa()) {
                 if (previous == null) {
                     _aborted = status.getNext();
                 } else {
@@ -270,6 +275,7 @@ public class TransactionIndexBucket {
             } else {
                 previous = status;
             }
+            status = next;
         }
     }
 
@@ -307,11 +313,25 @@ public class TransactionIndexBucket {
             for (TransactionStatus status = _current; status != null;) {
                 final TransactionStatus next = status.getNext();
                 assert status.getTs() >= _floor;
-                final boolean uncommitted = status.getTc() == UNCOMMITTED;
+
+                /*
+                 * Is this TransactionStatus aborted and notified?
+                 */
                 final boolean aborted = status.getTc() == ABORTED && status.isNotified();
-                final boolean committed = status.getTc() > 0 && !uncommitted && status.isNotified();
+                /*
+                 * Is this TransactionStatus eligible to be freed? It is only if
+                 * it fully committed and there are no longer any concurrent
+                 * transactions.
+                 */
+                boolean eligible = status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.isNotified()
+                        && status.getTc() < _transactionIndex.getActiveTransactionFloor();
+
                 if (status.getTs() == _floor) {
-                    if (aborted || committed || uncommitted && _currentCount > _transactionIndex.getMaxFreeListSize()) {
+                    /*
+                     * Move the TransactionStatus somewhere if any of these
+                     * conditions hold
+                     */
+                    if (aborted || eligible || _currentCount > _transactionIndex.getMaxFreeListSize()) {
                         /*
                          * Essential invariant: the TransactionStatus is added
                          * to its new list before being removed from _current.
@@ -319,25 +339,44 @@ public class TransactionIndexBucket {
                          * _aborted and _longRunning members outside of locks.
                          * (Currently they do not traverse the linked lists,
                          * however.)
-                         * 
-                         * An aborted transaction only needs to be retained if
-                         * there are outstanding MVV values it modified.
-                         * Otherwise the status can be freed.
                          */
-                        if (aborted && status.getMvvCount() > 0) {
-                            status.setNext(_aborted);
-                            _aborted = status;
-                            _abortedCount++;
-                        } else if (uncommitted) {
+                        if (aborted) {
+                            /*
+                             * An aborted transaction only needs to be retained
+                             * if there are outstanding MVV values it modified
+                             * or it is concurrent with other active
+                             * transactions. Otherwise the status can be freed.
+                             */
+                            if (status.getMvvCount() > 0
+                                    || status.getTa() > _transactionIndex.getActiveTransactionFloor()) {
+                                status.setNext(_aborted);
+                                _aborted = status;
+                                _abortedCount++;
+                            } else {
+                                eligible = true;
+                            }
+                        } else if (!eligible) {
+                            /*
+                             * If not aborted and not eligible to be freed, then move the
+                             * TransactionStatus to the longRunning list.
+                             */
                             status.setNext(_longRunning);
                             _longRunning = status;
                             _longRunningCount++;
-                        } else if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+                        }
+                        /*
+                         * If this TransactionStatus can be freed then add it to
+                         * the free list unless the free list is already full.
+                         * (This could happen if there is a temporary condition
+                         * in which more than maxFreeListSize transactions are
+                         * currently active for this bucket.)
+                         */
+                        if (eligible && _freeCount < _transactionIndex.getMaxFreeListSize()) {
                             status.setNext(_free);
                             _free = status;
                             _freeCount++;
                         } else {
-                            /**
+                            /*
                              * Simply let this TransactionStatus go away and be
                              * garbage collected.
                              */
@@ -357,11 +396,12 @@ public class TransactionIndexBucket {
                         _currentCount--;
                         status = next;
                     } else {
+                        newFloor = _floor;
                         previous = status;
                     }
                 } else if (status.getTs() < newFloor) {
                     newFloor = status.getTs();
-                    more = aborted || committed;
+                    more = aborted || eligible;
                     previous = status;
                 }
                 status = next;

@@ -42,6 +42,10 @@ public class TransactionStatus {
     final static long UNCOMMITTED = Long.MAX_VALUE;
 
     /**
+     * The bucket to which this <code>TransactionStatus</code> belongs.
+     */
+    private final TransactionIndexBucket _bucket;
+    /**
      * Start timestamp. This value may only be assigned by
      * {@link TransactionIndex#registerTransaction(Transaction)}.
      */
@@ -71,6 +75,15 @@ public class TransactionStatus {
     private volatile long _tc;
 
     /**
+     * Timestamp at which the last MMV version written by this transaction has
+     * been pruned (if the transaction aborted). The
+     * <code>TransactionStatus</code> may not be removed until there are no
+     * currently active transactions have start timestamps older than this
+     * value.
+     */
+    private volatile long _ta;
+
+    /**
      * Count of MVV versions created by associated transaction.
      */
     private AtomicInteger _mvvCount = new AtomicInteger();
@@ -92,6 +105,10 @@ public class TransactionStatus {
      * <code>TransactionStatus</code> may not be placed on the free list.
      */
     boolean _notified;
+
+    TransactionStatus(final TransactionIndexBucket bucket) {
+        _bucket = bucket;
+    }
 
     /**
      * @return The next TransactionStatus on linked list, or <code>null</code>
@@ -124,6 +141,13 @@ public class TransactionStatus {
      */
     long getTc() {
         return _tc;
+    }
+    
+    /**
+     * @return the abort cleanup timestamp
+     */
+    long getTa() {
+        return _ta;
     }
 
     /**
@@ -216,7 +240,9 @@ public class TransactionStatus {
      * @return the updated count
      */
     int decrementMvvCount() {
-        return _mvvCount.decrementAndGet();
+        int count = _mvvCount.decrementAndGet();
+        _ta = _bucket.getTimestampAllocator().getCurrentTimestamp();
+        return count;
     }
 
     /**
