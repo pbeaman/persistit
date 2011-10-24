@@ -317,7 +317,7 @@ public class TransactionStatus {
 
     @Override
     public String toString() {
-        return String.format("<ts=%d tc=%s mvv=%d>", _ts, tcString(_tc), _mvvCount.get());
+        return String.format("<ts=%,d tc=%s mvv=%,d>", _ts, tcString(_tc), _mvvCount.get());
     }
 
     static String tcString(final long ts) {

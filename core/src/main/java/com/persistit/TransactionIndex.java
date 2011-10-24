@@ -344,6 +344,7 @@ public class TransactionIndex {
             return tsv;
         }
         long commitTimestamp = tsv;
+        TransactionStatus status = null;
         /*
          * There were members on at least one of the lists. Need to lock the
          * bucket so we can traverse the lists.
@@ -356,24 +357,33 @@ public class TransactionIndex {
              * longRunning lists.
              */
             if (tsv >= bucket.getFloor()) {
-                for (TransactionStatus status = bucket.getCurrent(); status != null; status = status.getNext()) {
-                    if (status.getTs() == tsv) {
-                        return status.getSettledTc();
+                for (TransactionStatus s = bucket.getCurrent(); s != null; s = s.getNext()) {
+                    if (s.getTs() == tsv) {
+                        status = s;
+                        break;
                     }
                 }
             }
-            for (TransactionStatus status = bucket.getAborted(); status != null; status = status.getNext()) {
-                if (status.getTs() == tsv) {
-                    return ABORTED;
+            if (status == null) {
+                for (TransactionStatus s = bucket.getAborted(); s != null; s = s.getNext()) {
+                    if (s.getTs() == tsv) {
+                        return ABORTED;
+                    }
                 }
             }
-            for (TransactionStatus status = bucket.getLongRunning(); status != null; status = status.getNext()) {
-                if (status.getTs() == tsv) {
-                    return status.getSettledTc();
+            if (status == null) {
+                for (TransactionStatus s = bucket.getLongRunning(); s != null; s = s.getNext()) {
+                    if (s.getTs() == tsv) {
+                        status = s;
+                        break;
+                    }
                 }
             }
         } finally {
             bucket.unlock();
+        }
+        if (status != null) {
+            commitTimestamp = status.getSettledTc();
         }
         return commitTimestamp;
     }
@@ -619,14 +629,18 @@ public class TransactionIndex {
                     }
                 }
             }
-            for (TransactionStatus s = bucket.getAborted(); s != null && status == null; s = s.getNext()) {
-                if (s.getTs() == tsv) {
-                    status = s;
+            if (status == null) {
+                for (TransactionStatus s = bucket.getAborted(); s != null && status == null; s = s.getNext()) {
+                    if (s.getTs() == tsv) {
+                        status = s;
+                    }
                 }
             }
-            for (TransactionStatus s = bucket.getLongRunning(); s != null && status == null; s = s.getNext()) {
-                if (s.getTs() == tsv) {
-                    status = s;
+            if (status == null) {
+                for (TransactionStatus s = bucket.getLongRunning(); s != null && status == null; s = s.getNext()) {
+                    if (s.getTs() == tsv) {
+                        status = s;
+                    }
                 }
             }
         } finally {
@@ -640,12 +654,15 @@ public class TransactionIndex {
          * aborting.
          * 
          * TODO: I'm concerned that by the time we get here the
-         * TransactionStatus object may have recycled to the free list and then
-         * become initialized for a different transaction. That would cause the
-         * current thread to wait for completion of an entirely different
+         * TransactionStatus object may have recycled to the free list and may
+         * then become initialized for a different transaction. That would cause
+         * the current thread to wait for completion of an entirely different
          * transaction.
          */
         if (status.wwLock(timeout)) {
+            if (status.getTs() != tsv) {
+                System.out.println(status + " != " + tsv);
+            }
             try {
                 final long tc = status.getTc();
                 if (tc == ABORTED) {

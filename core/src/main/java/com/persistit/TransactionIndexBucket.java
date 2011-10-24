@@ -339,8 +339,9 @@ public class TransactionIndexBucket {
                  * it fully committed and there are no longer any concurrent
                  * transactions.
                  */
+                boolean primordial = status.getTc() < _transactionIndex.getActiveTransactionFloor();
                 boolean eligible = status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.isNotified()
-                        && status.getTc() < _transactionIndex.getActiveTransactionFloor();
+                        && primordial;
 
                 if (status.getTs() == _floor) {
                     /*
@@ -368,10 +369,13 @@ public class TransactionIndexBucket {
                                 status.setNext(_aborted);
                                 _aborted = status;
                                 _abortedCount++;
+                                eligible = false;
                             } else {
-                                eligible = true;
+                                eligible = primordial;
                             }
-                        } else if (!eligible) {
+                        }
+
+                        if (!eligible && !aborted) {
                             /*
                              * If not aborted and not eligible to be freed, then
                              * move the TransactionStatus to the longRunning
@@ -381,26 +385,26 @@ public class TransactionIndexBucket {
                             _longRunning = status;
                             _longRunningCount++;
                         }
-                        /*
-                         * If this TransactionStatus can be freed then add it to
-                         * the free list unless the free list is already full.
-                         * (This could happen if there is a temporary condition
-                         * in which more than maxFreeListSize transactions are
-                         * currently active for this bucket.)
-                         */
                         if (eligible) {
+                            /*
+                             * If this TransactionStatus can be freed then add
+                             * it to the free list unless the free list is
+                             * already full. (This could happen if there is a
+                             * temporary condition in which more than
+                             * maxFreeListSize transactions are currently active
+                             * for this bucket.)
+                             */
                             if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
                                 status.setNext(_free);
                                 _free = status;
                                 _freeCount++;
                             } else {
+                                /*
+                                 * Simply let this TransactionStatus go away and
+                                 * be garbage collected.
+                                 */
                                 _droppedCount++;
                             }
-                        } else {
-                            /*
-                             * Simply let this TransactionStatus go away and be
-                             * garbage collected.
-                             */
                         }
                         /*
                          * Unlink the TransactionStatus from the current list.
