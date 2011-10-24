@@ -420,9 +420,11 @@ public class TransactionIndexBucket {
                         newFloor = _floor;
                         previous = status;
                     }
-                } else if (status.getTs() < newFloor) {
-                    newFloor = status.getTs();
-                    more = aborted || eligible;
+                } else {
+                    if (status.getTs() < newFloor) {
+                        newFloor = status.getTs();
+                        more = aborted || eligible;
+                    }
                     previous = status;
                 }
                 status = next;

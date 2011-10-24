@@ -16,6 +16,7 @@
 package com.persistit;
 
 import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.Arrays;
@@ -527,29 +528,36 @@ public class TransactionIndex {
      * <p>
      * Detects a write-write dependency from one transaction to another. This
      * method is called when transaction having start timestamp <code>ts</code>
-     * detects that there is already an update from another transaction
-     * identified by <code>versionHandle</code>. If the other transaction has
-     * already committed or aborted then this method immediately returns a value
-     * depending on its outcome:
+     * detects that there is already an update from another transaction, the
+     * <i>target</i> transaction, identified by its <code>versionHandle</code>.
+     * If the target has already committed or aborted then this method
+     * immediately returns a value depending on its outcome:
      * <ul>
-     * <li>If the transaction identified by <code>versionHandle</code> is
-     * concurrent with this transaction and committed, then this method returns
-     * <code>true<code>, indicating that this
-     * transaction must abort.</li>
-     * <li>If the <code>to</code> transaction aborted or committed before this
-     * transaction started, then this method returns <code>false</code> meaning
-     * that the write-write dependency has been cleared and the
-     * <code>from</code> transaction may proceed.</li>
+     * <li>If the target is concurrent with this transaction and committed, then
+     * this method returns its commit status, indicating that this transaction
+     * must abort.</li>
+     * <li>If the target aborted or committed before this transaction started,
+     * then this method returns 0 meaning that the write-write dependency has
+     * been cleared and this transaction may proceed.</li>
+     * <li>If the target is identified by the <code>versionHandle</code> is the
+     * same as the current transaction, then this method returns 0.
      * </ul>
-     * If the <code>to</code> transaction has neither committed nor blocked,
-     * then this method waits for the other transaction's status to be resolved.
+     * If the target is concurrent but has neither committed nor aborted, then
+     * this method waits up to <code>timeout</code> milliseconds for the
+     * target's status to be resolved. If the timeout expires without
+     * resolution, this method return {@link TransactionStatus#TIMED_OUT}.
      * </p>
      * <p>
-     * It is invalid for <code>versionHandle</code> to refer to the current
-     * transaction. The caller should recognize versions written by the current
-     * transaction and handle the "step" logic independently of this method. If
-     * <code>versionHandle</code> refers to the same transaction as
-     * <code>ts</code> then this code throws an IllegalArgumentException.
+     * Design note: this method is called when a transaction intending to add a
+     * new version discovers there is already an MVV for the same key. The
+     * transaction is required to determine whether any of the other versions in
+     * that MVV are from concurrent transactions, and to abort if so. We expect
+     * this method to be called with a timeout of zero to perform a fast,
+     * usually non-conflicting, outcome when the page holding the MVV is
+     * latched. The TIMED_OUT return value indicates that the caller must back
+     * off the latch, reevaluate the wwDependency with no locks, and then retry.
+     * </p>
+     * </p>
      * 
      * @param versionHandle
      *            versionHandle of a value version found in an MVV that the
@@ -560,21 +568,17 @@ public class TransactionIndex {
      *            Time in milliseconds to wait. If the other transaction has
      *            neither committed nor aborted within this time interval then a
      *            TimeoutException is thrown.
-     * @return <code>true</code> if the <code>from</code> transaction must
-     *         abort, or <code>false</code> if it may proceed.
+     * @return commit status of .
      * @throws TimeoutException
      *             if the timeout interval is exceeded
      * @throws InterruptedException
      *             if the waiting thread is interrupted
-     * @throws IllegalArgumentException
-     *             if <code>versionHandle</code> and <code>ts</code> do not
-     *             refer to different valid transactions
      */
-    boolean wwDependency(long versionHandle, long ts, long timeout) throws TimeoutException, InterruptedException,
+    long wwDependency(long versionHandle, long ts, long timeout) throws TimeoutException, InterruptedException,
             IllegalArgumentException {
         final long tsv = vh2ts(versionHandle);
         if (tsv == ts) {
-            throw new IllegalArgumentException("Attempt to create ww-dependency on self");
+            return 0;
         }
         final int hashIndex = hashIndex(tsv);
         TransactionIndexBucket bucket = _hashTable[hashIndex];
@@ -593,7 +597,7 @@ public class TransactionIndex {
          */
         if ((bucket.getCurrent() == null || tsv < bucket.getFloor()) && bucket.getLongRunning() == null
                 && bucket.getAborted() == null) {
-            return false;
+            return 0;
         }
 
         /*
@@ -629,7 +633,7 @@ public class TransactionIndex {
             bucket.unlock();
         }
         if (status == null) {
-            return false;
+            return 0;
         }
         /*
          * Blocks until the target transaction finishes, either by committing or
@@ -645,7 +649,7 @@ public class TransactionIndex {
             try {
                 final long tc = status.getTc();
                 if (tc == ABORTED) {
-                    return false;
+                    return tc;
                 }
                 if (tc < 0 || tc == UNCOMMITTED) {
                     throw new IllegalStateException("Commit incomplete");
@@ -653,13 +657,17 @@ public class TransactionIndex {
                 /*
                  * true if and only if this is a concurrent transaction
                  */
-                return tc > ts;
+                if (tc > ts) {
+                    return tc;
+                } else {
+                    return 0;
+                }
 
             } finally {
                 status.wwUnlock();
             }
         }
-        return false;
+        return TIMED_OUT;
     }
 
     /**
@@ -746,7 +754,7 @@ public class TransactionIndex {
         }
         return droppedCount;
     }
-    
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();

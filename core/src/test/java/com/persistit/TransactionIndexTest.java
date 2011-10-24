@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import static com.persistit.TransactionStatus.*;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -75,18 +77,18 @@ public class TransactionIndexTest extends TestCase {
         /*
          * Should return true because ts1 and ts2 are concurrent.
          */
-        assertTrue(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2.getTs(), 1000));
+        assertEquals(ts1.getTc(), ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2.getTs(), 1000));
         final TransactionStatus ts3 = ti.registerTransaction();
         ts2.abort();
         ti.notifyCompleted(ts2.getTs());
         /*
          * Should return false because ts1 and ts3 are not concurrent
          */
-        assertFalse(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3.getTs(), 1000));
+        assertEquals(0, ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3.getTs(), 1000));
         /*
          * Should return false because ts2 aborted
          */
-        assertFalse(ti.wwDependency(TransactionIndex.ts2vh(ts2.getTs()), ts3.getTs(), 1000));
+        assertEquals(ABORTED, ti.wwDependency(TransactionIndex.ts2vh(ts2.getTs()), ts3.getTs(), 1000));
         ts3.commit(_tsa.updateTimestamp());
     }
 
@@ -163,7 +165,7 @@ public class TransactionIndexTest extends TestCase {
 
     boolean tryBlockingWwDependency(final TransactionIndex ti, final TransactionStatus ts1, final long ts,
             final long wait, final long timeout, final AtomicLong elapsed, boolean commit) throws Exception {
-        final AtomicBoolean result = new AtomicBoolean(true);
+        final AtomicLong result = new AtomicLong();
         final Thread t = new Thread(new Runnable() {
             public void run() {
                 try {
@@ -188,6 +190,6 @@ public class TransactionIndexTest extends TestCase {
         }
         ti.notifyCompleted(ts1.getTs());
         t.join();
-        return result.get();
+        return result.get() > 0;
     }
 }

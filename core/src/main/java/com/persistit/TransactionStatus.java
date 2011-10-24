@@ -42,6 +42,12 @@ public class TransactionStatus {
     final static long UNCOMMITTED = Long.MAX_VALUE;
 
     /**
+     * Distinguished synthetic timestamp signifying that a thread waiting for
+     * a stable result timed out.
+     */
+    final static long TIMED_OUT = Long.MIN_VALUE + 1;
+    
+    /**
      * The bucket to which this <code>TransactionStatus</code> belongs.
      */
     private final TransactionIndexBucket _bucket;
