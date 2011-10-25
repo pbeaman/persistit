@@ -15,9 +15,9 @@
 
 package com.persistit;
 
-import static com.persistit.TransactionStatus.*;
+import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.TransactionStatus.UNCOMMITTED;
 
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import junit.framework.TestCase;
@@ -53,19 +53,23 @@ public class TransactionIndexTest extends TestCase {
         assertEquals(TransactionStatus.ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
                 .getCurrentTimestamp(), 0));
         assertEquals(3, ti.getCurrentCount());
-        ti.notifyCompleted(ts1.getTs());
-        assertEquals(ts1.getTs(), ti.commitStatus(TransactionIndex.ts2vh(ts1.getTs()), _tsa.getCurrentTimestamp(), 0));
-        ti.notifyCompleted(ts2.getTs());
-        ti.notifyCompleted(ts3.getTs());
-        assertEquals(0, ti.getCurrentCount());
+        ti.notifyCompleted(ts1);
+        assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts1.getTs()), _tsa.getCurrentTimestamp(), 0)));
+        ti.notifyCompleted(ts2);
+        ti.notifyCompleted(ts3);
+        ti.updateActiveTransactionCache();
+        assertEquals(1, ti.getCurrentCount());
         assertEquals(2, ti.getFreeCount());
-        assertEquals(1, ti.getAbortedCount());
+        assertEquals(0, ti.getAbortedCount());
         ts3.decrementMvvCount();
         ti.updateActiveTransactionCache();
-        ti.cleanup();
         assertEquals(0, ti.getCurrentCount());
         assertEquals(3, ti.getFreeCount());
         assertEquals(0, ti.getAbortedCount());
+    }
+    
+    private boolean isCommitted(final long ts) {
+        return ts > 0 && ts != UNCOMMITTED;
     }
 
     public void testNonBlockingWwDependency() throws Exception {
@@ -73,14 +77,14 @@ public class TransactionIndexTest extends TestCase {
         final TransactionStatus ts1 = ti.registerTransaction();
         final TransactionStatus ts2 = ti.registerTransaction();
         ts1.commit(_tsa.updateTimestamp());
-        ti.notifyCompleted(ts1.getTs());
+        ti.notifyCompleted(ts1);
         /*
          * Should return true because ts1 and ts2 are concurrent.
          */
         assertEquals(ts1.getTc(), ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2.getTs(), 1000));
         final TransactionStatus ts3 = ti.registerTransaction();
         ts2.abort();
-        ti.notifyCompleted(ts2.getTs());
+        ti.notifyCompleted(ts2);
         /*
          * Should return false because ts1 and ts3 are not concurrent
          */
@@ -105,11 +109,11 @@ public class TransactionIndexTest extends TestCase {
 
         for (int count = 20; count < 70; count++) {
             array[count].abort();
-            ti.notifyCompleted(array[count].getTs());
+            ti.notifyCompleted(array[count]);
         }
         for (int count = 50; count < 60; count++) {
             array[count].decrementMvvCount();
-            ti.notifyPruned(array[count].getTs());
+//            ti.notifyPruned(array[count].getTs());
         }
         assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());
         assertEquals(array.length - ti.getLongRunningThreshold() - ti.getAbortedCount() - ti.getFreeCount(), ti
@@ -117,8 +121,9 @@ public class TransactionIndexTest extends TestCase {
         assertEquals(50, ti.getAbortedCount());
         for (int count = 0; count < 20; count++) {
             array[count].commit(array[20].getTs());
-            ti.notifyCompleted(array[count].getTs());
+            ti.notifyCompleted(array[count]);
         }
+        ti.updateActiveTransactionCache();
         assertEquals(ti.getMaxFreeListSize(), ti.getFreeCount());
         assertEquals(50, ti.getAbortedCount());
         assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());
@@ -126,7 +131,6 @@ public class TransactionIndexTest extends TestCase {
                 - ti.getDroppedCount(), ti.getLongRunningCount());
         
         ti.updateActiveTransactionCache();
-        ti.cleanup();
         /*
          * aborted set retained due to currently active transactions
          * that started before the mvvCount was decremented
@@ -138,14 +142,12 @@ public class TransactionIndexTest extends TestCase {
          */
         for (int count=70; count < array.length; count++) {
             array[count].commit(_tsa.updateTimestamp());
-            ti.notifyCompleted(array[count].getTs());
+            ti.notifyCompleted(array[count]);
         }
         /*
          * Refresh ActiveTransactionCache to recognize new commits. 
          */
         ti.updateActiveTransactionCache();
-        assertEquals(50, ti.getAbortedCount());
-        ti.cleanup();
         assertEquals(40, ti.getAbortedCount());
     }
 
@@ -188,7 +190,7 @@ public class TransactionIndexTest extends TestCase {
         } else {
             ts1.abort();
         }
-        ti.notifyCompleted(ts1.getTs());
+        ti.notifyCompleted(ts1);
         t.join();
         return result.get() > 0;
     }

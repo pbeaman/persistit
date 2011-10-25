@@ -20,6 +20,7 @@ import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.exception.TimeoutException;
@@ -81,12 +82,12 @@ public class TransactionIndex {
     /**
      * One of two ActiveTransactionCache instances
      */
-    private ActiveTransactionCache _atCache1 = new ActiveTransactionCache();
+    private final ActiveTransactionCache _atCache1;
 
     /**
      * One of two ActiveTransactionCache instances
      */
-    private ActiveTransactionCache _atCache2 = new ActiveTransactionCache();
+    private final ActiveTransactionCache _atCache2;
 
     /**
      * Lock held by a thread updating the ActiveTransactionCache to prevent a
@@ -97,7 +98,7 @@ public class TransactionIndex {
      * Reference to the more recently updated of two ActiveTransactionCache
      * instances.
      */
-    private volatile ActiveTransactionCache _atCache = _atCache1;
+    private volatile ActiveTransactionCache _atCache;
 
     /**
      * The system-wide timestamp allocator
@@ -167,7 +168,7 @@ public class TransactionIndex {
             _count = 0;
             final long timestampAtStart = _timestampAllocator.updateTimestamp();
             long floor = timestampAtStart;
-            for (TransactionIndexBucket bucket : _hashTable) {
+            for (final TransactionIndexBucket bucket : _hashTable) {
                 if (bucket.getCurrent() != null || bucket.getLongRunning() != null) {
                     bucket.lock();
                     try {
@@ -231,6 +232,19 @@ public class TransactionIndex {
             }
             return false;
         }
+
+        void cleanup() {
+            for (final TransactionIndexBucket bucket : _hashTable) {
+                if (bucket.getAborted() != null || bucket.getLongRunning() != null || bucket.getCurrent() != null) {
+                    bucket.lock();
+                    try {
+                        bucket.clean(_floor);
+                    } finally {
+                        bucket.unlock();
+                    }
+                }
+            }
+        }
     }
 
     static long vh2ts(final long versionHandle) {
@@ -251,6 +265,9 @@ public class TransactionIndex {
         for (int index = 0; index < hashTableSize; index++) {
             _hashTable[index] = new TransactionIndexBucket(this);
         }
+        _atCache1 = new ActiveTransactionCache();
+        _atCache2 = new ActiveTransactionCache();
+        _atCache = _atCache1;
     }
 
     int getMaxFreeListSize() {
@@ -433,39 +450,16 @@ public class TransactionIndex {
      *            The start timestamp of a transaction that has committed or
      *            aborted.
      */
-    void notifyCompleted(final long ts) {
-        final int hashIndex = hashIndex(ts);
+    void notifyCompleted(final TransactionStatus status) {
+        final int hashIndex = hashIndex(status.getTs());
         final TransactionIndexBucket bucket = _hashTable[hashIndex];
-        final TransactionStatus status;
         bucket.lock();
         try {
-            status = bucket.notifyCompleted(ts);
+            bucket.notifyCompleted(status);
         } finally {
             bucket.unlock();
         }
         status.wwUnlock();
-    }
-
-    /**
-     * Notify the TransactionIndex that the MVV count for an aborted transaction
-     * has become zero. The caller determines this when the value returned by
-     * {@link TransactionStatus#decrementMvvCount()} is zero. This method cleans
-     * now-obsolete <code>TransactionStatus</code> instances from the aborted
-     * list.
-     * 
-     * @param ts
-     *            Timestamp of an aborted transaction which no longer hasany
-     *            remaining MVV version values.
-     */
-    void notifyPruned(final long ts) {
-        final int hashIndex = hashIndex(ts);
-        final TransactionIndexBucket bucket = _hashTable[hashIndex];
-        bucket.lock();
-        try {
-            bucket.pruned();
-        } finally {
-            bucket.unlock();
-        }
     }
 
     /**
@@ -661,6 +655,9 @@ public class TransactionIndex {
          */
         if (status.wwLock(timeout)) {
             if (status.getTs() != tsv) {
+                if (status.getTs() < _atCache._floor) {
+                    return 0;
+                }
                 System.out.println(status + " != " + tsv);
             }
             try {
@@ -685,23 +682,6 @@ public class TransactionIndex {
             }
         }
         return TIMED_OUT;
-    }
-
-    /**
-     * Apply {@link TransactionIndexBucket#reduce()} and
-     * {@link TransactionIndexBucket#pruned()} to each bucket. This is useful
-     * primarily in unit tests to yield a canonical state.
-     */
-    void cleanup() {
-        for (final TransactionIndexBucket bucket : _hashTable) {
-            bucket.lock();
-            try {
-                bucket.reduce();
-                bucket.pruned();
-            } finally {
-                bucket.unlock();
-            }
-        }
     }
 
     /**
@@ -730,6 +710,7 @@ public class TransactionIndex {
         } finally {
             _atCacheLock.unlock();
         }
+        _atCache.cleanup();
     }
 
     int getCurrentCount() {

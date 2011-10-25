@@ -42,11 +42,11 @@ public class TransactionStatus {
     final static long UNCOMMITTED = Long.MAX_VALUE;
 
     /**
-     * Distinguished synthetic timestamp signifying that a thread waiting for
-     * a stable result timed out.
+     * Distinguished synthetic timestamp signifying that a thread waiting for a
+     * stable result timed out.
      */
     final static long TIMED_OUT = Long.MIN_VALUE + 1;
-    
+
     /**
      * The bucket to which this <code>TransactionStatus</code> belongs.
      */
@@ -110,7 +110,7 @@ public class TransactionStatus {
      * {@link TransactionIndexBucket#notifyCompleted(long)}. Until then the
      * <code>TransactionStatus</code> may not be placed on the free list.
      */
-    boolean _notified;
+    private boolean _notified;
 
     TransactionStatus(final TransactionIndexBucket bucket) {
         _bucket = bucket;
@@ -148,7 +148,7 @@ public class TransactionStatus {
     long getTc() {
         return _tc;
     }
-    
+
     /**
      * @return the abort cleanup timestamp
      */
@@ -247,7 +247,9 @@ public class TransactionStatus {
      */
     int decrementMvvCount() {
         int count = _mvvCount.decrementAndGet();
-        _ta = _bucket.getTimestampAllocator().getCurrentTimestamp();
+        if (count == 0) {
+            _ta = _bucket.getTimestampAllocator().getCurrentTimestamp();
+        }
         return count;
     }
 
@@ -310,6 +312,7 @@ public class TransactionStatus {
     void initialize(final long ts) throws InterruptedException, TimeoutException {
         _ts = ts;
         _tc = UNCOMMITTED;
+        _ta = UNCOMMITTED;
         _next = null;
         _mvvCount.set(0);
         _notified = false;
