@@ -106,6 +106,11 @@ public class TransactionStatus {
     private TransactionStatus _next;
 
     /**
+     * Pointer to TransactionStatus on which we intend to claim a lock. (For
+     * deadlock detection.)
+     */
+    private volatile TransactionStatus _depends;
+    /**
      * Indicates whether the transaction has called
      * {@link TransactionIndexBucket#notifyCompleted(long)}. Until then the
      * <code>TransactionStatus</code> may not be placed on the free list.
@@ -132,6 +137,24 @@ public class TransactionStatus {
      */
     void setNext(final TransactionStatus next) {
         _next = next;
+    }
+
+    /**
+     * @return The next TransactionStatus on dependency linked list, or
+     *         <code>null</code> if there is none
+     */
+    TransactionStatus getDepends() {
+        return _depends;
+    }
+
+    /**
+     * Link another TransactionStatus this one depends on.
+     * 
+     * @param next
+     *            the TransactionStatus to link
+     */
+    void setDepends(final TransactionStatus depends) {
+        _depends = depends;
     }
 
     /**
@@ -209,6 +232,7 @@ public class TransactionStatus {
      * @return the updated count
      */
     int incrementMvvCount() {
+        _ta = Long.MAX_VALUE;
         return _mvvCount.incrementAndGet();
     }
 
@@ -287,7 +311,7 @@ public class TransactionStatus {
     void initialize(final long ts) throws InterruptedException, TimeoutException {
         _ts = ts;
         _tc = UNCOMMITTED;
-        _ta = UNCOMMITTED;
+        _ta = PRIMORDIAL;
         _next = null;
         _mvvCount.set(0);
         _notified = false;

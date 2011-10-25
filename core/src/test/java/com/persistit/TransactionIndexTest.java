@@ -82,18 +82,18 @@ public class TransactionIndexTest extends TestCase {
         /*
          * Should return 0 because ts1 has committed and is now primordial.
          */
-        assertEquals(PRIMORDIAL, ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2.getTs(), 1000));
+        assertEquals(PRIMORDIAL, ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2, 1000));
         final TransactionStatus ts3 = ti.registerTransaction();
         ts2.abort();
         ti.notifyCompleted(ts2);
         /*
          * Should return false because ts1 and ts3 are not concurrent
          */
-        assertEquals(PRIMORDIAL, ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3.getTs(), 1000));
+        assertEquals(PRIMORDIAL, ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3, 1000));
         /*
          * Should return false because ts2 aborted
          */
-        assertEquals(ABORTED, ti.wwDependency(TransactionIndex.ts2vh(ts2.getTs()), ts3.getTs(), 1000));
+        assertEquals(ABORTED, ti.wwDependency(TransactionIndex.ts2vh(ts2.getTs()), ts3, 1000));
         ts3.commit(_tsa.updateTimestamp());
     }
 
@@ -156,23 +156,23 @@ public class TransactionIndexTest extends TestCase {
         final TransactionStatus ts1 = ti.registerTransaction();
         final TransactionStatus ts2 = ti.registerTransaction();
         final AtomicLong elapsed = new AtomicLong();
-        final boolean result1 = tryBlockingWwDependency(ti, ts1, ts2.getTs(), 1000, 10000, elapsed, true);
+        final boolean result1 = tryBlockingWwDependency(ti, ts1, ts2, 1000, 10000, elapsed, true);
         assertTrue(result1);
         assertTrue(elapsed.get() >= 900);
         final TransactionStatus ts3 = ti.registerTransaction();
-        final boolean result2 = tryBlockingWwDependency(ti, ts2, ts3.getTs(), 1000, 10000, elapsed, false);
+        final boolean result2 = tryBlockingWwDependency(ti, ts2, ts3, 1000, 10000, elapsed, false);
         assertFalse(result2);
         assertTrue(elapsed.get() >= 900);
     }
 
-    boolean tryBlockingWwDependency(final TransactionIndex ti, final TransactionStatus ts1, final long ts,
+    boolean tryBlockingWwDependency(final TransactionIndex ti, final TransactionStatus target, final TransactionStatus source,
             final long wait, final long timeout, final AtomicLong elapsed, boolean commit) throws Exception {
         final AtomicLong result = new AtomicLong();
         final Thread t = new Thread(new Runnable() {
             public void run() {
                 try {
                     final long start = System.currentTimeMillis();
-                    result.set(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts, timeout));
+                    result.set(ti.wwDependency(TransactionIndex.ts2vh(target.getTs()), source, timeout));
                     elapsed.set(System.currentTimeMillis() - start);
                 } catch (TimeoutException e) {
                     e.printStackTrace();
@@ -186,11 +186,11 @@ public class TransactionIndexTest extends TestCase {
         t.start();
         Thread.sleep(wait);
         if (commit) {
-            ts1.commit(_tsa.updateTimestamp());
+            target.commit(_tsa.updateTimestamp());
         } else {
-            ts1.abort();
+            target.abort();
         }
-        ti.notifyCompleted(ts1);
+        ti.notifyCompleted(target);
         t.join();
         return result.get() > 0;
     }

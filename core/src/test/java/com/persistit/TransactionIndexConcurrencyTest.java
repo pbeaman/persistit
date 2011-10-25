@@ -29,28 +29,36 @@ import junit.framework.TestCase;
 import org.junit.Test;
 
 import com.persistit.exception.TimeoutException;
+import com.persistit.util.ArgParser;
 
 public class TransactionIndexConcurrencyTest extends TestCase {
     final static int HASH_TABLE_SIZE = 1000;
     final static int MVV_COUNT = 20000;
     final static int ITERATIONS = 50000;
-    final static int THREAD_COUNT = 20;
+    final static int THREAD_COUNT = 10;
     final static int SEED = 1;
-
     final static Random RANDOM = new Random(SEED);
+
     final TimestampAllocator tsa = new TimestampAllocator();
-    final TransactionIndex ti = new TransactionIndex(tsa, HASH_TABLE_SIZE);
-    final MVV[] mvvs = new MVV[MVV_COUNT];
+    final TransactionIndex ti;
+    final MVV[] mvvs;
     final AtomicLong commits = new AtomicLong();
     final AtomicLong aborts = new AtomicLong();
+
+    static int hashTableSize = HASH_TABLE_SIZE;
+    static int mvvCount = MVV_COUNT;
+    static int iterations = ITERATIONS;
+    static int threadCount = THREAD_COUNT;
+    static boolean sleep = true;
 
     static class MVV {
         List<Long> versionHandles = new ArrayList<Long>();
     }
 
     public TransactionIndexConcurrencyTest() {
-        super();
-        for (int i = 0; i < MVV_COUNT; i++) {
+        ti = new TransactionIndex(tsa, hashTableSize);
+        mvvs = new MVV[mvvCount];
+        for (int i = 0; i < mvvCount; i++) {
             mvvs[i] = new MVV();
         }
     }
@@ -73,14 +81,14 @@ public class TransactionIndexConcurrencyTest extends TestCase {
     @Test
     public void testSingleThreaded() throws Exception {
         final Txn txn = new Txn();
-        for (int i = 0; i < ITERATIONS; i++) {
+        for (int i = 0; i < iterations; i++) {
             runTransaction(txn);
             if ((i % 100) == 99) {
                 ti.updateActiveTransactionCache();
             }
         }
 
-        for (int i = 0; i < MVV_COUNT; i++) {
+        for (int i = 0; i < mvvCount; i++) {
             prune(mvvs[i]);
             assertTrue(mvvs[i].versionHandles.isEmpty());
         }
@@ -88,22 +96,29 @@ public class TransactionIndexConcurrencyTest extends TestCase {
 
     @Test
     public void testConcurrentOperations() throws Exception {
+        final long start = System.currentTimeMillis();
+        final AtomicLong reported = new AtomicLong(start);
         Timer timer = new Timer();
         timer.schedule(new TimerTask() {
 
             @Override
             public void run() {
-               ti.updateActiveTransactionCache();
+                ti.updateActiveTransactionCache();
+                final long now = System.currentTimeMillis();
+                if (now - reported.get() > 60000) {
+                    reported.addAndGet(60000);
+                    report(now - start);
+                }
             }
-            
+
         }, 100, 100);
-        final Thread threads[] = new Thread[THREAD_COUNT];
-        for (int i = 0; i < THREAD_COUNT; i++) {
+        final Thread threads[] = new Thread[threadCount];
+        for (int i = 0; i < threadCount; i++) {
             Thread thread = new Thread(new Runnable() {
                 public void run() {
                     final Txn txn = new Txn();
                     try {
-                        for (int i = 0; i < ITERATIONS; i++) {
+                        for (int i = 0; i < iterations; i++) {
                             runTransaction(txn);
                         }
                     } catch (Exception e) {
@@ -113,19 +128,27 @@ public class TransactionIndexConcurrencyTest extends TestCase {
             }, String.format("Test%03d", i));
             threads[i] = thread;
         }
-        for (int i = 0; i < THREAD_COUNT; i++) {
+        for (int i = 0; i < threadCount; i++) {
             threads[i].start();
         }
-        for (int i = 0; i < THREAD_COUNT; i++) {
+        for (int i = 0; i < threadCount; i++) {
             threads[i].join();
         }
         timer.cancel();
         ti.updateActiveTransactionCache();
-        System.out.printf("Commits=%,d  Aborts=%,d\n", commits.get(), aborts.get());
-        for (int i = 0; i < MVV_COUNT; i++) {
+        report(System.currentTimeMillis() - start);
+        for (int i = 0; i < mvvCount; i++) {
             prune(mvvs[i]);
             assertTrue(mvvs[i].versionHandles.isEmpty());
         }
+    }
+
+    private void report(final long elapsed) {
+        System.out.printf("%,8dms:  Commits=%,d Aborts=%,d\nCurrentCount=%,d  AbortedCount=%,d  "
+                + "LongRunningCount=%,d  FreeCount=%,d\natCache=%s\n\n", elapsed, commits.get(), aborts.get(), ti
+                .getCurrentCount(), ti.getAbortedCount(), ti.getLongRunningCount(), ti.getFreeCount(), ti
+                .getActiveTransactionCache());
+
     }
 
     private void runTransaction(final Txn txn) throws Exception {
@@ -135,7 +158,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
         int vcount = RANDOM.nextInt(4);
         boolean okay = true;
         for (int i = 0; okay && i < vcount; i++) {
-            int mvvIndex = RANDOM.nextInt(MVV_COUNT);
+            int mvvIndex = RANDOM.nextInt(mvvCount);
             MVV mvv = mvvs[mvvIndex];
             boolean retry = true;
             int index = 0;
@@ -147,7 +170,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
                     prune(mvv);
                     for (; index < mvv.versionHandles.size(); index++) {
                         long vh = mvv.versionHandles.get(index);
-                        long tc = ti.wwDependency(vh, ts, 0);
+                        long tc = ti.wwDependency(vh, txn.status, 0);
                         if (tc == TIMED_OUT) {
                             versionHandle = vh;
                             retry = true;
@@ -161,10 +184,11 @@ public class TransactionIndexConcurrencyTest extends TestCase {
                     }
                     if (okay && !retry) {
                         mvv.versionHandles.add(TransactionIndex.ts2vh(ts));
+                        txn.status.incrementMvvCount();
                     }
                 }
                 if (retry) {
-                    long tc = ti.wwDependency(versionHandle, ts, 60000);
+                    long tc = ti.wwDependency(versionHandle, txn.status, 60000);
                     if (tc == TIMED_OUT) {
                         throw new TimeoutException();
                     }
@@ -195,6 +219,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
             if (tc == ABORTED) {
                 // remove if aborted
                 mvv.versionHandles.remove(index);
+                ti.decrementMvvCount(vh);
                 index--;
             } else if (tc > 0 && !ti.hasConcurrentTransaction(ts0, tc)) {
                 // remove if primordial - simulation does not need to keep it
@@ -205,8 +230,26 @@ public class TransactionIndexConcurrencyTest extends TestCase {
     }
 
     void sometimesSleep(final int pctProbability) throws InterruptedException {
-        if (RANDOM.nextInt(100) < pctProbability) {
-            Thread.sleep(1);
+        if (sleep) {
+            if (RANDOM.nextInt(100) < pctProbability) {
+                Thread.sleep(1);
+            }
         }
+    }
+
+    public static void main(final String[] args) throws Exception {
+        final ArgParser ap = new ArgParser("TransactionIndexConcurrencyTest", args, new String[] {
+                "iterations|int:20000:0:1000000000|Transaction iterations per thread",
+                "threads|int:20:1:1000|Thread count", "mvvCount|int:1:1:1000000000|Number of MVV buckets",
+                "hashCount|int:1000:1:100000000|Hash table size", "_flag|n|No sleep intervals" });
+
+        iterations = ap.getIntValue("iterations");
+        threadCount = ap.getIntValue("threads");
+        hashTableSize = ap.getIntValue("hashCount");
+        mvvCount = ap.getIntValue("mvvCount");
+        sleep = !ap.isFlag('n');
+        
+        final TransactionIndexConcurrencyTest test = new TransactionIndexConcurrencyTest();
+        test.testConcurrentOperations();
     }
 }

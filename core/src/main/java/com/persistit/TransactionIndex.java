@@ -20,7 +20,6 @@ import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.exception.TimeoutException;
@@ -50,8 +49,15 @@ public class TransactionIndex {
      */
     final static long VERY_LONG_TIMEOUT = 60000; // sixty seconds
 
-    final static long SHORT_TIMEOUT = 50;
+    /**
+     * Short timeout for lock polling
+     */
+    final static long SHORT_TIMEOUT = 10;
 
+    /**
+     * Maximum length of path in deadlock detector before deadlock is assumed.
+     */
+    final static int CYCLE_LIMIT = 10;
     /**
      * Initial size of arrays in ActiveTransactionCaches.
      */
@@ -148,7 +154,7 @@ public class TransactionIndex {
      * until a later attempt.
      * 
      */
-    private class ActiveTransactionCache {
+    class ActiveTransactionCache {
         /**
          * Largest timestamp for which the current copy of _tsArray is accurate.
          */
@@ -246,6 +252,18 @@ public class TransactionIndex {
                     }
                 }
             }
+        }
+
+        @Override
+        public String toString() {
+            long low = Long.MAX_VALUE;
+            long high = Long.MIN_VALUE;
+            for (int index = 0; index < _count; index++) {
+                low = Math.min(low, _tsArray[index]);
+                high = Math.max(high, _tsArray[index]);
+            }
+            return String.format("Floor=%,d Ceiling=%,d Low=%s High=%s Count=%,d", _floor, _ceiling, minMaxString(low),
+                    minMaxString(high), _count);
         }
     }
 
@@ -551,6 +569,73 @@ public class TransactionIndex {
     }
 
     /**
+     * @return current ActiveTransactionCache instance
+     */
+    ActiveTransactionCache getActiveTransactionCache() {
+        return _atCache;
+    }
+
+    TransactionStatus getStatus(final long tsv) {
+        final int hashIndex = hashIndex(tsv);
+        TransactionIndexBucket bucket = _hashTable[hashIndex];
+        /*
+         * First check whether there are any TransactionStatus instances in the
+         * bucket. If not then the transaction that committed this value is not
+         * concurrent.
+         * 
+         * We can read these members without locking because (a) they are
+         * volatile, and (b) write-ordering guarantees that a TransactionStatus
+         * that is being moved to either the aborted or long-running list will
+         * be added to the new list before being removed from the current list.
+         * These values are all visible to us with respect to a particular tsv
+         * because we could not have seen the tsv without its corresponding
+         * transaction status having been registered.
+         */
+        if ((bucket.getCurrent() == null || tsv < bucket.getFloor()) && bucket.getLongRunning() == null
+                && bucket.getAborted() == null) {
+            return null;
+        }
+
+        /*
+         * There were members on at least one of the lists. Need to lock the
+         * bucket so we can traverse the lists.
+         */
+        TransactionStatus status = null;
+        bucket.lock();
+        try {
+            /*
+             * > A transaction with a start timestamp less than or equal to the
+             * floor is committed unless it is found on either the aborted or
+             * longRunning lists.
+             */
+            if (tsv >= bucket.getFloor()) {
+                for (TransactionStatus s = bucket.getCurrent(); s != null && status == null; s = s.getNext()) {
+                    if (s.getTs() == tsv) {
+                        return s;
+                    }
+                }
+            }
+            if (status == null) {
+                for (TransactionStatus s = bucket.getAborted(); s != null && status == null; s = s.getNext()) {
+                    if (s.getTs() == tsv) {
+                        return s;
+                    }
+                }
+            }
+            if (status == null) {
+                for (TransactionStatus s = bucket.getLongRunning(); s != null && status == null; s = s.getNext()) {
+                    if (s.getTs() == tsv) {
+                        return s;
+                    }
+                }
+            }
+        } finally {
+            bucket.unlock();
+        }
+        return null;
+    }
+
+    /**
      * <p>
      * Detects a write-write dependency from one transaction to another. This
      * method is called when transaction having start timestamp <code>ts</code>
@@ -588,8 +673,8 @@ public class TransactionIndex {
      * @param versionHandle
      *            versionHandle of a value version found in an MVV that the
      *            current transaction intends to update
-     * @param ts
-     *            this transaction's start timestamp
+     * @param source
+     *            this transaction's <code>TransactionStatus</code>
      * @param timeout
      *            Time in milliseconds to wait. If the other transaction has
      *            neither committed nor aborted within this time interval then a
@@ -600,69 +685,14 @@ public class TransactionIndex {
      * @throws InterruptedException
      *             if the waiting thread is interrupted
      */
-    long wwDependency(long versionHandle, long ts, long timeout) throws TimeoutException, InterruptedException,
-            IllegalArgumentException {
+    long wwDependency(final long versionHandle, final TransactionStatus source, final long timeout)
+            throws TimeoutException, InterruptedException, IllegalArgumentException {
         final long tsv = vh2ts(versionHandle);
-        if (tsv == ts) {
+        if (tsv == source.getTs()) {
             return 0;
         }
-        final int hashIndex = hashIndex(tsv);
-        TransactionIndexBucket bucket = _hashTable[hashIndex];
-        /*
-         * First check whether there are any TransactionStatus instances in the
-         * bucket. If not then the transaction that committed this value is not
-         * concurrent.
-         * 
-         * We can read these members without locking because (a) they are
-         * volatile, and (b) write-ordering guarantees that a TransactionStatus
-         * that is being moved to either the aborted or long-running list will
-         * be added to the new list before being removed from the current list.
-         * These values are all visible to us with respect to a particular tsv
-         * because we could not have seen the tsv without its corresponding
-         * transaction status having been registered.
-         */
-        if ((bucket.getCurrent() == null || tsv < bucket.getFloor()) && bucket.getLongRunning() == null
-                && bucket.getAborted() == null) {
-            return 0;
-        }
-
-        /*
-         * There were members on at least one of the lists. Need to lock the
-         * bucket so we can traverse the lists.
-         */
-        TransactionStatus status = null;
-        bucket.lock();
-        try {
-            /*
-             * > A transaction with a start timestamp less than or equal to the
-             * floor is committed unless it is found on either the aborted or
-             * longRunning lists.
-             */
-            if (tsv >= bucket.getFloor()) {
-                for (TransactionStatus s = bucket.getCurrent(); s != null && status == null; s = s.getNext()) {
-                    if (s.getTs() == tsv) {
-                        status = s;
-                    }
-                }
-            }
-            if (status == null) {
-                for (TransactionStatus s = bucket.getAborted(); s != null && status == null; s = s.getNext()) {
-                    if (s.getTs() == tsv) {
-                        status = s;
-                    }
-                }
-            }
-            if (status == null) {
-                for (TransactionStatus s = bucket.getLongRunning(); s != null && status == null; s = s.getNext()) {
-                    if (s.getTs() == tsv) {
-                        status = s;
-                    }
-                }
-            }
-        } finally {
-            bucket.unlock();
-        }
-        if (status == null) {
+        final TransactionStatus target = getStatus(tsv);
+        if (target == null) {
             return 0;
         }
         /*
@@ -672,43 +702,89 @@ public class TransactionIndex {
          * the identity of the transaction on each iteration after short lock
          * attempts.
          */
-        if (status.getTs() != tsv) {
+        if (target.getTs() != tsv) {
             return 0;
         }
 
         final long start = System.currentTimeMillis();
         /*
-         * Blocks until the target transaction finishes, either by
-         * committing or aborting.
+         * Blocks until the target transaction finishes, either by committing or
+         * aborting.
          */
         do {
-            if (status.wwLock(Math.min(timeout, SHORT_TIMEOUT))) {
-                try {
-                    final long tc = status.getTc();
-                    if (status.getTs() != tsv) {
-                        return 0;
-                    }
-                    if (tc == ABORTED) {
-                        return tc;
-                    }
-                    if (tc < 0 || tc == UNCOMMITTED) {
-                        throw new IllegalStateException("Commit incomplete");
-                    }
-                    /*
-                     * true if and only if this is a concurrent transaction
-                     */
-                    if (tc > ts) {
-                        return tc;
-                    } else {
-                        return 0;
-                    }
+            source.setDepends(target);
+            try {
+                if (target.wwLock(Math.min(timeout, SHORT_TIMEOUT))) {
+                    try {
+                        final long tc = target.getTc();
+                        if (target.getTs() != tsv) {
+                            return 0;
+                        }
+                        if (tc == ABORTED) {
+                            return tc;
+                        }
+                        if (tc < 0 || tc == UNCOMMITTED) {
+                            throw new IllegalStateException("Commit incomplete");
+                        }
+                        /*
+                         * true if and only if this is a concurrent transaction
+                         */
+                        if (tc > source.getTs()) {
+                            return tc;
+                        } else {
+                            return 0;
+                        }
 
-                } finally {
-                    status.wwUnlock();
+                    } finally {
+                        target.wwUnlock();
+                    }
+                } else {
+                    if (timeout == 0) {
+                        return TIMED_OUT;
+                    }
+                    if (isDeadlocked(source)) {
+                        return UNCOMMITTED;
+                    }
                 }
+            } finally {
+                source.setDepends(null);
             }
-        } while (System.currentTimeMillis() - start < timeout);
+        } while (timeout > 0 && System.currentTimeMillis() - start < timeout);
         return TIMED_OUT;
+    }
+
+    boolean isDeadlocked(final TransactionStatus source) {
+        TransactionStatus s = source;
+        for (int count = 0; count < CYCLE_LIMIT; count++) {
+            s = s.getDepends();
+            if (s == null) {
+                return false;
+            } else if (s == source) {
+                System.out.println("deadlock detected on " + source);
+                return true;
+            }
+        }
+        System.out.println("cycle length > " + CYCLE_LIMIT + " detected on " + source);
+        return true;
+    }
+
+    /**
+     * Atomically decrement the MVV count for the aborted
+     * <code>TransactionStatus</code> identified by the suppled version handle.
+     * 
+     * @param versionHandle
+     * @return The resulting count
+     * @throws IllegalArgumentException
+     *             if the supplied <code>versionHandle</code> does not identify
+     *             an aborted transaction.
+     */
+    long decrementMvvCount(final long versionHandle) {
+        final long tsv = vh2ts(versionHandle);
+        final TransactionStatus status = getStatus(tsv);
+        if (status == null || status.getTs() != tsv || status.getTc() != ABORTED) {
+            throw new IllegalArgumentException("No such aborted transaction " + versionHandle);
+        }
+        return status.decrementMvvCount();
     }
 
     /**
@@ -788,6 +864,10 @@ public class TransactionIndex {
             sb.append(String.format("%5d: %s\n", index, bucket));
         }
         return sb.toString();
+    }
+
+    static String minMaxString(final long floor) {
+        return floor == Long.MAX_VALUE ? "MAX" : floor == Long.MIN_VALUE ? "MIN" : String.format("%,d", floor);
     }
 
 }

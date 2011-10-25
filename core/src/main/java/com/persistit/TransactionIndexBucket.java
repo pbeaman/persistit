@@ -426,12 +426,8 @@ public class TransactionIndexBucket {
 
     @Override
     public String toString() {
-        return String.format("<floor=%s current=[%s] aborted=[%s] long=[%s] free=[%s]>", floorString(_floor),
+        return String.format("<floor=%s current=[%s] aborted=[%s] long=[%s] free=[%s]>", TransactionIndex.minMaxString(_floor),
                 listString(_current), listString(_aborted), listString(_longRunning), listString(_free));
-    }
-
-    String floorString(final long floor) {
-        return floor == Long.MAX_VALUE ? "MAX" : String.format("%,d", floor);
     }
 
     String listString(final TransactionStatus list) {
