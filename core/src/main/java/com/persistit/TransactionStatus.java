@@ -201,31 +201,6 @@ public class TransactionStatus {
     }
 
     /**
-     * <p>
-     * If the associated transaction is in the process of committing, this
-     * method will wait until the commit is either finished or aborted. (The
-     * latter will only happen when SSI is implemented.) For now this method
-     * simply waits for another thread to complete a very fast process.
-     * </p>
-     * 
-     * @return the commit status of the associated transaction.
-     * @throws InterruptedException
-     * @throws TimeoutException
-     */
-    long getSettledTc() throws InterruptedException, TimeoutException {
-        long tc = _tc;
-        while (tc != Long.MIN_VALUE && tc < 0) {
-            if (wwLock(TransactionIndex.VERY_LONG_TIMEOUT)) {
-                tc = _tc;
-                wwUnlock();
-            } else {
-                throw new TimeoutException();
-            }
-        }
-        return tc;
-    }
-
-    /**
      * Increment the count of MVV modifications made by the associated
      * transaction. This is done each time a transaction modifies a value. The
      * counter is used to determine when all values modified by an aborted

@@ -156,9 +156,6 @@ public class TransactionIndexBucket {
             _free = status.getNext();
             _freeCount--;
             status.setNext(null);
-            if (status.getTs() > _transactionIndex.getActiveTransactionFloor()) {
-                System.out.println(status + " > " + _transactionIndex.getActiveTransactionFloor());
-            }
             return status;
         } else {
             return new TransactionStatus(this);
@@ -245,10 +242,23 @@ public class TransactionIndexBucket {
                     final TransactionStatus next = s.getNext();
                     assert s.getTc() != UNCOMMITTED;
                     s.complete();
-                    if (s.getTc() == ABORTED) {
+                    boolean moved = false;
+                    if (s.getTc() > 0) {
+                        if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+                            s.setNext(_free);
+                            _free = s;
+                            _freeCount++;
+                        } else {
+                            _droppedCount++;
+                        }
+                        moved = true;
+                    } else if (s.getTc() == ABORTED) {
                         s.setNext(_aborted);
                         _aborted = s;
                         _abortedCount++;
+                        moved = true;
+                    }
+                    if (moved) {
                         if (previous == null) {
                             _longRunning = next;
                         } else {
@@ -262,22 +272,6 @@ public class TransactionIndexBucket {
             }
         }
         throw new IllegalStateException("No such transaction  " + status);
-    }
-
-    /**
-     * Traverse TransactionStatus instances on the current list and set the
-     * floor value to the smallest start timestamp of any of them. See
-     * {@link #reduce()}.
-     */
-    void recomputeFloor() {
-        assert _lock.isHeldByCurrentThread();
-        long newFloor = Long.MAX_VALUE;
-        for (TransactionStatus status = _current; status != null; status = status.getNext()) {
-            if (status.getTs() < newFloor) {
-                newFloor = status.getTs();
-            }
-        }
-        _floor = newFloor;
     }
 
     /**
@@ -297,91 +291,113 @@ public class TransactionIndexBucket {
      */
     void reduce() {
         assert _lock.isHeldByCurrentThread();
-        long newFloor = Long.MAX_VALUE;
-        TransactionStatus previous = null;
-        for (TransactionStatus status = _current; status != null;) {
-            final TransactionStatus next = status.getNext();
-            assert status.getTs() >= _floor;
-            /*
-             * Is this TransactionStatus aborted and notified?
-             */
-            final boolean aborted = status.getTc() == ABORTED && status.isNotified();
-
-            if (status.getTs() == _floor) {
+        boolean more = true;
+        while (more) {
+            more = false;
+            TransactionStatus previous = null;
+            long newFloor = Long.MAX_VALUE;
+            for (TransactionStatus status = _current; status != null;) {
+                final TransactionStatus next = status.getNext();
+                assert status.getTs() >= _floor;
                 /*
-                 * Move the TransactionStatus somewhere if any of these
-                 * conditions hold
+                 * Is this TransactionStatus aborted and notified?
                  */
-                if (aborted || _currentCount > _transactionIndex.getLongRunningThreshold()) {
+                final boolean aborted = status.getTc() == ABORTED && status.isNotified();
+                final boolean committed = status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.isNotified();
+
+                if (status.getTs() == _floor) {
                     /*
-                     * aborted Essential invariant: the TransactionStatus is
-                     * added to its new list before being removed from _current.
+                     * Essential invariant: the TransactionStatus is added to
+                     * its new list before being removed from _current.
                      * Concurrently executing threads can read the _current,
-                     * _aborted and _longRunning members outside of locks.
-                     * (Currently they do not traverse the linked lists,
-                     * however.)
+                     * _aborted and _longRunning members outside of locks and
+                     * therefore _aborted or _longRunning needs to be updated
+                     * before _current becomes null.
                      */
-                    if (aborted) {
+                    boolean moved = false;
+                    /*
+                     * Move the TransactionStatus somewhere if any of these
+                     * conditions hold
+                     */
+                    if (committed) {
+                        /*
+                         * committed
+                         */
+                        if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+                            status.setNext(_free);
+                            _free = status;
+                            _freeCount++;
+                        } else {
+                            _droppedCount++;
+                        }
+                        moved = true;
+                    } else if (aborted) {
+                        /*
+                         * aborted
+                         */
                         status.setNext(_aborted);
                         _aborted = status;
                         _abortedCount++;
-                    } else {
+                        moved = true;
+                    } else if (_currentCount > _transactionIndex.getLongRunningThreshold()) {
+                        /**
+                         * long-running
+                         */
                         status.setNext(_longRunning);
                         _longRunning = status;
                         _longRunningCount++;
+                        moved = true;
                     }
-                    /*
-                     * Unlink the TransactionStatus from the current list.
-                     */
-                    if (previous != null) {
-                        previous.setNext(next);
-                    } else {
-                        _current = next;
-                        if (next == null) {
-                            newFloor = Long.MAX_VALUE;
+
+                    if (moved) {
+                        /*
+                         * Unlink the TransactionStatus from the current list.
+                         */
+                        if (previous != null) {
+                            previous.setNext(next);
+                        } else {
+                            _current = next;
+                            if (next == null) {
+                                newFloor = Long.MAX_VALUE;
+                            }
                         }
+                        _currentCount--;
+                        status = next;
+                        more = true;
+                    } else {
+                        newFloor = _floor;
+                        previous = status;
                     }
-                    _currentCount--;
-                    status = next;
                 } else {
-                    newFloor = _floor;
+                    if (status.getTs() < newFloor) {
+                        newFloor = status.getTs();
+                    }
                     previous = status;
                 }
-            } else {
-                if (status.getTs() < newFloor) {
-                    newFloor = status.getTs();
-                }
-                previous = status;
+                status = next;
             }
-            status = next;
+            _floor = newFloor;
         }
-        _floor = newFloor;
     }
 
     /**
      * Move <code>TransactionStatus</code> instances from the
-     * <code>_aborted</code> and <code>_longRunning</code> lists back to the
-     * {@link #_free} list. This happens under different circumstances for
-     * aborted and committed transactions:
-     * <ul>
-     * <li>An aborted <code>TransactionStatus</code> can be freed once its MVV
-     * count becomes zero indicating that no versions written by that
-     * transaction remain in the database.</li>
-     * <li>A long-running <code>TransactionStatus</code> can be freed once it
-     * has committed.</li>
-     * </ul>
-     * In both cases the <codeTransactionStatus</code> may not be freed until it
-     * is no longer concurrent with any currently active transactions. This is
-     * determined by comparing the abort or commit timestamp of to the floor of
-     * the currently active transaction cache.
+     * <code>_aborted</code> list back to the {@link #_free} list. An aborted
+     * <code>TransactionStatus</code> can be freed once its MVV count becomes
+     * zero indicating that no versions written by that transaction remain in
+     * the database <i>and</i> it is no longer concurrent with any active
+     * transactions. This second condition is important because a concurrent
+     * transaction may be in the process of reading an MVV while this method is
+     * executing; the <code>TransactionStatus</code> must be retained until that
+     * transaction (and any other transactions that might also read the same
+     * MVV) has seen that the transaction aborted.
      * 
      * @param activeTransactionFloor
      *            Lower bound of start timestamps of all currently executing
      *            transactions.
      */
-    void clean(final long activeTransactionFloor) {
+    void cleanAbortList(final long activeTransactionFloor) {
         assert _lock.isHeldByCurrentThread();
-        long newFloor = Long.MAX_VALUE;
 
         TransactionStatus previous = null;
         for (TransactionStatus status = _aborted; status != null;) {
@@ -406,57 +422,6 @@ public class TransactionIndexBucket {
             }
             status = next;
         }
-
-        previous = null;
-        for (TransactionStatus status = _current; status != null;) {
-            TransactionStatus next = status.getNext();
-            if ((status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.getTc() < activeTransactionFloor)
-                    || (status.getTc() == ABORTED && status.getTa() < activeTransactionFloor)) {
-                if (previous == null) {
-                    _current = next;
-                } else {
-                    previous.setNext(next);
-                }
-                _currentCount--;
-                if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
-                    status.setNext(_free);
-                    _free = status;
-                    _freeCount++;
-                } else {
-                    _droppedCount++;
-                }
-            } else {
-                previous = status;
-                if (status.getTs() < newFloor) {
-                    newFloor = status.getTs();
-                }
-            }
-            status = next;
-        }
-
-        previous = null;
-        for (TransactionStatus status = _longRunning; status != null;) {
-            TransactionStatus next = status.getNext();
-            if (status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.getTc() < activeTransactionFloor) {
-                if (previous == null) {
-                    _longRunning = next;
-                } else {
-                    previous.setNext(next);
-                }
-                _longRunningCount--;
-                if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
-                    status.setNext(_free);
-                    _free = status;
-                    _freeCount++;
-                } else {
-                    _droppedCount++;
-                }
-            } else {
-                previous = status;
-            }
-            status = next;
-        }
-        _floor = newFloor;
     }
 
     @Override

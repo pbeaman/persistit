@@ -50,6 +50,8 @@ public class TransactionIndex {
      */
     final static long VERY_LONG_TIMEOUT = 60000; // sixty seconds
 
+    final static long SHORT_TIMEOUT = 50;
+
     /**
      * Initial size of arrays in ActiveTransactionCaches.
      */
@@ -238,7 +240,7 @@ public class TransactionIndex {
                 if (bucket.getAborted() != null || bucket.getLongRunning() != null || bucket.getCurrent() != null) {
                     bucket.lock();
                     try {
-                        bucket.clean(_floor);
+                        bucket.cleanAbortList(_floor);
                     } finally {
                         bucket.unlock();
                     }
@@ -400,7 +402,27 @@ public class TransactionIndex {
             bucket.unlock();
         }
         if (status != null) {
-            commitTimestamp = status.getSettledTc();
+
+            /*
+             * Found the TransactionStatus identified by tsv, but by the time we
+             * we read its tc, that TransactionStatus may already be committed
+             * to a new transaction with a different ts. Therefore we briefly to
+             * lock it to get an accurate reading.
+             * 
+             * If the TransactionStatus was concurrently freed and reallocated
+             * to a different transaction, then it must have committed before
+             * the floor timestamp.
+             */
+            long tc = status.getTc();
+            while (status.getTs() == tsv) {
+                if (tc > 0 || tc == ABORTED) {
+                    return tc;
+                }
+                if (status.wwLock(SHORT_TIMEOUT)) {
+                    tc = status.getTc();
+                    status.wwUnlock();
+                }
+            }
         }
         return commitTimestamp;
     }
@@ -644,43 +666,48 @@ public class TransactionIndex {
             return 0;
         }
         /*
-         * Blocks until the target transaction finishes, either by committing or
-         * aborting.
-         * 
-         * TODO: I'm concerned that by the time we get here the
-         * TransactionStatus object may have recycled to the free list and may
-         * then become initialized for a different transaction. That would cause
-         * the current thread to wait for completion of an entirely different
-         * transaction.
+         * By the time the selected TransactionStatus has been found, it may
+         * already be allocated to another transaction. If that's true the the
+         * original transaction must have committed. The following code checks
+         * the identity of the transaction on each iteration after short lock
+         * attempts.
          */
-        if (status.wwLock(timeout)) {
-            if (status.getTs() != tsv) {
-                if (status.getTs() < _atCache._floor) {
-                    return 0;
-                }
-                System.out.println(status + " != " + tsv);
-            }
-            try {
-                final long tc = status.getTc();
-                if (tc == ABORTED) {
-                    return tc;
-                }
-                if (tc < 0 || tc == UNCOMMITTED) {
-                    throw new IllegalStateException("Commit incomplete");
-                }
-                /*
-                 * true if and only if this is a concurrent transaction
-                 */
-                if (tc > ts) {
-                    return tc;
-                } else {
-                    return 0;
-                }
-
-            } finally {
-                status.wwUnlock();
-            }
+        if (status.getTs() != tsv) {
+            return 0;
         }
+
+        final long start = System.currentTimeMillis();
+        /*
+         * Blocks until the target transaction finishes, either by
+         * committing or aborting.
+         */
+        do {
+            if (status.wwLock(Math.min(timeout, SHORT_TIMEOUT))) {
+                try {
+                    final long tc = status.getTc();
+                    if (status.getTs() != tsv) {
+                        return 0;
+                    }
+                    if (tc == ABORTED) {
+                        return tc;
+                    }
+                    if (tc < 0 || tc == UNCOMMITTED) {
+                        throw new IllegalStateException("Commit incomplete");
+                    }
+                    /*
+                     * true if and only if this is a concurrent transaction
+                     */
+                    if (tc > ts) {
+                        return tc;
+                    } else {
+                        return 0;
+                    }
+
+                } finally {
+                    status.wwUnlock();
+                }
+            }
+        } while (System.currentTimeMillis() - start < timeout);
         return TIMED_OUT;
     }
 

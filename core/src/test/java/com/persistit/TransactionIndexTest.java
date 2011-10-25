@@ -16,6 +16,7 @@
 package com.persistit;
 
 import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.TransactionStatus.PRIMORDIAL;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -58,9 +59,9 @@ public class TransactionIndexTest extends TestCase {
         ti.notifyCompleted(ts2);
         ti.notifyCompleted(ts3);
         ti.updateActiveTransactionCache();
-        assertEquals(1, ti.getCurrentCount());
+        assertEquals(0, ti.getCurrentCount());
         assertEquals(2, ti.getFreeCount());
-        assertEquals(0, ti.getAbortedCount());
+        assertEquals(1, ti.getAbortedCount());
         ts3.decrementMvvCount();
         ti.updateActiveTransactionCache();
         assertEquals(0, ti.getCurrentCount());
@@ -79,16 +80,16 @@ public class TransactionIndexTest extends TestCase {
         ts1.commit(_tsa.updateTimestamp());
         ti.notifyCompleted(ts1);
         /*
-         * Should return true because ts1 and ts2 are concurrent.
+         * Should return 0 because ts1 has committed and is now primordial.
          */
-        assertEquals(ts1.getTc(), ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2.getTs(), 1000));
+        assertEquals(PRIMORDIAL, ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2.getTs(), 1000));
         final TransactionStatus ts3 = ti.registerTransaction();
         ts2.abort();
         ti.notifyCompleted(ts2);
         /*
          * Should return false because ts1 and ts3 are not concurrent
          */
-        assertEquals(0, ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3.getTs(), 1000));
+        assertEquals(PRIMORDIAL, ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3.getTs(), 1000));
         /*
          * Should return false because ts2 aborted
          */
@@ -113,7 +114,6 @@ public class TransactionIndexTest extends TestCase {
         }
         for (int count = 50; count < 60; count++) {
             array[count].decrementMvvCount();
-//            ti.notifyPruned(array[count].getTs());
         }
         assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());
         assertEquals(array.length - ti.getLongRunningThreshold() - ti.getAbortedCount() - ti.getFreeCount(), ti
