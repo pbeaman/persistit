@@ -64,8 +64,28 @@ public class MVV {
             offset += destLength;
         }
         else {
-            // TODO: Search for pre-existing value with same versionHandle
-            // Just append to existing MVV
+            // Search for versionHandle
+            //   if size == sourceLength, plop down over
+            //   else shift remaining left, add to end
+            int curOffset = 1;
+            while(curOffset < destLength) {
+                final long version = Util.getLong(dest, curOffset);
+                final int size = Util.getShort(dest, curOffset + LENGTH_VERSION_HANDLE);
+                final int chunkOffset = LENGTH_VERSION_HANDLE + LENGTH_VALUE_LENGTH + size;
+                curOffset += chunkOffset;
+                if(version == versionHandle) {
+                    if(size == sourceLength) {
+                        System.arraycopy(source, 0, dest, curOffset - size, sourceLength);
+                        return destLength;
+                    }
+                    else {
+                        System.arraycopy(dest, curOffset, dest, curOffset - chunkOffset, destLength - curOffset);
+                        destLength -= chunkOffset;
+                        break;
+                    }
+                }
+            }
+
             offset = destLength;
         }
 
