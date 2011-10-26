@@ -111,7 +111,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
                 }
             }
 
-        }, 100, 100);
+        }, 10, 10);
         final Thread threads[] = new Thread[threadCount];
         for (int i = 0; i < threadCount; i++) {
             Thread thread = new Thread(new Runnable() {
@@ -135,8 +135,17 @@ public class TransactionIndexConcurrencyTest extends TestCase {
             threads[i].join();
         }
         timer.cancel();
-        ti.updateActiveTransactionCache();
-        report(System.currentTimeMillis() - start);
+        
+        final long end = System.currentTimeMillis();
+        System.out.printf("\nBefore cleanup:\n");
+        report(end - start);
+        
+        ti.cleanup();
+        System.out.printf("\nAfter cleanup:\n");
+        report(end - start);
+        //
+        // Verify that all mvv's were cleaned up
+        //
         for (int i = 0; i < mvvCount; i++) {
             prune(mvvs[i]);
             assertTrue(mvvs[i].versionHandles.isEmpty());

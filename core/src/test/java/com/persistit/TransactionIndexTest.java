@@ -16,7 +16,6 @@
 package com.persistit;
 
 import static com.persistit.TransactionStatus.ABORTED;
-import static com.persistit.TransactionStatus.PRIMORDIAL;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,20 +30,40 @@ public class TransactionIndexTest extends TestCase {
 
     public void testBasicMethods() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+
         TransactionStatus ts1 = ti.registerTransaction();
         ti.updateActiveTransactionCache();
         assertTrue(ti.hasConcurrentTransaction(0, ts1.getTs() + 1));
         ts1.commit(_tsa.updateTimestamp());
+
         TransactionStatus ts2 = ti.registerTransaction();
+        /*
+         * True because the ActiveTransactionCache hasn't been updated yet.
+         */
         assertTrue(ti.hasConcurrentTransaction(0, ts1.getTs() + 1));
         assertTrue(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
         ti.updateActiveTransactionCache();
+        /*
+         * False (correctly) after update.
+         */
         assertFalse(ti.hasConcurrentTransaction(0, ts1.getTs() + 1));
         assertTrue(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
+        /*
+         * Same transaction - illusion that it has committed.
+         */
+        assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()), ts2.getTs(), 0)));
+        /*
+         * Step policy
+         */
+        assertFalse(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()) + 1, ts2.getTs(), 1)));
+        assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()) + 1, ts2.getTs(), 2)));
+
+        TransactionStatus ts3 = ti.registerTransaction();
+        TransactionStatus ts4 = ti.registerTransaction();
+
         ts2.commit(_tsa.updateTimestamp());
         ti.updateActiveTransactionCache();
         assertFalse(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
-        TransactionStatus ts3 = ti.registerTransaction();
         _tsa.updateTimestamp();
         assertEquals(TransactionStatus.UNCOMMITTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
                 .getCurrentTimestamp(), 0));
@@ -53,24 +72,36 @@ public class TransactionIndexTest extends TestCase {
         ts3.abort();
         assertEquals(TransactionStatus.ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
                 .getCurrentTimestamp(), 0));
-        assertEquals(3, ti.getCurrentCount());
+        assertEquals(4, ti.getCurrentCount());
         ti.notifyCompleted(ts1);
-        assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts1.getTs()), _tsa.getCurrentTimestamp(), 0)));
+        /*
+         * ts1 committed and not concurrent with ts2
+         */
+        assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts1.getTs()), ts2.getTs(), 0)));
         ti.notifyCompleted(ts2);
+        /*
+         * ts2 committed but ts4 is concurrent
+         */
+        assertFalse(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()), ts4.getTs(), 0)));
+        ts4.commit(_tsa.updateTimestamp());
         ti.notifyCompleted(ts3);
         ti.updateActiveTransactionCache();
-        assertEquals(0, ti.getCurrentCount());
-        assertEquals(2, ti.getFreeCount());
-        assertEquals(1, ti.getAbortedCount());
-        ts3.decrementMvvCount();
-        ti.updateActiveTransactionCache();
+
+        ti.notifyCompleted(ts4);
         assertEquals(0, ti.getCurrentCount());
         assertEquals(3, ti.getFreeCount());
+        assertEquals(1, ti.getAbortedCount());
+        ts3.decrementMvvCount();
+
+        ti.cleanup(); // compute canonical form
+
+        assertEquals(0, ti.getCurrentCount());
+        assertEquals(4, ti.getFreeCount());
         assertEquals(0, ti.getAbortedCount());
     }
-    
+
     private boolean isCommitted(final long ts) {
-        return ts > 0 && ts != UNCOMMITTED;
+        return ts >= 0 && ts != UNCOMMITTED;
     }
 
     public void testNonBlockingWwDependency() throws Exception {
@@ -82,14 +113,14 @@ public class TransactionIndexTest extends TestCase {
         /*
          * Should return 0 because ts1 has committed and is now primordial.
          */
-        assertEquals(PRIMORDIAL, ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2, 1000));
+        assertTrue(isCommitted(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2, 1000)));
         final TransactionStatus ts3 = ti.registerTransaction();
         ts2.abort();
         ti.notifyCompleted(ts2);
         /*
          * Should return false because ts1 and ts3 are not concurrent
          */
-        assertEquals(PRIMORDIAL, ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3, 1000));
+        assert (isCommitted(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3, 1000)));
         /*
          * Should return false because ts2 aborted
          */
@@ -129,25 +160,26 @@ public class TransactionIndexTest extends TestCase {
         assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());
         assertEquals(array.length - ti.getCurrentCount() - ti.getAbortedCount() - ti.getFreeCount()
                 - ti.getDroppedCount(), ti.getLongRunningCount());
-        
+
         ti.updateActiveTransactionCache();
         /*
-         * aborted set retained due to currently active transactions
-         * that started before the mvvCount was decremented
+         * aborted set retained due to currently active transactions that
+         * started before the mvvCount was decremented
          */
         assertEquals(50, ti.getAbortedCount());
         /*
          * Commit all remaining transactions so that there no currently active
          * transactions.
          */
-        for (int count=70; count < array.length; count++) {
+        for (int count = 70; count < array.length; count++) {
             array[count].commit(_tsa.updateTimestamp());
             ti.notifyCompleted(array[count]);
         }
         /*
-         * Refresh ActiveTransactionCache to recognize new commits. 
+         * Compute canonical form.  40 aborted transactions should be
+         * left over because their mvv counts were not decremented.
          */
-        ti.updateActiveTransactionCache();
+        ti.cleanup();
         assertEquals(40, ti.getAbortedCount());
     }
 
@@ -165,8 +197,9 @@ public class TransactionIndexTest extends TestCase {
         assertTrue(elapsed.get() >= 900);
     }
 
-    boolean tryBlockingWwDependency(final TransactionIndex ti, final TransactionStatus target, final TransactionStatus source,
-            final long wait, final long timeout, final AtomicLong elapsed, boolean commit) throws Exception {
+    boolean tryBlockingWwDependency(final TransactionIndex ti, final TransactionStatus target,
+            final TransactionStatus source, final long wait, final long timeout, final AtomicLong elapsed,
+            boolean commit) throws Exception {
         final AtomicLong result = new AtomicLong();
         final Thread t = new Thread(new Runnable() {
             public void run() {

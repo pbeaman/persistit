@@ -132,6 +132,11 @@ public class TransactionIndexBucket {
     int _droppedCount;
 
     /**
+     * Last floor value received for all active transactions. Obtained from the
+     * current ActiveTransactionCache.
+     */
+    long _activeTransactionFloor;
+    /**
      * Lock used to prevent multi-threaded access to the lists in this
      * structure.
      */
@@ -222,6 +227,10 @@ public class TransactionIndexBucket {
         return _transactionIndex.getTimestampAllocator();
     }
 
+    boolean hasFloorMoved() {
+        return _activeTransactionFloor != _transactionIndex.getActiveTransactionFloor();
+    }
+
     void notifyCompleted(final TransactionStatus status) {
         assert _lock.isHeldByCurrentThread();
         final long ts = status.getTs();
@@ -229,7 +238,7 @@ public class TransactionIndexBucket {
             for (TransactionStatus s = getCurrent(); s != null; s = s.getNext()) {
                 if (s == status) {
                     s.complete();
-                    if (s.getTs() == getFloor()) {
+                    if (s.getTs() == getFloor() || hasFloorMoved()) {
                         reduce();
                     }
                     return;
@@ -291,6 +300,8 @@ public class TransactionIndexBucket {
      */
     void reduce() {
         assert _lock.isHeldByCurrentThread();
+        final boolean hasMoved = hasFloorMoved();
+        _activeTransactionFloor = _transactionIndex.getActiveTransactionFloor();
         boolean more = true;
         while (more) {
             more = false;
@@ -319,7 +330,7 @@ public class TransactionIndexBucket {
                      * Move the TransactionStatus somewhere if any of these
                      * conditions hold
                      */
-                    if (committed) {
+                    if (committed && !_transactionIndex.hasConcurrentTransaction(status.getTs(), status.getTc())) {
                         /*
                          * committed
                          */
@@ -378,28 +389,45 @@ public class TransactionIndexBucket {
             }
             _floor = newFloor;
         }
+        if (hasMoved) {
+            cleanup(_activeTransactionFloor);
+        }
     }
 
     /**
      * Move <code>TransactionStatus</code> instances from the
-     * <code>_aborted</code> list back to the {@link #_free} list. An aborted
-     * <code>TransactionStatus</code> can be freed once its MVV count becomes
-     * zero indicating that no versions written by that transaction remain in
-     * the database <i>and</i> it is no longer concurrent with any active
-     * transactions. This second condition is important because a concurrent
-     * transaction may be in the process of reading an MVV while this method is
-     * executing; the <code>TransactionStatus</code> must be retained until that
-     * transaction (and any other transactions that might also read the same
-     * MVV) has seen that the transaction aborted.
+     * <code>_aborted</code> and <code>_longRunning</code> lists back to the
+     * {@link #_free} list when there are no longer any active transactions that
+     * need them.
+     * <p>
+     * An aborted <code>TransactionStatus</code> can be freed once its MVV count
+     * becomes zero indicating that no versions written by that transaction
+     * remain in the database <i>and</i> it is no longer concurrent with any
+     * active transactions. This second condition is important because a
+     * concurrent transaction may be in the process of reading an MVV while this
+     * method is executing; the <code>TransactionStatus</code> must be retained
+     * until that transaction (and any other transactions that might also read
+     * the same MVV) has seen that the transaction aborted.
+     * </p>
+     * <p>
+     * A long-running <code>TransactionStatus</code> can be removed once it has
+     * committed or aborted and there is no other possibly concurrent active
+     * transaction.
+     * </p>
      * 
      * @param activeTransactionFloor
      *            Lower bound of start timestamps of all currently executing
      *            transactions.
      */
-    void cleanAbortList(final long activeTransactionFloor) {
+    void cleanup(final long activeTransactionFloor) {
         assert _lock.isHeldByCurrentThread();
+        TransactionStatus previous;
 
-        TransactionStatus previous = null;
+        /*
+         * Remove every aborted transaction whose mvvCount became zero before
+         * the start of any active transaction.
+         */
+        previous = null;
         for (TransactionStatus status = _aborted; status != null;) {
             TransactionStatus next = status.getNext();
             assert status.getTc() == ABORTED;
@@ -422,12 +450,39 @@ public class TransactionIndexBucket {
             }
             status = next;
         }
+        /*
+         * Remove every long-running transaction whose commit timestamp is no
+         * longer concurrent with any active transaction.
+         */
+        previous = null;
+        for (TransactionStatus status = _longRunning; status != null;) {
+            TransactionStatus next = status.getNext();
+            if (status.getTc() > 0 && status.isNotified() && status.getTc() < activeTransactionFloor) {
+                if (previous == null) {
+                    _longRunning = next;
+                } else {
+                    previous.setNext(next);
+                }
+                _longRunningCount--;
+                if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+                    status.setNext(_free);
+                    _free = status;
+                    _freeCount++;
+                } else {
+                    _droppedCount++;
+                }
+            } else {
+                previous = status;
+            }
+            status = next;
+        }
     }
 
     @Override
     public String toString() {
-        return String.format("<floor=%s current=[%s] aborted=[%s] long=[%s] free=[%s]>", TransactionIndex.minMaxString(_floor),
-                listString(_current), listString(_aborted), listString(_longRunning), listString(_free));
+        return String.format("<floor=%s current=[%s] aborted=[%s] long=[%s] free=[%s]>", TransactionIndex
+                .minMaxString(_floor), listString(_current), listString(_aborted), listString(_longRunning),
+                listString(_free));
     }
 
     String listString(final TransactionStatus list) {

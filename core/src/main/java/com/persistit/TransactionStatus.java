@@ -246,6 +246,7 @@ public class TransactionStatus {
      */
     int decrementMvvCount() {
         int count = _mvvCount.decrementAndGet();
+        assert count >= 0;
         if (count == 0) {
             _ta = _bucket.getTimestampAllocator().getCurrentTimestamp();
         }

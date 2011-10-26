@@ -224,11 +224,10 @@ public class TransactionIndex {
             if (ts1 > ts2) {
                 return false;
             }
-            //
-            // Note: we may consider a binary search here depending on the
-            // length of
-            // this array.
-            //
+            /*
+             * Note: we may consider a binary search here depending on the
+             * length of this array.
+             */
             for (int index = 0; index < _count; index++) {
                 long ts = _tsArray[index];
                 if (ts > ts2) {
@@ -239,19 +238,6 @@ public class TransactionIndex {
                 }
             }
             return false;
-        }
-
-        void cleanup() {
-            for (final TransactionIndexBucket bucket : _hashTable) {
-                if (bucket.getAborted() != null || bucket.getLongRunning() != null || bucket.getCurrent() != null) {
-                    bucket.lock();
-                    try {
-                        bucket.cleanAbortList(_floor);
-                    } finally {
-                        bucket.unlock();
-                    }
-                }
-            }
         }
 
         @Override
@@ -319,8 +305,10 @@ public class TransactionIndex {
      * is as if that transaction's own updates are present.)</li>
      * <li>Else return {@link TransactionStatus#UNCOMMITTED}.</li>
      * </ul>
-     * <li>If T has committed, the result is T's commit timestamp
-     * <code>tc</code>.</li>
+     * <li>If T has committed, the result depends on the start timestamp
+     * <code>ts</code> of the current transaction: if T committed before
+     * <code>ts</code> the result is T's commit timestamp <code>tc</code>,
+     * otherwise it is {@link TransactionStatus#UNCOMMITTED}.</li>
      * <li>If T has aborted, the result is {@link TransactionStatus#ABORTED}.</li>
      * <li>If T has not requested to commit, i.e., does not have proposal
      * timestamp <code>tp</code>, or than proposal timestamp is greater than
@@ -349,9 +337,10 @@ public class TransactionIndex {
         if (tsv == ts) {
             /*
              * The update was created by this transaction. Policy is that if the
-             * version we written by an earlier step or by step 0, return
-             * COMMITTED to allow it to be read. Otherwise return UNCOMITTED to
-             * prevent it from being read.
+             * version was written by an earlier step or by step 0, return a
+             * valid commit timestamp (even though that version has not yet been
+             * committed). Otherwise return UNCOMITTED to prevent it from being
+             * read.
              */
             int stepv = vh2step(versionHandle);
             if (stepv == 0 || stepv < step) {
@@ -380,47 +369,23 @@ public class TransactionIndex {
                 && bucket.getAborted() == null) {
             return tsv;
         }
-        long commitTimestamp = tsv;
-        TransactionStatus status = null;
-        /*
-         * There were members on at least one of the lists. Need to lock the
-         * bucket so we can traverse the lists.
-         */
-        bucket.lock();
-        try {
-            /*
-             * A transaction with a start timestamp less than or equal to the
-             * floor is committed unless it is found on either the aborted or
-             * longRunning lists.
-             */
-            if (tsv >= bucket.getFloor()) {
-                for (TransactionStatus s = bucket.getCurrent(); s != null; s = s.getNext()) {
-                    if (s.getTs() == tsv) {
-                        status = s;
-                        break;
-                    }
-                }
-            }
-            if (status == null) {
-                for (TransactionStatus s = bucket.getAborted(); s != null; s = s.getNext()) {
-                    if (s.getTs() == tsv) {
-                        return ABORTED;
-                    }
-                }
-            }
-            if (status == null) {
-                for (TransactionStatus s = bucket.getLongRunning(); s != null; s = s.getNext()) {
-                    if (s.getTs() == tsv) {
-                        status = s;
-                        break;
-                    }
-                }
-            }
-        } finally {
-            bucket.unlock();
-        }
-        if (status != null) {
 
+        /*
+         * Otherwise search the bucket and find the TransactionStatus for tsv.
+         */
+        long commitTimestamp = tsv;
+        /*
+         * There were members on at least one of the lists so we need to try to
+         * find the corresponding TransactionStatus identified by tsv.
+         */
+        TransactionStatus status = getStatus(tsv);
+        /*
+         * The result can be null in the event the TransactionStatus was freed.
+         * It could only have been freed if its transaction committed at a tc
+         * that is now primordial. Therefore if status is null we can return tsv
+         * as the imputed tc value.
+         */
+        if (status != null) {
             /*
              * Found the TransactionStatus identified by tsv, but by the time we
              * we read its tc, that TransactionStatus may already be committed
@@ -433,9 +398,16 @@ public class TransactionIndex {
              */
             long tc = status.getTc();
             while (status.getTs() == tsv) {
-                if (tc > 0 || tc == ABORTED) {
+                if (tc >= ts) {
+                    return UNCOMMITTED;
+                }
+                if (tc >= 0) {
                     return tc;
                 }
+                if (tc == ABORTED) {
+                    return tc;
+                }
+
                 if (status.wwLock(SHORT_TIMEOUT)) {
                     tc = status.getTc();
                     status.wwUnlock();
@@ -813,7 +785,25 @@ public class TransactionIndex {
         } finally {
             _atCacheLock.unlock();
         }
-        _atCache.cleanup();
+    }
+
+    /**
+     * Invoke the {@link TransactionIndexBucket#cleanup()} method on each bucket
+     * to remove all obsolete long-running and aborted
+     * <code>TransactionStatus</code> instances. This is useful to generate a
+     * canonical state for unit tests. Cleanup logic is normally called during
+     * the {@link TransactionIndexBucket#reduce()} process.
+     */
+    void cleanup() {
+        updateActiveTransactionCache();
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            bucket.lock();
+            try {
+                bucket.cleanup(getActiveTransactionFloor());
+            } finally {
+                bucket.unlock();
+            }
+        }
     }
 
     int getCurrentCount() {
