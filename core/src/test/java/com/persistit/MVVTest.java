@@ -58,6 +58,13 @@ public class MVVTest {
 
 
     @Test
+    public void requireBigEndian() {
+        // Tests have many expected arrays explicitly typed out, sanity check setting
+        assertEquals(true, Persistit.BIG_ENDIAN);
+    }
+    
+
+    @Test
     public void storeToUndefined() {
         final int vh = 200;
         final byte[] source = {0xA,0xB,0xC};
