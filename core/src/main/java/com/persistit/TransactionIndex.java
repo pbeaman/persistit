@@ -221,7 +221,7 @@ public class TransactionIndex {
             if (ts2 > _ceiling) {
                 return true;
             }
-            if (ts1 > ts2) {
+            if (ts1 > ts2 || ts2 < _floor) {
                 return false;
             }
             /*

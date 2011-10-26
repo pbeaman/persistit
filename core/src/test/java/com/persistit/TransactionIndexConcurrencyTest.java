@@ -49,7 +49,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
     static int mvvCount = MVV_COUNT;
     static int iterations = ITERATIONS;
     static int threadCount = THREAD_COUNT;
-    static boolean sleep = true;
+    static boolean sleep = false;
 
     static class MVV {
         List<Long> versionHandles = new ArrayList<Long>();
@@ -243,6 +243,17 @@ public class TransactionIndexConcurrencyTest extends TestCase {
             if (RANDOM.nextInt(100) < pctProbability) {
                 Thread.sleep(1);
             }
+            if (RANDOM.nextInt(10000) < pctProbability) {
+                Thread.sleep(100);
+            }
+            if (RANDOM.nextInt(1000000) < pctProbability) {
+                Thread.sleep(10000);
+                System.out.println("Sleep 10 seconds");
+            }
+            if (RANDOM.nextInt(100000000) < pctProbability) {
+                Thread.sleep(100000);
+                System.out.println("Sleep 100 seconds");
+            }
         }
     }
 
@@ -250,13 +261,13 @@ public class TransactionIndexConcurrencyTest extends TestCase {
         final ArgParser ap = new ArgParser("TransactionIndexConcurrencyTest", args, new String[] {
                 "iterations|int:20000:0:1000000000|Transaction iterations per thread",
                 "threads|int:20:1:1000|Thread count", "mvvCount|int:1:1:1000000000|Number of MVV buckets",
-                "hashCount|int:1000:1:100000000|Hash table size", "_flag|n|No sleep intervals" });
+                "hashCount|int:1000:1:100000000|Hash table size", "_flag|s|Enable sleep intervals" });
 
         iterations = ap.getIntValue("iterations");
         threadCount = ap.getIntValue("threads");
         hashTableSize = ap.getIntValue("hashCount");
         mvvCount = ap.getIntValue("mvvCount");
-        sleep = !ap.isFlag('n');
+        sleep = ap.isFlag('s');
         
         final TransactionIndexConcurrencyTest test = new TransactionIndexConcurrencyTest();
         test.testConcurrentOperations();

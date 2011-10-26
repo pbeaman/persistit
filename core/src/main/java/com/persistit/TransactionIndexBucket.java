@@ -398,7 +398,10 @@ public class TransactionIndexBucket {
      * Move <code>TransactionStatus</code> instances from the
      * <code>_aborted</code> and <code>_longRunning</code> lists back to the
      * {@link #_free} list when there are no longer any active transactions that
-     * need them.
+     * need them. This method is called periodically whenever the {@link #reduce()}
+     * method detects that the ActiveTransactionCache has been updated. It is
+     * also called by <code>TransactionIndex{@link #cleanup(long)}</code> for
+     * unit tests.
      * <p>
      * An aborted <code>TransactionStatus</code> can be freed once its MVV count
      * becomes zero indicating that no versions written by that transaction
@@ -411,7 +414,7 @@ public class TransactionIndexBucket {
      * </p>
      * <p>
      * A long-running <code>TransactionStatus</code> can be removed once it has
-     * committed or aborted and there is no other possibly concurrent active
+     * committed or aborted and there exists no other possibly concurrent active
      * transaction.
      * </p>
      * 
@@ -457,7 +460,8 @@ public class TransactionIndexBucket {
         previous = null;
         for (TransactionStatus status = _longRunning; status != null;) {
             TransactionStatus next = status.getNext();
-            if (status.getTc() > 0 && status.isNotified() && status.getTc() < activeTransactionFloor) {
+            if (status.isNotified() && status.getTc() > 0 && status.getTc() != UNCOMMITTED
+                    && !_transactionIndex.hasConcurrentTransaction(status.getTs(), status.getTc())) {
                 if (previous == null) {
                     _longRunning = next;
                 } else {
