@@ -20,16 +20,17 @@ import com.persistit.util.Util;
 public class MVV {
     private final static byte TYPE_MVV = (byte)0xFE;
     private final static int PRIMORDIAL_VALUE_VERSION = 0;
-
-    private final static int LENGTH_TYPE = 1;           // byte
+    private final static int UNDEFINED_VALUE_LENGTH = 0;
+    
+    private final static int LENGTH_TYPE_MVV = 1;       // byte
     private final static int LENGTH_VERSION_HANDLE = 8; // long
-    private final static int LENGTH_VALUE_LENGTH = 2;   // unsigned short
-    private final static int LENGTH_MVV_HEADER = LENGTH_TYPE + LENGTH_VERSION_HANDLE + LENGTH_VALUE_LENGTH;
+    private final static int LENGTH_VALUE_LENGTH = 2;   // short
+    private final static int LENGTH_PER_VERSION = LENGTH_VERSION_HANDLE + LENGTH_VALUE_LENGTH;
 
 
     static int overheadLength(int numVersions) {
         if(numVersions > 1) {
-            return LENGTH_TYPE + (LENGTH_VERSION_HANDLE + LENGTH_VALUE_LENGTH)*numVersions;
+            return LENGTH_TYPE_MVV + LENGTH_PER_VERSION*numVersions;
         }
         return 0;
     }
@@ -45,19 +46,28 @@ public class MVV {
         return LENGTH_VALUE_LENGTH;
     }
 
+    static void assertCapacity(byte[] dest, int length) throws IllegalArgumentException {
+        if(dest.length < length) {
+            throw new IllegalArgumentException("Destination array not big enough: " + dest.length + " < " + length);
+        }
+    }
+
 
     static int storeValue(byte[] source, int sourceLength, long versionHandle, byte[] dest, int destLength) {
         int offset = 0;
-        
         if(destLength == 0) {
+            assertCapacity(dest, overheadLength(2) + sourceLength);
+            
             // Promote to MVV, original state is undefined
             dest[offset++] = TYPE_MVV;
             offset += writeVersionHandle(dest, offset, PRIMORDIAL_VALUE_VERSION);
-            offset += writeValueLength(dest, offset, 0);
+            offset += writeValueLength(dest, offset, UNDEFINED_VALUE_LENGTH);
         }
         else if(dest[0] != TYPE_MVV) {
+            assertCapacity(dest, overheadLength(2) + destLength + sourceLength);
+
             // Promote to MVV, shift existing down for header
-            System.arraycopy(dest, offset, dest, LENGTH_MVV_HEADER, destLength);
+            System.arraycopy(dest, 0, dest, LENGTH_TYPE_MVV + LENGTH_PER_VERSION, destLength);
             dest[offset++] = TYPE_MVV;
             offset += writeVersionHandle(dest, offset, PRIMORDIAL_VALUE_VERSION);
             offset += writeValueLength(dest, offset, destLength);
@@ -71,7 +81,7 @@ public class MVV {
             while(curOffset < destLength) {
                 final long version = Util.getLong(dest, curOffset);
                 final int size = Util.getShort(dest, curOffset + LENGTH_VERSION_HANDLE);
-                final int chunkOffset = LENGTH_VERSION_HANDLE + LENGTH_VALUE_LENGTH + size;
+                final int chunkOffset = LENGTH_PER_VERSION + size;
                 curOffset += chunkOffset;
                 if(version == versionHandle) {
                     if(size == sourceLength) {
@@ -79,6 +89,8 @@ public class MVV {
                         return destLength;
                     }
                     else {
+                        assertCapacity(dest, destLength - size + sourceLength);
+                        
                         System.arraycopy(dest, curOffset, dest, curOffset - chunkOffset, destLength - curOffset);
                         destLength -= chunkOffset;
                         break;
@@ -86,6 +98,7 @@ public class MVV {
                 }
             }
 
+            assertCapacity(dest, destLength + LENGTH_PER_VERSION + sourceLength);
             offset = destLength;
         }
 

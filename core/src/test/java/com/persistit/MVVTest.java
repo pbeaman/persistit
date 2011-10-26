@@ -16,6 +16,7 @@
 package com.persistit;
 
 import com.persistit.util.Util;
+import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -25,22 +26,6 @@ import static org.junit.Assert.assertEquals;
 public class MVVTest {
     private static final int MVI = 254;
     private static final int TEST_ARRAY_LENGTH = 50;
-
-    private byte[] dest;
-    private byte[] source;
-
-
-    @Before
-    public final void setUp() {
-        dest = new byte[TEST_ARRAY_LENGTH];
-        source = new byte[TEST_ARRAY_LENGTH];
-    }
-
-    @After
-    public final void tearDown() {
-        dest = null;
-        source = null;
-    }
 
     private static int writeArray(byte[] array, int... contents) {
         assert contents.length <= TEST_ARRAY_LENGTH : "Too many values for test array";
@@ -73,6 +58,24 @@ public class MVVTest {
             }
         }
     }
+
+
+    private byte[] dest;
+    private byte[] source;
+
+    
+    @Before
+    public final void setUp() {
+        dest = new byte[TEST_ARRAY_LENGTH];
+        source = new byte[TEST_ARRAY_LENGTH];
+    }
+
+    @After
+    public final void tearDown() {
+        dest = null;
+        source = null;
+    }
+
 
     @Test
     public void storeToUndefined() {
@@ -245,6 +248,77 @@ public class MVVTest {
         }
 
         assertArrayEqualsLen(expectedArray, dest, destLength);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void storeToUndefinedOverCapacity() {
+        final long vh = 10;
+        final int sourceLength = writeArray(source, 0xA,0xB,0xC);
+        final int neededLength = MVV.overheadLength(2) + sourceLength;
+        dest = new byte[neededLength-1];
+
+        MVV.storeValue(source, sourceLength, vh, dest, 0);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void storeToPrimordialOverCapacity() {
+        final long vh = 10;
+        final byte[] source = {0xA,0xB,0xC};
+        final int neededLength = MVV.overheadLength(2) + source.length + 3;
+
+        dest = new byte[neededLength-1];
+        final int destLength = writeArray(dest, 0xD,0xE,0xF);
+
+        MVV.storeValue(source, source.length, vh, dest, destLength);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void storeToExistingOverCapacity() {
+        final long vh1 = 10, vh2 = 11;
+        final byte[] source1 = {0xA,0xB,0xC};
+        final byte[] source2 = {0xD,0xE,0xF};
+        final int neededLength = MVV.overheadLength(3) + source1.length + source2.length;
+        dest = new byte[neededLength-1];
+
+        int destLength = 0;
+        try {
+            destLength = MVV.storeValue(source1, source1.length, vh1, dest, destLength);
+        }
+        catch(IllegalArgumentException e) {
+            Assert.fail("Expected success on first store");
+        }
+
+        MVV.storeValue(source2, source2.length, vh2, dest, destLength);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void storeToExistingVersionLongerLengthOverCapacity() {
+        final long vh = 10;
+        final byte[] source = {0xA,0xB,0xC,0xD};
+        final int neededLength = MVV.overheadLength(2) + source.length;
+        dest = new byte[neededLength-1];
+
+        int destLength = 0;
+        try {
+            destLength = MVV.storeValue(source, source.length - 1, vh, dest, destLength);
+        }
+        catch(IllegalArgumentException e) {
+            Assert.fail("Expected success on first store");
+        }
+
+        MVV.storeValue(source, source.length, vh, dest, destLength);
+    }
+
+    @Test
+    public void storeToExistingVersionAtCapacityShorterLength() {
+        final long vh = 10;
+        final byte[] source = {0xA,0xB,0xC,0xD};
+        final int neededLength = MVV.overheadLength(2) + source.length;
+        dest = new byte[neededLength];
+
+        int destLength = 0;
+        destLength = MVV.storeValue(source, source.length, vh, dest, destLength);
+        MVV.storeValue(source, source.length - 1, vh, dest, destLength);
     }
 
 
