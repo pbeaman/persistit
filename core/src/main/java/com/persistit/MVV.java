@@ -27,6 +27,8 @@ public class MVV {
     private final static int LENGTH_VALUE_LENGTH = 2;   // short
     private final static int LENGTH_PER_VERSION = LENGTH_VERSION_HANDLE + LENGTH_VALUE_LENGTH;
 
+    public final static int VERSION_NOT_FOUND = -1;
+
 
     static int overheadLength(int numVersions) {
         if(numVersions > 1) {
@@ -53,7 +55,7 @@ public class MVV {
     }
 
 
-    static int storeValue(byte[] source, int sourceLength, long versionHandle, byte[] dest, int destLength) {
+    static int storeVersion(byte[] source, int sourceLength, long versionHandle, byte[] dest, int destLength) {
         int offset = 0;
         if(destLength == 0) {
             assertCapacity(dest, overheadLength(2) + sourceLength);
@@ -111,7 +113,21 @@ public class MVV {
     }
 
 
-    static void fetchValue(byte[] source, int sourceLength, long startTimestamp, byte[] dest, int destLength) {
-        throw new UnsupportedOperationException("Not implemented");
+    static int fetchVersion(byte[] source, int sourceLength, long versionHandle, byte[] dest) {
+        if(sourceLength > 0 && source[0] == TYPE_MVV) {
+            int offset = 1;
+            while(offset < sourceLength) {
+                final long version = Util.getLong(source, offset);
+                final int size = Util.getShort(source, offset + LENGTH_VERSION_HANDLE);
+                offset += LENGTH_PER_VERSION;
+                if(version == versionHandle) {
+                    assertCapacity(dest, size);
+                    System.arraycopy(source, offset, dest, 0, size);
+                    return size;
+                }
+                offset += size;
+            }
+        }
+        return VERSION_NOT_FOUND;
     }
 }
