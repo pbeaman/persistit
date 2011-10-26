@@ -21,13 +21,13 @@ public class MVV {
     private final static byte TYPE_MVV = (byte)0xFE;
     private final static int PRIMORDIAL_VALUE_VERSION = 0;
     private final static int UNDEFINED_VALUE_LENGTH = 0;
-    
+    public final static int VERSION_NOT_FOUND = -1;
+
     private final static int LENGTH_TYPE_MVV = 1;       // byte
     private final static int LENGTH_VERSION_HANDLE = 8; // long
     private final static int LENGTH_VALUE_LENGTH = 2;   // short
-    private final static int LENGTH_PER_VERSION = LENGTH_VERSION_HANDLE + LENGTH_VALUE_LENGTH;
 
-    public final static int VERSION_NOT_FOUND = -1;
+    private final static int LENGTH_PER_VERSION = LENGTH_VERSION_HANDLE + LENGTH_VALUE_LENGTH;
 
 
     static int overheadLength(int numVersions) {
@@ -112,22 +112,70 @@ public class MVV {
         return offset + sourceLength;
     }
 
+    public static interface FetchSpecifier {
+        void init();
+        void sawVersion(long versionHandle, int valueLength, int offset);
+        int offsetToFetch();
+    }
 
-    static int fetchVersion(byte[] source, int sourceLength, long versionHandle, byte[] dest) {
-        if(sourceLength > 0 && source[0] == TYPE_MVV) {
+    public static class ExactVersionSpecifier implements FetchSpecifier {
+        private int offset;
+        private long desiredVersion;
+
+        public ExactVersionSpecifier(long desiredVersion) {
+            this.desiredVersion = desiredVersion;
+        }
+        
+        @Override
+        public void init() {
+            offset = VERSION_NOT_FOUND;
+        }
+
+        @Override
+        public void sawVersion(long versionHandle, int valueLength, int offset) {
+            if(versionHandle == desiredVersion) {
+                this.offset = offset;
+            }
+        }
+
+        @Override
+        public int offsetToFetch() {
+            return offset;
+        }
+    }
+
+    static int fetchVersionBySpecifier(FetchSpecifier specifier, byte[] source, int sourceLength, byte[] dest) {
+        specifier.init();
+        if(sourceLength == 0) {
+            specifier.sawVersion(PRIMORDIAL_VALUE_VERSION, UNDEFINED_VALUE_LENGTH, 0);
+        }
+        else if(source[0] != TYPE_MVV) {
+            specifier.sawVersion(PRIMORDIAL_VALUE_VERSION, sourceLength, 0);
+        }
+        else {
             int offset = 1;
             while(offset < sourceLength) {
                 final long version = Util.getLong(source, offset);
-                final int size = Util.getShort(source, offset + LENGTH_VERSION_HANDLE);
+                final int valueLength = Util.getShort(source, offset + LENGTH_VERSION_HANDLE);
                 offset += LENGTH_PER_VERSION;
-                if(version == versionHandle) {
-                    assertCapacity(dest, size);
-                    System.arraycopy(source, offset, dest, 0, size);
-                    return size;
-                }
-                offset += size;
+                specifier.sawVersion(version, valueLength, offset);
+                offset += valueLength;
             }
         }
-        return VERSION_NOT_FOUND;
+
+        int returnSize = VERSION_NOT_FOUND;
+        int offsetToReturn = specifier.offsetToFetch();
+        if(offsetToReturn > 0) {
+            if(offsetToReturn == 0 && sourceLength == 0) {
+                returnSize = UNDEFINED_VALUE_LENGTH;
+            }
+            else {
+                returnSize = Util.getShort(source, offsetToReturn - LENGTH_VALUE_LENGTH);
+                assertCapacity(dest, returnSize);
+                System.arraycopy(source, offsetToReturn, dest, 0, returnSize);
+            }
+        }
+
+        return returnSize;
     }
 }

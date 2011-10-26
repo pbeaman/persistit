@@ -55,7 +55,7 @@ public class MVVTest {
             }
         }
     }
-
+    
 
     @Test
     public void requireBigEndian() {
@@ -321,8 +321,9 @@ public class MVVTest {
         final long vh = 10;
         final byte[] source = {};
         final byte[] dest = {};
+        MVV.FetchSpecifier specifier = new MVV.ExactVersionSpecifier(vh);
         assertEquals(MVV.VERSION_NOT_FOUND,
-                     MVV.fetchVersion(source, source.length, vh, dest));
+                     MVV.fetchVersionBySpecifier(specifier, source, source.length, dest));
     }
 
     @Test
@@ -330,8 +331,9 @@ public class MVVTest {
         final long vh = 10;
         final byte[] source = {0xA,0xB,0xC};
         final byte[] dest = {};
+        MVV.FetchSpecifier specifier = new MVV.ExactVersionSpecifier(vh);
         assertEquals(MVV.VERSION_NOT_FOUND,
-                     MVV.fetchVersion(source, source.length, vh, dest));
+                     MVV.fetchVersionBySpecifier(specifier, source, source.length, dest));
     }
 
     @Test
@@ -343,8 +345,9 @@ public class MVVTest {
                 0,0,0,0,0,0,0,2, 0,2, 0xD,0xE
         };
         final byte[] dest = {};
+        MVV.FetchSpecifier specifier = new MVV.ExactVersionSpecifier(vh);
         assertEquals(MVV.VERSION_NOT_FOUND,
-                     MVV.fetchVersion(source, source.length, vh, dest));
+                     MVV.fetchVersionBySpecifier(specifier, source, source.length, dest));
     }
 
     @Test
@@ -357,7 +360,8 @@ public class MVVTest {
         };
         final byte[] expected = {0xA,0xB};
         final byte[] dest = new byte[20];
-        final int fetchedLen = MVV.fetchVersion(source, source.length, vh, dest);
+        MVV.FetchSpecifier specifier = new MVV.ExactVersionSpecifier(vh);
+        final int fetchedLen = MVV.fetchVersionBySpecifier(specifier, source, source.length, dest);
         assertEquals(expected.length, fetchedLen);
         assertArrayEqualsLen(expected, dest, expected.length);
     }
@@ -373,7 +377,8 @@ public class MVVTest {
         };
         final byte[] expected = {0xB,0xC,0xD};
         final byte[] dest = new byte[expected.length-1];
-        MVV.fetchVersion(source, source.length, vh, dest);
+        MVV.FetchSpecifier specifier = new MVV.ExactVersionSpecifier(vh);
+        MVV.fetchVersionBySpecifier(specifier, source, source.length, dest);
     }
 
     @Test
@@ -399,7 +404,8 @@ public class MVVTest {
 
         final byte fetchDest[] = new byte[50];
         for(int i = 0; i < VERSION_COUNT; ++i) {
-            int fetchedLen = MVV.fetchVersion(dest, destLength, versions[i], fetchDest);
+            MVV.FetchSpecifier specifier = new MVV.ExactVersionSpecifier(versions[i]);
+            int fetchedLen = MVV.fetchVersionBySpecifier(specifier, dest, destLength, fetchDest);
             assertEquals(sources[i].length, fetchedLen);
             assertArrayEqualsLen(sources[i], fetchDest, sources[i].length);
         }
