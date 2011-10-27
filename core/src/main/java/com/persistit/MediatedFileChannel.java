@@ -21,7 +21,6 @@ import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
-import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.FileChannel;
@@ -35,28 +34,27 @@ import java.nio.channels.spi.AbstractInterruptibleChannel;
  * A {@link FileChannel} implementation that provides different semantics on
  * interrupt. This class wraps an actual FileChannelImpl instance obtained from
  * a {@link RandomAccessFile} and delegates all supported operations to that
- * FileChannel. If a blocking I/O operation, e.g., a read or write, is
+ * FileChannelImpl. If a blocking I/O operation, e.g., a read or write, is
  * interrupted, the actual FileChannel instance is closed by its
  * {@link AbstractInterruptibleChannel} superclass. The result is that the
- * interrupted thread receives a {@link ClosedByInterruptException}, any other
- * thread concurrently reading or writing the same channel receives an
- * {@link AsynchronousCloseException}, and subsequently other threads receive
- * {@link ClosedChannelException}s.
+ * interrupted thread receives a {@link ClosedByInterruptException}, and other
+ * threads concurrently or subsequently reading or writing the same channel
+ * receive {@link ClosedChannelException}s.
  * </p>
  * <p>
  * However, this mediator class class catches the
- * <code>ClosedByInterruptException</code>, and opens a new channel before
- * throwing the exception. Similarly, this class catches the
- * <code>AsynchronousCloseException</code> and
- * <code>ChannelClosedExceptions</code> received by other threads, opens a new
- * channel, and retries those operations.
+ * <code>ClosedChannelException</code>, and implicitly opens a FileChanel if the
+ * client did not actually call {@link #close()}. If the operation that threw
+ * the <code>ClosedChannelException</code> was on an interrupted thread then the
+ * method that received the exception throws a {@link InterruptedIOException}
+ * after re-opening the channel. Otherwise the method retries the operation
+ * using the new channel.
  * </p>
  * <p>
  * To maintain the <code>FileChannel</code> contract, methods of this class may
  * only throw an <code>IOException</code>. Therefore, to signify a interrupt,
- * this method throws a synthetic Exception defined by the inner class
- * {@link IOInterruptedException}. The caller should catch that exception and
- * instead throw an {@link InterruptedException}.
+ * this method throws <code>InteruptedIOException</code> rather than
+ * <code>InterruptedException</code>.
  * </p>
  * 
  * @author peter
@@ -91,28 +89,43 @@ class MediatedFileChannel extends FileChannel {
      * interrupted state of the thread itself to determine whether the Exception
      * occurred due to an interrupt on the current thread.
      * 
-     * @param e
+     * @param cce
      *            A ClosedChannelException
      * @throws IOException
      *             if (a) the attempt to reopen a new channel fails, or (b) the
      *             current thread was in fact interrupted.
      */
-    private void handleClosedChannelException(final ClosedChannelException e) throws IOException {
+    private void handleClosedChannelException(final ClosedChannelException cce) throws IOException {
+        /*
+         * The ClosedChannelException may have occurred because the client
+         * actually called close. In that event throwing the original exception
+         * is correct.
+         */
         if (_reallyClosed) {
-            throw e;
+            throw cce;
         }
+        /*
+         * Thread can't be in an interrupted state going forward - otherwise it
+         * will simply reprocess the interrupt logic.
+         */
         final boolean interrupted = Thread.interrupted();
-        //
-        // Thread can't be in an interrupted state for this - otherwise it will
-        // simply re-throw.
-        //
+        /*
+         * Open a new inner FileChannel
+         */
         openChannel();
+
         assert _reallyClosed || _channel != null && _channel.isOpen();
+        /*
+         * Behavior depends on whether this thread was originally the
+         * interrupted thread. If so then throw an InterruptedIOException which
+         * wraps the original exception. Otherwise return normally so that the
+         * while-loops in the methods below can retry the I/O operation using
+         * the new FileChannel.
+         */
         if (interrupted) {
             final InterruptedIOException iioe = new InterruptedIOException();
-            iioe.initCause(e);
+            iioe.initCause(cce);
             throw iioe;
-
         }
     }
 
@@ -136,6 +149,15 @@ class MediatedFileChannel extends FileChannel {
         }
     }
 
+    /*
+     * --------------------------------
+     * 
+     * Implementations of these FileChannel methods simply delegate to the inner
+     * FileChannel. But they retry on a ClosedChannelException resulting from an
+     * I/O operation on a different thread having been interrupted.
+     * 
+     * --------------------------------
+     */
     @Override
     public void force(boolean metaData) throws IOException {
         while (true) {
@@ -229,13 +251,17 @@ class MediatedFileChannel extends FileChannel {
         }
     }
 
-    // --------------
-    //
-    // Persistit does not use these methods. Note that it would be difficult to
-    // support the relative read/write methods because the channel size
-    // is unavailable after it is closed. Therefore a client of this class must
-    // maintain its own position counter and use the absolute addressing calls.
-    //
+    /*
+     * --------------------------------
+     * 
+     * Persistit does not use these methods and so they are Unsupported. Note
+     * that it would be difficult to support the relative read/write methods
+     * because the channel size is unavailable after it is closed. Therefore a
+     * client of this class must maintain its own position counter and cannot
+     * use the relative-addressing calls.
+     * 
+     * --------------------------------
+     */
     @Override
     public FileLock lock(long position, long size, boolean shared) throws IOException {
         throw new UnsupportedOperationException();
