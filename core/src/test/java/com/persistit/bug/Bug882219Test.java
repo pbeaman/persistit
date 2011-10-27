@@ -15,13 +15,13 @@
 
 package com.persistit.bug;
 
+import java.io.InterruptedIOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
 import org.junit.Test;
 
 import com.persistit.Exchange;
-import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
@@ -67,33 +67,45 @@ public class Bug882219Test extends PersistitUnitTestCase {
         final Transaction txn = ex.getTransaction();
         final long start = System.nanoTime();
         int errors = 0;
-        while (errors == 0 && System.nanoTime() - start < TIME) {
-            try {
-                txn.begin();
+        try {
+            while (errors == 0 && System.nanoTime() - start < TIME) {
+                boolean began = false;
                 try {
-                    ex.getValue().put(RED_FOX);
-                    for (int i = 0; i < 10000; i++) {
-                        ex.to(i).store();
+                    txn.begin();
+                    began = true;
+                    try {
+                        ex.getValue().put(RED_FOX);
+                        for (int i = 0; i < 10000; i++) {
+                            ex.to(i).store();
+                        }
+                        txn.commit(true); // force disk I/O
+                    } catch (PersistitInterruptedException e) {
+                        // clear interrupted flag and ignore
+                        Thread.interrupted();
+                    } catch (PersistitIOException e) {
+                        if (e.getCause() instanceof InterruptedIOException) {
+                            // ignore
+                        }
+                    } catch (Exception e) {
+                        // of interest
+                        e.printStackTrace();
+                        errors++;
+                        break;
+                    } finally {
+                        if (began) {
+                            txn.end();
+                        }
                     }
-                    txn.commit(true); // force disk I/O
                 } catch (PersistitInterruptedException e) {
-                    // clear interrupted flag
+                    // clear interrupted flag and ignore
                     Thread.interrupted();
-                } catch (PersistitIOException e) {
-                    if (TestShim.isIOInterruptedException(e.getCause())) {
-                        // ignore
-                    }
-                } catch (Exception e) {
-                    // of interest
-                    e.printStackTrace();
-                    errors++;
-                    break;
                 }
-            } finally {
-                txn.end();
             }
+        } finally {
+            timer.cancel();
+            // make sure interrupted state is cleared.
+            Thread.interrupted();
         }
-        timer.cancel();
         assertEquals(0, errors);
     }
 

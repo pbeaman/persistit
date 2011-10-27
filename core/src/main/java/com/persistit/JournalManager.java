@@ -1184,16 +1184,32 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                     Debug.$assert0.t(channel.size() == addressToOffset(address));
                     _writeBuffer.flip();
                     final int size = _writeBuffer.remaining();
-                    int written = 0;
-                    while (written < size) {
-                        written += channel.write(_writeBuffer);
-                    }
-                    assert written == size;
-                    _writeBufferAddress += _writeBuffer.position();
-                    if (_writeBuffer.capacity() != _writeBufferSize) {
-                        _writeBuffer = ByteBuffer.allocate(_writeBufferSize);
-                    } else {
-                        _writeBuffer.clear();
+                    boolean writeComplete = false;
+                    try {
+                        long a = (_writeBufferAddress + _writeBuffer.position()) % _blockSize;
+                        long b = channel.size();
+                        if (a != b) {
+                            System.out.println("boo");
+                        }
+                        int written = 0;
+                        while (written < size) {
+                            written += channel.write(_writeBuffer, a);
+                        }
+                        writeComplete = true;
+                        assert written == size;
+                        _writeBufferAddress += size;
+                        if (_writeBuffer.capacity() != _writeBufferSize) {
+                            _writeBuffer = ByteBuffer.allocate(_writeBufferSize);
+                        } else {
+                            _writeBuffer.clear();
+                        }
+                    } finally {
+                        if (!writeComplete) {
+                            // If the buffer didn't get written, perhaps due to
+                            // an interrupt, then flip it back so another thread
+                            // can write it.
+                            _writeBuffer.position(_writeBuffer.limit());
+                        }
                     }
                     final long remaining = _blockSize - (_writeBufferAddress % _blockSize);
                     if (remaining < _writeBuffer.limit()) {

@@ -48,7 +48,4 @@ public class TestShim {
         return persistit.getTimestampAllocator();
     }
 
-    public static boolean isIOInterruptedException(Throwable e) {
-        return e instanceof MediatedFileChannel.IOInterruptedException;
-    }
 }

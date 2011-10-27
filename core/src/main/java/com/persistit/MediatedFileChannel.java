@@ -1,7 +1,23 @@
+/**
+ * Copyright (C) 2011 Akiban Technologies Inc.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License, version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses.
+ */
+
 package com.persistit;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
@@ -55,19 +71,6 @@ class MediatedFileChannel extends FileChannel {
     FileLock _lock;
     boolean _reallyClosed;
 
-    /**
-     * Exception thrown when an IO operation is interrupted. This should be
-     * treated like an <code>InterruptedException</code>.
-     */
-    static class IOInterruptedException extends IOException {
-
-        private static final long serialVersionUID = 1L;
-
-        public IOInterruptedException(final Throwable cause) {
-            super(cause);
-        }
-    }
-
     MediatedFileChannel(final String path, final String mode) throws IOException {
         this(new File(path), mode);
     }
@@ -95,16 +98,21 @@ class MediatedFileChannel extends FileChannel {
      *             current thread was in fact interrupted.
      */
     private void handleClosedChannelException(final ClosedChannelException e) throws IOException {
+        if (_reallyClosed) {
+            throw e;
+        }
         final boolean interrupted = Thread.interrupted();
         //
         // Thread can't be in an interrupted state for this - otherwise it will
         // simply re-throw.
         //
         openChannel();
+        assert _reallyClosed || _channel != null && _channel.isOpen();
         if (interrupted) {
-            throw new IOInterruptedException(e);
-        } else {
-            System.out.println("asynch");
+            final InterruptedIOException iioe = new InterruptedIOException();
+            iioe.initCause(e);
+            throw iioe;
+
         }
     }
 
@@ -139,26 +147,17 @@ class MediatedFileChannel extends FileChannel {
             }
         }
     }
-    
-    @Override
-    public int read(ByteBuffer byteBuffer) throws IOException {
-        while (true) {
-            try {
-                return _channel.read(byteBuffer);
-            } catch (ClosedChannelException e) {
-                handleClosedChannelException(e);
-            }
-        }
-    }
 
     @Override
     public int read(ByteBuffer byteBuffer, long position) throws IOException {
+        final int offset = byteBuffer.position();
         while (true) {
             try {
                 return _channel.read(byteBuffer, position);
             } catch (ClosedChannelException e) {
                 handleClosedChannelException(e);
             }
+            byteBuffer.position(offset);
         }
     }
 
@@ -198,26 +197,16 @@ class MediatedFileChannel extends FileChannel {
 
     @Override
     public int write(ByteBuffer byteBuffer, long position) throws IOException {
+        final int offset = byteBuffer.position();
         while (true) {
             try {
                 return _channel.write(byteBuffer, position);
             } catch (ClosedChannelException e) {
                 handleClosedChannelException(e);
             }
+            byteBuffer.position(offset);
         }
     }
-    
-
-    @Override
-    public int write(ByteBuffer byteBuffer) throws IOException {
-        while (true) {
-            try {
-                return _channel.write(byteBuffer);
-            } catch (ClosedChannelException e) {
-                handleClosedChannelException(e);
-            }
-        }    }
-
 
     /**
      * Implement closing of this <code>MediatedFileChannel</code> by closing the
@@ -242,7 +231,10 @@ class MediatedFileChannel extends FileChannel {
 
     // --------------
     //
-    // Persistit does not use these methods.
+    // Persistit does not use these methods. Note that it would be difficult to
+    // support the relative read/write methods because the channel size
+    // is unavailable after it is closed. Therefore a client of this class must
+    // maintain its own position counter and use the absolute addressing calls.
     //
     @Override
     public FileLock lock(long position, long size, boolean shared) throws IOException {
@@ -264,6 +256,10 @@ class MediatedFileChannel extends FileChannel {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public int read(ByteBuffer byteBuffer) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public long read(ByteBuffer[] arg0, int arg1, int arg2) throws IOException {
@@ -277,6 +273,11 @@ class MediatedFileChannel extends FileChannel {
 
     @Override
     public long transferTo(long arg0, long arg1, WritableByteChannel arg2) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int write(ByteBuffer byteBuffer) throws IOException {
         throw new UnsupportedOperationException();
     }
 
