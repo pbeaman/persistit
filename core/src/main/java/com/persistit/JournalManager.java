@@ -1186,14 +1186,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                     final int size = _writeBuffer.remaining();
                     boolean writeComplete = false;
                     try {
-                        long a = (_writeBufferAddress + _writeBuffer.position()) % _blockSize;
-                        long b = channel.size();
-                        if (a != b) {
-                            System.out.println("boo");
-                        }
                         int written = 0;
                         while (written < size) {
-                            written += channel.write(_writeBuffer, a);
+                            written += channel.write(_writeBuffer, (_writeBufferAddress + _writeBuffer.position())
+                                    % _blockSize);
                         }
                         writeComplete = true;
                         assert written == size;
