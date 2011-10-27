@@ -43,8 +43,12 @@ public class TestShim {
     public static Buffer buffer(final Volume volume, final long page) throws Exception {
         return volume.getPool().get(volume, page, false, true);
     }
-    
+
     public static TimestampAllocator timestampAllocator(final Persistit persistit) {
         return persistit.getTimestampAllocator();
+    }
+
+    public static boolean isIOInterruptedException(Throwable e) {
+        return e instanceof MediatedFileChannel.IOInterruptedException;
     }
 }

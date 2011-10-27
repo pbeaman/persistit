@@ -330,7 +330,7 @@ public class Volume extends SharedResource {
 
             updateHeaderInfo(_headBuffer.getBytes());
 
-            _channel = new RandomAccessFile(_path, "rw").getChannel();
+            _channel = new MediatedFileChannel(_path, "rw");
             lockChannel();
             _headBuffer.getByteBuffer().position(0).limit(_headBuffer.getBufferSize());
             _channel.write(_headBuffer.getByteBuffer(), 0);
@@ -379,7 +379,7 @@ public class Volume extends SharedResource {
             initializePathAndName(path, name, false);
 
             _readOnly = readOnly;
-            _channel = new RandomAccessFile(_path, readOnly ? "r" : "rw").getChannel();
+            _channel = new MediatedFileChannel(_path, readOnly ? "r" : "rw");
             lockChannel();
             _header = new VolumeHeader(_channel);
             final ByteBuffer bb = _header.validate();

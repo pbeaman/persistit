@@ -1184,7 +1184,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                     Debug.$assert0.t(channel.size() == addressToOffset(address));
                     _writeBuffer.flip();
                     final int size = _writeBuffer.remaining();
-                    channel.write(_writeBuffer);
+                    int written = 0;
+                    while (written < size) {
+                        written += channel.write(_writeBuffer);
+                    }
+                    assert written == size;
                     _writeBufferAddress += _writeBuffer.position();
                     if (_writeBuffer.capacity() != _writeBufferSize) {
                         _writeBuffer = ByteBuffer.allocate(_writeBufferSize);
@@ -1363,8 +1367,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         FileChannel channel = _journalFileChannels.get(generation);
         if (channel == null) {
             try {
-                final RandomAccessFile raf = new RandomAccessFile(addressToFile(address), "rw");
-                channel = raf.getChannel();
+                channel = new MediatedFileChannel(addressToFile(address), "rw");
                 _journalFileChannels.put(generation, channel);
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);
