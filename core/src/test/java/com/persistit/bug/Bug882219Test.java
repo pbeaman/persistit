@@ -47,7 +47,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 public class Bug882219Test extends PersistitUnitTestCase {
 
     // Thirty seconds
-    final static long TIME = 30L * 1000L * 1000L * 1000L;
+    final static long TIME = 20L * 1000L * 1000L * 1000L;
 
     // Flush caches:
     // sudo sh -c "echo 3 > /proc/sys/vm/drop_caches"
@@ -67,6 +67,8 @@ public class Bug882219Test extends PersistitUnitTestCase {
         final Transaction txn = ex.getTransaction();
         final long start = System.nanoTime();
         int errors = 0;
+        int commits = 0;
+        int transactions = 0;
         try {
             while (errors == 0 && System.nanoTime() - start < TIME) {
                 boolean began = false;
@@ -79,6 +81,7 @@ public class Bug882219Test extends PersistitUnitTestCase {
                             ex.to(i).store();
                         }
                         txn.commit(true); // force disk I/O
+                        commits++;
                     } catch (PersistitInterruptedException e) {
                         // clear interrupted flag and ignore
                         Thread.interrupted();
@@ -94,11 +97,20 @@ public class Bug882219Test extends PersistitUnitTestCase {
                     } finally {
                         if (began) {
                             txn.end();
+                            transactions++;
                         }
                     }
                 } catch (PersistitInterruptedException e) {
                     // clear interrupted flag and ignore
                     Thread.interrupted();
+                } catch (PersistitIOException e) {
+                    if (e.getCause() instanceof InterruptedIOException) {
+                        // clear interrupted flag and ignore
+
+                        Thread.interrupted();
+                    } else {
+                        throw e;
+                    }
                 }
             }
         } finally {
@@ -106,6 +118,7 @@ public class Bug882219Test extends PersistitUnitTestCase {
             // make sure interrupted state is cleared.
             Thread.interrupted();
         }
+        System.out.printf("Transactions=%d  Commits=%d  Errors=%d", transactions, commits, errors);
         assertEquals(0, errors);
     }
 

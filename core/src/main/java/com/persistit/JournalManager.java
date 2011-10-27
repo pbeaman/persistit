@@ -17,7 +17,6 @@ package com.persistit;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
@@ -1131,7 +1130,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         if (copier != null) {
             _persistit.waitForIOTaskStop(copier);
         }
-        
+
         JournalFlusher flusher = _flusher;
         _flusher = null;
         if (flusher != null) {
@@ -1192,14 +1191,15 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
      */
     synchronized long flush() throws PersistitIOException {
         final long address = _writeBufferAddress;
-        boolean flipped = false;
         if (address != Long.MAX_VALUE && _writeBuffer != null) {
             try {
                 if (_writeBuffer.position() > 0) {
                     final FileChannel channel = getFileChannel(address);
                     Debug.$assert0.t(channel.size() == addressToOffset(address));
+                    final int limit = _writeBuffer.limit();
+                    final int position = _writeBuffer.position();
+
                     _writeBuffer.flip();
-                    flipped = true;
                     final int size = _writeBuffer.remaining();
                     boolean writeComplete = false;
                     try {
@@ -1216,28 +1216,23 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                         } else {
                             _writeBuffer.clear();
                         }
+                        final long remaining = _blockSize - (_writeBufferAddress % _blockSize);
+                        if (remaining < _writeBuffer.limit()) {
+                            _writeBuffer.limit((int) remaining);
+                        }
                     } finally {
                         if (!writeComplete) {
                             // If the buffer didn't get written, perhaps due to
-                            // an interrupt, then flip it back so another thread
-                            // can write it.
-                            _writeBuffer.position(_writeBuffer.limit());
+                            // an interrupt, then restore its position and limit
+                            // to enable a retry.
+                            _writeBuffer.limit(limit).position(position);
                         }
-                    }
-                    flipped = false;
-                    final long remaining = _blockSize - (_writeBufferAddress % _blockSize);
-                    if (remaining < _writeBuffer.limit()) {
-                        _writeBuffer.limit((int) remaining);
                     }
                     _persistit.getIOMeter().chargeFlushJournal(size, address);
                     return _writeBufferAddress;
                 }
             } catch (IOException e) {
                 throw new PersistitIOException("IOException while writing to file " + addressToFile(address), e);
-            } finally {
-                if (flipped) {
-                    _writeBuffer.flip();
-                }
             }
         }
         return Long.MAX_VALUE;
@@ -1319,10 +1314,15 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         if (_writeBufferAddress != Long.MAX_VALUE) {
             writeJournalEnd();
             flush();
+            final long length = _currentAddress % _blockSize;
+            final boolean matches = length == (_writeBuffer.position() + _writeBufferAddress) % _blockSize;
+            _currentAddress = ((_currentAddress / _blockSize) + 1) * _blockSize;
+            _writeBuffer.clear();
+            _writeBufferAddress = _currentAddress;
+            _isNewEpoch = false;
+
             try {
                 final FileChannel channel = getFileChannel(_currentAddress);
-                final long length = _currentAddress % _blockSize;
-                final boolean matches = length == (_writeBuffer.position() + _writeBufferAddress) % _blockSize;
                 Debug.$assert0.t(matches);
                 if (matches) {
                     channel.truncate(length);
@@ -1331,10 +1331,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);
             }
-            _currentAddress = ((_currentAddress / _blockSize) + 1) * _blockSize;
-            _writeBuffer.clear();
-            _writeBufferAddress = _currentAddress;
-            _isNewEpoch = false;
         }
     }
 
@@ -1901,7 +1897,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             }
 
             volume.verifyId(volume.getId());
-            
+
             final int at = bb.position();
             final long pageAddress = readPageBufferFromJournal(pageNode, bb);
             Debug.$assert0.t(pageAddress == pageNode.getPageAddress());
@@ -1928,7 +1924,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                 list.clear();
                 break;
             }
-            
+
             final PageNode pageNode = iterator.next();
             if (pageNode.getVolumeHandle() != handle) {
                 handle = -1;
@@ -1939,7 +1935,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                     volume = _persistit.getVolume(volume.getName());
                 }
             }
-            
+
             if (volume == null || volume.isClosed()) {
                 // Remove from the List so that below we won't remove it from
                 // from
