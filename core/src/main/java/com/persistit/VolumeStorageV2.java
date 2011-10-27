@@ -159,7 +159,7 @@ class VolumeStorageV2 extends VolumeStorage {
             throw new VolumeAlreadyExistsException(getPath());
         }
         try {
-            _channel = new RandomAccessFile(getPath(), "rw").getChannel();
+            _channel = new MediatedFileChannel(getPath(), "rw");
             lockChannel();
             truncate();
             _opened = true;
@@ -198,7 +198,7 @@ class VolumeStorageV2 extends VolumeStorage {
         VolumeStructure struc = _volume.getStructure();
 
         try {
-            _channel = new RandomAccessFile(getPath(), isReadOnly() ? "r" : "rw").getChannel();
+            _channel = new MediatedFileChannel(getPath(), isReadOnly() ? "r" : "rw");
             lockChannel();
             _nextAvailablePage = 1; // correct value installed below
             _volume.setId(spec.getId());

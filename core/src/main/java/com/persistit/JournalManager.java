@@ -1201,12 +1201,28 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
                     _writeBuffer.flip();
                     flipped = true;
                     final int size = _writeBuffer.remaining();
-                    channel.write(_writeBuffer);
-                    _writeBufferAddress += _writeBuffer.position();
-                    if (_writeBuffer.capacity() != _writeBufferSize) {
-                        _writeBuffer = ByteBuffer.allocate(_writeBufferSize);
-                    } else {
-                        _writeBuffer.clear();
+                    boolean writeComplete = false;
+                    try {
+                        int written = 0;
+                        while (written < size) {
+                            written += channel.write(_writeBuffer, (_writeBufferAddress + _writeBuffer.position())
+                                    % _blockSize);
+                        }
+                        writeComplete = true;
+                        assert written == size;
+                        _writeBufferAddress += size;
+                        if (_writeBuffer.capacity() != _writeBufferSize) {
+                            _writeBuffer = ByteBuffer.allocate(_writeBufferSize);
+                        } else {
+                            _writeBuffer.clear();
+                        }
+                    } finally {
+                        if (!writeComplete) {
+                            // If the buffer didn't get written, perhaps due to
+                            // an interrupt, then flip it back so another thread
+                            // can write it.
+                            _writeBuffer.position(_writeBuffer.limit());
+                        }
                     }
                     flipped = false;
                     final long remaining = _blockSize - (_writeBufferAddress % _blockSize);
@@ -1385,8 +1401,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         FileChannel channel = _journalFileChannels.get(generation);
         if (channel == null) {
             try {
-                final RandomAccessFile raf = new RandomAccessFile(addressToFile(address), "rw");
-                channel = raf.getChannel();
+                channel = new MediatedFileChannel(addressToFile(address), "rw");
                 _journalFileChannels.put(generation, channel);
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);
