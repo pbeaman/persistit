@@ -1402,7 +1402,7 @@ public class Transaction {
         _visbilityOrder.clear();
         if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
             setupExchanges();
-            _ex1.getVolume().truncate();
+            _ex1.removeAll();
             _pendingStoreCount = 0;
             _pendingRemoveCount = 0;
         }
