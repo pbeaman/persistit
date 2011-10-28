@@ -197,7 +197,9 @@ public class TransactionIndexConcurrencyTest extends TestCase {
                     }
                 }
                 if (retry) {
-                    long tc = ti.wwDependency(versionHandle, txn.status, 60000);
+                    // Five minutes because some transactions can sleep for multiples
+                    // of 100 seconds.
+                    long tc = ti.wwDependency(versionHandle, txn.status, 300000);
                     if (tc == TIMED_OUT) {
                         throw new TimeoutException();
                     }
