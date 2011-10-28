@@ -23,9 +23,9 @@ import com.persistit.exception.PersistitIOException;
 /**
  * Accessors for package-private methods in com.persistit so that unit tests can
  * be in a different package.
- * 
+ *
  * @author peter
- * 
+ *
  */
 public class TestShim {
 
@@ -54,5 +54,4 @@ public class TestShim {
     public static void closeTransaction(Transaction t) throws PersistitException {
         t.close();
     }
-
 }
