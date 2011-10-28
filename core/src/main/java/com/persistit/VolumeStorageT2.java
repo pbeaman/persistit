@@ -116,7 +116,7 @@ class VolumeStorageT2 extends VolumeStorage {
         try {
             final File file = File.createTempFile(TEMP_FILE_PREFIX, null, directory);
             _path = file.getPath();
-            _channel = new RandomAccessFile(file, "rw").getChannel();
+            _channel = new MediatedFileChannel(file, "rw");
             truncate();
             _opened = true;
         } catch (IOException ioe) {

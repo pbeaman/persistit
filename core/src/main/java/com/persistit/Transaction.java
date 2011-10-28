@@ -734,9 +734,7 @@ public class Transaction {
         if (_nestedDepth == 0) {
             _commitListeners.clear();
             // First release the pessimistic lock if we claimed it.
-            if (_rollbackPending) {
-                Debug.$assert1.t(_rollbacksSinceLastCommit - _pessimisticRetryThreshold < 20);
-            }
+
             _persistit.getTransactionResourceA().release();
             _startTimestamp.set(-1);
             _commitTimestamp.set(-1);
