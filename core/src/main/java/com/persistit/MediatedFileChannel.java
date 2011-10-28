@@ -56,6 +56,11 @@ import java.nio.channels.spi.AbstractInterruptibleChannel;
  * this method throws <code>InteruptedIOException</code> rather than
  * <code>InterruptedException</code>.
  * </p>
+ * <p>
+ * A number of methods of <code>FileChannel</code> including all methods that
+ * depend on the channel's file position, are unsupported and throw
+ * {@link UnsupportedOperationException}s.
+ * </p>
  * 
  * @author peter
  * 
