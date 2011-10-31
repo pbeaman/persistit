@@ -138,9 +138,9 @@ public class TransactionIndexBucket {
     long _activeTransactionFloor;
     /**
      * Lock used to prevent multi-threaded access to the lists in this
-     * structure.
+     * structure. Fair to prevent barging.
      */
-    ReentrantLock _lock = new ReentrantLock();
+    ReentrantLock _lock = new ReentrantLock(true);
 
     TransactionIndexBucket(final TransactionIndex index) {
         _transactionIndex = index;
@@ -182,9 +182,6 @@ public class TransactionIndexBucket {
         }
         _current = status;
         _currentCount++;
-        if (_currentCount > _transactionIndex.getLongRunningThreshold()) {
-            reduce();
-        }
     }
 
     TransactionStatus getCurrent() {
@@ -484,7 +481,7 @@ public class TransactionIndexBucket {
 
     @Override
     public String toString() {
-        return String.format("<floor=%s current=[%s] aborted=[%s] long=[%s] free=[%s]>", TransactionIndex
+        return String.format("<floor=%s current=[%s]\n    aborted=[%s]\n    long=[%s]\n    free=[%s]>", TransactionIndex
                 .minMaxString(_floor), listString(_current), listString(_aborted), listString(_longRunning),
                 listString(_free));
     }

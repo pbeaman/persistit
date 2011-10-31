@@ -430,26 +430,45 @@ public class TransactionIndex {
      * @throws InterruptedException
      * @throws TimeoutException
      */
-    synchronized TransactionStatus registerTransaction() throws TimeoutException, InterruptedException {
-        final long ts = _timestampAllocator.updateTimestamp();
-        int index = hashIndex(ts);
-        TransactionIndexBucket bucket = _hashTable[index];
+    TransactionStatus registerTransaction() throws TimeoutException, InterruptedException {
         final TransactionStatus status;
-        bucket.lock();
-        try {
-            status = bucket.allocateTransactionStatus();
-            status.initialize(ts);
-            bucket.addCurrent(status);
-        } finally {
-            bucket.unlock();
+        final TransactionIndexBucket bucket;
+        synchronized (this) {
+            final long ts = _timestampAllocator.updateTimestamp();
+            int index = hashIndex(ts);
+            bucket = _hashTable[index];
+            bucket.lock();
+            try {
+                status = bucket.allocateTransactionStatus();
+                status.initialize(ts);
+                bucket.addCurrent(status);
+            } finally {
+                bucket.unlock();
+            }
         }
+
         /*
          * The TransactionStatus is locked for the entire duration of the
          * running transaction. The following call should always succeed
          * immediately; a TimeoutException here signifies a software failure or
          * a thread terminated by {@link Thread#stop()} somewhere else.
          */
-        status.wwLock(VERY_LONG_TIMEOUT);
+        if (!status.wwLock(VERY_LONG_TIMEOUT)) {
+            throw new IllegalStateException("wwLock was unavailable on newly allocated TransactionStatus");
+        }
+        /*
+         * General hygiene - call reduce if the current count is bigger than the
+         * threshold - but this is merely an optimization and the test does not
+         * need to be synchronized.
+         */
+        if (bucket.getCurrentCount() > _longRunningThreshold) {
+            bucket.lock();
+            try {
+                bucket.reduce();
+            } finally {
+                bucket.unlock();
+            }
+        }
         return status;
     }
 
