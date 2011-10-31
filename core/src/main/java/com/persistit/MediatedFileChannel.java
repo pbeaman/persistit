@@ -56,6 +56,11 @@ import java.nio.channels.spi.AbstractInterruptibleChannel;
  * this method throws <code>InteruptedIOException</code> rather than
  * <code>InterruptedException</code>.
  * </p>
+ * <p>
+ * A number of methods of <code>FileChannel</code> including all methods that
+ * depend on the channel's file position, are unsupported and throw
+ * {@link UnsupportedOperationException}s.
+ * </p>
  * 
  * @author peter
  * 
@@ -65,9 +70,8 @@ class MediatedFileChannel extends FileChannel {
     final File _file;
     final String _mode;
 
-    FileChannel _channel;
-    FileLock _lock;
-    boolean _reallyClosed;
+    volatile FileChannel _channel;
+    volatile FileChannel _lockChannel;
 
     MediatedFileChannel(final String path, final String mode) throws IOException {
         this(new File(path), mode);
@@ -101,20 +105,13 @@ class MediatedFileChannel extends FileChannel {
          * actually called close. In that event throwing the original exception
          * is correct.
          */
-        if (_reallyClosed) {
+        if (!isOpen()) {
             throw cce;
         }
-        /*
-         * Thread can't be in an interrupted state going forward - otherwise it
-         * will simply reprocess the interrupt logic.
-         */
-        final boolean interrupted = Thread.interrupted();
         /*
          * Open a new inner FileChannel
          */
         openChannel();
-
-        assert _reallyClosed || _channel != null && _channel.isOpen();
         /*
          * Behavior depends on whether this thread was originally the
          * interrupted thread. If so then throw an InterruptedIOException which
@@ -122,7 +119,7 @@ class MediatedFileChannel extends FileChannel {
          * while-loops in the methods below can retry the I/O operation using
          * the new FileChannel.
          */
-        if (interrupted) {
+        if (Thread.interrupted()) {
             final InterruptedIOException iioe = new InterruptedIOException();
             iioe.initCause(cce);
             throw iioe;
@@ -137,15 +134,8 @@ class MediatedFileChannel extends FileChannel {
      * @throws IOException
      */
     private synchronized void openChannel() throws IOException {
-        if (!_reallyClosed && (_channel == null || !_channel.isOpen())) {
-            if (_channel != null) {
-                Thread.interrupted();
-            }
+        if (isOpen() && (_channel == null || !_channel.isOpen())) {
             _channel = new RandomAccessFile(_file, _mode).getChannel();
-            FileLock oldLock = _lock;
-            if (oldLock != null) {
-                _lock = _channel.tryLock(oldLock.position(), oldLock.size(), oldLock.isShared());
-            }
         }
     }
 
@@ -206,15 +196,11 @@ class MediatedFileChannel extends FileChannel {
     }
 
     @Override
-    public FileLock tryLock(long position, long size, boolean shared) throws IOException {
-        while (true) {
-            try {
-                _lock = _channel.tryLock(position, size, shared);
-                return _lock;
-            } catch (ClosedChannelException e) {
-                handleClosedChannelException(e);
-            }
+    public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
+        if (_lockChannel == null) {
+            _lockChannel = new RandomAccessFile(_file, _mode).getChannel();
         }
+        return _lockChannel.tryLock(position, size, shared);
     }
 
     @Override
@@ -237,15 +223,26 @@ class MediatedFileChannel extends FileChannel {
      * operation after this thread has closed the channel.
      */
     @Override
-    protected void implCloseChannel() throws IOException {
-        synchronized (this) {
-            if (_reallyClosed) {
-                return;
-            }
-            _reallyClosed = true;
-        }
+    protected synchronized void implCloseChannel() throws IOException {
         try {
-            _channel.close();
+            IOException exception = null;
+            try {
+                if (_lockChannel != null) {
+                    _lockChannel.close();
+                }
+            } catch (IOException e) {
+                exception = e;
+            }
+            try {
+                if (_channel != null) {
+                    _channel.close();
+                }
+            } catch (IOException e) {
+                exception = e;
+            }
+            if (exception != null) {
+                throw exception;
+            }
         } catch (ClosedChannelException e) {
             // ignore - whatever, the channel is closed
         }
