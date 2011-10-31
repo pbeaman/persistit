@@ -92,6 +92,8 @@ public class MediatedFileChannelTest extends TestCase {
                 } catch (InterruptedIOException e) {
                     // ignore -- expected
                     interrupts++;
+                    // need to clear the interrupted status
+                    Thread.interrupted();
                 } catch (IOException e) {
                     e.printStackTrace();
                     errors++;
