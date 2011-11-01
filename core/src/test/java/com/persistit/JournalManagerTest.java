@@ -65,17 +65,18 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
         assertTrue(exchange.next(true));
         final long[] timestamps = new long[100];
+        long chain = 0;
         for (int i = 0; i < 100; i++) {
             assertTrue(exchange.next(true));
             final int treeHandle = jman.handleForTree(exchange.getTree());
             timestamps[i] = _persistit.getTimestampAllocator().updateTimestamp();
             jman.writeTransactionStartToJournal(timestamps[i]);
-            jman.writeStoreRecordToJournal(timestamps[i], treeHandle, exchange.getKey(), exchange.getValue());
+            jman.writeStoreRecordToJournal(timestamps[i], chain, treeHandle, exchange.getKey(), exchange.getValue());
             if (i % 50 == 0) {
                 jman.rollover();
             }
             if (i % 4 == 1) {
-                jman.writeTransactionCommitToJournal(timestamps[i], timestamps[i] + 1);
+                chain = jman.writeTransactionCommitToJournal(timestamps[i], chain, timestamps[i] + 1);
             }
         }
         jman.rollover();
@@ -90,7 +91,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             final int treeHandle = jman.handleForTree(exchange.getTree());
             timestamps[i] = _persistit.getTimestampAllocator().updateTimestamp();
             jman.writeTransactionStartToJournal(timestamps[i]);
-            jman.writeDeleteRecordToJournal(timestamps[i], treeHandle, exchange.getKey(), exchange.getKey());
+            chain = jman.writeDeleteRecordToJournal(timestamps[i], chain, treeHandle, exchange.getKey(), exchange.getKey());
             if (i == 66) {
                 jman.rollover();
             }
@@ -101,7 +102,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 commitCount = 0;
             }
             if (i % 4 == 3) {
-                jman.writeTransactionCommitToJournal(timestamps[i], timestamps[i] + 1);
+                chain = jman.writeTransactionCommitToJournal(timestamps[i], chain, timestamps[i] + 1);
                 commitCount++;
             }
         }
@@ -232,6 +233,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         long timestamp = 0;
         long addressBeforeRollover = -1;
         long addressAfterRollover = -1;
+        long chain = 0;
         while (jman.getCurrentAddress() < 300 * 1000 * 1000) {
             long remaining = jman.getBlockSize() - (jman.getCurrentAddress() % jman.getBlockSize()) - 1;
             if (remaining == JournalRecord.JE.OVERHEAD) {
@@ -243,7 +245,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             } else {
                 exchange.getValue().put(kilo);
             }
-            jman.writeStoreRecordToJournal(++timestamp, 12345, exchange.getKey(), exchange.getValue());
+            chain = jman.writeStoreRecordToJournal(++timestamp, chain, 12345, exchange.getKey(), exchange.getValue());
             if (remaining == JournalRecord.JE.OVERHEAD) {
                 addressAfterRollover = jman.getCurrentAddress();
                 assertTrue(addressAfterRollover - addressBeforeRollover < 2000);

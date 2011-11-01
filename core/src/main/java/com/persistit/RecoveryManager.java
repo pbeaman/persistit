@@ -1377,6 +1377,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             case DR.TYPE: {
                 read(address, recordSize);
                 final int key1Size = DR.getKey1Size(_readBuffer);
+                final int elisionCount = DR.getKey2Elision(_readBuffer);
                 final Exchange exchange = getExchange(DR.getTreeHandle(_readBuffer), address, timestamp);
                 exchange.ignoreTransactions();
                 final Key key1 = exchange.getAuxiliaryKey1();
@@ -1385,9 +1386,10 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                         key1Size);
                 key1.setEncodedSize(key1Size);
                 final int key2Size = recordSize - DR.OVERHEAD - key1Size;
+                System.arraycopy(key1.getEncodedBytes(), 0, key2.getEncodedBytes(), 0, elisionCount);
                 System.arraycopy(_readBuffer.array(), _readBuffer.position() + DR.OVERHEAD + key1Size, key2
-                        .getEncodedBytes(), 0, key2Size);
-                key2.setEncodedSize(key2Size);
+                        .getEncodedBytes(), elisionCount, key2Size);
+                key2.setEncodedSize(key2Size + elisionCount);
                 listener.removeKeyRange(address, timestamp, exchange, exchange.getAuxiliaryKey1(), exchange
                         .getAuxiliaryKey2());
                 _persistit.releaseExchange(exchange);
