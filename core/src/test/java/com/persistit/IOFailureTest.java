@@ -23,6 +23,7 @@ import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -291,17 +292,24 @@ public class IOFailureTest extends PersistitUnitTestCase {
         final File file0 = jman.addressToFile(currentAddress - jman.getBlockSize());
         final FileChannel channel0 = new RandomAccessFile(file0, "rw").getChannel();
         final long size0 = channel0.size();
-        channel0.truncate(1000);
+        channel0.truncate(100);
         
         final File file1 = jman.addressToFile(currentAddress);
         final FileChannel channel1 = new RandomAccessFile(file1, "rw").getChannel();
         final long size1 = channel1.size();
-//        channel1.truncate(1000);
+        channel1.truncate(100);
         
         channel1.close();
         
         _persistit = new Persistit();
+        try {
         _persistit.initialize(properties);
+        } catch (CorruptJournalException cje) {
+            // expected
+        }
+        file1.delete();
+        _persistit.initialize(properties);
+        
         
     }
 
