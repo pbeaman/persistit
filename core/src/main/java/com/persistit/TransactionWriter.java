@@ -22,19 +22,19 @@ import com.persistit.exception.PersistitIOException;
 
 interface TransactionWriter {
 
-    boolean writeTransactionStartToJournal(final long startTimestamp) throws PersistitIOException;
+    long writeTransactionStartToJournal(final long startTimestamp) throws PersistitIOException;
 
-    boolean writeTransactionCommitToJournal(final long timestamp, final long commitTimestamp)
+    long writeTransactionCommitToJournal(final long timestamp, final long previousJournalAddress, final long commitTimestamp)
             throws PersistitIOException;
 
-    boolean writeStoreRecordToJournal(final long timestamp, final int treeHandle, final Key key, final Value value)
+    long writeStoreRecordToJournal(final long timestamp, final long previousJournalAddress, final int treeHandle, final Key key, final Value value)
             throws PersistitIOException;
 
-    boolean writeDeleteRecordToJournal(final long timestamp, final int treeHandle, final Key key1, final Key key2)
+    long writeDeleteRecordToJournal(final long timestamp, final long previousJournalAddress, final int treeHandle, final Key key1, final Key key2)
             throws PersistitIOException;
 
-    boolean writeDeleteTreeToJournal(final long timestamp, final int treeHandle) throws PersistitIOException;
+    long writeDeleteTreeToJournal(final long timestamp, final long previousJournalAddress, final int treeHandle) throws PersistitIOException;
 
-    boolean writeCacheUpdatesToJournal(final long timestamp, final long cacheId, final List<Update> udpates)
+    long writeCacheUpdatesToJournal(final long timestamp, final long previousJournalAddress, final long cacheId, final List<Update> udpates)
             throws PersistitIOException;
 }

@@ -353,6 +353,8 @@ public class Transaction {
 
     private Checkpoint _transactionalCacheCheckpoint;
 
+    private long _previousJournalAddress;
+
     private Map<Integer, WeakReference<Tree>> _treeCache = new HashMap<Integer, WeakReference<Tree>>();
 
     private class TransactionBuffer implements TransactionWriter {
@@ -360,72 +362,76 @@ public class Transaction {
         private ByteBuffer _bb = ByteBuffer.allocate(DEFAULT_TXN_BUFFER_SIZE);
 
         @Override
-        public boolean writeTransactionStartToJournal(long startTimestamp) throws PersistitIOException {
+        public long writeTransactionStartToJournal(long startTimestamp) throws PersistitIOException {
             if (DISABLE_TXN_BUFFER || _bb.remaining() < TS.OVERHEAD) {
-                return false;
+                return -1;
             }
             _persistit.getJournalManager().writeTransactionStartToJournal(_bb, TS.OVERHEAD, startTimestamp);
-            return true;
+            return 0;
 
         }
 
         @Override
-        public boolean writeTransactionCommitToJournal(long timestamp, long commitTimestamp)
-                throws PersistitIOException {
+        public long writeTransactionCommitToJournal(long timestamp, final long previousJournalAddress,
+                long commitTimestamp) throws PersistitIOException {
             if (DISABLE_TXN_BUFFER || _bb.remaining() < TC.OVERHEAD) {
-                return false;
+                return -1;
             }
-            _persistit.getJournalManager()
-                    .writeTransactionCommitToJournal(_bb, TC.OVERHEAD, timestamp, commitTimestamp);
-            return true;
+            _persistit.getJournalManager().writeTransactionCommitToJournal(_bb, TC.OVERHEAD, timestamp,
+                    previousJournalAddress, commitTimestamp);
+            return 0;
 
         }
 
         @Override
-        public boolean writeStoreRecordToJournal(long timestamp, int treeHandle, Key key, Value value)
-                throws PersistitIOException {
+        public long writeStoreRecordToJournal(long timestamp, final long previousJournalAddress, int treeHandle,
+                Key key, Value value) throws PersistitIOException {
             final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
             if (DISABLE_TXN_BUFFER || _bb.remaining() < recordSize) {
-                return false;
+                return -1;
             }
-            _persistit.getJournalManager()
-                    .writeStoreRecordToJournal(_bb, recordSize, timestamp, treeHandle, key, value);
-            return true;
+            _persistit.getJournalManager().writeStoreRecordToJournal(_bb, recordSize, timestamp,
+                    previousJournalAddress, treeHandle, key, value);
+            return 0;
         }
 
         @Override
-        public boolean writeDeleteRecordToJournal(long timestamp, int treeHandle, Key key1, Key key2)
-                throws PersistitIOException {
-            final int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize();
+        public long writeDeleteRecordToJournal(long timestamp, final long previousJournalAddress, int treeHandle,
+                Key key1, Key key2) throws PersistitIOException {
+            int elisionCount = key2.firstUniqueByteIndex(key1);
+            final int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
             if (DISABLE_TXN_BUFFER || _bb.remaining() < recordSize) {
-                return false;
+                return -1;
             }
-            _persistit.getJournalManager().writeDeleteRecordToJournal(_bb, recordSize, timestamp, treeHandle, key1,
-                    key2);
-            return true;
+            _persistit.getJournalManager().writeDeleteRecordToJournal(_bb, recordSize, timestamp,
+                    previousJournalAddress, treeHandle, key1, elisionCount, key2);
+            return 0;
         }
 
         @Override
-        public boolean writeDeleteTreeToJournal(long timestamp, int treeHandle) throws PersistitIOException {
-            if (DISABLE_TXN_BUFFER || _bb.remaining() < DT.OVERHEAD) {
-                return false;
-            }
-            _persistit.getJournalManager().writeDeleteTreeToJournal(_bb, DT.OVERHEAD, timestamp, treeHandle);
-            return true;
-        }
-
-        @Override
-        public boolean writeCacheUpdatesToJournal(final long timestamp, final long cacheId, final List<Update> updates)
+        public long writeDeleteTreeToJournal(long timestamp, final long previousJournalAddress, int treeHandle)
                 throws PersistitIOException {
+            if (DISABLE_TXN_BUFFER || _bb.remaining() < DT.OVERHEAD) {
+                return -1;
+            }
+            _persistit.getJournalManager().writeDeleteTreeToJournal(_bb, DT.OVERHEAD, timestamp,
+                    previousJournalAddress, treeHandle);
+            return 0;
+        }
+
+        @Override
+        public long writeCacheUpdatesToJournal(final long timestamp, final long previousJournalAddress,
+                final long cacheId, final List<Update> updates) throws PersistitIOException {
             int estimate = CU.OVERHEAD;
             for (int index = 0; index < updates.size(); index++) {
                 estimate += (1 + updates.get(index).size());
             }
             if (DISABLE_TXN_BUFFER || _bb.remaining() < estimate) {
-                return false;
+                return -1;
             }
-            _persistit.getJournalManager().writeCacheUpdatesToJournal(_bb, timestamp, cacheId, updates);
-            return true;
+            _persistit.getJournalManager().writeCacheUpdatesToJournal(_bb, timestamp, previousJournalAddress, cacheId,
+                    updates);
+            return 0;
         }
 
         void clear() {
@@ -683,6 +689,7 @@ public class Transaction {
                 _commitListeners.clear();
                 _transactionCacheUpdates.clear();
                 _startTimestamp.set(_persistit.getTimestampAllocator().updateTimestamp());
+                _previousJournalAddress = 0;
 
             } catch (PersistitException pe) {
                 _persistit.getLogBase().txnBeginException.log(pe, this);
@@ -1732,55 +1739,8 @@ public class Transaction {
     }
 
     boolean writeUpdatesToTransactionWriterFast(TransactionWriter tw) throws PersistitException {
-
-        final ByteBuffer bb = _txnBuffer._bb;
-
-        bb.mark();
-        final long startTimestamp = _startTimestamp.get();
-        final long commitTimestamp = _commitTimestamp.get();
-
-        while (bb.hasRemaining()) {
-            final int recordSize = getLength(bb);
-            final int type = getType(bb);
-
-            switch (type) {
-
-            case TS.TYPE:
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                break;
-
-            case TC.TYPE:
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                TC.putCommitTimestamp(bb, commitTimestamp);
-                break;
-
-            case SR.TYPE: {
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                break;
-            }
-
-            case DR.TYPE: {
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                break;
-            }
-
-            case DT.TYPE:
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                break;
-
-            case CU.TYPE:
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                break;
-
-            default:
-                break;
-            }
-
-            bb.position(bb.position() + recordSize);
-        }
-        bb.reset();
-
-        _persistit.getJournalManager().writeTransactionBufferToJournal(bb, startTimestamp, commitTimestamp);
+        _previousJournalAddress = _persistit.getJournalManager().writeTransactionBufferToJournal(_txnBuffer._bb,
+                _startTimestamp.get(), _commitTimestamp.get(), _previousJournalAddress);
         return true;
 
     }
@@ -1796,7 +1756,7 @@ public class Transaction {
         _ex1.clear();
         Value txnValue = _ex1.getValue();
 
-        if (!tw.writeTransactionStartToJournal(_startTimestamp.get())) {
+        if (tw.writeTransactionStartToJournal(_startTimestamp.get()) < 0) {
             return false;
         }
 
@@ -1824,8 +1784,8 @@ public class Transaction {
                     key2.copyTo(_ex2.getAuxiliaryKey1());
                     txnValue.decodeAntiValue(_ex2);
 
-                    if (!tw.writeDeleteRecordToJournal(_startTimestamp.get(), treeHandle, _ex2.getAuxiliaryKey1(), _ex2
-                            .getAuxiliaryKey2())) {
+                    if (tw.writeDeleteRecordToJournal(_startTimestamp.get(), 0, treeHandle, _ex2.getAuxiliaryKey1(),
+                            _ex2.getAuxiliaryKey2()) < 0) {
                         return false;
                     }
                 } else if (type == 'S') {
@@ -1833,11 +1793,11 @@ public class Transaction {
                             && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
                         txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
                     }
-                    if (!tw.writeStoreRecordToJournal(_startTimestamp.get(), treeHandle, key2, txnValue)) {
+                    if (tw.writeStoreRecordToJournal(_startTimestamp.get(), 0, treeHandle, key2, txnValue) < 0) {
                         return false;
                     }
                 } else if (type == 'D') {
-                    if (!tw.writeDeleteTreeToJournal(_startTimestamp.get(), treeHandle)) {
+                    if (tw.writeDeleteTreeToJournal(_startTimestamp.get(), 0, treeHandle) < 0) {
                         return false;
                     }
                 }
@@ -1848,12 +1808,12 @@ public class Transaction {
                 if (_transactionalCacheCheckpoint == null && entry.getValue().isEmpty()) {
                     continue;
                 }
-                if (!tw.writeCacheUpdatesToJournal(_startTimestamp.get(), entry.getKey().cacheId(), entry.getValue())) {
+                if (tw.writeCacheUpdatesToJournal(_startTimestamp.get(), 0, entry.getKey().cacheId(), entry.getValue()) < 0) {
                     return false;
                 }
             }
         }
-        if (!tw.writeTransactionCommitToJournal(_startTimestamp.get(), _commitTimestamp.get())) {
+        if (tw.writeTransactionCommitToJournal(_startTimestamp.get(), 0, _commitTimestamp.get()) < 0) {
             return false;
         }
         return true;
@@ -1897,6 +1857,7 @@ public class Transaction {
 
             case DR.TYPE: {
                 final int key1Size = DR.getKey1Size(bb);
+                final int elisionCount = DR.getKey2Elision(bb);
                 final int treeHandle = DR.getTreeHandle(bb);
                 _ex2.setTree(treeForHandle(treeHandle));
                 if (removedTrees.contains(_ex2.getTree())) {
@@ -1907,9 +1868,10 @@ public class Transaction {
                 System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0, key1Size);
                 key1.setEncodedSize(key1Size);
                 final int key2Size = recordSize - DR.OVERHEAD - key1Size;
-                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD + key1Size, key2.getEncodedBytes(), 0,
-                        key2Size);
-                key2.setEncodedSize(key2Size);
+                System.arraycopy(key1.getEncodedBytes(), 0, key2.getEncodedBytes(), 0, elisionCount);
+                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD + key1Size, key2.getEncodedBytes(),
+                        elisionCount, key2Size);
+                key2.setEncodedSize(key2Size + elisionCount);
                 _ex2.removeKeyRangeInternal(_ex2.getAuxiliaryKey1(), _ex2.getAuxiliaryKey2(), false);
                 break;
             }
