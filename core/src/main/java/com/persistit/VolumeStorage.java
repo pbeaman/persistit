@@ -16,6 +16,7 @@ package com.persistit;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.Random;
 
 import com.persistit.exception.InUseException;
@@ -93,6 +94,11 @@ abstract class VolumeStorage extends SharedResource {
      * @return <code>true</code> if this volume is temporary
      */
     abstract boolean isTemp();
+
+    /**
+     * @return the channel used to read and write pages of this volume.
+     */
+    abstract FileChannel getChannel();
 
     /**
      * Create a new <code>Volume</code> backing file according to the

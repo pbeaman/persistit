@@ -542,13 +542,23 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         _recoveryDisabledForTestMode = recoveryDisabledForTestMode;
     }
 
-    private synchronized FileChannel getFileChannel(long address) throws PersistitIOException {
+    /**
+     * Return the <code>FileChannel</code> for the journal file containing the
+     * supplied <code>address</code>. If necessary, create a new
+     * {@link MediatedFileChannel}.
+     * 
+     * @param address
+     *            the journal address of a record in the journal for which the
+     *            corresponding channel will be returned
+     * @throws PersistitIOException
+     *             if the <code>MediatedFileChannel</code> cannot be created
+     */
+    synchronized FileChannel getFileChannel(long address) throws PersistitIOException {
         final long generation = address / _blockSize;
         FileChannel channel = _journalFileChannels.get(generation);
         if (channel == null) {
             try {
-                final RandomAccessFile raf = new RandomAccessFile(addressToFile(address), "r");
-                channel = raf.getChannel();
+                channel = new MediatedFileChannel(addressToFile(address), "r");
                 _journalFileChannels.put(generation, channel);
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);

@@ -151,6 +151,9 @@ public class LogBase {
     @Message("ERROR|Exception %s while writing volume %s page %,d")
     public final LogItem writeException = PersistitLogMessage.empty();
 
+    @Message("WARNING|Exception %s while copying volume %s page %,d from journal address %,d")
+    public final LogItem copyException = PersistitLogMessage.empty();
+
     @Message("DEBUG|Extending %s: old length=%,d, new length=%,d")
     public final LogItem extendNormal = PersistitLogMessage.empty();
 
