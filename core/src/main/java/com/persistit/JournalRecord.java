@@ -670,7 +670,7 @@ class JournalRecord {
 
         public final static int OVERHEAD = 16;
 
-        public final static int ENTRY_SIZE = 24;
+        public final static int ENTRY_SIZE = 32;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -692,12 +692,17 @@ class JournalRecord {
         public static long getEntryJournalAddress(final ByteBuffer bb, final int index) {
             return getLong(bb, 16 + (index * ENTRY_SIZE));
         }
+        
+        public static long getLastRecordAddress(final ByteBuffer bb, final int index) {
+            return getLong(bb, 24 + (index * ENTRY_SIZE));
+        }
 
         public static void putEntry(final ByteBuffer bb, final int index, final long startTimestamp,
-                final long commitTimestamp, final long journalAddress) {
+                final long commitTimestamp, final long journalAddress, final long lastRecordAddress) {
             putLong(bb, 0 + (index * ENTRY_SIZE), startTimestamp);
             putLong(bb, 8 + (index * ENTRY_SIZE), commitTimestamp);
             putLong(bb, 16 + (index * ENTRY_SIZE), journalAddress);
+            putLong(bb, 24 + (index * ENTRY_SIZE), lastRecordAddress);
         }
 
     }

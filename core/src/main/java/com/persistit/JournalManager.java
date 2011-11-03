@@ -779,7 +779,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         int offset = 0;
         for (final TransactionStatus ts : _liveTransactionMap.values()) {
             TM.putEntry(_writeBuffer, offset / TM.ENTRY_SIZE, ts.getStartTimestamp(), ts.getCommitTimestamp(), ts
-                    .getStartAddress());
+                    .getStartAddress(), ts.getLastRecordAddress());
             offset += TM.ENTRY_SIZE;
             count--;
             if (count == 0 || offset + TM.ENTRY_SIZE >= _writeBuffer.remaining()) {
@@ -1753,6 +1753,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         private final long _startTimestamp;
 
         private long _commitTimestamp;
+        
+        private long _lastRecordAddress;
 
         TransactionStatus(final long startTimestamp, final long address) {
             _startTimestamp = startTimestamp;
@@ -1771,9 +1773,17 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         long getCommitTimestamp() {
             return _commitTimestamp;
         }
+        
+        long getLastRecordAddress() {
+            return _lastRecordAddress;
+        }
 
         void setCommitTimestamp(final long commitTimestamp) {
             _commitTimestamp = commitTimestamp;
+        }
+        
+        void setLastRecordAddress(final long address) {
+            _lastRecordAddress = address;
         }
 
         boolean isCommitted() {
