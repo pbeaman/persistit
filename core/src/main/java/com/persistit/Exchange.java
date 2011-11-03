@@ -2238,7 +2238,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean isValueDefined() throws PersistitException {
-        return traverse(EQ, false, -1);
+        return traverse(EQ, true, -1);
     }
 
     /**
