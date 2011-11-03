@@ -45,6 +45,13 @@ public class Bug885477Test extends PersistitUnitTestCase {
         ex.clear().append(2);
         assertTrue(ex.traverse(Key.LTEQ, false));
         assertEquals(2, ex.getKey().decodeInt());
+
+        assertTrue(ex.hasChildren());
+        assertFalse(ex.isValueDefined());
+        ex.append(30);
+        assertFalse(ex.hasChildren());
+        assertTrue(ex.isValueDefined());
+        
     }
 
     @Test
@@ -63,6 +70,10 @@ public class Bug885477Test extends PersistitUnitTestCase {
         ex.clear().append(2);
         assertTrue(ex.traverse(Key.LTEQ, false));
         assertEquals(2, ex.getKey().decodeInt());
+        
+        assertTrue(ex.hasChildren());
+        assertFalse(ex.isValueDefined());
+        
         txn.commit();
         txn.end();
     }
