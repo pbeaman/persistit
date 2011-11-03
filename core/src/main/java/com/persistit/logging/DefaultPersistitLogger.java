@@ -109,7 +109,7 @@ public class DefaultPersistitLogger implements PersistitLogger {
     @Override
     public void log(PersistitLevel level, String message) {
         if (_logWriter == null && level.compareTo(PersistitLevel.WARNING) >= 0
-                || level.compareTo(PersistitLevel.ERROR) >= 0) {
+                || level.compareTo(PersistitLevel.WARNING) >= 0) {
             System.err.println(message);
         }
         if (_logWriter != null) {

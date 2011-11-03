@@ -1556,7 +1556,12 @@ public class Persistit {
      * @throws Exception
      */
     public void copyBackPages() throws Exception {
-        _journalManager.copyBack();
+        if (!_closed.get() && _initialized.get()) {
+            _checkpointManager.checkpoint();
+            _journalManager.copyBack();
+        } else {
+            throw new PersistitClosedException();
+        }
     }
 
     /**
@@ -1710,7 +1715,7 @@ public class Persistit {
 
         getTransaction().close();
         cleanup();
-        
+
         if (flush) {
             for (final Volume volume : _volumes) {
                 volume.getStorage().flush();
