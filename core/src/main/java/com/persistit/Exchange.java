@@ -1759,6 +1759,8 @@ public class Exchange {
 
                 if (edge && (foundAt & EXACT_MASK) != 0) {
                     break;
+                } else if (edge && !deep && Buffer.decodeDepth(foundAt) == index) {
+                    break;
                 } else {
                     edge = false;
                     foundAt = buffer.traverse(_key, direction, foundAt);
