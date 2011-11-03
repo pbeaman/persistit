@@ -761,9 +761,13 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             break;
 
         case JH.TYPE:
+            break;
+
         case SR.TYPE:
         case DR.TYPE:
         case DT.TYPE:
+        case CU.TYPE:
+            checkBackpointer(from, timestamp, recordSize);
             break;
 
         case IV.TYPE:
@@ -791,14 +795,12 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             break;
 
         case TC.TYPE:
+            checkBackpointer(from, timestamp, recordSize);
             commitTransaction(from, timestamp, recordSize);
             break;
 
         case CP.TYPE:
             processCheckpoint(from, timestamp, recordSize);
-            break;
-
-        case CU.TYPE:
             break;
 
         default:
@@ -809,6 +811,27 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
         _currentAddress = from + recordSize;
         return type;
+    }
+
+    private void checkBackpointer(final long address, final long startTimestamp, final int recordSize)
+            throws PersistitIOException {
+        read(address, recordSize);
+        final Long key = Long.valueOf(startTimestamp);
+        final long previousRecordAddress = TC.getPreviousJournalAddress(_readBuffer);
+        final TransactionStatus ts = _recoveredTransactionMap.get(key);
+        if (ts == null) {
+            throw new CorruptJournalException("Missing Transaction Start record for timestamp(" + key + ") at "
+                    + addressToString(address, startTimestamp));
+        } else if (ts.isCommitted()) {
+            throw new CorruptJournalException("Redundant Transaction Commit Record for " + ts + " at "
+                    + addressToString(address, startTimestamp));
+        }
+        if (ts.getLastRecordAddress() != previousRecordAddress) {
+            throw new CorruptJournalException("Invalid backpointer "
+                    + addressToString(ts.getLastRecordAddress(), startTimestamp) + " differs from expected value "
+                    + addressToString(previousRecordAddress) + " at " + addressToString(address, startTimestamp));
+        }
+        ts.setLastRecordAddress(address);
     }
 
     /**
@@ -1034,9 +1057,11 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             final long startTimestamp = TM.getEntryStartTimestamp(_readBuffer, index);
             final long commitTimestamp = TM.getEntryCommitTimestamp(_readBuffer, index);
             final long journalAddress = TM.getEntryJournalAddress(_readBuffer, index);
+            final long lastRecordAddress = TM.getLastRecordAddress(_readBuffer, index);
             TransactionStatus ts = new TransactionStatus(startTimestamp, journalAddress);
             final Long key = Long.valueOf(startTimestamp);
             ts.setCommitTimestamp(commitTimestamp);
+            ts.setLastRecordAddress(lastRecordAddress);
             if (_recoveredTransactionMap.put(key, ts) != null) {
                 throw new CorruptJournalException("Redundant record in TransactionMap record " + ts + " entry "
                         + (count - remaining + 1) + " at " + addressToString(address, startTimestamp));
@@ -1387,6 +1412,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             case DR.TYPE: {
                 read(address, recordSize);
                 final int key1Size = DR.getKey1Size(_readBuffer);
+                final int elisionCount = DR.getKey2Elision(_readBuffer);
                 final Exchange exchange = getExchange(DR.getTreeHandle(_readBuffer), address, timestamp);
                 exchange.ignoreTransactions();
                 final Key key1 = exchange.getAuxiliaryKey1();
@@ -1395,9 +1421,10 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                         key1Size);
                 key1.setEncodedSize(key1Size);
                 final int key2Size = recordSize - DR.OVERHEAD - key1Size;
+                System.arraycopy(key1.getEncodedBytes(), 0, key2.getEncodedBytes(), 0, elisionCount);
                 System.arraycopy(_readBuffer.array(), _readBuffer.position() + DR.OVERHEAD + key1Size, key2
-                        .getEncodedBytes(), 0, key2Size);
-                key2.setEncodedSize(key2Size);
+                        .getEncodedBytes(), elisionCount, key2Size);
+                key2.setEncodedSize(key2Size + elisionCount);
                 listener.removeKeyRange(address, timestamp, exchange, exchange.getAuxiliaryKey1(), exchange
                         .getAuxiliaryKey2());
                 _persistit.releaseExchange(exchange);
