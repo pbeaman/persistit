@@ -20,6 +20,7 @@ import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.exception.TimeoutException;
@@ -31,6 +32,16 @@ import com.persistit.exception.TimeoutException;
  * @author peter
  */
 public class TransactionIndex {
+
+    /**
+     * Thread name of the polling task
+     */
+    final static String POLLING_TASK_NAME = "TXN_UPDATE";
+
+    /**
+     * Interval in milliseconds for updating the active transaction cache
+     */
+    final static long POLLING_TASK_INTERVAL = 50L;
 
     /**
      * Default threshold value for moving long-running transactions to the
@@ -112,6 +123,30 @@ public class TransactionIndex {
      * The system-wide timestamp allocator
      */
     private final TimestampAllocator _timestampAllocator;
+    
+    private ActiveTransactionCachePollTask _activeTransactionCachePollTask;
+
+    class ActiveTransactionCachePollTask extends IOTaskRunnable {
+        AtomicBoolean _closed = new AtomicBoolean();
+
+        ActiveTransactionCachePollTask(final Persistit persistit) {
+            super(persistit);
+        }
+
+        void close() {
+            _closed.set(true);
+        }
+
+        @Override
+        protected boolean shouldStop() {
+            return _closed.get();
+        }
+
+        @Override
+        protected void runTask() throws Exception {
+            updateActiveTransactionCache();
+        }
+    }
 
     /**
      * <p>
@@ -878,5 +913,27 @@ public class TransactionIndex {
     static String minMaxString(final long floor) {
         return floor == Long.MAX_VALUE ? "MAX" : floor == Long.MIN_VALUE ? "MIN" : String.format("%,d", floor);
     }
+
+    void start(final Persistit persistit) {
+        _activeTransactionCachePollTask = new ActiveTransactionCachePollTask(persistit);
+        _activeTransactionCachePollTask.start(POLLING_TASK_NAME, POLLING_TASK_INTERVAL);
+    }
+    
+    void close() {
+        ActiveTransactionCachePollTask task = _activeTransactionCachePollTask;
+        if (task != null) {
+            task.close();
+            _activeTransactionCachePollTask = null;
+        }
+    }
+    
+    void crash() {
+        ActiveTransactionCachePollTask task = _activeTransactionCachePollTask;
+        if (task != null) {
+            task.crash();
+            _activeTransactionCachePollTask = null;
+        }
+    }
+    
 
 }

@@ -626,7 +626,7 @@ public abstract class TransactionalCache {
         if (updates.isEmpty()) {
             return false;
         }
-        final long timestamp = transaction.getCommitTimestamp();
+        final long timestamp = -1; // TODO transaction.getCommitTimestamp();
         if (timestamp == -1) {
             throw new IllegalStateException("Must be called from doCommit");
         }

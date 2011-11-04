@@ -45,11 +45,12 @@ public class FileLockTest extends PersistitUnitTestCase {
         }
         //
         _persistit.close(false);
+        final Persistit p3 = new Persistit();
         // now this should succeed.
         try {
-            p2.initialize(properties);
+            p3.initialize(properties);
         } finally {
-            p2.close(false);
+            p3.close(false);
         }
     }
 

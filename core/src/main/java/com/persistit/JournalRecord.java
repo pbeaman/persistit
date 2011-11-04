@@ -927,7 +927,6 @@ class JournalRecord {
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
         }
-
         
         public static void putPreviousJournalAddress(final ByteBuffer bb, final long journalAddress) {
             putLong(bb, 16, journalAddress);
