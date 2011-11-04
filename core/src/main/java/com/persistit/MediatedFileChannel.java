@@ -73,6 +73,9 @@ class MediatedFileChannel extends FileChannel {
     volatile FileChannel _channel;
     volatile FileChannel _lockChannel;
 
+    volatile IOException _injectedIOException;
+    volatile String _injectedIOExceptionFlags;
+
     MediatedFileChannel(final String path, final String mode) throws IOException {
         this(new File(path), mode);
     }
@@ -135,16 +138,51 @@ class MediatedFileChannel extends FileChannel {
      */
     private synchronized void openChannel() throws IOException {
         if (isOpen() && (_channel == null || !_channel.isOpen())) {
+            injectFailure('o');
             _channel = new RandomAccessFile(_file, _mode).getChannel();
         }
+    }
+
+    private void injectFailure(final char type) throws IOException {
+        final IOException e = _injectedIOException;
+        if (e != null && _injectedIOExceptionFlags.indexOf(type) >= 0) {
+            throw e;
+        }
+    }
+
+    /**
+     * Set an IOException to be thrown on subsequent I/O operations. This method
+     * is intended for use only for unit tests. The <code>flags</code> parameter
+     * determines which I/O operations throw exceptions:
+     * <ul>
+     * <li>o - open</li>
+     * <li>c - close</li>
+     * <li>r - read</li>
+     * <li>w - write</li>
+     * <li>f - force</li>
+     * <li>t - truncate</li>
+     * <li>l - lock</li>
+     * <li>e - extending Volume file</li>
+     * </ul>
+     * For example, if flags is "wt" then write and truncate operations with
+     * throw the injected IOException.
+     * 
+     * @param exception
+     *            The IOException to throw
+     * @param flags
+     *            Selected operations
+     */
+    void injectTestIOException(final IOException exception, final String flags) {
+        _injectedIOException = exception;
+        _injectedIOExceptionFlags = flags;
     }
 
     /*
      * --------------------------------
      * 
      * Implementations of these FileChannel methods simply delegate to the inner
-     * FileChannel. But they retry on a ClosedChannelException resulting from an
-     * I/O operation on a different thread having been interrupted.
+     * FileChannel. But they retry upon receiving a ClosedChannelException
+     * caused by an I/O operation on a different thread having been interrupted.
      * 
      * --------------------------------
      */
@@ -152,6 +190,7 @@ class MediatedFileChannel extends FileChannel {
     public void force(boolean metaData) throws IOException {
         while (true) {
             try {
+                injectFailure('f');
                 _channel.force(metaData);
                 break;
             } catch (ClosedChannelException e) {
@@ -165,6 +204,7 @@ class MediatedFileChannel extends FileChannel {
         final int offset = byteBuffer.position();
         while (true) {
             try {
+                injectFailure('r');
                 return _channel.read(byteBuffer, position);
             } catch (ClosedChannelException e) {
                 handleClosedChannelException(e);
@@ -177,6 +217,7 @@ class MediatedFileChannel extends FileChannel {
     public long size() throws IOException {
         while (true) {
             try {
+                injectFailure('s');
                 return _channel.size();
             } catch (ClosedChannelException e) {
                 handleClosedChannelException(e);
@@ -188,6 +229,7 @@ class MediatedFileChannel extends FileChannel {
     public FileChannel truncate(long size) throws IOException {
         while (true) {
             try {
+                injectFailure('t');
                 return _channel.truncate(size);
             } catch (ClosedChannelException e) {
                 handleClosedChannelException(e);
@@ -198,6 +240,7 @@ class MediatedFileChannel extends FileChannel {
     @Override
     public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
         if (_lockChannel == null) {
+            injectFailure('l');
             _lockChannel = new RandomAccessFile(_file, _mode).getChannel();
         }
         return _lockChannel.tryLock(position, size, shared);
@@ -208,6 +251,10 @@ class MediatedFileChannel extends FileChannel {
         final int offset = byteBuffer.position();
         while (true) {
             try {
+                injectFailure('w');
+                if (byteBuffer.remaining() == 1) {
+                    injectFailure('e');
+                }
                 return _channel.write(byteBuffer, position);
             } catch (ClosedChannelException e) {
                 handleClosedChannelException(e);
@@ -236,6 +283,7 @@ class MediatedFileChannel extends FileChannel {
             try {
                 if (_channel != null) {
                     _channel.close();
+                    injectFailure('c');
                 }
             } catch (IOException e) {
                 exception = e;

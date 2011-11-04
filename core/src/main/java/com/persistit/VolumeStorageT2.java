@@ -105,6 +105,14 @@ class VolumeStorageT2 extends VolumeStorage {
     }
 
     /**
+     * @return the channel used to read and write pages of this volume.
+     */
+    FileChannel getChannel() {
+        return _channel;
+    }
+
+
+    /**
      * Create a new <code>Volume</code> backing file according to the
      * {@link Volume}'s volume specification.
      * 

@@ -54,4 +54,5 @@ public class TestShim {
     public static void closeTransaction(Transaction t) throws PersistitException {
         t.close();
     }
+    
 }

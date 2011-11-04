@@ -1314,14 +1314,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         if (_writeBufferAddress != Long.MAX_VALUE) {
             writeJournalEnd();
             flush();
-            final long length = _currentAddress % _blockSize;
-            final boolean matches = length == (_writeBuffer.position() + _writeBufferAddress) % _blockSize;
-            _currentAddress = ((_currentAddress / _blockSize) + 1) * _blockSize;
-            _writeBuffer.clear();
-            _writeBufferAddress = _currentAddress;
-            _isNewEpoch = false;
 
             try {
+                final long length = _currentAddress % _blockSize;
+                final boolean matches = length == (_writeBuffer.position() + _writeBufferAddress) % _blockSize;
                 final FileChannel channel = getFileChannel(_currentAddress);
                 Debug.$assert0.t(matches);
                 if (matches) {
@@ -1331,6 +1327,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             } catch (IOException ioe) {
                 throw new PersistitIOException(ioe);
             }
+            _currentAddress = ((_currentAddress / _blockSize) + 1) * _blockSize;
+            _writeBuffer.clear();
+            _writeBufferAddress = _currentAddress;
+            _isNewEpoch = false;
         }
     }
 
@@ -1388,7 +1388,18 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         writeCheckpointToJournal(_lastValidCheckpoint);
     }
 
-    private synchronized FileChannel getFileChannel(long address) throws PersistitIOException {
+    /**
+     * Return the <code>FileChannel</code> for the journal file containing the
+     * supplied <code>address</code>. If necessary, create a new
+     * {@link MediatedFileChannel}.
+     * 
+     * @param address
+     *            the journal address of a record in the journal for which the
+     *            corresponding channel will be returned
+     * @throws PersistitIOException
+     *             if the <code>MediatedFileChannel</code> cannot be created
+     */
+    synchronized FileChannel getFileChannel(long address) throws PersistitIOException {
         if (address < _deleteBoundaryAddress || address > _currentAddress + _blockSize) {
             throw new IllegalArgumentException("Invalid journal address " + address + " outside of range ("
                     + _baseAddress + ":" + (_currentAddress + _blockSize) + ")");
@@ -1418,15 +1429,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
     public void copyBack() throws PersistitException {
         if (!_appendOnly.get()) {
             int pagesLeft = 0;
-            synchronized (this) {
-                _copyFast.set(true);
-                notifyAll();
-                while (_copyFast.get()) {
-                    try {
-                        wait(100);
-                    } catch (InterruptedException ie) {
-                        throw new PersistitInterruptedException(ie);
-                    }
+            _copyFast.set(true);
+            while (_copyFast.get()) {
+                _copier.kick();
+                try {
+                    Thread.sleep(Persistit.SHORT_DELAY);
+                } catch (InterruptedException ie) {
+                    throw new PersistitInterruptedException(ie);
                 }
             }
             pagesLeft = _pageMap.size();
@@ -1899,7 +1908,15 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             volume.verifyId(volume.getId());
 
             final int at = bb.position();
-            final long pageAddress = readPageBufferFromJournal(pageNode, bb);
+            final long pageAddress;
+            try {
+                pageAddress = readPageBufferFromJournal(pageNode, bb);
+            } catch (PersistitIOException ioe) {
+                _persistit.getLogBase().copyException.log(ioe, volume, pageNode.getPageAddress(), pageNode
+                        .getJournalAddress());
+                throw ioe;
+            }
+
             Debug.$assert0.t(pageAddress == pageNode.getPageAddress());
             pageNode.setOffset(at);
 
@@ -1950,7 +1967,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             final int at = pageNode.getOffset();
             bb.limit(bb.capacity()).position(at).limit(at + pageSize);
 
-            volume.getStorage().writePage(bb, pageAddress);
+            try {
+                volume.getStorage().writePage(bb, pageAddress);
+            } catch (PersistitIOException ioe) {
+                _persistit.getLogBase().copyException.log(ioe, volume, pageNode.getPageAddress(), pageNode
+                        .getJournalAddress());
+                throw ioe;
+            }
+
             volumes.add(volume);
             _copiedPageCount++;
             _persistit.getIOMeter().chargeCopyPageToVolume(volume, pageAddress, volume.getPageSize(),

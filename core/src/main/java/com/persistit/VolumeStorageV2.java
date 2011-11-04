@@ -47,7 +47,6 @@ import static com.persistit.VolumeHeader.putVersion;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -143,6 +142,13 @@ class VolumeStorageV2 extends VolumeStorage {
      */
     boolean isTemp() {
         return false;
+    }
+
+    /**
+     * @return the channel used to read and write pages of this volume.
+     */
+    FileChannel getChannel() {
+        return _channel;
     }
 
     /**
