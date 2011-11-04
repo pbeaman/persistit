@@ -1645,18 +1645,21 @@ public class Exchange {
         }
 
         final boolean reverse = (direction == LT) || (direction == LTEQ);
+        boolean edge = direction == EQ || direction == GTEQ || direction == LTEQ;
+        boolean nudged = false;
+
         if (_key.getEncodedSize() == 0) {
             if (reverse) {
                 _key.appendAfter();
             } else {
                 _key.appendBefore();
             }
+            nudged = true;
+            
         }
 
         _key.testValidForTraverse();
 
-        boolean edge = direction == EQ || direction == GTEQ || direction == LTEQ;
-        boolean nudged = false;
 
         checkLevelCache();
 
@@ -1706,6 +1709,7 @@ public class Exchange {
             int foundAt = 0;
             LevelCache lc;
             boolean fetchFromPendingTxn = false;
+            boolean matches = false;
 
             for (;;) {
 
@@ -1758,6 +1762,11 @@ public class Exchange {
                 }
 
                 if (edge && (foundAt & EXACT_MASK) != 0) {
+                    matches = true;
+                    break;
+                } else if (edge && !deep && Buffer.decodeDepth(foundAt) == index) {
+                    break;
+                } else if (direction == EQ) {
                     break;
                 } else {
                     edge = false;
@@ -1860,16 +1869,14 @@ public class Exchange {
                 break;
             }
 
-            boolean matches;
-
             if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
-                matches = false;
+
             } else {
                 if (deep) {
-                    matches = true;
+                    matches |= direction != EQ;
                     index = _key.getEncodedSize();
 
-                    if (doFetch) {
+                    if (doFetch && matches) {
                         if (fetchFromPendingTxn) {
                             _transaction.fetchFromLastTraverse(this, minimumBytes);
                         } else {
@@ -1972,7 +1979,7 @@ public class Exchange {
      * <dd>If the supplied key exists in the database, return that key;
      * otherwise find the next greater key and return it.</dd>
      * <dt>Key.EQ:</dt>
-     * <dd>Return <code>true</code> iff the specified key exists in the
+     * <dd>Return <code>true</code> if the specified key exists in the
      * database. Does not update the Key.</dd>
      * <dt>Key.LT:</dt>
      * <dd>Find the next key that is strictly less than the supplied key. If
@@ -2236,7 +2243,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean isValueDefined() throws PersistitException {
-        return traverse(EQ, false, -1);
+        return traverse(EQ, true, -1);
     }
 
     /**
