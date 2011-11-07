@@ -1369,8 +1369,10 @@ public class Exchange {
             }
         }
         _volume.getStatistics().bumpStoreCounter();
+        _tree.getStatistics().bumpStoreCounter();
         if (fetchFirst) {
             _volume.getStatistics().bumpFetchCounter();
+            _tree.getStatistics().bumpFetchCounter();
         }
     }
 
@@ -1959,6 +1961,7 @@ public class Exchange {
             }
         }
         _volume.getStatistics().bumpTraverseCounter();
+        _tree.getStatistics().bumpTraverseCounter();
         return result;
     }
 
@@ -2404,6 +2407,7 @@ public class Exchange {
             buffer.fetch(foundAt, value);
             fetchFixupForLongRecords(value, minimumBytes);
             _volume.getStatistics().bumpFetchCounter();
+            _tree.getStatistics().bumpFetchCounter();
             return this;
         } finally {
             if (buffer != null) {
@@ -3098,8 +3102,10 @@ public class Exchange {
         // if (journalId != -1)
         // journal().completed(journalId);
         _volume.getStatistics().bumpRemoveCounter();
+        _tree.getStatistics().bumpRemoveCounter();
         if (fetchFirst)
             _volume.getStatistics().bumpFetchCounter();
+            _tree.getStatistics().bumpFetchCounter();
         return result;
     }
 

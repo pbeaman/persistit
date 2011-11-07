@@ -169,6 +169,7 @@ class ClassIndex {
      * @return The ClassInfo for the specified Class.
      */
     public ClassInfo lookupByClass(Class<?> clazz) {
+
         ObjectStreamClass osc = null;
         long suid = 0;
 
@@ -321,4 +322,5 @@ class ClassIndex {
     private void releaseExchange(Exchange ex) {
         _persistit.releaseExchange(ex);
     }
+    
 }

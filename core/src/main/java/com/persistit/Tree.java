@@ -26,10 +26,11 @@ import com.persistit.util.Util;
 
 /**
  * Represents a single B-Tree within a {@link Volume}.
- * 
- * @version 1.1
  */
 public class Tree extends SharedResource {
+    final static int MAX_SERIALIZED_SIZE = 512;
+    final static int MAX_TREE_NAME_SIZE = 256;
+
     private final String _name;
     private final Volume _volume;
     private volatile long _rootPageAddr;
@@ -38,8 +39,15 @@ public class Tree extends SharedResource {
     private AtomicReference<Object> _appCache = new AtomicReference<Object>();
     private AtomicInteger _handle = new AtomicInteger();
 
+    private final TreeStatistics _treeStatistics = new TreeStatistics();
+
     Tree(final Persistit persistit, Volume volume, String name) {
         super(persistit);
+        int serializedLength = name.getBytes().length;
+        if (serializedLength > MAX_TREE_NAME_SIZE) {
+            throw new IllegalArgumentException("Tree name too long: " + name.length() + "(as " + serializedLength
+                    + " bytes)");
+        }
         _name = name;
         _volume = volume;
         _generation.set(1);
@@ -81,9 +89,7 @@ public class Tree extends SharedResource {
     }
 
     /**
-     * Returns the number of levels of the <code>Tree</code>.
-     * 
-     * @return The depth
+     * @return the number of levels of the <code>Tree</code>.
      */
     public int getDepth() {
         return _depth;
@@ -103,6 +109,10 @@ public class Tree extends SharedResource {
         _changeCount.incrementAndGet();
     }
 
+    /**
+     * @return The number of key-value insert/delete operations performed on
+     *         this tree; does not including replacement of an existing value
+     */
     long getChangeCount() {
         return _changeCount.get();
     }
@@ -112,17 +122,15 @@ public class Tree extends SharedResource {
      * 
      * @param value
      */
-    void store(Value value) {
+    int store(final byte[] bytes, final int index) {
         byte[] nameBytes = Util.stringToBytes(_name);
-        byte[] encoded = new byte[32 + nameBytes.length];
-
-        Util.putLong(encoded, 0, _rootPageAddr);
-        Util.putShort(encoded, 12, _depth);
-        Util.putLong(encoded, 16, getChangeCount());
-        // 24-30 free
-        Util.putShort(encoded, 30, nameBytes.length);
-        Util.putBytes(encoded, 32, nameBytes);
-        value.put(encoded);
+        Util.putLong(bytes, index, _rootPageAddr);
+        Util.putLong(bytes, index + 8, getChangeCount());
+        Util.putShort(bytes, index + 16, _depth);
+        Util.putShort(bytes, index + 18, nameBytes.length);
+        Util.putBytes(bytes, index + 20, nameBytes);
+        int at = index + 20 + nameBytes.length;
+        return at + _treeStatistics.save(bytes, at) - index;
     }
 
     /**
@@ -130,16 +138,24 @@ public class Tree extends SharedResource {
      * 
      * @param value
      */
-    void load(Value value) {
-        byte[] encoded = value.getByteArray();
-        int nameLength = Util.getShort(encoded, 30);
-        final String name = new String(encoded, 32, nameLength);
+    int load(final byte[] bytes, final int index, final int length) {
+        int nameLength = length < 20 ? -1 : Util.getShort(bytes, index + 18);
+        if (nameLength < 1 || nameLength + 20 > length) {
+            throw new IllegalStateException("Invalid tree record is too short for tree " + _name + ": " + length);
+        }
+        final String name = new String(bytes, index + 20, nameLength);
         if (!_name.equals(name)) {
             throw new IllegalStateException("Invalid tree name recorded: " + name + " for tree " + _name);
         }
-        _rootPageAddr = Util.getLong(encoded, 0);
-        _depth = Util.getShort(encoded, 12);
-        _changeCount.set(Util.getLong(encoded, 16));
+        _rootPageAddr = Util.getLong(bytes, index);
+        _changeCount.set(Util.getLong(bytes, index + 8));
+        _depth = Util.getShort(bytes, index + 16);
+        int at = index + 20 + nameLength;
+        int slen = length - (20 + nameLength);
+        if (slen > 8) {
+            _treeStatistics.load(bytes, at, slen);
+        }
+        return length;
     }
 
     /**
@@ -179,6 +195,10 @@ public class Tree extends SharedResource {
         _depth = -1;
         _rootPageAddr = -1;
         _generation.set(-1);
+    }
+
+    public TreeStatistics getStatistics() {
+        return _treeStatistics;
     }
 
     /**

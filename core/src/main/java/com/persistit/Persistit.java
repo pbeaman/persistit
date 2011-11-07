@@ -1619,6 +1619,10 @@ public class Persistit {
                 }
             }
         }
+        
+        for (final Volume volume : _volumes) {
+            volume.getStructure().flushStatistics();
+        }
     }
 
     /**

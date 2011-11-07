@@ -61,7 +61,8 @@ import com.persistit.encoding.ValueCoder;
  * @version 1.0
  */
 public final class DefaultCoderManager implements CoderManager {
-    private static final Class<?>[] DEFAULT_CLASSES = new Class[] { ArrayList.class, LinkedList.class, Stack.class,
+    
+    private static final Class<?>[] COLLECTION_CLASSES = new Class[] { ArrayList.class, LinkedList.class, Stack.class,
             Vector.class, Properties.class, HashMap.class, HashSet.class, Hashtable.class, TreeMap.class,
             TreeSet.class, LinkedHashMap.class, LinkedHashSet.class, };
 
@@ -424,11 +425,10 @@ public final class DefaultCoderManager implements CoderManager {
      */
     private void registerDefaultCoveredClasses() {
         ValueCoder coder = new CollectionValueCoder();
-
-        for (int index = 0; index < DEFAULT_CLASSES.length; index++) {
-            Class<?> clazz = DEFAULT_CLASSES[index];
+        for (int index = 0; index < COLLECTION_CLASSES.length; index++) {
+            Class<?> clazz = COLLECTION_CLASSES[index];
             if (!isSerialOverride(clazz)) {
-                registerValueCoder(DEFAULT_CLASSES[index], coder);
+                registerValueCoder(COLLECTION_CLASSES[index], coder);
             }
         }
     }

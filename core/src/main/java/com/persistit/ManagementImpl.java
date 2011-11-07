@@ -372,7 +372,11 @@ class ManagementImpl implements Management {
         boolean forward = direction == Key.GT || direction == Key.GTEQ;
         Exchange exchange = null;
         try {
-            exchange = _persistit.getExchange(volumeName, treeName, false);
+            if (treeName.equals(VolumeStructure.DIRECTORY_TREE_NAME)) {
+                exchange = _persistit.getVolume(volumeName).getStructure().directoryExchange();
+            } else {
+                exchange = _persistit.getExchange(volumeName, treeName, false);
+            }
             KeyFilter filter = null;
             if (keyFilterString != null && keyFilterString.length() > 0) {
                 filter = new KeyFilter(keyFilterString);
@@ -400,9 +404,6 @@ class ManagementImpl implements Management {
             }
         } catch (Exception e) {
             throw new WrappedRemoteException(e);
-        } finally {
-            if (exchange != null)
-                _persistit.releaseExchange(exchange);
         }
         if (count < maxCount) {
             LogicalRecord[] trimmed = new LogicalRecord[count];
@@ -797,22 +798,26 @@ class ManagementImpl implements Management {
      */
     @Override
     public TreeInfo[] getTreeInfoArray(String volumeName) throws RemoteException {
-        if (volumeName == null)
+        if (volumeName == null) {
             return new TreeInfo[0];
+        }
         Volume volume = _persistit.getVolume(volumeName);
         if (volume == null)
             return new TreeInfo[0];
 
         try {
             String[] treeNames = volume.getTreeNames();
-            TreeInfo[] results = new TreeInfo[treeNames.length];
+            TreeInfo[] results = new TreeInfo[treeNames.length + 1];
             int count = 0;
+            results[count++] = new TreeInfo(volume.getDirectoryTree());
             for (int index = 0; index < treeNames.length; index++) {
                 TreeInfo info = volume.getTreeInfo(treeNames[index]);
-                results[count++] = info;
+                if (info != null) {
+                    results[count++] = info;
+                }
             }
             if (count < results.length) {
-                TreeInfo[] temp = new TreeInfo[count];
+                final TreeInfo[] temp = new TreeInfo[count];
                 System.arraycopy(results, 0, temp, 0, count);
                 results = temp;
             }

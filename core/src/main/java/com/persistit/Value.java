@@ -302,7 +302,6 @@ public final class Value {
     private final static char TRUE_CHAR = 'T';
     private final static char FALSE_CHAR = 'F';
 
-    private final static int TYPE_ZERO = 0;
     //
     // Primitive values first. Codes allocated for .net types as well as
     // Java and mutually available types.
@@ -364,11 +363,10 @@ public final class Value {
     // object.
     //
     private final static int CLASS_REREF = 50;
-
     //
     // Indicates a record in a directory tree.
     //
-    private final static int CLASS_TREE = 60;
+    final static int CLASS_TREE = 60;
     //
     // Serialized type introducer. Followed by the Persistit handle for the
     // type (even though serialization also represents that type - we need to
@@ -2018,7 +2016,12 @@ public final class Value {
         case CLASS_STRING: {
             char[] sab = getStringAssemblyBuffer(_end - _next);
             int length = utfToCharArray(sab, _next, _end);
-            object = new String(sab, 0, length);
+            if (target != null && target instanceof StringBuilder) {
+                ((StringBuilder) target).append(sab, 0, length);
+                object = target;
+            } else {
+                object = new String(sab, 0, length);
+            }
             closeVariableLengthItem();
             break;
         }
@@ -2036,6 +2039,19 @@ public final class Value {
             _next += length;
             object = new BigInteger(bytes);
             closeVariableLengthItem();
+            break;
+        }
+
+        case CLASS_TREE: {
+            if (target != null && target instanceof Tree) {
+                final Tree tree = (Tree) target;
+                _next += tree.load(_bytes, _next, _end - _next);
+                object = tree;
+            } else {
+                final TreeState treeState = new TreeState();
+                _next += treeState.load(_bytes, _next, _end - _next);
+                object = treeState;
+            }
             break;
         }
 
@@ -3170,6 +3186,10 @@ public final class Value {
             _bytes[_size++] = (byte) CLASS_DOUBLE;
             Util.putLong(_bytes, _size, Double.doubleToRawLongBits(((Double) object).doubleValue()));
             _size += 8;
+        } else if (cl == Tree.class) {
+            ensureFit(Tree.MAX_SERIALIZED_SIZE);
+            _bytes[_size++] = (byte) CLASS_TREE;
+            _size += ((Tree) object).store(_bytes, _size);
         } else if (cl.isArray()) {
             Class componentClass = cl.getComponentType();
             int length = Array.getLength(object);
