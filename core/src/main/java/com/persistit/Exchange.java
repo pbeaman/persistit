@@ -184,6 +184,48 @@ public class Exchange {
         NONE, FORWARD, REVERSE
     }
 
+    private static class ReadCommittedVisitor implements MVV.FetchVisitor {
+        TransactionIndex _ti;
+        int _offset;
+        long _maxVersion;
+
+        long _timestamp;
+        int _step;
+
+        void internalInit(TransactionIndex ti, long timestamp, int step) {
+            _ti = ti;
+            _timestamp = timestamp;
+            _step = step;
+        }
+
+        @Override
+        public void init() {
+            _maxVersion = -1;
+            _offset = -1;
+        }
+
+        @Override
+        public void sawVersion(long versionHandle, int valueLength, int offset) {
+            try {
+                long status = _ti.commitStatus(versionHandle, _timestamp, _step);
+                if(status >= 0 && status != TransactionStatus.UNCOMMITTED && status > _maxVersion) {
+                    _maxVersion= status;
+                    _offset = offset;
+                }
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public int offsetToFetch() {
+            return _offset;
+        }
+    }
+
+    private ReadCommittedVisitor _fetchVisitor = new ReadCommittedVisitor();
+
+
     /**
      * <p>
      * Construct a new <code>Exchange</code> object to create and/or access the
@@ -1106,6 +1148,8 @@ public class Exchange {
      * @return this Exchange
      */
     void storeInternal(Key key, Value value, int level, boolean fetchFirst, boolean dontWait) throws PersistitException {
+        fetchFirst = true; // FIXME/HACK: MVV Always fetch
+        
         boolean treeClaimRequired = false;
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
@@ -1205,10 +1249,18 @@ public class Exchange {
                         oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
                     }
 
+                    assert buffer.isDataPage() : "Not data page";
                     if (fetchFirst && buffer.isDataPage()) {
                         buffer.fetch(foundAt, _spareValue);
                         fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+
+                        // NOTE: startTimestamp should include step, e.g. getVersionHandle()
+                        int newLen = MVV.storeVersion(_spareValue.getEncodedBytes(), _spareValue.getEncodedSize(),
+                                                      TransactionIndex.ts2vh(_transaction.getStartTimestamp()),
+                                                      value.getEncodedBytes(), value.getEncodedSize());
+                        value.putEncodedBytes(_spareValue.getEncodedBytes(), 0, newLen);
                     }
+
 
                     // TODO - How would this condition ever be true?
                     if (value.getEncodedSize() > maxSimpleValueSize && !overlength) {
@@ -2266,7 +2318,15 @@ public class Exchange {
             buffer = lc._buffer;
             buffer.fetch(foundAt, value);
             fetchFixupForLongRecords(value, minimumBytes);
-            _volume.getStatistics().bumpFetchCounter();
+
+            _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
+            int newSize = MVV.fetchVersionByVisitor(_fetchVisitor,
+                                                    value.getEncodedBytes(), value.getEncodedSize(),
+                                                    value.getEncodedBytes());
+            value.setEncodedSize(newSize);
+
+
+           _volume.getStatistics().bumpFetchCounter();
             return this;
         } finally {
             if (buffer != null) {

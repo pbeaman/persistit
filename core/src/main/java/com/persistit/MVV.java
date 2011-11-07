@@ -243,15 +243,21 @@ public class MVV {
 
         int returnSize = VERSION_NOT_FOUND;
         int offsetToReturn = visitor.offsetToFetch();
-        if(offsetToReturn > 0) {
-            if(offsetToReturn == 0 && sourceLength == 0) {
-                returnSize = UNDEFINED_VALUE_LENGTH;
+        if(offsetToReturn >= 0) {
+            if(offsetToReturn == 0) {
+                if(sourceLength == 0) {
+                    return UNDEFINED_VALUE_LENGTH;
+                }
+                else {
+                    returnSize = sourceLength;
+                }
             }
             else {
                 returnSize = Util.getShort(source, offsetToReturn - LENGTH_VALUE_LENGTH);
-                assertCapacity(target, returnSize);
-                System.arraycopy(source, offsetToReturn, target, 0, returnSize);
             }
+
+            assertCapacity(target, returnSize);
+            System.arraycopy(source, offsetToReturn, target, 0, returnSize);
         }
 
         return returnSize;

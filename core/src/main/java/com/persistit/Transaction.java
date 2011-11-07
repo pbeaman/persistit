@@ -849,6 +849,15 @@ public class Transaction {
     }
 
     /**
+     * Returns the internal start timestamp of this transaction.
+     * 
+     * @return The start time
+     */
+    long getStartTimestamp() {
+        return _startTimestamp;
+    }
+
+    /**
      * @return the SessionId this Transaction context belongs too.
      */
     public SessionId getSessionId() {
