@@ -20,6 +20,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class MVVTest {
     private static final int MVI = 254;
@@ -62,7 +63,35 @@ public class MVVTest {
         // Tests have many expected arrays explicitly typed out, sanity check setting
         assertEquals(true, Persistit.BIG_ENDIAN);
     }
-    
+
+    @Test
+    public void lengthEstimate() {
+        byte[] source = {};
+        assertTrue(MVV.estimateRequiredLength(source, 5) >= 5);
+
+        source = newArray(0xA, 0xB, 0xC, 0xD, 0xE, 0xF);
+        assertTrue(MVV.estimateRequiredLength(source, 74) >= (source.length + 74));
+
+        source = newArray(MVI, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,5, 0,1, 0xA);
+        assertTrue(MVV.estimateRequiredLength(source, 1) >= (source.length + 1));
+    }
+
+    @Test
+    public void lengthExactly() {
+        byte[] source = {};
+        assertEquals(MVV.exactRequiredLength(source, 1, 5), MVV.overheadLength(2) + 5);
+
+        source = newArray(0xA, 0xB, 0xC, 0xD, 0xE, 0xF);
+        assertEquals(MVV.exactRequiredLength(source, 1, 74), MVV.overheadLength(2) + source.length + 74);
+
+        source = newArray(MVI, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,2, 0,1, 0xA);
+        // new version
+        assertEquals(MVV.exactRequiredLength(source, 3, 3), source.length + MVV.perVersionHeaderLength() + 3);
+        // replace version, shorter
+        assertEquals(MVV.exactRequiredLength(source, 1, 1), source.length - 1);
+        // replace version, longer
+        assertEquals(MVV.exactRequiredLength(source, 1, 3), source.length + 1);
+    }
 
     @Test
     public void storeToUndefined() {

@@ -30,11 +30,42 @@ public class MVV {
     private final static int LENGTH_PER_VERSION = LENGTH_VERSION_HANDLE + LENGTH_VALUE_LENGTH;
 
 
+    static int perVersionHeaderLength() {
+        return LENGTH_PER_VERSION;
+    }
+
     static int overheadLength(int numVersions) {
         if(numVersions > 1) {
             return LENGTH_TYPE_MVV + LENGTH_PER_VERSION*numVersions;
         }
         return 0;
+    }
+
+    static int estimateRequiredLength(byte[] source, int newVersionLength) {
+        if(source.length == 0 || source[0] != TYPE_MVV) {
+            return overheadLength(2) + source.length + newVersionLength;
+        }
+        else {
+            return source.length + LENGTH_PER_VERSION + newVersionLength;
+        }
+    }
+
+    static int exactRequiredLength(byte[] source, long versionHandle, int newVersionLength) {
+        if(source.length == 0 || source[0] != TYPE_MVV) {
+            return overheadLength(2) + source.length + newVersionLength;
+        }
+        else {
+            int offset = 1;
+            while(offset < source.length) {
+                final long version = Util.getLong(source, offset);
+                final int valueLength = Util.getShort(source, offset + LENGTH_VERSION_HANDLE);
+                offset += LENGTH_PER_VERSION + valueLength;
+                if(version == versionHandle) {
+                    return source.length - valueLength + newVersionLength;
+                }
+            }
+            return source.length + LENGTH_PER_VERSION + newVersionLength;
+        }
     }
 
 
