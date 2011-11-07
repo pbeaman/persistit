@@ -112,17 +112,17 @@ public class MVV {
         return offset + sourceLength;
     }
 
-    public static interface FetchSpecifier {
+    public static interface FetchVisitor {
         void init();
         void sawVersion(long versionHandle, int valueLength, int offset);
         int offsetToFetch();
     }
 
-    public static class ExactVersionSpecifier implements FetchSpecifier {
+    public static class ExactVersionVisitor implements FetchVisitor {
         private int offset;
         private long desiredVersion;
 
-        public ExactVersionSpecifier(long desiredVersion) {
+        public ExactVersionVisitor(long desiredVersion) {
             this.desiredVersion = desiredVersion;
         }
         
@@ -144,13 +144,13 @@ public class MVV {
         }
     }
 
-    static int fetchVersionBySpecifier(FetchSpecifier specifier, byte[] source, int sourceLength, byte[] dest) {
-        specifier.init();
+    static int fetchVersionByVisitor(FetchVisitor visitor, byte[] source, int sourceLength, byte[] dest) {
+        visitor.init();
         if(sourceLength == 0) {
-            specifier.sawVersion(PRIMORDIAL_VALUE_VERSION, UNDEFINED_VALUE_LENGTH, 0);
+            visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, UNDEFINED_VALUE_LENGTH, 0);
         }
         else if(source[0] != TYPE_MVV) {
-            specifier.sawVersion(PRIMORDIAL_VALUE_VERSION, sourceLength, 0);
+            visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, sourceLength, 0);
         }
         else {
             int offset = 1;
@@ -158,13 +158,13 @@ public class MVV {
                 final long version = Util.getLong(source, offset);
                 final int valueLength = Util.getShort(source, offset + LENGTH_VERSION_HANDLE);
                 offset += LENGTH_PER_VERSION;
-                specifier.sawVersion(version, valueLength, offset);
+                visitor.sawVersion(version, valueLength, offset);
                 offset += valueLength;
             }
         }
 
         int returnSize = VERSION_NOT_FOUND;
-        int offsetToReturn = specifier.offsetToFetch();
+        int offsetToReturn = visitor.offsetToFetch();
         if(offsetToReturn > 0) {
             if(offsetToReturn == 0 && sourceLength == 0) {
                 returnSize = UNDEFINED_VALUE_LENGTH;
