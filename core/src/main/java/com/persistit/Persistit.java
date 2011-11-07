@@ -48,6 +48,7 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.persistit.TimestampAllocator.Checkpoint;
+import com.persistit.TransactionIndex.ActiveTransactionCachePollTask;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
@@ -295,6 +296,8 @@ public class Persistit {
      * Maximum number of Exchanges that will be held in an internal pool.
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
+    
+    private final static int TRANSACTION_INDEX_SIZE = 1024;
 
     final static long SHORT_DELAY = 500;
 
@@ -336,7 +339,7 @@ public class Persistit {
     private AtomicReference<CoderManager> _coderManager = new AtomicReference<CoderManager>();
 
     private ClassIndex _classIndex = new ClassIndex(this);
-
+    
     private ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
         @Override
         protected SessionId initialValue() {
@@ -357,6 +360,8 @@ public class Persistit {
     private final CheckpointManager _checkpointManager = new CheckpointManager(this);
 
     private final IOMeter _ioMeter = new IOMeter();
+
+    private TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
 
     private Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
 
@@ -448,6 +453,8 @@ public class Persistit {
     public void initialize(Properties properties) throws PersistitException {
         boolean done = false;
         try {
+            _closed.set(false);
+
             initializeProperties(properties);
             initializeLogging();
             initializeManagement();
@@ -459,11 +466,11 @@ public class Persistit {
             startJournal();
             startBufferPools();
             startCheckpointManager();
+            startTransactionIndexPollTask();
             finishRecovery();
             flush();
 
             _initialized.set(true);
-            _closed.set(false);
             done = true;
         } finally {
             if (!done) {
@@ -633,6 +640,10 @@ public class Persistit {
 
     void startCheckpointManager() {
         _checkpointManager.start();
+    }
+    
+    void startTransactionIndexPollTask() {
+        _transactionIndex.start(this);
     }
 
     void startBufferPools() throws PersistitException {
@@ -1374,18 +1385,6 @@ public class Persistit {
     }
 
     /**
-     * <p>
-     * Returns the temporary volume used by the current Thread to transiently
-     * hold pending updates prior to transaction commit.
-     * </p>
-     * 
-     * @return the <code>Volume</code>
-     */
-    public Volume getTransactionVolume() {
-        return getTransaction().getTransactionTemporaryVolume();
-    }
-
-    /**
      * Return the default timeout for operations on an <code>Exchange</code>.
      * The application may override this default value for an instance of an
      * <code>Exchange</code> through the {@link Exchange#setTimeout(long)}
@@ -1532,13 +1531,7 @@ public class Persistit {
 
     final long earliestLiveTransaction() {
         long earliest = Long.MAX_VALUE;
-        synchronized (_transactionSessionMap) {
-            for (final Transaction t : _transactionSessionMap.values()) {
-                if (t.getStartTimestamp() != -1 && t.getCommitTimestamp() == -1) {
-                    earliest = Math.min(earliest, t.getStartTimestamp());
-                }
-            }
-        }
+        // TODO - get this from TransactionIndex
         return earliest;
     }
 
@@ -1736,6 +1729,7 @@ public class Persistit {
             unregisterBufferPoolMXBean(pool.getBufferSize());
         }
         _journalManager.close();
+        _transactionIndex.close();
 
         for (final Volume volume : volumes) {
             volume.close();
@@ -1786,6 +1780,7 @@ public class Persistit {
                 pool.crash();
             }
         }
+        _transactionIndex.crash();
         _checkpointManager.crash();
         _closed.set(true);
         releaseAllResources();
@@ -1812,6 +1807,7 @@ public class Persistit {
                 _logBase.exception.log(e);
             }
         }
+        _transactionIndex = null;
 
         if (_management != null) {
             unregisterMXBeans();
@@ -2008,13 +2004,7 @@ public class Persistit {
      */
     void populateTransactionList(final List<Transaction> transactions, final long from, final long to) {
         transactions.clear();
-        synchronized (_transactionSessionMap) {
-            for (final Transaction t : _transactionSessionMap.values()) {
-                if (t != null && t.getStartTimestamp() >= from && t.getCommitTimestamp() >= to) {
-                    transactions.add(t);
-                }
-            }
-        }
+        // TODO - get from TransactionIndex
     }
 
     /**
@@ -2117,6 +2107,10 @@ public class Persistit {
 
     IOMeter getIOMeter() {
         return _ioMeter;
+    }
+    
+    TransactionIndex getTransactionIndex() {
+        return _transactionIndex;
     }
 
     SharedResource getTransactionResourceA() {

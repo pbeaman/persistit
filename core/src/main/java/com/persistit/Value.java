@@ -886,6 +886,17 @@ public final class Value {
         _maximumSize = size;
     }
 
+    public int getCursor() {
+        return _next;
+    }
+
+    public void setCursor(int cursor) {
+        if (cursor < 0 || cursor > _size) {
+            throw new IllegalArgumentException("Cursor out of bound (0," + _size + ")");
+        }
+        _next = cursor;
+    }
+
     /**
      * Enables or disables stream mode. See <a href="#_streamMode">Stream
      * Mode</a> for further information.

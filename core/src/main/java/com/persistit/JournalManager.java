@@ -15,6 +15,9 @@
 
 package com.persistit;
 
+import static com.persistit.JournalRecord.getLength;
+import static com.persistit.JournalRecord.getType;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -776,7 +779,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         int offset = 0;
         for (final TransactionStatus ts : _liveTransactionMap.values()) {
             TM.putEntry(_writeBuffer, offset / TM.ENTRY_SIZE, ts.getStartTimestamp(), ts.getCommitTimestamp(), ts
-                    .getStartAddress());
+                    .getStartAddress(), ts.getLastRecordAddress());
             offset += TM.ENTRY_SIZE;
             count--;
             if (count == 0 || offset + TM.ENTRY_SIZE >= _writeBuffer.remaining()) {
@@ -906,20 +909,21 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
     }
 
     @Override
-    public synchronized boolean writeStoreRecordToJournal(final long timestamp, final int treeHandle, final Key key,
+    public synchronized long writeStoreRecordToJournal(final long timestamp, final long previousJournalAddress, final int treeHandle, final Key key,
             final Value value) throws PersistitIOException {
         final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
         prepareWriteBuffer(recordSize);
-        writeStoreRecordToJournal(_writeBuffer, recordSize, timestamp, treeHandle, key, value);
+        writeStoreRecordToJournal(_writeBuffer, recordSize, timestamp, previousJournalAddress, treeHandle, key, value);
         _currentAddress += recordSize;
-        return true;
+        return _currentAddress - recordSize;
     }
 
-    void writeStoreRecordToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp,
+    void writeStoreRecordToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp, final long previousJournalAddress,
             final int treeHandle, final Key key, final Value value) throws PersistitIOException {
         SR.putLength(writeBuffer, recordSize);
         SR.putType(writeBuffer);
         SR.putTimestamp(writeBuffer, timestamp);
+        SR.putPreviousJournalAddress(writeBuffer, previousJournalAddress);
         SR.putTreeHandle(writeBuffer, treeHandle);
         SR.putKeySize(writeBuffer, (short) key.getEncodedSize());
         writeBuffer.position(writeBuffer.position() + SR.OVERHEAD);
@@ -929,49 +933,53 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
     }
 
     @Override
-    public synchronized boolean writeDeleteRecordToJournal(final long timestamp, final int treeHandle, final Key key1,
+    public synchronized long writeDeleteRecordToJournal(final long timestamp, final long previousJournalAddress, final int treeHandle, final Key key1,
             final Key key2) throws PersistitIOException {
-        int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize();
+        int elisionCount = key2.firstUniqueByteIndex(key1);
+        int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
         prepareWriteBuffer(recordSize);
-        writeDeleteRecordToJournal(_writeBuffer, recordSize, timestamp, treeHandle, key1, key2);
+        writeDeleteRecordToJournal(_writeBuffer, recordSize, timestamp, previousJournalAddress, treeHandle, key1, elisionCount, key2);
         _currentAddress += recordSize;
-        return true;
+        return _currentAddress - recordSize;
     }
 
-    void writeDeleteRecordToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp,
-            final int treeHandle, final Key key1, final Key key2) throws PersistitIOException {
+    void writeDeleteRecordToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp, final long previousJournalAddress,
+            final int treeHandle, final Key key1, final int elisionCount, final Key key2) throws PersistitIOException {
         JournalRecord.putLength(writeBuffer, recordSize);
         DR.putType(writeBuffer);
-        JournalRecord.putTimestamp(writeBuffer, timestamp);
+        DR.putTimestamp(writeBuffer, timestamp);
+        DR.putPreviousJournalAddress(writeBuffer, previousJournalAddress);
         DR.putTreeHandle(writeBuffer, treeHandle);
-        DR.putKey1Size(writeBuffer, (short) key1.getEncodedSize());
+        DR.putKey1Size(writeBuffer, key1.getEncodedSize());
+        DR.putKey2Elision(writeBuffer, elisionCount);
         writeBuffer.position(writeBuffer.position() + DR.OVERHEAD);
         writeBuffer.put(key1.getEncodedBytes(), 0, key1.getEncodedSize());
-        writeBuffer.put(key2.getEncodedBytes(), 0, key2.getEncodedSize());
+        writeBuffer.put(key2.getEncodedBytes(), elisionCount, key2.getEncodedSize() - elisionCount);
         _persistit.getIOMeter().chargeWriteDRtoJournal(recordSize, _currentAddress - recordSize);
     }
 
     @Override
-    public synchronized boolean writeDeleteTreeToJournal(final long timestamp, final int treeHandle)
+    public synchronized long writeDeleteTreeToJournal(final long timestamp, final long previousJournalAddress, final int treeHandle)
             throws PersistitIOException {
         prepareWriteBuffer(DT.OVERHEAD);
-        writeDeleteTreeToJournal(_writeBuffer, DT.OVERHEAD, timestamp, treeHandle);
+        writeDeleteTreeToJournal(_writeBuffer, DT.OVERHEAD, timestamp, previousJournalAddress, treeHandle);
         _currentAddress += DT.OVERHEAD;
-        return true;
+        return _currentAddress - DT.OVERHEAD;
     }
 
-    void writeDeleteTreeToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp,
+    void writeDeleteTreeToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp, final long previousJournalAddress,
             final int treeHandle) throws PersistitIOException {
         JournalRecord.putLength(writeBuffer, DT.OVERHEAD);
         DT.putType(writeBuffer);
-        JournalRecord.putTimestamp(writeBuffer, timestamp);
+        DT.putTimestamp(writeBuffer, timestamp);
+        DT.putPreviousJournalAddress(writeBuffer, previousJournalAddress);
         DT.putTreeHandle(writeBuffer, treeHandle);
         writeBuffer.position(writeBuffer.position() + DT.OVERHEAD);
         _persistit.getIOMeter().chargeWriteDTtoJournal(DT.OVERHEAD, _currentAddress - DT.OVERHEAD);
     }
 
     @Override
-    public synchronized boolean writeTransactionStartToJournal(final long startTimestamp) throws PersistitIOException {
+    public synchronized long writeTransactionStartToJournal(final long startTimestamp) throws PersistitIOException {
 
         final Long key = Long.valueOf(startTimestamp);
         TransactionStatus ts = _liveTransactionMap.get(key);
@@ -985,7 +993,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         prepareWriteBuffer(TS.OVERHEAD);
         writeTransactionStartToJournal(_writeBuffer, TS.OVERHEAD, startTimestamp);
         _currentAddress += TS.OVERHEAD;
-        return true;
+        return _currentAddress - TS.OVERHEAD;
     }
 
     void writeTransactionStartToJournal(final ByteBuffer writeBuffer, final int recordSize, final long startTimestamp)
@@ -998,7 +1006,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
     }
 
     @Override
-    public synchronized boolean writeTransactionCommitToJournal(final long timestamp, final long commitTimestamp)
+    public synchronized long writeTransactionCommitToJournal(final long timestamp, final long previousJournalAddress, final long commitTimestamp)
             throws PersistitIOException {
 
         final Long key = Long.valueOf(timestamp);
@@ -1012,16 +1020,17 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         }
 
         prepareWriteBuffer(TC.OVERHEAD);
-        writeTransactionCommitToJournal(_writeBuffer, TC.OVERHEAD, timestamp, commitTimestamp);
+        writeTransactionCommitToJournal(_writeBuffer, TC.OVERHEAD, timestamp, previousJournalAddress, commitTimestamp);
         _currentAddress += TC.OVERHEAD;
-        return true;
+        return _currentAddress - TC.OVERHEAD;
     }
 
-    void writeTransactionCommitToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp,
+    void writeTransactionCommitToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp, final long previousJournalAddress,
             final long commitTimestamp) throws PersistitIOException {
 
         TC.putType(writeBuffer);
         TC.putTimestamp(writeBuffer, timestamp);
+        TC.putPreviousJournalAddress(writeBuffer, previousJournalAddress);
         TC.putCommitTimestamp(writeBuffer, commitTimestamp);
         TC.putLength(writeBuffer, TC.OVERHEAD);
         writeBuffer.position(writeBuffer.position() + TC.OVERHEAD);
@@ -1029,24 +1038,25 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
     }
 
     @Override
-    public synchronized boolean writeCacheUpdatesToJournal(final long timestamp, final long cacheId,
+    public synchronized long writeCacheUpdatesToJournal(final long timestamp, final long previousJournalAddress, final long cacheId,
             final List<Update> updates) throws PersistitIOException {
         int estimate = CU.OVERHEAD;
         for (int index = 0; index < updates.size(); index++) {
             estimate += (1 + updates.get(index).size());
         }
         prepareWriteBuffer(estimate);
-        final int recordSize = writeCacheUpdatesToJournal(_writeBuffer, timestamp, cacheId, updates);
+        final int recordSize = writeCacheUpdatesToJournal(_writeBuffer, timestamp, previousJournalAddress, cacheId, updates);
         _currentAddress += recordSize;
-        return true;
+        return _currentAddress - recordSize;
     }
 
-    int writeCacheUpdatesToJournal(final ByteBuffer writeBuffer, final long timestamp, final long cacheId,
+    int writeCacheUpdatesToJournal(final ByteBuffer writeBuffer, final long timestamp, final long previousJournalAddress, final long cacheId,
             final List<Update> updates) throws PersistitIOException {
         int start = writeBuffer.position();
         CU.putType(writeBuffer);
         CU.putCacheId(writeBuffer, cacheId);
         CU.putTimestamp(writeBuffer, timestamp);
+        CU.putPreviousJournalAddress(writeBuffer, previousJournalAddress);
         writeBuffer.position(writeBuffer.position() + CU.OVERHEAD);
         for (int index = 0; index < updates.size(); index++) {
             final Update update = updates.get(index);
@@ -1063,8 +1073,63 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         return recordSize;
     }
 
-    synchronized void writeTransactionBufferToJournal(final ByteBuffer writeBuffer, final long startTimestamp,
-            final long commitTimestamp) throws PersistitIOException {
+    synchronized long writeTransactionBufferToJournal(final ByteBuffer writeBuffer, final long startTimestamp,
+            final long commitTimestamp, final long previousJournalAddress) throws PersistitIOException {
+        
+        
+        writeBuffer.mark();
+        long chainedAddress = previousJournalAddress;
+        while (writeBuffer.hasRemaining()) {
+            final int recordSize = getLength(writeBuffer);
+            final int type = getType(writeBuffer);
+
+            switch (type) {
+
+            case TS.TYPE:
+                TS.putTimestamp(writeBuffer, startTimestamp);
+                break;
+
+            case TC.TYPE:
+                TC.putTimestamp(writeBuffer, startTimestamp);
+                TC.putCommitTimestamp(writeBuffer, commitTimestamp);
+                TC.putPreviousJournalAddress(writeBuffer, chainedAddress);
+                chainedAddress = _currentAddress + writeBuffer.position();
+                break;
+
+            case SR.TYPE: {
+                SR.putTimestamp(writeBuffer, startTimestamp);
+                SR.putPreviousJournalAddress(writeBuffer, chainedAddress);
+                chainedAddress = _currentAddress + writeBuffer.position();
+                break;
+            }
+
+            case DR.TYPE: {
+                DR.putTimestamp(writeBuffer, startTimestamp);
+                DR.putPreviousJournalAddress(writeBuffer, chainedAddress);
+                chainedAddress = _currentAddress + writeBuffer.position();
+                break;
+            }
+
+            case DT.TYPE:
+                DT.putTimestamp(writeBuffer, startTimestamp);
+                DT.putPreviousJournalAddress(writeBuffer, chainedAddress);
+                chainedAddress = _currentAddress + writeBuffer.position();
+                break;
+
+            case CU.TYPE:
+                CU.putTimestamp(writeBuffer, startTimestamp);
+                CU.putPreviousJournalAddress(writeBuffer, chainedAddress);
+                chainedAddress = _currentAddress + writeBuffer.position();
+                break;
+
+            default:
+                break;
+            }
+
+            writeBuffer.position(writeBuffer.position() + recordSize);
+        }
+        writeBuffer.reset();
+
         final int recordSize = writeBuffer.remaining();
         final long address = _currentAddress;
         prepareWriteBuffer(recordSize);
@@ -1074,6 +1139,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         final TransactionStatus ts = new TransactionStatus(startTimestamp, address);
         ts.setCommitTimestamp(commitTimestamp);
         _liveTransactionMap.put(startTimestamp, ts);
+        return chainedAddress;
     }
 
     static long fileToGeneration(final File file) {
@@ -1696,6 +1762,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         private final long _startTimestamp;
 
         private long _commitTimestamp;
+        
+        private long _lastRecordAddress;
 
         TransactionStatus(final long startTimestamp, final long address) {
             _startTimestamp = startTimestamp;
@@ -1714,9 +1782,17 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         long getCommitTimestamp() {
             return _commitTimestamp;
         }
+        
+        long getLastRecordAddress() {
+            return _lastRecordAddress;
+        }
 
         void setCommitTimestamp(final long commitTimestamp) {
             _commitTimestamp = commitTimestamp;
+        }
+        
+        void setLastRecordAddress(final long address) {
+            _lastRecordAddress = address;
         }
 
         boolean isCommitted() {

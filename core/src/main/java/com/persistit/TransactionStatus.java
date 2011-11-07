@@ -189,7 +189,7 @@ public class TransactionStatus {
 
     /**
      * Start commit processing. This method leaves the
-     * <code>TransactionStatus</code> in a state indicating commit processing us
+     * <code>TransactionStatus</code> in a state indicating commit processing is
      * underway. The {@link #commit(long)} method completes the process. Note
      * that until we implement SSI this method is unnecessary, but is included
      * so that unit tests can test the interim state.

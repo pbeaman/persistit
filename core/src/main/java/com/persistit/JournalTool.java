@@ -750,13 +750,15 @@ public class JournalTool {
             read(address, recordSize);
             final int thandle = DR.getTreeHandle(_readBuffer);
             final int key1Size = DR.getKey1Size(_readBuffer);
+            final int elisionCount = DR.getKey2Elision(_readBuffer);
             final int key2Size = recordSize - key1Size - DR.OVERHEAD;
             System.arraycopy(_readBuffer.array(), _readBuffer.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0,
                     key1Size);
             key1.setEncodedSize(key1Size);
+            System.arraycopy(key1.getEncodedBytes(), 0, key2.getEncodedBytes(), 0, elisionCount);
             System.arraycopy(_readBuffer.array(), _readBuffer.position() + DR.OVERHEAD + key1Size, key2
-                    .getEncodedBytes(), 0, key2Size);
-            key2.setEncodedSize(key2Size);
+                    .getEncodedBytes(), elisionCount, key2Size);
+            key2.setEncodedSize(key2Size + elisionCount);
             start(address, timestamp, "DR", recordSize);
             appendf(" tree %05d key1Size %,5d key2Size %,5d  ", thandle, key1Size, key2Size);
             keyf(key1);

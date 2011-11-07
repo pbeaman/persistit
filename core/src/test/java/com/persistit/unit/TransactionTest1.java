@@ -431,57 +431,6 @@ public class TransactionTest1 extends PersistitUnitTestCase {
 
     }
 
-    /**
-     * Verify that transactions remove their temporary volumes
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testTransactionCleanup() throws Exception {
-        final FilenameFilter fnf = new FilenameFilter() {
-            @Override
-            public boolean accept(final File dir, final String name) {
-                return name.startsWith("persistit_tempvol");
-            }
-        };
-        String dataPath = _persistit.getProperty("datapath");
-        assertEquals(0, new File(dataPath).listFiles(fnf).length);
-        final Transaction txn = _persistit.getTransaction();
-        txn.begin();
-        txn.commit();
-        txn.end();
-        assertEquals(1, new File(dataPath).listFiles(fnf).length);
-        TestShim.closeTransaction(txn);
-        assertEquals(0, new File(dataPath).listFiles(fnf).length);
-
-        Thread[] threads = new Thread[10];
-        for (int i = 0; i < threads.length; i++) {
-            final Thread t = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        final Transaction txn = _persistit.getTransaction();
-                        txn.begin();
-                        txn.commit();
-                        txn.end();
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            });
-            threads[i] = t;
-            t.start();
-        }
-        for (int i = 0; i < threads.length; i++) {
-            threads[i].join();
-        }
-        threads = null;
-        _persistit.cleanup();
-        assertEquals(0, new File(dataPath).listFiles(fnf).length);
-
-    }
-
     private void checkTest7(final Set<Integer> remainingKeys, final Exchange ex) throws PersistitException {
         int k = ex.getKey().reset().decodeInt();
         remainingKeys.add(k);

@@ -180,7 +180,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
         txn.begin();
         store1();
-        jman.setUnitTestNeverCloseTransactionId(txn.getStartTimestamp());
+        jman.setUnitTestNeverCloseTransactionId(Long.MIN_VALUE /*txn.getStartTimestamp()*/); //TODO
         txn.commit();
         txn.end();
         jman.setUnitTestNeverCloseTransactionId(Long.MIN_VALUE);
