@@ -366,6 +366,7 @@ public final class Value {
     //
     // Indicates a record in a directory tree.
     //
+    final static int CLASS_TREE_STATISTICS = 59;
     final static int CLASS_TREE = 60;
     //
     // Serialized type introducer. Followed by the Persistit handle for the
@@ -2042,6 +2043,18 @@ public final class Value {
             break;
         }
 
+        case CLASS_TREE_STATISTICS: {
+            TreeStatistics treeStatistics;
+            if (target != null && target instanceof TreeStatistics) {
+                treeStatistics = (TreeStatistics) target;
+            } else {
+                treeStatistics = new TreeStatistics();
+            }
+            _next += treeStatistics.load(_bytes, _next, _end - _next);
+            object = treeStatistics;
+            break;
+        }
+
         case CLASS_TREE: {
             if (target != null && target instanceof Tree) {
                 final Tree tree = (Tree) target;
@@ -3186,6 +3199,10 @@ public final class Value {
             _bytes[_size++] = (byte) CLASS_DOUBLE;
             Util.putLong(_bytes, _size, Double.doubleToRawLongBits(((Double) object).doubleValue()));
             _size += 8;
+        } else if (cl == TreeStatistics.class) {
+            ensureFit(TreeStatistics.MAX_SERIALIZED_SIZE);
+            _bytes[_size++] = (byte)CLASS_TREE_STATISTICS;
+            _size += ((TreeStatistics)object).store(_bytes, _size);
         } else if (cl == Tree.class) {
             ensureFit(Tree.MAX_SERIALIZED_SIZE);
             _bytes[_size++] = (byte) CLASS_TREE;

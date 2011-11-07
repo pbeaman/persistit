@@ -129,8 +129,7 @@ public class Tree extends SharedResource {
         Util.putShort(bytes, index + 16, _depth);
         Util.putShort(bytes, index + 18, nameBytes.length);
         Util.putBytes(bytes, index + 20, nameBytes);
-        int at = index + 20 + nameBytes.length;
-        return at + _treeStatistics.save(bytes, at) - index;
+        return 20 + nameBytes.length;
     }
 
     /**
@@ -150,11 +149,6 @@ public class Tree extends SharedResource {
         _rootPageAddr = Util.getLong(bytes, index);
         _changeCount.set(Util.getLong(bytes, index + 8));
         _depth = Util.getShort(bytes, index + 16);
-        int at = index + 20 + nameLength;
-        int slen = length - (20 + nameLength);
-        if (slen > 8) {
-            _treeStatistics.load(bytes, at, slen);
-        }
         return length;
     }
 

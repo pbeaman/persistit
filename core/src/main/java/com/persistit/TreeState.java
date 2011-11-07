@@ -96,7 +96,7 @@ public class TreeState {
      */
     @Override
     public String toString() {
-        return String.format("%s root=%,d depth=%d %s", _name, _rootPageAddr, _depth, _treeStatistics.toString());
+        return String.format("%s root=%,d depth=%d changes=%,d", _name, _rootPageAddr, _depth, _changeCount);
     }
 
 }

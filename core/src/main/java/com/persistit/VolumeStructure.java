@@ -17,7 +17,6 @@ package com.persistit;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +34,8 @@ class VolumeStructure {
     /**
      * Key segment name for index by directory tree name.
      */
-    private final static String BY_NAME = "byName";
+    private final static String TREE_ROOT = "root";
+    private final static String TREE_STATS = "stats";
 
     private final Persistit _persistit;
     private final Volume _volume;
@@ -153,16 +153,18 @@ class VolumeStructure {
             }
         }
         final Exchange ex = directoryExchange();
-        ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(name);
+        ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(name);
         Value value = ex.fetch().getValue();
         tree = new Tree(_persistit, _volume, name);
         if (value.isDefined()) {
             value.get(tree);
+            loadTreeStatistics(tree);
             tree.setValid();
         } else if (createIfNecessary) {
             final long rootPageAddr = createTreeRoot(tree);
             tree.setRootPageAddress(rootPageAddr);
             updateDirectoryTree(tree);
+            storeTreeStatistics(tree);
             tree.setValid();
         } else {
             return null;
@@ -183,7 +185,21 @@ class VolumeStructure {
         } else {
             Exchange ex = directoryExchange();
             ex.getValue().put(tree);
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(tree.getName()).store();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).store();
+        }
+    }
+    
+    void storeTreeStatistics(Tree tree) throws PersistitException {
+        Exchange ex = directoryExchange();
+        ex.getValue().put(tree.getStatistics());
+        ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).store();
+    }
+    
+    void loadTreeStatistics(Tree tree) throws PersistitException {
+        Exchange ex = directoryExchange();
+        ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).fetch();
+        if (ex.getValue().isDefined()) {
+            ex.getValue().get(tree.getStatistics());
         }
     }
 
@@ -210,7 +226,8 @@ class VolumeStructure {
             page = rootPage;
             depth = tree.getDepth();
             Exchange ex = directoryExchange();
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(tree.getName()).remove();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove();
         } finally {
             tree.release();
         }
@@ -264,6 +281,8 @@ class VolumeStructure {
         final long rootPageAddr = createTreeRoot(tree);
         tree.setRootPageAddress(rootPageAddr);
         updateDirectoryTree(tree);
+        tree.getStatistics().reset();
+        storeTreeStatistics(tree);
     }
     
     /**
@@ -283,7 +302,7 @@ class VolumeStructure {
             }
             for (final Tree tree : trees) {
                 if (tree.isDirty() || tree.getStatistics().isDirty()) {
-                    updateDirectoryTree(tree);
+                    storeTreeStatistics(tree);
                 }
             }
         } catch (Exception e) {
@@ -301,7 +320,7 @@ class VolumeStructure {
     public String[] getTreeNames() throws PersistitException {
         List<String> list = new ArrayList<String>();
         Exchange ex = directoryExchange();
-        ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append("");
+        ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append("");
         while (ex.next()) {
             String treeName = ex.getKey().indexTo(-1).decodeString();
             list.add(treeName);

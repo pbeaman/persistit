@@ -29,6 +29,7 @@ import com.persistit.util.Util;
  * @author peter
  */
 class TreeStatistics {
+    final static int MAX_SERIALIZED_SIZE = 54;
 
     private final AtomicLong _fetchCounter = new AtomicLong();
     private final AtomicLong _traverseCounter = new AtomicLong();
@@ -111,6 +112,14 @@ class TreeStatistics {
         return _mvvCounter.get();
     }
 
+    /**
+     * @return Overhead bytes consumed by multi-version values that will be
+     *         removed by pruning.
+     */
+    public long getMvvOverhead() {
+        return _mvvOverhead.get();
+    }
+
     boolean isDirty() {
         return _dirty.get();
     }
@@ -168,20 +177,12 @@ class TreeStatistics {
      * <p>
      * Serialize the statistics value in a variable-length byte array. The
      * format is designed to allow more fields to be added and existing fields
-     * to be removed. Up to 32 field could eventually be allocated.
+     * to be removed. Up to 64 field could eventually be allocated. The first
+     * eight bytes of the serialized form include a bit map; a bit set in the
+     * bit map indicates that the corresponding field is present in the
+     * remaining bytes of the serialized form. Each field is stored as an 8-byte
+     * long value.
      * </p>
-     * <p>
-     * The value of each field is represented in 2, 4 or 8 bytes depending on
-     * the current value of the field. The first 8 bytes of the serialized form
-     * contain a bit map. Each statistics field corresponds to a two-bit field
-     * in the bit map; these two bits indicate the size of the stored statistics
-     * field:
-     * <ul>
-     * <li>0: 0 bytes - the field is not presently implemented in this class</li>
-     * <li>1: 2 bytes</li>
-     * <li>2: 4 bytes</li>
-     * <li>3: 8 bytes</li>
-     * </ul>
      * 
      * @param bytes
      *            byte array into which statistics are serialized
@@ -189,26 +190,17 @@ class TreeStatistics {
      *            at which serialization starts in byte array
      * @return length of serialized statistics
      */
-    int save(final byte[] bytes, int index) {
+    int store(final byte[] bytes, int index) {
+        _dirty.set(false);
         long bits = 0;
         int offset = index + 8;
         int field = 0;
         for (AtomicLong a : _statsArray) {
             if (a != null) {
                 long v = a.get();
-                if (v < Character.MAX_VALUE) {
-                    bits |= 1L << (field * 2);
-                    Util.putChar(bytes, offset, (char) v);
-                    offset += 2;
-                } else if (v < Integer.MAX_VALUE) {
-                    bits |= 2L << (field * 2);
-                    Util.putInt(bytes, offset, (int) v);
-                    offset += 4;
-                } else {
-                    bits |= 3L << (field * 2);
-                    Util.putLong(bytes, offset, v);
-                    offset += 8;
-                }
+                bits |= 1 << field;
+                Util.putLong(bytes, offset, v);
+                offset += 8;
             }
             field++;
         }
@@ -226,39 +218,21 @@ class TreeStatistics {
      * @param index
      *            at which serialized statistics start in the byte array
      */
-    void load(final byte[] bytes, final int index, final int length) {
+    int load(final byte[] bytes, final int index, final int length) {
         int offset = index + 8;
         final int end = index + length;
         long bits = Util.getLong(bytes, index);
-        for (int field = 0; field < 32; field++) {
-            int code = (int) (bits >>> (field * 2)) & 3;
+        for (int field = 0; field < 64; field++) {
             AtomicLong a = field < _statsArray.length ? _statsArray[field] : null;
-            switch (code) {
-            case 0:
-                break;
-            case 1:
-                if (a != null) {
-                    checkEnd(offset + 2, end);
-                    a.set(Util.getChar(bytes, offset));
-                }
-                offset += 2;
-                break;
-            case 2:
-                if (a != null) {
-                    checkEnd(offset + 4, end);
-                    a.set(Util.getInt(bytes, offset));
-                }
-                offset += 4;
-                break;
-            case 3:
+            if ((bits & (1 << field)) != 0) {
                 if (a != null) {
                     checkEnd(offset + 8, end);
                     a.set(Util.getLong(bytes, offset));
                 }
                 offset += 8;
-                break;
             }
         }
+        return length;
     }
 
     private void checkEnd(int index, int end) {

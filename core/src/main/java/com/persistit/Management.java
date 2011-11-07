@@ -25,7 +25,6 @@ import com.persistit.encoding.CoderContext;
 import com.persistit.util.Util;
 
 /**
- * <p>
  * Interface for a service object that exposes information about the Persistit
  * environment. With this public API, embedding applications can query
  * performance metrics and resources within Persistit that are not exposed by
@@ -35,7 +34,6 @@ import com.persistit.util.Util;
  * managing Persistit.
  * 
  * @version 1.0
- *          </p>
  */
 public interface Management extends Remote, ManagementMXBean {
     /**
@@ -1728,6 +1726,13 @@ public interface Management extends Remote, ManagementMXBean {
         String volumePathName;
         String status;
         String writerThreadName;
+        long _fetchCounter;
+        long _traverseCounter;
+        long _storeCounter;
+        long _removeCounter;
+        long _mvvCounter;
+        long _mvvOverhead;
+
 
         TreeInfo(Tree tree) {
             super();
@@ -1738,12 +1743,21 @@ public interface Management extends Remote, ManagementMXBean {
             volumePathName = tree.getVolume().getPath();
             Thread thread = tree.getWriterThread();
             writerThreadName = thread == null ? null : thread.getName();
+            final TreeStatistics stats = tree.getStatistics();
+            this._fetchCounter = stats.getFetchCounter();
+            this._traverseCounter = stats.getTraverseCounter();
+            this._storeCounter = stats.getStoreCounter();
+            this._removeCounter = stats.getRemoveCounter();
+            this._mvvCounter = stats.getMvvCounter();
+            this._mvvOverhead = stats.getMvvOverhead();
         }
 
         @ConstructorProperties({ "name", "index", "rootPageAddress", "depth", "volumePathName", "status",
-                "writerThreadName" })
+                "writerThreadName", "fetchCounter", "traverseCounter", "storeCounter",
+                "removeCounter", "mvvCounter", "mvvOverhead" })
         public TreeInfo(String name, long rootPageAddress, int depth, String volumePathName, String status,
-                String writerThreadName) {
+                String writerThreadName, long fetchCounter, long traverseCounter, long storeCounter,
+                long removeCounter, long mvvCounter, long mvvOverhead) {
             super();
             this.name = name;
             this.rootPageAddress = rootPageAddress;
@@ -1751,6 +1765,13 @@ public interface Management extends Remote, ManagementMXBean {
             this.volumePathName = volumePathName;
             this.status = status;
             this.writerThreadName = writerThreadName;
+            this._fetchCounter = fetchCounter;
+            this._traverseCounter = traverseCounter;
+            this._storeCounter = storeCounter;
+            this._removeCounter = removeCounter;
+            this._mvvCounter = mvvCounter;
+            this._mvvOverhead = mvvOverhead;
+            
         }
 
         /**
@@ -1787,6 +1808,57 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public String getVolumePathName() {
             return volumePathName;
+        }
+        
+        /**
+         * @return the count of {@link Exchange#fetch} operations, including
+         *         {@link Exchange#fetchAndStore} and
+         *         {@link Exchange#fetchAndRemove} operations.
+         */
+        public long getFetchCounter() {
+            return _fetchCounter;
+        }
+
+        /**
+         * @return the count of {@link Exchange#traverse} operations including
+         *         {@link Exchange#next} and {@link Exchange#_previous}.
+         */
+        public long getTraverseCounter() {
+            return _traverseCounter;
+        }
+
+        /**
+         * @return the count of {@link Exchange#store} operations, including
+         *         {@link Exchange#fetchAndStore} and
+         *         {@link Exchange#incrementValue} operations.
+         */
+        public long getStoreCounter() {
+            return _storeCounter;
+        }
+
+        /**
+         * @return the count of {@link Exchange#remove} operations, including
+         *         {@link Exchange#fetchAndRemove} operations.
+         */
+        public long getRemoveCounter() {
+            return _removeCounter;
+        }
+        
+
+        /**
+         * @return Count of records in this <code>Tree</code> having multi-version
+         *         values.
+         */
+        public long getMvvCounter() {
+            return _mvvCounter;
+        }
+
+        /**
+         * @return Overhead bytes consumed by multi-version values that will be
+         *         removed by pruning.
+         */
+        public long getMvvOverhead() {
+            return _mvvOverhead;
         }
 
         /**
