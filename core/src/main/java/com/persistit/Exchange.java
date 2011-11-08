@@ -1254,11 +1254,14 @@ public class Exchange {
                         buffer.fetch(foundAt, _spareValue);
                         fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
 
-                        // NOTE: startTimestamp should include step, e.g. getVersionHandle()
-                        int newLen = MVV.storeVersion(_spareValue.getEncodedBytes(), _spareValue.getEncodedSize(),
-                                                      TransactionIndex.ts2vh(_transaction.getStartTimestamp()),
-                                                      value.getEncodedBytes(), value.getEncodedSize());
-                        value.putEncodedBytes(_spareValue.getEncodedBytes(), 0, newLen);
+                        // FIXME: Directory exchange has ignore set and no trx begin or commit when creating tress. Skip for now.
+                        if(!_ignoreTransactions) {
+                            // NOTE: startTimestamp should include step, e.g. getVersionHandle()
+                            int newLen = MVV.storeVersion(_spareValue.getEncodedBytes(), _spareValue.getEncodedSize(),
+                                                          TransactionIndex.ts2vh(_transaction.getStartTimestamp()),
+                                                          value.getEncodedBytes(), value.getEncodedSize());
+                            value.putEncodedBytes(_spareValue.getEncodedBytes(), 0, newLen);
+                        }
                     }
 
 
