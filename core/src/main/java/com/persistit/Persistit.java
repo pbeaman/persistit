@@ -1493,6 +1493,7 @@ public class Persistit {
         if (_closed.get() || !_initialized.get()) {
             return null;
         }
+        cleanup();
         return _checkpointManager.checkpoint();
     }
 
@@ -1616,6 +1617,13 @@ public class Persistit {
                     }
                 }
             }
+        }
+        final List<Volume> volumes;
+        synchronized(this) {
+            volumes = new ArrayList<Volume>(_volumes);
+        }
+        for (final Volume volume : volumes) {
+            volume.getStructure().flushStatistics();
         }
     }
 
@@ -1840,6 +1848,7 @@ public class Persistit {
             return false;
         }
         for (final Volume volume : _volumes) {
+            volume.getStructure().flushStatistics();
             volume.getStorage().flush();
             volume.getStorage().force();
         }
