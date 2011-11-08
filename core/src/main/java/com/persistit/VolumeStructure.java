@@ -301,7 +301,7 @@ class VolumeStructure {
                 }
             }
             for (final Tree tree : trees) {
-                if (tree.isDirty() || tree.getStatistics().isDirty()) {
+                if (tree.getStatistics().isDirty()) {
                     storeTreeStatistics(tree);
                 }
             }
