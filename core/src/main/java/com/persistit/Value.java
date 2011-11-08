@@ -33,7 +33,6 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.CoderManager;
@@ -2248,7 +2247,7 @@ public final class Value {
 
         case TYPE_MVV: {
             final int savedSIze = _size;
-            final List<Object> outList = new ArrayList<Object>();
+            final ArrayList<Object> outList = new ArrayList<Object>();
 
             MVV.fetchVersionByVisitor(new MVV.FetchVisitor() {
                 @Override
