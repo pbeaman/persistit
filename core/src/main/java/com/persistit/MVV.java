@@ -18,7 +18,9 @@ package com.persistit;
 import com.persistit.util.Util;
 
 public class MVV {
-    private final static byte TYPE_MVV = (byte)0xFE;
+    final static int TYPE_MVV = 0xFE;
+
+    private static final byte TYPE_MVV_BYTE = (byte)TYPE_MVV;
     private final static int PRIMORDIAL_VALUE_VERSION = 0;
     private final static int UNDEFINED_VALUE_LENGTH = 0;
     public final static int VERSION_NOT_FOUND = -1;
@@ -50,7 +52,7 @@ public class MVV {
      * @return Required length estimate
      */
     static int estimateRequiredLength(byte[] source, int newVersionLength) {
-        if(source.length == 0 || source[0] != TYPE_MVV) {
+        if(source.length == 0 || source[0] != TYPE_MVV_BYTE) {
             return overheadLength(2) + source.length + newVersionLength;
         }
         else {
@@ -69,7 +71,7 @@ public class MVV {
      * @return Exact required length
      */
     static int exactRequiredLength(byte[] source, long newVersion, int newVersionLength) {
-        if(source.length == 0 || source[0] != TYPE_MVV) {
+        if(source.length == 0 || source[0] != TYPE_MVV_BYTE) {
             return overheadLength(2) + source.length + newVersionLength;
         }
         else {
@@ -107,16 +109,16 @@ public class MVV {
             assertCapacity(target, overheadLength(2) + sourceLength);
             
             // Promote to MVV, original state is undefined
-            target[offset++] = TYPE_MVV;
+            target[offset++] = TYPE_MVV_BYTE;
             offset += writeVersionHandle(target, offset, PRIMORDIAL_VALUE_VERSION);
             offset += writeValueLength(target, offset, UNDEFINED_VALUE_LENGTH);
         }
-        else if(target[0] != TYPE_MVV) {
+        else if(target[0] != TYPE_MVV_BYTE) {
             assertCapacity(target, overheadLength(2) + targetLength + sourceLength);
 
             // Promote to MVV, shift existing down for header
             System.arraycopy(target, 0, target, LENGTH_TYPE_MVV + LENGTH_PER_VERSION, targetLength);
-            target[offset++] = TYPE_MVV;
+            target[offset++] = TYPE_MVV_BYTE;
             offset += writeVersionHandle(target, offset, PRIMORDIAL_VALUE_VERSION);
             offset += writeValueLength(target, offset, targetLength);
             offset += targetLength;
@@ -227,7 +229,7 @@ public class MVV {
         if(sourceLength == 0) {
             visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, UNDEFINED_VALUE_LENGTH, 0);
         }
-        else if(source[0] != TYPE_MVV) {
+        else if(source[0] != TYPE_MVV_BYTE) {
             visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, sourceLength, 0);
         }
         else {

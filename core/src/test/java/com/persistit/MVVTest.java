@@ -19,12 +19,11 @@ import com.persistit.util.Util;
 import junit.framework.Assert;
 import org.junit.Test;
 
+import static com.persistit.MVV.TYPE_MVV;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class MVVTest {
-    private static final int MVI = 254;
-
     private static int writeArray(byte[] array, int... contents) {
         assert contents.length <= array.length : "Too many values for array";
         for(int i = 0; i < contents.length; ++i) {
@@ -72,7 +71,7 @@ public class MVVTest {
         source = newArray(0xA, 0xB, 0xC, 0xD, 0xE, 0xF);
         assertTrue(MVV.estimateRequiredLength(source, 74) >= (source.length + 74));
 
-        source = newArray(MVI, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,5, 0,1, 0xA);
+        source = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,5, 0,1, 0xA);
         assertTrue(MVV.estimateRequiredLength(source, 1) >= (source.length + 1));
     }
 
@@ -84,7 +83,7 @@ public class MVVTest {
         source = newArray(0xA, 0xB, 0xC, 0xD, 0xE, 0xF);
         assertEquals(MVV.exactRequiredLength(source, 1, 74), MVV.overheadLength(2) + source.length + 74);
 
-        source = newArray(MVI, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,2, 0,1, 0xA);
+        source = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,2, 0,1, 0xA);
         // new version (-1 = MVV type ID)
         assertEquals(MVV.exactRequiredLength(source, 3, 3), source.length + MVV.overheadLength(1) + 3 - 1);
         // replace version, shorter
@@ -102,7 +101,7 @@ public class MVVTest {
         final int storedLength = MVV.storeVersion(dest, 0, vh, source, source.length);
 
         assertEquals(source.length + MVV.overheadLength(2), storedLength);
-        assertArrayEqualsLen(newArray(MVI,
+        assertArrayEqualsLen(newArray(TYPE_MVV,
                                       0,0,0,0,0,0,0,0,  0,0,
                                       0,0,0,0,0,0,0,vh, 0,3, 0xA,0xB,0xC),
                              dest,
@@ -119,7 +118,7 @@ public class MVVTest {
         final int storedLength = MVV.storeVersion(dest, destLength, vh, source, source.length);
         
         assertEquals(destLength + source.length + MVV.overheadLength(2), storedLength);
-        assertArrayEqualsLen(newArray(MVI,
+        assertArrayEqualsLen(newArray(TYPE_MVV,
                                       0,0,0,0,0,0,0,0,  0,3, 0xA,0xB,0xC,
                                       0,0,0,0,0,0,0,vh, 0,3, 0xD,0xE,0xF),
                              dest,
@@ -133,13 +132,13 @@ public class MVVTest {
         final byte[] dest = new byte[100];
         final int destContentsLength = 4;
         final int destLength = writeArray(dest,
-                                          MVI,
+                                          TYPE_MVV,
                                           0,0,0,0,0,0,0,vh1, 0,4, 0xA,0xB,0xC,0xD);
         final byte[] source = {0xE,0xF};
         final int storedLength = MVV.storeVersion(dest, destLength, vh2, source, source.length);
 
         assertEquals(destContentsLength + source.length + MVV.overheadLength(2), storedLength);
-        assertArrayEqualsLen(newArray(MVI,
+        assertArrayEqualsLen(newArray(TYPE_MVV,
                                       0,0,0,0,0,0,0,vh1, 0,4, 0xA,0xB,0xC,0xD,
                                       0,0,0,0,0,0,0,vh2, 0,2, 0xE,0xF),
                              dest,
@@ -151,7 +150,7 @@ public class MVVTest {
         final int vh1 = 199, vh2 = 200, vh3 = 201;
         final byte[] dest = new byte[100];
         final int destLength = writeArray(dest,
-                                          MVI,
+                                          TYPE_MVV,
                                           0,0,0,0,0,0,0,vh1, 0,2, 0x4,0x5,
                                           0,0,0,0,0,0,0,vh2, 0,3, 0xA,0xB,0xC,
                                           0,0,0,0,0,0,0,vh3, 0,4, 0x6,0x7,0x8,0x9);
@@ -159,7 +158,7 @@ public class MVVTest {
         final int storedLength = MVV.storeVersion(dest, destLength, vh2, source, source.length);
 
         assertEquals(destLength, storedLength);
-        assertArrayEqualsLen(newArray(MVI,
+        assertArrayEqualsLen(newArray(TYPE_MVV,
                                       0,0,0,0,0,0,0,vh1, 0,2, 0x4,0x5,
                                       0,0,0,0,0,0,0,vh2, 0,3, 0xD,0xE,0xF,
                                       0,0,0,0,0,0,0,vh3, 0,4, 0x6,0x7,0x8,0x9),
@@ -172,7 +171,7 @@ public class MVVTest {
         final int vh1 = 199, vh2 = 200, vh3 = 201;
         final byte[] dest = new byte[100];
         final int destLength = writeArray(dest,
-                                          MVI,
+                                          TYPE_MVV,
                                           0,0,0,0,0,0,0,vh1, 0,2, 0x4,0x5,
                                           0,0,0,0,0,0,0,vh2, 0,3, 0xA,0xB,0xC,
                                           0,0,0,0,0,0,0,vh3, 0,4, 0x6,0x7,0x8,0x9);
@@ -180,7 +179,7 @@ public class MVVTest {
         final int storedLength = MVV.storeVersion(dest, destLength, vh2, source, source.length);
 
         assertEquals(destLength - 1, storedLength);
-        assertArrayEqualsLen(newArray(MVI,
+        assertArrayEqualsLen(newArray(TYPE_MVV,
                                      0,0,0,0,0,0,0,vh1, 0,2, 0x4,0x5,
                                      0,0,0,0,0,0,0,vh3, 0,4, 0x6,0x7,0x8,0x9,
                                      0,0,0,0,0,0,0,vh2, 0,2, 0xD,0xE),
@@ -193,7 +192,7 @@ public class MVVTest {
         final int vh1 = 199, vh2 = 200, vh3 = 201;
         final byte[] dest = new byte[100];
         final int destLength = writeArray(dest,
-                                          MVI,
+                                          TYPE_MVV,
                                           0,0,0,0,0,0,0,vh1, 0,2, 0x4,0x5,
                                           0,0,0,0,0,0,0,vh2, 0,3, 0xA,0xB,0xC,
                                           0,0,0,0,0,0,0,vh3, 0,4, 0x6,0x7,0x8,0x9);
@@ -201,7 +200,7 @@ public class MVVTest {
         final int storedLength = MVV.storeVersion(dest, destLength, vh2, source, source.length);
 
         assertEquals(destLength + 1, storedLength);
-        assertArrayEqualsLen(newArray(MVI,
+        assertArrayEqualsLen(newArray(TYPE_MVV,
                                       0,0,0,0,0,0,0,vh1, 0,2, 0x4,0x5,
                                       0,0,0,0,0,0,0,vh3, 0,4, 0x6,0x7,0x8,0x9,
                                       0,0,0,0,0,0,0,vh2, 0,4, 0xC,0xD,0xE,0xF),
@@ -221,7 +220,7 @@ public class MVVTest {
         destLength = MVV.storeVersion(dest, destLength, vh1, source1, source1.length);
         destLength = MVV.storeVersion(dest, destLength, vh2, source2, source2.length);
 
-        assertArrayEqualsLen(newArray(MVI,
+        assertArrayEqualsLen(newArray(TYPE_MVV,
                                       0,0,0,0,0,0,0,0,                   0,0,
                                       0,0,0,0,0,0xAA,0xBB,0xCC,          0,1, 0xA,
                                       0,0xFF,0xFF,0xFF,0,0xAA,0xBB,0xCC, 0,1, 0xB),
@@ -252,7 +251,7 @@ public class MVVTest {
 
         // Build expected
         final byte[] expectedArray = new byte[1000];
-        expectedArray[0] = (byte)MVI;
+        expectedArray[0] = (byte)TYPE_MVV;
         Util.putLong(expectedArray, 1, 0);
         Util.putShort(expectedArray, 9, 0);
         int off = 11;
@@ -369,7 +368,7 @@ public class MVVTest {
     public void fetchVersionFromExistingNoFound() {
         final long vh = 10;
         final byte[] source = {
-                (byte)MVI,
+                (byte)TYPE_MVV,
                 0,0,0,0,0,0,0,1, 0,3, 0xA,0xB,0xC,
                 0,0,0,0,0,0,0,2, 0,2, 0xD,0xE
         };
@@ -383,7 +382,7 @@ public class MVVTest {
     public void fetchVersionFromExisting() {
         final long vh = 10;
         final byte[] source = {
-                (byte) MVI,
+                (byte)TYPE_MVV,
                 0,0,0,0,0,0,0,10, 0,2, 0xA,0xB,
                 0,0,0,0,0,0,0,11, 0,3, 0xB,0xC
         };
@@ -399,7 +398,7 @@ public class MVVTest {
     public void fetchVersionFromExistingOverCapacity() {
         final long vh = 10;
         final byte[] source = {
-                (byte) MVI,
+                (byte)TYPE_MVV,
                 0,0,0,0,0,0,0,11, 0,5, 0x1,0x2,0x3,0x4,0x5,
                 0,0,0,0,0,0,0,9,  0,1, 0xA,
                 0,0,0,0,0,0,0,10, 0,3, 0xB,0xC,0xD
@@ -419,9 +418,9 @@ public class MVVTest {
         for(int i = 0; i < VERSION_COUNT; ++i) {
             versions[i] = (i+1) * 5;
             final int length = (versions[i] % 4 + 1) * 5;
-            final byte bytes[] = sources[i] = new byte[length];
+            sources[i] = new byte[length];
             for(int j = 0; j < length; ++j) {
-                bytes[j] = (byte)(2 * j);
+                sources[i][j] = (byte)(2 * j);
             }
         }
 

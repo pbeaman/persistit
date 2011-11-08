@@ -429,7 +429,7 @@ public final class Value {
     // opaque to the Value class but exposed here for consistency, documentation,
     // and for use by debug and toString() methods.
     //
-    private final static int TYPE_MVV = 0xFF & MVV.TYPE_MVV;
+    private final static int TYPE_MVV = MVV.TYPE_MVV;
     //
     // Note that a LONGREC is introduced by 0xFF (255) as the first byte.
     //

@@ -15,19 +15,18 @@
 
 package com.persistit;
 
-import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class MVCCBasicTest extends PersistitUnitTestCase {
     private static final String VOL_NAME = "persistit";
-    private static final String TREE_NAME = "mvccbasic";
+    private static final String TREE_NAME = "mvccbasictest";
 
     private static final String KEY1 = "k1";
     private static final String KEY2 = "k2";
     private static final long VALUE1 = 12345L;
     private static final long VALUE2 = 67890L;
     
-    public void testSingleTrxWriteAndRead() throws PersistitException {
+    public void testSingleTrxWriteAndRead() throws Exception {
         Exchange ex = _persistit.getExchange(VOL_NAME, TREE_NAME, true);
         Transaction trx = ex.getTransaction();
 
@@ -54,7 +53,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
-    public void testTwoTrxDistinctWritesOverlappedReads() throws PersistitException {
+    public void testTwoTrxDistinctWritesOverlappedReads() throws Exception {
         final SessionId session1 = new SessionId();
         final SessionId session2 = new SessionId();
 
