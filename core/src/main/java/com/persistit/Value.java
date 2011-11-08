@@ -2247,6 +2247,7 @@ public final class Value {
 
         case TYPE_MVV: {
             final int savedSIze = _size;
+            _depth++;
             final ArrayList<Object> outList = new ArrayList<Object>();
 
             MVV.fetchVersionByVisitor(new MVV.FetchVisitor() {
@@ -2271,6 +2272,7 @@ public final class Value {
                 }
             }, getEncodedBytes(), getEncodedSize(), null);
 
+            _depth--;
             _next = _size = savedSIze;
             return outList.toArray();
         }

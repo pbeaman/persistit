@@ -66,30 +66,32 @@ public class MVVTest {
     @Test
     public void lengthEstimate() {
         byte[] source = {};
-        assertTrue(MVV.estimateRequiredLength(source, 5) >= 5);
+        assertTrue(MVV.estimateRequiredLength(source, source.length, 5) >= 5);
 
         source = newArray(0xA, 0xB, 0xC, 0xD, 0xE, 0xF);
-        assertTrue(MVV.estimateRequiredLength(source, 74) >= (source.length + 74));
+        assertTrue(MVV.estimateRequiredLength(source, 2, 74) >= (2 + 74));
+        assertTrue(MVV.estimateRequiredLength(source, source.length, 74) >= (source.length + 74));
 
         source = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,5, 0,1, 0xA);
-        assertTrue(MVV.estimateRequiredLength(source, 1) >= (source.length + 1));
+        assertTrue(MVV.estimateRequiredLength(source, source.length, 1) >= (source.length + 1));
     }
 
     @Test
     public void lengthExactly() {
         byte[] source = {};
-        assertEquals(MVV.exactRequiredLength(source, 1, 5), MVV.overheadLength(2) + 5);
+        assertEquals(MVV.exactRequiredLength(source, source.length, 1, 5), MVV.overheadLength(2) + 5);
 
         source = newArray(0xA, 0xB, 0xC, 0xD, 0xE, 0xF);
-        assertEquals(MVV.exactRequiredLength(source, 1, 74), MVV.overheadLength(2) + source.length + 74);
+        assertEquals(MVV.exactRequiredLength(source, 2, 1, 74), MVV.overheadLength(2) + 2 + 74);
+        assertEquals(MVV.exactRequiredLength(source, source.length, 1, 74), MVV.overheadLength(2) + source.length + 74);
 
         source = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,2, 0,1, 0xA);
         // new version (-1 = MVV type ID)
-        assertEquals(MVV.exactRequiredLength(source, 3, 3), source.length + MVV.overheadLength(1) + 3 - 1);
+        assertEquals(MVV.exactRequiredLength(source, source.length, 3, 3), source.length + MVV.overheadLength(1) + 3 - 1);
         // replace version, shorter
-        assertEquals(MVV.exactRequiredLength(source, 1, 1), source.length - 1);
+        assertEquals(MVV.exactRequiredLength(source, source.length, 1, 1), source.length - 1);
         // replace version, longer
-        assertEquals(MVV.exactRequiredLength(source, 1, 3), source.length + 1);
+        assertEquals(MVV.exactRequiredLength(source, source.length, 1, 3), source.length + 1);
     }
 
     @Test

@@ -1134,8 +1134,8 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
-        // TODO: directoryExchange is set to ignore and doesn't use trx. Non-versioned works for now.
-        if(!_ignoreTransactions) {
+        // TODO: directoryExchange, and lots of tests, don't use transactions. Skip MVCC for now.
+        if(!_ignoreTransactions && _transaction.isActive()) {
             storeInternalMVCC(key, value, 0, false);
         }
         else {
@@ -1472,12 +1472,24 @@ public class Exchange {
 
                     if(buffer.isDataPage()) {
                         buffer.fetch(foundAt, _spareValue);
-                        fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
 
                         // TODO: Need the current step value
                         long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
+                        byte[] valueBytes = value.getEncodedBytes();
+                        int valueSize = value.getEncodedSize();
+
+                        int requiredSize = MVV.estimateRequiredLength(_spareValue.getEncodedBytes(),
+                                                                      _spareValue.getEncodedSize(), valueSize);
+                        int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
+
+                        if(requiredSize > maxSimpleValueSize) {
+                            throw new UnsupportedOperationException("Unsupported LONG_RECORD in MVCC: "+
+                                                                     requiredSize+" > "+maxSimpleValueSize);
+                        }
+
+                        _spareValue.ensureFit(requiredSize);
                         int newLen = MVV.storeVersion(_spareValue.getEncodedBytes(), _spareValue.getEncodedSize(),
-                                                      versionHandle, value.getEncodedBytes(), value.getEncodedSize());
+                                                      versionHandle, valueBytes, valueSize);
                         _spareValue.setEncodedSize(newLen);
                     }
 

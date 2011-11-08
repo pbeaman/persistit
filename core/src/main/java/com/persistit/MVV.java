@@ -48,12 +48,13 @@ public class MVV {
      * method is a loose estimate and may be greater, but never less, than the length ultimately needed.
      * 
      * @param source MVV array of any size/state
+     * @param sourceLength Length of {@code source} currently in use
      * @param newVersionLength Length of the new version that will be put into {@code source}
      * @return Required length estimate
      */
-    static int estimateRequiredLength(byte[] source, int newVersionLength) {
-        if(source.length == 0 || source[0] != TYPE_MVV_BYTE) {
-            return overheadLength(2) + source.length + newVersionLength;
+    static int estimateRequiredLength(byte[] source, int sourceLength, int newVersionLength) {
+        if(sourceLength == 0 || source[0] != TYPE_MVV_BYTE) {
+            return overheadLength(2) + sourceLength + newVersionLength;
         }
         else {
             return source.length + LENGTH_PER_VERSION + newVersionLength;
@@ -62,17 +63,18 @@ public class MVV {
 
     /**
      * Compute the final length needed to add, or update, a specific version into the given MVV array.
-     * More costly than {@link #estimateRequiredLength(byte[], int)} as all existing versions must be
+     * More costly than {@link #estimateRequiredLength(byte[], int, int)} as all existing versions must be
      * inspected to handle update cases.
      * 
      * @param source MVV array of any size/state
+     * @param sourceLength Length of {@code source} currently in use
      * @param newVersion Version to be inserted
      * @param newVersionLength Length of version being inserted
      * @return Exact required length
      */
-    static int exactRequiredLength(byte[] source, long newVersion, int newVersionLength) {
-        if(source.length == 0 || source[0] != TYPE_MVV_BYTE) {
-            return overheadLength(2) + source.length + newVersionLength;
+    static int exactRequiredLength(byte[] source, int sourceLength, long newVersion, int newVersionLength) {
+        if(sourceLength == 0 || source[0] != TYPE_MVV_BYTE) {
+            return overheadLength(2) + sourceLength + newVersionLength;
         }
         else {
             int offset = 1;
