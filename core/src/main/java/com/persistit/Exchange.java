@@ -431,7 +431,6 @@ public class Exchange {
                 lc.invalidate();
             }
         }
-
     }
 
     private class LevelCache {
@@ -1134,7 +1133,14 @@ public class Exchange {
         key.testValidForStoreAndFetch(_volume.getPageSize());
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        storeInternal(key, value, 0, false, false);
+
+        // TODO: directoryExchange is set to ignore and doesn't use trx. Non-versioned works for now.
+        if(!_ignoreTransactions) {
+            storeInternalMVCC(key, value, 0, false);
+        }
+        else {
+            storeInternal(key, value, 0, false, false);
+        }
 
         _treeHolder.verifyReleased();
 
@@ -1148,8 +1154,6 @@ public class Exchange {
      * @return this Exchange
      */
     void storeInternal(Key key, Value value, int level, boolean fetchFirst, boolean dontWait) throws PersistitException {
-        fetchFirst = true; // FIXME/HACK: MVV Always fetch
-        
         boolean treeClaimRequired = false;
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
@@ -1249,21 +1253,10 @@ public class Exchange {
                         oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
                     }
 
-                    assert buffer.isDataPage() : "Not data page";
                     if (fetchFirst && buffer.isDataPage()) {
                         buffer.fetch(foundAt, _spareValue);
                         fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
-
-                        // FIXME: Directory exchange has ignore set and no trx begin or commit when creating tress. Skip for now.
-                        if(!_ignoreTransactions) {
-                            // NOTE: startTimestamp should include step, e.g. getVersionHandle()
-                            int newLen = MVV.storeVersion(_spareValue.getEncodedBytes(), _spareValue.getEncodedSize(),
-                                                          TransactionIndex.ts2vh(_transaction.getStartTimestamp()),
-                                                          value.getEncodedBytes(), value.getEncodedSize());
-                            value.putEncodedBytes(_spareValue.getEncodedBytes(), 0, newLen);
-                        }
                     }
-
 
                     // TODO - How would this condition ever be true?
                     if (value.getEncodedSize() > maxSimpleValueSize && !overlength) {
@@ -1396,6 +1389,203 @@ public class Exchange {
         if (fetchFirst) {
             _volume.getStatistics().bumpFetchCounter();
         }
+    }
+
+    /**
+     * Inserts or replaces a data value in the database starting at a specified
+     * level and working up toward the root of the tree.
+     *
+     * @return this Exchange
+     */
+    void storeInternalMVCC(Key key, Value value, int level, boolean dontWait) throws PersistitException {
+        boolean treeClaimRequired = false;
+        boolean treeClaimAcquired = false;
+        boolean treeWriterClaimRequired = false;
+
+        //
+        // First insert the record in the data page
+        //
+        Buffer buffer = null;
+
+        try {
+            for (;;) {
+                Debug.$assert0.t(buffer == null);
+                if (Debug.ENABLED) {
+                    Debug.suspend();
+                }
+
+                if (treeClaimRequired && !treeClaimAcquired) {
+                    if (!_treeHolder.claim(treeWriterClaimRequired)) {
+                        Debug.$assert0.t(false);
+                        throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to get "
+                                + (treeWriterClaimRequired ? "writer" : "reader") + " claim on " + _tree);
+                    }
+                    treeClaimAcquired = true;
+                }
+
+                checkLevelCache();
+
+                try {
+                    if (level >= _cacheDepth) {
+                        Debug.$assert0.t(level == _cacheDepth);
+                        //
+                        // Need to lock the tree because we may need to change
+                        // its root.
+                        //
+                        if (!treeClaimAcquired || !_treeHolder.upgradeClaim()) {
+                            treeClaimRequired = true;
+                            treeWriterClaimRequired = true;
+                            throw new RetryException();
+                        }
+
+                        Debug.$assert0.t(_spareValue.getPointerValue() > 0);
+                        insertIndexLevel(key, _spareValue);
+                        break;
+                    }
+
+                    Debug.$assert0.t(buffer == null);
+                    int foundAt = -1;
+                    LevelCache lc = _levelCache[level];
+                    buffer = reclaimQuickBuffer(lc, true);
+
+                    if (buffer != null) {
+                        //
+                        // Start by assuming cached value is okay
+                        //
+                        foundAt = findKey(buffer, key, lc);
+
+                        if (buffer.isBeforeLeftEdge(foundAt) || buffer.isAfterRightEdge(foundAt)) {
+                            // TODO -maybe not touched
+                            buffer.releaseTouched();
+                            buffer = null;
+                        }
+                    }
+
+                    if (buffer == null) {
+                        foundAt = searchTree(key, level, true);
+                        buffer = lc._buffer;
+                    }
+
+                    Debug.$assert0.t(buffer != null &&
+                                     (buffer.getStatus() & SharedResource.WRITER_MASK) != 0 &&
+                                     (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
+
+                    if(buffer.isDataPage()) {
+                        buffer.fetch(foundAt, _spareValue);
+                        fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+
+                        // TODO: Need the current step value
+                        long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
+                        int newLen = MVV.storeVersion(_spareValue.getEncodedBytes(), _spareValue.getEncodedSize(),
+                                                      versionHandle, value.getEncodedBytes(), value.getEncodedSize());
+                        _spareValue.setEncodedSize(newLen);
+                    }
+
+                    //
+                    // Here we have a buffer with a writer claim and
+                    // a correct foundAt value
+                    //
+                    boolean splitRequired = putLevel(lc, key, _spareValue, buffer, foundAt, treeClaimAcquired);
+
+                    Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0 &&
+                                     (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
+
+                    //
+                    // If a split is required but treeClaimAcquired is false
+                    // then putLevel did not change anything. It just backed out
+                    // so we can repeat after acquiring the claim. We need to
+                    // repeat this after acquiring a tree claim.
+                    //
+                    if (splitRequired && !treeClaimAcquired) {
+                        // TODO - is it worth it to try an instantaneous claim and retry?
+                        treeClaimRequired = true;
+                        buffer.releaseTouched();
+                        buffer = null;
+                        continue;
+                    }
+                    //
+                    // The value has been written to the buffer and the
+                    // buffer is reserved and dirty. No backing out now.
+                    // If we made it to here, any LONG_RECORD value is
+                    // committed.
+                    //
+                    if (buffer.isDataPage()) {
+                        if ((foundAt & EXACT_MASK) == 0) {
+                            _tree.bumpChangeCount();
+                        }
+                    }
+
+                    buffer.releaseTouched();
+                    buffer = null;
+
+                    if (!splitRequired) {
+                        //
+                        // No split means we're totally done.
+                        //
+                        if (!_ignoreTransactions) {
+                            _transaction.store(this, key, _spareValue);
+                        }
+                        break;
+
+                    } else {
+                        // Otherwise we need to index the new right
+                        // sibling at the next higher index level.
+                        Debug.$assert0.t(_spareValue.getPointerValue() > 0);
+                        //
+                        // This maneuver sets key to the key value of
+                        // the first record in the newly inserted page.
+                        //
+                        key = _spareKey1;
+                        _spareKey1 = _spareKey2;
+                        _spareKey2 = key;
+                        //
+                        // Bump key generation because it no longer matches
+                        // what's in the LevelCache
+                        //
+                        key.bumpGeneration();
+                        //
+                        // And now cycle back to insert the key/pointer pair
+                        // into the next higher index level.
+                        //
+                        level++;
+                        continue;
+                    }
+
+                } catch (RetryException re) {
+                    if (buffer != null) {
+                        buffer.releaseTouched();
+                        buffer = null;
+                    }
+
+                    if (treeClaimAcquired) {
+                        _treeHolder.release();
+                        treeClaimAcquired = false;
+                    }
+                    treeClaimAcquired = _treeHolder.claim(true, dontWait ? 0 : SharedResource.DEFAULT_MAX_WAIT_TIME);
+                    if (!treeClaimAcquired) {
+                        if (dontWait) {
+                            throw re;
+                        } else {
+                            throw new InUseException("Thread " + Thread.currentThread().getName()
+                                    + " failed to get reader claim on " + _tree);
+                        }
+                    }
+                } finally {
+                    if (buffer != null) {
+                        buffer.releaseTouched();
+                        buffer = null;
+                    }
+                }
+            }
+        } finally {
+            if (treeClaimAcquired) {
+                _treeHolder.release();
+                treeClaimAcquired = false;
+            }
+            value.changeLongRecordMode(false);
+        }
+        _volume.getStatistics().bumpStoreCounter();
+        _volume.getStatistics().bumpFetchCounter();
     }
 
     private long timestamp() {

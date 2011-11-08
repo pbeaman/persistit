@@ -51,6 +51,8 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         finally {
             trx.end();
         }
+
+        _persistit.releaseExchange(ex);
     }
 
     public void testTwoTrxDistinctWritesOverlappedReads() throws Exception {
@@ -114,5 +116,46 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             trx1.end();
             trx2.end();
         }
+
+        _persistit.releaseExchange(ex1);
+        _persistit.releaseExchange(ex2);
+    }
+
+    public void testSingleTrxManyInserts() throws Exception {
+        // Enough for a new index level and many splits
+        final int INSERT_COUNT = 5000;
+
+        Exchange ex = _persistit.getExchange(VOL_NAME, TREE_NAME, true);
+        Transaction trx = ex.getTransaction();
+
+        for(int i = 0; i < INSERT_COUNT; ++i) {
+            trx.begin();
+            try {
+                ex.clear().append(i).getValue().put(i*2);
+                ex.store();
+                trx.commit();
+            }
+            finally {
+                trx.end();
+            }
+        }
+
+        trx.begin();
+        try {
+            for(int i = 0; i < INSERT_COUNT; ++i) {
+                ex.clear().append(i).fetch();
+                assertEquals(i*2, ex.getValue().getInt());
+            }
+            trx.commit();
+        }
+        finally {
+            trx.end();
+        }
+
+        _persistit.releaseExchange(ex);
+    }
+
+    private void showGUI() throws Exception {
+        _persistit.setupGUI(true);
     }
 }
