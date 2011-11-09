@@ -57,7 +57,7 @@ public class MVV {
             return overheadLength(2) + sourceLength + newVersionLength;
         }
         else {
-            return source.length + LENGTH_PER_VERSION + newVersionLength;
+            return sourceLength + LENGTH_PER_VERSION + newVersionLength;
         }
     }
 
@@ -78,15 +78,15 @@ public class MVV {
         }
         else {
             int offset = 1;
-            while(offset < source.length) {
+            while(offset < sourceLength) {
                 final long version = Util.getLong(source, offset);
                 final int valueLength = Util.getShort(source, offset + LENGTH_VERSION_HANDLE);
                 offset += LENGTH_PER_VERSION + valueLength;
                 if(version == newVersion) {
-                    return source.length - valueLength + newVersionLength;
+                    return sourceLength - valueLength + newVersionLength;
                 }
             }
-            return source.length + LENGTH_PER_VERSION + newVersionLength;
+            return sourceLength + LENGTH_PER_VERSION + newVersionLength;
         }
     }
 

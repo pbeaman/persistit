@@ -85,13 +85,14 @@ public class MVVTest {
         assertEquals(MVV.exactRequiredLength(source, 2, 1, 74), MVV.overheadLength(2) + 2 + 74);
         assertEquals(MVV.exactRequiredLength(source, source.length, 1, 74), MVV.overheadLength(2) + source.length + 74);
 
-        source = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,2, 0,1, 0xA);
+        source = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,2, 0,1, 0xA, /*extra*/0,0,0,0,0);
+        final int usedLength = source.length - 5;
         // new version (-1 = MVV type ID)
-        assertEquals(MVV.exactRequiredLength(source, source.length, 3, 3), source.length + MVV.overheadLength(1) + 3 - 1);
+        assertEquals(MVV.exactRequiredLength(source, usedLength, 3, 3), usedLength + MVV.overheadLength(1) + 3 - 1);
         // replace version, shorter
-        assertEquals(MVV.exactRequiredLength(source, source.length, 1, 1), source.length - 1);
+        assertEquals(MVV.exactRequiredLength(source, usedLength, 1, 1), usedLength - 1);
         // replace version, longer
-        assertEquals(MVV.exactRequiredLength(source, source.length, 1, 3), source.length + 1);
+        assertEquals(MVV.exactRequiredLength(source, usedLength, 1, 3), usedLength + 1);
     }
 
     @Test

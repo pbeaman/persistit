@@ -1473,24 +1473,27 @@ public class Exchange {
                     if(buffer.isDataPage()) {
                         buffer.fetch(foundAt, _spareValue);
 
-                        // TODO: Need the current step value
-                        long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
-                        byte[] valueBytes = value.getEncodedBytes();
                         int valueSize = value.getEncodedSize();
-
-                        int requiredSize = MVV.estimateRequiredLength(_spareValue.getEncodedBytes(),
-                                                                      _spareValue.getEncodedSize(), valueSize);
                         int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
-
-                        if(requiredSize > maxSimpleValueSize) {
-                            throw new UnsupportedOperationException("Unsupported LONG_RECORD in MVCC: "+
-                                                                     requiredSize+" > "+maxSimpleValueSize);
+                        if(valueSize > maxSimpleValueSize) {
+                            throw new UnsupportedOperationException("Unsupported LONG_RECORD value inside MVV: "+
+                                                                     valueSize + " > " + maxSimpleValueSize);
                         }
 
-                        _spareValue.ensureFit(requiredSize);
-                        int newLen = MVV.storeVersion(_spareValue.getEncodedBytes(), _spareValue.getEncodedSize(),
-                                                      versionHandle, valueBytes, valueSize);
-                        _spareValue.setEncodedSize(newLen);
+                        int mvvSize = MVV.estimateRequiredLength(_spareValue.getEncodedBytes(),
+                                                                 _spareValue.getEncodedSize(), valueSize);
+                        if(mvvSize > maxSimpleValueSize) {
+                            throw new UnsupportedOperationException("Unsupported LONG_RECORD MVV: "+
+                                                                     mvvSize +" > "+maxSimpleValueSize);
+                        }
+
+                        _spareValue.ensureFit(mvvSize);
+                        
+                        // TODO: Need the current step value
+                        long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
+                        int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), _spareValue.getEncodedSize(),
+                                                            versionHandle, value.getEncodedBytes(), valueSize);
+                        _spareValue.setEncodedSize(storedLength);
                     }
 
                     //
