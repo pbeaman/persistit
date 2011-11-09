@@ -19,7 +19,11 @@ import com.persistit.util.Util;
 import junit.framework.Assert;
 import org.junit.Test;
 
+import java.util.Map;
+import java.util.TreeMap;
+
 import static com.persistit.MVV.TYPE_MVV;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -41,6 +45,10 @@ public class MVVTest {
     }
 
     private static void assertArrayEqualsLen(byte[] expected, byte[] actual, int length) {
+        assertArrayEqualsLen(expected, 0, actual, length);
+    }
+
+    private static void assertArrayEqualsLen(byte[] expected, int offset, byte[] actual, int length) {
         if(expected.length < length) {
             throw new AssertionError(String.format("Expected array is too short: %d vs %d", actual.length, length));
         }
@@ -48,14 +56,63 @@ public class MVVTest {
             throw new AssertionError(String.format("Actual array is too short: %d vs %d", actual.length, length));
         }
         for(int i = 0; i < length; ++i) {
-            byte bE = expected[i];
+            byte bE = expected[offset+i];
             byte bA = actual[i];
             if(bE != bA) {
                 throw new AssertionError(String.format("Arrays differed at element [%d]: expected <%d> but was <%d>", i, bE, bA));
             }
         }
     }
-    
+
+    private static class LengthAndOffset {
+        long length;
+        long offset;
+        
+        public LengthAndOffset(long length, long offset) {
+            this.length = length;
+            this.offset = offset;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("(%d,%d)", length, offset);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if(this == o) return true;
+            if(!(o instanceof LengthAndOffset)) return false;
+            LengthAndOffset that = (LengthAndOffset) o;
+            return length == that.length && offset == that.offset;
+        }
+    }
+
+    private static class TestVisitor implements MVV.VersionVisitor {
+        boolean initCalled = false;
+        Map<Long,LengthAndOffset> versions = new TreeMap<Long, LengthAndOffset>();
+
+        @Override
+        public void init() {
+            initCalled = true;
+            versions.clear();
+        }
+
+        @Override
+        public void sawVersion(long version, int valueLength, int offset) {
+            versions.put(version, new LengthAndOffset(valueLength, offset));
+        }
+    }
+
+    private static Map<Long, LengthAndOffset> newVisitorMap(long ...vals) {
+        assertTrue("must be (version,length,offset) triplets", (vals.length % 3) == 0);
+        Map<Long,LengthAndOffset> outMap = new TreeMap<Long, LengthAndOffset>();
+        for(int i = 0; i < vals.length; i += 3) {
+            outMap.put(vals[i], new LengthAndOffset(vals[i+1], vals[i+2]));
+        }
+        return outMap;
+    }
+
+
 
     @Test
     public void requireBigEndian() {
@@ -352,9 +409,8 @@ public class MVVTest {
         final long vh = 10;
         final byte[] source = {};
         final byte[] dest = {};
-        MVV.FetchVisitor visitor = new MVV.ExactVersionVisitor(vh);
         assertEquals(MVV.VERSION_NOT_FOUND,
-                     MVV.fetchVersionByVisitor(visitor, source, source.length, dest));
+                     MVV.fetchVersion(source, source.length, vh, dest));
     }
 
     @Test
@@ -362,9 +418,8 @@ public class MVVTest {
         final long vh = 10;
         final byte[] source = {0xA,0xB,0xC};
         final byte[] dest = {};
-        MVV.FetchVisitor visitor = new MVV.ExactVersionVisitor(vh);
         assertEquals(MVV.VERSION_NOT_FOUND,
-                     MVV.fetchVersionByVisitor(visitor, source, source.length, dest));
+                     MVV.fetchVersion(source, source.length, vh, dest));
     }
 
     @Test
@@ -376,9 +431,8 @@ public class MVVTest {
                 0,0,0,0,0,0,0,2, 0,2, 0xD,0xE
         };
         final byte[] dest = {};
-        MVV.FetchVisitor visitor = new MVV.ExactVersionVisitor(vh);
         assertEquals(MVV.VERSION_NOT_FOUND,
-                     MVV.fetchVersionByVisitor(visitor, source, source.length, dest));
+                     MVV.fetchVersion(source, source.length, vh, dest));
     }
 
     @Test
@@ -391,8 +445,7 @@ public class MVVTest {
         };
         final byte[] expected = {0xA,0xB};
         final byte[] dest = new byte[20];
-        MVV.FetchVisitor visitor = new MVV.ExactVersionVisitor(vh);
-        final int fetchedLen = MVV.fetchVersionByVisitor(visitor, source, source.length, dest);
+        final int fetchedLen = MVV.fetchVersion(source, source.length, vh, dest);
         assertEquals(expected.length, fetchedLen);
         assertArrayEqualsLen(expected, dest, expected.length);
     }
@@ -408,8 +461,68 @@ public class MVVTest {
         };
         final byte[] expected = {0xB,0xC,0xD};
         final byte[] dest = new byte[expected.length-1];
-        MVV.FetchVisitor visitor = new MVV.ExactVersionVisitor(vh);
-        MVV.fetchVersionByVisitor(visitor, source, source.length, dest);
+        MVV.fetchVersion(source, source.length, vh, dest);
+    }
+    
+    @Test
+    public void visitAndFetchByOffsetUndefined() {
+        final byte[] source = {};
+        TestVisitor visitor = new TestVisitor();
+        MVV.visitAllVersions(visitor, source, source.length);
+        assertTrue(visitor.initCalled);
+        assertEquals(newVisitorMap(0,0,0), visitor.versions);
+    }
+
+    @Test
+    public void visitAndFetchByOffsetPrimordial() {
+        final byte[] source = {0xA,0xB,0xC};
+        TestVisitor visitor = new TestVisitor();
+        MVV.visitAllVersions(visitor, source, source.length);
+        assertTrue(visitor.initCalled);
+        assertEquals(newVisitorMap(0,3,0), visitor.versions);
+
+        final byte[] dest = new byte[3];
+        MVV.fetchVersionByOffset(source, source.length, 0, dest);
+        assertArrayEquals(source, dest);
+    }
+
+    @Test
+    public void visitAndFetchByOffsetMVV() {
+        final byte[] source = {
+                (byte)TYPE_MVV,
+                0,0,0,0,0,0,0,1,  0,3, 0xA,0xB,0xC,
+                0,0,0,0,0,0,0,2,  0,2, 0xD,0xE,
+                0,0,0,0,0,0,0,11, 0,5, 0x1,0x2,0x3,0x4,0x5,
+                0,0,0,0,0,0,0,9,  0,1, 0xA,
+                0,1,2,3,4,5,6,7,  0,3, 0xB,0xC,0xD
+        };
+        TestVisitor visitor = new TestVisitor();
+        MVV.visitAllVersions(visitor, source, source.length);
+        assertTrue(visitor.initCalled);
+        assertEquals(newVisitorMap(1,3,11, 2,2,24, 11,5,36, 9,1,51, 283686952306183L,3,62),
+                     visitor.versions);
+
+        for(Map.Entry<Long,LengthAndOffset> entry : visitor.versions.entrySet()) {
+            int length = (int)entry.getValue().length;
+            int offset = (int)entry.getValue().offset;
+            byte[] dest = new byte[length];
+            MVV.fetchVersionByOffset(source, source.length, offset, dest);
+            assertArrayEqualsLen(source, offset, dest, length);
+        }
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void fetchByOffsetNegative() {
+        final byte[] source = {};
+        final byte[] dest = new byte[10];
+        MVV.fetchVersionByOffset(source, source.length, -1, dest);
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void fetchByOffsetTooLarge() {
+        final byte[] source = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,3, 0xA,0xB,0xC);
+        final byte[] dest = new byte[10];
+        MVV.fetchVersionByOffset(source, source.length, source.length - 2, dest);
     }
 
     @Test
@@ -435,8 +548,7 @@ public class MVVTest {
 
         final byte fetchDest[] = new byte[50];
         for(int i = 0; i < VERSION_COUNT; ++i) {
-            MVV.FetchVisitor visitor = new MVV.ExactVersionVisitor(versions[i]);
-            int fetchedLen = MVV.fetchVersionByVisitor(visitor, dest, destLength, fetchDest);
+            int fetchedLen = MVV.fetchVersion(dest, destLength, versions[i], fetchDest);
             assertEquals(sources[i].length, fetchedLen);
             assertArrayEqualsLen(sources[i], fetchDest, sources[i].length);
         }

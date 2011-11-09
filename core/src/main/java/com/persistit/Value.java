@@ -1305,23 +1305,23 @@ public final class Value {
             final int savedSize = _size;
             sb.append("[");
 
-            MVV.fetchVersionByVisitor(new MVV.FetchVisitor() {
+            MVV.visitAllVersions(new MVV.VersionVisitor() {
                 boolean first = true;
 
                 @Override
-                public void init() {}
+                public void init() {
+                }
 
                 @Override
-                public void sawVersion(long versionHandle, int valueLength, int offset) {
+                public void sawVersion(long version, int valueLength, int offset) {
                     if(!first) {
                         sb.append(", ");
                     }
-                    sb.append(versionHandle);
+                    sb.append(version);
                     sb.append(':');
                     if(valueLength == 0) {
                         sb.append(UNDEFINED);
-                    }
-                    else {
+                    } else {
                         _next = offset;
                         _size = _next + valueLength;
                         decodeDisplayable(quoted, sb, context);
@@ -1329,9 +1329,7 @@ public final class Value {
                     first = false;
                 }
 
-                @Override
-                public int offsetToFetch() { return -1; }
-            }, getEncodedBytes(), getEncodedSize(), null);
+            }, getEncodedBytes(), getEncodedSize());
 
             sb.append("]");
             _next = _size = savedSize;
@@ -2250,13 +2248,13 @@ public final class Value {
             _depth++;
             final ArrayList<Object> outList = new ArrayList<Object>();
 
-            MVV.fetchVersionByVisitor(new MVV.FetchVisitor() {
+            MVV.visitAllVersions(new MVV.VersionVisitor() {
                 @Override
                 public void init() {
                 }
 
                 @Override
-                public void sawVersion(long versionHandle, int valueLength, int offset) {
+                public void sawVersion(long version, int valueLength, int offset) {
                     Object obj = null;
                     if(valueLength > 0) {
                         _next = offset;
@@ -2266,11 +2264,7 @@ public final class Value {
                     outList.add(obj);
                 }
 
-                @Override
-                public int offsetToFetch() {
-                    return -1;
-                }
-            }, getEncodedBytes(), getEncodedSize(), null);
+            }, getEncodedBytes(), getEncodedSize());
 
             _depth--;
             _next = _size = savedSIze;

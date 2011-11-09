@@ -26,10 +26,10 @@ public class MVV {
     public final static int VERSION_NOT_FOUND = -1;
 
     private final static int LENGTH_TYPE_MVV = 1;       // byte
-    private final static int LENGTH_VERSION_HANDLE = 8; // long
+    private final static int LENGTH_VERSION = 8;        // long
     private final static int LENGTH_VALUE_LENGTH = 2;   // short
 
-    private final static int LENGTH_PER_VERSION = LENGTH_VERSION_HANDLE + LENGTH_VALUE_LENGTH;
+    private final static int LENGTH_PER_VERSION = LENGTH_VERSION + LENGTH_VALUE_LENGTH;
 
 
     /**
@@ -80,7 +80,7 @@ public class MVV {
             int offset = 1;
             while(offset < sourceLength) {
                 final long version = Util.getLong(source, offset);
-                final int valueLength = Util.getShort(source, offset + LENGTH_VERSION_HANDLE);
+                final int valueLength = Util.getShort(source, offset + LENGTH_VERSION);
                 offset += LENGTH_PER_VERSION + valueLength;
                 if(version == newVersion) {
                     return sourceLength - valueLength + newVersionLength;
@@ -102,8 +102,8 @@ public class MVV {
      * @param version Version associated with source
      * @param source Value to store
      * @param sourceLength Length of source currently in use
-     * @throws IllegalArgumentException If target is too small to hold final MVV contents
      * @return New consumed length of target array
+     * @throws IllegalArgumentException If target is too small to hold final MVV contents
      */
     public static int storeVersion(byte[] target, int targetLength, long version, byte[] source, int sourceLength) {
         int offset = 0;
@@ -132,7 +132,7 @@ public class MVV {
             int curOffset = 1;
             while(curOffset < targetLength) {
                 final long curVersion = Util.getLong(target, curOffset);
-                final int size = Util.getShort(target, curOffset + LENGTH_VERSION_HANDLE);
+                final int size = Util.getShort(target, curOffset + LENGTH_VERSION);
                 final int chunkOffset = LENGTH_PER_VERSION + size;
                 curOffset += chunkOffset;
                 if(curVersion == version) {
@@ -163,70 +163,69 @@ public class MVV {
     }
 
     /**
-     * Interface for fetching versions of values out of an MVV array.
+     * Search for a known version within a MVV array. If the version is found within the array,
+     * copy the contents out to the target and return the consumed length.
+     * 
+     * @param source MVV array to search
+     * @param sourceLength Valid length of source
+     * @param version Version to search for
+     * @param target Array to copy desired value to
+     * @return Length of new contents in target or {@link MVV#VERSION_NOT_FOUND} if no value was copied.
+     * @throws IllegalArgumentException If the target array is too small to hold the value
      */
-    public static interface FetchVisitor {
+    public static int fetchVersion(byte[] source, int sourceLength, long version, byte[] target) {
+        int offset = 0;
+        int length = VERSION_NOT_FOUND;
+
+        if(version == 0 && (sourceLength == 0 || source[0] != TYPE_MVV_BYTE)) {
+            length = sourceLength;
+        }
+        else if(sourceLength > 0 && source[0] == TYPE_MVV_BYTE) {
+            offset = 1;
+            while(offset < sourceLength) {
+                long curVersion = Util.getLong(source, offset);
+                int curLength = Util.getShort(source, offset + LENGTH_VERSION);
+                offset += LENGTH_PER_VERSION;
+                if(curVersion == version) {
+                    length = curLength;
+                    break;
+                }
+                offset += curLength;
+            }
+        }
+
+        if(length > 0) {
+            assertCapacity(target, length);
+            System.arraycopy(source, offset, target, 0, length);
+        }
+
+        return length;
+    }
+
+    public static interface VersionVisitor {
         /**
-         * Called before iterating over MVV array.
+         * Called before iterating over MVV array. Allows for instance re-use.
          */
         void init();
 
         /**
-         * Called exactly once for each version in the MVV array.
-         * @param versionHandle Version
+         * Called once, and only once, for each version in the MVV array.
+         * 
+         * @param version Version of the stored value
          * @param valueLength Length of stored value
-         * @param offset Offset in MVV byte array
+         * @param offset Offset in MVV array to start of stored value
          */
-        void sawVersion(long versionHandle, int valueLength, int offset);
-
-        /**
-         * After iteration is complete, this method is called to determine what
-         * version, by way of the offset, to return.
-         * @return Offset of the desired version or {@link MVV#VERSION_NOT_FOUND} for none.
-         */
-        int offsetToFetch();
+        void sawVersion(long version, int valueLength, int offset);
     }
 
     /**
-     * Simple fetch visitor that looks for an exact version.
-     */
-    public static class ExactVersionVisitor implements FetchVisitor {
-        private int offset;
-        private long desiredVersion;
-
-        public ExactVersionVisitor(long desiredVersion) {
-            this.desiredVersion = desiredVersion;
-        }
-        
-        @Override
-        public void init() {
-            offset = VERSION_NOT_FOUND;
-        }
-
-        @Override
-        public void sawVersion(long versionHandle, int valueLength, int offset) {
-            if(versionHandle == desiredVersion) {
-                this.offset = offset;
-            }
-        }
-
-        @Override
-        public int offsetToFetch() {
-            return offset;
-        }
-    }
-
-    /**
-     * Copy a version of a value, specified by the given visitor, into the destination byte array.
+     * Enumerate all versions of the values contained within the given MVV array.
      * 
-     * @param visitor Visitor to specify what version to return
+     * @param visitor FetchVisitor for consuming version info
      * @param source MVV array to search
-     * @param sourceLength Valid length of source
-     * @param target Array to copy desired value to
-     * @return Length of new contents in target or {@link MVV#VERSION_NOT_FOUND} if no value was copied.
-     * @throws IllegalArgumentException If the destination is too small to hold the desired value
+     * @param sourceLength Consumed length of source
      */
-    public static int fetchVersionByVisitor(FetchVisitor visitor, byte[] source, int sourceLength, byte[] target) {
+    public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceLength) {
         visitor.init();
         if(sourceLength == 0) {
             visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, UNDEFINED_VALUE_LENGTH, 0);
@@ -238,35 +237,39 @@ public class MVV {
             int offset = 1;
             while(offset < sourceLength) {
                 final long version = Util.getLong(source, offset);
-                final int valueLength = Util.getShort(source, offset + LENGTH_VERSION_HANDLE);
+                final int valueLength = Util.getShort(source, offset + LENGTH_VERSION);
                 offset += LENGTH_PER_VERSION;
                 visitor.sawVersion(version, valueLength, offset);
                 offset += valueLength;
             }
         }
-
-        int returnSize = VERSION_NOT_FOUND;
-        int offsetToReturn = visitor.offsetToFetch();
-        if(offsetToReturn >= 0) {
-            if(offsetToReturn == 0) {
-                if(sourceLength == 0) {
-                    return UNDEFINED_VALUE_LENGTH;
-                }
-                else {
-                    returnSize = sourceLength;
-                }
-            }
-            else {
-                returnSize = Util.getShort(source, offsetToReturn - LENGTH_VALUE_LENGTH);
-            }
-
-            assertCapacity(target, returnSize);
-            System.arraycopy(source, offsetToReturn, target, 0, returnSize);
-        }
-
-        return returnSize;
     }
-    
+
+    /**
+     * Fetch a version of a value from a MVV array given a known offset. The offset should
+     * be the starting position of of the actual value and not the MVV header bytes. Intended
+     * to be used in connection with the {@link #visitAllVersions(com.persistit.MVV.VersionVisitor, byte[], int)}
+     * method which gives this offset.
+     * 
+     * @param source MVV array to search
+     * @param sourceLength Consumed length of source
+     * @param offset Offset inside {@code source} to start of actual value
+     * @param target Array to copy desired value to
+     * @return Length of new contents in target or {@link MVV#VERSION_NOT_FOUND} if no value was copied.
+     * @throws IllegalArgumentException If the target array is too small to hold the value
+     */
+    public static int fetchVersionByOffset(byte[] source, int sourceLength, int offset, byte[] target) {
+        if(offset < 0 || (offset > 0 && offset > sourceLength - LENGTH_VALUE_LENGTH)) {
+            throw new IllegalArgumentException("Offset out of range: " + offset);
+        }
+        final int length = (offset == 0) ? sourceLength : Util.getShort(source, offset - LENGTH_VALUE_LENGTH);
+        if(length > 0) {
+            assertCapacity(target, length);
+            System.arraycopy(source, offset, target, 0, length);
+        }
+        return length;
+    }
+
 
     /**
      * Internal helper. Write a version handle into the given byte array at the specified offset.
@@ -278,7 +281,7 @@ public class MVV {
      */
     private static int writeVersionHandle(byte[] target, int offset, long versionHandle) {
         Util.putLong(target, offset, versionHandle);
-        return LENGTH_VERSION_HANDLE;
+        return LENGTH_VERSION;
     }
 
     /**

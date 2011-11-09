@@ -184,7 +184,7 @@ public class Exchange {
         NONE, FORWARD, REVERSE
     }
 
-    private static class ReadCommittedVisitor implements MVV.FetchVisitor {
+    private static class ReadCommittedVisitor implements MVV.VersionVisitor {
         TransactionIndex _ti;
         int _offset;
         long _maxVersion;
@@ -205,9 +205,9 @@ public class Exchange {
         }
 
         @Override
-        public void sawVersion(long versionHandle, int valueLength, int offset) {
+        public void sawVersion(long version, int valueLength, int offset) {
             try {
-                long status = _ti.commitStatus(versionHandle, _timestamp, _step);
+                long status = _ti.commitStatus(version, _timestamp, _step);
                 if(status >= 0 && status != TransactionStatus.UNCOMMITTED && status > _maxVersion) {
                     _maxVersion= status;
                     _offset = offset;
@@ -217,8 +217,7 @@ public class Exchange {
             }
         }
 
-        @Override
-        public int offsetToFetch() {
+        public int getOffset() {
             return _offset;
         }
     }
@@ -2527,12 +2526,18 @@ public class Exchange {
             buffer.fetch(foundAt, value);
             fetchFixupForLongRecords(value, minimumBytes);
 
-            _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
-            int newSize = MVV.fetchVersionByVisitor(_fetchVisitor,
-                                                    value.getEncodedBytes(), value.getEncodedSize(),
-                                                    value.getEncodedBytes());
-            value.setEncodedSize(newSize);
+            byte[] valueBytes= value.getEncodedBytes();
+            int valueSize = value.getEncodedSize();
 
+            _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
+            MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
+            if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
+                int newSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
+                value.setEncodedSize(newSize);
+            }
+            else {
+                value.setEncodedSize(0);
+            }
 
            _volume.getStatistics().bumpFetchCounter();
             return this;
