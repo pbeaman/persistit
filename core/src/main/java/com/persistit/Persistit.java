@@ -1115,7 +1115,7 @@ public class Persistit {
      * @return the List
      * @throws PersistitException
      */
-    public List<Tree> getSelectedTrees(final TreeSelector selector) throws PersistitException {
+    public synchronized List<Tree> getSelectedTrees(final TreeSelector selector) throws PersistitException {
         final List<Tree> list = new ArrayList<Tree>();
         for (final Volume volume : _volumes) {
             if (selector.isSelected(volume)) {
@@ -1493,6 +1493,7 @@ public class Persistit {
         if (_closed.get() || !_initialized.get()) {
             return null;
         }
+        cleanup();
         return _checkpointManager.checkpoint();
     }
 
@@ -1617,6 +1618,13 @@ public class Persistit {
                 }
             }
         }
+        final List<Volume> volumes;
+        synchronized (this) {
+            volumes = new ArrayList<Volume>(_volumes);
+        }
+        for (final Volume volume : volumes) {
+            volume.getStructure().flushStatistics();
+        }
     }
 
     /**
@@ -1708,9 +1716,15 @@ public class Persistit {
 
         getTransaction().close();
         cleanup();
+        
+        final List <Volume> volumes;
+        synchronized(this) {
+            volumes = new ArrayList<Volume>(_volumes);
+        }
 
         if (flush) {
-            for (final Volume volume : _volumes) {
+            for (final Volume volume : volumes) {
+                volume.getStructure().flushStatistics();
                 volume.getStorage().flush();
             }
         }
@@ -1718,11 +1732,6 @@ public class Persistit {
         _checkpointManager.close(flush);
         waitForIOTaskStop(_checkpointManager);
         _closed.set(true);
-
-        final List<Volume> volumes;
-        synchronized (this) {
-            volumes = new ArrayList<Volume>(_volumes);
-        }
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
@@ -1840,6 +1849,7 @@ public class Persistit {
             return false;
         }
         for (final Volume volume : _volumes) {
+            volume.getStructure().flushStatistics();
             volume.getStorage().flush();
             volume.getStorage().force();
         }

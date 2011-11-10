@@ -1385,8 +1385,10 @@ public class Exchange {
             }
         }
         _volume.getStatistics().bumpStoreCounter();
+        _tree.getStatistics().bumpStoreCounter();
         if (fetchFirst) {
             _volume.getStatistics().bumpFetchCounter();
+            _tree.getStatistics().bumpFetchCounter();
         }
     }
 
@@ -1886,7 +1888,6 @@ public class Exchange {
                 _key.appendBefore();
             }
             nudged = true;
-
         }
 
         _key.testValidForTraverse();
@@ -2089,6 +2090,7 @@ public class Exchange {
             }
         }
         _volume.getStatistics().bumpTraverseCounter();
+        _tree.getStatistics().bumpTraverseCounter();
         return result;
     }
 
@@ -2542,7 +2544,8 @@ public class Exchange {
                 value.setEncodedSize(0);
             }
 
-           _volume.getStatistics().bumpFetchCounter();
+            _volume.getStatistics().bumpFetchCounter();
+            _tree.getStatistics().bumpFetchCounter();
             return this;
         } finally {
             if (buffer != null) {
@@ -3223,8 +3226,10 @@ public class Exchange {
         }
 
         _volume.getStatistics().bumpRemoveCounter();
+        _tree.getStatistics().bumpRemoveCounter();
         if (fetchFirst)
             _volume.getStatistics().bumpFetchCounter();
+            _tree.getStatistics().bumpFetchCounter();
         return result;
     }
 

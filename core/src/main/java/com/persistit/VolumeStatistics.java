@@ -25,13 +25,109 @@ class VolumeStatistics {
     private volatile long _nextAvailablePage;
     private volatile long _createTime;
 
-    private AtomicLong _readCounter = new AtomicLong();
-    private AtomicLong _writeCounter = new AtomicLong();
-    private AtomicLong _getCounter = new AtomicLong();
-    private AtomicLong _fetchCounter = new AtomicLong();
-    private AtomicLong _traverseCounter = new AtomicLong();
-    private AtomicLong _storeCounter = new AtomicLong();
-    private AtomicLong _removeCounter = new AtomicLong();
+    private final AtomicLong _readCounter = new AtomicLong();
+    private final AtomicLong _writeCounter = new AtomicLong();
+    private final AtomicLong _getCounter = new AtomicLong();
+    private final AtomicLong _fetchCounter = new AtomicLong();
+    private final AtomicLong _traverseCounter = new AtomicLong();
+    private final AtomicLong _storeCounter = new AtomicLong();
+    private final AtomicLong _removeCounter = new AtomicLong();
+
+    /**
+     * @return the count of physical disk read requests performed on this
+     *         <code>Volume</code>
+     */
+    public long getReadCounter() {
+        return _readCounter.get();
+    }
+
+    /**
+     * @return the count of physical disk write requests performed on this
+     *         <code>Volume</code>
+     */
+    public long getWriteCounter() {
+        return _writeCounter.get();
+    }
+
+    /**
+     * @return the count of logical buffer fetches performed against this
+     *         <code>Volume</code>.
+     */
+    public long getGetCounter() {
+        return _getCounter.get();
+    }
+
+    /**
+     * @return the count of {@link Exchange#fetch} operations, including
+     *         {@link Exchange#fetchAndStore} and
+     *         {@link Exchange#fetchAndRemove}
+     */
+    public long getFetchCounter() {
+        return _fetchCounter.get();
+    }
+
+    /**
+     * @return the count of {@link Exchange#traverse} operations, including
+     *         {@link Exchange#next} and {@link Exchange#_previous}
+     */
+    public long getTraverseCounter() {
+        return _traverseCounter.get();
+    }
+
+    /**
+     * @return the count of {@link Exchange#store} operations, including
+     *         {@link Exchange#fetchAndStore} and
+     *         {@link Exchange#incrementValue}
+     */
+    public long getStoreCounter() {
+        return _storeCounter.get();
+    }
+
+    /**
+     * @return the count of {@link Exchange#remove} operations, including
+     *         {@link Exchange#fetchAndRemove}
+     */
+    public long getRemoveCounter() {
+        return _removeCounter.get();
+    }
+
+    /**
+     * @return The system time at which this <code>Volume</code> was created
+     */
+    public long getCreateTime() {
+        return _createTime;
+    }
+
+    /**
+     * @return the system time at which this <code>Volume</code> was last opened
+     */
+    public long getOpenTime() {
+        return _openTime;
+    }
+
+    /**
+     * @return the system time at which the last physical read operation was
+     *         performed on <code>Volume</code
+     */
+    public long getLastReadTime() {
+        return _lastReadTime;
+    }
+
+    /**
+     * @return the system time at which the last physical write operation was
+     *         performed on <code>Volume</code>.
+     */
+    public long getLastWriteTime() {
+        return _lastWriteTime;
+    }
+
+    /**
+     * @return the system time at which this <code>Volume</code> was last
+     *         extended (increased in physical size).
+     */
+    public long getLastExtensionTime() {
+        return _lastExtensionTime;
+    }
 
     void reset() {
         _openTime = 0;
@@ -81,137 +177,6 @@ class VolumeStatistics {
 
     long getNextAvailablePage() {
         return _nextAvailablePage;
-    }
-
-    /**
-     * Returns the count of physical disk read requests performed on this
-     * <code>Volume</code>.
-     * 
-     * @return The count
-     */
-    public long getReadCounter() {
-        return _readCounter.get();
-    }
-
-    /**
-     * Returns the count of physical disk write requests performed on this
-     * <code>Volume</code>.
-     * 
-     * @return The count
-     */
-    public long getWriteCounter() {
-        return _writeCounter.get();
-    }
-
-    /**
-     * Returns the count of logical buffer fetches performed against this
-     * <code>Volume</code>. The ratio of get to read operations indicates how
-     * effectively the buffer pool is reducing disk I/O.
-     * 
-     * @return The count
-     */
-    public long getGetCounter() {
-        return _getCounter.get();
-    }
-
-    /**
-     * Returns the count of {@link Exchange#fetch} operations. These include
-     * {@link Exchange#traverse}, {@link Exchange#fetchAndStore} and
-     * {@link Exchange#fetchAndRemove} operations. This count is maintained with
-     * the stored Volume and is not reset when Persistit closes. It is provided
-     * to assist application performance tuning.
-     * 
-     * @return The count of records fetched from this Volume.
-     */
-    public long getFetchCounter() {
-        return _fetchCounter.get();
-    }
-
-    /**
-     * Returns the count of {@link Exchange#traverse} operations. These include
-     * {@link Exchange#next} and {@link Exchange#_previous} operations. This
-     * count is maintained with the stored Volume and is not reset when
-     * Persistit closes. It is provided to assist application performance
-     * tuning.
-     * 
-     * @return The count of key traversal operations performed on this in this
-     *         Volume.
-     */
-    public long getTraverseCounter() {
-        return _traverseCounter.get();
-    }
-
-    /**
-     * Returns the count of {@link Exchange#store} operations, including
-     * {@link Exchange#fetchAndStore} and {@link Exchange#incrementValue}
-     * operations. This count is maintained with the stored Volume and is not
-     * reset when Persistit closes. It is provided to assist application
-     * performance tuning.
-     * 
-     * @return The count of records fetched from this Volume.
-     */
-    public long getStoreCounter() {
-        return _storeCounter.get();
-    }
-
-    /**
-     * Returns the count of {@link Exchange#remove} operations, including
-     * {@link Exchange#fetchAndRemove} operations. This count is maintained with
-     * the stored Volume and is not reset when Persistit closes. It is provided
-     * to assist application performance tuning.
-     * 
-     * @return The count of records fetched from this Volume.
-     */
-    public long getRemoveCounter() {
-        return _removeCounter.get();
-    }
-
-    /**
-     * Returns the time at which this <code>Volume</code> was created.
-     * 
-     * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
-     */
-    public long getCreateTime() {
-        return _createTime;
-    }
-
-    /**
-     * Returns the time at which this <code>Volume</code> was last opened.
-     * 
-     * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
-     */
-    public long getOpenTime() {
-        return _openTime;
-    }
-
-    /**
-     * Returns the time at which the last physical read operation was performed
-     * on <code>Volume</code>.
-     * 
-     * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
-     */
-    public long getLastReadTime() {
-        return _lastReadTime;
-    }
-
-    /**
-     * Returns the time at which the last physical write operation was performed
-     * on <code>Volume</code>.
-     * 
-     * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
-     */
-    public long getLastWriteTime() {
-        return _lastWriteTime;
-    }
-
-    /**
-     * Returns the time at which this <code>Volume</code> was last extended
-     * (increased in physical size).
-     * 
-     * @return The time, in milliseconds since January 1, 1970, 00:00:00 GMT.
-     */
-    public long getLastExtensionTime() {
-        return _lastExtensionTime;
     }
 
     void setOpenTime(long openTime) {
