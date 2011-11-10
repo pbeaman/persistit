@@ -3241,9 +3241,10 @@ public class Exchange {
 
         _volume.getStatistics().bumpRemoveCounter();
         _tree.getStatistics().bumpRemoveCounter();
-        if (fetchFirst)
+        if (fetchFirst) {
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
+        }
         return result;
     }
 
