@@ -19,11 +19,11 @@ import com.persistit.util.Util;
 
 public class MVV {
     final static int TYPE_MVV = 0xFE;
-
+    final static int VERSION_NOT_FOUND = -1;
+    
     private static final byte TYPE_MVV_BYTE = (byte)TYPE_MVV;
     private final static int PRIMORDIAL_VALUE_VERSION = 0;
     private final static int UNDEFINED_VALUE_LENGTH = 0;
-    public final static int VERSION_NOT_FOUND = -1;
 
     private final static int LENGTH_TYPE_MVV = 1;       // byte
     private final static int LENGTH_VERSION = 8;        // long
@@ -53,7 +53,10 @@ public class MVV {
      * @return Required length estimate
      */
     static int estimateRequiredLength(byte[] source, int sourceLength, int newVersionLength) {
-        if(sourceLength == 0 || source[0] != TYPE_MVV_BYTE) {
+        if(sourceLength < 0) {
+            return overheadLength(1) + newVersionLength;
+        }
+        else if(sourceLength == 0 || source[0] != TYPE_MVV_BYTE) {
             return overheadLength(2) + sourceLength + newVersionLength;
         }
         else {
@@ -73,7 +76,10 @@ public class MVV {
      * @return Exact required length
      */
     static int exactRequiredLength(byte[] source, int sourceLength, long newVersion, int newVersionLength) {
-        if(sourceLength == 0 || source[0] != TYPE_MVV_BYTE) {
+        if(sourceLength < 0) {
+            return overheadLength(1) + newVersionLength;
+        }
+        else if(sourceLength == 0 || source[0] != TYPE_MVV_BYTE) {
             return overheadLength(2) + sourceLength + newVersionLength;
         }
         else {
@@ -98,7 +104,13 @@ public class MVV {
      * in the target array it will be updated as required.
      *
      * @param target Destination MVV array to append to or update
-     * @param targetLength Length of target currently in use
+     * @param targetLength Length of target currently in use. The state of the target array,
+     * which corresponds to the higher level {@link com.persistit.Value} state, is indicated by lengths
+     * <ul>
+     *     <li>&lt; 0: target currently unoccupied and unused (no key or value)</li>
+     *     <li>= 0: target currently unoccupied but used (key but no value, i.e. undefined)</li>
+     *     <li>> 0: target currently occupied and used (key and value)</li>
+     * </ul>
      * @param version Version associated with source
      * @param source Value to store
      * @param sourceLength Length of source currently in use
@@ -107,9 +119,13 @@ public class MVV {
      */
     public static int storeVersion(byte[] target, int targetLength, long version, byte[] source, int sourceLength) {
         int offset = 0;
-        if(targetLength == 0) {
+        if(targetLength < 0) {
+            assertCapacity(target, overheadLength(1) + sourceLength);
+            // Promote to MVV, no original state to preserve
+            target[offset++] = TYPE_MVV_BYTE;
+        }
+        else if(targetLength == 0) {
             assertCapacity(target, overheadLength(2) + sourceLength);
-            
             // Promote to MVV, original state is undefined
             target[offset++] = TYPE_MVV_BYTE;
             offset += writeVersionHandle(target, offset, PRIMORDIAL_VALUE_VERSION);
@@ -117,7 +133,6 @@ public class MVV {
         }
         else if(target[0] != TYPE_MVV_BYTE) {
             assertCapacity(target, overheadLength(2) + targetLength + sourceLength);
-
             // Promote to MVV, shift existing down for header
             System.arraycopy(target, 0, target, LENGTH_TYPE_MVV + LENGTH_PER_VERSION, targetLength);
             target[offset++] = TYPE_MVV_BYTE;
@@ -227,7 +242,10 @@ public class MVV {
      */
     public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceLength) {
         visitor.init();
-        if(sourceLength == 0) {
+        if(sourceLength < 0) {
+            // No versions
+        }
+        else if(sourceLength == 0) {
             visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, UNDEFINED_VALUE_LENGTH, 0);
         }
         else if(source[0] != TYPE_MVV_BYTE) {
@@ -248,7 +266,7 @@ public class MVV {
     /**
      * Fetch a version of a value from a MVV array given a known offset. The offset should
      * be the starting position of of the actual value and not the MVV header bytes. Intended
-     * to be used in connection with the {@link #visitAllVersions(com.persistit.MVV.VersionVisitor, byte[], int)}
+     * to be used in connection with the {@link #visitAllVersions(VersionVisitor, byte[], int)}
      * method which gives this offset.
      * 
      * @param source MVV array to search

@@ -1479,8 +1479,11 @@ public class Exchange {
                                                                      valueSize + " > " + maxSimpleValueSize);
                         }
 
-                        int mvvSize = MVV.estimateRequiredLength(_spareValue.getEncodedBytes(),
-                                                                 _spareValue.getEncodedSize(), valueSize);
+                        // If no EXACT_MASK, key is not currently present in the buffer
+                        // so current value is truly non-existent not just undefined
+                        int currentSize = (foundAt & EXACT_MASK) == 0 ? -1 : _spareValue.getEncodedSize();
+
+                        int mvvSize = MVV.estimateRequiredLength(_spareValue.getEncodedBytes(), currentSize, valueSize);
                         if(mvvSize > maxSimpleValueSize) {
                             throw new UnsupportedOperationException("Unsupported LONG_RECORD MVV: "+
                                                                      mvvSize +" > "+maxSimpleValueSize);
@@ -1490,7 +1493,7 @@ public class Exchange {
                         
                         // TODO: Need the current step value
                         long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
-                        int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), _spareValue.getEncodedSize(),
+                        int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), currentSize,
                                                             versionHandle, value.getEncodedBytes(), valueSize);
                         _spareValue.setEncodedSize(storedLength);
                     }

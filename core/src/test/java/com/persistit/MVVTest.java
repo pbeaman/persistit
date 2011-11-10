@@ -37,6 +37,7 @@ public class MVVTest {
     @Test
     public void lengthEstimate() {
         byte[] source = {};
+        assertTrue(MVV.estimateRequiredLength(source, -1, 5) >= 5);
         assertTrue(MVV.estimateRequiredLength(source, source.length, 5) >= 5);
 
         source = newArray(0xA, 0xB, 0xC, 0xD, 0xE, 0xF);
@@ -50,6 +51,7 @@ public class MVVTest {
     @Test
     public void lengthExactly() {
         byte[] source = {};
+        assertEquals(MVV.exactRequiredLength(source, -1, 1, 5), MVV.overheadLength(1) + 5);
         assertEquals(MVV.exactRequiredLength(source, source.length, 1, 5), MVV.overheadLength(2) + 5);
 
         source = newArray(0xA, 0xB, 0xC, 0xD, 0xE, 0xF);
@@ -64,6 +66,21 @@ public class MVVTest {
         assertEquals(MVV.exactRequiredLength(source, usedLength, 1, 1), usedLength - 1);
         // replace version, longer
         assertEquals(MVV.exactRequiredLength(source, usedLength, 1, 3), usedLength + 1);
+    }
+
+    @Test
+    public void storeToUnused() {
+        final int vh = 200;
+        final byte[] source = {0xA,0xB,0xC};
+
+        final byte[] target = new byte[100];
+        final int storedLength = MVV.storeVersion(target, -1, vh, source, source.length);
+
+        assertEquals(source.length + MVV.overheadLength(1), storedLength);
+        assertArrayEqualsLen(newArray(TYPE_MVV,
+                                      0,0,0,0,0,0,0,vh, 0,3, 0xA,0xB,0xC),
+                             target,
+                             storedLength);
     }
 
     @Test
@@ -319,6 +336,15 @@ public class MVVTest {
     }
 
     @Test
+    public void fetchVersionFromUnused() {
+        final long vh = 10;
+        final byte[] source = {};
+        final byte[] target = {};
+        assertEquals(MVV.VERSION_NOT_FOUND,
+                     MVV.fetchVersion(source, -1, vh, target));
+    }
+
+    @Test
     public void fetchVersionFromUndefined() {
         final long vh = 10;
         final byte[] source = {};
@@ -377,9 +403,18 @@ public class MVVTest {
         final byte[] target = new byte[expected.length-1];
         MVV.fetchVersion(source, source.length, vh, target);
     }
-    
+
     @Test
-    public void visitAndFetchByOffsetUndefined() {
+    public void visitUnused() {
+        final byte[] source = {};
+        TestVisitor visitor = new TestVisitor();
+        MVV.visitAllVersions(visitor, source, -1);
+        assertTrue(visitor.initCalled);
+        assertEquals(newVisitorMap(), visitor.versions);
+    }
+
+    @Test
+    public void visitUndefined() {
         final byte[] source = {};
         TestVisitor visitor = new TestVisitor();
         MVV.visitAllVersions(visitor, source, source.length);
