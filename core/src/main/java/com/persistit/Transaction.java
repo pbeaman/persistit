@@ -864,12 +864,13 @@ public class Transaction {
     }
 
     private void flushTransactionBuffer() throws PersistitIOException {
-        _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer, _startTimestamp,
-                _commitTimestamp, _previousJournalAddress);
+        if (_buffer.position() > 0) {
+            _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
+                    _startTimestamp, _commitTimestamp, _previousJournalAddress);
+        }
     }
 
-    void writeStoreRecordToJournal( final int treeHandle, final Key key, final Value value)
-            throws PersistitIOException {
+    void writeStoreRecordToJournal(final int treeHandle, final Key key, final Value value) throws PersistitIOException {
         final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
         prepare(recordSize);
         SR.putLength(_buffer, recordSize);
@@ -881,8 +882,7 @@ public class Transaction {
         _buffer.put(value.getEncodedBytes(), 0, value.getEncodedSize());
     }
 
-    void writeDeleteRecordToJournal(final int treeHandle, final Key key1, final Key key2)
-            throws PersistitIOException {
+    void writeDeleteRecordToJournal(final int treeHandle, final Key key1, final Key key2) throws PersistitIOException {
         int elisionCount = key2.firstUniqueByteIndex(key1);
         int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
         prepare(recordSize);
@@ -904,8 +904,7 @@ public class Transaction {
         DT.putTreeHandle(_buffer, treeHandle);
     }
 
-    void writeCacheUpdatesToJournal(final long cacheId, final List<Update> updates)
-            throws PersistitIOException {
+    void writeCacheUpdatesToJournal(final long cacheId, final List<Update> updates) throws PersistitIOException {
         int estimate = CU.OVERHEAD;
         for (int index = 0; index < updates.size(); index++) {
             estimate += (1 + updates.get(index).size());
