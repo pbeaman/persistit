@@ -30,6 +30,7 @@ import java.math.BigInteger;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -301,6 +302,7 @@ public final class Value {
 
     private final static char TRUE_CHAR = 'T';
     private final static char FALSE_CHAR = 'F';
+    private final static String UNDEFINED = "undefined";
 
     //
     // Primitive values first. Codes allocated for .net types as well as
@@ -417,10 +419,18 @@ public final class Value {
     // can encode values up to Integer.MAX_VALUE. (With
     // 5 bits left available if needed for longer values.
     //
-    // Note that a LONGREC is introduced by 0xFF (255) as the first byte. This
-    // scheme will not collide because CLASS5 always has zeros in its low 4
-    // bits, meaning that the highest byte in a standard class encoding will
-    // be 0xF0 (240).
+    // There are 15 open values following the CLASS encoding scheme. Collisions
+    // are avoided because CLASS5 always has zeros in its low 4 bits, meaning
+    // that the highest byte in a standard class encoding will be 0xF0 (240).
+    //
+    // An MVV is introduced by 0xFE (254) as the first byte. This is mostly
+    // opaque to the Value class but exposed here for consistency, documentation,
+    // and for use by debug and toString() methods.
+    //
+    private final static int TYPE_MVV = MVV.TYPE_MVV;
+    //
+    // Note that a LONGREC is introduced by 0xFF (255) as the first byte.
+    //
 
     private final static int BASE1 = 0x00;
     private final static int BASE2 = 0x10;
@@ -961,7 +971,7 @@ public final class Value {
      */
     public String toString() {
         if (_size == 0) {
-            return "undefined";
+            return UNDEFINED;
         }
 
         if (_longMode && (_bytes[0] & 0xFF) == Buffer.LONGREC_TYPE && (_size >= Buffer.LONGREC_SIZE)) {
@@ -1043,7 +1053,7 @@ public final class Value {
      *            A <code>CoderContext</code> to be passed to any underlying
      *            {@link ValueDisplayer}.
      */
-    public void decodeDisplayable(boolean quoted, StringBuilder sb, CoderContext context) {
+    public void decodeDisplayable(final boolean quoted, final StringBuilder sb, final CoderContext context) {
         checkSize(1);
 
         int start = _next;
@@ -1289,6 +1299,41 @@ public final class Value {
             }
             break;
         }
+
+        case TYPE_MVV: {
+            final int savedSize = _size;
+            sb.append("[");
+
+            MVV.visitAllVersions(new MVV.VersionVisitor() {
+                boolean first = true;
+
+                @Override
+                public void init() {
+                }
+
+                @Override
+                public void sawVersion(long version, int valueLength, int offset) {
+                    if(!first) {
+                        sb.append(", ");
+                    }
+                    sb.append(version);
+                    sb.append(':');
+                    if(valueLength == 0) {
+                        sb.append(UNDEFINED);
+                    } else {
+                        _next = offset;
+                        _size = _next + valueLength;
+                        decodeDisplayable(quoted, sb, context);
+                    }
+                    first = false;
+                }
+
+            }, getEncodedBytes(), getEncodedSize());
+
+            sb.append("]");
+            _next = _size = savedSize;
+        }
+        break;
 
         default: {
             if (classHandle >= CLASS1) {
@@ -1964,7 +2009,7 @@ public final class Value {
      * @throws MalformedValueException
      *             if this <code>Value</code> is structurally corrupt.
      */
-    public Object get(Object target, CoderContext context) {
+    public Object get(final Object target, final CoderContext context) {
         Object object = null;
         int start = _next;
         int classHandle = nextType();
@@ -2227,6 +2272,34 @@ public final class Value {
             break;
         }
 
+        case TYPE_MVV: {
+            final int savedSIze = _size;
+            _depth++;
+            final ArrayList<Object> outList = new ArrayList<Object>();
+
+            MVV.visitAllVersions(new MVV.VersionVisitor() {
+                @Override
+                public void init() {
+                }
+
+                @Override
+                public void sawVersion(long version, int valueLength, int offset) {
+                    Object obj = null;
+                    if(valueLength > 0) {
+                        _next = offset;
+                        _size = _next + valueLength;
+                        obj = get(target, context);
+                    }
+                    outList.add(obj);
+                }
+
+            }, getEncodedBytes(), getEncodedSize());
+
+            _depth--;
+            _next = _size = savedSIze;
+            return outList.toArray();
+        }
+        
         default: {
             int saveDepth = _depth;
             try {

@@ -184,6 +184,47 @@ public class Exchange {
         NONE, FORWARD, REVERSE
     }
 
+    private static class ReadCommittedVisitor implements MVV.VersionVisitor {
+        TransactionIndex _ti;
+        int _offset;
+        long _maxVersion;
+
+        long _timestamp;
+        int _step;
+
+        void internalInit(TransactionIndex ti, long timestamp, int step) {
+            _ti = ti;
+            _timestamp = timestamp;
+            _step = step;
+        }
+
+        @Override
+        public void init() {
+            _maxVersion = -1;
+            _offset = -1;
+        }
+
+        @Override
+        public void sawVersion(long version, int valueLength, int offset) {
+            try {
+                long status = _ti.commitStatus(version, _timestamp, _step);
+                if(status >= 0 && status != TransactionStatus.UNCOMMITTED && status > _maxVersion) {
+                    _maxVersion= status;
+                    _offset = offset;
+                }
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        public int getOffset() {
+            return _offset;
+        }
+    }
+
+    private ReadCommittedVisitor _fetchVisitor = new ReadCommittedVisitor();
+
+
     /**
      * <p>
      * Construct a new <code>Exchange</code> object to create and/or access the
@@ -389,7 +430,6 @@ public class Exchange {
                 lc.invalidate();
             }
         }
-
     }
 
     private class LevelCache {
@@ -1092,7 +1132,14 @@ public class Exchange {
         key.testValidForStoreAndFetch(_volume.getPageSize());
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        storeInternal(key, value, 0, false, false);
+
+        // TODO: directoryExchange, and lots of tests, don't use transactions. Skip MVCC for now.
+        if(!_ignoreTransactions && _transaction.isActive()) {
+            storeInternalMVCC(key, value, 0, false);
+        }
+        else {
+            storeInternal(key, value, 0, false, false);
+        }
 
         _treeHolder.verifyReleased();
 
@@ -1343,6 +1390,221 @@ public class Exchange {
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
         }
+    }
+
+    /**
+     * Inserts or replaces a data value in the database starting at a specified
+     * level and working up toward the root of the tree.
+     *
+     * @return this Exchange
+     */
+    void storeInternalMVCC(Key key, Value value, int level, boolean dontWait) throws PersistitException {
+        boolean treeClaimRequired = false;
+        boolean treeClaimAcquired = false;
+        boolean treeWriterClaimRequired = false;
+
+        //
+        // First insert the record in the data page
+        //
+        Buffer buffer = null;
+
+        try {
+            for (;;) {
+                Debug.$assert0.t(buffer == null);
+                if (Debug.ENABLED) {
+                    Debug.suspend();
+                }
+
+                if (treeClaimRequired && !treeClaimAcquired) {
+                    if (!_treeHolder.claim(treeWriterClaimRequired)) {
+                        Debug.$assert0.t(false);
+                        throw new InUseException("Thread " + Thread.currentThread().getName() + " failed to get "
+                                + (treeWriterClaimRequired ? "writer" : "reader") + " claim on " + _tree);
+                    }
+                    treeClaimAcquired = true;
+                }
+
+                checkLevelCache();
+
+                try {
+                    if (level >= _cacheDepth) {
+                        Debug.$assert0.t(level == _cacheDepth);
+                        //
+                        // Need to lock the tree because we may need to change
+                        // its root.
+                        //
+                        if (!treeClaimAcquired || !_treeHolder.upgradeClaim()) {
+                            treeClaimRequired = true;
+                            treeWriterClaimRequired = true;
+                            throw new RetryException();
+                        }
+
+                        Debug.$assert0.t(_spareValue.getPointerValue() > 0);
+                        insertIndexLevel(key, _spareValue);
+                        break;
+                    }
+
+                    Debug.$assert0.t(buffer == null);
+                    int foundAt = -1;
+                    LevelCache lc = _levelCache[level];
+                    buffer = reclaimQuickBuffer(lc, true);
+
+                    if (buffer != null) {
+                        //
+                        // Start by assuming cached value is okay
+                        //
+                        foundAt = findKey(buffer, key, lc);
+
+                        if (buffer.isBeforeLeftEdge(foundAt) || buffer.isAfterRightEdge(foundAt)) {
+                            // TODO -maybe not touched
+                            buffer.releaseTouched();
+                            buffer = null;
+                        }
+                    }
+
+                    if (buffer == null) {
+                        foundAt = searchTree(key, level, true);
+                        buffer = lc._buffer;
+                    }
+
+                    Debug.$assert0.t(buffer != null &&
+                                     (buffer.getStatus() & SharedResource.WRITER_MASK) != 0 &&
+                                     (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
+
+                    if(buffer.isDataPage()) {
+                        buffer.fetch(foundAt, _spareValue);
+
+                        int valueSize = value.getEncodedSize();
+                        int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
+                        if(valueSize > maxSimpleValueSize) {
+                            throw new UnsupportedOperationException("Unsupported LONG_RECORD value inside MVV: "+
+                                                                     valueSize + " > " + maxSimpleValueSize);
+                        }
+
+                        // If no EXACT_MASK, key is not currently present in the buffer
+                        // so current value is truly non-existent not just undefined
+                        int currentSize = (foundAt & EXACT_MASK) == 0 ? -1 : _spareValue.getEncodedSize();
+
+                        int mvvSize = MVV.estimateRequiredLength(_spareValue.getEncodedBytes(), currentSize, valueSize);
+                        if(mvvSize > maxSimpleValueSize) {
+                            throw new UnsupportedOperationException("Unsupported LONG_RECORD MVV: "+
+                                                                     mvvSize +" > "+maxSimpleValueSize);
+                        }
+
+                        _spareValue.ensureFit(mvvSize);
+                        
+                        // TODO: Need the current step value
+                        long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
+                        int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), currentSize,
+                                                            versionHandle, value.getEncodedBytes(), valueSize);
+                        _spareValue.setEncodedSize(storedLength);
+                    }
+
+                    //
+                    // Here we have a buffer with a writer claim and
+                    // a correct foundAt value
+                    //
+                    boolean splitRequired = putLevel(lc, key, _spareValue, buffer, foundAt, treeClaimAcquired);
+
+                    Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0 &&
+                                     (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
+
+                    //
+                    // If a split is required but treeClaimAcquired is false
+                    // then putLevel did not change anything. It just backed out
+                    // so we can repeat after acquiring the claim. We need to
+                    // repeat this after acquiring a tree claim.
+                    //
+                    if (splitRequired && !treeClaimAcquired) {
+                        // TODO - is it worth it to try an instantaneous claim and retry?
+                        treeClaimRequired = true;
+                        buffer.releaseTouched();
+                        buffer = null;
+                        continue;
+                    }
+                    //
+                    // The value has been written to the buffer and the
+                    // buffer is reserved and dirty. No backing out now.
+                    // If we made it to here, any LONG_RECORD value is
+                    // committed.
+                    //
+                    if (buffer.isDataPage()) {
+                        if ((foundAt & EXACT_MASK) == 0) {
+                            _tree.bumpChangeCount();
+                        }
+                    }
+
+                    buffer.releaseTouched();
+                    buffer = null;
+
+                    if (!splitRequired) {
+                        //
+                        // No split means we're totally done.
+                        //
+                        if (!_ignoreTransactions) {
+                            _transaction.store(this, key, _spareValue);
+                        }
+                        break;
+
+                    } else {
+                        // Otherwise we need to index the new right
+                        // sibling at the next higher index level.
+                        Debug.$assert0.t(_spareValue.getPointerValue() > 0);
+                        //
+                        // This maneuver sets key to the key value of
+                        // the first record in the newly inserted page.
+                        //
+                        key = _spareKey1;
+                        _spareKey1 = _spareKey2;
+                        _spareKey2 = key;
+                        //
+                        // Bump key generation because it no longer matches
+                        // what's in the LevelCache
+                        //
+                        key.bumpGeneration();
+                        //
+                        // And now cycle back to insert the key/pointer pair
+                        // into the next higher index level.
+                        //
+                        level++;
+                        continue;
+                    }
+
+                } catch (RetryException re) {
+                    if (buffer != null) {
+                        buffer.releaseTouched();
+                        buffer = null;
+                    }
+
+                    if (treeClaimAcquired) {
+                        _treeHolder.release();
+                        treeClaimAcquired = false;
+                    }
+                    treeClaimAcquired = _treeHolder.claim(true, dontWait ? 0 : SharedResource.DEFAULT_MAX_WAIT_TIME);
+                    if (!treeClaimAcquired) {
+                        if (dontWait) {
+                            throw re;
+                        } else {
+                            throw new InUseException("Thread " + Thread.currentThread().getName()
+                                    + " failed to get reader claim on " + _tree);
+                        }
+                    }
+                } finally {
+                    if (buffer != null) {
+                        buffer.releaseTouched();
+                        buffer = null;
+                    }
+                }
+            }
+        } finally {
+            if (treeClaimAcquired) {
+                _treeHolder.release();
+                treeClaimAcquired = false;
+            }
+            value.changeLongRecordMode(false);
+        }
+        _volume.getStatistics().bumpStoreCounter();
+        _volume.getStatistics().bumpFetchCounter();
     }
 
     private long timestamp() {
@@ -2268,6 +2530,20 @@ public class Exchange {
             buffer = lc._buffer;
             buffer.fetch(foundAt, value);
             fetchFixupForLongRecords(value, minimumBytes);
+
+            byte[] valueBytes= value.getEncodedBytes();
+            int valueSize = value.getEncodedSize();
+
+            _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
+            MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
+            if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
+                int newSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
+                value.setEncodedSize(newSize);
+            }
+            else {
+                value.setEncodedSize(0);
+            }
+
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
             return this;
