@@ -754,7 +754,7 @@ public class BufferPool {
                     // get some buffers written.
                     //
                     if (buffer != null) {
-
+                        Debug.$assert1.t(!buffer.isDirty());
                         Debug.$assert0.t(buffer != _hashTable[hash]);
                         Debug.$assert0.t(buffer.getNext() != buffer);
 

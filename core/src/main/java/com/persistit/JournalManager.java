@@ -15,9 +15,6 @@
 
 package com.persistit;
 
-import static com.persistit.JournalRecord.getLength;
-import static com.persistit.JournalRecord.getType;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -36,21 +33,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.persistit.JournalRecord.CP;
-import com.persistit.JournalRecord.CU;
-import com.persistit.JournalRecord.DR;
-import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.IT;
 import com.persistit.JournalRecord.IV;
 import com.persistit.JournalRecord.JE;
 import com.persistit.JournalRecord.JH;
 import com.persistit.JournalRecord.PA;
 import com.persistit.JournalRecord.PM;
-import com.persistit.JournalRecord.SR;
-import com.persistit.JournalRecord.TC;
 import com.persistit.JournalRecord.TM;
-import com.persistit.JournalRecord.TS;
+import com.persistit.JournalRecord.TX;
 import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -64,7 +55,7 @@ import com.persistit.util.Debug;
  * @author peter
  * 
  */
-public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup, TransactionWriter {
+public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup {
 
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;
@@ -89,7 +80,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
 
     private final Map<Integer, TreeDescriptor> _handleToTreeMap = new HashMap<Integer, TreeDescriptor>();
 
-    private final Map<Long, TransactionStatus> _liveTransactionMap = new HashMap<Long, TransactionStatus>();
+    private final Map<Long, TransactionMapItem> _liveTransactionMap = new HashMap<Long, TransactionMapItem>();
 
     private final Persistit _persistit;
 
@@ -777,7 +768,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         JournalRecord.putTimestamp(_writeBuffer, epochalTimestamp());
         advance(TM.OVERHEAD);
         int offset = 0;
-        for (final TransactionStatus ts : _liveTransactionMap.values()) {
+        for (final TransactionMapItem ts : _liveTransactionMap.values()) {
             TM.putEntry(_writeBuffer, offset / TM.ENTRY_SIZE, ts.getStartTimestamp(), ts.getCommitTimestamp(), ts
                     .getStartAddress(), ts.getLastRecordAddress());
             offset += TM.ENTRY_SIZE;
@@ -908,238 +899,75 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         advance(recordSize);
     }
 
-    @Override
-    public synchronized long writeStoreRecordToJournal(final long timestamp, final long previousJournalAddress, final int treeHandle, final Key key,
-            final Value value) throws PersistitIOException {
-        final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
+    /**
+     * <p>
+     * Write a transaction or partial transaction to the journal as a TX record
+     * containing a variable number of variable-length update records. The
+     * supplied <code>buffer</code> contains the update records.
+     * </p>
+     * <p>
+     * TX records typically represent a complete transaction, but in the case of
+     * transactions with a large number of updates, there may be multiple TX
+     * records. In that case each TX record but the last one written specifies a
+     * commit timestamp value of zero indicating that the transaction has not
+     * committed yet, and each TX record but the first one written specifies the
+     * journal address of the previous one. These pointers allow the recovery
+     * process find efficiently all the updates of a transaction that needs to
+     * be rolled back.
+     * </p>
+     * 
+     * @param buffer
+     *            The buffer containing the update records
+     * @param startTimestamp
+     *            Transaction start timestamp
+     * @param commitTimestamp
+     *            Transaction commit timestamp, or 0 if the transaction has not
+     *            committed yet
+     * @param backchainAddress
+     *            Journal address of previous TX record written by this
+     *            transaction, or 0 if there is to previous record
+     * 
+     * @return
+     * @throws PersistitIOException
+     */
+    synchronized long writeTransactionToJournal(final ByteBuffer buffer, final long startTimestamp,
+            final long commitTimestamp, final long backchainAddress) throws PersistitIOException {
+        buffer.flip();
+        final int recordSize = TX.OVERHEAD + buffer.remaining();
         prepareWriteBuffer(recordSize);
-        writeStoreRecordToJournal(_writeBuffer, recordSize, timestamp, previousJournalAddress, treeHandle, key, value);
-        _currentAddress += recordSize;
-        return _currentAddress - recordSize;
-    }
-
-    void writeStoreRecordToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp, final long previousJournalAddress,
-            final int treeHandle, final Key key, final Value value) throws PersistitIOException {
-        SR.putLength(writeBuffer, recordSize);
-        SR.putType(writeBuffer);
-        SR.putTimestamp(writeBuffer, timestamp);
-        SR.putPreviousJournalAddress(writeBuffer, previousJournalAddress);
-        SR.putTreeHandle(writeBuffer, treeHandle);
-        SR.putKeySize(writeBuffer, (short) key.getEncodedSize());
-        writeBuffer.position(writeBuffer.position() + SR.OVERHEAD);
-        writeBuffer.put(key.getEncodedBytes(), 0, key.getEncodedSize());
-        writeBuffer.put(value.getEncodedBytes(), 0, value.getEncodedSize());
-        _persistit.getIOMeter().chargeWriteSRtoJournal(recordSize, _currentAddress - recordSize);
-    }
-
-    @Override
-    public synchronized long writeDeleteRecordToJournal(final long timestamp, final long previousJournalAddress, final int treeHandle, final Key key1,
-            final Key key2) throws PersistitIOException {
-        int elisionCount = key2.firstUniqueByteIndex(key1);
-        int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
-        prepareWriteBuffer(recordSize);
-        writeDeleteRecordToJournal(_writeBuffer, recordSize, timestamp, previousJournalAddress, treeHandle, key1, elisionCount, key2);
-        _currentAddress += recordSize;
-        return _currentAddress - recordSize;
-    }
-
-    void writeDeleteRecordToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp, final long previousJournalAddress,
-            final int treeHandle, final Key key1, final int elisionCount, final Key key2) throws PersistitIOException {
-        JournalRecord.putLength(writeBuffer, recordSize);
-        DR.putType(writeBuffer);
-        DR.putTimestamp(writeBuffer, timestamp);
-        DR.putPreviousJournalAddress(writeBuffer, previousJournalAddress);
-        DR.putTreeHandle(writeBuffer, treeHandle);
-        DR.putKey1Size(writeBuffer, key1.getEncodedSize());
-        DR.putKey2Elision(writeBuffer, elisionCount);
-        writeBuffer.position(writeBuffer.position() + DR.OVERHEAD);
-        writeBuffer.put(key1.getEncodedBytes(), 0, key1.getEncodedSize());
-        writeBuffer.put(key2.getEncodedBytes(), elisionCount, key2.getEncodedSize() - elisionCount);
-        _persistit.getIOMeter().chargeWriteDRtoJournal(recordSize, _currentAddress - recordSize);
-    }
-
-    @Override
-    public synchronized long writeDeleteTreeToJournal(final long timestamp, final long previousJournalAddress, final int treeHandle)
-            throws PersistitIOException {
-        prepareWriteBuffer(DT.OVERHEAD);
-        writeDeleteTreeToJournal(_writeBuffer, DT.OVERHEAD, timestamp, previousJournalAddress, treeHandle);
-        _currentAddress += DT.OVERHEAD;
-        return _currentAddress - DT.OVERHEAD;
-    }
-
-    void writeDeleteTreeToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp, final long previousJournalAddress,
-            final int treeHandle) throws PersistitIOException {
-        JournalRecord.putLength(writeBuffer, DT.OVERHEAD);
-        DT.putType(writeBuffer);
-        DT.putTimestamp(writeBuffer, timestamp);
-        DT.putPreviousJournalAddress(writeBuffer, previousJournalAddress);
-        DT.putTreeHandle(writeBuffer, treeHandle);
-        writeBuffer.position(writeBuffer.position() + DT.OVERHEAD);
-        _persistit.getIOMeter().chargeWriteDTtoJournal(DT.OVERHEAD, _currentAddress - DT.OVERHEAD);
-    }
-
-    @Override
-    public synchronized long writeTransactionStartToJournal(final long startTimestamp) throws PersistitIOException {
-
-        final Long key = Long.valueOf(startTimestamp);
-        TransactionStatus ts = _liveTransactionMap.get(key);
-        if (ts != null) {
-            throw new CorruptJournalException("TS Transaction timestamp " + startTimestamp + " already started at "
-                    + ts.getStartAddress());
-        }
-        ts = new TransactionStatus(startTimestamp, _currentAddress);
-        _liveTransactionMap.put(key, ts);
-
-        prepareWriteBuffer(TS.OVERHEAD);
-        writeTransactionStartToJournal(_writeBuffer, TS.OVERHEAD, startTimestamp);
-        _currentAddress += TS.OVERHEAD;
-        return _currentAddress - TS.OVERHEAD;
-    }
-
-    void writeTransactionStartToJournal(final ByteBuffer writeBuffer, final int recordSize, final long startTimestamp)
-            throws PersistitIOException {
-        TS.putType(writeBuffer);
-        JournalRecord.putTimestamp(writeBuffer, startTimestamp);
-        TS.putLength(writeBuffer, TS.OVERHEAD);
-        writeBuffer.position(writeBuffer.position() + TS.OVERHEAD);
-        _persistit.getIOMeter().chargeWriteTStoJournal(TS.OVERHEAD, _currentAddress - TS.OVERHEAD);
-    }
-
-    @Override
-    public synchronized long writeTransactionCommitToJournal(final long timestamp, final long previousJournalAddress, final long commitTimestamp)
-            throws PersistitIOException {
-
-        final Long key = Long.valueOf(timestamp);
-        TransactionStatus ts = _liveTransactionMap.get(key);
-        if (ts == null) {
-            throw new CorruptJournalException("TC Transaction timestamp " + timestamp + " never started");
-        }
-
-        if (timestamp != _unitTestNeverCloseTransactionTimestamp) {
-            ts.setCommitTimestamp(commitTimestamp);
-        }
-
-        prepareWriteBuffer(TC.OVERHEAD);
-        writeTransactionCommitToJournal(_writeBuffer, TC.OVERHEAD, timestamp, previousJournalAddress, commitTimestamp);
-        _currentAddress += TC.OVERHEAD;
-        return _currentAddress - TC.OVERHEAD;
-    }
-
-    void writeTransactionCommitToJournal(final ByteBuffer writeBuffer, final int recordSize, final long timestamp, final long previousJournalAddress,
-            final long commitTimestamp) throws PersistitIOException {
-
-        TC.putType(writeBuffer);
-        TC.putTimestamp(writeBuffer, timestamp);
-        TC.putPreviousJournalAddress(writeBuffer, previousJournalAddress);
-        TC.putCommitTimestamp(writeBuffer, commitTimestamp);
-        TC.putLength(writeBuffer, TC.OVERHEAD);
-        writeBuffer.position(writeBuffer.position() + TC.OVERHEAD);
-        _persistit.getIOMeter().chargeWriteTCtoJournal(TC.OVERHEAD, _currentAddress - TC.OVERHEAD);
-    }
-
-    @Override
-    public synchronized long writeCacheUpdatesToJournal(final long timestamp, final long previousJournalAddress, final long cacheId,
-            final List<Update> updates) throws PersistitIOException {
-        int estimate = CU.OVERHEAD;
-        for (int index = 0; index < updates.size(); index++) {
-            estimate += (1 + updates.get(index).size());
-        }
-        prepareWriteBuffer(estimate);
-        final int recordSize = writeCacheUpdatesToJournal(_writeBuffer, timestamp, previousJournalAddress, cacheId, updates);
-        _currentAddress += recordSize;
-        return _currentAddress - recordSize;
-    }
-
-    int writeCacheUpdatesToJournal(final ByteBuffer writeBuffer, final long timestamp, final long previousJournalAddress, final long cacheId,
-            final List<Update> updates) throws PersistitIOException {
-        int start = writeBuffer.position();
-        CU.putType(writeBuffer);
-        CU.putCacheId(writeBuffer, cacheId);
-        CU.putTimestamp(writeBuffer, timestamp);
-        CU.putPreviousJournalAddress(writeBuffer, previousJournalAddress);
-        writeBuffer.position(writeBuffer.position() + CU.OVERHEAD);
-        for (int index = 0; index < updates.size(); index++) {
-            final Update update = updates.get(index);
-            try {
-                update.write(writeBuffer);
-            } catch (IOException e) {
-                throw new PersistitIOException(e);
-            }
-        }
-        int recordSize = writeBuffer.position() - start;
-        writeBuffer.position(start);
-        CU.putLength(writeBuffer, recordSize);
-        writeBuffer.position(start + recordSize);
-        return recordSize;
-    }
-
-    synchronized long writeTransactionBufferToJournal(final ByteBuffer writeBuffer, final long startTimestamp,
-            final long commitTimestamp, final long previousJournalAddress) throws PersistitIOException {
-        
-        
-        writeBuffer.mark();
-        long chainedAddress = previousJournalAddress;
-        while (writeBuffer.hasRemaining()) {
-            final int recordSize = getLength(writeBuffer);
-            final int type = getType(writeBuffer);
-
-            switch (type) {
-
-            case TS.TYPE:
-                TS.putTimestamp(writeBuffer, startTimestamp);
-                break;
-
-            case TC.TYPE:
-                TC.putTimestamp(writeBuffer, startTimestamp);
-                TC.putCommitTimestamp(writeBuffer, commitTimestamp);
-                TC.putPreviousJournalAddress(writeBuffer, chainedAddress);
-                chainedAddress = _currentAddress + writeBuffer.position();
-                break;
-
-            case SR.TYPE: {
-                SR.putTimestamp(writeBuffer, startTimestamp);
-                SR.putPreviousJournalAddress(writeBuffer, chainedAddress);
-                chainedAddress = _currentAddress + writeBuffer.position();
-                break;
-            }
-
-            case DR.TYPE: {
-                DR.putTimestamp(writeBuffer, startTimestamp);
-                DR.putPreviousJournalAddress(writeBuffer, chainedAddress);
-                chainedAddress = _currentAddress + writeBuffer.position();
-                break;
-            }
-
-            case DT.TYPE:
-                DT.putTimestamp(writeBuffer, startTimestamp);
-                DT.putPreviousJournalAddress(writeBuffer, chainedAddress);
-                chainedAddress = _currentAddress + writeBuffer.position();
-                break;
-
-            case CU.TYPE:
-                CU.putTimestamp(writeBuffer, startTimestamp);
-                CU.putPreviousJournalAddress(writeBuffer, chainedAddress);
-                chainedAddress = _currentAddress + writeBuffer.position();
-                break;
-
-            default:
-                break;
-            }
-
-            writeBuffer.position(writeBuffer.position() + recordSize);
-        }
-        writeBuffer.reset();
-
-        final int recordSize = writeBuffer.remaining();
         final long address = _currentAddress;
-        prepareWriteBuffer(recordSize);
-        _writeBuffer.put(writeBuffer);
-        _currentAddress += recordSize;
-        _persistit.getIOMeter().chargeWriteTCtoJournal(recordSize, _currentAddress - recordSize);
-        final TransactionStatus ts = new TransactionStatus(startTimestamp, address);
-        ts.setCommitTimestamp(commitTimestamp);
-        _liveTransactionMap.put(startTimestamp, ts);
-        return chainedAddress;
+        TX.putLength(_writeBuffer, recordSize);
+        TX.putType(_writeBuffer);
+        TX.putTimestamp(_writeBuffer, startTimestamp);
+        TX.putCommitTimestamp(_writeBuffer, commitTimestamp);
+        TX.putBackchainAddress(_writeBuffer, backchainAddress);
+        advance(TX.OVERHEAD);
+        try {
+            _writeBuffer.put(buffer);
+        } finally {
+            buffer.clear();
+        }
+        _currentAddress += recordSize - TX.OVERHEAD;
+        final long key = Long.valueOf(startTimestamp);
+        TransactionMapItem item = _liveTransactionMap.get(key);
+        if (item == null) {
+            if (backchainAddress != 0) {
+                throw new IllegalStateException("Missing back-chained transaction for start timestamp "
+                        + startTimestamp);
+            }
+            item = new TransactionMapItem(startTimestamp, address);
+            _liveTransactionMap.put(startTimestamp, item);
+        } else {
+            if (backchainAddress == 0) {
+                throw new IllegalStateException("Duplicate transaction " + item);
+            }
+            if (item.isCommitted()) {
+                throw new IllegalStateException("Transaction already committed " + item);
+            }
+            item.setLastRecordAddress(address);
+        }
+        item.setCommitTimestamp(commitTimestamp);
+        return address;
     }
 
     static long fileToGeneration(final File file) {
@@ -1404,7 +1232,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
      * Timestamp marking the Page Map, Transaction Map and other records in the
      * journal header. This timestamp is used to discriminate between pages in a
      * "branch" history and the live history. See comments in
-     * {@link RecoveryManager#loadPageMap(long, long, int)} for details.
+     * {@link RecoveryManager#scanLoadPageMap(long, long, int)} for details.
      * 
      * @return either the current timestamp or the timestamp of the last valid
      *         checkpoint, depending on whether this journal file starts a new
@@ -1533,8 +1361,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         // checkpoint. No need to keep a record of such a transaction since it's
         // updates are now fully written to the journal in modified page images.
         //
-        for (final Iterator<TransactionStatus> iterator = _liveTransactionMap.values().iterator(); iterator.hasNext();) {
-            final TransactionStatus ts = iterator.next();
+        for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator.hasNext();) {
+            final TransactionMapItem ts = iterator.next();
             if (ts.isCommitted() && ts.getCommitTimestamp() < checkpoint.getTimestamp()) {
                 iterator.remove();
             } else if (ts.getStartTimestamp() < recoveryTimestamp) {
@@ -1755,20 +1583,21 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         };
     }
 
-    static class TransactionStatus implements Comparable<TransactionStatus> {
+    static class TransactionMapItem implements Comparable<TransactionMapItem> {
 
         private final long _startAddress;
 
         private final long _startTimestamp;
 
         private long _commitTimestamp;
-        
+
         private long _lastRecordAddress;
 
-        TransactionStatus(final long startTimestamp, final long address) {
+        TransactionMapItem(final long startTimestamp, final long address) {
             _startTimestamp = startTimestamp;
-            _commitTimestamp = startTimestamp;
+            _commitTimestamp = 0;
             _startAddress = address;
+            _lastRecordAddress = address;
         }
 
         long getStartAddress() {
@@ -1782,7 +1611,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         long getCommitTimestamp() {
             return _commitTimestamp;
         }
-        
+
         long getLastRecordAddress() {
             return _lastRecordAddress;
         }
@@ -1790,13 +1619,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         void setCommitTimestamp(final long commitTimestamp) {
             _commitTimestamp = commitTimestamp;
         }
-        
+
         void setLastRecordAddress(final long address) {
             _lastRecordAddress = address;
         }
 
         boolean isCommitted() {
-            return _commitTimestamp != _startTimestamp;
+            return _commitTimestamp != 0;
         }
 
         @Override
@@ -1805,7 +1634,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         }
 
         @Override
-        public int compareTo(TransactionStatus ts) {
+        public int compareTo(TransactionMapItem ts) {
             return ts.getCommitTimestamp() < _commitTimestamp ? 1 : ts.getCommitTimestamp() > _commitTimestamp ? -1 : 0;
         }
 
@@ -2117,9 +1946,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
             // Detect first journal address still holding an uncheckpointed
             // Transaction required for recovery.
             //
-            for (final Iterator<TransactionStatus> iterator = _liveTransactionMap.values().iterator(); iterator
+            for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator
                     .hasNext();) {
-                final TransactionStatus ts = iterator.next();
+                final TransactionMapItem ts = iterator.next();
                 if (ts.getStartAddress() < recoveryBoundary) {
                     recoveryBoundary = ts.getStartAddress();
                 }
@@ -2220,7 +2049,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup,
         _pageMap.putAll(pageMap);
     }
 
-    void unitTestInjectTransactionMap(final Map<Long, TransactionStatus> transactionMap) {
+    void unitTestInjectTransactionMap(final Map<Long, TransactionMapItem> transactionMap) {
         _liveTransactionMap.putAll(transactionMap);
     }
 

@@ -43,7 +43,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
      * methods used in controlling the test.
      */
 
-    private String journalSize = "20M";
+    private String journalSize = "10000000";
     private String _volumeName = "persistit";
 
     @Override

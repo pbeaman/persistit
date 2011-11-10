@@ -1132,6 +1132,10 @@ public class Exchange {
 
         boolean overlength = value.getEncodedSize() > maxSimpleValueSize;
 
+        if (!_ignoreTransactions) {
+            _transaction.store(this, key, value);
+        }
+
         try {
             if (overlength) {
                 //
@@ -1258,9 +1262,6 @@ public class Exchange {
                         //
                         // No split means we're totally done.
                         //
-                        if (!_ignoreTransactions) {
-                            _transaction.store(this, key, value);
-                        }
                         break;
 
                     } else {
@@ -2394,12 +2395,15 @@ public class Exchange {
     public void removeTree() throws PersistitException {
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        clear();
-        _value.clear();
-        _volume.getStructure().removeTree(_tree);
+
         if (!_ignoreTransactions) {
             _transaction.removeTree(this);
         }
+
+        clear();
+
+        _value.clear();
+        _volume.getStructure().removeTree(_tree);
         initCache();
     }
 
@@ -2567,6 +2571,10 @@ public class Exchange {
         boolean deallocationRequired = true; // assume until proven false
         boolean deferredReindexRequired = false;
         boolean tryQuickDelete = true;
+
+        if (!_ignoreTransactions) {
+            _transaction.remove(this, key1, key2);
+        }
 
         try {
             //
@@ -2875,6 +2883,7 @@ public class Exchange {
                     treeClaimAcquired = true;
                 }
             }
+
             while (deallocationRequired) {
                 long left = -1;
                 long right = -1;
@@ -2937,9 +2946,6 @@ public class Exchange {
                     }
                 }
             }
-            if (!_ignoreTransactions) {
-                _transaction.remove(this, key1, key2);
-            }
 
         } finally {
             if (treeClaimAcquired) {
@@ -2953,7 +2959,7 @@ public class Exchange {
         _tree.getStatistics().bumpRemoveCounter();
         if (fetchFirst)
             _volume.getStatistics().bumpFetchCounter();
-            _tree.getStatistics().bumpFetchCounter();
+        _tree.getStatistics().bumpFetchCounter();
         return result;
     }
 
