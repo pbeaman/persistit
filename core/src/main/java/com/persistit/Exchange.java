@@ -2024,9 +2024,9 @@ public class Exchange {
                     matches |= direction != EQ;
                     index = _key.getEncodedSize();
 
-                        if (matches) {
-                            Value outValue = doFetch ? _value : _spareValue;
-                            matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                    if (matches) {
+                        Value outValue = doFetch ? _value : _spareValue;
+                        matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
                     }
                 } else {
                     int parentIndex = _spareKey1.previousElementIndex(index);
@@ -2040,14 +2040,14 @@ public class Exchange {
                         index = _key.nextElementIndex(parentIndex);
                         if (index > 0) {
                             if (index == _key.getEncodedSize()) {
-                                    Value outValue = doFetch ? _value : _spareValue;
-                                    boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
-                                    if(!isVisibleMatch) {
-                                        // Continue traverse
-                                        _key.copyTo(_spareKey1);
-                                        index = _key.getEncodedSize();
-                                        doSearch = true;
-                                        continue; // Outer search loop
+                                Value outValue = doFetch ? _value : _spareValue;
+                                boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                                if(!isVisibleMatch) {
+                                    // Continue traverse
+                                    _key.copyTo(_spareKey1);
+                                    index = _key.getEncodedSize();
+                                    doSearch = true;
+                                    continue; // Outer search loop
                                 }
                             } else {
                                 //
@@ -2498,6 +2498,10 @@ public class Exchange {
     private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
         buffer.fetch(foundAt, value);
         fetchFixupForLongRecords(value, minimumBytes);
+
+        if(_transaction.getStartTimestamp() == 0 || !_transaction.isActive()) {
+            return true;
+        }
 
         int valueSize = value.getEncodedSize();
         byte[] valueBytes = value.getEncodedBytes();
