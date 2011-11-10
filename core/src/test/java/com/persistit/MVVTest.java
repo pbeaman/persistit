@@ -439,16 +439,18 @@ public class MVVTest {
     public void visitAndFetchByOffsetMVV() {
         final byte[] source = {
                 (byte)TYPE_MVV,
-                0,0,0,0,0,0,0,1,  0,3, 0xA,0xB,0xC,
-                0,0,0,0,0,0,0,2,  0,2, 0xD,0xE,
-                0,0,0,0,0,0,0,11, 0,5, 0x1,0x2,0x3,0x4,0x5,
-                0,0,0,0,0,0,0,9,  0,1, 0xA,
-                0,1,2,3,4,5,6,7,  0,3, 0xB,0xC,0xD
+                0,0,0,0,0,0,0,1,   0,3, 0xA,0xB,0xC,
+                0,0,0,0,0,0,0,2,   0,2, 0xD,0xE,
+                0,0,0,0,0,0,0,11,  0,5, 0x1,0x2,0x3,0x4,0x5,
+                0,0,0,0,0,0,0,127, 0,0,
+                0,0,0,0,0,0,0,9,   0,1, 0xA,
+                0,1,2,3,4,5,6,7,   0,3, 0xB,0xC,0xD,
+                0,0,0,0,0,0,0,3,   0,0
         };
         TestVisitor visitor = new TestVisitor();
         MVV.visitAllVersions(visitor, source, source.length);
         assertTrue(visitor.initCalled);
-        assertEquals(newVisitorMap(1,3,11, 2,2,24, 11,5,36, 9,1,51, 283686952306183L,3,62),
+        assertEquals(newVisitorMap(1,3,11, 2,2,24, 11,5,36, 127,0,51, 9,1,61, 283686952306183L,3,72, 3,0,85),
                      visitor.versions);
 
         for(Map.Entry<Long,LengthAndOffset> entry : visitor.versions.entrySet()) {
@@ -471,7 +473,7 @@ public class MVVTest {
     public void fetchByOffsetTooLarge() {
         final byte[] source = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,3, 0xA,0xB,0xC);
         final byte[] target = new byte[10];
-        MVV.fetchVersionByOffset(source, source.length, source.length - 2, target);
+        MVV.fetchVersionByOffset(source, source.length, source.length + 1, target);
     }
 
     @Test

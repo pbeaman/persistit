@@ -277,7 +277,7 @@ public class MVV {
      * @throws IllegalArgumentException If the target array is too small to hold the value
      */
     public static int fetchVersionByOffset(byte[] source, int sourceLength, int offset, byte[] target) {
-        if(offset < 0 || (offset > 0 && offset > sourceLength - LENGTH_VALUE_LENGTH)) {
+        if(offset < 0 || (offset > 0 && offset > sourceLength)) {
             throw new IllegalArgumentException("Offset out of range: " + offset);
         }
         final int length = (offset == 0) ? sourceLength : Util.getShort(source, offset - LENGTH_VALUE_LENGTH);
