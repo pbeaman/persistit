@@ -1869,7 +1869,7 @@ public class Exchange {
 
         boolean doFetch = minimumBytes > 0;
         boolean doModify = minimumBytes >= 0;
-        boolean result;
+        boolean result = false;
 
         Buffer buffer = null;
 
@@ -1911,7 +1911,11 @@ public class Exchange {
                 nudged = true;
             }
 
+            boolean doSearch = true;
             int foundAt = 0;
+            while(doSearch) {
+                doSearch = false;
+
             LevelCache lc;
             boolean matches = false;
 
@@ -2020,9 +2024,9 @@ public class Exchange {
                     matches |= direction != EQ;
                     index = _key.getEncodedSize();
 
-                    if (doFetch && matches) {
-                        buffer.fetch(foundAt, _value);
-                        fetchFixupForLongRecords(_value, minimumBytes);
+                        if (matches) {
+                            Value outValue = doFetch ? _value : _spareValue;
+                            matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
                     }
                 } else {
                     int parentIndex = _spareKey1.previousElementIndex(index);
@@ -2036,9 +2040,14 @@ public class Exchange {
                         index = _key.nextElementIndex(parentIndex);
                         if (index > 0) {
                             if (index == _key.getEncodedSize()) {
-                                if (doFetch) {
-                                    buffer.fetch(foundAt, _value);
-                                    fetchFixupForLongRecords(_value, minimumBytes);
+                                    Value outValue = doFetch ? _value : _spareValue;
+                                    boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                                    if(!isVisibleMatch) {
+                                        // Continue traverse
+                                        _key.copyTo(_spareKey1);
+                                        index = _key.getEncodedSize();
+                                        doSearch = true;
+                                        continue; // Outer search loop
                                 }
                             } else {
                                 //
@@ -2054,12 +2063,12 @@ public class Exchange {
                                 }
                                 foundAt &= ~EXACT_MASK;
                             }
-                        } else
-                            matches = false;
+                            } else {
+                                matches = false;
+                            }
                     }
                 }
             }
-
             if (doModify) {
                 if (matches) {
                     _key.setEncodedSize(index);
@@ -2082,7 +2091,7 @@ public class Exchange {
                 _spareKey1.copyTo(_key);
             }
             result = matches;
-
+            }
         } finally {
             if (buffer != null) {
                 buffer.releaseTouched();
@@ -2486,6 +2495,26 @@ public class Exchange {
         return fetch(value, Integer.MAX_VALUE);
     }
 
+    private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
+        buffer.fetch(foundAt, value);
+        fetchFixupForLongRecords(value, minimumBytes);
+
+        int valueSize = value.getEncodedSize();
+        byte[] valueBytes = value.getEncodedBytes();
+        _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
+        MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
+        
+        if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
+            int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
+            value.setEncodedSize(finalSize);
+            return true;
+        }
+        else {
+            value.clear();
+            return false;
+        }
+    }
+
     /**
      * <p>
      * Fetches or partially fetches the value associated with the current
@@ -2528,22 +2557,7 @@ public class Exchange {
             int foundAt = search(_key, false);
             LevelCache lc = _levelCache[0];
             buffer = lc._buffer;
-            buffer.fetch(foundAt, value);
-            fetchFixupForLongRecords(value, minimumBytes);
-
-            byte[] valueBytes= value.getEncodedBytes();
-            int valueSize = value.getEncodedSize();
-
-            _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
-            MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
-            if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
-                int newSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
-                value.setEncodedSize(newSize);
-            }
-            else {
-                value.setEncodedSize(0);
-            }
-
+            mvccFetch(buffer, value, foundAt, minimumBytes);
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
             return this;

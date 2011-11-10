@@ -15,7 +15,14 @@
 
 package com.persistit;
 
+import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
+import org.junit.After;
+import org.junit.Before;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 public class MVCCBasicTest extends PersistitUnitTestCase {
     private static final String VOL_NAME = "persistit";
@@ -25,69 +32,87 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     private static final String KEY2 = "k2";
     private static final long VALUE1 = 12345L;
     private static final long VALUE2 = 67890L;
-    
-    public void testSingleTrxWriteAndRead() throws Exception {
-        Exchange ex = _persistit.getExchange(VOL_NAME, TREE_NAME, true);
-        Transaction trx = ex.getTransaction();
 
-        trx.begin();
-        try {
-            ex.append(KEY1).getValue().put(VALUE1);
-            ex.store();
-            ex.clear().append(KEY1).fetch();
-            assertEquals("fetch before commit", VALUE1, ex.getValue().getLong());
-            trx.commit();
-        }
-        finally {
-            trx.end();
-        }
+    private Exchange ex1, ex2;
+    private Transaction trx1, trx2;
+    private SessionId session1, session2;
 
-        trx.begin();
-        try {
-            ex.clear().append(KEY1).fetch();
-            assertEquals("fetch after commit", VALUE1, ex.getValue().getLong());
-            trx.commit();
-        }
-        finally {
-            trx.end();
-        }
+    public final void setUp() throws Exception {
+        super.setUp();
 
-        _persistit.releaseExchange(ex);
+        session1 = new SessionId();
+        _persistit.setSessionId(session1);
+        ex1 = _persistit.getExchange(VOL_NAME, TREE_NAME, true);
+        trx1 = ex1.getTransaction();
+
+        session2 = new SessionId();
+        _persistit.setSessionId(session2);
+        ex2 = _persistit.getExchange(VOL_NAME, TREE_NAME, true);
+        trx2 = ex2.getTransaction();
     }
 
-    public void testTwoTrxDistinctWritesOverlappedReads() throws Exception {
-        final SessionId session1 = new SessionId();
-        final SessionId session2 = new SessionId();
+    public final void tearDown() throws Exception {
+        _persistit.releaseExchange(ex1);
+        _persistit.releaseExchange(ex2);
+        ex1 = ex2 = null;
+        trx1 = trx2 = null;
+        session1 = session2 = null;
+        super.tearDown();
+    }
 
-        _persistit.setSessionId(session1);
-        Exchange ex1 = _persistit.getExchange(VOL_NAME, TREE_NAME, true);
-        Transaction trx1 = ex1.getTransaction();
 
-        _persistit.setSessionId(session2);
-        Exchange ex2 = _persistit.getExchange(VOL_NAME, TREE_NAME, true);
-        Transaction trx2 = ex2.getTransaction();
-
+    public void testTwoTrxDifferentTimestamps() throws PersistitException {
         trx1.begin();
         trx2.begin();
         try {
             assertFalse("differing start timestamps", trx1.getStartTimestamp() == trx2.getStartTimestamp());
+            trx1.commit();
+            trx2.commit();
+        }
+        finally {
+            trx1.end();
+            trx2.end();
+        }
+    }
+    
+    public void testSingleTrxWriteAndRead() throws Exception {
+        trx1.begin();
+        try {
+            store(ex1, KEY1, VALUE1);
+            assertEquals("fetch before commit", VALUE1, fetch(ex1, KEY1));
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
 
-            ex1.clear().append(KEY1).getValue().put(VALUE1);
-            ex1.store();
+        trx1.begin();
+        try {
+            assertEquals("fetch after commit", VALUE1, fetch(ex1, KEY1));
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
 
-            ex2.clear().append(KEY1).fetch();
-            assertFalse("uncommitted trx1 value", ex2.getValue().isDefined());
+    public void testTwoTrxDistinctWritesOverlappedReads() throws Exception {
+        trx1.begin();
+        trx2.begin();
+        try {
+            store(ex1, KEY1, VALUE1);
+            store(ex2, KEY2, VALUE2);
 
-            ex2.clear().append(KEY2).getValue().put(VALUE2);
-            ex2.store();
+            fetch(ex2, KEY1, false);
+            assertFalse("trx2 sees uncommitted trx1 value", ex2.getValue().isDefined());
 
-            ex1.clear().append(KEY2).fetch();
-            assertFalse("uncommitted trx2 value", ex1.getValue().isDefined());
+            fetch(ex1, KEY2, false);
+            assertFalse("trx1 sees uncommitted trx2 value", ex1.getValue().isDefined());
 
             trx1.commit();
 
-            ex2.clear().append(KEY1).fetch();
-            assertFalse("committed trx1 value post trx2 start", ex2.getValue().isDefined());
+            fetch(ex2, KEY1, false);
+            assertFalse("trx2 sees committed trx1 from future", ex2.getValue().isDefined());
 
             trx2.commit();
         }
@@ -100,16 +125,79 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         trx1.begin();
         trx2.begin();
         try {
-            ex1.clear().append(KEY1).fetch();
-            assertEquals("original trx1 value from new trx1", VALUE1, ex1.getValue().getLong());
-            ex1.clear().append(KEY2).fetch();
-            assertEquals("original trx2 value from new trx1", VALUE2, ex1.getValue().getLong());
+            assertEquals("original trx1 value from new trx1", VALUE1, fetch(ex1, KEY1));
+            assertEquals("original trx2 value from new trx1", VALUE2, fetch(ex1, KEY2));
             trx1.commit();
 
-            ex2.clear().append(KEY1).fetch();
-            assertEquals("original trx1 value from new trx2", VALUE1, ex2.getValue().getLong());
-            ex2.clear().append(KEY2).fetch();
-            assertEquals("original trx2 value from new trx2", VALUE2, ex2.getValue().getLong());
+            assertEquals("original trx1 value from new trx2", VALUE1, fetch(ex2, KEY1));
+            assertEquals("original trx2 value from new trx2", VALUE2, fetch(ex2, KEY2));
+            trx2.commit();
+        }
+        finally {
+            trx1.end();
+            trx2.end();
+        }
+    }
+
+    public void testSingleTrxManyInserts() throws Exception {
+        // Enough for a new index level and many splits
+        final int INSERT_COUNT = 5000;
+
+        for(int i = 0; i < INSERT_COUNT; ++i) {
+            trx1.begin();
+            try {
+                store(ex1, i, i * 2);
+                trx1.commit();
+            }
+            finally {
+                trx1.end();
+            }
+        }
+
+        trx1.begin();
+        try {
+            for(int i = 0; i < INSERT_COUNT; ++i) {
+                assertEquals(i*2, fetch(ex1, i));
+            }
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
+
+    public void testNextTraverseTwoTrxSimple() throws Exception {
+        trx1.begin();
+        try {
+            store(ex1, "a", "both_a");
+            store(ex1, "a", "both_a");
+            store(ex1, "b", null);
+            store(ex1, "z", "both_z");
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        trx1.begin();
+        trx2.begin();
+        try {
+            store(ex1, "trx1", "trx1_val");
+            store(ex2, "trx2", "trx2_val");
+
+            assertFalse("trx1 sees uncommitted trx2 key", ex1.clear().append("trx2").isValueDefined());
+
+            ex1.clear().append(Key.BEFORE);
+            assertEquals("trx1 traversal",
+                         kvCollection("a","both_a", "b",null, "trx1","trx1_val", "z","both_z"),
+                         traverseAllNext(ex1));
+
+            ex2.clear().append(Key.BEFORE);
+            assertEquals("trx2 traversal",
+                         kvCollection("a","both_a", "b",null, "trx2","trx2_val", "z","both_z"),
+                         traverseAllNext(ex2));
+
+            trx1.commit();
             trx2.commit();
         }
         finally {
@@ -117,42 +205,83 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             trx2.end();
         }
 
-        _persistit.releaseExchange(ex1);
-        _persistit.releaseExchange(ex2);
-    }
-
-    public void testSingleTrxManyInserts() throws Exception {
-        // Enough for a new index level and many splits
-        final int INSERT_COUNT = 5000;
-
-        Exchange ex = _persistit.getExchange(VOL_NAME, TREE_NAME, true);
-        Transaction trx = ex.getTransaction();
-
-        for(int i = 0; i < INSERT_COUNT; ++i) {
-            trx.begin();
-            try {
-                ex.clear().append(i).getValue().put(i*2);
-                ex.store();
-                trx.commit();
-            }
-            finally {
-                trx.end();
-            }
-        }
-
-        trx.begin();
+        trx1.begin();
         try {
-            for(int i = 0; i < INSERT_COUNT; ++i) {
-                ex.clear().append(i).fetch();
-                assertEquals(i*2, ex.getValue().getInt());
-            }
-            trx.commit();
+            ex1.clear().append(Key.BEFORE);
+            assertEquals("final traversal",
+                         kvCollection("a","both_a", "b",null, "trx1","trx1_val", "trx2","trx2_val", "z","both_z"),
+                         traverseAllNext(ex1));
+            trx1.commit();
         }
         finally {
-            trx.end();
+            trx1.end();
         }
 
-        _persistit.releaseExchange(ex);
+        showGUI();
+    }
+
+
+    //
+    // Internal test methods
+    //
+    
+
+    private static class KVPair {
+        Object k, v;
+
+        public KVPair(Object k, Object v) {
+            this.k = k;
+            this.v = v;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s->%s", k, v);
+        }
+
+        @Override
+        public boolean equals(Object rhs) {
+            if(this == rhs) return true;
+            if(!(rhs instanceof KVPair)) return false;
+            KVPair o = (KVPair) rhs;
+            return !(k != null ? !k.equals(o.k) : o.k != null) && !(v != null ? !v.equals(o.v) : o.v != null);
+
+        }
+    }
+
+    private static Collection<KVPair> traverseAllNext(Exchange e) throws Exception {
+        List<KVPair> out = new ArrayList<KVPair>();
+        while(e.next()) {
+            Object k = e.getKey().decode();
+            Object v = e.getValue().isDefined() ? e.getValue().get() : "UD";
+            out.add(new KVPair(k, v));
+        }
+        return out;
+    }
+
+    private static Collection<KVPair> kvCollection(Object ...vals) {
+        if((vals.length % 2) != 0) {
+            throw new IllegalArgumentException("Must be even number of objects to create pairs from");
+        }
+        List<KVPair> out = new ArrayList<KVPair>();
+        for(int i = 0; i < vals.length; i += 2) {
+            out.add(new KVPair(vals[i], vals[i+1]));
+        }
+        return out;
+    }
+
+    private static void store(Exchange ex, Object k, Object v) throws PersistitException {
+        ex.clear().append(k).getValue().put(v);
+        ex.store();
+    }
+
+    private static Object fetch(Exchange ex, Object k) throws PersistitException {
+        return fetch(ex, k, true);
+    }
+
+    private static Object fetch(Exchange ex, Object k, boolean getValue) throws PersistitException {
+        ex.clear().append(k).fetch();
+        return getValue ? ex.getValue().get() : null;
     }
 
     private void showGUI() throws Exception {
