@@ -1408,6 +1408,10 @@ public class Exchange {
         // First insert the record in the data page
         //
         Buffer buffer = null;
+        
+        if (!_ignoreTransactions) {
+            _transaction.store(this, key, value);
+        }
 
         try {
             for (;;) {
@@ -1542,9 +1546,6 @@ public class Exchange {
                         //
                         // No split means we're totally done.
                         //
-                        if (!_ignoreTransactions) {
-                            _transaction.store(this, key, _spareValue);
-                        }
                         break;
 
                     } else {

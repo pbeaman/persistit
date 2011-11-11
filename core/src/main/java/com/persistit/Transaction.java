@@ -409,6 +409,7 @@ public class Transaction {
                 throw new PersistitInterruptedException(e);
             }
             _startTimestamp = _transactionStatus.getTs();
+            _commitTimestamp = 0;
             _transactionCacheUpdates.clear();
             _buffer.clear();
             _previousJournalAddress = 0;

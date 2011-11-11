@@ -232,6 +232,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         long addressAfterRollover = -1;
 
         while (jman.getCurrentAddress() < 300 * 1000 * 1000) {
+            timestamp = _persistit.getTimestampAllocator().updateTimestamp();
             long remaining = jman.getBlockSize() - (jman.getCurrentAddress() % jman.getBlockSize()) - 1;
             if (remaining == JournalRecord.JE.OVERHEAD) {
                 addressBeforeRollover = jman.getCurrentAddress();
@@ -242,7 +243,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             } else {
                 exchange.getValue().put(kilo);
             }
+            
             txn.writeStoreRecordToJournal(12345, exchange.getKey(), exchange.getValue());
+            jman.writeTransactionToJournal(txn.getTransactionBuffer(), timestamp, timestamp + 1, 0);
             if (remaining == JournalRecord.JE.OVERHEAD) {
                 addressAfterRollover = jman.getCurrentAddress();
                 assertTrue(addressAfterRollover - addressBeforeRollover < 2000);
