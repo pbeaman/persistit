@@ -561,8 +561,7 @@ public class Transaction {
             int saveDepth = _nestedDepth;
             _nestedDepth = 0;
             try {
-                Volume txnVolume = _persistit.createTemporaryVolume();
-                _ex1 = _persistit.getExchange(txnVolume, TRANSACTION_TREE_NAME + _id, true);
+                _ex1 = _persistit.getExchange(txnVolume(), TRANSACTION_TREE_NAME + _id, true);
                 _ex2 = new Exchange(_ex1);
                 _ex1.ignoreTransactions();
                 _ex2.ignoreTransactions();
@@ -572,6 +571,15 @@ public class Transaction {
         }
     }
 
+    Volume txnVolume() throws PersistitException {
+        final String volumeName = _persistit.getProperty(Persistit.TXN_VOLUME_NAME_PROPERTY);
+        if (volumeName == null) {
+            return  _persistit.createTemporaryVolume();
+        } else {
+            return _persistit.getVolume(volumeName);
+        }
+    }
+    
     void close() throws PersistitException {
         final Exchange ex = _ex1;
         if (ex != null) {
