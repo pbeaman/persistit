@@ -166,13 +166,40 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
-    public void testNextTraverseTwoTrxSimple() throws Exception {
+    public void testIsValuedDefinedTwoTrx() throws Exception {
+        trx1.begin();
+        trx2.begin();
+        try {
+            store(ex1, "trx1", 1);
+            store(ex2, "trx2", 2);
+
+            assertFalse("trx1 sees uncommitted trx2 key", ex1.clear().append("trx2").isValueDefined());
+            assertFalse("trx2 sees uncommitted trx2 key", ex2.clear().append("trx1").isValueDefined());
+            
+            trx1.commit();
+            trx2.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
         trx1.begin();
         try {
-            store(ex1, "a", "both_a");
-            store(ex1, "a", "both_a");
-            store(ex1, "b", null);
-            store(ex1, "z", "both_z");
+            assertTrue("committed trx1 key", ex1.clear().append("trx1").isValueDefined());
+            assertTrue("committed trx2 key", ex1.clear().append("trx2").isValueDefined());
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
+
+    public void testNextPrevTraverseTwoTrx() throws Exception {
+        // Should be visible to both
+        trx1.begin();
+        try {
+            store(ex1, "a", 97);
+            store(ex1, "z", 122);
             trx1.commit();
         }
         finally {
@@ -182,20 +209,28 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         trx1.begin();
         trx2.begin();
         try {
-            store(ex1, "trx1", "trx1_val");
-            store(ex2, "trx2", "trx2_val");
-
-            assertFalse("trx1 sees uncommitted trx2 key", ex1.clear().append("trx2").isValueDefined());
+            store(ex1, "trx1", 1);
+            store(ex2, "trx2", 2);
 
             ex1.clear().append(Key.BEFORE);
-            assertEquals("trx1 traversal",
-                         kvCollection("a","both_a", "b",null, "trx1","trx1_val", "z","both_z"),
+            assertEquals("trx1 next() traversal",
+                         kvCollection("a",97,  "trx1",1,  "z",122),
                          traverseAllNext(ex1));
 
             ex2.clear().append(Key.BEFORE);
-            assertEquals("trx2 traversal",
-                         kvCollection("a","both_a", "b",null, "trx2","trx2_val", "z","both_z"),
+            assertEquals("trx2 next() traversal",
+                         kvCollection("a",97,  "trx2",2,  "z",122),
                          traverseAllNext(ex2));
+
+            ex1.clear().append(Key.AFTER);
+            assertEquals("trx1 previous() traversal",
+                         kvCollection("z",122,  "trx1",1,  "a",97),
+                         traverseAllPrev(ex1));
+
+            ex2.clear().append(Key.AFTER);
+            assertEquals("trx2 previous() traversal",
+                         kvCollection("z",122,  "trx2",2,  "a",97),
+                         traverseAllPrev(ex2));
 
             trx1.commit();
             trx2.commit();
@@ -209,15 +244,13 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         try {
             ex1.clear().append(Key.BEFORE);
             assertEquals("final traversal",
-                         kvCollection("a","both_a", "b",null, "trx1","trx1_val", "trx2","trx2_val", "z","both_z"),
+                         kvCollection("a",97,  "trx1",1,  "trx2",2,  "z",122),
                          traverseAllNext(ex1));
             trx1.commit();
         }
         finally {
             trx1.end();
         }
-
-        showGUI();
     }
 
 
@@ -250,8 +283,16 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     }
 
     private static Collection<KVPair> traverseAllNext(Exchange e) throws Exception {
+        return traverseAll(e, true);
+    }
+
+    private static Collection<KVPair> traverseAllPrev(Exchange e) throws Exception {
+        return traverseAll(e, false);
+    }
+
+    private static Collection<KVPair> traverseAll(Exchange e, boolean goNext) throws Exception {
         List<KVPair> out = new ArrayList<KVPair>();
-        while(e.next()) {
+        while((goNext ? e.next() : e.previous())) {
             Object k = e.getKey().decode();
             Object v = e.getValue().isDefined() ? e.getValue().get() : "UD";
             out.add(new KVPair(k, v));
@@ -272,6 +313,11 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
     private static void store(Exchange ex, Object k, Object v) throws PersistitException {
         ex.clear().append(k).getValue().put(v);
+        ex.store();
+    }
+
+    private static void store(Exchange ex, Object kp1, Object kp2, Object v) throws PersistitException {
+        ex.clear().append(kp1).append(kp2).getValue().put(v);
         ex.store();
     }
 
