@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -912,6 +913,13 @@ public class BufferPool {
         buffer.release();
         return buffer;
     }
+    
+    public Buffer getBufferCopy(final int index) throws IllegalArgumentException {
+        if (index < 0 || index >= _bufferCount) {
+            throw new IllegalArgumentException("Index " + index + " is out of range in " + this);
+        }
+        return new Buffer(_buffers[index]);
+    }
 
     /**
      * Returns an available buffer. The replacement policy is to return a buffer
@@ -1258,11 +1266,37 @@ public class BufferPool {
         protected long pollInterval() {
             return isFlushing() ? 0 : _writerPollInterval;
         }
-
     }
 
     @Override
     public String toString() {
         return "BufferPool[" + _bufferCount + "@" + _bufferSize + (_closed.get() ? ":closed" : "") + "]";
+    }
+    
+    /**
+     * Dump the content of this <code>BufferPool</code> to the suppled stream.  Format:
+     * <ul>
+     * <li>A UTF containing the toString() value</li>
+     * <li>integer count of buffers</li>
+     * <li>dump of each buffer in the pool.</li>
+     * </ul>
+     *  
+     * @param stream DataOutputStream to write to
+     * @param secure true to obscure data values in the dump
+     * @throws Exception
+     */
+    void dump(final DataOutputStream stream, final boolean secure, final boolean verbose) throws Exception {
+        final String toString = toString();
+        if (verbose) {
+            System.out.println(toString);
+        }
+        stream.writeUTF(toString);
+        stream.writeInt(_bufferCount);
+        for (int index = 0; index < _bufferCount; index++) {
+            _buffers[index].dump(stream, secure, verbose);
+        }
+        if (verbose) {
+            System.out.println();
+        }
     }
 }

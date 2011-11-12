@@ -304,6 +304,17 @@ class VolumeStructure {
             return null;
         }
     }
+    
+    synchronized List<Tree> referencedTrees() {
+        final List<Tree> list = new ArrayList<Tree>();
+        for (final WeakReference<Tree> ref : _treeNameHashMap.values()) {
+            final Tree tree = ref.get();
+            if (tree != null) {
+                list.add(tree);
+            }
+        }
+        return list;
+    }
 
     /**
      * Allocates a previously unused page. Returns a Buffer containing that

@@ -21,6 +21,7 @@ import static com.persistit.VolumeHeader.getGarbageRoot;
 import static com.persistit.VolumeHeader.getId;
 import static com.persistit.VolumeHeader.getNextAvailablePage;
 
+import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Stack;
@@ -3611,6 +3612,119 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         }
         return getVolume().getId() > buffer.getVolume().getId() ? 1
                 : getVolume().getId() < buffer.getVolume().getId() ? -1 : 0;
+    }
+
+    /**
+     * Dump a copy of this <code>Buffer</code> to the supplied stream. The
+     * format is:
+     * <ul>
+     * <li>UTF string containing the toString() value - this is human-readable
+     * and contains the volume name, etc.</li>
+     * <li>Integer length of the remainder</li>
+     * <li>Page image. For Data and Index pages, the bytes between _keyBlockEnd
+     * and _alloc are skipped. In secure mode, bytes not needed for debugging
+     * are replaced by 'x's.</li>
+     * </ul>
+     * 
+     * @param stream
+     *            DataOutputStream to write to
+     * @param secure
+     *            If <code>true</code> obscure the data values
+     * @throws Exception
+     */
+    void dump(final DataOutputStream stream, final boolean secure, boolean verbose) throws Exception {
+        Buffer buffer;
+        if (claim(false, Persistit.SHORT_DELAY)) {
+            buffer = this;
+        } else {
+            buffer = new Buffer(this);
+        }
+        try {
+            final String toString = buffer.toString();
+            if (verbose) {
+                System.out.println(toString);
+            }
+            stream.writeUTF(toString);
+            int left = buffer._bufferSize;
+            int right = 0;
+            if (buffer.isDataPage() || buffer.isIndexPage()) {
+                if (KEY_BLOCK_START <= buffer._keyBlockEnd && buffer._keyBlockEnd <= buffer._alloc
+                        && buffer._alloc < left) {
+                    right = left - buffer._alloc;
+                    left = buffer.getKeyBlockEnd();
+                }
+            } else if (buffer.isLongRecordPage()) {
+                left = KEY_BLOCK_START;
+            }
+
+            stream.writeInt(left + right);
+
+            if (buffer._page == 0) {
+                stream.write(buffer._bytes, 0, TIMESTAMP_OFFSET);
+            } else {
+                stream.writeByte(buffer._type);
+                stream.writeByte(buffer._bufferSize / 256);
+                stream.writeChar(buffer._keyBlockEnd);
+                stream.writeChar(buffer._alloc);
+                stream.writeChar(buffer._slack);
+                stream.writeLong(buffer._page);
+                stream.writeLong(buffer._rightSibling);
+            }
+            
+            stream.writeLong(buffer._timestamp);
+            stream.write(buffer._bytes, KEY_BLOCK_START, left - KEY_BLOCK_START);
+
+            if (right > 0) {
+                int tail = buffer._alloc;
+                if (secure) {
+                    for (; tail < buffer._bufferSize;) {
+                        int tbData = getInt(tail);
+                        int tbSize = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+                        int tbKLength = decodeTailBlockKLength(tbData);
+                        //
+                        // If the tbSize field is corrupt then just dump the
+                        // remainder of the buffer
+                        // since we need that to figure out the problem.
+                        //
+                        if (tbSize < TAILBLOCK_HDR_SIZE_DATA || tbSize + tail > buffer._bufferSize) {
+                            break;
+                        }
+                        //
+                        // Otherwise, dump just the portion of the tailblock we
+                        // need for analysis and fill the rest with 'x's.
+                        //
+                        boolean tbInUse = decodeTailBlockInUse(tbData);
+                        // Number of bytes we need to dump
+                        int keep;
+                        if (tbInUse) {
+                            if (buffer.isIndexPage()) {
+                                keep = tbSize;
+                            } else {
+                                keep = TAILBLOCK_HDR_SIZE_DATA + tbKLength;
+                                if (tbSize - keep >= LONGREC_PREFIX_SIZE && buffer.getByte(tail + keep) == LONGREC_TYPE) {
+                                    keep += LONGREC_PREFIX_OFFSET;
+                                }
+                            }
+                            if (keep < TAILBLOCK_HDR_SIZE_DATA && keep > tbSize) {
+                                keep = tbSize;
+                            }
+                        } else {
+                            keep = TAILBLOCK_HDR_SIZE_DATA;
+                        }
+                        stream.write(buffer._bytes, tail, keep);
+                        for (int fill = keep; fill < tbSize; fill++) {
+                            stream.writeByte(fill == keep ? ' ' : 'x');
+                        }
+                        tail += tbSize;
+                    }
+                }
+                stream.write(buffer._bytes, tail, buffer._bufferSize - tail);
+            }
+        } finally {
+            if (buffer == this) {
+                buffer.release();
+            }
+        }
     }
 
 }
