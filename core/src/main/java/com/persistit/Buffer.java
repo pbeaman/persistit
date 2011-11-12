@@ -3265,14 +3265,14 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     /**
-     * @return A displyable summary of information about the page contained in
+     * @return A displayable summary of information about the page contained in
      *         this <code>Buffer</code>.
      */
     public String summarize() {
         return String.format("Page=%,d type=%s rightSibling=%,d status=%s start=%d end=%d size=%d alloc=%d "
                 + "slack=%d index=%d timestamp=%,d generation=%,d", _page, getPageTypeName(), _rightSibling,
-                getStatusDisplayString(), KEY_BLOCK_START, _keyBlockEnd, _bufferSize, _alloc, _slack, _poolIndex,
-                _timestamp, _generation);
+                getStatusDisplayString(), KEY_BLOCK_START, _keyBlockEnd, _bufferSize, _alloc, _slack, getIndex(),
+                getTimestamp(), getGeneration());
     }
 
     public String toString() {
