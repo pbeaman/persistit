@@ -3713,7 +3713,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                         }
                         stream.write(buffer._bytes, tail, keep);
                         for (int fill = keep; fill < tbSize; fill++) {
-                            stream.write((byte) 'x');
+                            stream.writeByte(fill == keep ? ' ' : 'x');
                         }
                         tail += tbSize;
                     }
@@ -3725,7 +3725,6 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 buffer.release();
             }
         }
-        stream.flush();
     }
 
 }

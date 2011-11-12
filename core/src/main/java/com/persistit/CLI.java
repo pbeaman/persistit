@@ -929,6 +929,7 @@ public class CLI {
 
         final ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(file),
                 BUFFER_SIZE));
+        zos.setLevel(ZipEntry.DEFLATED);
         final ZipEntry ze = new ZipEntry("PersistitDump_" + new SimpleDateFormat("yyyyMMddHHmm").format(new Date()));
         ze.setSize(Integer.MAX_VALUE);
         ze.setTime(System.currentTimeMillis());
@@ -945,9 +946,13 @@ public class CLI {
                 stream.writeUTF(tree.toString());
             }
         }
-        for (final BufferPool pool : _persistit.getBufferPoolHashMap().values()) {
+        final List<BufferPool> pools = new ArrayList<BufferPool>(_persistit.getBufferPoolHashMap().values());
+        stream.writeInt(pools.size());
+        for (final BufferPool pool : pools) {
             pool.dump(stream, secure, verbose);
         }
+        stream.flush();
+        zos.closeEntry();
         stream.close();
         return "done";
     }
