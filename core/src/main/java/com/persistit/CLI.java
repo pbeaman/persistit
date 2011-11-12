@@ -916,18 +916,15 @@ public class CLI {
     }
 
     @Cmd("dump")
-    String dump(@Arg("fileName|string|Name of file to receive output") String fileName,
+    String dump(@Arg("file|string|Name of file to receive output") String file,
             @Arg("_flag|s|Secure") boolean secure, @Arg("_flag|o|Overwrite file") boolean ovewrite,
             @Arg("_flag|v|Verbose") boolean verbose) throws Exception {
-        final File file = new File(fileName);
-        if (!file.isFile()) {
-            throw new FileNotFoundException(fileName);
-        }
-        if (file.exists() && !ovewrite) {
-            throw new IOException(fileName + " already exists");
+        final File target = new File(file);
+        if (target.exists() && !ovewrite) {
+            throw new IOException(file + " already exists");
         }
 
-        final ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(file),
+        final ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(target),
                 BUFFER_SIZE));
         zos.setLevel(ZipEntry.DEFLATED);
         final ZipEntry ze = new ZipEntry("PersistitDump_" + new SimpleDateFormat("yyyyMMddHHmm").format(new Date()));
