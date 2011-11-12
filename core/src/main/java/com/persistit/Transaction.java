@@ -583,7 +583,9 @@ public class Transaction {
     void close() throws PersistitException {
         final Exchange ex = _ex1;
         if (ex != null) {
-            ex.getVolume().close();
+            if (ex.getVolume().isTemporary()) {
+                ex.getVolume().close();
+            }
             _ex1 = null;
             _ex2 = null;
         }
