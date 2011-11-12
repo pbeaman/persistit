@@ -3265,14 +3265,14 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     /**
-     * @return A displyable summary of information about the page contained in
+     * @return A displayable summary of information about the page contained in
      *         this <code>Buffer</code>.
      */
     public String summarize() {
         return String.format("Page=%,d type=%s rightSibling=%,d status=%s start=%d end=%d size=%d alloc=%d "
                 + "slack=%d index=%d timestamp=%,d generation=%,d", _page, getPageTypeName(), _rightSibling,
-                getStatusDisplayString(), KEY_BLOCK_START, _keyBlockEnd, _bufferSize, _alloc, _slack, _poolIndex,
-                _timestamp, _generation);
+                getStatusDisplayString(), KEY_BLOCK_START, _keyBlockEnd, _bufferSize, _alloc, _slack, getIndex(),
+                getTimestamp(), getGeneration());
     }
 
     public String toString() {
@@ -3630,100 +3630,132 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      *            DataOutputStream to write to
      * @param secure
      *            If <code>true</code> obscure the data values
+     * @param verbose
+     *            If <code>true</code> display the buffer summary on System.out.
      * @throws Exception
      */
     void dump(final DataOutputStream stream, final boolean secure, boolean verbose) throws Exception {
-        Buffer buffer;
-        if (claim(false, Persistit.SHORT_DELAY)) {
-            buffer = this;
-        } else {
-            buffer = new Buffer(this);
-        }
+        byte[] bytes = new byte[_bufferSize];
+        int type;
+        int keyBlockEnd;
+        int alloc;
+        int slack;
+        long page;
+        long rightSibling;
+        long timestamp;
+        int bufferSize;
+        boolean claimed = claim(false, Persistit.SHORT_DELAY);
         try {
-            final String toString = buffer.toString();
-            if (verbose) {
-                System.out.println(toString);
+            bufferSize = _bufferSize;
+            type = _type;
+            keyBlockEnd = _keyBlockEnd;
+            alloc = _alloc;
+            slack = _slack;
+            page = _page;
+            rightSibling = _rightSibling;
+            timestamp = _timestamp;
+            System.arraycopy(_bytes, 0, bytes, 0, bufferSize);
+        } finally {
+            if (claimed) {
+                release();
             }
-            stream.writeUTF(toString);
-            int left = buffer._bufferSize;
-            int right = 0;
-            if (buffer.isDataPage() || buffer.isIndexPage()) {
-                if (KEY_BLOCK_START <= buffer._keyBlockEnd && buffer._keyBlockEnd <= buffer._alloc
-                        && buffer._alloc < left) {
-                    right = left - buffer._alloc;
-                    left = buffer.getKeyBlockEnd();
-                }
-            } else if (buffer.isLongRecordPage()) {
-                left = KEY_BLOCK_START;
-            }
+        }
+        String toString = toString();
+        if (verbose) {
+            System.out.println(toString);
+        }
+        boolean isDataPage = type == PAGE_TYPE_DATA;
+        boolean isIndexPage = type >= PAGE_TYPE_INDEX_MIN && type <= PAGE_TYPE_INDEX_MAX;
+        boolean isLongRecordPage = type == PAGE_TYPE_LONG_RECORD;
 
-            stream.writeInt(left + right);
+        Util.putLong(bytes, TIMESTAMP_OFFSET, timestamp);
+        if (page != 0) {
+            Util.putByte(bytes, TYPE_OFFSET, type);
+            Util.putByte(bytes, BUFFER_LENGTH_OFFSET, bufferSize / 256);
+            Util.putChar(bytes, KEY_BLOCK_END_OFFSET, keyBlockEnd);
+            Util.putChar(bytes, FREE_OFFSET, alloc);
+            Util.putChar(bytes, SLACK_OFFSET, slack);
+            Util.putLong(bytes, PAGE_ADDRESS_OFFSET, page);
+            Util.putLong(bytes, RIGHT_SIBLING_OFFSET, rightSibling);
+        }
 
-            if (buffer._page == 0) {
-                stream.write(buffer._bytes, 0, TIMESTAMP_OFFSET);
-            } else {
-                stream.writeByte(buffer._type);
-                stream.writeByte(buffer._bufferSize / 256);
-                stream.writeChar(buffer._keyBlockEnd);
-                stream.writeChar(buffer._alloc);
-                stream.writeChar(buffer._slack);
-                stream.writeLong(buffer._page);
-                stream.writeLong(buffer._rightSibling);
-            }
-            
-            stream.writeLong(buffer._timestamp);
-            stream.write(buffer._bytes, KEY_BLOCK_START, left - KEY_BLOCK_START);
+        stream.writeUTF(toString);
+        int left = bufferSize;
+        int right = 0;
+        if (isDataPage || isIndexPage) {
+            if (KEY_BLOCK_START <= keyBlockEnd && keyBlockEnd <= alloc && alloc < left) {
+                right = left - alloc;
+                left = keyBlockEnd;
 
-            if (right > 0) {
-                int tail = buffer._alloc;
                 if (secure) {
-                    for (; tail < buffer._bufferSize;) {
-                        int tbData = getInt(tail);
-                        int tbSize = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-                        int tbKLength = decodeTailBlockKLength(tbData);
-                        //
-                        // If the tbSize field is corrupt then just dump the
-                        // remainder of the buffer
-                        // since we need that to figure out the problem.
-                        //
-                        if (tbSize < TAILBLOCK_HDR_SIZE_DATA || tbSize + tail > buffer._bufferSize) {
-                            break;
-                        }
-                        //
-                        // Otherwise, dump just the portion of the tailblock we
-                        // need for analysis and fill the rest with 'x's.
-                        //
-                        boolean tbInUse = decodeTailBlockInUse(tbData);
-                        // Number of bytes we need to dump
-                        int keep;
-                        if (tbInUse) {
-                            if (buffer.isIndexPage()) {
-                                keep = tbSize;
-                            } else {
-                                keep = TAILBLOCK_HDR_SIZE_DATA + tbKLength;
-                                if (tbSize - keep >= LONGREC_PREFIX_SIZE && buffer.getByte(tail + keep) == LONGREC_TYPE) {
-                                    keep += LONGREC_PREFIX_OFFSET;
-                                }
-                            }
-                            if (keep < TAILBLOCK_HDR_SIZE_DATA && keep > tbSize) {
-                                keep = tbSize;
-                            }
-                        } else {
-                            keep = TAILBLOCK_HDR_SIZE_DATA;
-                        }
-                        stream.write(buffer._bytes, tail, keep);
-                        for (int fill = keep; fill < tbSize; fill++) {
-                            stream.writeByte(fill == keep ? ' ' : 'x');
-                        }
-                        tail += tbSize;
+                    dumpSecureValues(bytes, alloc, bufferSize, isIndexPage);
+                }
+            }
+        } else if (secure && isLongRecordPage) {
+            left = KEY_BLOCK_START;
+        }
+
+        stream.writeInt(left + right);
+        stream.write(bytes, 0, left);
+        if (right > 0) {
+            stream.write(bytes, bufferSize - right, right);
+        }
+    }
+
+    /**
+     * Overwrite the value payload bytes in the supplied buffer image to appear
+     * as strings of 'x's.
+     * 
+     * @param bytes
+     *            buffer image
+     * @param alloc
+     *            offset of first taiblock
+     * @param bufferSize
+     *            buffer size
+     * @param isIndexPage
+     *            true if this is an index page
+     */
+    private void dumpSecureValues(byte[] bytes, int alloc, int bufferSize, boolean isIndexPage) {
+        int tail = alloc;
+        for (; tail < bufferSize;) {
+            int tbData = Util.getInt(bytes, tail);
+            int tbSize = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+            int tbKLength = decodeTailBlockKLength(tbData);
+            //
+            // If the tbSize field is corrupt then just dump the
+            // remainder of the buffer
+            // since we need that to figure out the problem.
+            //
+            if (tbSize < TAILBLOCK_HDR_SIZE_DATA || tbSize + tail > bufferSize) {
+                break;
+            }
+            //
+            // Otherwise, dump just the portion of the tailblock we
+            // need for analysis and fill the rest with 'x's.
+            //
+            boolean tbInUse = decodeTailBlockInUse(tbData);
+            // Number of bytes we need to dump
+            int keep;
+            if (tbInUse) {
+                if (isIndexPage) {
+                    keep = tbSize;
+                } else {
+                    keep = TAILBLOCK_HDR_SIZE_DATA + tbKLength;
+                    if (tbSize - keep >= LONGREC_PREFIX_SIZE && Util.getByte(bytes, tail + keep) == LONGREC_TYPE) {
+                        keep += LONGREC_PREFIX_OFFSET;
                     }
                 }
-                stream.write(buffer._bytes, tail, buffer._bufferSize - tail);
+                if (keep < TAILBLOCK_HDR_SIZE_DATA && keep > tbSize) {
+                    keep = tbSize;
+                }
+            } else {
+                keep = TAILBLOCK_HDR_SIZE_DATA;
             }
-        } finally {
-            if (buffer == this) {
-                buffer.release();
+
+            for (int fill = keep; fill < tbSize; fill++) {
+                bytes[tail + fill] = (byte) (fill == keep ? ' ' : 'x');
             }
+            tail += tbSize;
         }
     }
 
