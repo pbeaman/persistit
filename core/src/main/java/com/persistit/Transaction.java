@@ -1565,7 +1565,7 @@ public class Transaction {
                 Value txnValue = _ex1.getValue();
                 txnValue.decodeAntiValue(_ex1);
                 // TODO - skip to end of AntiValue
-                if (candidateKey.compareTo(key2) <= 0) {
+                if (candidateKey.compareTo(key2) < 0) {
                     return Boolean.FALSE;
                 }
             }
@@ -1669,8 +1669,8 @@ public class Transaction {
         _ex2.setTree(tree);
         key1.copyTo(_ex2.getKey());
 
-        boolean result2 = _ex2.traverse(Key.GT, true);
-        if (result2 && _ex2.getKey().compareTo(key2) > 0) {
+        boolean result2 = _ex2.traverse(Key.GTEQ, true);
+        if (result2 && _ex2.getKey().compareTo(key2) >= 0) {
             result2 = false;
         }
         //

@@ -553,7 +553,13 @@ public class JournalTool {
             try {
                 final FileChannel fc = getFileChannel(address);
                 _readBuffer.clear();
-                final int maxSize = Math.min(_readBuffer.capacity(), (int) (addressUp(address) - address));
+                
+                int maxSize = _readBuffer.capacity();
+                long remainingInBlock =addressUp(address) - address;
+                if (remainingInBlock < maxSize) {
+                    maxSize = (int)remainingInBlock;
+                }
+
                 _readBuffer.limit(maxSize);
                 // Try to read up to maxSize bytes into _readBuffer
                 int offset = 0;
