@@ -18,7 +18,6 @@ package com.persistit;
 import static com.persistit.Buffer.EXACT_MASK;
 import static com.persistit.Buffer.HEADER_SIZE;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
-import static com.persistit.Buffer.KEY_BLOCK_START;
 import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
 import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
 import static com.persistit.Buffer.LONGREC_SIZE;
@@ -2675,14 +2674,13 @@ public class Exchange {
 
     /**
      * Removes all records with keys falling between <code>key1</code> and
-     * </code>key2</code>, lefty-inclusive. Validity checks and Key value adjustments
-     * have been done by caller - this method does the work.
+     * </code>key2</code>, lefty-inclusive. Validity checks and Key value
+     * adjustments have been done by caller - this method does the work.
      * 
      * @param key1
      *            Key that is less than or equal to the leftmost to be removed
      * @param key2
-     *            Key that is greater than the rightmost to be
-     *            removed
+     *            Key that is greater than the rightmost to be removed
      * @param fetchFirst
      *            Control whether to copy the existing value for the first key
      *            into _spareValue before deleting the record.
@@ -2734,8 +2732,7 @@ public class Exchange {
                             int foundAt1 = search(key1) & P_MASK;
                             buffer = _levelCache[0]._buffer;
 
-                            if (foundAt1 > buffer.getKeyBlockStart()
-                                    && (foundAt1 & P_MASK) < buffer.getKeyBlockEnd()) {
+                            if (foundAt1 > buffer.getKeyBlockStart() && (foundAt1 & P_MASK) < buffer.getKeyBlockEnd()) {
                                 int foundAt2 = buffer.findKey(key2) & P_MASK;
                                 if (!buffer.isBeforeLeftEdge(foundAt2) && !buffer.isAfterRightEdge(foundAt2)) {
                                     foundAt2 &= P_MASK;
@@ -2862,7 +2859,7 @@ public class Exchange {
                             Debug.$assert0.t(p1 != -1 && p2 != -1);
                             pageAddr1 = lc._leftBuffer.getPointer(p1);
                             pageAddr2 = lc._rightBuffer.getPointer(p2);
-                            
+
                         } else {
                             Debug.$assert0.t(depth == 0);
                             break;
@@ -2917,7 +2914,6 @@ public class Exchange {
                             buffer1.setDirtyAtTimestamp(timestamp);
                             buffer2.setDirtyAtTimestamp(timestamp);
 
-                            // TODO - why isn't this buffer2.getPageAddress()?
                             long rightGarbagePage = buffer1.getRightSibling();
 
                             if (rightGarbagePage != leftGarbagePage) {

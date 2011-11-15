@@ -24,9 +24,12 @@ import static com.persistit.VolumeHeader.getNextAvailablePage;
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
+import java.util.Set;
 import java.util.Stack;
 
 import com.persistit.Exchange.Sequence;
+import com.persistit.JournalRecord.IV;
+import com.persistit.JournalRecord.PA;
 import com.persistit.Management.RecordInfo;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.InUseException;
@@ -3615,35 +3618,37 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     /**
-     * Dump a copy of this <code>Buffer</code> to the supplied stream. The
-     * format is:
-     * <ul>
-     * <li>UTF string containing the toString() value - this is human-readable
-     * and contains the volume name, etc.</li>
-     * <li>Integer length of the remainder</li>
-     * <li>Page image. For Data and Index pages, the bytes between _keyBlockEnd
-     * and _alloc are skipped. In secure mode, bytes not needed for debugging
-     * are replaced by 'x's.</li>
-     * </ul>
+     * Dump a copy of this <code>Buffer</code> to the supplied ByteBuffer. The
+     * format is identical to the journal: an optional IV record to identify the
+     * volume followed by a PA record.
      * 
-     * @param stream
-     *            DataOutputStream to write to
+     * @param bb
+     *            ByteBuffer to write to
      * @param secure
      *            If <code>true</code> obscure the data values
      * @param verbose
      *            If <code>true</code> display the buffer summary on System.out.
+     * @param identifiedVolumes
+     *            A set of Volumes for which IV records have already been
+     *            written. This method adds a volume to this set whenever it
+     *            writes an IV record.
      * @throws Exception
      */
-    void dump(final DataOutputStream stream, final boolean secure, boolean verbose) throws Exception {
+    void dump(final ByteBuffer bb, final boolean secure, boolean verbose, final Set<Volume> identifiedVolumes)
+            throws Exception {
         byte[] bytes = new byte[_bufferSize];
         int type;
         int keyBlockEnd;
         int alloc;
         int slack;
         long page;
+        Volume volume;
         long rightSibling;
         long timestamp;
         int bufferSize;
+        /*
+         * Copy all the information needed quickly and then release the buffer.
+         */
         boolean claimed = claim(false, Persistit.SHORT_DELAY);
         try {
             bufferSize = _bufferSize;
@@ -3652,6 +3657,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             alloc = _alloc;
             slack = _slack;
             page = _page;
+            volume = _vol;
             rightSibling = _rightSibling;
             timestamp = _timestamp;
             System.arraycopy(_bytes, 0, bytes, 0, bufferSize);
@@ -3660,14 +3666,31 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 release();
             }
         }
+
         String toString = toString();
         if (verbose) {
             System.out.println(toString);
         }
+
+        int volumeHandle = volume == null ? 0 : volume.getHandle();
+        if (volume != null && !identifiedVolumes.contains(volume)) {
+            IV.putType(bb);
+            IV.putHandle(bb, volumeHandle);
+            IV.putVolumeId(bb, volume.getId());
+            IV.putTimestamp(bb, 0);
+            IV.putVolumeName(bb, volume.getName());
+            bb.position(bb.position() + IV.getLength(bb));
+            identifiedVolumes.add(volume);
+        }
+
         boolean isDataPage = type == PAGE_TYPE_DATA;
         boolean isIndexPage = type >= PAGE_TYPE_INDEX_MIN && type <= PAGE_TYPE_INDEX_MAX;
         boolean isLongRecordPage = type == PAGE_TYPE_LONG_RECORD;
 
+        /*
+         * Following is equivalent to the save method, except written to the
+         * byte array copy.
+         */
         Util.putLong(bytes, TIMESTAMP_OFFSET, timestamp);
         if (page != 0) {
             Util.putByte(bytes, TYPE_OFFSET, type);
@@ -3679,27 +3702,31 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             Util.putLong(bytes, RIGHT_SIBLING_OFFSET, rightSibling);
         }
 
-        stream.writeUTF(toString);
+        if (isDataPage && secure) {
+            dumpSecureOverwriteValues(bytes);
+        }
+
         int left = bufferSize;
         int right = 0;
         if (isDataPage || isIndexPage) {
             if (KEY_BLOCK_START <= keyBlockEnd && keyBlockEnd <= alloc && alloc < left) {
                 right = left - alloc;
                 left = keyBlockEnd;
-
-                if (secure) {
-                    dumpSecureValues(bytes, alloc, bufferSize, isIndexPage);
-                }
             }
         } else if (secure && isLongRecordPage) {
             left = KEY_BLOCK_START;
         }
-
-        stream.writeInt(left + right);
-        stream.write(bytes, 0, left);
-        if (right > 0) {
-            stream.write(bytes, bufferSize - right, right);
-        }
+        int recordSize = PA.OVERHEAD + left + right;
+        PA.putLength(bb, recordSize);
+        PA.putType(bb);
+        PA.putVolumeHandle(bb, volumeHandle);
+        PA.putTimestamp(bb, timestamp);
+        PA.putLeftSize(bb, left);
+        PA.putBufferSize(bb, bufferSize);
+        PA.putPageAddress(bb, page);
+        bb.position(bb.position() + PA.OVERHEAD);
+        bb.put(bytes, 0, left);
+        bb.put(bytes, bufferSize - right, right);
     }
 
     /**
@@ -3708,16 +3735,35 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      * 
      * @param bytes
      *            buffer image
-     * @param alloc
-     *            offset of first taiblock
-     * @param bufferSize
-     *            buffer size
-     * @param isIndexPage
-     *            true if this is an index page
      */
-    private void dumpSecureValues(byte[] bytes, int alloc, int bufferSize, boolean isIndexPage) {
-        int tail = alloc;
-        for (; tail < bufferSize;) {
+    private void dumpSecureOverwriteValues(byte[] bytes) {
+        if (bytes[0] != PAGE_TYPE_DATA) {
+            return;
+        }
+        /*
+         * Figure out if this is part of any system tree. If so then don't
+         * overwrite values.
+         */
+        for (int p = KEY_BLOCK_START; p < Util.getInt(bytes, KEY_BLOCK_END_OFFSET); p += KEYBLOCK_LENGTH) {
+            int kbData = Util.getInt(bytes, p);
+            int db = decodeKeyBlockDb(kbData);
+            if (db == 0 && p == KEY_BLOCK_START) {
+                continue;
+            } else if (db == Key.TYPE_STRING) {
+                int tail = decodeKeyBlockTail(kbData);
+                if (bytes[tail + TAILBLOCK_HDR_SIZE_DATA] == '_') {
+                    // Probably a system key - don't overwrite values
+                    return;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        int tail = Util.getChar(bytes, FREE_OFFSET);
+        for (; tail < bytes.length;) {
             int tbData = Util.getInt(bytes, tail);
             int tbSize = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
             int tbKLength = decodeTailBlockKLength(tbData);
@@ -3726,7 +3772,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             // remainder of the buffer
             // since we need that to figure out the problem.
             //
-            if (tbSize < TAILBLOCK_HDR_SIZE_DATA || tbSize + tail > bufferSize) {
+            if (tbSize < TAILBLOCK_HDR_SIZE_DATA || tbSize + tail > bytes.length) {
                 break;
             }
             //
@@ -3737,13 +3783,9 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             // Number of bytes we need to dump
             int keep;
             if (tbInUse) {
-                if (isIndexPage) {
-                    keep = tbSize;
-                } else {
-                    keep = TAILBLOCK_HDR_SIZE_DATA + tbKLength;
-                    if (tbSize - keep >= LONGREC_PREFIX_SIZE && Util.getByte(bytes, tail + keep) == LONGREC_TYPE) {
-                        keep += LONGREC_PREFIX_OFFSET;
-                    }
+                keep = TAILBLOCK_HDR_SIZE_DATA + tbKLength;
+                if (tbSize - keep >= LONGREC_PREFIX_SIZE && Util.getByte(bytes, tail + keep) == LONGREC_TYPE) {
+                    keep += LONGREC_PREFIX_OFFSET;
                 }
                 if (keep < TAILBLOCK_HDR_SIZE_DATA && keep > tbSize) {
                     keep = tbSize;
