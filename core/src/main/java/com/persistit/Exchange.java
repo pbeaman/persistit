@@ -1869,7 +1869,7 @@ public class Exchange {
 
         boolean doFetch = minimumBytes > 0;
         boolean doModify = minimumBytes >= 0;
-        boolean result = false;
+        final boolean result;
 
         Buffer buffer = null;
 
@@ -1911,17 +1911,11 @@ public class Exchange {
                 nudged = true;
             }
 
-            boolean doSearch = true;
             int foundAt = 0;
-            while(doSearch) {
-                doSearch = false;
-
-            LevelCache lc;
-            boolean matches = false;
-
             for (;;) {
+                boolean matches = false;
+                LevelCache lc = _levelCache[0];
 
-                lc = _levelCache[0];
                 //
                 // Optimal path - pick up the buffer and location left
                 // by previous operation.
@@ -1936,8 +1930,7 @@ public class Exchange {
                 // other way to find the left sibling page.
                 //
                 if (reverse && buffer != null && (foundAt & P_MASK) <= buffer.getKeyBlockStart()) {
-                    // Going left from first record in the page requires a
-                    // key search.
+                    // Going left from first record in the page requires a key search.
                     buffer.releaseTouched();
                     buffer = null;
                 }
@@ -1968,11 +1961,11 @@ public class Exchange {
 
                 if (edge && (foundAt & EXACT_MASK) != 0) {
                     matches = true;
-                    break;
+                    //break;
                 } else if (edge && !deep && Buffer.decodeDepth(foundAt) == index) {
-                    break;
+                    //break;
                 } else if (direction == EQ) {
-                    break;
+                    //break;
                 } else {
                     edge = false;
                     foundAt = buffer.traverse(_key, direction, foundAt);
@@ -1990,7 +1983,6 @@ public class Exchange {
                             buffer = rightSibling;
                             checkPageType(buffer, PAGE_TYPE_DATA);
                             foundAt = buffer.traverse(_key, direction, buffer.toKeyBlock(0));
-
                         }
                     }
 
@@ -2014,89 +2006,89 @@ public class Exchange {
                     }
                 }
 
-                break;
-            }
+                // Original for(;;) end
 
-            if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
-
-            } else {
-                if (deep) {
-                    matches |= direction != EQ;
-                    index = _key.getEncodedSize();
-
-                    if (matches) {
-                        Value outValue = doFetch ? _value : _spareValue;
-                        matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
-                        if (!matches) {
-                            _key.copyTo(_spareKey1);
-                            index = _key.getEncodedSize();
-                            doSearch = true;
-                            continue;
-                        }
-                    }
+                if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
+                    // None
                 } else {
-                    int parentIndex = _spareKey1.previousElementIndex(index);
-                    if (parentIndex < 0) {
-                        parentIndex = 0;
-                    }
+                    if (deep) {
+                        matches |= direction != EQ;
+                        index = _key.getEncodedSize();
 
-                    matches = (_spareKey1.compareKeyFragment(_key, 0, parentIndex) == 0);
-
-                    if (matches) {
-                        index = _key.nextElementIndex(parentIndex);
-                        if (index > 0) {
-                            if (index == _key.getEncodedSize()) {
-                                Value outValue = doFetch ? _value : _spareValue;
-                                boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
-                                if(!isVisibleMatch) {
-                                    // Continue traverse
-                                    _key.copyTo(_spareKey1);
-                                    index = _key.getEncodedSize();
-                                    doSearch = true;
-                                    continue; // Outer search loop
-                                }
-                            } else {
-                                //
-                                // The physical traversal went to a child
-                                // of the next sibling (i.e. a niece or
-                                // nephew), so therefore there must not be
-                                // a record associated with the key value
-                                // we are going to return. This makes
-                                // the Value for this Exchange undefined.
-                                //
-                                if (doFetch) {
-                                    _value.clear();
-                                }
-                                foundAt &= ~EXACT_MASK;
+                        if (matches) {
+                            Value outValue = doFetch ? _value : _spareValue;
+                            matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                            if (!matches && direction != EQ) {
+                                _key.copyTo(_spareKey1);
+                                index = _key.getEncodedSize();
+                                continue;
                             }
+                        }
+                    } else {
+                        int parentIndex = _spareKey1.previousElementIndex(index);
+                        if (parentIndex < 0) {
+                            parentIndex = 0;
+                        }
+
+                        matches = (_spareKey1.compareKeyFragment(_key, 0, parentIndex) == 0);
+
+                        if (matches) {
+                            index = _key.nextElementIndex(parentIndex);
+                            if (index > 0) {
+                                if (index == _key.getEncodedSize()) {
+                                    Value outValue = doFetch ? _value : _spareValue;
+                                    boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                                    if(!isVisibleMatch) {
+                                        _key.copyTo(_spareKey1);
+                                        index = _key.getEncodedSize();
+                                        continue;
+                                    }
+                                } else {
+                                    //
+                                    // The physical traversal went to a child
+                                    // of the next sibling (i.e. a niece or
+                                    // nephew), so therefore there must not be
+                                    // a record associated with the key value
+                                    // we are going to return. This makes
+                                    // the Value for this Exchange undefined.
+                                    //
+                                    if (doFetch) {
+                                        _value.clear();
+                                    }
+                                    foundAt &= ~EXACT_MASK;
+                                }
                             } else {
                                 matches = false;
                             }
+                        }
                     }
                 }
-            }
-            if (doModify) {
-                if (matches) {
-                    _key.setEncodedSize(index);
-                    lc.update(buffer, _key, foundAt);
+
+                if (doModify) {
+                    if (matches) {
+                        _key.setEncodedSize(index);
+                        lc.update(buffer, _key, foundAt);
+                    } else {
+                        if (deep) {
+                            _key.setEncodedSize(0);
+                        } else {
+                            _spareKey1.copyTo(_key);
+                        }
+                        _key.cut();
+                        if (reverse) {
+                            _key.appendAfter();
+                        } else {
+                            _key.appendBefore();
+                        }
+                    }
                 } else {
-                    if (deep) {
-                        _key.setEncodedSize(0);
-                    } else {
-                        _spareKey1.copyTo(_key);
-                    }
-                    _key.cut();
-                    if (reverse) {
-                        _key.appendAfter();
-                    } else {
-                        _key.appendBefore();
-                    }
+                    // Restore original key
+                    _spareKey1.copyTo(_key);
                 }
-            } else {
-                // Restore original key
-                _spareKey1.copyTo(_key);
-            }
-            result = matches;
+
+                // Done
+                result = matches;
+                break;
             }
         } finally {
             if (buffer != null) {
