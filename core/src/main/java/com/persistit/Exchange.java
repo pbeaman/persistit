@@ -947,7 +947,7 @@ public class Exchange {
                             + oldPageAddress + " key=<" + key.toString() + "> " + " invalid page address");
                 }
 
-                foundAt = searchLevel(key, pageAddress, currentLevel);
+                foundAt = searchLevel(key, false, pageAddress, currentLevel);
                 if (oldBuffer != null) {
                     oldBuffer.releaseTouched();
                     oldBuffer = null;
@@ -1016,7 +1016,7 @@ public class Exchange {
      * @return Encoded key location within the page.
      * @throws PMapException
      */
-    private int searchLevel(Key key, long pageAddress, int currentLevel) throws PersistitException {
+    private int searchLevel(Key key, boolean edge, long pageAddress, int currentLevel) throws PersistitException {
         Buffer oldBuffer = null;
         try {
             long initialPageAddress = pageAddress; // DEBUG - debugging only
@@ -1054,7 +1054,7 @@ public class Exchange {
                 }
 
                 int foundAt = findKey(buffer, key, lc);
-                if (!buffer.isAfterRightEdge(foundAt)) {
+                if (!buffer.isAfterRightEdge(foundAt) || edge & (foundAt & EXACT_MASK) != 0) {
                     lc.update(buffer, key, foundAt);
                     return foundAt;
                 }
@@ -1566,7 +1566,8 @@ public class Exchange {
      *            restricted to just the logical siblings of the current key.
      *            (See <a href="Key.html#_keyChildren">Logical Key Children and
      *            Siblings</a>).
-     * @return <code>true</code> if there is a key to traverse to, else <code>false</code>.
+     * @return <code>true</code> if there is a key to traverse to, else
+     *         <code>false</code>.
      * @throws PersistitException
      */
     public boolean traverse(Direction direction, boolean deep) throws PersistitException {
@@ -1625,7 +1626,8 @@ public class Exchange {
      * @param minimumBytes
      *            The minimum number of bytes to fetch. See {@link #fetch(int)}.
      * 
-     * @return <code>true</code> if there is a key to traverse to, else <code>false</code>.
+     * @return <code>true</code> if there is a key to traverse to, else
+     *         <code>false</code>.
      * 
      * @throws PersistitException
      */
@@ -1655,11 +1657,10 @@ public class Exchange {
                 _key.appendBefore();
             }
             nudged = true;
-            
+
         }
 
         _key.testValidForTraverse();
-
 
         checkLevelCache();
 
@@ -1979,8 +1980,8 @@ public class Exchange {
      * <dd>If the supplied key exists in the database, return that key;
      * otherwise find the next greater key and return it.</dd>
      * <dt>Key.EQ:</dt>
-     * <dd>Return <code>true</code> if the specified key exists in the
-     * database. Does not update the Key.</dd>
+     * <dd>Return <code>true</code> if the specified key exists in the database.
+     * Does not update the Key.</dd>
      * <dt>Key.LT:</dt>
      * <dd>Find the next key that is strictly less than the supplied key. If
      * there is none, return false.</dd>
@@ -2612,13 +2613,12 @@ public class Exchange {
             _spareKey1.append(BEFORE);
             _spareKey2.append(AFTER);
         } else {
-            if (selection == EQ || selection == GTEQ) {
-                _spareKey1.nudgeLeft();
-            } else {
+            if (selection == EQ) {
+                _spareKey2.nudgeDeeper();
+            } else if (selection == GT) {
                 _spareKey1.nudgeDeeper();
-            }
-
-            if (selection == GTEQ || selection == GT) {
+                _spareKey2.nudgeRight();
+            } else if (selection == GTEQ) {
                 _spareKey2.nudgeRight();
             }
         }
@@ -2630,9 +2630,8 @@ public class Exchange {
     }
 
     /**
-     * Removes record(s) for a range of keys. The keys to be removed are all
-     * those in the Tree that are Greater Than or Equal to key1 and less than
-     * key2.
+     * Removes all records with keys falling between <code>key1</code> and
+     * </code>key2</code>, left-inclusive.
      * 
      * @param key1
      *            Start of the deletion range. No record with a key smaller than
@@ -2659,17 +2658,14 @@ public class Exchange {
         // Special case for empty key
         if (key1.getEncodedSize() == 0) {
             _spareKey1.append(BEFORE);
-        } else
-            _spareKey1.nudgeLeft();
+        }
 
         if (key2.getEncodedSize() == 0) {
             _spareKey2.append(AFTER);
-        } else {
-            _spareKey2.nudgeLeft();
         }
 
-        if (_spareKey1.compareTo(_spareKey2) >= 0) {
-            throw new IllegalArgumentException("Second key must be larger than first");
+        if (_spareKey1.compareTo(_spareKey2) > 0) {
+            throw new IllegalArgumentException("Second key must be greater than or equal to the first");
         }
         final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, false);
         _treeHolder.verifyReleased();
@@ -2678,14 +2674,18 @@ public class Exchange {
     }
 
     /**
-     * Removes all records with keys falling between key1 and key2, exclusive.
-     * Validity checks and Key value adjustments have been done by wrapper
-     * methods - this method does the work.
+     * Removes all records with keys falling between <code>key1</code> and
+     * </code>key2</code>, lefty-inclusive. Validity checks and Key value adjustments
+     * have been done by caller - this method does the work.
      * 
      * @param key1
-     *            Key that is less than the leftmost to be removed
+     *            Key that is less than or equal to the leftmost to be removed
      * @param key2
-     *            Key that is greater than the rightmost to be removed
+     *            Key that is greater than the rightmost to be
+     *            removed
+     * @param fetchFirst
+     *            Control whether to copy the existing value for the first key
+     *            into _spareValue before deleting the record.
      * @return <code>true</code> if any records were removed.
      * @throws PersistitException
      */
@@ -2709,16 +2709,10 @@ public class Exchange {
         boolean deferredReindexRequired = false;
         boolean tryQuickDelete = true;
 
-        // long journalId = -1;
-        // if (!inTxn) {
-        // journalId = journal().beginRemove(_tree, key1, key2, fetchFirst);
-        // }
-
         try {
             //
-            // This is the main retry loop. If any attempt to reserve a page
-            // in the inner logic fails, we will iterate across all this logic
-            // again until the expiration time.
+            // Retry here to get an exclusive Tree latch in the occasional case
+            // where pages are being joined.
             //
             for (;;) {
 
@@ -2740,30 +2734,29 @@ public class Exchange {
                             int foundAt1 = search(key1) & P_MASK;
                             buffer = _levelCache[0]._buffer;
 
-                            if (!buffer.isBeforeLeftEdge(foundAt1) && !buffer.isAfterRightEdge(foundAt1)) {
-                                int foundAt2 = buffer.findKey(key2);
+                            if (foundAt1 > buffer.getKeyBlockStart()
+                                    && (foundAt1 & P_MASK) < buffer.getKeyBlockEnd()) {
+                                int foundAt2 = buffer.findKey(key2) & P_MASK;
                                 if (!buffer.isBeforeLeftEdge(foundAt2) && !buffer.isAfterRightEdge(foundAt2)) {
-                                    if ((foundAt2 & EXACT_MASK) != 0) {
-                                        foundAt2 = buffer.nextKeyBlock(foundAt2);
-                                    }
                                     foundAt2 &= P_MASK;
+                                    if (foundAt2 < buffer.getKeyBlockEnd()) {
+                                        Debug.$assert0.t(foundAt2 >= foundAt1);
+                                        if (fetchFirst) {
+                                            removeFetchFirst(buffer, foundAt1, buffer, foundAt2);
+                                        }
+                                        _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2);
 
-                                    Debug.$assert0.t(foundAt2 >= foundAt1);
-                                    if (fetchFirst) {
-                                        removeFetchFirst(buffer, foundAt1, buffer, foundAt2);
+                                        final long timestamp = timestamp();
+                                        buffer.writePageOnCheckpoint(timestamp);
+
+                                        boolean removed = buffer.removeKeys(foundAt1, foundAt2, _spareKey1);
+                                        if (removed) {
+                                            _tree.bumpChangeCount();
+                                            buffer.setDirtyAtTimestamp(timestamp);
+                                        }
+                                        result = removed;
+                                        break;
                                     }
-                                    _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2);
-
-                                    final long timestamp = timestamp();
-                                    buffer.writePageOnCheckpoint(timestamp);
-
-                                    boolean removed = buffer.removeKeys(foundAt1, foundAt2, _spareKey1);
-                                    if (removed) {
-                                        _tree.bumpChangeCount();
-                                        buffer.setDirtyAtTimestamp(timestamp);
-                                    }
-                                    result = removed;
-                                    break;
                                 }
                             }
                             // If we didn't meet the criteria for quick delete,
@@ -2776,6 +2769,10 @@ public class Exchange {
                         }
                     }
 
+                    /*
+                     * This deletion is more complicated and involves an index
+                     * search. The tree must be latched.
+                     */
                     if (!treeClaimAcquired) {
                         if (!_treeHolder.claim(treeWriterClaimRequired)) {
                             Debug.$assert0.t(false);
@@ -2801,7 +2798,7 @@ public class Exchange {
                         lc.initRemoveFields();
                         depth = level;
 
-                        int foundAt1 = searchLevel(key1, pageAddr1, level) & P_MASK;
+                        int foundAt1 = searchLevel(key1, true, pageAddr1, level);
                         int foundAt2 = -1;
 
                         //
@@ -2816,10 +2813,6 @@ public class Exchange {
 
                         if (samePage) {
                             foundAt2 = buffer.findKey(key2);
-                            if ((foundAt2 & EXACT_MASK) != 0) {
-                                foundAt2 = buffer.nextKeyBlock(foundAt2);
-                            }
-                            foundAt2 &= P_MASK;
 
                             if (!buffer.isAfterRightEdge(foundAt2)) {
                                 lc._rightBuffer = buffer;
@@ -2849,14 +2842,8 @@ public class Exchange {
                                 }
                             }
 
-                            foundAt2 = searchLevel(key2, pageAddr2, level);
-                            if ((foundAt2 & EXACT_MASK) != 0) {
-                                foundAt2 = buffer.nextKeyBlock(foundAt2);
-                                Debug.$assert0.t(foundAt2 != -1);
-                            }
-                            foundAt2 &= P_MASK;
+                            foundAt2 = searchLevel(key2, false, pageAddr2, level);
 
-                            Debug.$assert0.t(foundAt2 != KEY_BLOCK_START);
                             buffer = lc._buffer;
                             lc._flags |= RIGHT_CLAIMED;
                             lc._rightBuffer = buffer;
@@ -2866,12 +2853,16 @@ public class Exchange {
 
                         if (lc._leftBuffer.isIndexPage()) {
                             Debug.$assert0.t(lc._rightBuffer.isIndexPage() && depth > 0);
+                            //
+                            // Come down the left of the key.
+                            //
                             int p1 = lc._leftBuffer.previousKeyBlock(foundAt1);
                             int p2 = lc._rightBuffer.previousKeyBlock(foundAt2);
 
                             Debug.$assert0.t(p1 != -1 && p2 != -1);
                             pageAddr1 = lc._leftBuffer.getPointer(p1);
                             pageAddr2 = lc._rightBuffer.getPointer(p2);
+                            
                         } else {
                             Debug.$assert0.t(depth == 0);
                             break;
@@ -2894,6 +2885,13 @@ public class Exchange {
                         Buffer buffer2 = lc._rightBuffer;
                         int foundAt1 = lc._leftFoundAt;
                         int foundAt2 = lc._rightFoundAt;
+                        if ((foundAt2 & EXACT_MASK) != 0) {
+                            // First key to keep
+                            foundAt2 = buffer2.nextKeyBlock(foundAt2);
+                        }
+                        foundAt1 &= P_MASK;
+                        foundAt2 &= P_MASK;
+
                         boolean needsReindex = false;
                         buffer1.writePageOnCheckpoint(timestamp);
                         if (buffer1 != buffer2) {
@@ -2909,7 +2907,6 @@ public class Exchange {
                             // need to recover any LONG_RECORD pointers that
                             // are associated with keys in this range.
                             _volume.getStructure().harvestLongRecords(buffer1, foundAt1, Integer.MAX_VALUE);
-
                             _volume.getStructure().harvestLongRecords(buffer2, 0, foundAt2);
 
                             boolean rebalanced = buffer1.join(buffer2, foundAt1, foundAt2, _spareKey1, _spareKey2,
@@ -2920,6 +2917,7 @@ public class Exchange {
                             buffer1.setDirtyAtTimestamp(timestamp);
                             buffer2.setDirtyAtTimestamp(timestamp);
 
+                            // TODO - why isn't this buffer2.getPageAddress()?
                             long rightGarbagePage = buffer1.getRightSibling();
 
                             if (rightGarbagePage != leftGarbagePage) {

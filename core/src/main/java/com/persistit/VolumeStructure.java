@@ -34,7 +34,7 @@ class VolumeStructure {
     /**
      * Key segment name for index by directory tree name.
      */
-    private final static String BY_NAME = "byName";
+    final static String BY_NAME = "byName";
 
     private final Persistit _persistit;
     private final Volume _volume;

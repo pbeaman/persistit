@@ -32,6 +32,8 @@ import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.util.Util;
 
 public class DumpTaskTest extends PersistitUnitTestCase {
+    
+    File file;
 
     @Test
     public void testDumpBuffer() throws Exception {
@@ -110,6 +112,9 @@ public class DumpTaskTest extends PersistitUnitTestCase {
                 }
             }
         }
+        // TODO - remove
+        this.file = file;
+
     }
 
     private void store1() throws PersistitException {

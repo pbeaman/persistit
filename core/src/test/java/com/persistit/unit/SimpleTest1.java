@@ -61,6 +61,21 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         }
     }
 
+    private void remove1() throws PersistitException {
+        final Exchange exchange = _persistit.getExchange(_volumeName, "SimpleTest1", true);
+        exchange.removeAll();
+        final StringBuilder sb = new StringBuilder();
+
+        for (int i = 1; i < 400; i++) {
+            sb.setLength(0);
+            sb.append((char) (i / 20 + 64));
+            sb.append((char) (i % 20 + 64));
+            exchange.clear().append(sb);
+            exchange.remove();
+        }
+        
+    }
+    
     private void fetch1a() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "SimpleTest1", false);
         final StringBuilder sb = new StringBuilder();
@@ -383,6 +398,28 @@ public class SimpleTest1 extends PersistitUnitTestCase {
         final int length2 = sb2.length();
         assertEquals(length, length2);
         assertTrue(sb.toString().equals(sb2.toString()));
+    }
+    
+    @Test
+    public void test6() throws PersistitException {
+        final Exchange exchange = _persistit.getExchange(_volumeName, "SimpleTest1", true);
+        exchange.removeAll();
+        exchange.getValue().put(RED_FOX);
+        for (int i = 10000; --i >= 0; ) {
+            exchange.to(i).remove();
+        }
+        for (int i = 0; i < 10000; i++) {
+            exchange.to(i).store();
+        }
+        for (int i = 0; i < 10000; i++) {
+            exchange.to(i).remove();
+        }
+        for (int i = 10000; --i >= 0; ) {
+            exchange.to(i).store();
+        }
+        for (int i = 10000; --i >= 0; ) {
+            exchange.to(i).remove();
+        }
     }
 
     void setupString(final StringBuilder sb, final int length) {
