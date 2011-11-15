@@ -197,9 +197,8 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     public void testNextPrevTraverseTwoTrx() throws Exception {
         trx1.begin();
         try {
-            store(ex1, "a", 97);
-            //store(ex1, "a","a", 9797); //skipped by non-deep next() and prev()
-            store(ex1, "z", 122);
+            store(ex1, "a", "A");
+            store(ex1, "z", "Z");
             trx1.commit();
         }
         finally {
@@ -210,26 +209,28 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         trx2.begin();
         try {
             store(ex1, "trx1", 1);
+            store(ex1, "b","trx1", 1);
             store(ex2, "trx2", 2);
+            store(ex1, "b","trx2", 2);
 
             ex1.clear().append(Key.BEFORE);
             assertEquals("trx1 next() traversal",
-                         kvCollection("a",97,  "trx1",1,  "z",122),
+                         kvCollection("a","A",  "b","UD", "trx1",1,  "z","Z"),
                          traverseAllNext(ex1));
 
             ex2.clear().append(Key.BEFORE);
             assertEquals("trx2 next() traversal",
-                         kvCollection("a",97,  "trx2",2,  "z",122),
+                         kvCollection("a","A",  "b","UD",  "trx2",2,  "z","Z"),
                          traverseAllNext(ex2));
 
             ex1.clear().append(Key.AFTER);
             assertEquals("trx1 previous() traversal",
-                         kvCollection("z",122,  "trx1",1,  "a",97),
+                         kvCollection("z","Z",  "trx1",1,  "b","UD",  "a","A"),
                          traverseAllPrev(ex1));
 
             ex2.clear().append(Key.AFTER);
             assertEquals("trx2 previous() traversal",
-                         kvCollection("z",122,  "trx2",2,  "a",97),
+                         kvCollection("z","Z",  "trx2",2,  "b","UD",  "a","A"),
                          traverseAllPrev(ex2));
 
             trx1.commit();
@@ -244,7 +245,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         try {
             ex1.clear().append(Key.BEFORE);
             assertEquals("final traversal",
-                         kvCollection("a",97,  "trx1",1,  "trx2",2,  "z",122),
+                         kvCollection("a","A",  "b","UD",  "trx1",1,  "trx2",2,  "z","Z"),
                          traverseAllNext(ex1));
             trx1.commit();
         }
