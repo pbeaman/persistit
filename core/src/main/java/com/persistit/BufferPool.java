@@ -1277,7 +1277,12 @@ public class BufferPool {
         return "BufferPool[" + _bufferCount + "@" + _bufferSize + (_closed.get() ? ":closed" : "") + "]";
     }
 
-    public String toString(int i, boolean detail) {
+    /**
+     * @param i
+     * @param detail
+     * @return toString value for buffer at index <code>i</code>.
+     */
+    String toString(int i, boolean detail) {
         if (detail) {
             return _buffers[i].toStringDetail();
         } else {

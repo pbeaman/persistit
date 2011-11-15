@@ -57,8 +57,8 @@ public class DumpTaskTest extends PersistitUnitTestCase {
             System.arraycopy(bb.array(), bb.position() + PA.OVERHEAD, buffer.getBytes(), 0, left);
             System.arraycopy(bb.array(), bb.position() + PA.OVERHEAD + left, buffer.getBytes(), buffer.getBufferSize()
                     - right, right);
-            System.out.println(Util.dump(buffer.getBytes(), 16292, 16384));
-            System.out.println(buffer.toStringDetail());
+//            System.out.println(Util.dump(buffer.getBytes(), 16292, 16384));
+//            System.out.println(buffer.toStringDetail());
             bb.clear();
         }
     }

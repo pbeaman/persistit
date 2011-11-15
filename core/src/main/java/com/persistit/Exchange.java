@@ -1010,8 +1010,15 @@ public class Exchange {
      * at that level. The caller of this method MUST release that Buffer when
      * finished with it.
      * 
+     * @param key
+     *            Key to search for
+     * @param edge
+     *            if <code>true</code> select the right-edge key of the left
+     *            page, otherwise select the left key of the right page.
      * @param pageAddress
      *            The address of the page to search
+     * @param currentLevel
+     *            current level in the tree
      * @return Encoded key location within the page.
      * @throws PMapException
      */
@@ -2663,8 +2670,8 @@ public class Exchange {
             _spareKey2.append(AFTER);
         }
 
-        if (_spareKey1.compareTo(_spareKey2) > 0) {
-            throw new IllegalArgumentException("Second key must be greater than or equal to the first");
+        if (_spareKey1.compareTo(_spareKey2) >= 0) {
+            throw new IllegalArgumentException("Second key must be greater than the first");
         }
         final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, false);
         _treeHolder.verifyReleased();
@@ -2732,7 +2739,7 @@ public class Exchange {
                             int foundAt1 = search(key1) & P_MASK;
                             buffer = _levelCache[0]._buffer;
 
-                            if (foundAt1 > buffer.getKeyBlockStart() && (foundAt1 & P_MASK) < buffer.getKeyBlockEnd()) {
+                            if (foundAt1 > buffer.getKeyBlockStart() && foundAt1 < buffer.getKeyBlockEnd()) {
                                 int foundAt2 = buffer.findKey(key2) & P_MASK;
                                 if (!buffer.isBeforeLeftEdge(foundAt2) && !buffer.isAfterRightEdge(foundAt2)) {
                                     foundAt2 &= P_MASK;
@@ -2882,10 +2889,6 @@ public class Exchange {
                         Buffer buffer2 = lc._rightBuffer;
                         int foundAt1 = lc._leftFoundAt;
                         int foundAt2 = lc._rightFoundAt;
-                        if ((foundAt2 & EXACT_MASK) != 0) {
-                            // First key to keep
-                            foundAt2 = buffer2.nextKeyBlock(foundAt2);
-                        }
                         foundAt1 &= P_MASK;
                         foundAt2 &= P_MASK;
 
