@@ -79,7 +79,7 @@ public class LogBase {
     @Message("INFO|Recovery plan: will recover %,d pages and %,d committed transactions; will discard %,d uncommitted transactions")
     public final LogItem recoveryPlan = PersistitLogMessage.empty();
 
-    @Message("INFO|Recovery progress: %,d committed transactions applied, %,d remaining ")
+    @Message("INFO|Recovery progress: %,d committed transactions applied, %,d uncommitted transactions rolled back, %,d remaining ")
     public final LogItem recoveryProgress = PersistitLogMessage.empty();
 
     @Message("WARNING|Recovery exception %s at transaction %s")
@@ -189,7 +189,7 @@ public class LogBase {
 
     @Message("ERROR|BTree structure error %s")
     public final LogItem corruptVolume = PersistitLogMessage.empty();
-    
+
     @Message("WARNING|Exception while flushing non-essential administrative data")
     public final LogItem adminFlushException = PersistitLogMessage.empty();
 

@@ -15,8 +15,12 @@
 
 package com.persistit;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -61,6 +65,7 @@ public class BufferPool {
      * The ratio of hash table slots per buffer in this pool
      */
     private final static int HASH_MULTIPLE = 3;
+
     /**
      * Minimum number of buffers this pool may have
      */
@@ -754,7 +759,7 @@ public class BufferPool {
                     // get some buffers written.
                     //
                     if (buffer != null) {
-
+                        Debug.$assert1.t(!buffer.isDirty());
                         Debug.$assert0.t(buffer != _hashTable[hash]);
                         Debug.$assert0.t(buffer.getNext() != buffer);
 
@@ -911,6 +916,13 @@ public class BufferPool {
         buffer.setValid();
         buffer.release();
         return buffer;
+    }
+
+    public Buffer getBufferCopy(final int index) throws IllegalArgumentException {
+        if (index < 0 || index >= _bufferCount) {
+            throw new IllegalArgumentException("Index " + index + " is out of range in " + this);
+        }
+        return new Buffer(_buffers[index]);
     }
 
     /**
@@ -1258,11 +1270,60 @@ public class BufferPool {
         protected long pollInterval() {
             return isFlushing() ? 0 : _writerPollInterval;
         }
-
     }
 
     @Override
     public String toString() {
         return "BufferPool[" + _bufferCount + "@" + _bufferSize + (_closed.get() ? ":closed" : "") + "]";
+    }
+
+    /**
+     * @param i
+     * @param detail
+     * @return toString value for buffer at index <code>i</code>.
+     */
+    String toString(int i, boolean detail) {
+        if (detail) {
+            return _buffers[i].toStringDetail();
+        } else {
+            return _buffers[i].toString();
+        }
+    }
+
+    /**
+     * Dump the content of this <code>BufferPool</code> to the suppled stream.
+     * Format is identical to the journal, consisting of a stream of IV and PA
+     * records.
+     * 
+     * @param stream
+     *            DataOutputStream to write to
+     * @param bb
+     *            ByteBuffer used to buffer intermediate results
+     * @param secure
+     *            true to obscure data values in the dump
+     * @throws Exception
+     */
+    void dump(final DataOutputStream stream, final ByteBuffer bb, final boolean secure, final boolean verbose)
+            throws Exception {
+        final String toString = toString();
+        if (verbose) {
+            System.out.println(toString);
+        }
+
+        final Set<Volume> identifiedVolumes = new HashSet<Volume>();
+        for (final Buffer buffer : _buffers) {
+            buffer.dump(bb, secure, verbose, identifiedVolumes);
+            if (bb.remaining() < _bufferSize * 2) {
+                bb.flip();
+                stream.write(bb.array(), 0, bb.limit());
+                bb.clear();
+            }
+        }
+        if (bb.remaining() > 0) {
+            bb.flip();
+            stream.write(bb.array(), 0, bb.limit());
+            bb.clear();
+        }
+        stream.flush();
     }
 }

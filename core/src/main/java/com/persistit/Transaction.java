@@ -15,22 +15,29 @@
 
 package com.persistit;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.persistit.JournalRecord.CU;
+import com.persistit.JournalRecord.DR;
+import com.persistit.JournalRecord.DT;
+import com.persistit.JournalRecord.SR;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
-import com.persistit.util.InternalHashSet;
 
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit},
+ * {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <code>commit</code> is performed. At that
  * point, all the updates are written atomically - that is, completely or not at
@@ -266,6 +273,7 @@ import com.persistit.util.InternalHashSet;
  * @version 1.1
  */
 public class Transaction {
+    final static int TRANSACTION_BUFFER_SIZE = 65536;
 
     private static long _idCounter = 100000000;
 
@@ -283,73 +291,15 @@ public class Transaction {
 
     private TransactionStatus _transactionStatus;
     private long _startTimestamp;
-
-    private List<CommitListener> _commitListeners = new ArrayList<CommitListener>();
+    private long _commitTimestamp;
 
     private Map<TransactionalCache, List<Update>> _transactionCacheUpdates = new HashMap<TransactionalCache, List<Update>>();
+
+    private final ByteBuffer _buffer = ByteBuffer.allocate(TRANSACTION_BUFFER_SIZE);
 
     private Checkpoint _transactionalCacheCheckpoint;
 
     private long _previousJournalAddress;
-
-    /**
-     * Call-back for commit() processing. Methods of this class are called
-     * during execution of the {@link Transaction#commit()} method.
-     * Implementations of this interface must return quickly without blocking
-     * for synchronization of physical I/O.
-     * <p />
-     * The default implementation of this class does nothing.
-     */
-    public static interface CommitListener {
-        /**
-         * Called when a transaction is committed. The implementation may
-         * perform actions consistent with the committed transaction.
-         */
-        public void committed();
-
-        /**
-         * Called when a transaction is rolled back.
-         */
-        public void rolledBack();
-    }
-
-    /**
-     * Implementation of CommitListener that does nothing.
-     * 
-     */
-    public static class DefaultCommitListener implements CommitListener {
-        @Override
-        public void committed() {
-            // do nothing
-        }
-
-        @Override
-        public void rolledBack() {
-            // do nothing
-        }
-    }
-
-    private static class TouchedPage extends InternalHashSet.Entry {
-        final Volume _volume;
-        final long _pageAddr;
-        final long _timestamp;
-
-        private TouchedPage(Buffer buffer) {
-            _volume = buffer.getVolume();
-            _pageAddr = buffer.getPageAddress();
-            _timestamp = buffer.getTimestamp();
-        }
-
-        @Override
-        public int hashCode() {
-            return _volume.hashCode() ^ ((int) _pageAddr);
-        }
-
-        @Override
-        public String toString() {
-            return "Touched(" + _volume.getPath() + ", page " + _pageAddr + ", timestamp=" + _timestamp + ")";
-        }
-    }
 
     /**
      * Creates a new transaction context. Any transaction performed within this
@@ -375,6 +325,11 @@ public class Transaction {
         return ++_idCounter;
     }
 
+    /**
+     * Release all resources associated with this transaction context.
+     * 
+     * @throws PersistitException
+     */
     void close() throws PersistitException {
     }
 
@@ -454,10 +409,10 @@ public class Transaction {
                 throw new PersistitInterruptedException(e);
             }
             _startTimestamp = _transactionStatus.getTs();
-            _commitListeners.clear();
+            _commitTimestamp = 0;
             _transactionCacheUpdates.clear();
+            _buffer.clear();
             _previousJournalAddress = 0;
-            _persistit.getJournalManager().writeTransactionStartToJournal(_startTimestamp);
         }
         _nestedDepth++;
     }
@@ -498,7 +453,6 @@ public class Transaction {
 
         // Special handling for the outermost scope.
         if (_nestedDepth == 0) {
-            _commitListeners.clear();
             _transactionCacheUpdates.clear();
             //
             // Perform rollback if needed.
@@ -554,13 +508,6 @@ public class Transaction {
 
         // TODO - rollback
 
-        for (final CommitListener listener : _commitListeners) {
-            try {
-                listener.rolledBack();
-            } catch (Exception e) {
-                _persistit.getLogBase().exception.log(e);
-            }
-        }
         throw _rollbackException;
     }
 
@@ -644,17 +591,9 @@ public class Transaction {
 
                 // TODO - commit
 
-                final long commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                _transactionStatus.commit(commitTimestamp);
-                for (final CommitListener listener : _commitListeners) {
-                    try {
-                        listener.committed();
-                    } catch (Exception e) {
-                        _persistit.getLogBase().exception.log(e);
-                    }
-                }
-                _persistit.getJournalManager().writeTransactionCommitToJournal(_startTimestamp,
-                        _previousJournalAddress, commitTimestamp);
+                _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                _transactionStatus.commit(_commitTimestamp);
+                flushTransactionBuffer();
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
                 if (toDisk) {
                     _persistit.getJournalManager().force();
@@ -664,51 +603,6 @@ public class Transaction {
         } finally {
             _rollbackPending = _rollbackPending & (_nestedDepth > 0);
         }
-    }
-
-    /**
-     * <p>
-     * Commit this transaction. To so do, this method verifies that no data read
-     * within the scope of this transaction has changed, and then atomically
-     * writes all the updates associated with the transaction scope to the
-     * database. This method optionally commits to <a
-     * href="#diskVsMemoryCommit">memory</a> or <a
-     * href="#diskVsMemoryCommit">disk</a>.
-     * </p>
-     * <p>
-     * If executed within the scope of a nested transaction, this method simply
-     * sets a flag indicating that the current transaction level has committed
-     * without modifying any data. The commit for the outermost transaction
-     * scope is responsible for actually committing the changes.
-     * </p>
-     * <p>
-     * Once an application thread has called <code>commit</code>, no subsequent
-     * Persistit database operations are permitted until the corresponding
-     * <code>end</code> method has been called. An attempt to store, fetch or
-     * remove data after <code>commit</code> has been called throws an
-     * <code>IllegalStateException</code>.
-     * </p>
-     * 
-     * @param commitListener
-     *            CommitListener instance whose methods are called when this
-     *            Transaction is committed or rolled back
-     * 
-     * @param toDisk
-     *            <code>true</code> to commit to disk, or <code>false</code> to
-     *            commit to memory.
-     * 
-     * @throws PersistitException
-     * 
-     * @throws RollbackException
-     * 
-     * @throws IllegalStateException
-     *             if no transaction scope is active or this transaction scope
-     *             has already called <code>commit</code>.
-     */
-    public void commit(final CommitListener commitListener, final boolean toDisk) throws PersistitException,
-            RollbackException {
-        _commitListeners.add(commitListener);
-        commit(toDisk);
     }
 
     /**
@@ -938,8 +832,7 @@ public class Transaction {
     void store(Exchange exchange, Key key, Value value) throws PersistitException {
         if (_nestedDepth > 0) {
             final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
-            _previousJournalAddress = _persistit.getJournalManager().writeStoreRecordToJournal(_startTimestamp,
-                    _previousJournalAddress, treeHandle, key, value);
+            writeStoreRecordToJournal(treeHandle, key, value);
         }
     }
 
@@ -954,8 +847,7 @@ public class Transaction {
     void remove(Exchange exchange, Key key1, Key key2) throws PersistitException {
         if (_nestedDepth > 0) {
             final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
-            _previousJournalAddress = _persistit.getJournalManager().writeDeleteRecordToJournal(_startTimestamp,
-                    _previousJournalAddress, treeHandle, key1, key2);
+            writeDeleteRecordToJournal(treeHandle, key1, key2);
         }
     }
 
@@ -968,9 +860,91 @@ public class Transaction {
     void removeTree(Exchange exchange) throws PersistitException {
         if (_nestedDepth > 0) {
             final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
-            _previousJournalAddress = _persistit.getJournalManager().writeDeleteTreeToJournal(_startTimestamp,
-                    _previousJournalAddress, treeHandle);
+            writeDeleteTreeToJournal(treeHandle);
         }
+    }
+
+    private void prepare(final int recordSize) throws PersistitIOException {
+        if (recordSize > _buffer.remaining()) {
+            flushTransactionBuffer();
+        }
+        if (recordSize > _buffer.remaining()) {
+            throw new IllegalStateException("Record size " + recordSize + " is too long for Transaction buffer");
+        }
+    }
+
+    private void flushTransactionBuffer() throws PersistitIOException {
+        if (_buffer.position() > 0) {
+            _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
+                    _startTimestamp, _commitTimestamp, _previousJournalAddress);
+        }
+    }
+
+    void writeStoreRecordToJournal(final int treeHandle, final Key key, final Value value) throws PersistitIOException {
+        final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
+        prepare(recordSize);
+        SR.putLength(_buffer, recordSize);
+        SR.putType(_buffer);
+        SR.putTreeHandle(_buffer, treeHandle);
+        SR.putKeySize(_buffer, (short) key.getEncodedSize());
+        _buffer.position(_buffer.position() + SR.OVERHEAD);
+        _buffer.put(key.getEncodedBytes(), 0, key.getEncodedSize());
+        _buffer.put(value.getEncodedBytes(), 0, value.getEncodedSize());
+    }
+
+    void writeDeleteRecordToJournal(final int treeHandle, final Key key1, final Key key2) throws PersistitIOException {
+        int elisionCount = key2.firstUniqueByteIndex(key1);
+        int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
+        prepare(recordSize);
+
+        DR.putLength(_buffer, recordSize);
+        DR.putType(_buffer);
+        DR.putTreeHandle(_buffer, treeHandle);
+        DR.putKey1Size(_buffer, key1.getEncodedSize());
+        DR.putKey2Elision(_buffer, elisionCount);
+        _buffer.position(_buffer.position() + DR.OVERHEAD);
+        _buffer.put(key1.getEncodedBytes(), 0, key1.getEncodedSize());
+        _buffer.put(key2.getEncodedBytes(), elisionCount, key2.getEncodedSize() - elisionCount);
+    }
+
+    void writeDeleteTreeToJournal(final int treeHandle) throws PersistitIOException {
+        prepare(DT.OVERHEAD);
+        JournalRecord.putLength(_buffer, DT.OVERHEAD);
+        DT.putType(_buffer);
+        DT.putTreeHandle(_buffer, treeHandle);
+    }
+
+    void writeCacheUpdatesToJournal(final long cacheId, final List<Update> updates) throws PersistitIOException {
+        int estimate = CU.OVERHEAD;
+        for (int index = 0; index < updates.size(); index++) {
+            estimate += (1 + updates.get(index).size());
+        }
+        prepare(estimate);
+        int start = _buffer.position();
+        CU.putType(_buffer);
+        CU.putCacheId(_buffer, cacheId);
+        _buffer.position(_buffer.position() + CU.OVERHEAD);
+        for (int index = 0; index < updates.size(); index++) {
+            final Update update = updates.get(index);
+            try {
+                update.write(_buffer);
+            } catch (IOException e) {
+                throw new PersistitIOException(e);
+            }
+        }
+        int recordSize = _buffer.position() - start;
+        _buffer.position(start);
+        CU.putLength(_buffer, recordSize);
+        _buffer.position(start + recordSize);
+    }
+
+    /**
+     * For unit tests only
+     * 
+     * @return the buffer used to accumulate update records for this transaction
+     */
+    ByteBuffer getTransactionBuffer() {
+        return _buffer;
     }
 
 }

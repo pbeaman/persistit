@@ -21,11 +21,15 @@ import static com.persistit.VolumeHeader.getGarbageRoot;
 import static com.persistit.VolumeHeader.getId;
 import static com.persistit.VolumeHeader.getNextAvailablePage;
 
+import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
+import java.util.Set;
 import java.util.Stack;
 
 import com.persistit.Exchange.Sequence;
+import com.persistit.JournalRecord.IV;
+import com.persistit.JournalRecord.PA;
 import com.persistit.Management.RecordInfo;
 import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.InUseException;
@@ -3264,14 +3268,14 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     /**
-     * @return A displyable summary of information about the page contained in
+     * @return A displayable summary of information about the page contained in
      *         this <code>Buffer</code>.
      */
     public String summarize() {
         return String.format("Page=%,d type=%s rightSibling=%,d status=%s start=%d end=%d size=%d alloc=%d "
                 + "slack=%d index=%d timestamp=%,d generation=%,d", _page, getPageTypeName(), _rightSibling,
-                getStatusDisplayString(), KEY_BLOCK_START, _keyBlockEnd, _bufferSize, _alloc, _slack, _poolIndex,
-                _timestamp, _generation);
+                getStatusDisplayString(), KEY_BLOCK_START, _keyBlockEnd, _bufferSize, _alloc, _slack, getIndex(),
+                getTimestamp(), getGeneration());
     }
 
     public String toString() {
@@ -3611,6 +3615,190 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         }
         return getVolume().getId() > buffer.getVolume().getId() ? 1
                 : getVolume().getId() < buffer.getVolume().getId() ? -1 : 0;
+    }
+
+    /**
+     * Dump a copy of this <code>Buffer</code> to the supplied ByteBuffer. The
+     * format is identical to the journal: an optional IV record to identify the
+     * volume followed by a PA record.
+     * 
+     * @param bb
+     *            ByteBuffer to write to
+     * @param secure
+     *            If <code>true</code> obscure the data values
+     * @param verbose
+     *            If <code>true</code> display the buffer summary on System.out.
+     * @param identifiedVolumes
+     *            A set of Volumes for which IV records have already been
+     *            written. This method adds a volume to this set whenever it
+     *            writes an IV record.
+     * @throws Exception
+     */
+    void dump(final ByteBuffer bb, final boolean secure, boolean verbose, final Set<Volume> identifiedVolumes)
+            throws Exception {
+        byte[] bytes = new byte[_bufferSize];
+        int type;
+        int keyBlockEnd;
+        int alloc;
+        int slack;
+        long page;
+        Volume volume;
+        long rightSibling;
+        long timestamp;
+        int bufferSize;
+        /*
+         * Copy all the information needed quickly and then release the buffer.
+         */
+        boolean claimed = claim(false, Persistit.SHORT_DELAY);
+        try {
+            bufferSize = _bufferSize;
+            type = _type;
+            keyBlockEnd = _keyBlockEnd;
+            alloc = _alloc;
+            slack = _slack;
+            page = _page;
+            volume = _vol;
+            rightSibling = _rightSibling;
+            timestamp = _timestamp;
+            System.arraycopy(_bytes, 0, bytes, 0, bufferSize);
+        } finally {
+            if (claimed) {
+                release();
+            }
+        }
+
+        String toString = toString();
+        if (verbose) {
+            System.out.println(toString);
+        }
+
+        int volumeHandle = volume == null ? 0 : volume.getHandle();
+        if (volume != null && !identifiedVolumes.contains(volume)) {
+            IV.putType(bb);
+            IV.putHandle(bb, volumeHandle);
+            IV.putVolumeId(bb, volume.getId());
+            IV.putTimestamp(bb, 0);
+            IV.putVolumeName(bb, volume.getName());
+            bb.position(bb.position() + IV.getLength(bb));
+            identifiedVolumes.add(volume);
+        }
+
+        boolean isDataPage = type == PAGE_TYPE_DATA;
+        boolean isIndexPage = type >= PAGE_TYPE_INDEX_MIN && type <= PAGE_TYPE_INDEX_MAX;
+        boolean isLongRecordPage = type == PAGE_TYPE_LONG_RECORD;
+
+        /*
+         * Following is equivalent to the save method, except written to the
+         * byte array copy.
+         */
+        Util.putLong(bytes, TIMESTAMP_OFFSET, timestamp);
+        if (page != 0) {
+            Util.putByte(bytes, TYPE_OFFSET, type);
+            Util.putByte(bytes, BUFFER_LENGTH_OFFSET, bufferSize / 256);
+            Util.putChar(bytes, KEY_BLOCK_END_OFFSET, keyBlockEnd);
+            Util.putChar(bytes, FREE_OFFSET, alloc);
+            Util.putChar(bytes, SLACK_OFFSET, slack);
+            Util.putLong(bytes, PAGE_ADDRESS_OFFSET, page);
+            Util.putLong(bytes, RIGHT_SIBLING_OFFSET, rightSibling);
+        }
+
+        if (isDataPage && secure) {
+            dumpSecureOverwriteValues(bytes);
+        }
+
+        int left = bufferSize;
+        int right = 0;
+        if (isDataPage || isIndexPage) {
+            if (KEY_BLOCK_START <= keyBlockEnd && keyBlockEnd <= alloc && alloc < left) {
+                right = left - alloc;
+                left = keyBlockEnd;
+            }
+        } else if (secure && isLongRecordPage) {
+            left = KEY_BLOCK_START;
+        }
+        int recordSize = PA.OVERHEAD + left + right;
+        PA.putLength(bb, recordSize);
+        PA.putType(bb);
+        PA.putVolumeHandle(bb, volumeHandle);
+        PA.putTimestamp(bb, timestamp);
+        PA.putLeftSize(bb, left);
+        PA.putBufferSize(bb, bufferSize);
+        PA.putPageAddress(bb, page);
+        bb.position(bb.position() + PA.OVERHEAD);
+        bb.put(bytes, 0, left);
+        bb.put(bytes, bufferSize - right, right);
+    }
+
+    /**
+     * Overwrite the value payload bytes in the supplied buffer image to appear
+     * as strings of 'x's.
+     * 
+     * @param bytes
+     *            buffer image
+     */
+    private void dumpSecureOverwriteValues(byte[] bytes) {
+        if (bytes[0] != PAGE_TYPE_DATA) {
+            return;
+        }
+        /*
+         * Figure out if this is part of any system tree. If so then don't
+         * overwrite values.
+         */
+        for (int p = KEY_BLOCK_START; p < Util.getInt(bytes, KEY_BLOCK_END_OFFSET); p += KEYBLOCK_LENGTH) {
+            int kbData = Util.getInt(bytes, p);
+            int db = decodeKeyBlockDb(kbData);
+            if (db == 0 && p == KEY_BLOCK_START) {
+                continue;
+            } else if (db == Key.TYPE_STRING) {
+                int tail = decodeKeyBlockTail(kbData);
+                if (bytes[tail + TAILBLOCK_HDR_SIZE_DATA] == '_') {
+                    // Probably a system key - don't overwrite values
+                    return;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        int tail = Util.getChar(bytes, FREE_OFFSET);
+        for (; tail < bytes.length;) {
+            int tbData = Util.getInt(bytes, tail);
+            int tbSize = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+            int tbKLength = decodeTailBlockKLength(tbData);
+            //
+            // If the tbSize field is corrupt then just dump the
+            // remainder of the buffer
+            // since we need that to figure out the problem.
+            //
+            if (tbSize < TAILBLOCK_HDR_SIZE_DATA || tbSize + tail > bytes.length) {
+                break;
+            }
+            //
+            // Otherwise, dump just the portion of the tailblock we
+            // need for analysis and fill the rest with 'x's.
+            //
+            boolean tbInUse = decodeTailBlockInUse(tbData);
+            // Number of bytes we need to dump
+            int keep;
+            if (tbInUse) {
+                keep = TAILBLOCK_HDR_SIZE_DATA + tbKLength;
+                if (tbSize - keep >= LONGREC_PREFIX_SIZE && Util.getByte(bytes, tail + keep) == LONGREC_TYPE) {
+                    keep += LONGREC_PREFIX_OFFSET;
+                }
+                if (keep < TAILBLOCK_HDR_SIZE_DATA && keep > tbSize) {
+                    keep = tbSize;
+                }
+            } else {
+                keep = TAILBLOCK_HDR_SIZE_DATA;
+            }
+
+            for (int fill = keep; fill < tbSize; fill++) {
+                bytes[tail + fill] = (byte) (fill == keep ? ' ' : 'x');
+            }
+            tail += tbSize;
+        }
     }
 
 }

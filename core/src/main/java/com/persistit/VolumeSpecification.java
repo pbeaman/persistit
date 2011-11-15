@@ -307,7 +307,7 @@ public class VolumeSpecification {
     }
 
     public boolean isCreate() {
-        return create;
+        return create || createOnly;
     }
 
     public boolean isCreateOnly() {
