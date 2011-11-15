@@ -588,7 +588,7 @@ public final class Key implements Comparable<Object> {
 
     private final static int TYPE_BYTE_ARRAY = 126;
     private final static int TYPE_CHAR_ARRAY = 127; // not implemented
-    private final static int TYPE_STRING = 128;
+    final static int TYPE_STRING = 128;
     private final static int TYPE_DATE = 129; // 129
 
     private final static int TYPE_CODER_MIN = 192;
