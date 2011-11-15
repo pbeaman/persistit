@@ -2027,6 +2027,12 @@ public class Exchange {
                     if (matches) {
                         Value outValue = doFetch ? _value : _spareValue;
                         matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                        if (!matches) {
+                            _key.copyTo(_spareKey1);
+                            index = _key.getEncodedSize();
+                            doSearch = true;
+                            continue;
+                        }
                     }
                 } else {
                     int parentIndex = _spareKey1.previousElementIndex(index);

@@ -195,10 +195,10 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     }
 
     public void testNextPrevTraverseTwoTrx() throws Exception {
-        // Should be visible to both
         trx1.begin();
         try {
             store(ex1, "a", 97);
+            //store(ex1, "a","a", 9797); //skipped by non-deep next() and prev()
             store(ex1, "z", 122);
             trx1.commit();
         }
@@ -253,6 +253,57 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
+    public void testTraverseDeep() throws Exception {
+        // Should be visible to both
+        trx1.begin();
+        try {
+            store(ex1, "a", "A");
+            store(ex2, "z", "Z");
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        trx1.begin();
+        trx2.begin();
+        try {
+            store(ex1, "a","a", "trx1");
+            store(ex2, "a","b", "trx2");
+
+            ex1.clear().append(Key.BEFORE);
+            assertEquals("trx1 next() traversal",
+                         kvCollection("{\"a\"}","\"A\"",  "{\"a\",\"a\"}","\"trx1\"",  "{\"z\"}","\"Z\""),
+                         traverseAll(ex1, Key.GT, true));
+
+            ex2.clear().append(Key.BEFORE);
+            assertEquals("trx1 next() traversal",
+                         kvCollection("{\"a\"}","\"A\"",  "{\"a\",\"b\"}","\"trx2\"",  "{\"z\"}","\"Z\""),
+                         traverseAll(ex2, Key.GT, true));
+
+
+            trx1.commit();
+            trx2.commit();
+        }
+        finally {
+            trx1.end();
+            trx2.end();
+        }
+
+        trx1.begin();
+        try {
+            ex1.clear().append(Key.BEFORE);
+            assertEquals("final traversal",
+                         kvCollection("{\"a\"}","\"A\"",  "{\"a\",\"a\"}","\"trx1\"",
+                                      "{\"a\",\"b\"}","\"trx2\"",  "{\"z\"}","\"Z\""),
+                         traverseAll(ex1, Key.GT, true));
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
+
 
     //
     // Internal test methods
@@ -295,6 +346,16 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         while((goNext ? e.next() : e.previous())) {
             Object k = e.getKey().decode();
             Object v = e.getValue().isDefined() ? e.getValue().get() : "UD";
+            out.add(new KVPair(k, v));
+        }
+        return out;
+    }
+
+    private static Collection<KVPair> traverseAll(Exchange e, Key.Direction dir, boolean deep) throws Exception {
+        List<KVPair> out = new ArrayList<KVPair>();
+        while(e.traverse(dir,  deep)) {
+            String k = e.getKey().toString();
+            String v = e.getValue().toString();
             out.add(new KVPair(k, v));
         }
         return out;
