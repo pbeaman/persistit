@@ -15,8 +15,11 @@
 
 package com.persistit;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -33,8 +36,11 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +50,11 @@ import java.util.Stack;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
+import com.persistit.JournalRecord.CP;
+import com.persistit.JournalRecord.JH;
 import com.persistit.exception.PersistitException;
 import com.persistit.util.ArgParser;
 import com.persistit.util.Util;
@@ -100,6 +110,11 @@ import com.persistit.util.Util;
  *
  */
 public class CLI {
+    private final static int BUFFER_SIZE = 1024 * 1024;
+    /*
+     * "Huge" block size for pseudo-journal created by dump command.
+     */
+    private final static long HUGE_BLOCK_SIZE = 100L * 1000L * 1000L * 1000L;
     private final static char DEFAULT_COMMAND_DELIMITER = ' ';
     private final static char DEFAULT_QUOTE = '\\';
 
@@ -835,6 +850,8 @@ public class CLI {
     @Cmd("view")
     String view(@Arg("page|long:-1:-1:99999999999999999|Page address") long pageAddress,
             @Arg("jaddr|long:-1:-1:99999999999999999|Journal address of a PA page record") long journalAddress,
+            @Arg("index|int:-1:-1:999999999|Buffer pool index") int index,
+            @Arg("pageSize|int:16384:1024:16384|Buffer pool index") int pageSize,
             @Arg("level|int:0:0:30|Tree level") int level, @Arg("key|string|Key") String keyString,
             @Arg("find|long:-1:0:99999999999999999|Optional page pointer to find") long findPointer,
             @Arg("_flag|a|All lines") boolean allLines, @Arg("_flag|s|Summary only") boolean summary) throws Exception {
@@ -851,13 +868,19 @@ public class CLI {
         if (journalAddress >= 0) {
             specified++;
         }
+        if (index >= 0) {
+            specified++;
+        }
         if (!keyString.isEmpty()) {
             specified++;
         }
         if (specified != 1) {
             return "Specify one of key=<key>, page=<page address> or journal=<journal address>";
         }
-        if (journalAddress >= 0) {
+        if (index >= 0) {
+            BufferPool pool = _persistit.getBufferPool(pageSize);
+            buffer = pool.getBufferCopy(index);
+        } else if (journalAddress >= 0) {
             buffer = _persistit.getJournalManager().readPageBuffer(journalAddress);
             if (buffer == null) {
                 return String.format("Journal address %,d is not a valid PA record", journalAddress);
@@ -896,6 +919,91 @@ public class CLI {
             return detail.substring(0, p);
         }
 
+    }
+
+    @Cmd("dump")
+    String dump(@Arg("file|string|Name of file to receive output") String file, @Arg("_flag|s|Secure") boolean secure,
+            @Arg("_flag|o|Overwrite file") boolean ovewrite, @Arg("_flag|v|Verbose") boolean verbose) throws Exception {
+        final File target = new File(file);
+        if (target.exists() && !ovewrite) {
+            throw new IOException(file + " already exists");
+        }
+
+        final ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(target),
+                BUFFER_SIZE));
+        final String basePath = "PersistitDump_" + new SimpleDateFormat("yyyyMMddHHmm").format(new Date());
+        final long baseTime = System.currentTimeMillis();
+
+        zos.setLevel(ZipEntry.DEFLATED);
+        ZipEntry ze = new ZipEntry(JournalManager.generationToFile(basePath, 0).getPath());
+        ze.setSize(Integer.MAX_VALUE);
+        ze.setTime(baseTime);
+        zos.putNextEntry(ze);
+
+        final DataOutputStream stream = new DataOutputStream(zos);
+
+        final ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
+        {
+            JH.putType(bb);
+            JH.putTimestamp(bb, 0);
+            JH.putVersion(bb, JournalManagerMXBean.VERSION);
+            JH.putBlockSize(bb, HUGE_BLOCK_SIZE);
+            JH.putBaseJournalAddress(bb, 0);
+            JH.putCurrentJournalAddress(bb, 0);
+            JH.putJournalCreatedTime(bb, 0);
+            JH.putFileCreatedTime(bb, 0);
+            JH.putPath(bb, basePath);
+            bb.position(JH.getLength(bb));
+        }
+
+        final List<BufferPool> pools = new ArrayList<BufferPool>(_persistit.getBufferPoolHashMap().values());
+        for (final BufferPool pool : pools) {
+            pool.dump(stream, bb, secure, verbose);
+        }
+
+        {
+            CP.putLength(bb, CP.OVERHEAD);
+            CP.putType(bb);
+            CP.putTimestamp(bb, _persistit.getTimestampAllocator().getCurrentTimestamp() + 1);
+            CP.putSystemTimeMillis(bb, baseTime);
+            CP.putBaseAddress(bb, 0);
+            bb.position(CP.OVERHEAD);
+        }
+
+        bb.flip();
+        stream.write(bb.array(), 0, bb.limit());
+        stream.flush();
+        zos.closeEntry();
+        bb.clear();
+
+        PrintWriter writer = new PrintWriter(zos);
+        ze = new ZipEntry(basePath + ".txt");
+        ze.setSize(Integer.MAX_VALUE);
+        ze.setTime(baseTime);
+        zos.putNextEntry(ze);
+        List<Volume> volumes = _persistit.getVolumes();
+
+        writer.printf("@volumes=%d\n", volumes.size());
+        for (final Volume volume : volumes) {
+            writer.printf("%s\n", volume.toString());
+            final List<Tree> trees = volume.getStructure().referencedTrees();
+            writer.printf("@trees=%d\n", trees.size());
+            for (final Tree tree : trees) {
+                writer.printf("%s\n", tree.toString());
+            }
+        }
+        writer.printf("@bufferPools=%d\n", pools.size());
+        for (final BufferPool pool : pools) {
+            writer.printf("%s\n", pool.toString());
+            writer.printf("@buffers=%d\n", pool.getBufferCount());
+            for (int i = 0; i < pool.getBufferCount(); i++) {
+                writer.printf("%s\n", pool.toString(i, false));
+            }
+        }
+        writer.flush();
+        zos.closeEntry();
+        stream.close();
+        return "done";
     }
 
     @Cmd("help")

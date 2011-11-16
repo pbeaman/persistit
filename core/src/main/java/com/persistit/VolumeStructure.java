@@ -34,8 +34,8 @@ class VolumeStructure {
     /**
      * Key segment name for index by directory tree name.
      */
-    private final static String TREE_ROOT = "root";
-    private final static String TREE_STATS = "stats";
+    final static String TREE_ROOT = "root";
+    final static String TREE_STATS = "stats";
 
     private final Persistit _persistit;
     private final Volume _volume;
@@ -348,6 +348,17 @@ class VolumeStructure {
         } catch (PersistitException pe) {
             return null;
         }
+    }
+    
+    synchronized List<Tree> referencedTrees() {
+        final List<Tree> list = new ArrayList<Tree>();
+        for (final WeakReference<Tree> ref : _treeNameHashMap.values()) {
+            final Tree tree = ref.get();
+            if (tree != null) {
+                list.add(tree);
+            }
+        }
+        return list;
     }
 
     /**

@@ -211,6 +211,11 @@ public class Persistit {
      * Property name for specifying default temporary volume directory
      */
     public final static String TEMPORARY_VOLUME_DIR_NAME = "tvdirectory";
+    
+    /**
+     * Property name for specifying a transaction volume
+     */
+    public final static String TXN_VOLUME_NAME_PROPERTY = "txnvolume";
 
     /**
      * Property name for specifying whether Persistit should display diagnostic
