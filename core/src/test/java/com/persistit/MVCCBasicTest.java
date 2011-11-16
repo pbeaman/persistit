@@ -17,8 +17,6 @@ package com.persistit;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
-import org.junit.After;
-import org.junit.Before;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -194,7 +192,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
-    public void testNextPrevTraverseTwoTrx() throws Exception {
+    public void testTraverseShallowTwoTrx() throws Exception {
         trx1.begin();
         try {
             store(ex1, "a", "A");
@@ -208,30 +206,32 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         trx1.begin();
         trx2.begin();
         try {
-            store(ex1, "trx1", 1);
             store(ex1, "b","trx1", 1);
+            store(ex1, "c","trx1", 1);
+            store(ex1, "trx1", 1);
+            store(ex2, "b","trx2", 2);
+            store(ex2, "d","trx2", 2);
             store(ex2, "trx2", 2);
-            store(ex1, "b","trx2", 2);
 
-            ex1.clear().append(Key.BEFORE);
-            assertEquals("trx1 next() traversal",
-                         kvCollection("a","A",  "b","UD", "trx1",1,  "z","Z"),
-                         traverseAllNext(ex1));
+            //
+            // Both should see a, z, and b->UD. 1 sees c->UD and 2 sees d->UD
+            //
 
-            ex2.clear().append(Key.BEFORE);
-            assertEquals("trx2 next() traversal",
-                         kvCollection("a","A",  "b","UD",  "trx2",2,  "z","Z"),
-                         traverseAllNext(ex2));
+            assertEquals("trx1 forward,shallow traversal",
+                         kvCollection("a","A",  "b","UD",  "c","UD",  "trx1",1,  "z","Z"),
+                         traverseAll(Key.BEFORE, ex1, Key.GT, false));
 
-            ex1.clear().append(Key.AFTER);
-            assertEquals("trx1 previous() traversal",
-                         kvCollection("z","Z",  "trx1",1,  "b","UD",  "a","A"),
-                         traverseAllPrev(ex1));
+            assertEquals("trx2 forward,shallow traversal",
+                         kvCollection("a","A",  "b","UD",  "d","UD",  "trx2",2,  "z","Z"),
+                         traverseAll(Key.BEFORE, ex2, Key.GT, false));
 
-            ex2.clear().append(Key.AFTER);
-            assertEquals("trx2 previous() traversal",
-                         kvCollection("z","Z",  "trx2",2,  "b","UD",  "a","A"),
-                         traverseAllPrev(ex2));
+            assertEquals("trx1 reverse,shallow traversal",
+                         kvCollection("z","Z",  "trx1",1,  "c","UD",  "b","UD",  "a","A"),
+                         traverseAll(Key.AFTER, ex1, Key.LT, false));
+
+            assertEquals("trx2 reverse,shallow traversal",
+                         kvCollection("z","Z",  "trx2",2,  "d","UD",  "b","UD",  "a","A"),
+                         traverseAll(Key.AFTER, ex2, Key.LT, false));
 
             trx1.commit();
             trx2.commit();
@@ -243,10 +243,9 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
         trx1.begin();
         try {
-            ex1.clear().append(Key.BEFORE);
-            assertEquals("final traversal",
-                         kvCollection("a","A",  "b","UD",  "trx1",1,  "trx2",2,  "z","Z"),
-                         traverseAllNext(ex1));
+            assertEquals("final forward,shallow traversal",
+                         kvCollection("a","A",  "b","UD",  "c","UD",  "d","UD",  "trx1",1,  "trx2",2,  "z","Z"),
+                         traverseAll(Key.BEFORE, ex1, Key.GT, false));
             trx1.commit();
         }
         finally {
@@ -254,8 +253,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
-    public void testTraverseDeep() throws Exception {
-        // Should be visible to both
+    public void testTraverseDeepTwoTrx() throws Exception {
         trx1.begin();
         try {
             store(ex1, "a", "A");
@@ -269,18 +267,20 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         trx1.begin();
         trx2.begin();
         try {
-            store(ex1, "a","a", "trx1");
-            store(ex2, "a","b", "trx2");
+            store(ex1, "b","trx1", 1);
+            store(ex1, "c","trx1", 1);
+            store(ex1, "trx1", 1);
+            store(ex2, "b","trx2", 2);
+            store(ex2, "d","trx2", 2);
+            store(ex2, "trx2", 2);
 
-            ex1.clear().append(Key.BEFORE);
-            assertEquals("trx1 next() traversal",
-                         kvCollection("{\"a\"}","\"A\"",  "{\"a\",\"a\"}","\"trx1\"",  "{\"z\"}","\"Z\""),
-                         traverseAll(ex1, Key.GT, true));
+            assertEquals("trx1 forward,deep traversal",
+                         kvCollection("a","A",  arr("b","trx1"),1,  arr("c","trx1"),1,  "trx1",1,  "z","Z"),
+                         traverseAll(Key.BEFORE, ex1, Key.GT, true));
 
-            ex2.clear().append(Key.BEFORE);
-            assertEquals("trx1 next() traversal",
-                         kvCollection("{\"a\"}","\"A\"",  "{\"a\",\"b\"}","\"trx2\"",  "{\"z\"}","\"Z\""),
-                         traverseAll(ex2, Key.GT, true));
+            assertEquals("trx2 forward,deep traversal",
+                         kvCollection("a","A",  arr("b","trx2"),2,  arr("d","trx2"),2,  "trx2",2,  "z","Z"),
+                         traverseAll(Key.BEFORE, ex2, Key.GT, true));
 
 
             trx1.commit();
@@ -293,11 +293,10 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
         trx1.begin();
         try {
-            ex1.clear().append(Key.BEFORE);
-            assertEquals("final traversal",
-                         kvCollection("{\"a\"}","\"A\"",  "{\"a\",\"a\"}","\"trx1\"",
-                                      "{\"a\",\"b\"}","\"trx2\"",  "{\"z\"}","\"Z\""),
-                         traverseAll(ex1, Key.GT, true));
+            assertEquals("final forward,deep traversal",
+                         kvCollection("a","A",  arr("b","trx1"),1,  arr("b","trx2"),2,  arr("c","trx1"),1,
+                                      arr("d","trx2"),2,  "trx1",1,  "trx2",2,  "z","Z"),
+                         traverseAll(Key.BEFORE, ex1, Key.GT, true));
             trx1.commit();
         }
         finally {
@@ -312,63 +311,72 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     
 
     private static class KVPair {
-        Object k, v;
+        Object k1, k2, v;
 
-        public KVPair(Object k, Object v) {
-            this.k = k;
+        public KVPair(Object k1, Object k2, Object v) {
+            this.k1 = k1;
+            this.k2 = k2;
             this.v = v;
         }
 
         @Override
         public String toString() {
-            return String.format("%s->%s", k, v);
+            if(k2 == null) {
+                return String.format("%s->%s", k1, v);
+            }
+            return String.format("%s,%s->%s", k1, k2, v);
         }
 
         @Override
-        public boolean equals(Object rhs) {
-            if(this == rhs) return true;
-            if(!(rhs instanceof KVPair)) return false;
-            KVPair o = (KVPair) rhs;
-            return !(k != null ? !k.equals(o.k) : o.k != null) && !(v != null ? !v.equals(o.v) : o.v != null);
+        public boolean equals(Object o) {
+            if(this == o) return true;
+            if(!(o instanceof KVPair)) return false;
+            KVPair rhs = (KVPair) o;
+            return !(k2 != null ? !k2.equals(rhs.k2) : rhs.k2 != null);
 
         }
     }
 
-    private static Collection<KVPair> traverseAllNext(Exchange e) throws Exception {
-        return traverseAll(e, true);
+    private static Object[] arr(Object ...values) {
+        return values;
     }
 
-    private static Collection<KVPair> traverseAllPrev(Exchange e) throws Exception {
-        return traverseAll(e, false);
-    }
-
-    private static Collection<KVPair> traverseAll(Exchange e, boolean goNext) throws Exception {
-        List<KVPair> out = new ArrayList<KVPair>();
-        while((goNext ? e.next() : e.previous())) {
-            Object k = e.getKey().decode();
-            Object v = e.getValue().isDefined() ? e.getValue().get() : "UD";
-            out.add(new KVPair(k, v));
+    private static void addTraverseResult(Collection<KVPair> collection, Key key, Value value) {
+        Object k1, k2 = null;
+        switch(key.getDepth()) {
+            default: throw new IllegalArgumentException("Unexpected key depth: " + key.getDepth());
+            case 2: key.indexTo(1); k2 = key.decode();
+            case 1: key.indexTo(0); k1 = key.decode();
         }
-        return out;
+        Object v = value.isDefined() ? value.get() : "UD";
+        collection.add(new KVPair(k1, k2, v));
     }
 
-    private static Collection<KVPair> traverseAll(Exchange e, Key.Direction dir, boolean deep) throws Exception {
+    private static Collection<KVPair> traverseAll(Key.EdgeValue startAt, Exchange e, Key.Direction dir, boolean deep) throws Exception {
+        e.clear().append(startAt);
         List<KVPair> out = new ArrayList<KVPair>();
         while(e.traverse(dir,  deep)) {
-            String k = e.getKey().toString();
-            String v = e.getValue().toString();
-            out.add(new KVPair(k, v));
+            addTraverseResult(out, e.getKey(), e.getValue());
         }
         return out;
     }
 
-    private static Collection<KVPair> kvCollection(Object ...vals) {
-        if((vals.length % 2) != 0) {
+    private static Collection<KVPair> kvCollection(Object ...values) {
+        if((values.length % 2) != 0) {
             throw new IllegalArgumentException("Must be even number of objects to create pairs from");
         }
         List<KVPair> out = new ArrayList<KVPair>();
-        for(int i = 0; i < vals.length; i += 2) {
-            out.add(new KVPair(vals[i], vals[i+1]));
+        for(int i = 0; i < values.length; i += 2) {
+            Object k1, k2 = null;
+            if(values[i].getClass() == values.getClass()) {
+                Object[] ks = (Object[])values[i];
+                k1 = ks[0];
+                k2 = ks[1];
+            }
+            else {
+                k1 = values[i];
+            }
+            out.add(new KVPair(k1, k2, values[i+1]));
         }
         return out;
     }

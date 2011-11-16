@@ -1872,10 +1872,8 @@ public class Exchange {
         final boolean result;
 
         Buffer buffer = null;
-
-        if (doFetch) {
-            _value.clear();
-        }
+        final Value outValue = doFetch ? _value : _spareValue;
+        outValue.clear();
 
         final boolean reverse = (direction == LT) || (direction == LTEQ);
         boolean edge = direction == EQ || direction == GTEQ || direction == LTEQ;
@@ -2016,7 +2014,6 @@ public class Exchange {
                         index = _key.getEncodedSize();
 
                         if (matches) {
-                            Value outValue = doFetch ? _value : _spareValue;
                             matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
                             if (!matches && direction != EQ) {
                                 _key.copyTo(_spareKey1);
@@ -2035,25 +2032,23 @@ public class Exchange {
                         if (matches) {
                             index = _key.nextElementIndex(parentIndex);
                             if (index > 0) {
+                                boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
                                 if (index == _key.getEncodedSize()) {
-                                    Value outValue = doFetch ? _value : _spareValue;
-                                    boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
                                     if(!isVisibleMatch) {
                                         _key.copyTo(_spareKey1);
-                                        index = _key.getEncodedSize();
                                         continue;
                                     }
                                 } else {
                                     //
-                                    // The physical traversal went to a child
-                                    // of the next sibling (i.e. a niece or
-                                    // nephew), so therefore there must not be
-                                    // a record associated with the key value
-                                    // we are going to return. This makes
-                                    // the Value for this Exchange undefined.
+                                    // The physical traversal went to a child of the next sibling (i.e. niece or nephew).
+                                    // If going forward we know that the parent must not have existed. In reverse we
+                                    // know this (the parent) key needs returned but need to fetch the real value. In
+                                    // either case, this child should not be visible we skip the parent.
                                     //
-                                    if (doFetch) {
-                                        _value.clear();
+                                    if(!isVisibleMatch) {
+                                        _key.copyTo(_spareKey1);
+                                        // Do not reset index as this is a child (i.e. higher)
+                                        continue;
                                     }
                                     foundAt &= ~EXACT_MASK;
                                 }
