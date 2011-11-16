@@ -2056,8 +2056,17 @@ public class Exchange {
 
                 if (doModify) {
                     if (matches) {
-                        _key.setEncodedSize(index);
-                        lc.update(buffer, _key, foundAt);
+                        if(_key.getEncodedSize() == index){
+                            lc.update(buffer, _key, foundAt);
+                        }
+                        else {
+                            //
+                            // Parent key determined from seeing a child or niece/nephew, need to fetch the actual
+                            // value of this key before returning
+                            //
+                            _key.setEncodedSize(index);
+                            fetch(minimumBytes);
+                        }
                     } else {
                         if (deep) {
                             _key.setEncodedSize(0);

@@ -218,7 +218,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             List<KVPair> trx2List = kvList("a","A",  "b","UD",  "d","UD",  "trx2",222,  "z","Z");
 
             assertEquals("trx1 forward,shallow traversal", trx1List, traverseAllFoward(ex1, false));
-            assertEquals("trx2 forward,shallow traversal", trx1List, traverseAllFoward(ex2, false));
+            assertEquals("trx2 forward,shallow traversal", trx2List, traverseAllFoward(ex2, false));
 
             Collections.reverse(trx1List);
             Collections.reverse(trx2List);
