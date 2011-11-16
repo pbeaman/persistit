@@ -17,6 +17,7 @@ package com.persistit;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
+import com.persistit.util.Util;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -166,6 +167,44 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
         finally {
             trx1.end();
+        }
+    }
+
+    public void testMultipleLongRecordVersionsInserts() throws Exception {
+        final int PAGE_SIZE = ex1.getVolume().getPageSize();
+        final int VERSIONS_TO_STORE = 5;
+
+        StringBuilder sb = new StringBuilder(PAGE_SIZE);
+        for(int i = 0; i < PAGE_SIZE; ++i) {
+            sb.append(Character.forDigit(i % 26, 26));
+        }
+        final String longStr = sb.toString();
+
+        ex1.clear().append(longStr);
+
+        for(int curVer = 0; curVer < VERSIONS_TO_STORE; ++curVer) {
+            trx1.begin();
+            try {
+                ex1.getValue().put(curVer);
+                ex1.store();
+
+                ex1.getValue().clear();
+                ex1.fetch();
+                assertEquals("key after fetch pre-commit", longStr, ex1.getKey().decodeString());
+                assertEquals("value after fetch pre-commit", curVer, ex1.getValue().get());
+
+                trx1.commit();
+
+                trx1.begin();
+                ex1.getValue().clear();
+                ex1.fetch();
+                assertEquals("key after fetch post-commit", longStr, ex1.getKey().decodeString());
+                assertEquals("value after fetch post-commit", curVer, ex1.getValue().get());
+                trx1.commit();
+            }
+            finally {
+                trx1.end();
+            }
         }
     }
 
