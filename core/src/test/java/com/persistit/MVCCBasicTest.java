@@ -223,7 +223,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             Collections.reverse(trx1List);
             Collections.reverse(trx2List);
 
-            assertEquals("trx1 reverse,shallow traversal", trx1List,traverseAllReverse(ex1, false));
+            assertEquals("trx1 reverse,shallow traversal", trx1List, traverseAllReverse(ex1, false));
             assertEquals("trx2 reverse,shallow traversal", trx2List, traverseAllReverse(ex2, false));
 
             trx1.commit();
@@ -273,20 +273,14 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             List<KVPair> trx1List = kvList("a", "A", arr("b", "trx1"), 1, arr("c", "trx1"), 1, "trx1", 1, "z", "Z");
             List<KVPair> trx2List = kvList("a", "A", arr("b", "trx2"), 2, arr("d", "trx2"), 2, "trx2", 2, "z", "Z");
 
-            assertEquals("trx1 forward,deep traversal",
-                         trx1List, traverseAllFoward(ex1, true));
-
-            assertEquals("trx2 forward,deep traversal",
-                         trx2List, traverseAllFoward(ex2, true));
+            assertEquals("trx1 forward,deep traversal", trx1List, traverseAllFoward(ex1, true));
+            assertEquals("trx2 forward,deep traversal", trx2List, traverseAllFoward(ex2, true));
 
             Collections.reverse(trx1List);
             Collections.reverse(trx2List);
 
-            assertEquals("trx1 reverse,deep traversal",
-                         trx1List, traverseAllReverse(ex1, true));
-
-            assertEquals("trx2 reverse,deep traversal",
-                         trx2List, traverseAllReverse(ex2, true));
+            assertEquals("trx1 reverse,deep traversal", trx1List, traverseAllReverse(ex1, true));
+            assertEquals("trx2 reverse,deep traversal", trx2List, traverseAllReverse(ex2, true));
 
             trx1.commit();
             trx2.commit();
@@ -312,6 +306,30 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             trx1.end();
         }
         showGUI();
+    }
+
+    /*
+     * Bug found independently of MVCC but fixed due to traverse() changes
+     */
+    public void testShallowTraverseWrongParentValueBug() throws Exception {
+        trx1.begin();
+        try {
+            store(ex1, "a", "A");
+            store(ex1, "a","a", "AA");
+            store(ex1, "b", "B");
+            store(ex1, "z", "Z");
+
+            List<KVPair> kvList = kvList("a","A",  "b","B",  "z","Z");
+
+            assertEquals("forward traversal", kvList, traverseAllFoward(ex1, false));
+            Collections.reverse(kvList);
+            assertEquals("reverse traversal", kvList, traverseAllReverse(ex2, false));
+
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
     }
 
 
