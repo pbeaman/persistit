@@ -207,15 +207,11 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         trx1.begin();
         trx2.begin();
         try {
-            store(ex1, "b","trx1", 1);
-            store(ex1, "c","trx1", 11);
-            store(ex1, "trx1", 111);
-            store(ex2, "b","trx2", 2);
-            store(ex2, "d","trx2", 22);
-            store(ex2, "trx2", 222);
-
             List<KVPair> trx1List = kvList("a","A",  "b","UD",  "c","UD",  "trx1",111,  "z","Z");
             List<KVPair> trx2List = kvList("a","A",  "b","UD",  "d","UD",  "trx2",222,  "z","Z");
+
+            storeAll(ex1, trx1List);
+            storeAll(ex2, trx2List);
 
             assertEquals("trx1 forward,shallow traversal", trx1List, traverseAllFoward(ex1, false));
             assertEquals("trx2 forward,shallow traversal", trx2List, traverseAllFoward(ex2, false));
@@ -263,15 +259,11 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         trx1.begin();
         trx2.begin();
         try {
-            store(ex1, "b","trx1", 1);
-            store(ex1, "c","trx1", 11);
-            store(ex1, "trx1", 111);
-            store(ex2, "b","trx2", 2);
-            store(ex2, "d","trx2", 22);
-            store(ex2, "trx2", 222);
-
             List<KVPair> trx1List = kvList("a","A",  arr("b","trx1"),1,  arr("c","trx1"),11,  "trx1",111,  "z","Z");
             List<KVPair> trx2List = kvList("a","A",  arr("b","trx2"),2,  arr("d","trx2"),22,  "trx2",222,  "z","Z");
+
+            storeAll(ex1, trx1List);
+            storeAll(ex2, trx2List);
 
             assertEquals("trx1 forward,deep traversal", trx1List, traverseAllFoward(ex1, true));
             assertEquals("trx2 forward,deep traversal", trx2List, traverseAllFoward(ex2, true));
