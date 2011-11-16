@@ -2033,23 +2033,18 @@ public class Exchange {
                             index = _key.nextElementIndex(parentIndex);
                             if (index > 0) {
                                 boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
-                                if (index == _key.getEncodedSize()) {
-                                    if(!isVisibleMatch) {
-                                        _key.copyTo(_spareKey1);
-                                        continue;
-                                    }
-                                } else {
-                                    //
-                                    // The physical traversal went to a child of the next sibling (i.e. niece or nephew).
-                                    // If going forward we know that the parent must not have existed. In reverse we
-                                    // know this (the parent) key needs returned but need to fetch the real value. In
-                                    // either case, this child should not be visible we skip the parent.
-                                    //
-                                    if(!isVisibleMatch) {
-                                        _key.copyTo(_spareKey1);
-                                        // Do not reset index as this is a child (i.e. higher)
-                                        continue;
-                                    }
+                                //
+                                // In any case (matching sibling, child or niece/nephew) we need to ignore this
+                                // particular key and continue search if not visible to current transaction
+                                //
+                                if(!isVisibleMatch) {
+                                    _key.copyTo(_spareKey1);
+                                    continue;
+                                }
+                                //
+                                // It was a niece or nephew, record non-exact match
+                                //
+                                if(index != _key.getEncodedSize()) {
                                     foundAt &= ~EXACT_MASK;
                                 }
                             } else {

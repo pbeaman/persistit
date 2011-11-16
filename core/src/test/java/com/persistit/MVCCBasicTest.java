@@ -20,6 +20,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public class MVCCBasicTest extends PersistitUnitTestCase {
@@ -213,25 +214,17 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             store(ex2, "d","trx2", 2);
             store(ex2, "trx2", 2);
 
-            //
-            // Both should see a, z, and b->UD. 1 sees c->UD and 2 sees d->UD
-            //
+            List<KVPair> trx1List = kvList("a", "A", "b", "UD", "c", "UD", "trx1", 1, "z", "Z");
+            List<KVPair> trx2List = kvList("a", "A", "b", "UD", "d", "UD", "trx2", 2, "z", "Z");
 
-            assertEquals("trx1 forward,shallow traversal",
-                         kvCollection("a","A",  "b","UD",  "c","UD",  "trx1",1,  "z","Z"),
-                         traverseAll(Key.BEFORE, ex1, Key.GT, false));
+            assertEquals("trx1 forward,shallow traversal", trx1List, traverseAllFoward(ex1, false));
+            assertEquals("trx2 forward,shallow traversal", trx1List, traverseAllFoward(ex2, false));
 
-            assertEquals("trx2 forward,shallow traversal",
-                         kvCollection("a","A",  "b","UD",  "d","UD",  "trx2",2,  "z","Z"),
-                         traverseAll(Key.BEFORE, ex2, Key.GT, false));
+            Collections.reverse(trx1List);
+            Collections.reverse(trx2List);
 
-            assertEquals("trx1 reverse,shallow traversal",
-                         kvCollection("z","Z",  "trx1",1,  "c","UD",  "b","UD",  "a","A"),
-                         traverseAll(Key.AFTER, ex1, Key.LT, false));
-
-            assertEquals("trx2 reverse,shallow traversal",
-                         kvCollection("z","Z",  "trx2",2,  "d","UD",  "b","UD",  "a","A"),
-                         traverseAll(Key.AFTER, ex2, Key.LT, false));
+            assertEquals("trx1 reverse,shallow traversal", trx1List,traverseAllReverse(ex1, false));
+            assertEquals("trx2 reverse,shallow traversal", trx2List, traverseAllReverse(ex2, false));
 
             trx1.commit();
             trx2.commit();
@@ -243,9 +236,12 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
         trx1.begin();
         try {
-            assertEquals("final forward,shallow traversal",
-                         kvCollection("a","A",  "b","UD",  "c","UD",  "d","UD",  "trx1",1,  "trx2",2,  "z","Z"),
-                         traverseAll(Key.BEFORE, ex1, Key.GT, false));
+            List<KVPair> fList = kvList("a", "A", "b", "UD", "c", "UD", "d", "UD", "trx1", 1, "trx2", 2, "z", "Z");
+
+            assertEquals("final forward,shallow traversal", fList, traverseAllFoward(ex1, false));
+            Collections.reverse(fList);
+            assertEquals("final reverse,shallow traversal", fList, traverseAllReverse(ex1, false));
+            
             trx1.commit();
         }
         finally {
@@ -257,7 +253,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         trx1.begin();
         try {
             store(ex1, "a", "A");
-            store(ex2, "z", "Z");
+            store(ex1, "z", "Z");
             trx1.commit();
         }
         finally {
@@ -274,14 +270,23 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             store(ex2, "d","trx2", 2);
             store(ex2, "trx2", 2);
 
+            List<KVPair> trx1List = kvList("a", "A", arr("b", "trx1"), 1, arr("c", "trx1"), 1, "trx1", 1, "z", "Z");
+            List<KVPair> trx2List = kvList("a", "A", arr("b", "trx2"), 2, arr("d", "trx2"), 2, "trx2", 2, "z", "Z");
+
             assertEquals("trx1 forward,deep traversal",
-                         kvCollection("a","A",  arr("b","trx1"),1,  arr("c","trx1"),1,  "trx1",1,  "z","Z"),
-                         traverseAll(Key.BEFORE, ex1, Key.GT, true));
+                         trx1List, traverseAllFoward(ex1, true));
 
             assertEquals("trx2 forward,deep traversal",
-                         kvCollection("a","A",  arr("b","trx2"),2,  arr("d","trx2"),2,  "trx2",2,  "z","Z"),
-                         traverseAll(Key.BEFORE, ex2, Key.GT, true));
+                         trx2List, traverseAllFoward(ex2, true));
 
+            Collections.reverse(trx1List);
+            Collections.reverse(trx2List);
+
+            assertEquals("trx1 reverse,deep traversal",
+                         trx1List, traverseAllReverse(ex1, true));
+
+            assertEquals("trx2 reverse,deep traversal",
+                         trx2List, traverseAllReverse(ex2, true));
 
             trx1.commit();
             trx2.commit();
@@ -293,15 +298,20 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
         trx1.begin();
         try {
-            assertEquals("final forward,deep traversal",
-                         kvCollection("a","A",  arr("b","trx1"),1,  arr("b","trx2"),2,  arr("c","trx1"),1,
-                                      arr("d","trx2"),2,  "trx1",1,  "trx2",2,  "z","Z"),
-                         traverseAll(Key.BEFORE, ex1, Key.GT, true));
+
+            List<KVPair> fList = kvList("a","A",  arr("b","trx1"),1,  arr("b","trx2"),2,  arr("c", "trx1"),1,
+                                        arr("d","trx2"),2,  "trx1",1,  "trx2",2,  "z","Z");
+
+            assertEquals("final forward,deep traversal", fList, traverseAllFoward(ex1, true));
+            Collections.reverse(fList);
+            assertEquals("final reverse,deep traversal", fList, traverseAllReverse(ex2, true));
+
             trx1.commit();
         }
         finally {
             trx1.end();
         }
+        showGUI();
     }
 
 
@@ -352,7 +362,15 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         collection.add(new KVPair(k1, k2, v));
     }
 
-    private static Collection<KVPair> traverseAll(Key.EdgeValue startAt, Exchange e, Key.Direction dir, boolean deep) throws Exception {
+    private static List<KVPair> traverseAllFoward(Exchange e, boolean deep) throws Exception {
+        return doTraverse(Key.BEFORE, e, Key.GT, deep);
+    }
+
+    private static List<KVPair> traverseAllReverse(Exchange e, boolean deep) throws Exception {
+        return doTraverse(Key.AFTER, e, Key.LT, deep);
+    }
+
+    private static List<KVPair> doTraverse(Key.EdgeValue startAt, Exchange e, Key.Direction dir, boolean deep) throws Exception {
         e.clear().append(startAt);
         List<KVPair> out = new ArrayList<KVPair>();
         while(e.traverse(dir,  deep)) {
@@ -361,7 +379,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         return out;
     }
 
-    private static Collection<KVPair> kvCollection(Object ...values) {
+    private static List<KVPair> kvList(Object... values) {
         if((values.length % 2) != 0) {
             throw new IllegalArgumentException("Must be even number of objects to create pairs from");
         }
