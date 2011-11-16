@@ -18,7 +18,6 @@ package com.persistit;
 import static com.persistit.Buffer.EXACT_MASK;
 import static com.persistit.Buffer.HEADER_SIZE;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
-import static com.persistit.Buffer.KEY_BLOCK_START;
 import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
 import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
 import static com.persistit.Buffer.LONGREC_SIZE;
@@ -212,8 +211,10 @@ public class Exchange {
                     _maxVersion = status;
                     _offset = offset;
                 }
-            } catch(Exception e) {
+            } catch (Exception e) {
+                // TODO: Fix visitor with to throw clause and/or handle here
                 e.printStackTrace();
+                Debug.$assert1.t(false);
             }
         }
 
@@ -1881,15 +1882,13 @@ public class Exchange {
             throws PersistitException {
         _persistit.checkClosed();
 
-        boolean doFetch = minimumBytes > 0;
-        boolean doModify = minimumBytes >= 0;
-        final boolean result;
-
-        Buffer buffer = null;
+        final boolean doFetch = minimumBytes > 0;
+        final boolean doModify = minimumBytes >= 0;
+        final boolean reverse = (direction == LT) || (direction == LTEQ);
         final Value outValue = doFetch ? _value : _spareValue;
         outValue.clear();
-
-        final boolean reverse = (direction == LT) || (direction == LTEQ);
+        
+        Buffer buffer = null;
         boolean edge = direction == EQ || direction == GTEQ || direction == LTEQ;
         boolean nudged = false;
 
@@ -1915,10 +1914,11 @@ public class Exchange {
             int index = _key.getEncodedSize();
 
             int foundAt = 0;
-            for (;;) {
-                boolean matches = false;
-                LevelCache lc = _levelCache[0];
 
+            for (;;) {
+
+                LevelCache lc = _levelCache[0];
+                boolean matches = false;
                 //
                 // Optimal path - pick up the buffer and location left
                 // by previous operation.
@@ -1933,19 +1933,17 @@ public class Exchange {
                 // other way to find the left sibling page.
                 //
                 if (reverse && buffer != null && (foundAt & P_MASK) <= buffer.getKeyBlockStart()) {
-                    // Going left from first record in the page requires a key search.
+                    // Going left from first record in the page requires a
+                    // key search.
                     buffer.releaseTouched();
                     buffer = null;
-                    if(nudged) {
-                        nudged = true;
-                    }
                 }
                 //
                 // If the operations above failed to get the key, then
                 // look it up with search.
                 //
                 if (buffer == null) {
-                    if (!edge) {
+                    if (!edge && !nudged) {
                         if (reverse) {
                             if (!_key.isSpecial()) {
                                 _key.nudgeLeft();
@@ -1966,11 +1964,10 @@ public class Exchange {
 
                 if (edge && (foundAt & EXACT_MASK) != 0) {
                     matches = true;
-                    //break;
                 } else if (edge && !deep && Buffer.decodeDepth(foundAt) == index) {
-                    //break;
+                    // None
                 } else if (direction == EQ) {
-                    //break;
+                    // None
                 } else {
                     edge = false;
                     foundAt = buffer.traverse(_key, direction, foundAt);
@@ -2011,7 +2008,7 @@ public class Exchange {
                     }
                 }
 
-                // Original for(;;) end
+                // Original search loop end, MVCC much also inspect value before finishing
 
                 if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
                     // None
@@ -2095,8 +2092,9 @@ public class Exchange {
                 }
 
                 // Done
-                result = matches;
-                break;
+                _volume.getStatistics().bumpTraverseCounter();
+                _tree.getStatistics().bumpTraverseCounter();
+                return matches;
             }
         } finally {
             if (buffer != null) {
@@ -2104,9 +2102,6 @@ public class Exchange {
                 buffer = null;
             }
         }
-        _volume.getStatistics().bumpTraverseCounter();
-        _tree.getStatistics().bumpTraverseCounter();
-        return result;
     }
 
     /**
