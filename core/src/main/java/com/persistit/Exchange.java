@@ -1900,7 +1900,6 @@ public class Exchange {
                 _key.appendBefore();
             }
             nudged = true;
-
         }
 
         _key.testValidForTraverse();
@@ -1914,15 +1913,6 @@ public class Exchange {
             //
             _key.copyTo(_spareKey1);
             int index = _key.getEncodedSize();
-
-            if (index == 0) {
-                if (reverse) {
-                    _key.appendAfter();
-                } else {
-                    _key.appendBefore();
-                }
-                nudged = true;
-            }
 
             int foundAt = 0;
             for (;;) {
@@ -1946,13 +1936,16 @@ public class Exchange {
                     // Going left from first record in the page requires a key search.
                     buffer.releaseTouched();
                     buffer = null;
+                    if(nudged) {
+                        nudged = true;
+                    }
                 }
                 //
                 // If the operations above failed to get the key, then
                 // look it up with search.
                 //
                 if (buffer == null) {
-                    if (!edge && !nudged) {
+                    if (!edge) {
                         if (reverse) {
                             if (!_key.isSpecial()) {
                                 _key.nudgeLeft();
@@ -1966,7 +1959,6 @@ public class Exchange {
                                 }
                             }
                         }
-                        nudged = true;
                     }
                     foundAt = search(_key, false);
                     buffer = lc._buffer;
@@ -2031,6 +2023,7 @@ public class Exchange {
                         if (matches) {
                             matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
                             if (!matches && direction != EQ) {
+                                nudged = false;
                                 _key.copyTo(_spareKey1);
                                 index = _key.getEncodedSize();
                                 continue;
@@ -2053,6 +2046,7 @@ public class Exchange {
                                 // particular key and continue search if not visible to current transaction
                                 //
                                 if(!isVisibleMatch) {
+                                    nudged = false;
                                     _key.copyTo(_spareKey1);
                                     continue;
                                 }

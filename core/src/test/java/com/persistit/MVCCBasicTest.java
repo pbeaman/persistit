@@ -307,6 +307,71 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
+    public void testTwoTrxManyTraverseManyKeys() throws Exception {
+        final int MIN_PAGES = 6;
+        final int MAX_KV_PER_PAGE = ex1.getVolume().getPageSize() / (8 + 14); // ##,trxX  =>  MVV,VER,LEN,##
+        final int KVS_PER_TRX = (MIN_PAGES * MAX_KV_PER_PAGE) / 2;
+        final int TOTAL_KVS = KVS_PER_TRX * 2;
+
+        trx1.begin();
+        trx2.begin();
+        try {
+            for(int i = 0; i < TOTAL_KVS; ++i) {
+                if(i % 2 == 0) {
+                    store(ex1, i, "trx1", i);
+                }
+                else {
+                    store(ex2, i, "trx2", i);
+                }
+            }
+
+            Exchange[] exchanges = {ex1, ex1};
+            Key.Direction[] directions = {Key.GT, Key.LT};
+            boolean[] deepFlags = {true, false};
+
+            for(Exchange ex : exchanges) {
+                final String expectedSeg2 = (ex == ex1) ? "trx1" : "trx2";
+                final Key key = ex.getKey();
+                final Value value = ex.getValue();
+
+                for(Key.Direction dir : directions) {
+                    final Key.EdgeValue startEdge = (dir == Key.GT) ? Key.BEFORE : Key.AFTER;
+
+                    for(boolean deep : deepFlags) {
+                        final String desc = expectedSeg2 + " " + dir + " " + (deep ? "deep" : "shallow") + ", ";
+
+                        int traverseCount = 0;
+                        ex.clear().append(startEdge);
+                        while(ex.traverse(dir, deep)) {
+                            ++traverseCount;
+                            if(deep) {
+                                assertEquals(desc + "key depth", 2, key.getDepth());
+                                int keySeg1 = key.indexTo(0).decodeInt();
+                                String keySeg2 = key.indexTo(1).decodeString();
+                                int val = value.getInt();
+                                assertEquals(desc + "key seg1 equals value", keySeg1, val);
+                                assertEquals(desc + "key seg2", expectedSeg2, keySeg2);
+                            }
+                            else {
+                                assertEquals(desc + "key depth", 1, key.getDepth());
+                                assertEquals(desc + "value defined", false, value.isDefined());
+                            }
+                        }
+
+                        assertEquals(desc+"traverse count", KVS_PER_TRX, traverseCount);
+                    }
+                }
+            }
+
+            trx1.commit();
+            trx2.commit();
+        }
+        finally {
+            trx1.end();
+            trx2.end();
+        }
+    }
+
     /*
      * Bug found independently of MVCC but fixed due to traverse() changes
      */
