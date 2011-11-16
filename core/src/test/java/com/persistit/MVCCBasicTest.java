@@ -214,8 +214,8 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             store(ex2, "d","trx2", 2);
             store(ex2, "trx2", 2);
 
-            List<KVPair> trx1List = kvList("a", "A", "b", "UD", "c", "UD", "trx1", 1, "z", "Z");
-            List<KVPair> trx2List = kvList("a", "A", "b", "UD", "d", "UD", "trx2", 2, "z", "Z");
+            List<KVPair> trx1List = kvList("a","A",  "b","UD",  "c","UD",  "trx1",1,  "z","Z");
+            List<KVPair> trx2List = kvList("a","A",  "b","UD",  "d","UD",  "trx2",2,  "z","Z");
 
             assertEquals("trx1 forward,shallow traversal", trx1List, traverseAllFoward(ex1, false));
             assertEquals("trx2 forward,shallow traversal", trx1List, traverseAllFoward(ex2, false));
@@ -236,7 +236,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
         trx1.begin();
         try {
-            List<KVPair> fList = kvList("a", "A", "b", "UD", "c", "UD", "d", "UD", "trx1", 1, "trx2", 2, "z", "Z");
+            List<KVPair> fList = kvList("a","A",  "b","UD",  "c","UD",  "d","UD",  "trx1",1,  "trx2",2,  "z","Z");
 
             assertEquals("final forward,shallow traversal", fList, traverseAllFoward(ex1, false));
             Collections.reverse(fList);
@@ -270,8 +270,8 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             store(ex2, "d","trx2", 2);
             store(ex2, "trx2", 2);
 
-            List<KVPair> trx1List = kvList("a", "A", arr("b", "trx1"), 1, arr("c", "trx1"), 1, "trx1", 1, "z", "Z");
-            List<KVPair> trx2List = kvList("a", "A", arr("b", "trx2"), 2, arr("d", "trx2"), 2, "trx2", 2, "z", "Z");
+            List<KVPair> trx1List = kvList("a","A",  arr("b","trx1"),1,  arr("c","trx1"),1,  "trx1",1,  "z","Z");
+            List<KVPair> trx2List = kvList("a","A",  arr("b","trx2"),2,  arr("d","trx2"),2,  "trx2",2,  "z","Z");
 
             assertEquals("trx1 forward,deep traversal", trx1List, traverseAllFoward(ex1, true));
             assertEquals("trx2 forward,deep traversal", trx2List, traverseAllFoward(ex2, true));
