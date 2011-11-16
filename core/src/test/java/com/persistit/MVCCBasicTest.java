@@ -373,6 +373,40 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     }
 
     /*
+     * Simple sanity check as KeyFilter inspects the keys but doesn't care, directly, about MVCC
+     */
+    public void testKeyFilterTraverseTwoTrx() throws Exception {
+        trx1.begin();
+        trx2.begin();
+        try {
+            List<KVPair> trx1List = kvList("a","A",  "c","C",  "e","E",  "f","f",  "i","I");
+            List<KVPair> trx2List = kvList("b","B",  "d","D",  "g","G",  "h","H",  "j","J");
+
+            storeAll(ex1, trx1List);
+            storeAll(ex2, trx2List);
+
+            KeyFilter filter = new KeyFilter(new KeyFilter.Term[]{ KeyFilter.rangeTerm("b", "i") });
+            trx1List.remove(0);
+            trx2List.remove(trx2List.size() - 1);
+
+            assertEquals("trx1 forward filter traversal", trx1List, doTraverse(Key.BEFORE, ex1, Key.GT, filter));
+            assertEquals("trx2 forward filter traversal", trx2List, doTraverse(Key.BEFORE, ex2, Key.GT, filter));
+
+            Collections.reverse(trx1List);
+            Collections.reverse(trx2List);
+
+            assertEquals("trx1 reverse filter traversal", trx1List, doTraverse(Key.AFTER, ex1, Key.LT, filter));
+            assertEquals("trx2 reverse filter traversal", trx2List, doTraverse(Key.AFTER, ex2, Key.LT, filter));
+
+            trx1.commit();
+            trx2.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
+
+    /*
      * Bug found independently of MVCC but fixed due to traverse() changes
      */
     public void testShallowTraverseWrongParentValueBug() throws Exception {
@@ -453,6 +487,15 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         return doTraverse(Key.AFTER, e, Key.LT, deep);
     }
 
+    private static List<KVPair> doTraverse(Key.EdgeValue startAt, Exchange ex, Key.Direction dir, KeyFilter filter) throws Exception {
+        ex.clear().append(startAt);
+        List<KVPair> out = new ArrayList<KVPair>();
+        while(ex.traverse(dir, filter, Integer.MAX_VALUE)) {
+            addTraverseResult(out, ex.getKey(), ex.getValue());
+        }
+        return out;
+    }
+
     private static List<KVPair> doTraverse(Key.EdgeValue startAt, Exchange e, Key.Direction dir, boolean deep) throws Exception {
         e.clear().append(startAt);
         List<KVPair> out = new ArrayList<KVPair>();
@@ -482,6 +525,16 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         return out;
     }
 
+    private static void storeAll(Exchange ex, List<KVPair> list) throws PersistitException {
+        for(KVPair kv : list) {
+            ex.clear().append(kv.k1);
+            if(kv.k2 != null) {
+                ex.append(kv.k2);
+            }
+            ex.getValue().put(kv.v);
+            ex.store();
+        }
+    }
     private static void store(Exchange ex, Object k, Object v) throws PersistitException {
         ex.clear().append(k).getValue().put(v);
         ex.store();
