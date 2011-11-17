@@ -212,7 +212,9 @@ public class Exchange {
                     _offset = offset;
                 }
             } catch (Exception e) {
+                // TODO: Fix visitor with to throw clause and/or handle here
                 e.printStackTrace();
+                Debug.$assert1.t(false);
             }
         }
 
@@ -1880,17 +1882,13 @@ public class Exchange {
             throws PersistitException {
         _persistit.checkClosed();
 
-        boolean doFetch = minimumBytes > 0;
-        boolean doModify = minimumBytes >= 0;
-        boolean result;
-
-        Buffer buffer = null;
-
-        if (doFetch) {
-            _value.clear();
-        }
-
+        final boolean doFetch = minimumBytes > 0;
+        final boolean doModify = minimumBytes >= 0;
         final boolean reverse = (direction == LT) || (direction == LTEQ);
+        final Value outValue = doFetch ? _value : _spareValue;
+        outValue.clear();
+        
+        Buffer buffer = null;
         boolean edge = direction == EQ || direction == GTEQ || direction == LTEQ;
         boolean nudged = false;
 
@@ -1901,7 +1899,6 @@ public class Exchange {
                 _key.appendBefore();
             }
             nudged = true;
-
         }
 
         _key.testValidForTraverse();
@@ -1916,22 +1913,12 @@ public class Exchange {
             _key.copyTo(_spareKey1);
             int index = _key.getEncodedSize();
 
-            if (index == 0) {
-                if (reverse) {
-                    _key.appendAfter();
-                } else {
-                    _key.appendBefore();
-                }
-                nudged = true;
-            }
-
             int foundAt = 0;
-            LevelCache lc;
-            boolean matches = false;
 
             for (;;) {
 
-                lc = _levelCache[0];
+                LevelCache lc = _levelCache[0];
+                boolean matches = false;
                 //
                 // Optimal path - pick up the buffer and location left
                 // by previous operation.
@@ -1978,11 +1965,10 @@ public class Exchange {
 
                 if (edge && (foundAt & EXACT_MASK) != 0) {
                     matches = true;
-                    break;
                 } else if (edge && !deep && Buffer.decodeDepth(foundAt) == index) {
-                    break;
+                    // None
                 } else if (direction == EQ) {
-                    break;
+                    // None
                 } else {
                     edge = false;
                     foundAt = buffer.traverse(_key, direction, foundAt);
@@ -2000,7 +1986,6 @@ public class Exchange {
                             buffer = rightSibling;
                             checkPageType(buffer, PAGE_TYPE_DATA);
                             foundAt = buffer.traverse(_key, direction, buffer.toKeyBlock(0));
-
                         }
                     }
 
@@ -2024,88 +2009,100 @@ public class Exchange {
                     }
                 }
 
-                break;
-            }
+                // Original search loop end, MVCC much also inspect value before finishing
 
-            if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
-
-            } else {
-                if (deep) {
-                    matches |= direction != EQ;
-                    index = _key.getEncodedSize();
-
-                    if (doFetch && matches) {
-                        buffer.fetch(foundAt, _value);
-                        fetchFixupForLongRecords(_value, minimumBytes);
-                    }
-                } else {
-                    int parentIndex = _spareKey1.previousElementIndex(index);
-                    if (parentIndex < 0) {
-                        parentIndex = 0;
-                    }
-
-                    matches = (_spareKey1.compareKeyFragment(_key, 0, parentIndex) == 0);
-
-                    if (matches) {
-                        index = _key.nextElementIndex(parentIndex);
-                        if (index > 0) {
-                            if (index == _key.getEncodedSize()) {
-                                if (doFetch) {
-                                    buffer.fetch(foundAt, _value);
-                                    fetchFixupForLongRecords(_value, minimumBytes);
-                                }
-                            } else {
-                                //
-                                // The physical traversal went to a child
-                                // of the next sibling (i.e. a niece or
-                                // nephew), so therefore there must not be
-                                // a record associated with the key value
-                                // we are going to return. This makes
-                                // the Value for this Exchange undefined.
-                                //
-                                if (doFetch) {
-                                    _value.clear();
-                                }
-                                foundAt &= ~EXACT_MASK;
-                            }
-                        } else
-                            matches = false;
-                    }
-                }
-            }
-
-            if (doModify) {
-                if (matches) {
-                    _key.setEncodedSize(index);
-                    lc.update(buffer, _key, foundAt);
+                if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
+                    // None
                 } else {
                     if (deep) {
-                        _key.setEncodedSize(0);
+                        matches |= direction != EQ;
+                        index = _key.getEncodedSize();
+
+                        if (matches) {
+                            matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                            if (!matches && direction != EQ) {
+                                nudged = false;
+                                _key.copyTo(_spareKey1);
+                                index = _key.getEncodedSize();
+                                continue;
+                            }
+                        }
                     } else {
-                        _spareKey1.copyTo(_key);
-                    }
-                    _key.cut();
-                    if (reverse) {
-                        _key.appendAfter();
-                    } else {
-                        _key.appendBefore();
+                        int parentIndex = _spareKey1.previousElementIndex(index);
+                        if (parentIndex < 0) {
+                            parentIndex = 0;
+                        }
+
+                        matches = (_spareKey1.compareKeyFragment(_key, 0, parentIndex) == 0);
+
+                        if (matches) {
+                            index = _key.nextElementIndex(parentIndex);
+                            if (index > 0) {
+                                boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                                //
+                                // In any case (matching sibling, child or niece/nephew) we need to ignore this
+                                // particular key and continue search if not visible to current transaction
+                                //
+                                if(!isVisibleMatch) {
+                                    nudged = false;
+                                    _key.copyTo(_spareKey1);
+                                    continue;
+                                }
+                                //
+                                // It was a niece or nephew, record non-exact match
+                                //
+                                if(index != _key.getEncodedSize()) {
+                                    foundAt &= ~EXACT_MASK;
+                                }
+                            } else {
+                                matches = false;
+                            }
+                        }
                     }
                 }
-            } else {
-                // Restore original key
-                _spareKey1.copyTo(_key);
-            }
-            result = matches;
 
+                if (doModify) {
+                    if (matches) {
+                        if(_key.getEncodedSize() == index){
+                            lc.update(buffer, _key, foundAt);
+                        }
+                        else {
+                            //
+                            // Parent key determined from seeing a child or niece/nephew, need to fetch the actual
+                            // value of this key before returning
+                            //
+                            _key.setEncodedSize(index);
+                            fetch(minimumBytes);
+                        }
+                    } else {
+                        if (deep) {
+                            _key.setEncodedSize(0);
+                        } else {
+                            _spareKey1.copyTo(_key);
+                        }
+                        _key.cut();
+                        if (reverse) {
+                            _key.appendAfter();
+                        } else {
+                            _key.appendBefore();
+                        }
+                    }
+                } else {
+                    // Restore original key
+                    _spareKey1.copyTo(_key);
+                }
+
+                // Done
+                _volume.getStatistics().bumpTraverseCounter();
+                _tree.getStatistics().bumpTraverseCounter();
+                return matches;
+            }
         } finally {
             if (buffer != null) {
                 buffer.releaseTouched();
                 buffer = null;
             }
         }
-        _volume.getStatistics().bumpTraverseCounter();
-        _tree.getStatistics().bumpTraverseCounter();
-        return result;
     }
 
     /**
@@ -2500,6 +2497,30 @@ public class Exchange {
         return fetch(value, Integer.MAX_VALUE);
     }
 
+    private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
+        buffer.fetch(foundAt, value);
+        fetchFixupForLongRecords(value, minimumBytes);
+
+        if(_transaction.getStartTimestamp() == 0 || !_transaction.isActive()) {
+            return true;
+        }
+
+        int valueSize = value.getEncodedSize();
+        byte[] valueBytes = value.getEncodedBytes();
+        _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
+        MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
+        
+        if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
+            int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
+            value.setEncodedSize(finalSize);
+            return true;
+        }
+        else {
+            value.clear();
+            return false;
+        }
+    }
+
     /**
      * <p>
      * Fetches or partially fetches the value associated with the current
@@ -2542,21 +2563,7 @@ public class Exchange {
             int foundAt = search(_key, false);
             LevelCache lc = _levelCache[0];
             buffer = lc._buffer;
-            buffer.fetch(foundAt, value);
-            fetchFixupForLongRecords(value, minimumBytes);
-
-            byte[] valueBytes = value.getEncodedBytes();
-            int valueSize = value.getEncodedSize();
-
-            _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
-            MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
-            if (_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
-                int newSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
-                value.setEncodedSize(newSize);
-            } else {
-                value.setEncodedSize(0);
-            }
-
+            mvccFetch(buffer, value, foundAt, minimumBytes);
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
             return this;
@@ -3240,9 +3247,10 @@ public class Exchange {
 
         _volume.getStatistics().bumpRemoveCounter();
         _tree.getStatistics().bumpRemoveCounter();
-        if (fetchFirst)
+        if (fetchFirst) {
             _volume.getStatistics().bumpFetchCounter();
-        _tree.getStatistics().bumpFetchCounter();
+            _tree.getStatistics().bumpFetchCounter();
+        }
         return result;
     }
 
