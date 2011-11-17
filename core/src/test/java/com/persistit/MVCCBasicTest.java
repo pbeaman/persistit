@@ -169,7 +169,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
-    public void testSingleTrxMultipleLongRecordVerions() throws Exception {
+    public void testSingleTrxMultipleLongRecordVersions() throws Exception {
         final int PAGE_SIZE = ex1.getVolume().getPageSize();
         final int VERSIONS_TO_STORE = 5;
 

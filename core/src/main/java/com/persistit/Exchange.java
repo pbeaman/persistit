@@ -1168,16 +1168,7 @@ public class Exchange {
         boolean treeWriterClaimRequired = false;
         boolean committed = false;
 
-        Value valueToStore = value;
-        
         final int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
-        if (mvccOpt == MvccOpt.DO_MVCC) {
-            int valueSize = valueToStore.getEncodedSize() + MVV.overheadLength(1);
-            if (valueSize > maxSimpleValueSize) {
-                throw new UnsupportedOperationException("Unsupported LONG_RECORD value inside MVV"+
-                                                        + valueSize + " > " + maxSimpleValueSize);
-            }
-        }
 
         //
         // First insert the record in the data page
@@ -1196,21 +1187,22 @@ public class Exchange {
         //
         long newLongRecordPointer = 0;
 
-        boolean overlength = valueToStore.getEncodedSize() > maxSimpleValueSize;
+        boolean isLongRecord = value.getEncodedSize() > maxSimpleValueSize;
 
         if (!_ignoreTransactions) {
-            _transaction.store(this, key, valueToStore);
+            _transaction.store(this, key, value);
         }
 
         try {
-            if (overlength) {
+            if (isLongRecord) {
                 //
                 // This method may delay significantly for I/O and must
                 // be called when there are no other claimed resources.
                 //
-                newLongRecordPointer = storeOverlengthRecord(valueToStore, 0);
+                newLongRecordPointer = storeOverlengthRecord(value, 0);
             }
 
+            Value valueToStore = value;
             for (;;) {
                 Debug.$assert0.t(buffer == null);
                 if (Debug.ENABLED) {
@@ -1308,7 +1300,7 @@ public class Exchange {
                     }
 
                    // TODO - How would this condition ever be true?
-                    if (valueToStore.getEncodedSize() > maxSimpleValueSize && !overlength) {
+                    if (valueToStore.getEncodedSize() > maxSimpleValueSize && !isLongRecord) {
                         newLongRecordPointer = storeLongRecord(valueToStore, oldLongRecordPointer, 0);
                     } else {
                         _longRecordPageAddress = 0;
@@ -1417,7 +1409,8 @@ public class Exchange {
                 treeClaimAcquired = false;
             }
 
-            valueToStore.changeLongRecordMode(false);
+            value.changeLongRecordMode(false);
+            _spareValue.changeLongRecordMode(false);
             if (!committed) {
                 //
                 // We failed to write the new LONG_RECORD. If there was
@@ -1775,6 +1768,7 @@ public class Exchange {
                                 }
                             }
                         }
+                        nudged = true;
                     }
                     foundAt = search(_key, false);
                     buffer = lc._buffer;
@@ -2316,7 +2310,7 @@ public class Exchange {
 
     private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
         buffer.fetch(foundAt, value);
-        fetchFixupForLongRecords(value, minimumBytes);
+        fetchFixupForLongRecords(value, Integer.MAX_VALUE);
 
         if(_transaction.getStartTimestamp() == 0 || !_transaction.isActive()) {
             return true;
@@ -2328,8 +2322,11 @@ public class Exchange {
         MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
         
         if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
-            int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
-            value.setEncodedSize(finalSize);
+            if(minimumBytes > 0) {
+                int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
+                value.setEncodedSize(finalSize);
+                fetchFixupForLongRecords(value, minimumBytes);
+            }
             return true;
         }
         else {
