@@ -173,6 +173,8 @@ public class Exchange {
 
     private boolean _ignoreTransactions;
 
+    private boolean _ignoreMVCCFetch;
+
     private Object _appCache;
 
     private ReentrantResourceHolder _treeHolder;
@@ -2305,6 +2307,10 @@ public class Exchange {
         buffer.fetch(foundAt, value);
         fetchFixupForLongRecords(value, Integer.MAX_VALUE);
 
+        if(_ignoreMVCCFetch) {
+            return true;
+        }
+        
         long startTimestamp = _transaction.getStartTimestamp();
         if(startTimestamp == 0 || !_transaction.isActive()) {
             // Using the highest possible value will return the most recent
@@ -3308,6 +3314,17 @@ public class Exchange {
         return _transaction;
     }
 
+    /**
+     * Allows for all MVV contents to be returned through the Value object
+     * during fetch. This can then be displayed conveniently through
+     * {@link Value#toString()} or as an array from {@link Value#get()}.
+     * @param doIgnore If <code>true</code> return MVVs as described
+     *            otherwise return the appropriate single version.
+     */
+    void ignoreMVCCFetch(boolean doIgnore) {
+        _ignoreMVCCFetch = doIgnore;
+    }
+    
     void ignoreTransactions() {
         _ignoreTransactions = true;
     }
