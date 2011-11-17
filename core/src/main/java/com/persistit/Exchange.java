@@ -524,6 +524,46 @@ public class Exchange {
         }
     }
 
+    static enum FetchOpt {
+        /**
+         * Perform not explicit fetch.
+         */
+        NO_FETCH,
+
+        /**
+         * Do fetch the current value.
+         */
+        DO_FETCH
+    }
+
+    static enum WaitOpt {
+        /**
+         * Use instantaneous timeout for any acquire operation.
+         */
+        NO_WAIT,
+
+        /**
+         * Use default timeout.
+         */
+        DO_WAIT
+    }
+
+    /**
+     * Simple flag enum for using or ignore existence of multi-version values.
+     */
+    static enum MvccOpt {
+        /**
+         * Ignore MVCC (store as primordial or fetch highest committed).
+         */
+        NO_MVCC,
+        
+        /**
+         * Use MVCC (store as version or fetch restricted version).
+         */
+        DO_MVCC
+    }
+
+
     // -----------------------------------------------------------------
     /**
      * Delegate to {@link Key#reset} on the associated <code>Key</code> object.
@@ -1134,7 +1174,12 @@ public class Exchange {
     /**
      * Inserts or replaces a data value in the database.
      * 
-     * @return
+     * @param key
+     *            The key to store.
+     * @param value
+     *            The value to store.
+     * @return This <code>Exchange</code> to permit method call chaining.
+     * @throws PersistitException Upon error
      */
     Exchange store(Key key, Value value) throws PersistitException {
         if (_volume.isReadOnly()) {
@@ -1154,10 +1199,29 @@ public class Exchange {
         return this;
     }
 
-    static enum FetchOpt { NO_FETCH, DO_FETCH }
-    static enum WaitOpt { NO_WAIT, DO_WAIT }
-    static enum MvccOpt { NO_MVCC, DO_MVCC }
-
+    /**
+     * Inserts or replaces a data value in the database starting at a specified
+     * level and working up toward the root of the tree.
+     *
+     * <p><b>Note: Fetch and MVCC are exclusive options.</b></p>
+     *
+     * @param key
+     *            The key to store.
+     * @param value
+     *            The value to store.
+     * @param level
+     *            The level of the backing tree to start the insert at.
+     * @param fetchOpt
+     *            Controls result of {@link #_spareValue} upon return. See
+     *            {@link FetchOpt} for details.
+     * @param mvccOpt
+     *            Controls whether or not <code>value</code> is stored as a
+     *            new version. See {@link MvccOpt} for details.
+     * @param waitOpt
+     *            Controls whether or not this method blocks when attempting
+     *            to acquire a claim on the tree. See {@link WaitOpt} for details.
+     * @throws PersistitException uponError
+     */
     void storeInternal(Key key, Value value, int level, FetchOpt fetchOpt, MvccOpt mvccOpt, WaitOpt waitOpt) throws PersistitException {
         if(fetchOpt == FetchOpt.DO_FETCH && mvccOpt == MvccOpt.DO_MVCC) {
             throw new IllegalArgumentException("Both fetch and MVCC not supported");
