@@ -173,8 +173,6 @@ public class Exchange {
 
     private boolean _ignoreTransactions;
 
-    private long _longRecordPageAddress;
-
     private Object _appCache;
 
     private ReentrantResourceHolder _treeHolder;
@@ -1175,7 +1173,6 @@ public class Exchange {
         //
         Buffer buffer = null;
 
-        // long originalRootPageAddr = _tree.getRootPageAddr();
         //
         // The LONG_RECORD pointer that was present before the update, if
         // there is a long record being replaced.
@@ -1299,12 +1296,8 @@ public class Exchange {
                         }
                     }
 
-                   // TODO - How would this condition ever be true?
-                    if (valueToStore.getEncodedSize() > maxSimpleValueSize && !isLongRecord) {
-                        newLongRecordPointer = storeLongRecord(valueToStore, oldLongRecordPointer, 0);
-                    } else {
-                        _longRecordPageAddress = 0;
-                    }
+                    Debug.$assert0.t(valueToStore.getEncodedSize() < maxSimpleValueSize);
+
                     // Here we have a buffer with a writer claim and
                     // a correct foundAt value
                     //
@@ -3212,142 +3205,6 @@ public class Exchange {
     }
 
     /**
-     * <p>
-     * Stores the raw bytes of a long record in Value into a LONG_RECORD chain,
-     * then replaces the content of the raw bytes of the Value with a
-     * LONG_RECORD descriptor.
-     * </p>
-     * <p>
-     * If a non-zero page address is supplied, this is the address of the long
-     * record chain that was previously associated with this record. In this
-     * case, storeLongRecord will attempt to reuse those pages rather than
-     * allocating new pages to hold the long record.
-     * </p>
-     * <p>
-     * Called with a writer claim on the data page that will contain the
-     * LONG_RECORD value, and that page is reserved. This method will claim and
-     * reserve an indefinite number of additional pages. Upon completion, All of
-     * those claims will be released, and if no change was made they will be
-     * unreserved. Throws a RetryException if it was not possible to reserve all
-     * the necessary pages.
-     * </p>
-     * 
-     * @param value
-     *            The Value object containing the long record. The Value must be
-     *            in "long record mode".
-     * 
-     * @param page
-     *            Address of first page of LONG_RECORD chain being overwritten,
-     *            or 0 if there is none.
-     * 
-     * @returns the page address of the first page of the LONG_RECORD chain
-     * @throws PersistitException
-     */
-    long storeLongRecord(Value value, long oldChain, long newChain) throws PersistitException {
-        // Calculate how many LONG_RECORD pages we will need.
-        //
-        boolean completed = false;
-        value.changeLongRecordMode(true);
-
-        long page = oldChain;
-        int longSize = value.getLongSize();
-        int remainingSize = longSize;
-        byte[] longBytes = value.getLongBytes();
-        byte[] rawBytes = value.getEncodedBytes();
-        int loosePageIndex = -1;
-        int index = 0;
-        long looseChain = 0;
-        Buffer[] bufferArray = null;
-
-        Debug.$assert0.t(value.isLongRecordMode());
-        Debug.$assert0.t(rawBytes.length == LONGREC_SIZE);
-
-        System.arraycopy(longBytes, 0, rawBytes, LONGREC_PREFIX_OFFSET, LONGREC_PREFIX_SIZE);
-
-        remainingSize -= LONGREC_PREFIX_SIZE;
-        int maxSegmentSize = _pool.getBufferSize() - HEADER_SIZE;
-        int count = (remainingSize + (maxSegmentSize - 1)) / maxSegmentSize;
-
-        try {
-            bufferArray = new Buffer[count];
-            for (; index < count && page != 0; index++) {
-                Buffer buffer = _pool.get(_volume, page, true, true);
-                Debug.$assert0.t(buffer.isLongRecordPage());
-                bufferArray[index] = buffer;
-                page = buffer.getRightSibling();
-
-                // verify that there's no cycle
-                for (int i = 0; i < index; i++) {
-                    if (bufferArray[i].getPageAddress() == page) {
-                        corrupt("LONG_RECORD chain cycle at " + bufferArray[0]);
-                    }
-                }
-            }
-
-            if (index == count) {
-                looseChain = page;
-                loosePageIndex = index;
-            }
-
-            for (; index < count; index++) {
-                Buffer buffer = _volume.getStructure().allocPage();
-                bufferArray[index] = buffer;
-            }
-            final long timestamp = timestamp();
-            //
-            // Now we're committed - the just-allocated pages are no longer
-            // subject to being deallocated by a retry.
-            //
-            page = newChain;
-            for (index = count; --index >= 0;) {
-                int offset = LONGREC_PREFIX_SIZE + (index * maxSegmentSize);
-                int segmentSize = longSize - offset;
-                if (segmentSize > maxSegmentSize)
-                    segmentSize = maxSegmentSize;
-                Buffer buffer = bufferArray[index];
-                buffer.writePageOnCheckpoint(timestamp);
-
-                buffer.init(PAGE_TYPE_LONG_RECORD);
-                buffer.setRightSibling(page);
-
-                System.arraycopy(longBytes, offset, buffer.getBytes(), HEADER_SIZE, segmentSize);
-
-                int end = HEADER_SIZE + segmentSize;
-                if (end < buffer.getBufferSize()) {
-                    buffer.clearBytes(end, buffer.getBufferSize());
-                }
-                buffer.setDirtyAtTimestamp(timestamp);
-                bufferArray[index] = null;
-                page = buffer.getPageAddress(); // current head of the chain
-                buffer.releaseTouched();
-            }
-            completed = true;
-            Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
-            _longRecordPageAddress = page;
-            return page;
-        } finally {
-            if (!completed) {
-                if (bufferArray != null) {
-                    for (index = count; --index >= 0;) {
-                        Buffer buffer = bufferArray[index];
-                        if (buffer != null) {
-                            buffer.releaseTouched();
-                            if (loosePageIndex >= 0 && index >= loosePageIndex) {
-                                _volume.getStructure().deallocateGarbageChain(buffer.getPageAddress(), -1);
-                            }
-                        }
-                    }
-                }
-                value.changeLongRecordMode(false);
-            } else {
-                if (looseChain != 0) {
-                    _volume.getStructure().deallocateGarbageChain(looseChain, 0);
-                }
-            }
-        }
-    }
-
-    /**
      * Creates a new LONG_RECORD chain and stores the supplied byte array in the
      * pages of this chain. This method catches and retries on RetryExceptions,
      * therefore it should only be called with no resource claims.
@@ -3417,7 +3274,6 @@ public class Exchange {
                 looseChain = 0;
                 Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
                 completed = true;
-                _longRecordPageAddress = page;
                 return page;
             }
         } finally {
@@ -3428,36 +3284,6 @@ public class Exchange {
             }
             if (!completed)
                 value.changeLongRecordMode(false);
-        }
-    }
-
-    void writeLongRecordPagesToJournal() throws PersistitException {
-        Buffer buffer = null;
-        long page = _longRecordPageAddress;
-        if (page == 0) {
-            return;
-        }
-        try {
-            for (int count = 0; page != 0; count++) {
-                buffer = _volume.getPool().get(_volume, page, false, true);
-                if (buffer.getPageType() != PAGE_TYPE_LONG_RECORD) {
-                    corrupt("LONG_RECORD chain starting at " + _longRecordPageAddress + " is invalid at page " + page
-                            + " - invalid page type: " + buffer);
-                }
-                if (buffer.isDirty()) {
-                    buffer.writePage();
-                }
-                page = buffer.getRightSibling();
-                buffer.releaseTouched();
-                buffer = null;
-                if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
-                    corrupt("LONG_RECORD chain starting at " + _longRecordPageAddress + " is too long");
-                }
-            }
-        } finally {
-            if (buffer != null) {
-                buffer.releaseTouched();
-            }
         }
     }
 
