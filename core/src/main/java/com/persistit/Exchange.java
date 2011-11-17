@@ -1168,7 +1168,16 @@ public class Exchange {
         boolean treeWriterClaimRequired = false;
         boolean committed = false;
 
-        int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
+        Value valueToStore = value;
+        
+        final int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
+        if (mvccOpt == MvccOpt.DO_MVCC) {
+            int valueSize = valueToStore.getEncodedSize() + MVV.overheadLength(1);
+            if (valueSize > maxSimpleValueSize) {
+                throw new UnsupportedOperationException("Unsupported LONG_RECORD value inside MVV"+
+                                                        + valueSize + " > " + maxSimpleValueSize);
+            }
+        }
 
         //
         // First insert the record in the data page
@@ -1187,10 +1196,10 @@ public class Exchange {
         //
         long newLongRecordPointer = 0;
 
-        boolean overlength = value.getEncodedSize() > maxSimpleValueSize;
+        boolean overlength = valueToStore.getEncodedSize() > maxSimpleValueSize;
 
         if (!_ignoreTransactions) {
-            _transaction.store(this, key, value);
+            _transaction.store(this, key, valueToStore);
         }
 
         try {
@@ -1199,7 +1208,7 @@ public class Exchange {
                 // This method may delay significantly for I/O and must
                 // be called when there are no other claimed resources.
                 //
-                newLongRecordPointer = storeOverlengthRecord(value, 0);
+                newLongRecordPointer = storeOverlengthRecord(valueToStore, 0);
             }
 
             for (;;) {
@@ -1232,8 +1241,8 @@ public class Exchange {
                             throw new RetryException();
                         }
 
-                        Debug.$assert0.t(value.getPointerValue() > 0);
-                        insertIndexLevel(key, value);
+                        Debug.$assert0.t(valueToStore.getPointerValue() > 0);
+                        insertIndexLevel(key, valueToStore);
                         break;
                     }
 
@@ -1272,11 +1281,8 @@ public class Exchange {
                             fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
                         }
                         if (mvccOpt == MvccOpt.DO_MVCC) {
+                            valueToStore = _spareValue;
                             int valueSize = value.getEncodedSize();
-                            if (valueSize > maxSimpleValueSize) {
-                                throw new UnsupportedOperationException("Unsupported LONG_RECORD value inside MVV: "
-                                        + valueSize + " > " + maxSimpleValueSize);
-                            }
 
                             // If no EXACT_MASK, key is not currently present in the
                             // buffer
@@ -1294,22 +1300,23 @@ public class Exchange {
 
                             // TODO: Need the current step value
                             long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
-                            int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), currentSize, versionHandle,
-                                    value.getEncodedBytes(), valueSize);
+                            int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), currentSize,
+                                                                versionHandle,
+                                                                value.getEncodedBytes(), valueSize);
                             _spareValue.setEncodedSize(storedLength);
                         }
                     }
 
                    // TODO - How would this condition ever be true?
-                    if (value.getEncodedSize() > maxSimpleValueSize && !overlength) {
-                        newLongRecordPointer = storeLongRecord(value, oldLongRecordPointer, 0);
+                    if (valueToStore.getEncodedSize() > maxSimpleValueSize && !overlength) {
+                        newLongRecordPointer = storeLongRecord(valueToStore, oldLongRecordPointer, 0);
                     } else {
                         _longRecordPageAddress = 0;
                     }
                     // Here we have a buffer with a writer claim and
                     // a correct foundAt value
                     //
-                    boolean splitRequired = putLevel(lc, key, value, buffer, foundAt, treeClaimAcquired);
+                    boolean splitRequired = putLevel(lc, key, valueToStore, buffer, foundAt, treeClaimAcquired);
 
                     Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                             && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
@@ -1353,7 +1360,7 @@ public class Exchange {
                     } else {
                         // Otherwise we need to index the new right
                         // sibling at the next higher index level.
-                        Debug.$assert0.t(value.getPointerValue() > 0);
+                        Debug.$assert0.t(valueToStore.getPointerValue() > 0);
                         //
                         // This maneuver sets key to the key value of
                         // the first record in the newly inserted page.
@@ -1410,7 +1417,7 @@ public class Exchange {
                 treeClaimAcquired = false;
             }
 
-            value.changeLongRecordMode(false);
+            valueToStore.changeLongRecordMode(false);
             if (!committed) {
                 //
                 // We failed to write the new LONG_RECORD. If there was
