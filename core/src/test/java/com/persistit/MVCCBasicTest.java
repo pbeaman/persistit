@@ -17,7 +17,6 @@ package com.persistit;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
-import com.persistit.util.Util;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -170,36 +169,37 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
-    public void testMultipleLongRecordVersionsInserts() throws Exception {
+    public void testSingleTrxMultipleLongRecordVerions() throws Exception {
         final int PAGE_SIZE = ex1.getVolume().getPageSize();
         final int VERSIONS_TO_STORE = 5;
 
         StringBuilder sb = new StringBuilder(PAGE_SIZE);
         for(int i = 0; i < PAGE_SIZE; ++i) {
-            sb.append(Character.forDigit(i % 26, 26));
+            sb.append(Character.forDigit(i % 36, 36));
         }
         final String longStr = sb.toString();
-
-        ex1.clear().append(longStr);
 
         for(int curVer = 0; curVer < VERSIONS_TO_STORE; ++curVer) {
             trx1.begin();
             try {
-                ex1.getValue().put(curVer);
-                ex1.store();
-
+                store(ex1, curVer, longStr);
                 ex1.getValue().clear();
                 ex1.fetch();
-                assertEquals("key after fetch pre-commit", longStr, ex1.getKey().decodeString());
-                assertEquals("value after fetch pre-commit", curVer, ex1.getValue().get());
-
+                assertEquals("key after fetch pre-commit", curVer, ex1.getKey().decodeInt());
+                assertEquals("value after fetch pre-commit", longStr, ex1.getValue().getString());
                 trx1.commit();
+            }
+            finally {
+                trx1.end();
+            }
+        }
 
-                trx1.begin();
-                ex1.getValue().clear();
-                ex1.fetch();
-                assertEquals("key after fetch post-commit", longStr, ex1.getKey().decodeString());
-                assertEquals("value after fetch post-commit", curVer, ex1.getValue().get());
+        for(int curVer = 0; curVer < VERSIONS_TO_STORE; ++curVer) {
+            trx1.begin();
+            try {
+                fetch(ex1, curVer, false);
+                assertEquals("fetched key post-commit",  curVer, ex1.getKey().decodeInt());
+                assertEquals("fetched value post-commit", longStr, ex1.getValue().getString());
                 trx1.commit();
             }
             finally {
