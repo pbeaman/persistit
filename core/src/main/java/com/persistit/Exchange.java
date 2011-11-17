@@ -1957,6 +1957,7 @@ public class Exchange {
                                 }
                             }
                         }
+                        nudged = true;
                     }
                     foundAt = search(_key, false);
                     buffer = lc._buffer;
