@@ -462,7 +462,15 @@ public class Transaction {
                 _rollbacksSinceLastCommit++;
 
                 // TODO - rollback
-
+                // Note: A TRX can fail post _transactionStatus.commit() being called
+                // and that doesn't appear to be handled at the moment. These two steps
+                // are not fully correct and only ensure no stale status is in TI
+                if(_transactionStatus.getTc() == TransactionStatus.UNCOMMITTED) {
+                    _transactionStatus.abort();
+                }
+                if(!_transactionStatus.isNotified()) {
+                    _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
+                }
             } else {
                 _commitCount++;
                 _rollbacksSinceLastCommit = 0;
@@ -507,6 +515,8 @@ public class Transaction {
         }
 
         // TODO - rollback
+        _transactionStatus.abort();
+        _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
 
         throw _rollbackException;
     }

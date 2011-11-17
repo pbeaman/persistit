@@ -1820,7 +1820,7 @@ public class Exchange {
                     }
                 }
 
-                // Original search loop end, MVCC much also inspect value before finishing
+                // Original search loop end, MVCC must also inspect value before finishing
 
                 if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
                     // None
@@ -2312,13 +2312,16 @@ public class Exchange {
         buffer.fetch(foundAt, value);
         fetchFixupForLongRecords(value, Integer.MAX_VALUE);
 
-        if(_transaction.getStartTimestamp() == 0 || !_transaction.isActive()) {
-            return true;
+        long startTimestamp = _transaction.getStartTimestamp();
+        if(startTimestamp == 0 || !_transaction.isActive()) {
+            // Using the highest possible value will return the most recent
+            // committed version and it won't conflict with any actual transaction
+            startTimestamp = Long.MAX_VALUE - 1;
         }
 
         int valueSize = value.getEncodedSize();
         byte[] valueBytes = value.getEncodedBytes();
-        _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
+        _fetchVisitor.internalInit(_persistit.getTransactionIndex(), startTimestamp, 0);
         MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
         
         if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
@@ -2330,7 +2333,9 @@ public class Exchange {
             return true;
         }
         else {
-            value.clear();
+            if(minimumBytes > 0) {
+                value.clear();
+            }
             return false;
         }
     }
