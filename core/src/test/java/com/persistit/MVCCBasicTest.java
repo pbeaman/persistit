@@ -39,15 +39,13 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     public final void setUp() throws Exception {
         super.setUp();
 
-        session1 = new SessionId();
-        _persistit.setSessionId(session1);
-        ex1 = _persistit.getExchange(VOL_NAME, TREE_NAME, true);
+        ex1 = createUniqueExchange();
         trx1 = ex1.getTransaction();
+        session1 = _persistit.getSessionId();
 
-        session2 = new SessionId();
-        _persistit.setSessionId(session2);
-        ex2 = _persistit.getExchange(VOL_NAME, TREE_NAME, true);
+        ex2 = createUniqueExchange();
         trx2 = ex2.getTransaction();
+        session2 = _persistit.getSessionId();
     }
 
     public final void tearDown() throws Exception {
@@ -170,14 +168,8 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     }
 
     public void testSingleTrxMultipleLongRecordVersions() throws Exception {
-        final int PAGE_SIZE = ex1.getVolume().getPageSize();
         final int VERSIONS_TO_STORE = 5;
-
-        StringBuilder sb = new StringBuilder(PAGE_SIZE);
-        for(int i = 0; i < PAGE_SIZE; ++i) {
-            sb.append(Character.forDigit(i % 36, 36));
-        }
-        final String longStr = sb.toString();
+        final String longStr = createLongValue(ex1.getVolume().getPageSize());
 
         for(int curVer = 0; curVer < VERSIONS_TO_STORE; ++curVer) {
             trx1.begin();
@@ -206,6 +198,34 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
                 trx1.end();
             }
         }
+    }
+;
+    public void testLongMVVFromManySmall() throws Exception {
+        final int PER_LENGTH = 20;
+        final String longStr = createLongValue(ex1.getVolume().getPageSize());
+        final String smallStr = longStr.substring(0, PER_LENGTH);
+        final int versionCount = (longStr.length() / PER_LENGTH) * 2;
+
+        final String key = "small";
+
+        for(int i = 1; i <= versionCount; ++i) {
+            trx1.begin();
+            try {
+                final String value = smallStr + i;
+                store(ex1, key, value);
+                assertEquals("value pre-commit", value, fetch(ex1, key));
+                trx1.commit();
+                trx1.end();
+                
+                trx1.begin();
+                assertEquals("value post-commit", value, fetch(ex1, key));
+                trx1.commit();
+            }
+            finally {
+                trx1.end();
+            }
+        }
+
     }
 
     public void testIsValuedDefinedTwoTrx() throws Exception {
@@ -503,6 +523,19 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         return values;
     }
 
+    private static String createLongValue(int pageSize) {
+        StringBuilder sb = new StringBuilder(pageSize);
+        // Simple 0..9a..z string
+        for(int i = 0; i < 36; ++i) {
+            sb.append(Character.forDigit(i, 36));
+        }
+        final String numAndLetters = sb.toString();
+        while(sb.length() < pageSize) {
+            sb.append(numAndLetters);
+        }
+        return sb.toString();
+    }
+
     private static void addTraverseResult(Collection<KVPair> collection, Key key, Value value) {
         Object k1, k2 = null;
         switch(key.getDepth()) {
@@ -585,11 +618,18 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     }
 
     private static Object fetch(Exchange ex, Object k, boolean getValue) throws PersistitException {
+        ex.getValue().clear();
         ex.clear().append(k).fetch();
         return getValue ? ex.getValue().get() : null;
     }
 
     private void showGUI() throws Exception {
         _persistit.setupGUI(true);
+    }
+
+    private Exchange createUniqueExchange() throws PersistitException {
+        SessionId session = new SessionId();
+        _persistit.setSessionId(session);
+        return _persistit.getExchange(VOL_NAME, TREE_NAME, true);
     }
 }
