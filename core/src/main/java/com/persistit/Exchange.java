@@ -1175,10 +1175,10 @@ public class Exchange {
      *            The key to store.
      * @param value
      *            The value to store.
-     * @return This <code>Exchange</code> to permit method call chaining.
+     * @return <code>true</code> if the key already existed in the tree
      * @throws PersistitException Upon error
      */
-    Exchange store(Key key, Value value) throws PersistitException {
+    boolean store(Key key, Value value) throws PersistitException {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
@@ -1189,11 +1189,11 @@ public class Exchange {
         // TODO: directoryExchange, and lots of tests, don't use transactions.
         // Skip MVCC for now.
         MvccOpt mvccOpt = (!_ignoreTransactions && _transaction.isActive()) ? MvccOpt.DO_MVCC : MvccOpt.NO_MVCC;
-        storeInternal(key, value, 0, FetchOpt.NO_FETCH, mvccOpt, WaitOpt.DO_WAIT);
+        boolean existed = storeInternal(key, value, 0, FetchOpt.NO_FETCH, mvccOpt, WaitOpt.DO_WAIT);
 
         _treeHolder.verifyReleased();
 
-        return this;
+        return existed;
     }
 
     /**
@@ -1217,9 +1217,11 @@ public class Exchange {
      * @param waitOpt
      *            Controls whether or not this method blocks when attempting
      *            to acquire a claim on the tree. See {@link WaitOpt} for details.
+     * @return <code>true</code> if <b>any version</b> of the key already existed
      * @throws PersistitException uponError
      */
-    void storeInternal(Key key, Value value, int level, FetchOpt fetchOpt, MvccOpt mvccOpt, WaitOpt waitOpt) throws PersistitException {
+    boolean storeInternal(Key key, Value value, int level, FetchOpt fetchOpt, MvccOpt mvccOpt, WaitOpt waitOpt)
+            throws PersistitException {
         if(fetchOpt == FetchOpt.DO_FETCH && mvccOpt == MvccOpt.DO_MVCC) {
             throw new IllegalArgumentException("Both fetch and MVCC not supported");
         }
@@ -1253,6 +1255,8 @@ public class Exchange {
         if (!_ignoreTransactions) {
             _transaction.store(this, key, value);
         }
+
+        boolean keyExisted = false;
 
         try {
             if (isLongRecord) {
@@ -1324,11 +1328,12 @@ public class Exchange {
 
                     Debug.$assert0.t(buffer != null && (buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                             && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
-                    if ((foundAt & EXACT_MASK) != 0) {
-                        oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
-                    }
 
                     if (buffer.isDataPage()) {
+                        keyExisted = (foundAt & EXACT_MASK) != 0;
+                        if (keyExisted) {
+                            oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
+                        }
                         if (fetchOpt == FetchOpt.DO_FETCH || mvccOpt == MvccOpt.DO_MVCC) {
                             buffer.fetch(foundAt, _spareValue);
                             fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
@@ -1337,11 +1342,9 @@ public class Exchange {
                             valueToStore = _spareValue;
                             int valueSize = value.getEncodedSize();
 
-                            // If no EXACT_MASK, key is not currently present in the
-                            // buffer
-                            // so current value is truly non-existent not just
-                            // undefined
-                            int currentSize = (foundAt & EXACT_MASK) == 0 ? -1 : _spareValue.getEncodedSize();
+                            // If key didn't exist the value is truly non-existent
+                            // and not just undefined/zero length
+                            int currentSize = keyExisted ? _spareValue.getEncodedSize() : -1;
 
                             int mvvSize = MVV.estimateRequiredLength(_spareValue.getEncodedBytes(), currentSize, valueSize);
                             _spareValue.ensureFit(mvvSize);
@@ -1399,7 +1402,7 @@ public class Exchange {
                     // committed.
                     //
                     if (buffer.isDataPage()) {
-                        if ((foundAt & EXACT_MASK) == 0) {
+                        if (!keyExisted) {
                             _tree.bumpChangeCount();
                         }
                         committed = true;
@@ -1502,6 +1505,7 @@ public class Exchange {
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
         }
+        return keyExisted;
     }
 
     private long timestamp() {
@@ -2280,7 +2284,8 @@ public class Exchange {
      * @throws PersistitException
      */
     public Exchange store() throws PersistitException {
-        return store(_key, _value);
+        store(_key, _value);
+        return this;
     }
 
     /**
@@ -2422,10 +2427,12 @@ public class Exchange {
         MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
         
         if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
-            if(minimumBytes > 0) {
-                int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
-                value.setEncodedSize(finalSize);
-                fetchFixupForLongRecords(value, minimumBytes);
+            int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
+            value.setEncodedSize(finalSize);
+            fetchFixupForLongRecords(value, minimumBytes);
+            if(value.isDefined() && value.isAntiValue()) {
+                value.clear();
+                return false;
             }
             return true;
         }
@@ -2626,6 +2633,20 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean remove() throws PersistitException {
+        short ec = 0;
+        byte[] emptyArray = {};
+        _value.clear().putAntiValue(ec, emptyArray);
+        return store(_key, _value);
+    }
+
+    /**
+     * Remove a single key/value pair from the this <code>Exchange</code>'s
+     * <code>Tree</code>.
+     * 
+     * @return <code>true</code> if there was a key/value pair to remove
+     * @throws PersistitException
+     */
+    private boolean old_remove() throws PersistitException {
         return remove(EQ, false);
     }
 

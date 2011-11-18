@@ -521,6 +521,41 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
+    public void testSingleTrxStoreRemoveFetch() throws Exception {
+        trx1.begin();
+        try {
+            store(ex1, KEY1, VALUE1);
+            assertEquals("fetched value pre-remove pre-commit", VALUE1, fetch(ex1, KEY1));
+
+            assertTrue("key existed pre-remove", remove(ex1, KEY1));
+
+            fetch(ex1, KEY1, false);
+            assertFalse("fetched value defined post-remove pre-commit", ex1.getValue().isDefined());
+
+            ex1.clear().append(KEY1);
+            assertFalse("key defined post-remove pre-commit", ex1.isValueDefined());
+
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        trx1.begin();
+        try {
+            fetch(ex1, KEY1, false);
+            assertFalse("fetched value defined post-remove pre-commit", ex1.getValue().isDefined());
+
+            ex1.clear().append(KEY1);
+            assertFalse("key defined post-remove pre-commit", ex1.isValueDefined());
+
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
+
 
     //
     // Internal test methods
@@ -639,6 +674,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             ex.store();
         }
     }
+
     private static void store(Exchange ex, Object k, Object v) throws PersistitException {
         ex.clear().append(k).getValue().put(v);
         ex.store();
@@ -657,6 +693,11 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         ex.getValue().clear();
         ex.clear().append(k).fetch();
         return getValue ? ex.getValue().get() : null;
+    }
+
+    private static boolean remove(Exchange ex, Object k) throws PersistitException {
+        ex.clear().append(k);
+        return ex.remove();
     }
 
     private void showGUI() throws Exception {
