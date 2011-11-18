@@ -548,9 +548,6 @@ public class Exchange {
         DO_WAIT
     }
 
-    /**
-     * Simple flag enum for using or ignore existence of multi-version values.
-     */
     static enum MvccOpt {
         /**
          * Ignore MVCC (store as primordial or fetch highest committed).
@@ -2382,18 +2379,40 @@ public class Exchange {
         return fetch(value, Integer.MAX_VALUE);
     }
 
+    /**
+     * Fetch a single version of a value from a <code>Buffer</code> that is
+     * assumed, but not required, to be an MVV. The correct version is determined
+     * by the current transactions start timestamp. If no transaction is active,
+     * the highest committed version is returned.
+     *
+     * @param buffer
+     *            The <code>Buffer</code> where the value is stored in.
+     * @param value
+     *            The <code>Value</code> into which the value should be fetched.
+     * @param foundAt
+     *            The full foundAt value where the key was located. As returned
+     *            by, for example, {@link Buffer#findKey(Key)}.
+     * @param minimumBytes
+     *            The minimum number of bytes to copy into <code>value</code>.
+     *            Note this only affects the final contents, not the amount of
+     *            the internal MVV that was copied.
+     * @return <code>true</code> if a version was visible, <code>false</code> otherwise.
+     * @throws PersistitException for any internal error
+     */
     private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
         buffer.fetch(foundAt, value);
-        fetchFixupForLongRecords(value, Integer.MAX_VALUE);
 
         if(_ignoreMVCCFetch) {
+            fetchFixupForLongRecords(value, minimumBytes);
             return true;
+        }
+        else {
+            fetchFixupForLongRecords(value, Integer.MAX_VALUE);
         }
         
         long startTimestamp = _transaction.getStartTimestamp();
         if(startTimestamp == 0 || !_transaction.isActive()) {
-            // Using the highest possible value will return the most recent
-            // committed version and it won't conflict with any actual transaction
+            // Won't conflict with a real startTime, causes all committed versions to be seen
             startTimestamp = Long.MAX_VALUE - 1;
         }
 
