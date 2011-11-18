@@ -169,7 +169,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
     public void testSingleTrxMultipleLongRecordVersions() throws Exception {
         final int VERSIONS_TO_STORE = 5;
-        final String longStr = createLongValue(ex1.getVolume().getPageSize());
+        final String longStr = createString(ex1.getVolume().getPageSize());
 
         for(int curVer = 0; curVer < VERSIONS_TO_STORE; ++curVer) {
             trx1.begin();
@@ -199,33 +199,69 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             }
         }
     }
-;
-    public void testLongMVVFromManySmall() throws Exception {
-        final int PER_LENGTH = 20;
-        final String longStr = createLongValue(ex1.getVolume().getPageSize());
-        final String smallStr = longStr.substring(0, PER_LENGTH);
-        final int versionCount = (longStr.length() / PER_LENGTH) * 2;
 
-        final String key = "small";
+    /*
+     * Store dozens of small, unique versions of a single key to result in
+     * resulting in a LONG MVV value. Check etch pre and post commit.
+     */
+    public void testLongMVVFromManySmall() throws Exception {
+        final int PER_LENGTH = 250;
+        final String smallStr = createString(PER_LENGTH);
+        final int versionCount = (int)((ex1.getVolume().getPageSize() / PER_LENGTH) * 1.1);
 
         for(int i = 1; i <= versionCount; ++i) {
             trx1.begin();
             try {
                 final String value = smallStr + i;
-                store(ex1, key, value);
-                assertEquals("value pre-commit", value, fetch(ex1, key));
+                store(ex1, KEY1, value);
+                assertEquals("value pre-commit version " + i, value, fetch(ex1, KEY1));
                 trx1.commit();
                 trx1.end();
                 
                 trx1.begin();
-                assertEquals("value post-commit", value, fetch(ex1, key));
+                assertEquals("value post-commit version " + i, value, fetch(ex1, KEY1));
                 trx1.commit();
             }
             finally {
                 trx1.end();
             }
         }
+    }
 
+    /*
+     * Store multiple unique versions of a single key, with individual versions
+     * are both short and long records, resulting in a LONG MVV value. Check
+     * fetch pre and post commit.
+     */
+    public void testLongMVVFromManySmallAndLong() throws Exception {
+        final int pageSize = ex1.getVolume().getPageSize();
+        final String longStr = createString(pageSize);
+        final double[] valueLengths = {
+                pageSize*0.05, 10,
+                pageSize*0.80, 0,
+                pageSize*0.20, 25,
+                pageSize*0.40, 10,
+                pageSize*0.10, 45,
+        };
+
+        for(int i = 0; i < valueLengths.length; ++i) {
+            trx1.begin();
+            try {
+                final int length = (int)valueLengths[i];
+                final String value = longStr.substring(0, length);
+                store(ex1, KEY1, value);
+                assertEquals("value pre-commit version " + i, value, fetch(ex1, KEY1));
+                trx1.commit();
+                trx1.end();
+
+                trx1.begin();
+                assertEquals("value post-commit version " + i, value, fetch(ex1, KEY1));
+                trx1.commit();
+            }
+            finally {
+                trx1.end();
+            }
+        }
     }
 
     public void testIsValuedDefinedTwoTrx() throws Exception {
@@ -523,17 +559,17 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         return values;
     }
 
-    private static String createLongValue(int pageSize) {
-        StringBuilder sb = new StringBuilder(pageSize);
+    private static String createString(int exactLength) {
+        StringBuilder sb = new StringBuilder(exactLength);
         // Simple 0..9a..z string
         for(int i = 0; i < 36; ++i) {
             sb.append(Character.forDigit(i, 36));
         }
         final String numAndLetters = sb.toString();
-        while(sb.length() < pageSize) {
+        while(sb.length() < exactLength) {
             sb.append(numAndLetters);
         }
-        return sb.toString();
+        return sb.toString().substring(0, exactLength);
     }
 
     private static void addTraverseResult(Collection<KVPair> collection, Key key, Value value) {
