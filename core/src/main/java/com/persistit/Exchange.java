@@ -1249,6 +1249,7 @@ public class Exchange {
         // the new value is long.
         //
         long newLongRecordPointer = 0;
+        long newLongRecordPointerMVV = 0;
 
         boolean isLongRecord = value.getEncodedSize() > maxSimpleValueSize;
 
@@ -1346,23 +1347,21 @@ public class Exchange {
                             int currentSize = (foundAt & EXACT_MASK) == 0 ? -1 : _spareValue.getEncodedSize();
 
                             int mvvSize = MVV.estimateRequiredLength(_spareValue.getEncodedBytes(), currentSize, valueSize);
-                            if (mvvSize > maxSimpleValueSize) {
-                                throw new UnsupportedOperationException("Unsupported LONG_RECORD MVV: " + mvvSize + " > "
-                                        + maxSimpleValueSize);
-                            }
-
                             _spareValue.ensureFit(mvvSize);
 
                             // TODO: Need the current step value
                             long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
                             int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), currentSize,
-                                                                versionHandle,
-                                                                value.getEncodedBytes(), valueSize);
+                                                                versionHandle, value.getEncodedBytes(), valueSize);
                             _spareValue.setEncodedSize(storedLength);
+
+                            if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
+                                newLongRecordPointerMVV = storeOverlengthRecord(_spareValue, 0);
+                            }
                         }
                     }
 
-                    Debug.$assert0.t(valueToStore.getEncodedSize() < maxSimpleValueSize);
+                    Debug.$assert0.t(valueToStore.getEncodedSize() <= maxSimpleValueSize);
 
                     // Here we have a buffer with a writer claim and
                     // a correct foundAt value
@@ -1381,9 +1380,19 @@ public class Exchange {
                         //
                         // TODO - is it worth it to try an instantaneous claim
                         // and retry?
+                        //
                         treeClaimRequired = true;
                         buffer.releaseTouched();
                         buffer = null;
+                        //
+                        // Must come back through and fetch buffer again. Could
+                        // reuse these reserved pages(?) but not their contents.
+                        //
+                        if (newLongRecordPointerMVV != 0) {
+                            _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
+                            newLongRecordPointerMVV = 0;
+                            _spareValue.changeLongRecordMode(false);
+                        }
                         continue;
                     }
                     //
@@ -1407,7 +1416,6 @@ public class Exchange {
                         // No split means we're totally done.
                         //
                         break;
-
                     } else {
                         // Otherwise we need to index the new right
                         // sibling at the next higher index level.
@@ -1429,11 +1437,16 @@ public class Exchange {
                         // into the next higher index level.
                         //
                         level++;
+                        //
+                        // Just inserted index level, should not have had long MVV
+                        //
+                        Debug.$assert0.t(newLongRecordPointerMVV == 0);
                         continue;
                     }
 
                 } catch (RetryException re) {
                     newLongRecordPointer = 0;
+                    newLongRecordPointerMVV = 0;
                     oldLongRecordPointer = 0;
                     if (buffer != null) {
                         buffer.releaseTouched();
@@ -1462,7 +1475,6 @@ public class Exchange {
                 }
             }
         } finally {
-
             if (treeClaimAcquired) {
                 _treeHolder.release();
                 treeClaimAcquired = false;
@@ -1479,6 +1491,9 @@ public class Exchange {
                 //
                 if (newLongRecordPointer != oldLongRecordPointer && newLongRecordPointer != 0) {
                     _volume.getStructure().deallocateGarbageChain(newLongRecordPointer, 0);
+                }
+                if (newLongRecordPointerMVV != 0) {
+                    _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
                 }
             } else if (oldLongRecordPointer != newLongRecordPointer && oldLongRecordPointer != 0) {
                 _volume.getStructure().deallocateGarbageChain(oldLongRecordPointer, 0);
