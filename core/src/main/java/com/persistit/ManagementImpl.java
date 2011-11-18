@@ -377,6 +377,7 @@ class ManagementImpl implements Management {
             } else {
                 exchange = _persistit.getExchange(volumeName, treeName, false);
             }
+            exchange.ignoreMVCCFetch(true);
             KeyFilter filter = null;
             if (keyFilterString != null && keyFilterString.length() > 0) {
                 filter = new KeyFilter(keyFilterString);
@@ -404,6 +405,9 @@ class ManagementImpl implements Management {
             }
         } catch (Exception e) {
             throw new WrappedRemoteException(e);
+        }
+        finally {
+            exchange.ignoreMVCCFetch(false);
         }
         if (count < maxCount) {
             LogicalRecord[] trimmed = new LogicalRecord[count];
