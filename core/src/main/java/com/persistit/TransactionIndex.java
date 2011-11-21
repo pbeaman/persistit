@@ -187,6 +187,7 @@ public class TransactionIndex {
      * indicate that such a transaction is still active. Again, the result of
      * that imprecision is that in some cases an MVV may not be optimally pruned
      * until a later attempt.
+     * </p>
      * 
      */
     class ActiveTransactionCache {

@@ -54,7 +54,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * transaction started before the current floor, the transaction is known to
  * have committed unless a <code>TransactionStatus</code> object is found on
  * either the aborted or longRunning lists. These are intended as exceptional
- * cases, and are expected to remain relatively short. The
+ * cases, and their lists are expected to remain relatively short. The
  * <code>TransactionStatus</code> for a committed transaction (the usual case)
  * is simply moved to the free list once the floor is raised.
  * </p>
