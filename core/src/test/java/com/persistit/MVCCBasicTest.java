@@ -556,13 +556,66 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
+    public void testTwoTrxRemoveRanges() throws Exception {
+        List<KVPair> bothList = kvList("a","A",  "m","M",  "z","Z");
+        trx1.begin();
+        try {
+            storeAll(ex1, bothList);
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        Key ka = new Key(_persistit);
+        Key kb = new Key(_persistit);
+
+        trx1.begin();
+        trx2.begin();
+        try {
+            List<KVPair> trx1List1 = kvList("b","B",  "e","e",  "f","f",  "x","X");
+            storeAll(ex1, trx1List1);
+
+            List<KVPair> trx2List = kvList("d","D",  "g","G",  "v","V",  "y","Y");
+            storeAll(ex2, trx2List);
+
+            ka.clear().append("b");
+            kb.clear().append("v");
+            assertTrue("trx1 keys removed", ex1.removeKeyRange(ka, kb));
+
+            List<KVPair> trx1List2 = kvList("a","A",  "x","X",  "z","Z");
+            assertEquals("trx1 traverse post removeKeyRange", trx1List2, traverseAllFoward(ex1, true));
+            assertEquals("trx2 traverse post trx1 removeKeyRange", combine(bothList, trx2List), traverseAllFoward(ex2, true));
+
+            ex2.removeAll();
+            assertEquals("trx2 traverse post removeAll", kvList(), traverseAllFoward(ex2, true));
+            assertEquals("trx1 traverse post trx2 removeAll", trx1List2, traverseAllFoward(ex1, true));
+
+            trx1.commit();
+            trx2.commit();
+        }
+        finally {
+            trx1.end();
+            trx2.end();
+        }
+
+        trx1.begin();
+        try {
+            assertEquals("traverse post-commit", kvList("x","X"), traverseAllFoward(ex1, true));
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
+
 
     //
     // Internal test methods
     //
     
 
-    private static class KVPair {
+    private static class KVPair implements Comparable<KVPair> {
         Object k1, k2, v;
 
         public KVPair(Object k1, Object k2, Object v) {
@@ -587,6 +640,19 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             KVPair rhs = (KVPair) o;
             return k1.equals(rhs.k1) && !(k2 != null ? !k2.equals(rhs.k2) : rhs.k2 != null) && v.equals(rhs.v);
 
+        }
+
+        @SuppressWarnings({"unchecked"})
+        @Override
+        public int compareTo(KVPair kvPair) {
+            if(!(k1 instanceof Comparable)) {
+                throw new IllegalArgumentException("Not comparable: " + k1);
+            }
+            int comp = ((Comparable)k1).compareTo(kvPair.k1);
+            if(comp == 0) {
+                comp = ((Comparable)k2).compareTo(kvPair.k2);
+            }
+            return comp;
         }
     }
 
@@ -673,6 +739,14 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             ex.getValue().put(kv.v);
             ex.store();
         }
+    }
+    
+    private static List<KVPair> combine(List<KVPair> list1, List<KVPair> list2) {
+        List<KVPair> outList = new ArrayList<KVPair>();
+        outList.addAll(list1);
+        outList.addAll(list2);
+        Collections.sort(outList);
+        return outList;
     }
 
     private static void store(Exchange ex, Object k, Object v) throws PersistitException {

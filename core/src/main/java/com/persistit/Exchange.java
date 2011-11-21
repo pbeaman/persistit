@@ -161,6 +161,7 @@ public class Exchange {
 
     private Key _spareKey1;
     private Key _spareKey2;
+    private Key _spareKey3;
 
     private Value _spareValue;
 
@@ -285,6 +286,7 @@ public class Exchange {
         _key = new Key(persistit);
         _spareKey1 = new Key(persistit);
         _spareKey2 = new Key(persistit);
+        _spareKey3 = new Key(persistit);
         _value = new Value(persistit);
         _spareValue = new Value(persistit);
         if (volume == null) {
@@ -309,6 +311,7 @@ public class Exchange {
         _key = new Key(_persistit);
         _spareKey1 = new Key(_persistit);
         _spareKey2 = new Key(_persistit);
+        _spareKey3 = new Key(_persistit);
         _value = new Value(_persistit);
         _spareValue = new Value(_persistit);
         init(exchange);
@@ -326,6 +329,7 @@ public class Exchange {
         _key = new Key(_persistit);
         _spareKey1 = new Key(_persistit);
         _spareKey2 = new Key(_persistit);
+        _spareKey3 = new Key(_persistit);
         _value = new Value(_persistit);
         init(tree);
         _spareValue = new Value(_persistit);
@@ -441,7 +445,7 @@ public class Exchange {
         int _foundAt;
         int _lastInsertAt;
         //
-        // The remaining fields are used only by removeKeyRangeInternal and
+        // The remaining fields are used only by raw_removeKeyRangeInternal and
         // its helpers.
         //
         Buffer _leftBuffer;
@@ -2599,7 +2603,7 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
         _spareValue.clear();
-        boolean result = remove(EQ, true);
+        boolean result = removeInternal(EQ, true);
         _spareValue.copyTo(_value);
         Debug.$assert0.t(_value.isDefined() == result);
         return result;
@@ -2636,21 +2640,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean remove() throws PersistitException {
-        short ec = 0;
-        byte[] emptyArray = {};
-        _value.clear().putAntiValue(ec, emptyArray);
-        return store(_key, _value);
-    }
-
-    /**
-     * Remove a single key/value pair from the this <code>Exchange</code>'s
-     * <code>Tree</code>.
-     * 
-     * @return <code>true</code> if there was a key/value pair to remove
-     * @throws PersistitException
-     */
-    private boolean old_remove() throws PersistitException {
-        return remove(EQ, false);
+        return removeInternal(EQ, false);
     }
 
     /**
@@ -2661,7 +2651,7 @@ public class Exchange {
      */
     public boolean removeAll() throws PersistitException {
         clear();
-        return remove(GTEQ);
+        return removeInternal(GTEQ, false);
     }
 
     /**
@@ -2689,10 +2679,10 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean remove(Direction direction) throws PersistitException {
-        return remove(direction, false);
+        return removeInternal(direction, false);
     }
 
-    private boolean remove(Direction selection, boolean fetchFirst) throws PersistitException {
+    private boolean removeInternal(Direction selection, boolean fetchFirst) throws PersistitException {
         _persistit.checkClosed();
 
         if (selection != EQ && selection != GTEQ && selection != GT) {
@@ -2747,7 +2737,8 @@ public class Exchange {
      *         else </i>false</i>.
      * 
      * @throws PersistitException
-     * @throws IllegalArgymentException
+     *             if there are any internal errors
+     * @throws IllegalArgumentException
      *             if key1 is equal to or greater than key2
      */
     public boolean removeKeyRange(Key key1, Key key2) throws PersistitException {
@@ -2766,10 +2757,40 @@ public class Exchange {
         if (_spareKey1.compareTo(_spareKey2) >= 0) {
             throw new IllegalArgumentException("Second key must be greater than the first");
         }
+
         final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, false);
         _treeHolder.verifyReleased();
 
         return result;
+    }
+
+    /**
+     * Removes all records with keys falling between <code>key1</code> and
+     * </code>key2</code>, lefty-inclusive. Validity checks and Key value
+     * adjustments have been done by caller - this method does the work.
+     *
+     * @param key1
+     *            Key that is less than or equal to the leftmost to be removed
+     * @param key2
+     *            Key that is greater than the rightmost to be removed
+     * @param fetchFirst
+     *            Control whether to copy the existing value for the first key
+     *            into _spareValue before deleting the record.
+     * @return <code>true</code> if any records were removed.
+     * @throws PersistitException
+     */
+    private boolean removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
+        Value antiValue = new Value(_persistit);
+        antiValue.putAntiValue((short)0, new byte[]{});
+        boolean anyRemoved = false;
+        _key.copyTo(_spareKey3);
+        key1.copyTo(_key);
+        while(traverse(GTEQ, true) && _key.compareTo(key2) < 0) {
+            store(_key, antiValue);
+            anyRemoved = true;
+        }
+        _spareKey3.copyTo(_key);
+        return anyRemoved;
     }
 
     /**
@@ -2787,7 +2808,7 @@ public class Exchange {
      * @return <code>true</code> if any records were removed.
      * @throws PersistitException
      */
-    boolean removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
+    boolean raw_removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
@@ -3250,7 +3271,7 @@ public class Exchange {
         int elisionCount = av.getElisionCount();
         System.arraycopy(bytes, 0, _spareKey2.getEncodedBytes(), elisionCount, bytes.length);
         _spareKey2.setEncodedSize(elisionCount + bytes.length);
-        removeKeyRangeInternal(_spareKey1, _spareKey2, false);
+        raw_removeKeyRangeInternal(_spareKey1, _spareKey2, false);
     }
 
     /**
