@@ -27,6 +27,10 @@ import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
+import static com.persistit.Exchange.FetchOpt;
+import static com.persistit.Exchange.MvccOpt;
+import static com.persistit.Exchange.WaitOpt;
+
 /**
  * <p>
  * A simple integrity checker that traverses all pages within one or more
@@ -1004,7 +1008,7 @@ public class IntegrityCheck extends Task {
                 _value.setPointerValue(page);
                 _value.setPointerPageType(buffer.getPageType());
 
-                exchange.storeInternal(spareKey2, _value, level + 1, false, true);
+                exchange.storeInternal(spareKey2, _value, level + 1, FetchOpt.NO_FETCH, MvccOpt.NO_MVCC, WaitOpt.NO_WAIT);
             } finally {
                 if (buffer != null) {
                     buffer.release();

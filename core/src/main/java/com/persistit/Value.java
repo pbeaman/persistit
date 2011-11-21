@@ -770,16 +770,16 @@ public final class Value {
         if (length > 0 && length * SIZE_GROWTH_DENOMINATOR < _size) {
             length = _size / SIZE_GROWTH_DENOMINATOR;
         }
-        int newSize = _size + length;
-        if (_size + length <= _bytes.length)
+        final int newSize = _size + length;
+        if (newSize <= _bytes.length)
             return false;
-        newSize = ((newSize + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY) * SIZE_GRANULARITY;
-        if (newSize > _maximumSize)
-            newSize = _maximumSize;
-        if (newSize < length + _size) {
-            throw new ConversionException("Requested size=" + length + " exceeds maximum size=" + _maximumSize);
+        int newArraySize = ((newSize + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY) * SIZE_GRANULARITY;
+        if (newArraySize > _maximumSize)
+            newArraySize = _maximumSize;
+        if (newArraySize < newSize) {
+            throw new ConversionException("Requested size=" + newSize + " exceeds maximum size=" + _maximumSize);
         }
-        byte[] bytes = new byte[newSize];
+        byte[] bytes = new byte[newArraySize];
         System.arraycopy(_bytes, 0, bytes, 0, _size);
         _bytes = bytes;
 
