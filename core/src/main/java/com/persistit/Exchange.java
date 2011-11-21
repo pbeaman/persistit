@@ -1800,16 +1800,16 @@ public class Exchange {
             int index = _key.getEncodedSize();
 
             int foundAt = 0;
+            boolean nudgeForMVCC = false;
 
             for (;;) {
-
                 LevelCache lc = _levelCache[0];
                 boolean matches = false;
                 //
                 // Optimal path - pick up the buffer and location left
                 // by previous operation.
                 //
-                if (lc._keyGeneration == _key.getGeneration()) {
+                if (buffer == null && lc._keyGeneration == _key.getGeneration()) {
                     buffer = reclaimQuickBuffer(lc, false);
                     foundAt = lc._foundAt;
                 }
@@ -1818,7 +1818,7 @@ public class Exchange {
                 // edge of the buffer, re-do with a key search - there is no
                 // other way to find the left sibling page.
                 //
-                if (reverse && buffer != null && (foundAt & P_MASK) <= buffer.getKeyBlockStart()) {
+                if (buffer != null && (nudgeForMVCC || (reverse && (foundAt & P_MASK) <= buffer.getKeyBlockStart()))) {
                     // Going left from first record in the page requires a
                     // key search.
                     buffer.releaseTouched();
@@ -1829,7 +1829,7 @@ public class Exchange {
                 // look it up with search.
                 //
                 if (buffer == null) {
-                    if (!edge && !nudged) {
+                    if (nudgeForMVCC || (!edge && !nudged)) {
                         if (reverse) {
                             if (!_key.isSpecial()) {
                                 _key.nudgeLeft();
@@ -1844,6 +1844,7 @@ public class Exchange {
                             }
                         }
                         nudged = true;
+                        nudgeForMVCC = false;
                     }
                     foundAt = search(_key, false);
                     buffer = lc._buffer;
@@ -1910,6 +1911,7 @@ public class Exchange {
                                 nudged = false;
                                 _key.copyTo(_spareKey1);
                                 index = _key.getEncodedSize();
+                                nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
                                 continue;
                             }
                         }
@@ -1932,6 +1934,7 @@ public class Exchange {
                                 if(!isVisibleMatch) {
                                     nudged = false;
                                     _key.copyTo(_spareKey1);
+                                    nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
                                     continue;
                                 }
                                 //
@@ -2429,7 +2432,7 @@ public class Exchange {
         if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
             int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
             value.setEncodedSize(finalSize);
-            fetchFixupForLongRecords(value, minimumBytes);
+            fetchFixupForLongRecords(value, Integer.MAX_VALUE);
             if(value.isDefined() && value.isAntiValue()) {
                 value.clear();
                 return false;
