@@ -1008,7 +1008,7 @@ public class IntegrityCheck extends Task {
                 _value.setPointerValue(page);
                 _value.setPointerPageType(buffer.getPageType());
 
-                exchange.storeInternal(spareKey2, _value, level + 1, FetchOpt.NO_FETCH, MvccOpt.NO_MVCC, WaitOpt.NO_WAIT);
+                exchange.storeInternal(spareKey2, _value, level + 1, FetchOpt.NO_FETCH, MvccOpt.NO_MVCC, WaitOpt.NO_WAIT, false);
             } finally {
                 if (buffer != null) {
                     buffer.release();
