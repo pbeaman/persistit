@@ -161,6 +161,8 @@ public class Exchange {
 
     private Key _spareKey1;
     private Key _spareKey2;
+    private Key _spareKey3;
+    private Key _spareKey4;
 
     private Value _spareValue;
 
@@ -225,6 +227,17 @@ public class Exchange {
 
     private ReadCommittedVisitor _fetchVisitor = new ReadCommittedVisitor();
 
+    private Exchange(final Persistit persistit) {
+        _persistit = persistit;
+        _key = new Key(_persistit);
+        _spareKey1 = new Key(_persistit);
+        _spareKey2 = new Key(_persistit);
+        _spareKey3 = new Key(_persistit);
+        _spareKey4 = new Key(_persistit);
+        _value = new Value(_persistit);
+        _spareValue = new Value(_persistit);
+    }
+
     /**
      * <p>
      * Construct a new <code>Exchange</code> object to create and/or access the
@@ -281,12 +294,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public Exchange(Persistit persistit, Volume volume, String treeName, boolean create) throws PersistitException {
-        _persistit = persistit;
-        _key = new Key(persistit);
-        _spareKey1 = new Key(persistit);
-        _spareKey2 = new Key(persistit);
-        _value = new Value(persistit);
-        _spareValue = new Value(persistit);
+        this(persistit);
         if (volume == null) {
             throw new NullPointerException();
         }
@@ -305,12 +313,7 @@ public class Exchange {
      *            The <code>Exchange</code> to copy from.
      */
     public Exchange(Exchange exchange) {
-        _persistit = exchange._persistit;
-        _key = new Key(_persistit);
-        _spareKey1 = new Key(_persistit);
-        _spareKey2 = new Key(_persistit);
-        _value = new Value(_persistit);
-        _spareValue = new Value(_persistit);
+        this(exchange._persistit);
         init(exchange);
     }
 
@@ -322,13 +325,8 @@ public class Exchange {
      *            The <code>Tree</code> to access.
      */
     public Exchange(Tree tree) {
-        _persistit = tree._persistit;
-        _key = new Key(_persistit);
-        _spareKey1 = new Key(_persistit);
-        _spareKey2 = new Key(_persistit);
-        _value = new Value(_persistit);
+        this(tree._persistit);
         init(tree);
-        _spareValue = new Value(_persistit);
         _volume = tree.getVolume();
         _isDirectoryExchange = tree == _volume.getDirectoryTree();
         initCache();
@@ -524,44 +522,24 @@ public class Exchange {
         }
     }
 
-    static enum FetchOpt {
-        /**
-         * Perform not explicit fetch.
-         */
-        NO_FETCH,
+    static class StoreOptions {
+        /** The default, implies none of the further options **/
+        public static final int NONE             = 0;
 
-        /**
-         * Do fetch the current value.
-         */
-        DO_FETCH
+        /** Fetch the current value before replacing **/
+        public static final int FETCH           = 1 << 1;
+
+        /** Use MVCC (store as version or fetch restricted version) **/
+        public static final int MVCC            = 1 << 2;
+
+        /** Block and use for any acquire operation **/
+        public static final int WAIT            = 1 << 3;
+
+        /** Perform the store only if key is currently visible **/
+        public static final int ONLY_IF_VISIBLE = 1 << 4;
     }
 
-    static enum WaitOpt {
-        /**
-         * Use instantaneous timeout for any acquire operation.
-         */
-        NO_WAIT,
-
-        /**
-         * Use default timeout.
-         */
-        DO_WAIT
-    }
-
-    static enum MvccOpt {
-        /**
-         * Ignore MVCC (store as primordial or fetch highest committed).
-         */
-        NO_MVCC,
-        
-        /**
-         * Use MVCC (store as version or fetch restricted version).
-         */
-        DO_MVCC
-    }
-
-
-    // -----------------------------------------------------------------
+    
     /**
      * Delegate to {@link Key#reset} on the associated <code>Key</code> object.
      * 
@@ -1187,8 +1165,9 @@ public class Exchange {
 
         // TODO: directoryExchange, and lots of tests, don't use transactions.
         // Skip MVCC for now.
-        MvccOpt mvccOpt = (!_ignoreTransactions && _transaction.isActive()) ? MvccOpt.DO_MVCC : MvccOpt.NO_MVCC;
-        storeInternal(key, value, 0, FetchOpt.NO_FETCH, mvccOpt, WaitOpt.DO_WAIT, false);
+        int options = StoreOptions.WAIT;
+        options |= (!_ignoreTransactions && _transaction.isActive()) ? StoreOptions.MVCC : 0;
+        storeInternal(key, value, 0, options);
         _treeHolder.verifyReleased();
     }
 
@@ -1204,28 +1183,21 @@ public class Exchange {
      *            The value to store.
      * @param level
      *            The level of the backing tree to start the insert at.
-     * @param fetchOpt
-     *            Controls result of {@link #_spareValue} upon return. See
-     *            {@link FetchOpt} for details.
-     * @param mvccOpt
-     *            Controls whether or not <code>value</code> is stored as a
-     *            new version. See {@link MvccOpt} for details.
-     * @param waitOpt
-     *            Controls whether or not this method blocks when attempting
-     *            to acquire a claim on the tree. See {@link WaitOpt} for details.
+     * @param options
+     *            Bit flag integer controlling various internal behavior. See
+     *            members of {@link StoreOptions} for details.
      * @return <code>true</code> if <b>any version</b> of the key already existed
      * @throws PersistitException uponError
      */
-    boolean storeInternal(Key key, Value value, int level, FetchOpt fetchOpt, MvccOpt mvccOpt, WaitOpt waitOpt, boolean onlyIfVisible)
-            throws PersistitException {
-        if(fetchOpt == FetchOpt.DO_FETCH && mvccOpt == MvccOpt.DO_MVCC) {
+    boolean storeInternal(Key key, Value value, int level, int options) throws PersistitException {
+        if((options & StoreOptions.FETCH) > 0 && (options & StoreOptions.MVCC) > 0) {
             throw new IllegalArgumentException("Both fetch and MVCC not supported");
         }
 
-        final boolean doAnyFetch = fetchOpt == FetchOpt.DO_FETCH || mvccOpt == MvccOpt.DO_MVCC;
+        final boolean doAnyFetch = (options & StoreOptions.FETCH) > 0 || (options & StoreOptions.MVCC) > 0;
 
-        Debug.$assert0.t(!doAnyFetch || value != _spareValue);
-        Debug.$assert0.t(onlyIfVisible || key != _spareKey1);
+        Debug.$assert0.t(!doAnyFetch || value != _spareValue);      // spare used for fetch
+        Debug.$assert0.t(key != _spareKey1 && key != _spareKey2);   // spares used for new splits/levels
 
         boolean treeClaimRequired = false;
         boolean treeClaimAcquired = false;
@@ -1339,11 +1311,11 @@ public class Exchange {
                             buffer.fetch(foundAt, _spareValue);
                             fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
                         }
-                        if (mvccOpt == MvccOpt.DO_MVCC) {
+                        if ((options & StoreOptions.MVCC) != 0) {
                             valueToStore = _spareValue;
                             int valueSize = value.getEncodedSize();
 
-                            if(onlyIfVisible) {
+                            if((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
                                 _fetchVisitor.init();
                                 if(keyExisted) {
                                     _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
@@ -1469,10 +1441,10 @@ public class Exchange {
                         _treeHolder.release();
                         treeClaimAcquired = false;
                     }
-                    long timeout = waitOpt == WaitOpt.NO_WAIT ? 0 : SharedResource.DEFAULT_MAX_WAIT_TIME;
-                    treeClaimAcquired = _treeHolder.claim(true, timeout);
+                    boolean doWait = (options & StoreOptions.WAIT) != 0;
+                    treeClaimAcquired = _treeHolder.claim(true, doWait ? SharedResource.DEFAULT_MAX_WAIT_TIME : 0);
                     if (!treeClaimAcquired) {
-                        if (waitOpt == WaitOpt.NO_WAIT) {
+                        if (!doWait) {
                             throw re;
                         } else {
                             throw new InUseException("Thread " + Thread.currentThread().getName()
@@ -2330,7 +2302,7 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
         _key.testValidForStoreAndFetch(_volume.getPageSize());
-        storeInternal(_key, _value, 0, FetchOpt.DO_FETCH, MvccOpt.NO_MVCC, WaitOpt.DO_WAIT, false);
+        storeInternal(_key, _value, 0, StoreOptions.FETCH | StoreOptions.WAIT);
         _spareValue.copyTo(_value);
         return this;
     }
@@ -2699,28 +2671,28 @@ public class Exchange {
 
         int keySize = _key.getEncodedSize();
 
-        _key.copyTo(_spareKey1);
-        _key.copyTo(_spareKey2);
+        _key.copyTo(_spareKey3);
+        _key.copyTo(_spareKey4);
 
         // Special case for empty key
         if (keySize == 0) {
             if (selection == EQ) {
                 return false;
             }
-            _spareKey1.append(BEFORE);
-            _spareKey2.append(AFTER);
+            _spareKey3.append(BEFORE);
+            _spareKey4.append(AFTER);
         } else {
             if (selection == EQ) {
-                _spareKey2.nudgeDeeper();
+                _spareKey4.nudgeDeeper();
             } else if (selection == GT) {
-                _spareKey1.nudgeDeeper();
-                _spareKey2.nudgeRight();
+                _spareKey3.nudgeDeeper();
+                _spareKey4.nudgeRight();
             } else if (selection == GTEQ) {
-                _spareKey2.nudgeRight();
+                _spareKey4.nudgeRight();
             }
         }
 
-        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, fetchFirst);
+        final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, fetchFirst);
         _treeHolder.verifyReleased();
 
         return result;
@@ -2750,8 +2722,8 @@ public class Exchange {
      *             if key1 is equal to or greater than key2
      */
     public boolean removeKeyRange(Key key1, Key key2) throws PersistitException {
-        key1.copyTo(_spareKey1);
-        key2.copyTo(_spareKey2);
+        key1.copyTo(_spareKey3);
+        key2.copyTo(_spareKey4);
 
         // Special case for empty key
         if (key1.getEncodedSize() == 0) {
@@ -2762,11 +2734,11 @@ public class Exchange {
             _spareKey2.append(AFTER);
         }
 
-        if (_spareKey1.compareTo(_spareKey2) >= 0) {
+        if (_spareKey3.compareTo(_spareKey4) >= 0) {
             throw new IllegalArgumentException("Second key must be greater than the first");
         }
 
-        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, false);
+        final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, false);
         _treeHolder.verifyReleased();
 
         return result;
@@ -2795,26 +2767,27 @@ public class Exchange {
         if(_ignoreTransactions || !_transaction.isActive()) {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst);
         }
-        
+
         _persistit.checkClosed();
         checkLevelCache();
 
         _value.clear().putAntiValueMVV();
+        final int storeOptions = StoreOptions.MVCC | StoreOptions.WAIT | StoreOptions.ONLY_IF_VISIBLE;
 
         boolean anyRemoved = false;
         boolean keyIsLessThan = true;
-        while(keyIsLessThan) {
+        while(keyIsLessThan && !key1.isRightEdge()) {
             Buffer buffer = null;
             try {
                 int foundAt = search(key1, true);
                 buffer = _levelCache[0]._buffer;
 
-                while((foundAt & P_MASK) < buffer.getKeyBlockEnd()) {
+                while(!buffer.isAfterRightEdge(foundAt)) {
                     keyIsLessThan = key1.compareTo(key2) < 0;
                     if(!keyIsLessThan) {
                         break;
                     }
-                    anyRemoved |= storeInternal(key1, _value, 0, FetchOpt.NO_FETCH, MvccOpt.DO_MVCC, WaitOpt.DO_WAIT, true);
+                    anyRemoved |= storeInternal(key1, _value, 0, storeOptions);
                     foundAt = buffer.nextKey(key1, foundAt);
                 }
             }
@@ -3210,7 +3183,7 @@ public class Exchange {
                                 buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
                                 _value.setPointerValue(buffer.getPageAddress());
                                 _value.setPointerPageType(buffer.getPageType());
-                                storeInternal(_spareKey2, _value, level + 1, FetchOpt.NO_FETCH, MvccOpt.NO_MVCC, WaitOpt.NO_WAIT, false);
+                                storeInternal(_spareKey2, _value, level + 1, StoreOptions.NONE);
                             } else {
                                 _persistit.getLogBase().unindexedPage.log(deferredPage, _volume, _tree.getName());
                             }

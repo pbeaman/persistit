@@ -190,7 +190,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             trx1.begin();
             try {
                 fetch(ex1, curVer, false);
-                assertEquals("fetched key post-commit",  curVer, ex1.getKey().decodeInt());
+                assertEquals("fetched key post-commit", curVer, ex1.getKey().decodeInt());
                 assertEquals("fetched value post-commit", longStr, ex1.getValue().getString());
                 trx1.commit();
             }
@@ -602,6 +602,55 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         trx1.begin();
         try {
             assertEquals("traverse post-commit", kvList("x","X"), traverseAllFoward(ex1, true));
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
+
+    public void testRemoveWithSplitsSmall() throws Exception {
+        final int keyCount = _persistit.getBufferPool(ex1.getVolume().getPageSize()).getMaxKeys();
+        insertRemoveAllAndVerify(keyCount);
+    }
+
+    public void testRemoveWithSplitsMedium() throws Exception {
+        final int keyCount = _persistit.getBufferPool(ex1.getVolume().getPageSize()).getMaxKeys() * 5;
+        insertRemoveAllAndVerify(keyCount);
+    }
+
+    public void testRemoveWithSplitsLarge() throws Exception {
+        final int keyCount = _persistit.getBufferPool(ex1.getVolume().getPageSize()).getMaxKeys() * 10;
+        insertRemoveAllAndVerify(keyCount);
+    }
+
+    private void insertRemoveAllAndVerify(int keyCount) throws Exception {
+        trx1.begin();
+        try {
+            for(int i = 0; i < keyCount; ++i) {
+                ex1.getValue().clear();
+                ex1.clear().append(String.format("%05d", i)).store();
+            }
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        trx1.begin();
+        try {
+            assertEquals("traversed count initial", keyCount, traverseAllFoward(ex1, true).size());
+            ex1.removeAll();
+            assertEquals("traversed count post-remove pre-commit", 0, traverseAllFoward(ex1, true).size());
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        trx1.begin();
+        try {
+            assertEquals("traverse post-remove post-commit", 0, traverseAllFoward(ex1, true).size());
             trx1.commit();
         }
         finally {
