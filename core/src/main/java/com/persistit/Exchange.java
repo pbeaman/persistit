@@ -2780,6 +2780,10 @@ public class Exchange {
      * @throws PersistitException
      */
     private boolean removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
+        if(_ignoreTransactions || !_transaction.isActive()) {
+            return raw_removeKeyRangeInternal(key1, key2, fetchFirst);
+        }
+        
         boolean anyRemoved = false;
         _key.copyTo(_spareKey3);
         key1.copyTo(_key);
@@ -3215,7 +3219,6 @@ public class Exchange {
     }
 
     private void removeKeyRangeReleaseLevel(final int level) {
-
         int offset = 0;
         for (int lvl = 0; lvl < level; lvl++) {
             final LevelCache lc = _levelCache[lvl];
