@@ -20,6 +20,8 @@ import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.persistit.Accumulator.Delta;
+
 /**
  * <p>
  * Representation of one {@link TransactionIndex} hash table bucket. This class
@@ -67,6 +69,10 @@ public class TransactionIndexBucket {
      * The owner of the hash table that contains this bucket
      */
     final TransactionIndex _transactionIndex;
+    /**
+     * Index of this bucket in the TransactionIndex hash table
+     */
+    final int _hashIndex;
 
     /**
      * Floor timestamp. A transaction that started before this time is usually
@@ -141,9 +147,18 @@ public class TransactionIndexBucket {
      * structure. Fair to prevent barging.
      */
     ReentrantLock _lock = new ReentrantLock(true);
+    /**
+     * Singly-linked list of Delta objects available for reuse
+     */
+    Delta _freeDeltaList;
+    /**
+     * Count of Delta instances on the free Delta list
+     */
+    int _freeDeltaCount;
 
-    TransactionIndexBucket(final TransactionIndex index) {
-        _transactionIndex = index;
+    TransactionIndexBucket(final TransactionIndex transactionIndex, final int hashIndex) {
+        _transactionIndex = transactionIndex;
+        _hashIndex = hashIndex;
     }
 
     void lock() {
@@ -165,13 +180,6 @@ public class TransactionIndexBucket {
         } else {
             return new TransactionStatus(this);
         }
-    }
-
-    void releaseTransactionStatus(final TransactionStatus status) {
-        assert _lock.isHeldByCurrentThread();
-        status.setNext(_free);
-        _free = status;
-        _freeCount++;
     }
 
     void addCurrent(final TransactionStatus status) {
@@ -250,6 +258,7 @@ public class TransactionIndexBucket {
                     s.complete();
                     boolean moved = false;
                     if (s.getTc() > 0) {
+                        aggregate(s, true);
                         if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
                             s.setNext(_free);
                             _free = s;
@@ -259,6 +268,7 @@ public class TransactionIndexBucket {
                         }
                         moved = true;
                     } else if (s.getTc() == ABORTED) {
+                        aggregate(status, false);
                         s.setNext(_aborted);
                         _aborted = s;
                         _abortedCount++;
@@ -328,6 +338,7 @@ public class TransactionIndexBucket {
                      * conditions hold
                      */
                     if (committed && !_transactionIndex.hasConcurrentTransaction(status.getTs(), status.getTc())) {
+                        aggregate(status, true);
                         /*
                          * committed
                          */
@@ -340,6 +351,7 @@ public class TransactionIndexBucket {
                         }
                         moved = true;
                     } else if (aborted) {
+                        aggregate(status, false);
                         /*
                          * aborted
                          */
@@ -395,10 +407,10 @@ public class TransactionIndexBucket {
      * Move <code>TransactionStatus</code> instances from the
      * <code>_aborted</code> and <code>_longRunning</code> lists back to the
      * {@link #_free} list when there are no longer any active transactions that
-     * need them. This method is called periodically whenever the {@link #reduce()}
-     * method detects that the ActiveTransactionCache has been updated. It is
-     * also called by <code>TransactionIndex{@link #cleanup(long)}</code> for
-     * unit tests.
+     * need them. This method is called periodically whenever the
+     * {@link #reduce()} method detects that the ActiveTransactionCache has been
+     * updated. It is also called by
+     * <code>TransactionIndex{@link #cleanup(long)}</code> for unit tests.
      * <p>
      * An aborted <code>TransactionStatus</code> can be freed once its MVV count
      * becomes zero indicating that no versions written by that transaction
@@ -431,6 +443,8 @@ public class TransactionIndexBucket {
         for (TransactionStatus status = _aborted; status != null;) {
             TransactionStatus next = status.getNext();
             assert status.getTc() == ABORTED;
+            aggregate(status, false);
+
             if (status.getMvvCount() == 0 && status.getTa() < activeTransactionFloor) {
                 if (previous == null) {
                     _aborted = next;
@@ -459,6 +473,7 @@ public class TransactionIndexBucket {
             TransactionStatus next = status.getNext();
             if (status.isNotified() && status.getTc() > 0 && status.getTc() != UNCOMMITTED
                     && !_transactionIndex.hasConcurrentTransaction(status.getTs(), status.getTc())) {
+                aggregate(status, true);
                 if (previous == null) {
                     _longRunning = next;
                 } else {
@@ -479,11 +494,83 @@ public class TransactionIndexBucket {
         }
     }
 
+    private void aggregate(final TransactionStatus status, boolean committed) {
+        for (Delta delta = status.takeDelta(); delta != null; delta = freeDelta(delta)) {
+            if (committed) {
+                delta.getAccumulator().aggregate(_hashIndex, delta);
+            }
+        }
+    }
+
+    /**
+     * Compute and return the snapshot value of an Accumulator
+     */
+    long getAccumulatorSnapshot(final Accumulator accumulator, final long timestamp, final int step) {
+        assert _lock.isHeldByCurrentThread();
+        long value = accumulator.getBucketValue(_hashIndex);
+        for (TransactionStatus status = _current; status != null; status = status.getNext()) {
+            if (status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.getTc() < timestamp) {
+                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                    if (delta.getAccumulator() == accumulator) {
+                        value = accumulator.combine(value, delta.getValue());
+                    }
+                }
+            } else if (status.getTs() == timestamp) {
+                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                    if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
+                        value = accumulator.combine(value, delta.getValue());
+                    }
+                }
+            }
+        }
+        for (TransactionStatus status = _longRunning; status != null; status = status.getNext()) {
+            if (status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.getTc() < timestamp) {
+                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                    if (delta.getAccumulator() == accumulator) {
+                        value = accumulator.combine(value, delta.getValue());
+                    }
+                }
+            } else if (status.getTs() == timestamp) {
+                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                    if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
+                        value = accumulator.combine(value, delta.getValue());
+                    }
+                }
+            }
+        }
+        return value;
+    }
+
+    private Delta freeDelta(final Delta delta) {
+        final Delta next = delta.getNext();
+        /**
+         * If the free Delta list is already full then simply drop this one and
+         * let it be garbage collected
+         */
+        if (_freeDeltaCount < _transactionIndex.getMaxFreeDeltaListSize()) {
+            delta.setNext(_freeDeltaList);
+            _freeDeltaList = delta;
+            _freeDeltaCount++;
+        }
+        return next;
+    }
+    
+    Delta allocateDelta() {
+        Delta delta = _freeDeltaList;
+        if (delta != null) {
+            _freeDeltaList = delta.getNext();
+            _freeDeltaCount--;
+            return delta;
+        } else {
+            return new Delta();
+        }
+    }
+
     @Override
     public String toString() {
-        return String.format("<floor=%s current=[%s]\n    aborted=[%s]\n    long=[%s]\n    free=[%s]>", TransactionIndex
-                .minMaxString(_floor), listString(_current), listString(_aborted), listString(_longRunning),
-                listString(_free));
+        return String.format("<floor=%s current=[%s]\n    aborted=[%s]\n    long=[%s]\n    free=[%s]>",
+                TransactionIndex.minMaxString(_floor), listString(_current), listString(_aborted),
+                listString(_longRunning), listString(_free));
     }
 
     String listString(final TransactionStatus list) {

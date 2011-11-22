@@ -30,6 +30,7 @@ import com.persistit.util.Util;
 public class Tree extends SharedResource {
     final static int MAX_SERIALIZED_SIZE = 512;
     final static int MAX_TREE_NAME_SIZE = 256;
+    final static int MAX_ACCUMULATOR_COUNT = 64;
 
     private final String _name;
     private final Volume _volume;
@@ -38,6 +39,8 @@ public class Tree extends SharedResource {
     private AtomicLong _changeCount = new AtomicLong(-1);
     private AtomicReference<Object> _appCache = new AtomicReference<Object>();
     private AtomicInteger _handle = new AtomicInteger();
+
+    private Accumulator[] _accumulators = new Accumulator[MAX_ACCUMULATOR_COUNT];
 
     private final TreeStatistics _treeStatistics = new TreeStatistics();
 
@@ -229,6 +232,23 @@ public class Tree extends SharedResource {
      */
     public int getHandle() {
         return _handle.get();
+    }
+
+    /**
+     * Return an <code>Accumulator</code> for this Tree.
+     */
+    public synchronized Accumulator getAccumulator(final Accumulator.Type type, final int index) {
+        if (index < 0 || index >= MAX_ACCUMULATOR_COUNT) {
+            throw new IllegalArgumentException("Invalid accumulator index: " + index);
+        }
+        Accumulator accumulator = _accumulators[index];
+        if (accumulator == null) {
+            accumulator = Accumulator.accumulator(type, this, index, 0, _persistit.getTransactionIndex());
+            _accumulators[index] = accumulator;
+        } else if (accumulator.type() != type) {
+            throw new IllegalStateException("Wrong type " + accumulator + " is not a " + type + " accumulator");
+        }
+        return accumulator;
     }
 
     /**

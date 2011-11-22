@@ -14,19 +14,17 @@
  */
 package com.persistit;
 
-import java.util.ArrayList;
-
-import com.persistit.exception.PersistitException;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * <p>
  * An Accumulator accumulates statistical information in the MVCC Transaction
- * environment without creating write-write dependency conflicts. An accumulator
- * can maintain an arbitrary number of numeric (long) fields. Each field is used
- * to keep a sum, a minimum or a maximum value. The contribution of each
- * concurrent transaction is accounted for separately until the transaction is
- * either committed or aborted <i>and<i> there are no other concurrently
- * executing transactions started before the commit timestamp. This mechanism is
+ * environment without creating write-write dependency conflicts. Subclasses
+ * include SumAccumulator, MinAccumulator and MaxAccumulator which compute the
+ * sum, minimum and maximum values of contributions by individual transactions.
+ * Each contribution is accounted for separately until the transaction is either
+ * committed or aborted <i>and<i> there are no other concurrently executing
+ * transactions that started before the commit timestamp. This mechanism is
  * designed to provide a "snapshot" view of the Accumulator that is consistent
  * with the snapshot view of the database.
  * </p>
@@ -41,240 +39,256 @@ import com.persistit.exception.PersistitException;
  * and applying them to a transient copy.
  * </p>
  * <p>
- * There can be at most one Accumulator per tree. Its state is serialized at
- * checkpoints into the Tree's directory entry.
+ * There can be at most N Accumulators per tree (where N is a reasonably small
+ * number like 64). Their state is serialized at checkpoints into the Tree's
+ * directory entry.
+ * </p>
+ * <p>
+ * The following describes intended use cases for the various types of
+ * accumulators:
+ * <dl>
+ * <dt>sum</dt>
+ * <dd>Row count, total size, sums of various other characteristics</dd>
+ * <dt>max</dt>
+ * <dd>Auto-increment and generated primary key assignment for positive
+ * increment values</dd>
+ * <dt>min</dt>
+ * <dd>Auto-increment and generated primary key assignment for negative
+ * increment values</dd>
+ * </dl>
+ * </p>
+ * <p>
+ * To allocate a new unique key value, for instance, the application is expected
+ * to atomically increment a counter maintained outside the scope of this class,
+ * and then post an update to a {@link MaxAccumulator}. Upon recovery the
+ * maximum value proposed by any committed transaction is restored and should be
+ * used to the startup value of the counter. This guarantees that the next
+ * allocated ID is larger than any key inserted as part of a committed
+ * transaction.
  * </p>
  * 
  * @author peter
  * 
  */
-public final class Accumulator {
-    private final static int INITIAL_FIELD_COUNT = 2;
+abstract class Accumulator {
+
+    public static enum Type {
+        SUM, MAX, MIN
+    };
+
     private final Tree _tree;
+    private final int _index;
+    private final TransactionIndex _transactionIndex;
 
-    public enum Operation {
-        ADD, MIN, MAX, ALLOC
-    }
+    private AtomicLong _liveValue;
+    private final long _baseValue;
 
-    private Operation[] _ops = new Operation[INITIAL_FIELD_COUNT];
+    private long[] _bucketValues;
 
-    private long[] _liveFields = new long[INITIAL_FIELD_COUNT];
+    /**
+     * An Accumulator that computes a sum
+     */
+    final static class SumAccumulator extends Accumulator {
 
-    class Delta {
-
-        private final long _versionHandle;
-        
-        private long[] _fields;
-        
-        private ArrayList<Delta> _deltas;
-
-        Delta(final long versionHandle) {
-            _versionHandle = versionHandle;
+        private SumAccumulator(final Tree tree, final int index, final long baseValue,
+                final TransactionIndex transactionIndex) {
+            super(tree, index, baseValue, transactionIndex);
         }
 
-        Delta(final Delta other) {
-            _versionHandle = other._versionHandle;
-            _fields = new long[other._fields.length];
-            System.arraycopy(other._fields, 0, _fields, 0, _fields.length);
+        @Override
+        long combine(final long a, final long b) {
+            return a + b;
         }
 
-        void add(int index, long delta) {
-            if (_fields == null) {
-                _fields = new long[_liveFields.length];
-            } else if (_fields.length <= _liveFields.length) {
-                long[] fields = new long[_liveFields.length];
-                System.arraycopy(_fields, 0, fields, 0, _fields.length);
-                _fields = fields;
-            }
-            _fields[index] = delta;
-        }
-
-        void combine(final Delta other) {
-            for (int index = 0; index < _fields.length; index++) {
-                if (_ops[index] != null) {
-                    switch (_ops[index]) {
-                    case ADD:
-                        _fields[index] += other._fields[index];
-                        break;
-
-                    case MIN:
-                        _fields[index] = Math.min(_fields[index], other._fields[index]);
-                        break;
-
-                    case MAX:
-                        _fields[index] = Math.max(_fields[index], other._fields[index]);
-                        break;
-
-                    }
-                }
-            }
+        @Override
+        Type type() {
+            return Type.SUM;
         }
     }
 
-    Accumulator(final Tree tree) {
+    /**
+     * An Accumulator that computes a minimum value
+     */
+    final static class MinAccumulator extends Accumulator {
+
+        private MinAccumulator(final Tree tree, final int index, final long baseValue,
+                final TransactionIndex transactionIndex) {
+            super(tree, index, baseValue, transactionIndex);
+        }
+
+        @Override
+        long combine(final long a, final long b) {
+            return Math.min(a, b);
+        }
+
+        @Override
+        Type type() {
+            return Type.MIN;
+        }
+    }
+
+    /**
+     * An Accumulator that computes a maximum value
+     */
+    final static class MaxAccumulator extends Accumulator {
+
+        private MaxAccumulator(final Tree tree, final int index, final long baseValue,
+                final TransactionIndex transactionIndex) {
+            super(tree, index, baseValue, transactionIndex);
+        }
+
+        @Override
+        long combine(final long a, final long b) {
+            return Math.max(a, b);
+        }
+
+        @Override
+        Type type() {
+            return Type.MAX;
+        }
+    }
+
+    private Accumulator(final Tree tree, final int index, final long baseValue, final TransactionIndex transactionIndex) {
         _tree = tree;
+        _index = index;
+        _baseValue = baseValue;
+        _transactionIndex = transactionIndex;
+        _bucketValues = new long[transactionIndex.getHashTableSize()];
     }
 
-    public synchronized void defineField(final Operation op, final int index) {
-        if (index >= _ops.length) {
-            Operation[] ops = new Operation[index + 1];
-            long[] fields = new long[index + 1];
-            System.arraycopy(_ops, 0, ops, 0, _ops.length);
-            System.arraycopy(_liveFields, 0, fields, 0, _liveFields.length);
-            _ops = ops;
-            _liveFields = fields;
+    abstract long combine(long a, long b);
+
+    abstract Type type();
+
+    void aggregate(final int hashIndex, final Delta delta) {
+        _bucketValues[hashIndex] = combine(_bucketValues[hashIndex], delta.getValue());
+    }
+
+    long getBucketValue(final int hashIndex) {
+        return _bucketValues[hashIndex];
+    }
+
+    /**
+     * @param type
+     * @param tree
+     *            The {@link Tree} to which this Accumulator will belong
+     * @param index
+     *            An index number by which this Accumulator can be accessed.
+     * @param baseValue
+     *            a value that accurately reflects the contributions of all
+     *            transactions that committed before the baseTimestamp
+     * @param transactionIndex
+     *            the <code>TransactionIndex</code> component
+     * @return a SumAccumulator
+     * 
+     */
+    static Accumulator accumulator(final Type type, final Tree tree, final int index, final long baseValue,
+            final TransactionIndex transactionIndex) {
+        switch (type) {
+        case SUM:
+            return new SumAccumulator(tree, index, baseValue, transactionIndex);
+        case MAX:
+            return new MaxAccumulator(tree, index, baseValue, transactionIndex);
+        case MIN:
+            return new MinAccumulator(tree, index, baseValue, transactionIndex);
+        default:
+            throw new IllegalArgumentException("No such type " + type);
         }
-        if (_ops[index] != null && _ops[index] != op) {
-            throw new IllegalStateException("Operation for field " + index + " is already defined: " + _ops[index]);
-        }
-        _ops[index] = op;
     }
 
     /**
-     * Transactionally add the supplied delta value to a field, behaving as if
-     * executing the code
-     * 
-     * <pre>
-     * <code>
-     * field[index] += delta;
-     * </code>
-     * </pre>
-     * 
-     * except that effects of this mutation are visible within other concurrent
-     * transactions only as described above. The field identified by the
-     * <code>index</code> must have previously been defined an
-     * {@link Operation#ADD} field.
-     * 
-     * @param index
-     *            within field array
-     * @param delta
-     *            quantity to add to the field.
-     */
-    public synchronized void add(final TransactionStatus status, final int index, final long delta) {
-        if (_ops[index] != Operation.ADD) {
-            throw new IllegalStateException("Field " + index + " is not defined as an ADD field");
-        }
-    }
-
-    /**
-     * Transactionally modify the value of the specified field to be the maximum
-     * of the supplied and previous values, behaving as if executing the code
-     * 
-     * <pre>
-     * <code>
-     * field[index] = Math.max(field[item], value);
-     * </code>
-     * </pre>
-     * 
-     * except that effects of this mutation are visible within other concurrent
-     * transactions only as described above. The field identified by the
-     * <code>index</code> must have previously been defined as an
-     * {@link Operation#MAX} field.
-     * 
-     * @param index
-     *            within field array
-     * @param value
-     *            candidate to replace the maximum.
-     */
-    public synchronized void setMax(final TransactionStatus status, final int index, final long value) {
-
-    }
-
-    /**
-     * Transactionally modify the value of the specified field to be the minimum
-     * of the supplied and previous values, behaving as if executing the code
-     * 
-     * <pre>
-     * <code>
-     * field[index] = Math.min(field[item], value);
-     * </code>
-     * </pre>
-     * 
-     * except that effects of this mutation are visible within other concurrent
-     * transactions only as described above. The field identified by the
-     * <code>index</code> must have previously been defined as an
-     * {@link Operation#MIN} field.
-     * 
-     * @param index
-     *            within field array
-     * @param value
-     *            candidate to replace the minimum.
-     */
-    public synchronized void setMin(final TransactionStatus status, final int index, final long value) {
-
-    }
-
-    /**
-     * <p>
-     * Computes a proposed unique value with the following steps. Reads the
-     * "live" value of the specified field (that is, the value that would exist
-     * were all concurrently executing transactions committed), adds
-     * <code>delta</code> and then performs the {@link #max} (if delta is
-     * positive) or {@link Accumulator#min} (if delta is negative) operation on
-     * the result. The net effect is that a unique value will be generated, and
-     * the largest (if delta is positive) or smallest (if delta is negative)
-     * such value will be reliably stored for recovery. This method is intended
-     * to support auto-increment and implicit primary key generation.
-     * </p>
-     * <p>
-     * The field identified by the <code>index</code> must have previously been
-     * defined as a {@link Operation#MAX} or {@link Operation#MIN} field depending on
-     * whether <code>delta</code> is positive or negative.
-     * </p>
-     * 
-     * @param index
-     * @param delta
-     * @return
-     */
-    public long allocate(final TransactionStatus status, final int index, final long delta) {
-        return -1;
-    }
-
-    /**
-     * Return the value associated with the field at the supplied
-     * <code>index</code>
-     * 
-     * @param index
      * @param timestamp
+     * @param step
+     * @return The value computed by accumulating values contributed by (a) all
+     *         transactions having commit timestamps less than or equal to
+     *         <code>timestamp</code>, and (b) all operations performed by the
+     *         current transaction having step numbers less than
+     *         <code>step</code>.
      */
-    public long getSnapshotValue(final int index, final long timestamp) {
-        return -1;
-    }
-
-    public long getLiveValue(final int index) {
-        return -1;
+    long getSnapshotValue(final long timestamp, final int step) {
+        return _transactionIndex.getAccumulatorSnapshot(this, timestamp, step, _baseValue);
     }
 
     /**
-     * Load the current state of this Accumulator from the <code>Tree</code>
-     * supplied in the constructor. This method should be called only during the
-     * recovery process.
+     * Update the Accumulator by contributing a value. The contribution is
+     * immediately accumulated into the live value, and it is also posted with a
      * 
-     * @throws PersistitException
+     * @{link {@link Delta} instance to the supplied {@link TransactionStatus}.
+     * 
+     * @param value
+     * @param ts
+     * @param step
      */
-    synchronized void load() throws PersistitException {
-        Exchange ex = _tree.getVolume().getStructure().directoryExchange();
-        ex.clear().append(VolumeStructure.DIRECTORY_TREE_NAME).append(VolumeStructure.TREE_ACCUMULATOR);
-        if (ex.getValue().isDefined()) {
-            long[] values = ex.getValue().getLongArray();
-            if (values.length != _liveFields.length) {
-                throw new IllegalStateException("Stored Accumulator value has incorrect field count: " + values.length
-                        + " should be: " + _liveFields.length);
+    void update(final long value, final TransactionStatus status, final int step) {
+        assert status.getTc() == TransactionStatus.UNCOMMITTED;
+        /*
+         * Update the live value using compare-and-set
+         */
+        for (;;) {
+            final long previous = _liveValue.get();
+            final long updated = combine(previous, value);
+            if (_liveValue.compareAndSet(previous, updated)) {
+                break;
             }
         }
+        /*
+         * Add a Delta to the TransactionStatus
+         */
+        Delta delta = _transactionIndex.addDelta(status);
+        delta.setValue(value);
+        delta.setStep(step);
     }
 
-    /**
-     * Save a snapshot of the state of this Accumulator to the
-     * <code>Exchange</code> supplied in the constructor. The snapshot is
-     * determined by the supplied timestamp. This method should be called only
-     * by checkpoint manager.
-     * 
-     * @param timestamp
-     * @throws PersistitException
-     */
-    synchronized void save(final long timestamp) throws PersistitException {
-
+    Tree getTree() {
+        return _tree;
     }
 
+    int getIndex() {
+        return _index;
+    }
+
+    final static class Delta {
+        Accumulator _accumulator;
+        int _step;
+        long _value;
+        Delta _next;
+
+        Accumulator getAccumulator() {
+            return _accumulator;
+        }
+
+        int getStep() {
+            return _step;
+        }
+
+        long getValue() {
+            return _value;
+        }
+
+        void setValue(final long newValue) {
+            _value = newValue;
+        }
+
+        void setStep(final int step) {
+            _step = step;
+        }
+
+        Delta getNext() {
+            return _next;
+        }
+
+        void setNext(final Delta delta) {
+            _next = delta;
+        }
+
+        void merge(final Delta delta) {
+            _value = _accumulator.combine(_value, delta.getValue());
+        }
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Accumulator(tree=%s index=%d type=%s base=%,d live=%,d", _tree.getName(), _index, type(),
+                _baseValue, _liveValue);
+    }
 }
