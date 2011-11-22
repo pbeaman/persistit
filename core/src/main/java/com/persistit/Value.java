@@ -1322,7 +1322,7 @@ public final class Value {
                         sb.append(UNDEFINED);
                     } else {
                         _next = offset;
-                        _size = _next + valueLength;
+                        _end = _size = _next + valueLength;
                         decodeDisplayable(quoted, sb, context);
                     }
                     first = false;
@@ -1331,7 +1331,7 @@ public final class Value {
             }, getEncodedBytes(), getEncodedSize());
 
             sb.append("]");
-            _next = _size = savedSize;
+            _next = _end = _size = savedSize;
         }
         break;
 
@@ -1509,6 +1509,9 @@ public final class Value {
                 sb.append(value);
             } else if (value instanceof DisplayMarker) {
                 sb.append(value);
+            } else if (value instanceof AntiValue) {
+                sb.append(cl.getSimpleName());
+                sb.append(value.toString());
             } else {
                 appendParenthesizedFriendlyClassName(sb, cl);
                 try {
@@ -1604,7 +1607,7 @@ public final class Value {
      * <code>Value</code> and verifies that it is <code>null</code>.
      * 
      * @return <code>null</code>
-     * @throws ConverisonException
+     * @throws ConversionException
      *             if this <code>Value</code> does not currently represent
      *             <code>null</code>.
      */
@@ -2273,7 +2276,7 @@ public final class Value {
         }
 
         case TYPE_MVV: {
-            final int savedSIze = _size;
+            final int savedSize = _size;
             _depth++;
             final ArrayList<Object> outList = new ArrayList<Object>();
 
@@ -2287,7 +2290,7 @@ public final class Value {
                     Object obj = null;
                     if(valueLength > 0) {
                         _next = offset;
-                        _size = _next + valueLength;
+                        _end = _size = _next + valueLength;
                         obj = get(target, context);
                     }
                     outList.add(obj);
@@ -2296,7 +2299,7 @@ public final class Value {
             }, getEncodedBytes(), getEncodedSize());
 
             _depth--;
-            _next = _size = savedSIze;
+            _next = _end = _size = savedSize;
             return outList.toArray();
         }
         

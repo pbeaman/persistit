@@ -17,6 +17,8 @@ package com.persistit;
 
 import com.persistit.exception.InvalidKeyException;
 
+import java.util.Arrays;
+
 /**
  * Represents the end of a key range to be removed. Used in Transactions.
  * 
@@ -60,5 +62,10 @@ class AntiValue {
 
     byte[] getBytes() {
         return _bytes;
+    }
+
+    @Override
+    public String toString() {
+        return '{' + (_elisionCount > 0 ? "elision=" + _elisionCount + " " + Arrays.toString(_bytes) : "") + '}';
     }
 }
