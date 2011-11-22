@@ -2129,9 +2129,13 @@ public final class Value {
 
         case CLASS_ANTIVALUE: {
             int length = _end - _next;
-            int elisionCount = Util.getShort(_bytes, _next);
-            byte[] bytes = new byte[length - 2];
-            System.arraycopy(_bytes, _next + 2, bytes, 0, length - 2);
+            int elisionCount = 0;
+            byte[] bytes = null;
+            if (length > 0) {
+                elisionCount = Util.getShort(_bytes, _next);
+                bytes = new byte[length - 2];
+                System.arraycopy(_bytes, _next + 2, bytes, 0, length - 2);
+            }
             _next += length;
             object = new AntiValue(elisionCount, bytes);
             closeVariableLengthItem();
@@ -4017,6 +4021,13 @@ public final class Value {
         endVariableSizeItem(_size - start);
     }
 
+    void putAntiValueMVV() {
+        preparePut();
+        ensureFit(1);
+        _bytes[_size++] = (byte) CLASS_ANTIVALUE;
+        _serializedItemCount++;
+    }
+
     void performAtomicIncrement() {
 
         int type;
@@ -4460,8 +4471,10 @@ public final class Value {
     void decodeAntiValue(Exchange exchange) throws InvalidKeyException {
         nextType(CLASS_ANTIVALUE);
         int length = _end - _next;
-        int elisionCount = Util.getShort(_bytes, _next);
-        AntiValue.fixupKeys(exchange, elisionCount, _bytes, _next + 2, length - 2);
+        if (length > 0) {
+            int elisionCount = Util.getShort(_bytes, _next);
+            AntiValue.fixUpKeys(exchange, elisionCount, _bytes, _next + 2, length - 2);
+        }
         _next += length;
         closeVariableLengthItem();
     }

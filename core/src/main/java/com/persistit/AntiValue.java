@@ -42,7 +42,7 @@ class AntiValue {
         value.putAntiValue((short) elisionCount, bytes);
     }
 
-    static void fixupKeys(Exchange exchange, int elisionCount, byte[] bytes, int offset, int length)
+    static void fixUpKeys(Exchange exchange, int elisionCount, byte[] bytes, int offset, int length)
             throws InvalidKeyException {
         Key spareKey1 = exchange.getAuxiliaryKey1();
         Key spareKey2 = exchange.getAuxiliaryKey2();

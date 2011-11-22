@@ -2780,13 +2780,12 @@ public class Exchange {
      * @throws PersistitException
      */
     private boolean removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
-        Value antiValue = new Value(_persistit);
-        antiValue.putAntiValue((short)0, new byte[]{});
         boolean anyRemoved = false;
         _key.copyTo(_spareKey3);
         key1.copyTo(_key);
         while(traverse(GTEQ, true) && _key.compareTo(key2) < 0) {
-            store(_key, antiValue);
+            _value.clear().putAntiValueMVV();
+            store();
             anyRemoved = true;
         }
         _spareKey3.copyTo(_key);
