@@ -522,9 +522,13 @@ public class Exchange {
         }
     }
 
+    /**
+     * Bit flags that are passed to {@link #storeInternal(Key, Value, int, int)}
+     * to control various behavior. See each member for specifics.
+     */
     static class StoreOptions {
         /** The default, implies none of the further options **/
-        public static final int NONE             = 0;
+        public static final int NONE            = 0;
 
         /** Fetch the current value before replacing **/
         public static final int FETCH           = 1 << 1;
