@@ -80,7 +80,7 @@ abstract class Accumulator {
     private final int _index;
     private final TransactionIndex _transactionIndex;
 
-    private AtomicLong _liveValue;
+    private final AtomicLong _liveValue = new AtomicLong();
     private final long _baseValue;
 
     private long[] _bucketValues;
@@ -152,6 +152,7 @@ abstract class Accumulator {
         _tree = tree;
         _index = index;
         _baseValue = baseValue;
+        _liveValue.set(baseValue);
         _transactionIndex = transactionIndex;
         _bucketValues = new long[transactionIndex.getHashTableSize()];
     }
@@ -170,6 +171,7 @@ abstract class Accumulator {
 
     /**
      * @param type
+     *            Indicates which kind of <code>Accumulator</code> to return
      * @param tree
      *            The {@link Tree} to which this Accumulator will belong
      * @param index
@@ -179,7 +181,7 @@ abstract class Accumulator {
      *            transactions that committed before the baseTimestamp
      * @param transactionIndex
      *            the <code>TransactionIndex</code> component
-     * @return a SumAccumulator
+     * @return an Accumulator of the specified type
      * 
      */
     static Accumulator accumulator(final Type type, final Tree tree, final int index, final long baseValue,
@@ -194,6 +196,10 @@ abstract class Accumulator {
         default:
             throw new IllegalArgumentException("No such type " + type);
         }
+    }
+
+    long getLiveValue() {
+        return _liveValue.get();
     }
 
     /**
@@ -237,6 +243,7 @@ abstract class Accumulator {
         Delta delta = _transactionIndex.addDelta(status);
         delta.setValue(value);
         delta.setStep(step);
+        delta.setAccumulator(this);
     }
 
     Tree getTree() {
@@ -265,6 +272,10 @@ abstract class Accumulator {
             return _value;
         }
 
+        void setAccumulator(final Accumulator accumulator) {
+            _accumulator = accumulator;
+        }
+
         void setValue(final long newValue) {
             _value = newValue;
         }
@@ -289,6 +300,6 @@ abstract class Accumulator {
     @Override
     public String toString() {
         return String.format("Accumulator(tree=%s index=%d type=%s base=%,d live=%,d", _tree.getName(), _index, type(),
-                _baseValue, _liveValue);
+                _baseValue, _liveValue.get());
     }
 }
