@@ -1157,9 +1157,10 @@ public class Exchange {
      *            The key to store.
      * @param value
      *            The value to store.
+     * @return This <code>Exchange</code> to permit method call chaining.
      * @throws PersistitException Upon error
      */
-    void store(Key key, Value value) throws PersistitException {
+    Exchange store(Key key, Value value) throws PersistitException {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
@@ -1173,6 +1174,8 @@ public class Exchange {
         options |= (!_ignoreTransactions && _transaction.isActive()) ? StoreOptions.MVCC : 0;
         storeInternal(key, value, 0, options);
         _treeHolder.verifyReleased();
+        
+        return this;
     }
 
     /**
@@ -2275,8 +2278,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public Exchange store() throws PersistitException {
-        store(_key, _value);
-        return this;
+        return store(_key, _value);
     }
 
     /**

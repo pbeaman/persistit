@@ -220,7 +220,7 @@ public class SplitPolicyTest extends PersistitUnitTestCase {
             ex.to(i).store();
         }
         final float ratioFowardSequential = inuseRatio(ex);
-        assertTrue("ratio less than expected, " + ratioFowardSequential, ratioFowardSequential > .85);
+        assertTrue(ratioFowardSequential > .85);
 
         ex.removeAll();
         for (int i = 1000000; ex.getVolume().getStorage().getNextAvailablePage() < 21; i--) {
