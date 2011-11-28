@@ -21,6 +21,7 @@ import static com.persistit.TransactionStatus.UNCOMMITTED;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.Accumulator.Delta;
+import com.persistit.exception.RetryException;
 
 /**
  * <p>
@@ -504,41 +505,68 @@ public class TransactionIndexBucket {
 
     /**
      * Compute and return the snapshot value of an Accumulator
+     * 
+     * @throws RetryException
+     *             if a TransactionStatus started but had not finished
+     *             committing.
+     * @throws InterruptedException
      */
-    long getAccumulatorSnapshot(final Accumulator accumulator, final long timestamp, final int step) {
+    long getAccumulatorSnapshot(final Accumulator accumulator, final long timestamp, final int step)
+            throws RetryException, InterruptedException {
         assert _lock.isHeldByCurrentThread();
-        long value = accumulator.getBucketValue(_hashIndex);
-        for (TransactionStatus status = _current; status != null; status = status.getNext()) {
-            if (status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.getTc() < timestamp) {
-                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
-                    if (delta.getAccumulator() == accumulator) {
-                        value = accumulator.combine(value, delta.getValue());
+        TransactionStatus inCommit = null;
+
+        retry: while (inCommit == null) {
+            long value = accumulator.getBucketValue(_hashIndex);
+            for (TransactionStatus status = _current; status != null && inCommit == null; status = status.getNext()) {
+                final long tc = status.getTc();
+                if (status.getTs() == timestamp) {
+                    for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                        if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
+                            value = accumulator.combine(value, delta.getValue());
+                        }
                     }
-                }
-            } else if (status.getTs() == timestamp) {
-                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
-                    if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
-                        value = accumulator.combine(value, delta.getValue());
+                } else if (tc > 0 && tc != UNCOMMITTED && tc < timestamp) {
+                    for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                        if (delta.getAccumulator() == accumulator) {
+                            value = accumulator.combine(value, delta.getValue());
+                        }
                     }
-                }
-            }
-        }
-        for (TransactionStatus status = _longRunning; status != null; status = status.getNext()) {
-            if (status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.getTc() < timestamp) {
-                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
-                    if (delta.getAccumulator() == accumulator) {
-                        value = accumulator.combine(value, delta.getValue());
-                    }
-                }
-            } else if (status.getTs() == timestamp) {
-                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
-                    if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
-                        value = accumulator.combine(value, delta.getValue());
-                    }
+                } else if (tc < 0 && tc != ABORTED) {
+                    inCommit = status;
+                    break retry;
                 }
             }
+            for (TransactionStatus status = _longRunning; status != null && inCommit == null; status = status.getNext()) {
+                final long tc = status.getTc();
+                if (status.getTs() == timestamp) {
+                    for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                        if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
+                            value = accumulator.combine(value, delta.getValue());
+                        }
+                    }
+                } else if (tc > 0 && tc != UNCOMMITTED && tc < timestamp) {
+                    for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                        if (delta.getAccumulator() == accumulator) {
+                            value = accumulator.combine(value, delta.getValue());
+                        }
+                    }
+                } else if (tc < 0 && tc != ABORTED) {
+                    inCommit = status;
+                    continue retry;
+                }
+            }
+            return value;
         }
-        return value;
+        boolean locked = false;
+        try {
+            locked = inCommit.wwLock(TransactionIndex.SHORT_TIMEOUT);
+        } finally {
+            if (locked) {
+                inCommit.wwUnlock();
+            }
+        }
+        throw RetryException.SINGLE;
     }
 
     private Delta freeDelta(final Delta delta) {
@@ -554,7 +582,7 @@ public class TransactionIndexBucket {
         }
         return next;
     }
-    
+
     Delta allocateDelta() {
         Delta delta = _freeDeltaList;
         if (delta != null) {

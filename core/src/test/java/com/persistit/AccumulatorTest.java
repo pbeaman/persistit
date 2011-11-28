@@ -15,14 +15,20 @@
 
 package com.persistit;
 
-import junit.framework.TestCase;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
-public class AccumulatorTest extends TestCase {
+import com.persistit.exception.TimeoutException;
+import com.persistit.unit.PersistitUnitTestCase;
+
+public class AccumulatorTest extends PersistitUnitTestCase {
 
     private final TimestampAllocator _tsa = new TimestampAllocator();
+    private final ReentrantLock _lock = new ReentrantLock();
 
     public void testBasicMethodsOneBucket() throws Exception {
-        TransactionIndex ti = new TransactionIndex(_tsa, 1);
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
         Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
         TransactionStatus status = ti.registerTransaction();
         acc.update(1, status, 0);
@@ -36,7 +42,7 @@ public class AccumulatorTest extends TestCase {
     }
 
     public void testBasicMethodsMultipleBuckets() throws Exception {
-        TransactionIndex ti = new TransactionIndex(_tsa, 1000);
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1000);
         Accumulator countAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
         Accumulator sumAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
         Accumulator minAcc = Accumulator.accumulator(Accumulator.Type.MIN, null, 0, 0, ti);
@@ -59,5 +65,77 @@ public class AccumulatorTest extends TestCase {
         assertEquals(-1016, minAcc.getSnapshotValue(after, 0));
         assertEquals(1016, maxAcc.getSnapshotValue(after, 0));
         assertEquals(sumAcc.getLiveValue(), sumAcc.getSnapshotValue(after, 0));
+    }
+
+    /**
+     * Run a bunch of concurrent pseudo-transactions with random pauses between
+     * update, commit and notifyCompleted. Each pseudo-transaction increments an
+     * Accumulator. In foreground thread periodically compute and check for
+     * sanity the Accumulator's snapshot value. Conclude by verifying total.
+     * 
+     */
+    public void testAggregationRetry() throws Exception {
+        final long time = 20000;
+        final TransactionIndex ti = new TransactionIndex(_tsa, 5000);
+        final AtomicLong before = new AtomicLong();
+        final AtomicLong after = new AtomicLong();
+        final AtomicLong pauseTime = new AtomicLong();
+        final Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        final long stopTime = System.currentTimeMillis() + time;
+        final Random random = new Random();
+        final Thread[] threads = new Thread[10];
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new Thread(new Runnable() {
+                public void run() {
+                    while (System.currentTimeMillis() < stopTime) {
+                        final TransactionStatus status;
+                        try {
+                            status = ti.registerTransaction();
+                            acc.update(1, status, 0);
+                            before.incrementAndGet();
+                            if (random.nextInt(100) < 5) {
+                                Thread.sleep(1);
+                                pauseTime.incrementAndGet();
+                            }
+                            status.commit(_tsa.updateTimestamp());
+                            if (random.nextInt(100) < 5) {
+                                Thread.sleep(1);
+                                pauseTime.incrementAndGet();
+                            }
+                            ti.notifyCompleted(status);
+                            after.incrementAndGet();
+                        } catch (TimeoutException e) {
+                            e.printStackTrace();
+                            break;
+                        } catch (InterruptedException e) {
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+        for (final Thread thread : threads) {
+            thread.start();
+        }
+        for (int i = 0; System.currentTimeMillis() < stopTime; i++) {
+            Thread.sleep(5);
+            ti.updateActiveTransactionCache();
+            if ((i % 10) == 0) {
+                long low = after.get();
+                long timestamp = _tsa.updateTimestamp();
+                long value = acc.getSnapshotValue(timestamp, 0);
+                long high = before.get();
+                assertTrue(low <= value);
+                assertTrue(value <= high);
+            }
+        }
+        for (final Thread thread : threads) {
+            thread.join();
+        }
+        assertEquals(after.get(), acc.getSnapshotValue(_tsa.updateTimestamp(), 0));
+        final long workTime = (threads.length * time) - pauseTime.get();
+        if (workTime > 0) {
+            System.out.printf("Count per ms = %,d", after.get() / workTime);
+        }
     }
 }

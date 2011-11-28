@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.Accumulator.Delta;
+import com.persistit.exception.RetryException;
 import com.persistit.exception.TimeoutException;
 
 /**
@@ -882,16 +883,23 @@ public class TransactionIndex {
 
     /**
      * Compute and return the snapshot value of an Accumulator
+     * @throws InterruptedException 
      */
     long getAccumulatorSnapshot(final Accumulator accumulator, final long timestamp, final int step,
-            final long initialValue) {
+            final long initialValue) throws InterruptedException {
         long result = initialValue;
         for (final TransactionIndexBucket bucket : _hashTable) {
-            bucket.lock();
-            try {
-                result = accumulator.combine(result, bucket.getAccumulatorSnapshot(accumulator, timestamp, step));
-            } finally {
-                bucket.unlock();
+            boolean again = true;
+            while (again) {
+                again = false;
+                bucket.lock();
+                try {
+                    result = accumulator.combine(result, bucket.getAccumulatorSnapshot(accumulator, timestamp, step));
+                } catch (RetryException e) {
+                    again = true;
+                } finally {
+                    bucket.unlock();
+                }
             }
         }
         return result;

@@ -20,42 +20,51 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>
  * An Accumulator accumulates statistical information in the MVCC Transaction
  * environment without creating write-write dependency conflicts. Subclasses
- * include SumAccumulator, MinAccumulator and MaxAccumulator which compute the
- * sum, minimum and maximum values of contributions by individual transactions.
- * Each contribution is accounted for separately until the transaction is either
- * committed or aborted <i>and<i> there are no other concurrently executing
- * transactions that started before the commit timestamp. This mechanism is
- * designed to provide a "snapshot" view of the Accumulator that is consistent
- * with the snapshot view of the database.
+ * include CountAccumulator, SumAccumulator, MinAccumulator and MaxAccumulator
+ * which compute the count, sum, minimum and maximum values of contributions by
+ * individual transactions. Each contribution is accounted for separately until
+ * the transaction is either committed or aborted <i>and<i> there are no other
+ * concurrently executing transactions that started before the commit timestamp.
+ * This mechanism is designed to provide a "snapshot" view of the Accumulator
+ * that is consistent with the snapshot view of the database.
  * </p>
  * <p>
- * In more detail: the mutator methods of an Accumulator are invoked within the
- * scope of a transaction T. The mutation operations (add, min, max) are all
- * commutative. Those mutations are not visible to other transactions until T
- * commits. Moreover, another concurrently executing transaction having a start
- * timestamp less than T's commit timestamp does not see the results of the
- * mutations either. To accomplish this, the state of the Accumulator visible
- * within a transaction is computed by determining which mutations are visible
- * and applying them to a transient copy.
+ * In more detail: the {@link #update(long, TransactionStatus, int)} method of
+ * an Accumulator is invoked within the scope of a transaction T. That update is
+ * not visible to other transactions until T commits. Moreover, any other
+ * concurrently executing transaction having a start timestamp less than T's
+ * commit timestamp does not see the results of the update. To accomplish this,
+ * the state of the Accumulator visible within a transaction is computed by
+ * determining which updates are visible and aggregating them on demand.
  * </p>
  * <p>
- * There can be at most N Accumulators per tree (where N is a reasonably small
- * number like 64). Their state is serialized at checkpoints into the Tree's
- * directory entry.
+ * The updates invoked on Transactions are recorded in the Journal and reapplied
+ * during recovery to reproduce an accurate version of the Accumulator state
+ * when Persistit starts up.
+ * <p>
+ * There can be at most N Accumulators per Tree (where N is a reasonably small
+ * number like 64). A snapshot value of each Accumulator is stored once per
+ * checkpoint. Checkpoint snapshot values are held in the directory tree of the
+ * volume containing the Tree.
  * </p>
  * <p>
- * The following describes intended use cases for the various types of
+ * The following describes example use cases for the various types of
  * accumulators:
  * <dl>
+ * <dt>count</dt>
+ * <dd>Row count</dd>
  * <dt>sum</dt>
- * <dd>Row count, total size, sums of various other characteristics</dd>
- * <dt>max</dt>
+ * <dd>Total size, sums of various other characteristics</dd>
+ * <dt>maximum</dt>
  * <dd>Auto-increment and generated primary key assignment for positive
  * increment values</dd>
- * <dt>min</dt>
+ * <dt>minimum</dt>
  * <dd>Auto-increment and generated primary key assignment for negative
  * increment values</dd>
  * </dl>
+ * Note that count and sum are trivially different: the count accumulator is
+ * simple a SumAccumulator that assumes an argument value of 1 and consumes less
+ * space in the journal.
  * </p>
  * <p>
  * To allocate a new unique key value, for instance, the application is expected
@@ -68,12 +77,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * </p>
  * 
  * @author peter
- * 
  */
 abstract class Accumulator {
 
     public static enum Type {
-        SUM, MAX, MIN
+        COUNT, SUM, MAX, MIN
     };
 
     private final Tree _tree;
@@ -84,6 +92,31 @@ abstract class Accumulator {
     private final long _baseValue;
 
     private long[] _bucketValues;
+
+    /**
+     * An Accumulator that computes a count
+     */
+    final static class CountAccumulator extends Accumulator {
+
+        private CountAccumulator(final Tree tree, final int index, final long baseValue,
+                final TransactionIndex transactionIndex) {
+            super(tree, index, baseValue, transactionIndex);
+        }
+
+        @Override
+        long combine(final long a, final long b) {
+            return a + b;
+        }
+
+        void update(final TransactionStatus status, final int step) {
+            update(1, status, step);
+        }
+
+        @Override
+        Type type() {
+            return Type.SUM;
+        }
+    }
 
     /**
      * An Accumulator that computes a sum
@@ -187,6 +220,8 @@ abstract class Accumulator {
     static Accumulator accumulator(final Type type, final Tree tree, final int index, final long baseValue,
             final TransactionIndex transactionIndex) {
         switch (type) {
+        case COUNT:
+            return new CountAccumulator(tree, index, baseValue, transactionIndex);
         case SUM:
             return new SumAccumulator(tree, index, baseValue, transactionIndex);
         case MAX:
@@ -210,8 +245,9 @@ abstract class Accumulator {
      *         <code>timestamp</code>, and (b) all operations performed by the
      *         current transaction having step numbers less than
      *         <code>step</code>.
+     * @throws InterruptedException
      */
-    long getSnapshotValue(final long timestamp, final int step) {
+    long getSnapshotValue(final long timestamp, final int step) throws InterruptedException {
         return _transactionIndex.getAccumulatorSnapshot(this, timestamp, step, _baseValue);
     }
 
@@ -294,6 +330,12 @@ abstract class Accumulator {
 
         void merge(final Delta delta) {
             _value = _accumulator.combine(_value, delta.getValue());
+        }
+
+        @Override
+        public String toString() {
+            return String.format("Delta(type=%s value=%,d%s)", _accumulator == null ? "Null" : _accumulator.type()
+                    .toString(), _value, _next == null ? "" : "*");
         }
     }
 
