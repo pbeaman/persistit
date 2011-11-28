@@ -23,9 +23,9 @@ import java.util.Set;
 
 import org.junit.Test;
 
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.RecoveryManager.RecoveryListener;
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
@@ -62,7 +62,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             buffer.releaseTouched();
         }
 
-        final Checkpoint checkpoint1 = _persistit.getTimestampAllocator().forceCheckpoint();
+        final Checkpoint checkpoint1 = _persistit.getCheckpointManager().createCheckpoint();
         jman.writeCheckpointToJournal(checkpoint1);
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
         assertTrue(exchange.next(true));
@@ -95,7 +95,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 jman.rollover();
             }
             if (i == 50) {
-                checkpoint2 = _persistit.getTimestampAllocator().forceCheckpoint();
+                checkpoint2 = _persistit.getCheckpointManager().createCheckpoint();
                 jman.writeCheckpointToJournal(checkpoint2);
                 noPagesAfterThis = jman.getCurrentAddress();
                 commitCount = 0;
@@ -199,7 +199,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             jman.writePageToJournal(buffer);
             buffer.releaseTouched();
         }
-        final Checkpoint checkpoint1 = _persistit.getTimestampAllocator().forceCheckpoint();
+        final Checkpoint checkpoint1 = _persistit.getCheckpointManager().createCheckpoint();
         jman.writeCheckpointToJournal(checkpoint1);
         _persistit.checkpoint();
         final Properties saveProperties = _persistit.getProperties();

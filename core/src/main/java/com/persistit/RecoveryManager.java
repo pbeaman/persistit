@@ -33,14 +33,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TransactionMapItem;
 import com.persistit.JournalManager.TreeDescriptor;
@@ -57,7 +56,6 @@ import com.persistit.JournalRecord.PM;
 import com.persistit.JournalRecord.SR;
 import com.persistit.JournalRecord.TM;
 import com.persistit.JournalRecord.TX;
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -1388,13 +1386,12 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 exchange.ignoreTransactions();
                 final Key key = exchange.getKey();
                 final Value value = exchange.getValue();
-                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD, key.getEncodedBytes(), 0,
-                        keySize);
+                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD, key.getEncodedBytes(), 0, keySize);
                 key.setEncodedSize(keySize);
                 final int valueSize = innerSize - SR.OVERHEAD - keySize;
                 value.ensureFit(valueSize);
-                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD + keySize, value
-                        .getEncodedBytes(), 0, valueSize);
+                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD + keySize, value.getEncodedBytes(), 0,
+                        valueSize);
                 value.setEncodedSize(valueSize);
 
                 if (value.getEncodedSize() >= Buffer.LONGREC_SIZE
@@ -1418,13 +1415,12 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 exchange.ignoreTransactions();
                 final Key key1 = exchange.getAuxiliaryKey1();
                 final Key key2 = exchange.getAuxiliaryKey2();
-                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0,
-                        key1Size);
+                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0, key1Size);
                 key1.setEncodedSize(key1Size);
                 final int key2Size = innerSize - DR.OVERHEAD - key1Size;
                 System.arraycopy(key1.getEncodedBytes(), 0, key2.getEncodedBytes(), 0, elisionCount);
-                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD + key1Size, key2
-                        .getEncodedBytes(), elisionCount, key2Size);
+                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD + key1Size, key2.getEncodedBytes(),
+                        elisionCount, key2Size);
                 key2.setEncodedSize(key2Size + elisionCount);
                 listener.removeKeyRange(address, startTimestamp, exchange, exchange.getAuxiliaryKey1(), exchange
                         .getAuxiliaryKey2());
@@ -1440,19 +1436,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             }
 
             case CU.TYPE: {
-                final long cacheId = CU.getCacheId(bb);
-                TransactionalCache tc = _persistit.getTransactionalCache(cacheId);
-                if (tc != null) {
-                    final int save = bb.position();
-                    final int limit = bb.limit();
-                    bb.limit(bb.position() + innerSize);
-                    bb.position(bb.position() + CU.OVERHEAD);
-                    tc.recoverUpdates(bb, startTimestamp);
-                    bb.position(save);
-                    bb.limit(limit);
-                } else {
-                    // TODO log missing TransactionalCache
-                }
+                // TODO - replace with Accumulator logic
                 break;
             }
 

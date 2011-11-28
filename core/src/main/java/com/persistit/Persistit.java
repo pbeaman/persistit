@@ -25,6 +25,7 @@ import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
+import java.lang.ref.WeakReference;
 import java.rmi.RemoteException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -47,8 +48,7 @@ import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.TransactionIndex.ActiveTransactionCachePollTask;
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
@@ -57,8 +57,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.PropertiesNotFoundException;
-import com.persistit.exception.RollbackException;
-import com.persistit.exception.TransactionFailedException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
@@ -378,7 +376,7 @@ public class Persistit {
 
     private final SharedResource _transactionResourceB = new SharedResource(this);
 
-    private final HashMap<Long, TransactionalCache> _transactionalCaches = new HashMap<Long, TransactionalCache>();
+    private final List<WeakReference<Accumulator>> _accumulators = new ArrayList<WeakReference<Accumulator>>();
 
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
@@ -1484,7 +1482,7 @@ public class Persistit {
      * @return The most recently proposed Checkpoint.
      */
     public Checkpoint getCurrentCheckpoint() {
-        return _timestampAllocator.getCurrentCheckpoint();
+        return _checkpointManager.getCurrentCheckpoint();
     }
 
     /**
@@ -1502,38 +1500,6 @@ public class Persistit {
         return _checkpointManager.checkpoint();
     }
 
-    boolean flushTransactionalCaches(final Checkpoint checkpoint) {
-        if (_transactionalCaches.isEmpty()) {
-            return true;
-        }
-        try {
-            final Transaction transaction = getTransaction();
-            transaction.setTransactionalCacheCheckpoint(checkpoint);
-            int retries = 10;
-            while (true) {
-                transaction.begin();
-                try {
-                    for (final TransactionalCache tc : _transactionalCaches.values()) {
-                        tc.save(checkpoint);
-                    }
-                    transaction.commit();
-                    break;
-                } catch (RollbackException e) {
-                    if (--retries >= 0) {
-                        continue;
-                    } else {
-                        throw new TransactionFailedException("Retry limit 10 exceeeded");
-                    }
-                } finally {
-                    transaction.end();
-                }
-            }
-            return true;
-        } catch (PersistitException e) {
-            // log this
-            return false;
-        }
-    }
 
     final long earliestLiveTransaction() {
         long earliest = Long.MAX_VALUE;
@@ -1802,12 +1768,9 @@ public class Persistit {
     }
 
     private void releaseAllResources() {
+        _accumulators.clear();
         _volumes.clear();
         _bufferPoolTable.clear();
-        for (final TransactionalCache cache : _transactionalCaches.values()) {
-            cache.close();
-        }
-        _transactionalCaches.clear();
         _exchangePoolMap.clear();
         Set<Transaction> transactions;
         synchronized (_transactionSessionMap) {
@@ -2118,6 +2081,10 @@ public class Persistit {
 
     TimestampAllocator getTimestampAllocator() {
         return _timestampAllocator;
+    }
+    
+    CheckpointManager getCheckpointManager() {
+        return _checkpointManager;
     }
 
     IOMeter getIOMeter() {
@@ -2527,31 +2494,19 @@ public class Persistit {
         _suspendUpdates.set(suspended);
     }
 
-    /**
-     * Register a <code>TransactionalCache</code> instance. This method may only
-     * be called before {@link #initialize()}. Each instance must have a unique
-     * <code>cacheId</code>.
-     * 
-     * @param tc
-     */
-    void addTransactionalCache(TransactionalCache tc) {
-        if (_initialized.get()) {
-            throw new IllegalStateException("TransactionalCache must be added" + " before Persistit initialization");
-        }
-        if (getTransactionalCache(tc.cacheId()) != null) {
-            throw new IllegalStateException("TransactionalCache cacheId must be unique");
-        }
-        _transactionalCaches.put(tc.cacheId(), tc);
+    synchronized void addAccumulator(final Accumulator accumulator) {
+        _accumulators.add(new WeakReference<Accumulator>(accumulator));
     }
-
-    /**
-     * Get a TransactionalCache instance by its unique <code>cacheId</code>.
-     * 
-     * @param cacheId
-     * @return the corresponding <code>TransactionalCache</code>.
-     */
-    TransactionalCache getTransactionalCache(final long cacheId) {
-        return _transactionalCaches.get(cacheId);
+    
+    synchronized List<Accumulator> getAccumulators() {
+        final List<Accumulator> result = new ArrayList<Accumulator>();
+        for (final WeakReference<Accumulator> ref : _accumulators) {
+            final Accumulator acc = ref.get();
+            if (acc != null) {
+                result.add(acc);
+            }
+        }
+        return result;
     }
 
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",

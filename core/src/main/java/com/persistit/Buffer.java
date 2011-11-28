@@ -21,17 +21,16 @@ import static com.persistit.VolumeHeader.getGarbageRoot;
 import static com.persistit.VolumeHeader.getId;
 import static com.persistit.VolumeHeader.getNextAvailablePage;
 
-import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Set;
 import java.util.Stack;
 
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.Exchange.Sequence;
 import com.persistit.JournalRecord.IV;
 import com.persistit.JournalRecord.PA;
 import com.persistit.Management.RecordInfo;
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
 import com.persistit.exception.InvalidPageStructureException;

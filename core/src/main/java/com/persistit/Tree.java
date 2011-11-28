@@ -245,7 +245,7 @@ public class Tree extends SharedResource {
         if (accumulator == null) {
             accumulator = Accumulator.accumulator(type, this, index, 0, _persistit.getTransactionIndex());
             _accumulators[index] = accumulator;
-        } else if (accumulator.type() != type) {
+        } else if (accumulator.getType() != type) {
             throw new IllegalStateException("Wrong type " + accumulator + " is not a " + type + " accumulator");
         }
         return accumulator;

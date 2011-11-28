@@ -15,8 +15,6 @@
 
 package com.persistit;
 
-import java.io.BufferedReader;
-
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 

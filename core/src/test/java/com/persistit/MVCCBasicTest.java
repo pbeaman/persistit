@@ -15,13 +15,13 @@
 
 package com.persistit;
 
-import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+
+import com.persistit.exception.PersistitException;
+import com.persistit.unit.PersistitUnitTestCase;
 
 public class MVCCBasicTest extends PersistitUnitTestCase {
     private static final String VOL_NAME = "persistit";

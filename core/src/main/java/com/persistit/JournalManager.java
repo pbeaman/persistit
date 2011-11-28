@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.IT;
 import com.persistit.JournalRecord.IV;
@@ -41,7 +42,6 @@ import com.persistit.JournalRecord.PA;
 import com.persistit.JournalRecord.PM;
 import com.persistit.JournalRecord.TM;
 import com.persistit.JournalRecord.TX;
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;

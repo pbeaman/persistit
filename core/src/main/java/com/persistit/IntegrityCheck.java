@@ -20,16 +20,15 @@ import java.util.BitSet;
 
 import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
+import com.persistit.Exchange.FetchOpt;
+import com.persistit.Exchange.MvccOpt;
+import com.persistit.Exchange.WaitOpt;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
-
-import static com.persistit.Exchange.FetchOpt;
-import static com.persistit.Exchange.MvccOpt;
-import static com.persistit.Exchange.WaitOpt;
 
 /**
  * <p>

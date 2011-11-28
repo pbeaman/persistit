@@ -20,7 +20,6 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.persistit.exception.PersistitInterruptedException;
-import com.persistit.util.Debug;
 
 /**
  * Base class for objects that need synchronization across threads. The methods

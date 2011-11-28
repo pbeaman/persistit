@@ -18,13 +18,13 @@ package com.persistit.unit;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-import com.persistit.exception.MissingKeySegmentException;
 import junit.framework.Assert;
 
 import org.junit.Test;
 
 import com.persistit.Key;
 import com.persistit.KeyState;
+import com.persistit.exception.MissingKeySegmentException;
 import com.persistit.util.Util;
 
 public class KeyTest1 extends PersistitUnitTestCase {

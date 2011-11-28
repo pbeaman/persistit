@@ -48,7 +48,6 @@ import com.persistit.JournalRecord.PM;
 import com.persistit.JournalRecord.SR;
 import com.persistit.JournalRecord.TM;
 import com.persistit.JournalRecord.TX;
-import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -860,24 +859,7 @@ public class JournalTool {
             start(address, timestamp, "CU", recordSize);
             int start = _readBuffer.position();
             final long cacheId = CU.getCacheId(_readBuffer);
-            final TransactionalCache tc = _persistit.getTransactionalCache(cacheId);
-            if (tc == null) {
-                appendf(" cacheId %d is undefined", cacheId);
-            } else {
-                appendf(" cacheId %d: ", cacheId);
-                _readBuffer.position(start + CU.OVERHEAD);
-                final int end = start + recordSize;
-                while (_readBuffer.position() < end) {
-                    final byte opCode = _readBuffer.get();
-                    if (opCode == 0) {
-                        appendf(" <saved>");
-                    } else {
-                        final Update update = tc.createUpdate(opCode);
-                        update.readArgs(_readBuffer);
-                        appendf(" %s", update);
-                    }
-                }
-            }
+            // TODO - replace with accumulator logic
             end();
         }
 

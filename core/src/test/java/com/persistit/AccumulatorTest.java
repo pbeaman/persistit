@@ -119,13 +119,18 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         for (final Thread thread : threads) {
             thread.start();
         }
+        long elapsedNanos = 0;
+        int calls = 0;
         for (int i = 0; System.currentTimeMillis() < stopTime; i++) {
             Thread.sleep(5);
             ti.updateActiveTransactionCache();
             if ((i % 10) == 0) {
                 long low = after.get();
                 long timestamp = _tsa.updateTimestamp();
+                elapsedNanos -= System.nanoTime();
                 long value = acc.getSnapshotValue(timestamp, 0);
+                elapsedNanos += System.nanoTime();
+                calls++;
                 long high = before.get();
                 assertTrue(low <= value);
                 assertTrue(value <= high);
@@ -137,7 +142,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(after.get(), acc.getSnapshotValue(_tsa.updateTimestamp(), 0));
         final long workTime = (threads.length * time) - pauseTime.get();
         if (workTime > 0) {
-            System.out.printf("Count per ms = %,d", after.get() / workTime);
+            System.out.printf("Count per ms = %,d  Nanos per call=%,d", after.get() / workTime, elapsedNanos / calls);
         }
     }
 }

@@ -27,10 +27,10 @@ import java.util.TreeSet;
 
 import org.junit.Test;
 
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.RecoveryManager.RecoveryListener;
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;

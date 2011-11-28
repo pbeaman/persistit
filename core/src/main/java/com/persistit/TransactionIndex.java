@@ -20,6 +20,8 @@ import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -883,7 +885,8 @@ public class TransactionIndex {
 
     /**
      * Compute and return the snapshot value of an Accumulator
-     * @throws InterruptedException 
+     * 
+     * @throws InterruptedException
      */
     long getAccumulatorSnapshot(final Accumulator accumulator, final long timestamp, final int step,
             final long initialValue) throws InterruptedException {
@@ -894,7 +897,8 @@ public class TransactionIndex {
                 again = false;
                 bucket.lock();
                 try {
-                    result = accumulator.applyValue(result, bucket.getAccumulatorSnapshot(accumulator, timestamp, step));
+                    result = accumulator
+                            .applyValue(result, bucket.getAccumulatorSnapshot(accumulator, timestamp, step));
                 } catch (RetryException e) {
                     again = true;
                 } finally {
@@ -903,6 +907,44 @@ public class TransactionIndex {
             }
         }
         return result;
+    }
+
+    void checkpointAccumulatorSnapshots(long timestamp) throws InterruptedException {
+        Map<Accumulator, long[]> accumulation = new HashMap<Accumulator, long[]>();
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            boolean again = true;
+            while (again) {
+                again = false;
+                bucket.lock();
+                try {
+                    Map<Accumulator, long[]> bucketAccmulation = new HashMap<Accumulator, long[]>();
+                    bucket.checkpointAccumulatorSnapshots(timestamp, bucketAccmulation);
+                    /*
+                     * If the operation on the bucket doesn't throw a retry then combine the bucket's
+                     * results into the main accumulation map.
+                     */
+                    for (final Map.Entry<Accumulator, long[]> entry : bucketAccmulation.entrySet()) {
+                        final Accumulator accumulator = entry.getKey();
+                        final long[] value = entry.getValue();
+                        long[] accumulated = accumulation.get(accumulator);
+                        if (accumulated == null) {
+                            accumulation.put(accumulator, value);
+                        } else {
+                            accumulated[0] = accumulator.applyValue(accumulated[0], value[0]);
+                        }
+                    }
+                } catch (RetryException e) {
+                    again = true;
+                } finally {
+                    bucket.unlock();
+                }
+            }
+        }
+        for (final Map.Entry<Accumulator, long[]> entry : accumulation.entrySet()) {
+            final Accumulator accumulator = entry.getKey();
+            final long[] value = entry.getValue();
+            accumulator.setCheckpointValue(value[0]);
+        }
     }
 
     Delta addDelta(final TransactionStatus status) {

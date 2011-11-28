@@ -86,6 +86,8 @@ abstract class Accumulator {
 
     private final AtomicLong _liveValue = new AtomicLong();
     private final long _baseValue;
+    private long _checkpointValue;
+    private long _checkpointTimestamp;
 
     private long[] _bucketValues;
 
@@ -108,14 +110,14 @@ abstract class Accumulator {
         long updateValue(final long a, final long b) {
             return applyValue(a, b);
         }
-        
+
         @Override
         long selectValue(final long value, final long updated) {
             return value;
         }
 
         @Override
-        Type type() {
+        Type getType() {
             return Type.SUM;
         }
     }
@@ -146,7 +148,7 @@ abstract class Accumulator {
         }
 
         @Override
-        Type type() {
+        Type getType() {
             return Type.MIN;
         }
     }
@@ -177,7 +179,7 @@ abstract class Accumulator {
         }
 
         @Override
-        Type type() {
+        Type getType() {
             return Type.MAX;
         }
     }
@@ -218,7 +220,7 @@ abstract class Accumulator {
         }
 
         @Override
-        Type type() {
+        Type getType() {
             return Type.SEQ;
         }
     }
@@ -267,7 +269,7 @@ abstract class Accumulator {
 
         @Override
         public String toString() {
-            return String.format("Delta(type=%s value=%,d%s)", _accumulator == null ? "Null" : _accumulator.type()
+            return String.format("Delta(type=%s value=%,d%s)", _accumulator == null ? "Null" : _accumulator.getType()
                     .toString(), _value, _next == null ? "" : "*");
         }
     }
@@ -276,6 +278,7 @@ abstract class Accumulator {
         _tree = tree;
         _index = index;
         _baseValue = baseValue;
+        
         _liveValue.set(baseValue);
         _transactionIndex = transactionIndex;
         _bucketValues = new long[transactionIndex.getHashTableSize()];
@@ -305,16 +308,17 @@ abstract class Accumulator {
      * @return
      */
     abstract long updateValue(long a, long b);
-    
+
     /**
      * @param value
      * @param updated
-     * return One of the supplied parameters as the value to be held in a <code>Delta</code>.
+     *            return One of the supplied parameters as the value to be held
+     *            in a <code>Delta</code>.
      * 
      */
     abstract long selectValue(long value, long updated);
 
-    abstract Type type();
+    abstract Type getType();
 
     void aggregate(final int hashIndex, final Delta delta) {
         _bucketValues[hashIndex] = applyValue(_bucketValues[hashIndex], delta.getValue());
@@ -324,6 +328,13 @@ abstract class Accumulator {
         return _bucketValues[hashIndex];
     }
 
+    long checkCheckpointValue() {
+        return _checkpointValue;
+    }
+    
+    void setCheckpointValue(final long value) {
+        _checkpointValue = value;
+    }
     /**
      * @param type
      *            Indicates which kind of <code>Accumulator</code> to return
@@ -416,7 +427,7 @@ abstract class Accumulator {
 
     @Override
     public String toString() {
-        return String.format("Accumulator(tree=%s index=%d type=%s base=%,d live=%,d", _tree.getName(), _index, type(),
-                _baseValue, _liveValue.get());
+        return String.format("Accumulator(tree=%s index=%d type=%s base=%,d live=%,d", _tree == null ? "null" : _tree
+                .getName(), _index, getType(), _baseValue, _liveValue.get());
     }
 }

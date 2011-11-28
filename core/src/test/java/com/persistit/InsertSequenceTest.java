@@ -17,8 +17,6 @@ package com.persistit;
 
 import org.junit.Test;
 
-import com.persistit.Buffer;
-import com.persistit.Exchange;
 import com.persistit.Exchange.Sequence;
 import com.persistit.exception.PersistitException;
 import com.persistit.policy.SplitPolicy;

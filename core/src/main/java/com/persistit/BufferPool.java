@@ -1109,7 +1109,7 @@ public class BufferPool {
         int min = Integer.MAX_VALUE;
         final int clock = _clock.get();
 
-        final long checkpointTimestamp = _persistit.getTimestampAllocator().getCurrentCheckpoint().getTimestamp();
+        final long checkpointTimestamp = _persistit.getCurrentCheckpoint().getTimestamp();
         long earliestDirtyTimestamp = checkpointTimestamp;
         long flushTimestamp = _flushTimestamp.get();
 
@@ -1205,7 +1205,7 @@ public class BufferPool {
                 // is preventing a new checkpoint from being written.
                 //
                 if (buffer.getTimestamp() < checkpointTimestamp
-                        - _persistit.getTimestampAllocator().getCheckpointInterval()) {
+                        - _persistit.getCheckpointManager().getCheckpointInterval()) {
                     distance -= _bufferCount;
                 }
             }
@@ -1254,8 +1254,11 @@ public class BufferPool {
             _persistit.cleanup();
 
             int cleanCount = _bufferCount - _dirtyPageCount.get();
-            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8 && !isFlushing()
-                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {
+            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2
+                    && cleanCount > _bufferCount / 8
+                    && !isFlushing()
+                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint()
+                            .getTimestamp()) {
                 return;
             }
             writeDirtyBuffers(_priorities, _selectedBuffers);

@@ -15,19 +15,12 @@
 
 package com.persistit;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
-import com.persistit.JournalRecord.CU;
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.SR;
-import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
@@ -293,11 +286,7 @@ public class Transaction {
     private long _startTimestamp;
     private long _commitTimestamp;
 
-    private Map<TransactionalCache, List<Update>> _transactionCacheUpdates = new HashMap<TransactionalCache, List<Update>>();
-
     private final ByteBuffer _buffer = ByteBuffer.allocate(TRANSACTION_BUFFER_SIZE);
-
-    private Checkpoint _transactionalCacheCheckpoint;
 
     private long _previousJournalAddress;
 
@@ -410,7 +399,6 @@ public class Transaction {
             }
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
-            _transactionCacheUpdates.clear();
             _buffer.clear();
             _previousJournalAddress = 0;
         }
@@ -453,7 +441,6 @@ public class Transaction {
 
         // Special handling for the outermost scope.
         if (_nestedDepth == 0) {
-            _transactionCacheUpdates.clear();
             //
             // Perform rollback if needed.
             //
@@ -818,19 +805,6 @@ public class Transaction {
         return _rollbackException;
     }
 
-    void setTransactionalCacheCheckpoint(final Checkpoint checkpoint) {
-        _transactionalCacheCheckpoint = checkpoint;
-    }
-
-    List<Update> updateList(final TransactionalCache tc) {
-        List<Update> list = _transactionCacheUpdates.get(tc);
-        if (list == null) {
-            list = new ArrayList<Update>();
-            _transactionCacheUpdates.put(tc, list);
-        }
-        return list;
-    }
-
     /**
      * Record a store operation.
      * 
@@ -922,30 +896,6 @@ public class Transaction {
         JournalRecord.putLength(_buffer, DT.OVERHEAD);
         DT.putType(_buffer);
         DT.putTreeHandle(_buffer, treeHandle);
-    }
-
-    void writeCacheUpdatesToJournal(final long cacheId, final List<Update> updates) throws PersistitIOException {
-        int estimate = CU.OVERHEAD;
-        for (int index = 0; index < updates.size(); index++) {
-            estimate += (1 + updates.get(index).size());
-        }
-        prepare(estimate);
-        int start = _buffer.position();
-        CU.putType(_buffer);
-        CU.putCacheId(_buffer, cacheId);
-        _buffer.position(_buffer.position() + CU.OVERHEAD);
-        for (int index = 0; index < updates.size(); index++) {
-            final Update update = updates.get(index);
-            try {
-                update.write(_buffer);
-            } catch (IOException e) {
-                throw new PersistitIOException(e);
-            }
-        }
-        int recordSize = _buffer.position() - start;
-        _buffer.position(start);
-        CU.putLength(_buffer, recordSize);
-        _buffer.position(start + recordSize);
     }
 
     /**
