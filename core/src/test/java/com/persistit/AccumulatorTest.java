@@ -45,13 +45,16 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         Accumulator sumAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
         Accumulator minAcc = Accumulator.accumulator(Accumulator.Type.MIN, null, 0, 0, ti);
         Accumulator maxAcc = Accumulator.accumulator(Accumulator.Type.MAX, null, 0, 0, ti);
+        Accumulator seqAcc = Accumulator.accumulator(Accumulator.Type.SEQ, null, 0, 0, ti);
         for (int count = 0; count < 100000; count++) {
             TransactionStatus status = ti.registerTransaction();
             assertEquals(count, countAcc.getLiveValue());
+            assertEquals(count * 3, seqAcc.getLiveValue());
             countAcc.update(1, status, 0);
             sumAcc.update(count, status, 0);
             minAcc.update(-1000 - (count % 17), status, 0);
             maxAcc.update(1000 + (count % 17), status, 0);
+            seqAcc.update(3, status, 0);
             status.commit(_tsa.updateTimestamp());
             ti.notifyCompleted(status);
             if ((count % 1000) == 0) {
@@ -63,6 +66,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(-1016, minAcc.getSnapshotValue(after, 0));
         assertEquals(1016, maxAcc.getSnapshotValue(after, 0));
         assertEquals(sumAcc.getLiveValue(), sumAcc.getSnapshotValue(after, 0));
+        assertEquals(seqAcc.getLiveValue(), seqAcc.getSnapshotValue(after, 0));
     }
 
     /**

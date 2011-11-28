@@ -523,13 +523,13 @@ public class TransactionIndexBucket {
                 if (status.getTs() == timestamp) {
                     for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
                         if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
-                            value = accumulator.combine(value, delta.getValue());
+                            value = accumulator.applyValue(value, delta.getValue());
                         }
                     }
                 } else if (tc > 0 && tc != UNCOMMITTED && tc < timestamp) {
                     for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
                         if (delta.getAccumulator() == accumulator) {
-                            value = accumulator.combine(value, delta.getValue());
+                            value = accumulator.applyValue(value, delta.getValue());
                         }
                     }
                 } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
@@ -542,13 +542,13 @@ public class TransactionIndexBucket {
                 if (status.getTs() == timestamp) {
                     for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
                         if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
-                            value = accumulator.combine(value, delta.getValue());
+                            value = accumulator.applyValue(value, delta.getValue());
                         }
                     }
                 } else if (tc > 0 && tc != UNCOMMITTED && tc < timestamp) {
                     for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
                         if (delta.getAccumulator() == accumulator) {
-                            value = accumulator.combine(value, delta.getValue());
+                            value = accumulator.applyValue(value, delta.getValue());
                         }
                     }
                 } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {

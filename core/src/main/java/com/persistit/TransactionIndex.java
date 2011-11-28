@@ -894,7 +894,7 @@ public class TransactionIndex {
                 again = false;
                 bucket.lock();
                 try {
-                    result = accumulator.combine(result, bucket.getAccumulatorSnapshot(accumulator, timestamp, step));
+                    result = accumulator.applyValue(result, bucket.getAccumulatorSnapshot(accumulator, timestamp, step));
                 } catch (RetryException e) {
                     again = true;
                 } finally {

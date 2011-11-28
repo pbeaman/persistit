@@ -250,7 +250,7 @@ public class TransactionStatus {
         long result = value;
         for (Delta delta = _delta; delta != null; delta = delta.getNext()) {
             if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
-                result = accumulator.combine(result, delta.getValue());
+                result = accumulator.applyValue(result, delta.getValue());
             }
         }
         return result;
