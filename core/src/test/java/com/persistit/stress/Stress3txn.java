@@ -17,6 +17,7 @@ package com.persistit.stress;
 
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
@@ -45,6 +46,7 @@ public class Stress3txn extends StressBase {
 
     static String[] _fileNames = null;
     static boolean _filesLoaded;
+    final static AtomicLong _counter = new AtomicLong(0);
 
     int _splay;
     int _seed;
@@ -155,7 +157,7 @@ public class Stress3txn extends StressBase {
                             try {
                                 ex1.clear().append("byName").append(s).fetch();
                                 if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
-                                    atomic = _ex.clear().append("counter").incrementValue();
+                                    atomic = _counter.incrementAndGet();
                                     ex1.getValue().put(atomic);
                                     ex1.store();
                                 } else {
