@@ -1322,7 +1322,7 @@ public final class Value {
                         sb.append(UNDEFINED);
                     } else {
                         _next = offset;
-                        _size = _next + valueLength;
+                        _end = _size = _next + valueLength;
                         decodeDisplayable(quoted, sb, context);
                     }
                     first = false;
@@ -1331,7 +1331,7 @@ public final class Value {
             }, getEncodedBytes(), getEncodedSize());
 
             sb.append("]");
-            _next = _size = savedSize;
+            _next = _end = _size = savedSize;
         }
         break;
 
@@ -1509,6 +1509,9 @@ public final class Value {
                 sb.append(value);
             } else if (value instanceof DisplayMarker) {
                 sb.append(value);
+            } else if (value instanceof AntiValue) {
+                sb.append(cl.getSimpleName());
+                sb.append(value.toString());
             } else {
                 appendParenthesizedFriendlyClassName(sb, cl);
                 try {
@@ -1604,7 +1607,7 @@ public final class Value {
      * <code>Value</code> and verifies that it is <code>null</code>.
      * 
      * @return <code>null</code>
-     * @throws ConverisonException
+     * @throws ConversionException
      *             if this <code>Value</code> does not currently represent
      *             <code>null</code>.
      */
@@ -2126,9 +2129,13 @@ public final class Value {
 
         case CLASS_ANTIVALUE: {
             int length = _end - _next;
-            int elisionCount = Util.getShort(_bytes, _next);
-            byte[] bytes = new byte[length - 2];
-            System.arraycopy(_bytes, _next + 2, bytes, 0, length - 2);
+            int elisionCount = 0;
+            byte[] bytes = null;
+            if (length > 0) {
+                elisionCount = Util.getShort(_bytes, _next);
+                bytes = new byte[length - 2];
+                System.arraycopy(_bytes, _next + 2, bytes, 0, length - 2);
+            }
             _next += length;
             object = new AntiValue(elisionCount, bytes);
             closeVariableLengthItem();
@@ -2273,7 +2280,7 @@ public final class Value {
         }
 
         case TYPE_MVV: {
-            final int savedSIze = _size;
+            final int savedSize = _size;
             _depth++;
             final ArrayList<Object> outList = new ArrayList<Object>();
 
@@ -2287,7 +2294,7 @@ public final class Value {
                     Object obj = null;
                     if(valueLength > 0) {
                         _next = offset;
-                        _size = _next + valueLength;
+                        _end = _size = _next + valueLength;
                         obj = get(target, context);
                     }
                     outList.add(obj);
@@ -2296,7 +2303,7 @@ public final class Value {
             }, getEncodedBytes(), getEncodedSize());
 
             _depth--;
-            _next = _size = savedSIze;
+            _next = _end = _size = savedSize;
             return outList.toArray();
         }
         
@@ -4014,6 +4021,13 @@ public final class Value {
         endVariableSizeItem(_size - start);
     }
 
+    void putAntiValueMVV() {
+        preparePut();
+        ensureFit(1);
+        _bytes[_size++] = (byte) CLASS_ANTIVALUE;
+        _serializedItemCount++;
+    }
+
     void performAtomicIncrement() {
 
         int type;
@@ -4457,8 +4471,10 @@ public final class Value {
     void decodeAntiValue(Exchange exchange) throws InvalidKeyException {
         nextType(CLASS_ANTIVALUE);
         int length = _end - _next;
-        int elisionCount = Util.getShort(_bytes, _next);
-        AntiValue.fixupKeys(exchange, elisionCount, _bytes, _next + 2, length - 2);
+        if (length > 0) {
+            int elisionCount = Util.getShort(_bytes, _next);
+            AntiValue.fixUpKeys(exchange, elisionCount, _bytes, _next + 2, length - 2);
+        }
         _next += length;
         closeVariableLengthItem();
     }
