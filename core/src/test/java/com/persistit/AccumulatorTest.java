@@ -17,7 +17,6 @@ package com.persistit;
 
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.exception.TimeoutException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -25,7 +24,6 @@ import com.persistit.unit.PersistitUnitTestCase;
 public class AccumulatorTest extends PersistitUnitTestCase {
 
     private final TimestampAllocator _tsa = new TimestampAllocator();
-    private final ReentrantLock _lock = new ReentrantLock();
 
     public void testBasicMethodsOneBucket() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
@@ -35,7 +33,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(1, acc.getLiveValue());
         assertEquals(0, acc.getSnapshotValue(1, 0));
         status.commit(_tsa.updateTimestamp());
-        assertEquals(0, acc.getSnapshotValue(status.getTc() + 1, 0));
+        assertEquals(0, acc.getSnapshotValue(_tsa.getCurrentTimestamp(), 0));
         ti.notifyCompleted(status);
         assertEquals(0, acc.getSnapshotValue(status.getTs(), 0));
         assertEquals(1, acc.getSnapshotValue(status.getTc() + 1, 0));
@@ -75,7 +73,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
      * 
      */
     public void testAggregationRetry() throws Exception {
-        final long time = 20000;
+        final long time = 10000;
         final TransactionIndex ti = new TransactionIndex(_tsa, 5000);
         final AtomicLong before = new AtomicLong();
         final AtomicLong after = new AtomicLong();
@@ -93,12 +91,12 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                             status = ti.registerTransaction();
                             acc.update(1, status, 0);
                             before.incrementAndGet();
-                            if (random.nextInt(100) < 5) {
+                            if (random.nextInt(100) < 2) {
                                 Thread.sleep(1);
                                 pauseTime.incrementAndGet();
                             }
                             status.commit(_tsa.updateTimestamp());
-                            if (random.nextInt(100) < 5) {
+                            if (random.nextInt(100) < 2) {
                                 Thread.sleep(1);
                                 pauseTime.incrementAndGet();
                             }

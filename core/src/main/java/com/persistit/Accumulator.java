@@ -51,10 +51,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * The following describes example use cases for the various types of
  * accumulators:
  * <dl>
- * <dt>count</dt>
- * <dd>Row count</dd>
  * <dt>sum</dt>
- * <dd>Total size, sums of various other characteristics</dd>
+ * <dd>Row count, total size, sums of various other characteristics</dd>
  * <dt>maximum</dt>
  * <dd>Auto-increment and generated primary key assignment for positive
  * increment values</dd>
@@ -62,9 +60,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * <dd>Auto-increment and generated primary key assignment for negative
  * increment values</dd>
  * </dl>
- * Note that count and sum are trivially different: the count accumulator is
- * simple a SumAccumulator that assumes an argument value of 1 and consumes less
- * space in the journal.
  * </p>
  * <p>
  * To allocate a new unique key value, for instance, the application is expected
@@ -81,7 +76,7 @@ import java.util.concurrent.atomic.AtomicLong;
 abstract class Accumulator {
 
     public static enum Type {
-        COUNT, SUM, MAX, MIN
+        SUM, MAX, MIN
     };
 
     private final Tree _tree;
@@ -93,30 +88,6 @@ abstract class Accumulator {
 
     private long[] _bucketValues;
 
-    /**
-     * An Accumulator that computes a count
-     */
-    final static class CountAccumulator extends Accumulator {
-
-        private CountAccumulator(final Tree tree, final int index, final long baseValue,
-                final TransactionIndex transactionIndex) {
-            super(tree, index, baseValue, transactionIndex);
-        }
-
-        @Override
-        long combine(final long a, final long b) {
-            return a + b;
-        }
-
-        void update(final TransactionStatus status, final int step) {
-            update(1, status, step);
-        }
-
-        @Override
-        Type type() {
-            return Type.SUM;
-        }
-    }
 
     /**
      * An Accumulator that computes a sum
@@ -220,8 +191,6 @@ abstract class Accumulator {
     static Accumulator accumulator(final Type type, final Tree tree, final int index, final long baseValue,
             final TransactionIndex transactionIndex) {
         switch (type) {
-        case COUNT:
-            return new CountAccumulator(tree, index, baseValue, transactionIndex);
         case SUM:
             return new SumAccumulator(tree, index, baseValue, transactionIndex);
         case MAX:

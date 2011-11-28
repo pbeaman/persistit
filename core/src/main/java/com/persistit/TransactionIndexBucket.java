@@ -532,7 +532,7 @@ public class TransactionIndexBucket {
                             value = accumulator.combine(value, delta.getValue());
                         }
                     }
-                } else if (tc < 0 && tc != ABORTED) {
+                } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
                     inCommit = status;
                     break retry;
                 }
@@ -551,7 +551,7 @@ public class TransactionIndexBucket {
                             value = accumulator.combine(value, delta.getValue());
                         }
                     }
-                } else if (tc < 0 && tc != ABORTED) {
+                } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
                     inCommit = status;
                     continue retry;
                 }
