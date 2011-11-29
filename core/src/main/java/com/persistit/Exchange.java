@@ -1364,13 +1364,14 @@ public class Exchange {
 
                             byte[] spareBytes = _spareValue.getEncodedBytes();
                             int spareSize = _spareValue.getEncodedSize();
+                            TransactionStatus tStatus = _transaction.getTransactionStatus();
 
                             if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
                                 // Could be streamlined as a single visit of all
                                 // versions, but current TI interface would still
                                 // require calls to both commitStatus() and
                                 // wwDependency() (which are the costly parts)
-                                _mvvVisitor.initInternal(_transaction.getTransactionStatus(), 0, MvvVisitor.Usage.FETCH);
+                                _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
                                 MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
                                 if (!_mvvVisitor.foundVersion()) {
                                     break;
@@ -1378,7 +1379,7 @@ public class Exchange {
                             }
 
                             // Visit all versions for ww detection
-                            _mvvVisitor.initInternal(_transaction.getTransactionStatus(), 0, MvvVisitor.Usage.STORE);
+                            _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.STORE);
                             MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
 
                             // If key didn't exist the value is truly non-existent
@@ -1391,6 +1392,7 @@ public class Exchange {
                             long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
                             int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), currentSize,
                                                                 versionHandle, value.getEncodedBytes(), valueSize);
+                            tStatus.incrementMvvCount();
                             _spareValue.setEncodedSize(storedLength);
 
                             if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
