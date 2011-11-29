@@ -46,6 +46,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RetryException;
+import com.persistit.exception.RollbackException;
 import com.persistit.exception.TreeNotFoundException;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
@@ -185,46 +186,85 @@ public class Exchange {
         NONE, FORWARD, REVERSE
     }
 
-    private static class ReadCommittedVisitor implements MVV.VersionVisitor {
-        TransactionIndex _ti;
-        int _offset;
-        long _maxVersion;
+    private static class MvvVisitor implements MVV.VersionVisitor {
+        enum Usage { FETCH, STORE }
+        private final static long READ_COMMITTED_TS = TransactionStatus.UNCOMMITTED - 1;
 
-        long _timestamp;
-        int _step;
+        private TransactionIndex _ti;
+        private TransactionStatus _status;
+        private int _step;
+        private int _offset;
+        private long _maxVersion;
+        private Usage _usage;
 
-        void internalInit(TransactionIndex ti, long timestamp, int step) {
+        private MvvVisitor(TransactionIndex ti) {
             _ti = ti;
-            _timestamp = timestamp;
+        }
+
+        /**
+         * @param status
+         *            Status to inspect the versions as. <code>null</code>
+         *            is allowed iff <code>usage</code> is {@link Usage#FETCH},
+         *            which signifies 'read committed' mode.
+         * @param step
+         *            Current step value associated with <code>status</code>.
+         * @param usage
+         *            What reason this visit is being done for.
+         */
+        public void initInternal(TransactionStatus status, int step, Usage usage) {
+            Debug.$assert0.t(status != null || usage != Usage.STORE);
+            _status = status;
             _step = step;
+            _usage = usage;
+        }
+
+        public int getOffset() {
+            return _offset;
+        }
+
+        public boolean foundVersion() {
+            return _maxVersion != MVV.VERSION_NOT_FOUND;
         }
 
         @Override
         public void init() {
-            _maxVersion = -1;
+            _maxVersion = MVV.VERSION_NOT_FOUND;
             _offset = -1;
         }
 
         @Override
         public void sawVersion(long version, int valueLength, int offset) throws PersistitException {
             try {
-                long status = _ti.commitStatus(version, _timestamp, _step);
-                if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status > _maxVersion) {
-                    _maxVersion = status;
-                    _offset = offset;
+                switch (_usage) {
+                case FETCH:
+                    long ts = _status != null ? _status.getTs() : READ_COMMITTED_TS;
+                    long status = _ti.commitStatus(version, ts, _step);
+                    if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status > _maxVersion) {
+                        _offset = offset;
+                        _maxVersion = status;
+                    }
+                break;
+
+                case STORE:
+                    if (_ti.wwDependency(version, _status, Persistit.SHORT_DELAY) != 0) {
+                        // version is from concurrent txn that already committed
+                        // or timed out waiting to see. Either way, must abort.
+                        throw new RollbackException();
+                    }
+                    if (version > _maxVersion) {
+                        _maxVersion = version;
+                    }
+                break;
                 }
             }
             catch (InterruptedException ie) {
                 throw new PersistitInterruptedException(ie);
             }
         }
-
-        public int getOffset() {
-            return _offset;
-        }
     }
 
-    private ReadCommittedVisitor _fetchVisitor = new ReadCommittedVisitor();
+    private final MvvVisitor _mvvVisitor;
+    
 
     private Exchange(final Persistit persistit) {
         _persistit = persistit;
@@ -235,6 +275,7 @@ public class Exchange {
         _spareKey4 = new Key(_persistit);
         _value = new Value(_persistit);
         _spareValue = new Value(_persistit);
+        _mvvVisitor = new MvvVisitor(_persistit.getTransactionIndex());
     }
 
     /**
@@ -1321,25 +1362,32 @@ public class Exchange {
                             valueToStore = _spareValue;
                             int valueSize = value.getEncodedSize();
 
-                            if((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
-                                _fetchVisitor.init();
-                                if(keyExisted) {
-                                    _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
-                                    MVV.visitAllVersions(_fetchVisitor, _spareValue.getEncodedBytes(), _spareValue.getEncodedSize());
-                                }
-                                if(_fetchVisitor.getOffset() == MVV.VERSION_NOT_FOUND) {
+                            byte[] spareBytes = _spareValue.getEncodedBytes();
+                            int spareSize = _spareValue.getEncodedSize();
+
+                            if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
+                                // Could be streamlined as a single visit of all
+                                // versions, but current TI interface would still
+                                // require calls to both commitStatus() and
+                                // wwDependency() (which are the costly parts)
+                                _mvvVisitor.initInternal(_transaction.getTransactionStatus(), 0, MvvVisitor.Usage.FETCH);
+                                MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
+                                if (!_mvvVisitor.foundVersion()) {
                                     break;
                                 }
                             }
 
+                            // Visit all versions for ww detection
+                            _mvvVisitor.initInternal(_transaction.getTransactionStatus(), 0, MvvVisitor.Usage.STORE);
+                            MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
+
                             // If key didn't exist the value is truly non-existent
                             // and not just undefined/zero length
-                            int currentSize = keyExisted ? _spareValue.getEncodedSize() : -1;
+                            int currentSize = keyExisted ? spareSize : -1;
 
-                            int mvvSize = MVV.estimateRequiredLength(_spareValue.getEncodedBytes(), currentSize, valueSize);
+                            int mvvSize = MVV.estimateRequiredLength(spareBytes, currentSize, valueSize);
                             _spareValue.ensureFit(mvvSize);
 
-                            // TODO: Need the current step value
                             long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
                             int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), currentSize,
                                                                 versionHandle, value.getEncodedBytes(), valueSize);
@@ -2406,20 +2454,16 @@ public class Exchange {
         else {
             fetchFixupForLongRecords(value, Integer.MAX_VALUE);
         }
-        
-        long startTimestamp = _transaction.getStartTimestamp();
-        if(startTimestamp == 0 || !_transaction.isActive()) {
-            // Won't conflict with a real startTime, causes all committed versions to be seen
-            startTimestamp = Long.MAX_VALUE - 1;
-        }
+
+        TransactionStatus status = _transaction.isActive() ? _transaction.getTransactionStatus() : null;
+        _mvvVisitor.initInternal(status, 0, MvvVisitor.Usage.FETCH);
 
         int valueSize = value.getEncodedSize();
         byte[] valueBytes = value.getEncodedBytes();
-        _fetchVisitor.internalInit(_persistit.getTransactionIndex(), startTimestamp, 0);
-        MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
+        MVV.visitAllVersions(_mvvVisitor, valueBytes, valueSize);
         
-        if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
-            int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
+        if(_mvvVisitor.foundVersion()) {
+            int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _mvvVisitor.getOffset(), valueBytes);
             value.setEncodedSize(finalSize);
             fetchFixupForLongRecords(value, Integer.MAX_VALUE);
             if(value.isDefined() && value.isAntiValue()) {

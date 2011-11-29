@@ -957,4 +957,7 @@ public class Transaction {
         return _buffer;
     }
 
+    TransactionStatus getTransactionStatus() {
+        return _transactionStatus;
+    }
 }
