@@ -244,7 +244,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         @Override
         public void removeKeyRange(final long address, final long timestamp, Exchange exchange, final Key from,
                 final Key to) throws PersistitException {
-            exchange.removeKeyRangeInternal(from, to, false);
+            exchange.raw_removeKeyRangeInternal(from, to, false);
         }
 
         @Override
@@ -1323,6 +1323,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         int recordSize;
         int type;
         long startTimestamp;
+        long commitTimestamp;
         long backchainAddress;
 
         for (;;) {
@@ -1331,6 +1332,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             read(address, recordSize);
             type = TX.getType(_readBuffer);
             startTimestamp = TX.getTimestamp(_readBuffer);
+            commitTimestamp = TX.getCommitTimestamp(_readBuffer);
             backchainAddress = TX.getBackchainAddress(_readBuffer);
             if (recordSize < TX.OVERHEAD || recordSize > Transaction.TRANSACTION_BUFFER_SIZE || type != TX.TYPE) {
                 throw new CorruptJournalException("Transaction record at " + addressToString(address)
@@ -1352,26 +1354,32 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         if (item.isCommitted()) {
-            applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, _defaultCommitListener);
+            applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp,
+                    _defaultCommitListener);
         } else {
-            applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, _defaultRollbackListener);
+            applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp,
+                    _defaultRollbackListener);
         }
         for (Long continuation : chainedAddress) {
             address = continuation.longValue();
             read(address, Transaction.TRANSACTION_BUFFER_SIZE);
             recordSize = TX.getLength(_readBuffer);
             if (item.isCommitted()) {
-                applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, _defaultCommitListener);
+                applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp,
+                        _defaultCommitListener);
             } else {
-                applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, _defaultRollbackListener);
+                applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp,
+                        _defaultRollbackListener);
             }
         }
     }
 
-    void applyTransactionUpdates(final ByteBuffer bb, final long address, final int recordSize,
-            final long startTimestamp, final RecoveryListener listener) throws PersistitException {
+    void applyTransactionUpdates(final ByteBuffer byteBuffer, final long address, final int recordSize,
+            final long startTimestamp, final long commitTimestamp, final RecoveryListener listener)
+            throws PersistitException {
+        ByteBuffer bb = byteBuffer;
         final int start = bb.position();
-        final int end = start + recordSize;
+        int end = start + recordSize;
         int position = start + TX.OVERHEAD;
 
         while (position < end) {
@@ -1397,7 +1405,19 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 if (value.getEncodedSize() >= Buffer.LONGREC_SIZE
                         && (value.getEncodedBytes()[0] & 0xFF) == Buffer.LONGREC_TYPE) {
                     final TreeDescriptor td = _handleToTreeMap.get(treeHandle);
-                    convertToLongRecord(value, td.getVolumeHandle(), address, startTimestamp);
+                    /*
+                     * convertToLongRecord will pollute the _readBuffer.
+                     * Therefore before calling it we need to copy the TX record
+                     * to a fresh ByteBuffer.
+                     */
+                    if (bb == _readBuffer) {
+                        end = recordSize - (position - start);
+                        bb = ByteBuffer.allocate(end);
+                        bb.put(_readBuffer.array(), start + position, end);
+                        bb.flip();
+                        position = 0;
+                    }
+                    convertToLongRecord(value, td.getVolumeHandle(), address, commitTimestamp);
                 }
 
                 listener.store(address, startTimestamp, exchange);

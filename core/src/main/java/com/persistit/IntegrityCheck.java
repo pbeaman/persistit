@@ -20,9 +20,6 @@ import java.util.BitSet;
 
 import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
-import com.persistit.Exchange.FetchOpt;
-import com.persistit.Exchange.MvccOpt;
-import com.persistit.Exchange.WaitOpt;
 import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
@@ -1007,7 +1004,7 @@ public class IntegrityCheck extends Task {
                 _value.setPointerValue(page);
                 _value.setPointerPageType(buffer.getPageType());
 
-                exchange.storeInternal(spareKey2, _value, level + 1, FetchOpt.NO_FETCH, MvccOpt.NO_MVCC, WaitOpt.NO_WAIT);
+                exchange.storeInternal(spareKey2, _value, level + 1, Exchange.StoreOptions.NONE);
             } finally {
                 if (buffer != null) {
                     buffer.release();

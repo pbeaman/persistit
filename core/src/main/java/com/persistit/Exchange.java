@@ -39,6 +39,8 @@ import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
 
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+
 import com.persistit.Key.Direction;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
@@ -161,6 +163,8 @@ public class Exchange {
 
     private Key _spareKey1;
     private Key _spareKey2;
+    private Key _spareKey3;
+    private Key _spareKey4;
 
     private Value _spareValue;
 
@@ -225,6 +229,17 @@ public class Exchange {
 
     private ReadCommittedVisitor _fetchVisitor = new ReadCommittedVisitor();
 
+    private Exchange(final Persistit persistit) {
+        _persistit = persistit;
+        _key = new Key(_persistit);
+        _spareKey1 = new Key(_persistit);
+        _spareKey2 = new Key(_persistit);
+        _spareKey3 = new Key(_persistit);
+        _spareKey4 = new Key(_persistit);
+        _value = new Value(_persistit);
+        _spareValue = new Value(_persistit);
+    }
+
     /**
      * <p>
      * Construct a new <code>Exchange</code> object to create and/or access the
@@ -281,12 +296,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public Exchange(Persistit persistit, Volume volume, String treeName, boolean create) throws PersistitException {
-        _persistit = persistit;
-        _key = new Key(persistit);
-        _spareKey1 = new Key(persistit);
-        _spareKey2 = new Key(persistit);
-        _value = new Value(persistit);
-        _spareValue = new Value(persistit);
+        this(persistit);
         if (volume == null) {
             throw new NullPointerException();
         }
@@ -305,12 +315,7 @@ public class Exchange {
      *            The <code>Exchange</code> to copy from.
      */
     public Exchange(Exchange exchange) {
-        _persistit = exchange._persistit;
-        _key = new Key(_persistit);
-        _spareKey1 = new Key(_persistit);
-        _spareKey2 = new Key(_persistit);
-        _value = new Value(_persistit);
-        _spareValue = new Value(_persistit);
+        this(exchange._persistit);
         init(exchange);
     }
 
@@ -322,13 +327,8 @@ public class Exchange {
      *            The <code>Tree</code> to access.
      */
     public Exchange(Tree tree) {
-        _persistit = tree._persistit;
-        _key = new Key(_persistit);
-        _spareKey1 = new Key(_persistit);
-        _spareKey2 = new Key(_persistit);
-        _value = new Value(_persistit);
+        this(tree._persistit);
         init(tree);
-        _spareValue = new Value(_persistit);
         _volume = tree.getVolume();
         _isDirectoryExchange = tree == _volume.getDirectoryTree();
         initCache();
@@ -441,7 +441,7 @@ public class Exchange {
         int _foundAt;
         int _lastInsertAt;
         //
-        // The remaining fields are used only by removeKeyRangeInternal and
+        // The remaining fields are used only by raw_removeKeyRangeInternal and
         // its helpers.
         //
         Buffer _leftBuffer;
@@ -524,44 +524,28 @@ public class Exchange {
         }
     }
 
-    static enum FetchOpt {
-        /**
-         * Perform not explicit fetch.
-         */
-        NO_FETCH,
+    /**
+     * Bit flags that are passed to {@link #storeInternal(Key, Value, int, int)}
+     * to control various behavior. See each member for specifics.
+     */
+    static class StoreOptions {
+        /** The default, implies none of the further options **/
+        public static final int NONE            = 0;
 
-        /**
-         * Do fetch the current value.
-         */
-        DO_FETCH
+        /** Fetch the current value before replacing **/
+        public static final int FETCH           = 1 << 1;
+
+        /** Use MVCC (store as version or fetch restricted version) **/
+        public static final int MVCC            = 1 << 2;
+
+        /** Block and use for any acquire operation **/
+        public static final int WAIT            = 1 << 3;
+
+        /** Perform the store only if key is currently visible **/
+        public static final int ONLY_IF_VISIBLE = 1 << 4;
     }
 
-    static enum WaitOpt {
-        /**
-         * Use instantaneous timeout for any acquire operation.
-         */
-        NO_WAIT,
-
-        /**
-         * Use default timeout.
-         */
-        DO_WAIT
-    }
-
-    static enum MvccOpt {
-        /**
-         * Ignore MVCC (store as primordial or fetch highest committed).
-         */
-        NO_MVCC,
-        
-        /**
-         * Use MVCC (store as version or fetch restricted version).
-         */
-        DO_MVCC
-    }
-
-
-    // -----------------------------------------------------------------
+    
     /**
      * Delegate to {@link Key#reset} on the associated <code>Key</code> object.
      * 
@@ -1188,11 +1172,11 @@ public class Exchange {
 
         // TODO: directoryExchange, and lots of tests, don't use transactions.
         // Skip MVCC for now.
-        MvccOpt mvccOpt = (!_ignoreTransactions && _transaction.isActive()) ? MvccOpt.DO_MVCC : MvccOpt.NO_MVCC;
-        storeInternal(key, value, 0, FetchOpt.NO_FETCH, mvccOpt, WaitOpt.DO_WAIT);
-
+        int options = StoreOptions.WAIT;
+        options |= (!_ignoreTransactions && _transaction.isActive()) ? StoreOptions.MVCC : 0;
+        storeInternal(key, value, 0, options);
         _treeHolder.verifyReleased();
-
+        
         return this;
     }
 
@@ -1208,21 +1192,21 @@ public class Exchange {
      *            The value to store.
      * @param level
      *            The level of the backing tree to start the insert at.
-     * @param fetchOpt
-     *            Controls result of {@link #_spareValue} upon return. See
-     *            {@link FetchOpt} for details.
-     * @param mvccOpt
-     *            Controls whether or not <code>value</code> is stored as a
-     *            new version. See {@link MvccOpt} for details.
-     * @param waitOpt
-     *            Controls whether or not this method blocks when attempting
-     *            to acquire a claim on the tree. See {@link WaitOpt} for details.
+     * @param options
+     *            Bit flag integer controlling various internal behavior. See
+     *            members of {@link StoreOptions} for details.
+     * @return <code>true</code> if <b>any version</b> of the key already existed
      * @throws PersistitException uponError
      */
-    void storeInternal(Key key, Value value, int level, FetchOpt fetchOpt, MvccOpt mvccOpt, WaitOpt waitOpt) throws PersistitException {
-        if(fetchOpt == FetchOpt.DO_FETCH && mvccOpt == MvccOpt.DO_MVCC) {
+    boolean storeInternal(Key key, Value value, int level, int options) throws PersistitException {
+        if((options & StoreOptions.FETCH) > 0 && (options & StoreOptions.MVCC) > 0) {
             throw new IllegalArgumentException("Both fetch and MVCC not supported");
         }
+
+        final boolean doAnyFetch = (options & StoreOptions.FETCH) > 0 || (options & StoreOptions.MVCC) > 0;
+
+        Debug.$assert0.t(!doAnyFetch || value != _spareValue);      // spare used for fetch
+        Debug.$assert0.t(key != _spareKey1 && key != _spareKey2);   // spares used for new splits/levels
 
         boolean treeClaimRequired = false;
         boolean treeClaimAcquired = false;
@@ -1250,9 +1234,7 @@ public class Exchange {
 
         boolean isLongRecord = value.getEncodedSize() > maxSimpleValueSize;
 
-        if (!_ignoreTransactions) {
-            _transaction.store(this, key, value);
-        }
+        boolean keyExisted = false;
 
         try {
             if (isLongRecord) {
@@ -1261,6 +1243,10 @@ public class Exchange {
                 // be called when there are no other claimed resources.
                 //
                 newLongRecordPointer = storeOverlengthRecord(value, 0);
+            }
+
+            if (!_ignoreTransactions) {
+                _transaction.store(this, key, value);
             }
 
             Value valueToStore = value;
@@ -1324,24 +1310,34 @@ public class Exchange {
 
                     Debug.$assert0.t(buffer != null && (buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                             && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
-                    if ((foundAt & EXACT_MASK) != 0) {
-                        oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
-                    }
 
                     if (buffer.isDataPage()) {
-                        if (fetchOpt == FetchOpt.DO_FETCH || mvccOpt == MvccOpt.DO_MVCC) {
+                        keyExisted = (foundAt & EXACT_MASK) != 0;
+                        if (keyExisted) {
+                            oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
+                        }
+                        if (doAnyFetch) {
                             buffer.fetch(foundAt, _spareValue);
                             fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
                         }
-                        if (mvccOpt == MvccOpt.DO_MVCC) {
+                        if ((options & StoreOptions.MVCC) != 0) {
                             valueToStore = _spareValue;
                             int valueSize = value.getEncodedSize();
 
-                            // If no EXACT_MASK, key is not currently present in the
-                            // buffer
-                            // so current value is truly non-existent not just
-                            // undefined
-                            int currentSize = (foundAt & EXACT_MASK) == 0 ? -1 : _spareValue.getEncodedSize();
+                            if((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
+                                _fetchVisitor.init();
+                                if(keyExisted) {
+                                    _fetchVisitor.internalInit(_persistit.getTransactionIndex(), _transaction.getStartTimestamp(), 0);
+                                    MVV.visitAllVersions(_fetchVisitor, _spareValue.getEncodedBytes(), _spareValue.getEncodedSize());
+                                }
+                                if(_fetchVisitor.getOffset() == MVV.VERSION_NOT_FOUND) {
+                                    break;
+                                }
+                            }
+
+                            // If key didn't exist the value is truly non-existent
+                            // and not just undefined/zero length
+                            int currentSize = keyExisted ? _spareValue.getEncodedSize() : -1;
 
                             int mvvSize = MVV.estimateRequiredLength(_spareValue.getEncodedBytes(), currentSize, valueSize);
                             _spareValue.ensureFit(mvvSize);
@@ -1399,7 +1395,7 @@ public class Exchange {
                     // committed.
                     //
                     if (buffer.isDataPage()) {
-                        if ((foundAt & EXACT_MASK) == 0) {
+                        if (!keyExisted) {
                             _tree.bumpChangeCount();
                         }
                         committed = true;
@@ -1454,10 +1450,10 @@ public class Exchange {
                         _treeHolder.release();
                         treeClaimAcquired = false;
                     }
-                    long timeout = waitOpt == WaitOpt.NO_WAIT ? 0 : SharedResource.DEFAULT_MAX_WAIT_TIME;
-                    treeClaimAcquired = _treeHolder.claim(true, timeout);
+                    boolean doWait = (options & StoreOptions.WAIT) != 0;
+                    treeClaimAcquired = _treeHolder.claim(true, doWait ? SharedResource.DEFAULT_MAX_WAIT_TIME : 0);
                     if (!treeClaimAcquired) {
-                        if (waitOpt == WaitOpt.NO_WAIT) {
+                        if (!doWait) {
                             throw re;
                         } else {
                             throw new InUseException("Thread " + Thread.currentThread().getName()
@@ -1498,10 +1494,11 @@ public class Exchange {
         }
         _volume.getStatistics().bumpStoreCounter();
         _tree.getStatistics().bumpStoreCounter();
-        if (fetchOpt == FetchOpt.DO_FETCH || mvccOpt == MvccOpt.DO_MVCC) {
+        if (doAnyFetch) {
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
         }
+        return keyExisted;
     }
 
     private long timestamp() {
@@ -1796,16 +1793,16 @@ public class Exchange {
             int index = _key.getEncodedSize();
 
             int foundAt = 0;
+            boolean nudgeForMVCC = false;
 
             for (;;) {
-
                 LevelCache lc = _levelCache[0];
                 boolean matches = false;
                 //
                 // Optimal path - pick up the buffer and location left
                 // by previous operation.
                 //
-                if (lc._keyGeneration == _key.getGeneration()) {
+                if (buffer == null && lc._keyGeneration == _key.getGeneration()) {
                     buffer = reclaimQuickBuffer(lc, false);
                     foundAt = lc._foundAt;
                 }
@@ -1814,7 +1811,7 @@ public class Exchange {
                 // edge of the buffer, re-do with a key search - there is no
                 // other way to find the left sibling page.
                 //
-                if (reverse && buffer != null && (foundAt & P_MASK) <= buffer.getKeyBlockStart()) {
+                if (buffer != null && (nudgeForMVCC || (reverse && (foundAt & P_MASK) <= buffer.getKeyBlockStart()))) {
                     // Going left from first record in the page requires a
                     // key search.
                     buffer.releaseTouched();
@@ -1825,7 +1822,7 @@ public class Exchange {
                 // look it up with search.
                 //
                 if (buffer == null) {
-                    if (!edge && !nudged) {
+                    if (nudgeForMVCC || (!edge && !nudged)) {
                         if (reverse) {
                             if (!_key.isSpecial()) {
                                 _key.nudgeLeft();
@@ -1840,6 +1837,7 @@ public class Exchange {
                             }
                         }
                         nudged = true;
+                        nudgeForMVCC = false;
                     }
                     foundAt = search(_key, false);
                     buffer = lc._buffer;
@@ -1906,6 +1904,7 @@ public class Exchange {
                                 nudged = false;
                                 _key.copyTo(_spareKey1);
                                 index = _key.getEncodedSize();
+                                nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
                                 continue;
                             }
                         }
@@ -1928,6 +1927,7 @@ public class Exchange {
                                 if(!isVisibleMatch) {
                                     nudged = false;
                                     _key.copyTo(_spareKey1);
+                                    nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
                                     continue;
                                 }
                                 //
@@ -2310,7 +2310,7 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
         _key.testValidForStoreAndFetch(_volume.getPageSize());
-        storeInternal(_key, _value, 0, FetchOpt.DO_FETCH, MvccOpt.NO_MVCC, WaitOpt.DO_WAIT);
+        storeInternal(_key, _value, 0, StoreOptions.FETCH | StoreOptions.WAIT);
         _spareValue.copyTo(_value);
         return this;
     }
@@ -2422,10 +2422,12 @@ public class Exchange {
         MVV.visitAllVersions(_fetchVisitor, valueBytes, valueSize);
         
         if(_fetchVisitor.getOffset() != MVV.VERSION_NOT_FOUND) {
-            if(minimumBytes > 0) {
-                int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
-                value.setEncodedSize(finalSize);
-                fetchFixupForLongRecords(value, minimumBytes);
+            int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _fetchVisitor.getOffset(), valueBytes);
+            value.setEncodedSize(finalSize);
+            fetchFixupForLongRecords(value, Integer.MAX_VALUE);
+            if(value.isDefined() && value.isAntiValue()) {
+                value.clear();
+                return false;
             }
             return true;
         }
@@ -2589,7 +2591,7 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
         _spareValue.clear();
-        boolean result = remove(EQ, true);
+        boolean result = removeInternal(EQ, true);
         _spareValue.copyTo(_value);
         Debug.$assert0.t(_value.isDefined() == result);
         return result;
@@ -2626,7 +2628,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean remove() throws PersistitException {
-        return remove(EQ, false);
+        return removeInternal(EQ, false);
     }
 
     /**
@@ -2637,7 +2639,7 @@ public class Exchange {
      */
     public boolean removeAll() throws PersistitException {
         clear();
-        return remove(GTEQ);
+        return removeInternal(GTEQ, false);
     }
 
     /**
@@ -2665,10 +2667,10 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean remove(Direction direction) throws PersistitException {
-        return remove(direction, false);
+        return removeInternal(direction, false);
     }
 
-    private boolean remove(Direction selection, boolean fetchFirst) throws PersistitException {
+    private boolean removeInternal(Direction selection, boolean fetchFirst) throws PersistitException {
         _persistit.checkClosed();
 
         if (selection != EQ && selection != GTEQ && selection != GT) {
@@ -2677,28 +2679,28 @@ public class Exchange {
 
         int keySize = _key.getEncodedSize();
 
-        _key.copyTo(_spareKey1);
-        _key.copyTo(_spareKey2);
+        _key.copyTo(_spareKey3);
+        _key.copyTo(_spareKey4);
 
         // Special case for empty key
         if (keySize == 0) {
             if (selection == EQ) {
                 return false;
             }
-            _spareKey1.append(BEFORE);
-            _spareKey2.append(AFTER);
+            _spareKey3.append(BEFORE);
+            _spareKey4.append(AFTER);
         } else {
             if (selection == EQ) {
-                _spareKey2.nudgeDeeper();
+                _spareKey4.nudgeDeeper();
             } else if (selection == GT) {
-                _spareKey1.nudgeDeeper();
-                _spareKey2.nudgeRight();
+                _spareKey3.nudgeDeeper();
+                _spareKey4.nudgeRight();
             } else if (selection == GTEQ) {
-                _spareKey2.nudgeRight();
+                _spareKey4.nudgeRight();
             }
         }
 
-        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, fetchFirst);
+        final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, fetchFirst);
         _treeHolder.verifyReleased();
 
         return result;
@@ -2723,12 +2725,13 @@ public class Exchange {
      *         else </i>false</i>.
      * 
      * @throws PersistitException
-     * @throws IllegalArgymentException
+     *             if there are any internal errors
+     * @throws IllegalArgumentException
      *             if key1 is equal to or greater than key2
      */
     public boolean removeKeyRange(Key key1, Key key2) throws PersistitException {
-        key1.copyTo(_spareKey1);
-        key2.copyTo(_spareKey2);
+        key1.copyTo(_spareKey3);
+        key2.copyTo(_spareKey4);
 
         // Special case for empty key
         if (key1.getEncodedSize() == 0) {
@@ -2739,13 +2742,72 @@ public class Exchange {
             _spareKey2.append(AFTER);
         }
 
-        if (_spareKey1.compareTo(_spareKey2) >= 0) {
+        if (_spareKey3.compareTo(_spareKey4) >= 0) {
             throw new IllegalArgumentException("Second key must be greater than the first");
         }
-        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, false);
+
+        final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, false);
         _treeHolder.verifyReleased();
 
         return result;
+    }
+
+    /**
+     * Removes all records with keys falling between <code>key1</code> and
+     * </code>key2</code>, lefty-inclusive. Validity checks and Key value
+     * adjustments have been done by caller - this method does the work.
+     *
+     * @param key1
+     *            Key that is less than or equal to the leftmost to be removed
+     * @param key2
+     *            Key that is greater than the rightmost to be removed
+     * @param fetchFirst
+     *            Control whether to copy the existing value for the first key
+     *            into _spareValue before deleting the record.
+     * @return <code>true</code> if any records were removed.
+     * @throws PersistitException
+     */
+    private boolean removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
+        Debug.$assert0.t(key1.getEncodedSize() > 0);
+        Debug.$assert0.t(key2.getEncodedSize() > 0);
+        Debug.$assert0.t(key1.compareTo(key2) < 0);
+
+        if(_ignoreTransactions || !_transaction.isActive()) {
+            return raw_removeKeyRangeInternal(key1, key2, fetchFirst);
+        }
+
+        _persistit.checkClosed();
+        checkLevelCache();
+
+        _value.clear().putAntiValueMVV();
+        final int storeOptions = StoreOptions.MVCC | StoreOptions.WAIT | StoreOptions.ONLY_IF_VISIBLE;
+
+        boolean anyRemoved = false;
+        boolean keyIsLessThan = true;
+        while(keyIsLessThan && !key1.isRightEdge()) {
+            Buffer buffer = null;
+            try {
+                int foundAt = search(key1, true);
+                buffer = _levelCache[0]._buffer;
+
+                while(!buffer.isAfterRightEdge(foundAt)) {
+                    keyIsLessThan = key1.compareTo(key2) < 0;
+                    if(!keyIsLessThan) {
+                        break;
+                    }
+                    anyRemoved |= storeInternal(key1, _value, 0, storeOptions);
+                    foundAt = buffer.nextKey(key1, foundAt);
+                }
+            }
+            finally {
+                if(buffer != null) {
+                    buffer.releaseTouched();
+                    buffer = null;
+                }
+            }
+        }
+
+        return anyRemoved;
     }
 
     /**
@@ -2763,7 +2825,7 @@ public class Exchange {
      * @return <code>true</code> if any records were removed.
      * @throws PersistitException
      */
-    boolean removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
+    boolean raw_removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
@@ -3129,7 +3191,7 @@ public class Exchange {
                                 buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
                                 _value.setPointerValue(buffer.getPageAddress());
                                 _value.setPointerPageType(buffer.getPageType());
-                                storeInternal(_spareKey2, _value, level + 1, FetchOpt.NO_FETCH, MvccOpt.NO_MVCC, WaitOpt.NO_WAIT);
+                                storeInternal(_spareKey2, _value, level + 1, StoreOptions.NONE);
                             } else {
                                 _persistit.getLogBase().unindexedPage.log(deferredPage, _volume, _tree.getName());
                             }
@@ -3171,7 +3233,6 @@ public class Exchange {
     }
 
     private void removeKeyRangeReleaseLevel(final int level) {
-
         int offset = 0;
         for (int lvl = 0; lvl < level; lvl++) {
             final LevelCache lc = _levelCache[lvl];
@@ -3226,7 +3287,7 @@ public class Exchange {
         int elisionCount = av.getElisionCount();
         System.arraycopy(bytes, 0, _spareKey2.getEncodedBytes(), elisionCount, bytes.length);
         _spareKey2.setEncodedSize(elisionCount + bytes.length);
-        removeKeyRangeInternal(_spareKey1, _spareKey2, false);
+        raw_removeKeyRangeInternal(_spareKey1, _spareKey2, false);
     }
 
     /**
@@ -3346,6 +3407,7 @@ public class Exchange {
         Buffer buffer = null;
         int offset = from + (((longSize - from - 1) / maxSegmentSize) * maxSegmentSize);
         final long timestamp = timestamp();
+        final boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         try {
             for (;;) {
                 while (offset >= from) {
@@ -3370,6 +3432,9 @@ public class Exchange {
                     looseChain = buffer.getPageAddress();
                     buffer.setDirtyAtTimestamp(timestamp);
                     buffer.releaseTouched();
+                    if (inTxn) {
+                        buffer.writePage();
+                    }
                     offset -= maxSegmentSize;
                     buffer = null;
                 }
@@ -3377,6 +3442,7 @@ public class Exchange {
                 long page = looseChain;
                 looseChain = 0;
                 Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
+
                 completed = true;
                 return page;
             }
