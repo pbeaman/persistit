@@ -2503,56 +2503,6 @@ public class Exchange {
     }
 
     /**
-     * Atomically increment a stored integer value and return the result. If the
-     * key currently has no associated value, then initialize the value to zero.
-     * Otherwise add 1 to whatever value is stored, store the result and return
-     * it.
-     * 
-     * @return The incremented value.
-     * @throws PersistitException
-     */
-    public long incrementValue() throws PersistitException {
-        return incrementValue(1);
-    }
-
-    /**
-     * Atomically increment a stored integer value and return the result. If the
-     * key currently has no associated value, then initialize the value to zero.
-     * Otherwise add <code>by</code> to whatever value is stored, store the
-     * result and return it.
-     * 
-     * @param by
-     *            The amount by which to increment the stored value
-     * @return The incremented value.
-     * @throws PersistitException
-     */
-    public long incrementValue(long by) throws PersistitException {
-        return incrementValue(by, 0);
-    }
-
-    /**
-     * Atomically increment a stored integer value and return the result. If the
-     * key currently has no associated value, then initialize the value to
-     * <code>from</code>. Otherwise add <code>by</code> to whatever value is
-     * stored, store the result and return it.
-     * 
-     * @param by
-     *            The amount by which to increment the stored value
-     * @return The incremented value.
-     * @throws PersistitException
-     */
-    public long incrementValue(long by, long from) throws PersistitException {
-        _persistit.checkClosed();
-        if (_volume.isReadOnly()) {
-            throw new ReadOnlyVolumeException(_volume.toString());
-        }
-        _value.put(from);
-        _value.armAtomicIncrement(by);
-        store();
-        return _value.getLong();
-    }
-
-    /**
      * Return true if there is at least one key stored in this
      * <code>Exchange</code> 's <code>Tree</code> that is a logical child of the
      * current <code>Key</code>. A logical child is a key that can be formed by
