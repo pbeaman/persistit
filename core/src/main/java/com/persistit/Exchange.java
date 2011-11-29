@@ -206,17 +206,16 @@ public class Exchange {
         }
 
         @Override
-        public void sawVersion(long version, int valueLength, int offset) {
+        public void sawVersion(long version, int valueLength, int offset) throws PersistitException {
             try {
                 long status = _ti.commitStatus(version, _timestamp, _step);
                 if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status > _maxVersion) {
                     _maxVersion = status;
                     _offset = offset;
                 }
-            } catch (Exception e) {
-                // TODO: Fix visitor with to throw clause and/or handle here
-                e.printStackTrace();
-                Debug.$assert1.t(false);
+            }
+            catch (InterruptedException ie) {
+                throw new PersistitInterruptedException(ie);
             }
         }
 

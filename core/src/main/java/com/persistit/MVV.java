@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import com.persistit.exception.PersistitException;
 import com.persistit.util.Util;
 
 public class MVV {
@@ -220,8 +221,9 @@ public class MVV {
     public static interface VersionVisitor {
         /**
          * Called before iterating over MVV array. Allows for instance re-use.
+         * @throws PersistitException For errors from concrete implementations.
          */
-        void init();
+        void init() throws PersistitException;
 
         /**
          * Called once, and only once, for each version in the MVV array.
@@ -229,8 +231,9 @@ public class MVV {
          * @param version Version of the stored value
          * @param valueLength Length of stored value
          * @param offset Offset in MVV array to start of stored value
+         * @throws PersistitException For errors from concrete implementations.
          */
-        void sawVersion(long version, int valueLength, int offset);
+        void sawVersion(long version, int valueLength, int offset) throws PersistitException;
     }
 
     /**
@@ -239,8 +242,9 @@ public class MVV {
      * @param visitor FetchVisitor for consuming version info
      * @param source MVV array to search
      * @param sourceLength Consumed length of source
+     * @throws PersistitException For any error coming from <code>visitor</code>
      */
-    public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceLength) {
+    public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceLength) throws PersistitException {
         visitor.init();
         if(sourceLength < 0) {
             // No versions

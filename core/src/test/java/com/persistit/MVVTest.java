@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import com.persistit.exception.PersistitException;
 import com.persistit.util.Util;
 import junit.framework.Assert;
 import org.junit.Test;
@@ -405,7 +406,7 @@ public class MVVTest {
     }
 
     @Test
-    public void visitUnused() {
+    public void visitUnused() throws PersistitException {
         final byte[] source = {};
         TestVisitor visitor = new TestVisitor();
         MVV.visitAllVersions(visitor, source, -1);
@@ -414,7 +415,7 @@ public class MVVTest {
     }
 
     @Test
-    public void visitUndefined() {
+    public void visitUndefined() throws PersistitException {
         final byte[] source = {};
         TestVisitor visitor = new TestVisitor();
         MVV.visitAllVersions(visitor, source, source.length);
@@ -423,7 +424,7 @@ public class MVVTest {
     }
 
     @Test
-    public void visitAndFetchByOffsetPrimordial() {
+    public void visitAndFetchByOffsetPrimordial() throws PersistitException {
         final byte[] source = {0xA,0xB,0xC};
         TestVisitor visitor = new TestVisitor();
         MVV.visitAllVersions(visitor, source, source.length);
@@ -436,7 +437,7 @@ public class MVVTest {
     }
 
     @Test
-    public void visitAndFetchByOffsetMVV() {
+    public void visitAndFetchByOffsetMVV() throws PersistitException {
         final byte[] source = {
                 (byte)TYPE_MVV,
                 0,0,0,0,0,0,0,1,   0,3, 0xA,0xB,0xC,

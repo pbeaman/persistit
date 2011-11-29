@@ -43,6 +43,7 @@ import com.persistit.encoding.ValueRenderer;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.MalformedValueException;
+import com.persistit.exception.PersistitException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -1300,34 +1301,41 @@ public final class Value {
             final int savedSize = _size;
             sb.append("[");
 
-            MVV.visitAllVersions(new MVV.VersionVisitor() {
-                boolean first = true;
+            try {
+                MVV.visitAllVersions(new MVV.VersionVisitor() {
+                    boolean first = true;
 
-                @Override
-                public void init() {
-                }
-
-                @Override
-                public void sawVersion(long version, int valueLength, int offset) {
-                    if(!first) {
-                        sb.append(", ");
+                    @Override
+                    public void init() {
                     }
-                    sb.append(version);
-                    sb.append(':');
-                    if(valueLength == 0) {
-                        sb.append(UNDEFINED);
-                    } else {
-                        _next = offset;
-                        _end = _size = _next + valueLength;
-                        decodeDisplayable(quoted, sb, context);
+
+                    @Override
+                    public void sawVersion(long version, int valueLength, int offset) {
+                        if(!first) {
+                            sb.append(", ");
+                        }
+                        sb.append(version);
+                        sb.append(':');
+                        if(valueLength == 0) {
+                            sb.append(UNDEFINED);
+                        } else {
+                            _next = offset;
+                            _end = _size = _next + valueLength;
+                            decodeDisplayable(quoted, sb, context);
+                        }
+                        first = false;
                     }
-                    first = false;
-                }
 
-            }, getEncodedBytes(), getEncodedSize());
-
+                }, getEncodedBytes(), getEncodedSize());
+            } 
+            catch (Throwable t) {
+                sb.append("<<").append(t).append(">>");
+            }
+            finally {
+                _next = _end = _size = savedSize;
+            }
+            
             sb.append("]");
-            _next = _end = _size = savedSize;
         }
         break;
 
@@ -2275,29 +2283,37 @@ public final class Value {
 
         case TYPE_MVV: {
             final int savedSize = _size;
-            _depth++;
             final ArrayList<Object> outList = new ArrayList<Object>();
 
-            MVV.visitAllVersions(new MVV.VersionVisitor() {
-                @Override
-                public void init() {
-                }
+            try {
+                _depth++;
 
-                @Override
-                public void sawVersion(long version, int valueLength, int offset) {
-                    Object obj = null;
-                    if(valueLength > 0) {
-                        _next = offset;
-                        _end = _size = _next + valueLength;
-                        obj = get(target, context);
+                MVV.visitAllVersions(new MVV.VersionVisitor() {
+                    @Override
+                    public void init() {
                     }
-                    outList.add(obj);
-                }
 
-            }, getEncodedBytes(), getEncodedSize());
+                    @Override
+                    public void sawVersion(long version, int valueLength, int offset) {
+                        Object obj = null;
+                        if(valueLength > 0) {
+                            _next = offset;
+                            _end = _size = _next + valueLength;
+                            obj = get(target, context);
+                        }
+                        outList.add(obj);
+                    }
 
-            _depth--;
-            _next = _end = _size = savedSize;
+                }, getEncodedBytes(), getEncodedSize());
+            }
+            catch (PersistitException pe) {
+                throw new ConversionException("@" + start, pe);
+            }
+            finally {
+                _depth--;
+                _next = _end = _size = savedSize;
+            }
+            
             return outList.toArray();
         }
         
