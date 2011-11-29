@@ -556,8 +556,6 @@ public final class Value {
 
     private long _pointer = -1;
     private int _pointerPageType = -1;
-    private boolean _atomicIncrementArmed = false;
-    private long _atomicIncrementValue;
 
     private ValueObjectInputStream _vis;
     private ValueObjectOutputStream _vos;
@@ -982,7 +980,6 @@ public final class Value {
         int saveLevel = _level;
         int saveNext = _next;
         int saveEnd = _end;
-        boolean saveAtomic = _atomicIncrementArmed;
         StringBuilder sb = new StringBuilder();
         setStreamMode(true);
         try {
@@ -1000,7 +997,6 @@ public final class Value {
         } catch (Exception e) {
             sb.append("Exception " + e + " while decoding value at index=" + _next + ": " + e);
         } finally {
-            _atomicIncrementArmed = saveAtomic;
             _end = saveEnd;
             _next = saveNext;
             _level = saveLevel;
@@ -1911,11 +1907,9 @@ public final class Value {
         final int saveLevel = _level;
         final int saveNext = _next;
         final int saveEnd = _end;
-        final boolean saveAtomic = _atomicIncrementArmed;
         try {
             object = get(target, context);
         } finally {
-            _atomicIncrementArmed = saveAtomic;
             _end = saveEnd;
             _next = saveNext;
             _level = saveLevel;
@@ -4028,37 +4022,6 @@ public final class Value {
         _serializedItemCount++;
     }
 
-    void performAtomicIncrement() {
-
-        int type;
-        _atomicIncrementArmed = false;
-        switch (type = _bytes[0]) {
-        case TYPE_BYTE: {
-            put((byte) (getByte() + _atomicIncrementValue));
-            break;
-        }
-        case TYPE_SHORT: {
-            put((short) (getShort() + _atomicIncrementValue));
-            break;
-        }
-        case TYPE_CHAR: {
-            put((char) (getChar() + _atomicIncrementValue));
-            break;
-        }
-        case TYPE_INT: {
-            put((int) (getInt() + _atomicIncrementValue));
-            break;
-        }
-        case TYPE_LONG: {
-            put((long) (getLong() + _atomicIncrementValue));
-            break;
-        }
-        default: {
-            throw new ConversionException("Existing value is not numeric. Type=" + type);
-        }
-        }
-    }
-
     long getPointerValue() {
         return _pointer;
     }
@@ -4073,23 +4036,6 @@ public final class Value {
 
     void setPointerPageType(int pageType) {
         _pointerPageType = pageType;
-    }
-
-    final void armAtomicIncrement(long value) {
-        _atomicIncrementArmed = true;
-        _atomicIncrementValue = value;
-    }
-
-    final void disarmAtomicIncrement() {
-        _atomicIncrementArmed = false;
-    }
-
-    final boolean isAtomicIncrementArmed() {
-        return _atomicIncrementArmed;
-    }
-
-    final long getAtomicIncrementValue() {
-        return _atomicIncrementValue;
     }
 
     byte[] getLongBytes() {
@@ -4156,7 +4102,6 @@ public final class Value {
         if (_endArray != null && _endArray.length > TOO_MANY_LEVELS_THRESHOLD) {
             _endArray = null;
         }
-        _atomicIncrementArmed = false;
         releaseValueCache();
     }
 
