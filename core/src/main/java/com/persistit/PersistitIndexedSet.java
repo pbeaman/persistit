@@ -213,7 +213,11 @@ public class PersistitIndexedSet {
                 if (exchange.getValue().isDefined()) {
                     id = exchange.getValue().getLong();
                 } else {
-                    id = exchange.append("id").incrementValue();
+                    exchange.append("id").fetch();
+                    Value value = exchange.getValue();
+                    id = value.isDefined() ? value.getLong() + 1 : 0;
+                    value.clear().put(id);
+                    exchange.store();
                     exchange.cut(1);
                     insertKey = true;
                 }
