@@ -25,16 +25,17 @@ import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
-import java.lang.ref.WeakReference;
 import java.rmi.RemoteException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -48,6 +49,7 @@ import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
+import com.persistit.Accumulator.AccumulatorRef;
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
@@ -209,7 +211,7 @@ public class Persistit {
      * Property name for specifying default temporary volume directory
      */
     public final static String TEMPORARY_VOLUME_DIR_NAME = "tvdirectory";
-    
+
     /**
      * Property name for specifying a transaction volume
      */
@@ -299,7 +301,7 @@ public class Persistit {
      * Maximum number of Exchanges that will be held in an internal pool.
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
-    
+
     private final static int TRANSACTION_INDEX_SIZE = 1024;
 
     final static long SHORT_DELAY = 500;
@@ -342,7 +344,7 @@ public class Persistit {
     private AtomicReference<CoderManager> _coderManager = new AtomicReference<CoderManager>();
 
     private ClassIndex _classIndex = new ClassIndex(this);
-    
+
     private ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
         @Override
         protected SessionId initialValue() {
@@ -376,7 +378,7 @@ public class Persistit {
 
     private final SharedResource _transactionResourceB = new SharedResource(this);
 
-    private final List<WeakReference<Accumulator>> _accumulators = new ArrayList<WeakReference<Accumulator>>();
+    private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
@@ -644,7 +646,7 @@ public class Persistit {
     void startCheckpointManager() {
         _checkpointManager.start();
     }
-    
+
     void startTransactionIndexPollTask() {
         _transactionIndex.start(this);
     }
@@ -1492,14 +1494,13 @@ public class Persistit {
      * @return the Checkpoint allocated by this process.
      * @throws PersistitInterruptedException
      */
-    public Checkpoint checkpoint() throws PersistitInterruptedException {
+    public Checkpoint checkpoint() throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
             return null;
         }
         cleanup();
         return _checkpointManager.checkpoint();
     }
-
 
     final long earliestLiveTransaction() {
         long earliest = Long.MAX_VALUE;
@@ -1687,9 +1688,9 @@ public class Persistit {
 
         getTransaction().close();
         cleanup();
-        
-        final List <Volume> volumes;
-        synchronized(this) {
+
+        final List<Volume> volumes;
+        synchronized (this) {
             volumes = new ArrayList<Volume>(_volumes);
         }
 
@@ -2082,7 +2083,7 @@ public class Persistit {
     TimestampAllocator getTimestampAllocator() {
         return _timestampAllocator;
     }
-    
+
     CheckpointManager getCheckpointManager() {
         return _checkpointManager;
     }
@@ -2090,7 +2091,7 @@ public class Persistit {
     IOMeter getIOMeter() {
         return _ioMeter;
     }
-    
+
     TransactionIndex getTransactionIndex() {
         return _transactionIndex;
     }
@@ -2490,22 +2491,27 @@ public class Persistit {
      *            <code>true</code> to suspend all updates; <code>false</code>
      *            to enable updates.
      */
-    public synchronized void setUpdateSuspended(boolean suspended) {
+    public void setUpdateSuspended(boolean suspended) {
         _suspendUpdates.set(suspended);
     }
 
     synchronized void addAccumulator(final Accumulator accumulator) {
-        _accumulators.add(new WeakReference<Accumulator>(accumulator));
+        _accumulators.add(accumulator.getAccumulatorRef());
     }
-    
-    synchronized List<Accumulator> getAccumulators() {
+
+    synchronized List<Accumulator> getCheckpointAccumulators() {
         final List<Accumulator> result = new ArrayList<Accumulator>();
-        for (final WeakReference<Accumulator> ref : _accumulators) {
-            final Accumulator acc = ref.get();
+        for (final Iterator<AccumulatorRef> refIterator = _accumulators.iterator(); refIterator.hasNext();) {
+            final AccumulatorRef ref = refIterator.next();
+            if (!ref.isLive()) {
+                refIterator.remove();
+            }
+            final Accumulator acc = ref.takeCheckpointRef();
             if (acc != null) {
                 result.add(acc);
             }
         }
+        Collections.sort(result, Accumulator.SORT_COMPARATOR);
         return result;
     }
 

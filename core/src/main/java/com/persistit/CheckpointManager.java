@@ -98,7 +98,7 @@ class CheckpointManager extends IOTaskRunnable {
         start("CHECKPOINT_WRITER", FLUSH_CHECKPOINT_INTERVAL);
     }
 
-    public void close(final boolean flush) throws PersistitInterruptedException {
+    public void close(final boolean flush) throws PersistitException {
         if (flush) {
             checkpoint();
         } else {
@@ -115,7 +115,7 @@ class CheckpointManager extends IOTaskRunnable {
         return _checkpointInterval;
     }
 
-    Checkpoint checkpoint() throws PersistitInterruptedException {
+    Checkpoint checkpoint() throws PersistitException {
         Checkpoint checkpoint = createCheckpoint();
         _persistit.flushBuffers(checkpoint.getTimestamp());
 
@@ -134,7 +134,7 @@ class CheckpointManager extends IOTaskRunnable {
         }
     }
 
-    void pollCreateCheckpoint() {
+    void pollCreateCheckpoint() throws PersistitException {
         final long now = System.nanoTime();
         if (_lastCheckpointNanos + _checkpointInterval < now) {
             _lastCheckpointNanos = now;
@@ -142,7 +142,7 @@ class CheckpointManager extends IOTaskRunnable {
         }
     }
 
-    Checkpoint createCheckpoint() {
+    Checkpoint createCheckpoint() throws PersistitException {
         /*
          * Add a gap to the timestamp counter - this is useful only for humans
          * trying to decipher timestamps in the journal - not necessary for
@@ -159,9 +159,7 @@ class CheckpointManager extends IOTaskRunnable {
         try {
             txn.begin();
             try {
-                /*
-                 * Serialize the accumulators
-                 */
+                _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp());
                 txn.commit();
                 final Checkpoint checkpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
                 synchronized (this) {
@@ -173,9 +171,9 @@ class CheckpointManager extends IOTaskRunnable {
             } finally {
                 txn.end();
             }
-        } catch (PersistitException pe) {
-            _persistit.getLogBase().exception.log(pe);
-            return null;
+        } catch (InterruptedException ie) {
+            _persistit.getLogBase().exception.log(ie);
+            throw new PersistitInterruptedException(ie);
         }
     }
 

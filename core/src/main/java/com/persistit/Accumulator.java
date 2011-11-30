@@ -14,7 +14,12 @@
  */
 package com.persistit;
 
+import java.lang.ref.WeakReference;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+
+import com.persistit.exception.PersistitException;
 
 /**
  * <p>
@@ -80,6 +85,26 @@ abstract class Accumulator {
         SUM, MAX, MIN, SEQ
     };
 
+    /**
+     * A Comparator used to sort Accumulators when writing checkpoints
+     */
+    final static Comparator<Accumulator> SORT_COMPARATOR = new Comparator<Accumulator>() {
+
+        @Override
+        public int compare(Accumulator a, Accumulator b) {
+            final String treeNameA = a.getTree() == null ? "" : a.getTree().getName();
+            final String treeNameB = b.getTree() == null ? "" : b.getTree().getName();
+            int compare = treeNameA.compareTo(treeNameB);
+            if (compare != 0) {
+                return compare;
+            } else {
+                return a.getIndex() - b.getIndex();
+            }
+        }
+    };
+    
+    final static int MAX_SERIALIZED_SIZE = Tree.MAX_SERIALIZED_SIZE + 24;
+
     private final Tree _tree;
     private final int _index;
     private final TransactionIndex _transactionIndex;
@@ -90,6 +115,8 @@ abstract class Accumulator {
     private long _checkpointTimestamp;
 
     private long[] _bucketValues;
+
+    final AccumulatorRef _accumulatorRef;
 
     /**
      * An Accumulator that computes a sum
@@ -274,6 +301,54 @@ abstract class Accumulator {
         }
     }
 
+    /**
+     * <p>
+     * Device that maintains a strong reference to the Accumulator when it
+     * contains updates and needs to be checkpointed, and a weak reference
+     * otherwise. The Persistit instance contains a collection of
+     * <code>AccumulatorRef</code> instances; these are used when determining
+     * which accumulators to include in the checkpoint operation. Once an
+     * <code>Accumulator</code>'s checkpoint has been written, the strong
+     * reference is removed until there is a subsequent update.
+     * </p>
+     * <p>
+     * Scenario: a process creates a new Tree, creates an Accumulator and then
+     * releases all references to the Tree. Eventually the Tree and the new
+     * Accumulator should be garbage collected; however, the Accumulator must be
+     * retained until any values it has accumulated have been written as part of
+     * a checkpoint. The dual references in this class are intended to support
+     * this behavior; the _checkpointRef field is null whenever there are no
+     * changes to checkpoint; the _weakRef is used to detect when it is
+     * permissible to remove the <code>AccumulatorRef</code> from the Persistit
+     * instance's accumulator set.
+     * <p>
+     */
+    final static class AccumulatorRef {
+        final WeakReference<Accumulator> _weakRef;
+        volatile Accumulator _checkpointRef;
+
+        AccumulatorRef(final Accumulator acc) {
+            _weakRef = new WeakReference<Accumulator>(acc);
+            _checkpointRef = acc;
+        }
+
+        Accumulator takeCheckpointRef() {
+            Accumulator result = _checkpointRef;
+            _checkpointRef = null;
+            return result;
+        }
+
+        void checkpointNeeded(final Accumulator acc) {
+            if (_checkpointRef == null) {
+                _checkpointRef = acc;
+            }
+        }
+
+        boolean isLive() {
+            return _weakRef.get() != null || _checkpointRef != null;
+        }
+    }
+
     private Accumulator(final Tree tree, final int index, final long baseValue, final TransactionIndex transactionIndex) {
         _tree = tree;
         _index = index;
@@ -282,6 +357,7 @@ abstract class Accumulator {
         _liveValue.set(baseValue);
         _transactionIndex = transactionIndex;
         _bucketValues = new long[transactionIndex.getHashTableSize()];
+        _accumulatorRef = new AccumulatorRef(this);
     }
 
     /**
@@ -324,6 +400,14 @@ abstract class Accumulator {
         _bucketValues[hashIndex] = applyValue(_bucketValues[hashIndex], delta.getValue());
     }
 
+    AccumulatorRef getAccumulatorRef() {
+        return _accumulatorRef;
+    }
+
+    void checkpointNeeded() {
+        _accumulatorRef.checkpointNeeded(this);
+    }
+
     long getBucketValue(final int hashIndex) {
         return _bucketValues[hashIndex];
     }
@@ -331,10 +415,11 @@ abstract class Accumulator {
     long getCheckpointValue() {
         return _checkpointValue;
     }
-    
+
     void setCheckpointValue(final long value) {
         _checkpointValue = value;
     }
+
     /**
      * @param type
      *            Indicates which kind of <code>Accumulator</code> to return
@@ -427,7 +512,28 @@ abstract class Accumulator {
 
     @Override
     public String toString() {
-        return String.format("Accumulator(tree=%s index=%d type=%s base=%,d live=%,d", _tree == null ? "null" : _tree
+        return String.format("Accumulator(tree=%s index=%d type=%s base=%,d live=%,d)", _tree == null ? "null" : _tree
                 .getName(), _index, getType(), _baseValue, _liveValue.get());
+    }
+    
+    void store(final Value value) {
+        value.put(_tree == null ? "" : _tree.getName());
+        value.put(_index);
+        value.put(getType().toString());
+        value.put(getCheckpointValue());
+    }
+
+    static void checkpointAccumulators(final List<Accumulator> list) throws PersistitException {
+        Exchange exchange = null;
+        for (final Accumulator accumulator : list) {
+            final Volume volume = accumulator.getTree().getVolume();
+            if (exchange == null || !exchange.getVolume().equals(volume)) {
+                exchange = volume.getStructure().directoryExchange();
+            }
+            exchange.clear().append(VolumeStructure.TREE_ACCUMULATOR).append(accumulator.getTree().getName())
+                    .append(accumulator.getIndex());
+            exchange.getValue().put(accumulator);
+            exchange.store();
+        }
     }
 }

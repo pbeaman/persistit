@@ -500,6 +500,7 @@ public class TransactionIndexBucket {
         for (Delta delta = status.takeDelta(); delta != null; delta = freeDelta(delta)) {
             if (committed) {
                 delta.getAccumulator().aggregate(_hashIndex, delta);
+                delta.getAccumulator().checkpointNeeded();
             }
         }
     }

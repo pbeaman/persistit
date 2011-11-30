@@ -18,6 +18,8 @@ package com.persistit;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.junit.Test;
+
 import com.persistit.exception.TimeoutException;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -25,6 +27,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
 
     private final TimestampAllocator _tsa = new TimestampAllocator();
 
+    @Test
     public void testBasicMethodsOneBucket() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
         Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
@@ -39,6 +42,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(1, acc.getSnapshotValue(status.getTc() + 1, 0));
     }
 
+    @Test
     public void testBasicMethodsMultipleBuckets() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1000);
         Accumulator countAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
@@ -91,6 +95,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
      * sanity the Accumulator's snapshot value. Conclude by verifying total.
      * 
      */
+    @Test
     public void testAggregationRetry() throws Exception {
         final long time = 10000;
         final TransactionIndex ti = new TransactionIndex(_tsa, 5000);
@@ -159,5 +164,26 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         if (workTime > 0) {
             System.out.printf("Count per ms = %,d  Nanos per call=%,d", after.get() / workTime, elapsedNanos / calls);
         }
+    }
+    
+    @Test
+    public void testCheckpointSave() throws Exception {
+        final Value value = new Value((Persistit)null);
+        final TransactionIndex ti = new TransactionIndex(_tsa, 5000);
+        Accumulator sumAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
+        TransactionStatus status = ti.registerTransaction();
+        sumAcc.update(18, status, 0);
+        status.commit(_tsa.updateTimestamp());
+        ti.notifyCompleted(status);
+        ti.checkpointAccumulatorSnapshots(_tsa.updateTimestamp());
+        assertEquals(18, sumAcc.getCheckpointValue());
+        value.put(sumAcc);
+        Object object = value.get();
+        assertTrue(object instanceof AccumulatorState);
+        AccumulatorState as = (AccumulatorState)object;
+        assertEquals(18, as.getValue());
+        assertEquals(sumAcc.getType(), as.getType());
+        assertEquals(0, as.getIndex());
+        assertEquals("", as.getTreeName());
     }
 }
