@@ -77,6 +77,7 @@ class ClassIndex {
     /**
      * Package-private constructor used only by {@link Persistit} during
      * initialization.
+     * @param persistit Owning Persistit instance.
      */
     ClassIndex(Persistit persistit) {
         _persistit = persistit;
@@ -117,7 +118,15 @@ class ClassIndex {
             Exchange ex = null;
             try {
                 ex = getExchange();
-                ex.clear().append(BY_HANDLE).append(handle).fetch();
+                Transaction txn = ex.getTransaction();
+                txn.begin();
+                try {
+                    ex.clear().append(BY_HANDLE).append(handle).fetch();
+                    txn.commit();
+                }
+                finally {
+                    txn.end();
+                }
                 Value value = ex.getValue();
                 if (value.isDefined()) {
                     value.setStreamMode(true);
@@ -204,44 +213,53 @@ class ClassIndex {
             Exchange ex = null;
             try {
                 ex = getExchange();
-                ClassInfo ci = null;
-                int handle = 0;
-                Value value = ex.getValue();
+                final ClassInfo ci;
+                final int handle;
+                Transaction txn = ex.getTransaction();
+                txn.begin();
                 ex.clear().append(BY_NAME).append(clazz.getName()).append(suid).fetch();
+                Value value = ex.getValue();
+                try {
+                    if (value.isDefined()) {
+                        value.setStreamMode(true);
 
-                if (value.isDefined()) {
-                    value.setStreamMode(true);
+                        handle = value.getInt();
+                        String storedName = value.getString();
+                        long storedSuid = value.getLong();
 
-                    handle = value.getInt();
-                    String storedName = value.getString();
-                    long storedSuid = value.getLong();
+                        if (storedSuid != suid || !clazz.getName().equals(storedName)) {
+                            throw new ConversionException("Class " + clazz.getName() + " persistent SUID=" + storedSuid
+                                    + " does not match current class SUID=" + suid);
+                        }
+                        ci = new ClassInfo(clazz, suid, handle, osc);
+                    } else {
+                        //
+                        // Store a new ClassInfo record
+                        //
+                        ex.clear().append("nextId").fetch();
+                        handle = value.isDefined() ? value.getInt() + 1 : 65;
+                        value.clear().put(handle);
+                        ex.store();
 
-                    if (storedSuid != suid || !clazz.getName().equals(storedName)) {
-                        throw new ConversionException("Class " + clazz.getName() + " persistent SUID=" + storedSuid
-                                + " does not match current class SUID=" + suid);
+                        value.clear();
+                        value.setStreamMode(true);
+                        value.put(handle);
+                        value.put(clazz.getName());
+                        value.put(suid);
+
+                        ex.clear().append(BY_NAME).append(clazz.getName()).append(suid).store();
+
+                        ex.clear().append(BY_HANDLE).append(handle).store();
+
+                        ci = new ClassInfo(clazz, suid, handle, osc);
                     }
-                    ci = new ClassInfo(clazz, suid, handle, osc);
-                } else {
-                    //
-                    // Store a new ClassInfo record
-                    //
-                    ex.clear().append("nextId");
-                    handle = (int) ex.incrementValue(1, 65);
-
-                    value.clear();
-                    value.setStreamMode(true);
-                    value.put(handle);
-                    value.put(clazz.getName());
-                    value.put(suid);
-
-                    ex.clear().append(BY_NAME).append(clazz.getName()).append(suid).store();
-
-                    ex.clear().append(BY_HANDLE).append(handle).store();
-
-                    ci = new ClassInfo(clazz, suid, handle, osc);
+                    txn.commit();
+                    hashClassInfo(ci);
+                    return ci;
                 }
-                hashClassInfo(ci);
-                return ci;
+                finally {
+                    txn.end();
+                }
             } catch (PersistitException pe) {
                 throw new ConversionException(pe);
             } finally {
@@ -258,7 +276,7 @@ class ClassIndex {
      * sorted. See {@link com.persistit.encoding.CoderManager} for further
      * information.
      * 
-     * @param clazz
+     * @param clazz Class instance to register.
      */
     public void registerClass(Class<?> clazz) {
         lookupByClass(clazz);
@@ -298,12 +316,8 @@ class ClassIndex {
         hashByName.set(nh % hashByName.length(), cie);
 
         ClassInfoEntry cie3 = _knownNull;
-        ClassInfoEntry cie4 = null;
         while (cie3 != null) {
-            if (cie3._classInfo.getHandle() == handle) {
-                if (cie4 != null)
-                    cie4._nextByIdHash = cie3._nextByIdHash;
-            } else {
+            if (cie3._classInfo.getHandle() != handle) {
                 _knownNull = cie3._nextByIdHash;
             }
             cie3 = cie3._nextByIdHash;

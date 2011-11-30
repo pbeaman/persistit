@@ -248,100 +248,6 @@ public class TransactionTest1 extends PersistitUnitTestCase {
     }
 
     @Test
-    public void test6() throws PersistitException {
-        System.out.print("test6 ");
-        final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
-        ex.removeAll();
-        ex.getValue().put("record b");
-        ex.clear().append("b").store();
-        for (int i = 0; i < 100; i++) {
-            ex.getValue().put("Record #" + i);
-            ex.clear().append("a").append(i).store();
-            ex.clear().append("b").append(i).store();
-            ex.clear().append("c").append(i).store();
-        }
-        final Transaction txn = ex.getTransaction();
-        txn.begin();
-        try {
-            for (int i = 10; i < 20; i++) {
-                ex.getValue().put("Record #" + i + "'");
-                ex.clear().append("a").append(i).store();
-                ex.clear().append("b").append(i).store();
-                ex.clear().append("c").append(i).store();
-            }
-            for (int i = 50; --i >= 0;) {
-                ex.clear().append("a").append(i);
-                ex.fetch();
-                final String s1 = ex.getValue().getString();
-                String s2 = "Record #" + i;
-                if ((i >= 10) && (i < 20)) {
-                    s2 += "'";
-                }
-                Debug.$assert1.t(s1.equals(s2));
-                assertEquals(s1, s2);
-            }
-            for (int i = 0; i < 10; i++) {
-                ex.clear().append("c").incrementValue();
-            }
-            long c1;
-            c1 = ex.getValue().getLong();
-            assertEquals(c1, 9);
-            ex.getValue().put((long) 20);
-            ex.fetchAndStore();
-            c1 = ex.getValue().getLong();
-            assertEquals(c1, 9);
-            ex.incrementValue();
-            c1 = ex.getValue().getLong();
-            assertEquals(c1, 21);
-
-            ex.clear().append("b").remove(Key.GT);
-
-            assertTrue(ex.fetch().getValue().isDefined());
-            final String s1 = ex.getValue().getString();
-            assertEquals(s1, "record b");
-            for (int i = 0; i < 50; i++) {
-                ex.clear().append("b").append(i).fetch();
-                assertTrue(!ex.getValue().isDefined());
-            }
-            ex.clear().append("c").remove(Key.GTEQ);
-            ex.incrementValue();
-            c1 = ex.getValue().getLong();
-            assertEquals(c1, 0);
-
-            txn.commit();
-        } finally {
-            txn.end();
-        }
-
-        for (int i = 50; --i >= 0;) {
-            ex.clear().append("a").append(i);
-            ex.fetch();
-            final String s1 = ex.getValue().getString();
-            String s2 = "Record #" + i;
-            if ((i >= 10) && (i < 20)) {
-                s2 += "'";
-            }
-            Debug.$assert1.t(s1.equals(s2));
-            assertEquals(s1, s2);
-        }
-
-        ex.clear().append("b");
-        assertTrue(ex.fetch().getValue().isDefined());
-        final String s1 = ex.getValue().getString();
-        assertEquals(s1, "record b");
-        for (int i = 0; i < 50; i++) {
-            ex.clear().append("b").append(i).fetch();
-            assertTrue(!ex.getValue().isDefined());
-        }
-
-        ex.clear().append("c").fetch();
-        final long c1 = ex.getValue().getLong();
-        assertEquals(c1, 0);
-
-        System.out.println("- done");
-    }
-
-    @Test
     public void test7() throws PersistitException {
         final Exchange ex = _persistit.getExchange("persistit", "TransactionTest1", true);
         ex.removeAll();
@@ -455,6 +361,5 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         test3();
         test4();
         test5();
-        test6();
     }
 }

@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.Exchange;
 import com.persistit.Key;
@@ -45,6 +46,7 @@ public class Stress3 extends StressBase {
 
     static String[] _fileNames = null;
     static boolean _filesLoaded;
+    final static AtomicLong _counter = new AtomicLong(0);
 
     int _seed;
     int _size;
@@ -163,7 +165,7 @@ public class Stress3 extends StressBase {
 
                         ex1.clear().append("byName").append(s).fetch();
                         if (!ex1.getValue().isDefined() || ex1.getValue().isNull()) {
-                            atomic = _ex.clear().append("counter").incrementValue();
+                            atomic = _counter.incrementAndGet();
                             ex1.getValue().put(atomic);
                             ex1.store();
                         } else {

@@ -1492,13 +1492,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         if (isIndexPage()) {
             length = 0;
         } else {
-            if (value.isAtomicIncrementArmed()) {
-                length = oldTailSize - klength - _tailHeaderSize;
-                value.putEncodedBytes(_bytes, tail + _tailHeaderSize + klength, length);
-                value.performAtomicIncrement();
-            } else {
-                length = value.getEncodedSize();
-            }
+            length = value.getEncodedSize();
         }
 
         int newTailSize = klength + length + _tailHeaderSize;
