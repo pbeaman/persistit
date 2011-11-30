@@ -23,6 +23,8 @@ import org.junit.Test;
 import java.util.Map;
 import java.util.TreeMap;
 
+import static com.persistit.MVV.STORE_EXISTED_MASK;
+import static com.persistit.MVV.STORE_LENGTH_MASK;
 import static com.persistit.MVV.TYPE_MVV;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -168,8 +170,10 @@ public class MVVTest {
                                           0,0,0,0,0,0,0,vh2, 0,3, 0xA,0xB,0xC,
                                           0,0,0,0,0,0,0,vh3, 0,4, 0x6,0x7,0x8,0x9);
         final byte[] source = {0xD,0xE};
-        final int storedLength = MVV.storeVersion(target, targetLength, vh2, source, source.length);
+        int storedLength = MVV.storeVersion(target, targetLength, vh2, source, source.length);
+        assertTrue("version existed", (storedLength & STORE_EXISTED_MASK) != 0);
 
+        storedLength &= STORE_LENGTH_MASK;
         assertEquals(targetLength - 1, storedLength);
         assertArrayEqualsLen(newArray(TYPE_MVV,
                                      0,0,0,0,0,0,0,vh1, 0,2, 0x4,0x5,
@@ -189,7 +193,10 @@ public class MVVTest {
                                           0,0,0,0,0,0,0,vh2, 0,3, 0xA,0xB,0xC,
                                           0,0,0,0,0,0,0,vh3, 0,4, 0x6,0x7,0x8,0x9);
         final byte[] source = {0xC,0xD,0xE,0xF};
-        final int storedLength = MVV.storeVersion(target, targetLength, vh2, source, source.length);
+        int storedLength = MVV.storeVersion(target, targetLength, vh2, source, source.length);
+        assertTrue("version existed", (storedLength & STORE_EXISTED_MASK) != 0);
+
+        storedLength &= STORE_LENGTH_MASK;
 
         assertEquals(targetLength + 1, storedLength);
         assertArrayEqualsLen(newArray(TYPE_MVV,

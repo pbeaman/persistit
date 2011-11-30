@@ -1391,7 +1391,11 @@ public class Exchange {
                             long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
                             int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), spareSize,
                                                                 versionHandle, value.getEncodedBytes(), valueSize);
-                            tStatus.incrementMvvCount();
+
+                            if ((storedLength & MVV.STORE_EXISTED_MASK) == 0) {
+                                tStatus.incrementMvvCount();
+                            }
+                            storedLength &= MVV.STORE_LENGTH_MASK;
                             _spareValue.setEncodedSize(storedLength);
 
                             if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
