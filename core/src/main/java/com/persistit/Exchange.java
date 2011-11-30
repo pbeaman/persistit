@@ -246,7 +246,8 @@ public class Exchange {
                 break;
 
                 case STORE:
-                    if (_ti.wwDependency(version, _status, Persistit.SHORT_DELAY) != 0) {
+                    long depends = _ti.wwDependency(version, _status, Persistit.SHORT_DELAY);
+                    if (depends != 0 && depends != TransactionStatus.ABORTED) {
                         // version is from concurrent txn that already committed
                         // or timed out waiting to see. Either way, must abort.
                         throw new RollbackException();
@@ -1362,8 +1363,10 @@ public class Exchange {
                             valueToStore = _spareValue;
                             int valueSize = value.getEncodedSize();
 
+                            // If key didn't exist the value is truly non-existent
+                            // and not just undefined/zero length
                             byte[] spareBytes = _spareValue.getEncodedBytes();
-                            int spareSize = _spareValue.getEncodedSize();
+                            int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
                             TransactionStatus tStatus = _transaction.getTransactionStatus();
 
                             if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
@@ -1382,15 +1385,11 @@ public class Exchange {
                             _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.STORE);
                             MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
 
-                            // If key didn't exist the value is truly non-existent
-                            // and not just undefined/zero length
-                            int currentSize = keyExisted ? spareSize : -1;
-
-                            int mvvSize = MVV.estimateRequiredLength(spareBytes, currentSize, valueSize);
+                            int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
                             _spareValue.ensureFit(mvvSize);
 
                             long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
-                            int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), currentSize,
+                            int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), spareSize,
                                                                 versionHandle, value.getEncodedBytes(), valueSize);
                             tStatus.incrementMvvCount();
                             _spareValue.setEncodedSize(storedLength);
