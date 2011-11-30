@@ -237,14 +237,27 @@ public class Tree extends SharedResource {
     /**
      * Return an <code>Accumulator</code> for this Tree.
      */
-    public synchronized Accumulator getAccumulator(final Accumulator.Type type, final int index) {
+    public synchronized Accumulator getAccumulator(final Accumulator.Type type, final int index)
+            throws PersistitException {
         if (index < 0 || index >= MAX_ACCUMULATOR_COUNT) {
             throw new IllegalArgumentException("Invalid accumulator index: " + index);
         }
         Accumulator accumulator = _accumulators[index];
         if (accumulator == null) {
-            accumulator = Accumulator.accumulator(type, this, index, 0, _persistit.getTransactionIndex());
+            final AccumulatorState saved = Accumulator.getAccumulatorState(this, index);
+            long savedValue = 0;
+            if (saved != null) {
+                if (!saved.getTreeName().equals(getName())) {
+                    throw new IllegalStateException("AccumulatorState has wrong tree name: " + saved);
+                }
+                if (!saved.getType().equals(type)) {
+                    throw new IllegalStateException("AccumulatorState has different type: " + saved);
+                }
+                savedValue = saved.getValue();
+            }
+            accumulator = Accumulator.accumulator(type, this, index, savedValue, _persistit.getTransactionIndex());
             _accumulators[index] = accumulator;
+            _persistit.addAccumulator(accumulator);
         } else if (accumulator.getType() != type) {
             throw new IllegalStateException("Wrong type " + accumulator + " is not a " + type + " accumulator");
         }

@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
 
+import com.persistit.Accumulator.Type;
 import com.persistit.exception.TimeoutException;
 import com.persistit.unit.PersistitUnitTestCase;
 
@@ -71,21 +72,21 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(1016, maxAcc.getSnapshotValue(after, 0));
         assertEquals(sumAcc.getLiveValue(), sumAcc.getSnapshotValue(after, 0));
         assertEquals(seqAcc.getLiveValue(), seqAcc.getSnapshotValue(after, 0));
-        
+
         assertEquals(0, countAcc.getCheckpointValue());
         assertEquals(0, sumAcc.getCheckpointValue());
         assertEquals(0, minAcc.getCheckpointValue());
         assertEquals(0, maxAcc.getCheckpointValue());
         assertEquals(0, seqAcc.getCheckpointValue());
-        
+
         ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp());
-        
+
         assertEquals(countAcc.getLiveValue(), countAcc.getCheckpointValue());
         assertEquals(sumAcc.getLiveValue(), sumAcc.getCheckpointValue());
         assertEquals(minAcc.getLiveValue(), minAcc.getCheckpointValue());
         assertEquals(maxAcc.getLiveValue(), maxAcc.getCheckpointValue());
         assertEquals(seqAcc.getLiveValue(), seqAcc.getCheckpointValue());
-        
+
     }
 
     /**
@@ -165,10 +166,10 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             System.out.printf("Count per ms = %,d  Nanos per call=%,d", after.get() / workTime, elapsedNanos / calls);
         }
     }
-    
+
     @Test
-    public void testCheckpointSave() throws Exception {
-        final Value value = new Value((Persistit)null);
+    public void testCheckpointSaveToValue() throws Exception {
+        final Value value = new Value((Persistit) null);
         final TransactionIndex ti = new TransactionIndex(_tsa, 5000);
         Accumulator sumAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
         TransactionStatus status = ti.registerTransaction();
@@ -180,10 +181,49 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         value.put(sumAcc);
         Object object = value.get();
         assertTrue(object instanceof AccumulatorState);
-        AccumulatorState as = (AccumulatorState)object;
+        AccumulatorState as = (AccumulatorState) object;
         assertEquals(18, as.getValue());
         assertEquals(sumAcc.getType(), as.getType());
         assertEquals(0, as.getIndex());
         assertEquals("", as.getTreeName());
+    }
+
+    @Test
+    public void testCheckpointSaveAccumulators() throws Exception {
+        final Transaction txn = _persistit.getTransaction();
+        final Exchange exchange = _persistit.getExchange("persistit", "AccumulatorTest", true);
+        final Accumulator rowCount = exchange.getTree().getAccumulator(Type.SUM, 0);
+        final Accumulator sequence = exchange.getTree().getAccumulator(Type.SEQ, 1);
+
+        for (int i = 0; i < 1000; i++) {
+            txn.begin();
+            try {
+                exchange.clear().append(sequence.update(17, txn.getTransactionStatus(), 0));
+                exchange.getValue().put(RED_FOX);
+                exchange.store();
+                rowCount.update(1, txn.getTransactionStatus(), 0);
+                txn.commit();
+            } finally {
+                txn.end();
+            }
+        }
+
+        assertEquals(1000, rowCount.getLiveValue());
+        assertEquals(17000, sequence.getLiveValue());
+        _persistit.checkpoint();
+        assertEquals(1000, rowCount.getCheckpointValue());
+        assertEquals(17000, sequence.getCheckpointValue());
+
+        AccumulatorState as;
+        as = Accumulator.getAccumulatorState(exchange.getTree(), 0);
+        assertEquals("AccumulatorTest", as.getTreeName());
+        assertEquals(Type.SUM, as.getType());
+        assertEquals(0, as.getIndex());
+        assertEquals(1000, as.getValue());
+        as = Accumulator.getAccumulatorState(exchange.getTree(), 1);
+        assertEquals("AccumulatorTest", as.getTreeName());
+        assertEquals(Type.SEQ, as.getType());
+        assertEquals(1, as.getIndex());
+        assertEquals(17000, as.getValue());
     }
 }

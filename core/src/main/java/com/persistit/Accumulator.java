@@ -102,7 +102,7 @@ abstract class Accumulator {
             }
         }
     };
-    
+
     final static int MAX_SERIALIZED_SIZE = Tree.MAX_SERIALIZED_SIZE + 24;
 
     private final Tree _tree;
@@ -479,7 +479,7 @@ abstract class Accumulator {
      * @param ts
      * @param step
      */
-    void update(final long value, final TransactionStatus status, final int step) {
+    long update(final long value, final TransactionStatus status, final int step) {
         assert status.getTc() == TransactionStatus.UNCOMMITTED;
         /*
          * Update the live value using compare-and-set
@@ -500,6 +500,7 @@ abstract class Accumulator {
         delta.setValue(selectValue(value, updated));
         delta.setStep(step);
         delta.setAccumulator(this);
+        return updated;
     }
 
     Tree getTree() {
@@ -515,12 +516,22 @@ abstract class Accumulator {
         return String.format("Accumulator(tree=%s index=%d type=%s base=%,d live=%,d)", _tree == null ? "null" : _tree
                 .getName(), _index, getType(), _baseValue, _liveValue.get());
     }
-    
+
     void store(final Value value) {
         value.put(_tree == null ? "" : _tree.getName());
         value.put(_index);
         value.put(getType().toString());
         value.put(getCheckpointValue());
+    }
+
+    static AccumulatorState getAccumulatorState(final Tree tree, final int index) throws PersistitException {
+        final Exchange exchange = tree.getVolume().getStructure().directoryExchange();
+        exchange.clear().append(VolumeStructure.TREE_ACCUMULATOR).append(tree.getName()).append(index).fetch();
+        if (exchange.getValue().isDefined()) {
+            return (AccumulatorState)exchange.getValue().get();
+        } else {
+            return null;
+        }
     }
 
     static void checkpointAccumulators(final List<Accumulator> list) throws PersistitException {
@@ -530,8 +541,8 @@ abstract class Accumulator {
             if (exchange == null || !exchange.getVolume().equals(volume)) {
                 exchange = volume.getStructure().directoryExchange();
             }
-            exchange.clear().append(VolumeStructure.TREE_ACCUMULATOR).append(accumulator.getTree().getName())
-                    .append(accumulator.getIndex());
+            exchange.clear().append(VolumeStructure.TREE_ACCUMULATOR).append(accumulator.getTree().getName()).append(
+                    accumulator.getIndex());
             exchange.getValue().put(accumulator);
             exchange.store();
         }

@@ -160,6 +160,8 @@ class CheckpointManager extends IOTaskRunnable {
             txn.begin();
             try {
                 _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp());
+                Accumulator.checkpointAccumulators(_persistit.getCheckpointAccumulators());
+                
                 txn.commit();
                 final Checkpoint checkpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
                 synchronized (this) {

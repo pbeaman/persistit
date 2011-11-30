@@ -754,7 +754,7 @@ public class Transaction {
     public SessionId getSessionId() {
         return _sessionId;
     }
-
+    
     /**
      * Return the number of transactions committed by this transaction context.
      * 
@@ -897,6 +897,11 @@ public class Transaction {
         DT.putType(_buffer);
         DT.putTreeHandle(_buffer, treeHandle);
     }
+
+    TransactionStatus getTransactionStatus() {
+        return _transactionStatus;
+    }
+
 
     /**
      * For unit tests only
