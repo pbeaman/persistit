@@ -1413,7 +1413,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     if (bb == _readBuffer) {
                         end = recordSize - (position - start);
                         bb = ByteBuffer.allocate(end);
-                        bb.put(_readBuffer.array(), start + position, end);
+                        bb.put(_readBuffer.array(), position, end);
                         bb.flip();
                         position = 0;
                     }

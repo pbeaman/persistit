@@ -67,6 +67,21 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(1016, maxAcc.getSnapshotValue(after, 0));
         assertEquals(sumAcc.getLiveValue(), sumAcc.getSnapshotValue(after, 0));
         assertEquals(seqAcc.getLiveValue(), seqAcc.getSnapshotValue(after, 0));
+        
+        assertEquals(0, countAcc.getCheckpointValue());
+        assertEquals(0, sumAcc.getCheckpointValue());
+        assertEquals(0, minAcc.getCheckpointValue());
+        assertEquals(0, maxAcc.getCheckpointValue());
+        assertEquals(0, seqAcc.getCheckpointValue());
+        
+        ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp());
+        
+        assertEquals(countAcc.getLiveValue(), countAcc.getCheckpointValue());
+        assertEquals(sumAcc.getLiveValue(), sumAcc.getCheckpointValue());
+        assertEquals(minAcc.getLiveValue(), minAcc.getCheckpointValue());
+        assertEquals(maxAcc.getLiveValue(), maxAcc.getCheckpointValue());
+        assertEquals(seqAcc.getLiveValue(), seqAcc.getCheckpointValue());
+        
     }
 
     /**

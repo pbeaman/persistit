@@ -39,8 +39,6 @@ import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
 
-import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
-
 import com.persistit.Key.Direction;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;

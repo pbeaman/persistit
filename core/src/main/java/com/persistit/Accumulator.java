@@ -278,7 +278,7 @@ abstract class Accumulator {
         _tree = tree;
         _index = index;
         _baseValue = baseValue;
-        
+        _checkpointValue = baseValue;
         _liveValue.set(baseValue);
         _transactionIndex = transactionIndex;
         _bucketValues = new long[transactionIndex.getHashTableSize()];
@@ -328,7 +328,7 @@ abstract class Accumulator {
         return _bucketValues[hashIndex];
     }
 
-    long checkCheckpointValue() {
+    long getCheckpointValue() {
         return _checkpointValue;
     }
     
