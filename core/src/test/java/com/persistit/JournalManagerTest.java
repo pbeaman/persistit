@@ -72,12 +72,13 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             assertTrue(exchange.next(true));
             final int treeHandle = jman.handleForTree(exchange.getTree());
             timestamps[i] = _persistit.getTimestampAllocator().updateTimestamp();
-            
+
             txn.writeStoreRecordToJournal(treeHandle, exchange.getKey(), exchange.getValue());
             if (i % 50 == 0) {
                 jman.rollover();
             }
-            jman.writeTransactionToJournal(txn.getTransactionBuffer(), timestamps[i], i % 4 == 1 ?  timestamps[i] + 1 :  0, 0);
+            jman.writeTransactionToJournal(txn.getTransactionBuffer(), timestamps[i], i % 4 == 1 ? timestamps[i] + 1
+                    : 0, 0);
         }
         jman.rollover();
         exchange.clear().append(Key.BEFORE);
@@ -100,7 +101,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
                 noPagesAfterThis = jman.getCurrentAddress();
                 commitCount = 0;
             }
-            jman.writeTransactionToJournal(txn.getTransactionBuffer(), timestamps[i], i % 4 == 3 ?  timestamps[i] + 1 :  0, 0);
+            jman.writeTransactionToJournal(txn.getTransactionBuffer(), timestamps[i], i % 4 == 3 ? timestamps[i] + 1
+                    : 0, 0);
         }
 
         store1();
@@ -164,7 +166,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             }
 
             @Override
-            public void startTransaction(long address, long timestamp) throws PersistitException {
+            public void startTransaction(long address, long startTimestamp, long commitTimestamp)
+                    throws PersistitException {
             }
 
             @Override
@@ -243,7 +246,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             } else {
                 exchange.getValue().put(kilo);
             }
-            
+
             txn.writeStoreRecordToJournal(12345, exchange.getKey(), exchange.getValue());
             jman.writeTransactionToJournal(txn.getTransactionBuffer(), timestamp, timestamp + 1, 0);
             if (remaining == JournalRecord.JE.OVERHEAD) {

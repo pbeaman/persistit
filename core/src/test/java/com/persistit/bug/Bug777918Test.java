@@ -236,15 +236,15 @@ public class Bug777918Test extends PersistitUnitTestCase {
         boolean crashed = false;
 
         @Override
-        public void startTransaction(long address, long timestamp) throws PersistitException {
-            if (timestamp > 50000 && !checkpointed) {
+        public void startTransaction(long address, long startTimestamp, long commitTimestamp) throws PersistitException {
+            if (startTimestamp > 50000 && !checkpointed) {
                 _persistit.checkpoint();
                 checkpointed = true;
             }
-            if (timestamp > 100000 && !crashed) {
+            if (startTimestamp > 100000 && !crashed) {
                 _persistit.crash();
                 crashed = true;
-                throw new Bug777918Exception(timestamp);
+                throw new Bug777918Exception(startTimestamp);
             }
         }
     }

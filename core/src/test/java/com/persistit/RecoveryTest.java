@@ -127,7 +127,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
 
             @Override
-            public void startTransaction(long address, long timestamp) throws PersistitException {
+            public void startTransaction(long address, long startTmestamp, long commitTimestamp) throws PersistitException {
             }
 
             @Override

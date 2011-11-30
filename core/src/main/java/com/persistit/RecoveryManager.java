@@ -218,20 +218,20 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     public interface RecoveryListener {
 
-        void startRecovery(final long address, final long timestamp) throws PersistitException;
+        void startRecovery(long address, long timestamp) throws PersistitException;
 
-        void startTransaction(final long address, final long timestamp) throws PersistitException;
+        void startTransaction(long address, long timestamp, long commitTimestamp) throws PersistitException;
 
-        void store(final long address, final long timestamp, final Exchange exchange) throws PersistitException;
+        void store(long address, long timestamp, Exchange exchange) throws PersistitException;
 
-        void removeKeyRange(final long address, final long timestamp, final Exchange exchange, Key from, Key to)
+        void removeKeyRange(long address, long startTimestamp, Exchange exchange, Key from, Key to)
                 throws PersistitException;
 
-        void removeTree(final long address, final long timestamp, final Exchange exchange) throws PersistitException;
+        void removeTree(long address, long timestamp, Exchange exchange) throws PersistitException;
 
-        void endTransaction(final long address, final long timestamp) throws PersistitException;
+        void endTransaction(long address, long timestamp) throws PersistitException;
 
-        void endRecovery(final long address, final long timestamp) throws PersistitException;
+        void endRecovery(long address, long timestamp) throws PersistitException;
 
     }
 
@@ -258,7 +258,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         @Override
-        public void startTransaction(long address, long timestamp) throws PersistitException {
+        public void startTransaction(long address, long startTimestamp, final long commitTimestamp) throws PersistitException {
             // Default: do nothing
         }
 
@@ -1317,7 +1317,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     public void applyTransaction(final TransactionMapItem item, final RecoveryListener listener)
             throws PersistitException {
 
-        List<Long> chainedAddress = new ArrayList<Long>();
+        final List<Long> chainedAddress = new ArrayList<Long>();
         long address = item.getLastRecordAddress();
 
         int recordSize;
@@ -1353,6 +1353,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             address = backchainAddress;
         }
 
+        listener.startTransaction(address, startTimestamp, commitTimestamp);
+
         if (item.isCommitted()) {
             applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp,
                     _defaultCommitListener);
@@ -1360,6 +1362,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp,
                     _defaultRollbackListener);
         }
+        
         for (Long continuation : chainedAddress) {
             address = continuation.longValue();
             read(address, Transaction.TRANSACTION_BUFFER_SIZE);
@@ -1372,6 +1375,9 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                         _defaultRollbackListener);
             }
         }
+        
+        listener.endRecovery(address, startTimestamp);
+
     }
 
     void applyTransactionUpdates(final ByteBuffer byteBuffer, final long address, final int recordSize,
@@ -1381,7 +1387,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final int start = bb.position();
         int end = start + recordSize;
         int position = start + TX.OVERHEAD;
-
+        
         while (position < end) {
             bb.position(position);
             final int innerSize = JournalRecord.getLength(bb);
@@ -1468,6 +1474,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             }
             position += innerSize;
         }
+        
     }
 
     /**
