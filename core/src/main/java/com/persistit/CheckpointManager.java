@@ -71,7 +71,7 @@ class CheckpointManager extends IOTaskRunnable {
      */
     private final static long DEFAULT_CHECKPOINT_INTERVAL = 120000000000L;
 
-    private final static int CHECKPOINT_TIMESTAMP_MARKER_INTERVAL = 1000;
+    private final static int CHECKPOINT_TIMESTAMP_MARKER_INTERVAL = 100;
 
     private volatile long _checkpointInterval = DEFAULT_CHECKPOINT_INTERVAL;
 
@@ -137,12 +137,36 @@ class CheckpointManager extends IOTaskRunnable {
     void pollCreateCheckpoint() throws PersistitException {
         final long now = System.nanoTime();
         if (_lastCheckpointNanos + _checkpointInterval < now) {
-            _lastCheckpointNanos = now;
             createCheckpoint();
         }
     }
 
-    Checkpoint createCheckpoint() throws PersistitException {
+    /**
+     * <p>
+     * Allocate a timestamp to serve as the next checkpoint timestamp.
+     * Concurrently, compute a snapshot value of each active {@link Accumulator}
+     * at that timestamp and store it. This value will serve as the accumulator
+     * base value during recovery.
+     * </p>
+     * <p>
+     * Note that invoking this method merely starts the process of creating a
+     * checkpoint. Subsequently Persistit writes all dirty pages that were
+     * modified before the checkpoint timestamp to the journal. Only when that
+     * is finished can a CP (Checkpoint) record be written to the journal to
+     * certify that the checkpoint is valid for recovery.
+     * </p>
+     * <p>
+     * This method is synchronized because it computes a checkpoint value for
+     * each Accumulator and then serializes that value into the database.
+     * That process is not threadsafe, and there is no use case
+     * for concurrent checkpoints.
+     * 
+     * @return The newly created Checkpoint
+     * @throws PersistitException
+     */
+    synchronized Checkpoint createCheckpoint() throws PersistitException {
+        _lastCheckpointNanos = System.nanoTime();
+
         /*
          * Add a gap to the timestamp counter - this is useful only for humans
          * trying to decipher timestamps in the journal - not necessary for
@@ -150,32 +174,29 @@ class CheckpointManager extends IOTaskRunnable {
          */
         _persistit.getTimestampAllocator().bumpTimestamp(CHECKPOINT_TIMESTAMP_MARKER_INTERVAL);
         /*
-         * Run within a transaction to get snapshot accumulator views.  The Checkpoint timestamp
-         * is the start timestamp of this transaction. Therefore the Accumulator snapshot values
-         * represent the aggregation of all transactions that committed before the checkpoint
-         * timestamp.
+         * Run within a transaction to get snapshot accumulator views. The
+         * Checkpoint timestamp is the start timestamp of this transaction.
+         * Therefore the Accumulator snapshot values represent the aggregation
+         * of all transactions that committed before the checkpoint timestamp.
          */
         Transaction txn = _persistit.getTransaction();
+        txn.begin();
         try {
-            txn.begin();
-            try {
-                _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp());
-                Accumulator.checkpointAccumulators(_persistit.getCheckpointAccumulators());
-                
-                txn.commit();
-                final Checkpoint checkpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
-                synchronized (this) {
-                    _outstandingCheckpoints.add(checkpoint);
-                    _currentCheckpoint = checkpoint;
-                }
-                _persistit.getLogBase().checkpointProposed.log(checkpoint);
-                return checkpoint;
-            } finally {
-                txn.end();
+            List<Accumulator> accumulators = _persistit.getCheckpointAccumulators();
+            _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp(), accumulators);
+            Accumulator.saveAccumulatorCheckpointValues(accumulators);
+            txn.commit();
+            final Checkpoint checkpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
+            synchronized (this) {
+                _outstandingCheckpoints.add(checkpoint);
+                _currentCheckpoint = checkpoint;
             }
+            _persistit.getLogBase().checkpointProposed.log(checkpoint);
+            return checkpoint;
         } catch (InterruptedException ie) {
-            _persistit.getLogBase().exception.log(ie);
             throw new PersistitInterruptedException(ie);
+        } finally {
+            txn.end();
         }
     }
 

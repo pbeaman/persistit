@@ -21,6 +21,7 @@ import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
@@ -909,29 +910,26 @@ public class TransactionIndex {
         return result;
     }
 
-    void checkpointAccumulatorSnapshots(long timestamp) throws InterruptedException {
-        Map<Accumulator, long[]> accumulation = new HashMap<Accumulator, long[]>();
+    void checkpointAccumulatorSnapshots(long timestamp, final List<Accumulator> accumulators)
+            throws InterruptedException {
+        Map<Accumulator, Accumulator> lookupMap = new HashMap<Accumulator, Accumulator>();
+        for (final Accumulator accumulator : accumulators) {
+            lookupMap.put(accumulator, accumulator);
+            accumulator.setCheckpointValueAndTimestamp(accumulator.getBaseValue(), Long.MIN_VALUE);
+        }
         for (final TransactionIndexBucket bucket : _hashTable) {
             boolean again = true;
             while (again) {
                 again = false;
                 bucket.lock();
                 try {
-                    Map<Accumulator, long[]> bucketAccmulation = new HashMap<Accumulator, long[]>();
-                    bucket.checkpointAccumulatorSnapshots(timestamp, bucketAccmulation);
-                    /*
-                     * If the operation on the bucket doesn't throw a retry then combine the bucket's
-                     * results into the main accumulation map.
-                     */
-                    for (final Map.Entry<Accumulator, long[]> entry : bucketAccmulation.entrySet()) {
-                        final Accumulator accumulator = entry.getKey();
-                        final long[] value = entry.getValue();
-                        long[] accumulated = accumulation.get(accumulator);
-                        if (accumulated == null) {
-                            accumulation.put(accumulator, value);
-                        } else {
-                            accumulated[0] = accumulator.applyValue(accumulated[0], value[0]);
-                        }
+                    for (final Accumulator accumulator : accumulators) {
+                        accumulator.setCheckpointTemp(accumulator.getBucketValue(bucket.getIndex()));
+                    }
+                    bucket.checkpointAccumulatorSnapshots(timestamp);
+                    for (final Accumulator accumulator : accumulators) {
+                        accumulator.setCheckpointValueAndTimestamp(accumulator.applyValue(accumulator
+                                .getCheckpointValue(), accumulator.getCheckpointTemp()), timestamp);
                     }
                 } catch (RetryException e) {
                     again = true;
@@ -939,11 +937,6 @@ public class TransactionIndex {
                     bucket.unlock();
                 }
             }
-        }
-        for (final Map.Entry<Accumulator, long[]> entry : accumulation.entrySet()) {
-            final Accumulator accumulator = entry.getKey();
-            final long[] value = entry.getValue();
-            accumulator.setCheckpointValue(value[0]);
         }
     }
 

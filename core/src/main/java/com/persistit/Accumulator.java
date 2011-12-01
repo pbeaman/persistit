@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
 
 /**
  * <p>
@@ -110,12 +111,40 @@ abstract class Accumulator {
     private final TransactionIndex _transactionIndex;
 
     private final AtomicLong _liveValue = new AtomicLong();
+    /*
+     * Checkpointed value read during recovery.
+     */
     private final long _baseValue;
-    private long _checkpointValue;
-    private long _checkpointTimestamp;
 
+    /*
+     * Snapshot value at the most recent checkpoint
+     */
+    private volatile long _checkpointValue;
+    /*
+     * Timestamp of the most recent checkpoint for which the checkpointValue has
+     * been computed
+     */
+    private volatile long _checkpointTimestamp;
+    /*
+     * Temporary used only during the computation of checkpoint values.
+     */
+    private long _checkpointTemp;
+
+    /*
+     * Accumulated value per TransactionIndex bucket. This number represents the
+     * accumulation of all delta values that have been coallesced and are no
+     * longer present in live TransactionStatus objects. This array has one
+     * element per TransactionIndexBucket.
+     */
     private long[] _bucketValues;
 
+    /*
+     * Object held on the accumulators list in {@link Persistit}. An
+     * AccumulatorRef is carefully crafted to keep a strong reference to the
+     * Accumulator when needed a WeakReference used to detect that the there are
+     * no other references to the Accumulator so that the AccumulatorRef can be
+     * removed from the accumulators list.
+     */
     final AccumulatorRef _accumulatorRef;
 
     /**
@@ -412,12 +441,25 @@ abstract class Accumulator {
         return _bucketValues[hashIndex];
     }
 
+    void setCheckpointValueAndTimestamp(final long value, final long timestamp) {
+        _checkpointValue = value;
+        _checkpointTimestamp = timestamp;
+    }
+
     long getCheckpointValue() {
         return _checkpointValue;
     }
 
-    void setCheckpointValue(final long value) {
-        _checkpointValue = value;
+    long getCheckpointTimestamp() {
+        return _checkpointTimestamp;
+    }
+
+    void setCheckpointTemp(final long value) {
+        _checkpointTemp = value;
+    }
+
+    long getCheckpointTemp() {
+        return _checkpointTemp;
     }
 
     /**
@@ -449,6 +491,10 @@ abstract class Accumulator {
         default:
             throw new IllegalArgumentException("No such type " + type);
         }
+    }
+
+    long getBaseValue() {
+        return _baseValue;
     }
 
     long getLiveValue() {
@@ -526,23 +572,32 @@ abstract class Accumulator {
 
     static AccumulatorState getAccumulatorState(final Tree tree, final int index) throws PersistitException {
         final Exchange exchange = tree.getVolume().getStructure().directoryExchange();
-        exchange.clear().append(VolumeStructure.TREE_ACCUMULATOR).append(tree.getName()).append(index).fetch();
+        exchange.clear().append(VolumeStructure.DIRECTORY_TREE_NAME).append(VolumeStructure.TREE_ACCUMULATOR).append(
+                tree.getName()).append(index).fetch();
         if (exchange.getValue().isDefined()) {
-            return (AccumulatorState)exchange.getValue().get();
+            return (AccumulatorState) exchange.getValue().get();
         } else {
             return null;
         }
     }
 
-    static void checkpointAccumulators(final List<Accumulator> list) throws PersistitException {
+    static void saveAccumulatorCheckpointValues(final List<Accumulator> list) throws PersistitException {
         Exchange exchange = null;
         for (final Accumulator accumulator : list) {
+            try {
+                long snap = accumulator.getSnapshotValue(accumulator.getCheckpointTimestamp(), 0);
+                if (snap != accumulator.getCheckpointValue()) {
+                    System.out.println("boo"); // TODO
+                }
+            } catch (InterruptedException ie) {
+                throw new PersistitInterruptedException(ie);
+            }
             final Volume volume = accumulator.getTree().getVolume();
             if (exchange == null || !exchange.getVolume().equals(volume)) {
                 exchange = volume.getStructure().directoryExchange();
             }
-            exchange.clear().append(VolumeStructure.TREE_ACCUMULATOR).append(accumulator.getTree().getName()).append(
-                    accumulator.getIndex());
+            exchange.clear().append(VolumeStructure.DIRECTORY_TREE_NAME).append(VolumeStructure.TREE_ACCUMULATOR)
+                    .append(accumulator.getTree().getName()).append(accumulator.getIndex());
             exchange.getValue().put(accumulator);
             exchange.store();
         }

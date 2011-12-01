@@ -194,6 +194,10 @@ public class TransactionIndexBucket {
         _currentCount++;
     }
 
+    int getIndex() {
+        return _hashIndex;
+    }
+
     TransactionStatus getCurrent() {
         return _current;
     }
@@ -554,26 +558,22 @@ public class TransactionIndexBucket {
         return value;
     }
 
-    void checkpointAccumulatorSnapshots(final long timestamp, final Map<Accumulator, long[]> values)
+    void checkpointAccumulatorSnapshots(final long timestamp)
             throws RetryException, InterruptedException {
-        accumulatorCheckpointHelper(_current, timestamp, values);
-        accumulatorCheckpointHelper(_longRunning, timestamp, values);
+        assert _lock.isHeldByCurrentThread();
+        accumulatorCheckpointHelper(_current, timestamp);
+        accumulatorCheckpointHelper(_longRunning, timestamp);
     }
 
-    private void accumulatorCheckpointHelper(final TransactionStatus start, final long timestamp,
-            Map<Accumulator, long[]> values) throws RetryException, InterruptedException {
-
+    private void accumulatorCheckpointHelper(final TransactionStatus start, final long timestamp)
+            throws RetryException, InterruptedException {
         for (TransactionStatus status = start; status != null; status = status.getNext()) {
             final long tc = status.getTc();
             if (tc > 0 && tc != UNCOMMITTED && tc < timestamp) {
                 for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
                     final Accumulator accumulator = delta.getAccumulator();
-                    long[] valueHolder = values.get(accumulator);
-                    if (valueHolder == null) {
-                        valueHolder = new long[]{accumulator.getBucketValue(_hashIndex)};
-                        values.put(accumulator, valueHolder);
-                    }
-                    valueHolder[0] = accumulator.applyValue(valueHolder[0], delta.getValue());
+                    long newValue = accumulator.applyValue(accumulator.getCheckpointTemp(), delta.getValue());
+                    accumulator.setCheckpointTemp(newValue);
                 }
             } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
                 boolean locked = false;

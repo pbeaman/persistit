@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -79,7 +80,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(0, maxAcc.getCheckpointValue());
         assertEquals(0, seqAcc.getCheckpointValue());
 
-        ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp());
+        ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp(), Arrays.asList(new Accumulator[]{countAcc, sumAcc, minAcc, maxAcc, seqAcc}));
 
         assertEquals(countAcc.getLiveValue(), countAcc.getCheckpointValue());
         assertEquals(sumAcc.getLiveValue(), sumAcc.getCheckpointValue());
@@ -98,7 +99,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
      */
     @Test
     public void testAggregationRetry() throws Exception {
-        final long time = 10000;
+        final long time = 5000;
         final TransactionIndex ti = new TransactionIndex(_tsa, 5000);
         final AtomicLong before = new AtomicLong();
         final AtomicLong after = new AtomicLong();
@@ -176,7 +177,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         sumAcc.update(18, status, 0);
         status.commit(_tsa.updateTimestamp());
         ti.notifyCompleted(status);
-        ti.checkpointAccumulatorSnapshots(_tsa.updateTimestamp());
+        ti.checkpointAccumulatorSnapshots(_tsa.updateTimestamp(), Arrays.asList(new Accumulator[]{sumAcc}));
         assertEquals(18, sumAcc.getCheckpointValue());
         value.put(sumAcc);
         Object object = value.get();
@@ -190,40 +191,48 @@ public class AccumulatorTest extends PersistitUnitTestCase {
 
     @Test
     public void testCheckpointSaveAccumulators() throws Exception {
-        final Transaction txn = _persistit.getTransaction();
-        final Exchange exchange = _persistit.getExchange("persistit", "AccumulatorTest", true);
-        final Accumulator rowCount = exchange.getTree().getAccumulator(Type.SUM, 0);
-        final Accumulator sequence = exchange.getTree().getAccumulator(Type.SEQ, 1);
+        int count = 1000;
+        for (int retry = 0; retry < 10; retry++) {
+            final Transaction txn = _persistit.getTransaction();
+            final String treeName = String.format("AccumulatorTest%2d", retry);
+            final Exchange exchange = _persistit.getExchange("persistit", treeName, true);
+            final Accumulator rowCount = exchange.getTree().getAccumulator(Type.SUM, 0);
+            final Accumulator sequence = exchange.getTree().getAccumulator(Type.SEQ, 1);
 
-        for (int i = 0; i < 1000; i++) {
-            txn.begin();
-            try {
-                exchange.clear().append(sequence.update(17, txn.getTransactionStatus(), 0));
-                exchange.getValue().put(RED_FOX);
-                exchange.store();
-                rowCount.update(1, txn.getTransactionStatus(), 0);
-                txn.commit();
-            } finally {
-                txn.end();
+            for (int i = 0; i < count; i++) {
+                txn.begin();
+                try {
+                    exchange.clear().append(sequence.update(17, txn.getTransactionStatus(), 0));
+                    exchange.getValue().put(RED_FOX);
+                    exchange.store();
+                    rowCount.update(1, txn.getTransactionStatus(), 0);
+                    txn.commit();
+                } finally {
+                    txn.end();
+                }
             }
+
+            assertEquals(count, rowCount.getLiveValue());
+            assertEquals(count * 17, sequence.getLiveValue());
+
+            _persistit.checkpoint();
+
+            assertEquals(count, rowCount.getCheckpointValue());
+            assertEquals(count * 17, sequence.getCheckpointValue());
+
+            AccumulatorState as;
+
+            as = Accumulator.getAccumulatorState(exchange.getTree(), 0);
+            assertEquals(treeName, as.getTreeName());
+            assertEquals(Type.SUM, as.getType());
+            assertEquals(0, as.getIndex());
+            assertEquals(count, as.getValue());
+
+            as = Accumulator.getAccumulatorState(exchange.getTree(), 1);
+            assertEquals(treeName, as.getTreeName());
+            assertEquals(Type.SEQ, as.getType());
+            assertEquals(1, as.getIndex());
+            assertEquals(count * 17, as.getValue());
         }
-
-        assertEquals(1000, rowCount.getLiveValue());
-        assertEquals(17000, sequence.getLiveValue());
-        _persistit.checkpoint();
-        assertEquals(1000, rowCount.getCheckpointValue());
-        assertEquals(17000, sequence.getCheckpointValue());
-
-        AccumulatorState as;
-        as = Accumulator.getAccumulatorState(exchange.getTree(), 0);
-        assertEquals("AccumulatorTest", as.getTreeName());
-        assertEquals(Type.SUM, as.getType());
-        assertEquals(0, as.getIndex());
-        assertEquals(1000, as.getValue());
-        as = Accumulator.getAccumulatorState(exchange.getTree(), 1);
-        assertEquals("AccumulatorTest", as.getTreeName());
-        assertEquals(Type.SEQ, as.getType());
-        assertEquals(1, as.getIndex());
-        assertEquals(17000, as.getValue());
     }
 }
