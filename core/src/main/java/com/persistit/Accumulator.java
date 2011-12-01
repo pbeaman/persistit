@@ -104,6 +104,9 @@ abstract class Accumulator {
         }
     };
 
+    // Note: architectural limit of 255 for JournalRecord encoding
+    final static int MAX_INDEX = 63;
+
     final static int MAX_SERIALIZED_SIZE = Tree.MAX_SERIALIZED_SIZE + 24;
 
     private final Tree _tree;
@@ -112,9 +115,9 @@ abstract class Accumulator {
 
     private final AtomicLong _liveValue = new AtomicLong();
     /*
-     * Checkpointed value read during recovery.
+     * Check-pointed value read during recovery.
      */
-    private final long _baseValue;
+    private long _baseValue;
 
     /*
      * Snapshot value at the most recent checkpoint
@@ -132,7 +135,7 @@ abstract class Accumulator {
 
     /*
      * Accumulated value per TransactionIndex bucket. This number represents the
-     * accumulation of all delta values that have been coallesced and are no
+     * accumulation of all delta values that have been coalesced and are no
      * longer present in live TransactionStatus objects. This array has one
      * element per TransactionIndexBucket.
      */
@@ -379,6 +382,9 @@ abstract class Accumulator {
     }
 
     private Accumulator(final Tree tree, final int index, final long baseValue, final TransactionIndex transactionIndex) {
+        if (index < 0 || index > MAX_INDEX) {
+            throw new IllegalArgumentException("Index out of bounds: " + index);
+        }
         _tree = tree;
         _index = index;
         _baseValue = baseValue;
@@ -535,8 +541,20 @@ abstract class Accumulator {
     }
 
     /**
+     * Apply an update to the base value. This method is used only during
+     * recovery processing to apply Deltas from recovered committed
+     * transactions.
+     * 
+     * @param value
+     */
+    void updateBaseValue(final long value) {
+        _baseValue = applyValue(_baseValue, value);
+    }
+
+    /**
      * Update the Accumulator by contributing a value. The contribution is
      * immediately accumulated into the live value, and it is also posted with a
+     * 
      * @{link {@link Delta} instance to the supplied {@link Transaction}.
      * 
      * @param value
@@ -551,8 +569,9 @@ abstract class Accumulator {
     /**
      * Update the Accumulator by contributing a value. The contribution is
      * immediately accumulated into the live value, and it is also posted with a
+     * 
      * @{link {@link Delta} instance to the supplied {@link Transaction}. This
-     * package-private method is provided primarily for unit tests.
+     *        package-private method is provided primarily for unit tests.
      * 
      * @param value
      *            The delta value

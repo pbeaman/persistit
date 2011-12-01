@@ -165,6 +165,18 @@ class CheckpointManager extends IOTaskRunnable {
      * @throws PersistitException
      */
     synchronized Checkpoint createCheckpoint() throws PersistitException {
+        /*
+         * Run within a transaction to get snapshot accumulator views. The
+         * Checkpoint timestamp is the start timestamp of this transaction.
+         * Therefore the Accumulator snapshot values represent the aggregation
+         * of all transactions that committed before the checkpoint timestamp.
+         * May not be run in a nested Transaction.
+         */
+        Transaction txn = _persistit.getTransaction();
+        if (txn.isActive()) {
+            throw new IllegalStateException("Checkpoint may not be created inside a transaction");
+        }
+        
         _lastCheckpointNanos = System.nanoTime();
 
         /*
@@ -173,13 +185,6 @@ class CheckpointManager extends IOTaskRunnable {
          * correct function.
          */
         _persistit.getTimestampAllocator().bumpTimestamp(CHECKPOINT_TIMESTAMP_MARKER_INTERVAL);
-        /*
-         * Run within a transaction to get snapshot accumulator views. The
-         * Checkpoint timestamp is the start timestamp of this transaction.
-         * Therefore the Accumulator snapshot values represent the aggregation
-         * of all transactions that committed before the checkpoint timestamp.
-         */
-        Transaction txn = _persistit.getTransaction();
         txn.begin();
         try {
             List<Accumulator> accumulators = _persistit.getCheckpointAccumulators();

@@ -342,7 +342,7 @@ public class TransactionStatus {
      * @throws InterruptedException
      * @throws TimeoutException
      */
-    void initialize(final long ts) throws InterruptedException, TimeoutException {
+    void initialize(final long ts) {
         _ts = ts;
         _tc = UNCOMMITTED;
         _ta = PRIMORDIAL;

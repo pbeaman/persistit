@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
 
@@ -37,7 +38,7 @@ import com.persistit.exception.TransactionFailedException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 
-public class RecoveryTest extends PersistitUnitTestCase {
+public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
     /*
      * This class needs to be in com.persistit because of some package-private
      * methods used in controlling the test.
@@ -51,40 +52,6 @@ public class RecoveryTest extends PersistitUnitTestCase {
         final Properties properties = super.getProperties(cleanup);
         properties.setProperty("journalsize", journalSize);
         return properties;
-    }
-
-    @Test
-    public void testRecoveryRebuildsPageMap() throws Exception {
-        _persistit.getJournalManager().setAppendOnly(true);
-        store1();
-        _persistit.close();
-        final Properties saveProperties = _persistit.getProperties();
-        _persistit = new Persistit();
-        _persistit.initialize(saveProperties);
-        JournalManager logMan = _persistit.getJournalManager();
-        assertTrue(logMan.getPageMapSize() + logMan.getCopiedPageCount() > 0);
-        fetch1a();
-        fetch1b();
-    }
-
-    @Test
-    public void testCopierCleansUpJournals() throws Exception {
-        store1();
-        JournalManager jman = _persistit.getJournalManager();
-        assertTrue(jman.getPageMapSize() > 0);
-        _persistit.flush();
-        _persistit.checkpoint();
-        jman.copyBack();
-        assertEquals(0, jman.getPageMapSize());
-        _persistit.close();
-        final Properties saveProperties = _persistit.getProperties();
-        _persistit = new Persistit();
-        _persistit.initialize(saveProperties);
-        jman = _persistit.getJournalManager();
-        // opening a volume modifies its head page
-        assertTrue(jman.getPageMapSize() <= 1);
-        fetch1a();
-        fetch1b();
     }
 
     @Test
@@ -103,17 +70,21 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertEquals(15, plan.getCommittedCount());
         plan.setRecoveryDisabledForTestMode(false);
         final Set<Long> recoveryTimestamps = new HashSet<Long>();
-        final RecoveryListener actor = new RecoveryListener() {
+        final AtomicLong rowCount = new AtomicLong();
+        final AtomicLong expectedRowCount = new AtomicLong();
+        final RecoveryListener commitListener = new RecoveryListener() {
 
             @Override
             public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
                 recoveryTimestamps.add(timestamp);
+                expectedRowCount.incrementAndGet();
             }
 
             @Override
             public void removeKeyRange(final long address, final long timestamp, Exchange exchange, Key from, Key to)
                     throws PersistitException {
                 recoveryTimestamps.add(timestamp);
+                expectedRowCount.decrementAndGet();
             }
 
             @Override
@@ -127,8 +98,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
 
             @Override
-            public void startTransaction(long address, long startTmestamp, long commitTimestamp)
-                    throws PersistitException {
+            public void startTransaction(long address, long startTmestamp, long commitTimestamp) throws PersistitException {
             }
 
             @Override
@@ -140,34 +110,16 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
 
             @Override
-            public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value)
-                    throws PersistitException {
-            }
+            public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value) throws PersistitException {
+                rowCount.addAndGet(value);
+           }
 
         };
-        plan.applyAllCommittedTransactions(actor, plan.getDefaultRollbackListener());
+        plan.applyAllCommittedTransactions(commitListener, plan.getDefaultRollbackListener());
         assertEquals(15, recoveryTimestamps.size());
+        assertEquals(expectedRowCount.get(), rowCount.get());
     }
 
-    @Test
-    public void testLongRecordTransactionRecovery() throws Exception {
-        // create 10 transactions on the journal having long records.
-        _persistit.getJournalManager().setAppendOnly(true);
-        store3();
-        fetch3();
-        _persistit.getJournalManager().flush();
-        _persistit.crash();
-        final Properties saveProperties = _persistit.getProperties();
-        _persistit = new Persistit();
-        _persistit.getJournalManager().setAppendOnly(true);
-        final RecoveryManager rman = _persistit.getRecoveryManager();
-        rman.setRecoveryDisabledForTestMode(true);
-        _persistit.initialize(saveProperties);
-        assertTrue(rman.getCommittedCount() > 0);
-        rman.setRecoveryDisabledForTestMode(false);
-        rman.applyAllCommittedTransactions(rman.getDefaultCommitListener(), rman.getDefaultRollbackListener());
-        fetch3();
-    }
 
     @Test
     public void testRolloverDoesntDeleteLiveTransactions() throws Exception {
@@ -188,6 +140,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         store1();
         txn.commit();
         txn.end();
+        
         // Flush an uncommitted version of this transaction - should
         // prevent journal cleanup.
         txn.begin();
@@ -195,7 +148,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         txn.flushTransactionBuffer();
         txn.rollback();
         txn.end();
-
+        
         jman.rollover();
         _persistit.checkpoint();
         jman.copyBack();
@@ -206,6 +159,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         //
         assertEquals(0, jman.getPageMapSize());
         assertTrue(jman.getBaseAddress() < jman.getCurrentAddress());
+        
         txn.begin();
         store1();
         txn.commit();
@@ -476,6 +430,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
 
     }
+    
 
     private void store0() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
@@ -483,6 +438,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         exchange.getValue().put(RED_FOX);
         exchange.clear().append(1).store();
     }
+
 
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
@@ -531,7 +487,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     private void store2() throws PersistitException {
         final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest", true);
-        ex.removeAll();
+        final Accumulator rowCount = ex.getTree().getAccumulator(Accumulator.Type.SUM, 0);
         for (int j = 0; j++ < 10;) {
 
             final Transaction txn = ex.getTransaction();
@@ -541,9 +497,11 @@ public class RecoveryTest extends PersistitUnitTestCase {
                 for (int i = 0; i < 10; i++) {
                     ex.getValue().put("String value #" + i + " for test1");
                     ex.clear().append("test1").append(j).append(i).store();
+                    rowCount.update(1, txn);
                 }
                 for (int i = 3; i < 10; i += 3) {
                     ex.clear().append("test1").append(j).append(i).remove(Key.GTEQ);
+                    rowCount.update(-1, txn);
                 }
                 txn.commit();
             } finally {
@@ -555,7 +513,10 @@ public class RecoveryTest extends PersistitUnitTestCase {
             final Transaction txn = ex.getTransaction();
             txn.begin();
             try {
-                ex.clear().append("test1").append(j).remove(Key.GTEQ);
+                boolean removed = ex.clear().append("test1").append(j).remove(Key.GTEQ);
+                if (removed) {
+                    rowCount.update(-1, txn);
+                }
                 txn.commit();
             } finally {
                 txn.end();
@@ -563,44 +524,6 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
     }
 
-    private void store3() throws PersistitException {
-        final Exchange ex = _persistit.getExchange("persistit", "RecoveryTest", true);
-        ex.removeAll();
-        for (int j = 0; j++ < 5;) {
-            final StringBuilder sb = new StringBuilder(500000);
-            for (int i = 0; i < 100000; i++) {
-                sb.append("abcde");
-            }
-
-            final Transaction txn = ex.getTransaction();
-
-            txn.begin();
-            try {
-                for (int i = 0; i < 10; i++) {
-                    sb.replace(0, 3, " " + i + " ");
-                    ex.getValue().put(sb.toString());
-                    ex.clear().append("test1").append(j).append(i).store();
-                }
-                for (int i = 3; i < 10; i += 3) {
-                    ex.clear().append("test1").append(j).append(i).remove(Key.GTEQ);
-                }
-                txn.commit();
-            } finally {
-                txn.end();
-            }
-        }
-
-        for (int j = 1; j < 10; j += 2) {
-            final Transaction txn = ex.getTransaction();
-            txn.begin();
-            try {
-                ex.clear().append("test1").append(j).remove(Key.GTEQ);
-                txn.commit();
-            } finally {
-                txn.end();
-            }
-        }
-    }
 
     private boolean shouldBeDefined(final int j, final int i) {
         if (j % 2 != 0 || j < 1 || j > 5) {
@@ -723,7 +646,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
     public static void main(final String[] args) throws Exception {
         int cycles = args.length > 0 ? Integer.parseInt(args[0]) : 20;
         for (int cycle = 0; cycle < cycles; cycle++) {
-            RecoveryTest rt = new RecoveryTest();
+            AccumulatorRecoveryTest rt = new AccumulatorRecoveryTest();
             System.out.printf("\nStarting cycle %d\n", cycle);
             rt.journalSize = "100M";
             rt.setUp();
@@ -732,11 +655,4 @@ public class RecoveryTest extends PersistitUnitTestCase {
         }
     }
 
-    @Override
-    public void runAllTests() throws Exception {
-        testRecoveryRebuildsPageMap();
-        testCopierCleansUpJournals();
-        testRecoverCommittedTransactions();
-        // test4();
-    }
 }

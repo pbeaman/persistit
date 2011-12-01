@@ -400,13 +400,13 @@ import com.persistit.util.Util;
  * 
  */
 class JournalRecord {
-    
+
     final static int OVERHEAD = 16;
 
     private final static Charset UTF8 = Charset.forName("UTF-8");
 
     public final static int[] TYPES = new int[] { JE.TYPE, JH.TYPE, PA.TYPE, PM.TYPE, SR.TYPE, DR.TYPE, DT.TYPE,
-            TM.TYPE, CP.TYPE, IV.TYPE, IT.TYPE, CU.TYPE, TX.TYPE };
+            TM.TYPE, CP.TYPE, IV.TYPE, IT.TYPE, D1.TYPE, D0.TYPE, TX.TYPE };
 
     public static boolean isValidType(final int t) {
         for (int type : TYPES) {
@@ -861,11 +861,11 @@ class JournalRecord {
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
         }
-        
+
         public static long getCommitTimestamp(final ByteBuffer bb) {
             return getLong(bb, 16);
         }
-        
+
         public static void putCommitTimestamp(final ByteBuffer bb, final long address) {
             putLong(bb, 16, address);
         }
@@ -873,7 +873,7 @@ class JournalRecord {
         public static long getBackchainAddress(final ByteBuffer bb) {
             return getLong(bb, 24);
         }
-        
+
         public static void putBackchainAddress(final ByteBuffer bb, final long address) {
             putLong(bb, 24, address);
         }
@@ -963,7 +963,7 @@ class JournalRecord {
 
         public final static int TYPE = ('D' << 8) | 'T';
 
-        public final static int OVERHEAD = 16;
+        public final static int OVERHEAD = 12;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -978,26 +978,80 @@ class JournalRecord {
         }
     }
 
-    /**
-     * Cache Update
-     */
-    static class CU extends JournalRecord {
+    static class D1 extends JournalRecord {
+        public final static int TYPE = ('D' << 8) | '1';
 
-        public final static int TYPE = ('C' << 8) | 'U';
-
-        public final static int OVERHEAD = 16;
+        public final static int OVERHEAD = 22;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
         }
 
-        public static void putCacheId(final ByteBuffer bb, final long id) {
-            putLong(bb, 8, id);
+        public static void putTreeHandle(final ByteBuffer bb, final int handle) {
+            putInt(bb, 8, handle);
         }
 
-        public static long getCacheId(final ByteBuffer bb) {
-            return getLong(bb, 8);
+        public static int getTreeHandle(final ByteBuffer bb) {
+            return getInt(bb, 8);
         }
+
+        public static void putIndex(final ByteBuffer bb, final int index) {
+            putByte(bb, 12, index);
+        }
+
+        public static int getIndex(final ByteBuffer bb) {
+            return getByte(bb, 12);
+        }
+        
+        public static void putAccumulatorTypeOrdinal(final ByteBuffer bb, final int type) {
+            putByte(bb, 13, type);
+        }
+        
+        public static int getAccumulatorTypeOrdinal(final ByteBuffer bb) {
+            return getByte(bb, 13);
+        }
+
+        public static long getValue(final ByteBuffer bb) {
+            return getLong(bb, 14);
+        }
+
+        public static void putValue(final ByteBuffer bb, final long value) {
+            putLong(bb, 14, value);
+        }
+
     }
 
+    static class D0 extends JournalRecord {
+        public final static int TYPE = ('D' << 8) | '0';
+
+        public final static int OVERHEAD = 14;
+
+        public static void putType(final ByteBuffer bb) {
+            putType(bb, TYPE);
+        }
+
+        public static void putTreeHandle(final ByteBuffer bb, final int handle) {
+            putInt(bb, 8, handle);
+        }
+
+        public static int getTreeHandle(final ByteBuffer bb) {
+            return getInt(bb, 8);
+        }
+
+        public static void putIndex(final ByteBuffer bb, final int index) {
+            putByte(bb, 12, index);
+        }
+
+        public static int getIndex(final ByteBuffer bb) {
+            return getByte(bb, 12);
+        }
+        
+        public static void putAccumulatorTypeOrdinal(final ByteBuffer bb, final int type) {
+            putByte(bb, 13, type);
+        }
+        
+        public static int getAccumulatorTypeOrdinal(final ByteBuffer bb) {
+            return getByte(bb, 13);
+        }
+    }
 }

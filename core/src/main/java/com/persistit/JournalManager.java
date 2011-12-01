@@ -145,8 +145,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private volatile long _copiedPageCount = 0;
 
-    private long _unitTestNeverCloseTransactionTimestamp = 0;
-
     /**
      * Tunable parameters that determine how vigorously the copyBack thread
      * performs I/O. Hopefully we can set good defaults and not expose these as
@@ -2019,16 +2017,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      */
     public int getHandleCount() {
         return _handleCounter;
-    }
-
-    /**
-     * For use only by unit tests that prove having an open transaction prevents
-     * deletion of journal files.
-     * 
-     * @param id
-     */
-    void setUnitTestNeverCloseTransactionId(final long id) {
-        _unitTestNeverCloseTransactionTimestamp = id;
     }
 
     /**

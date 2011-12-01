@@ -846,6 +846,43 @@ public class TransactionIndex {
     private int hashIndex(final long ts) {
         return (((int) ts ^ (int) (ts >>> 32)) & Integer.MAX_VALUE) % _hashTable.length;
     }
+    
+    /**
+     * Add a TransactionStatus with in the ABORTED state to the appropriate bucket.
+     * This method is called during recovery processing to register transactions that
+     * were 
+     * @param timestamp
+     * @throws InterruptedException 
+     */
+    void injectAbortedTransaction(final long ts) throws InterruptedException {
+        final TransactionStatus status;
+        final TransactionIndexBucket bucket;
+        synchronized (this) {
+            int index = hashIndex(ts);
+            bucket = _hashTable[index];
+            bucket.lock();
+            try {
+                status = bucket.allocateTransactionStatus();
+                status.initialize(ts);
+                status.abort();
+                status.setMvvCount(Integer.MAX_VALUE);
+                bucket.addAborted(status);
+            } finally {
+                bucket.unlock();
+            }
+        }
+
+        /*
+         * The TransactionStatus is locked for the entire duration of the
+         * running transaction. The following call should always succeed
+         * immediately; a TimeoutException here signifies a software failure or
+         * a thread terminated by {@link Thread#stop()} somewhere else.
+         */
+        if (!status.wwLock(VERY_LONG_TIMEOUT)) {
+            throw new IllegalStateException("wwLock was unavailable on newly allocated TransactionStatus");
+        }
+
+    }
 
     /**
      * Refresh the ActiveTransactionCache. This method walks the hashTable to
@@ -910,6 +947,27 @@ public class TransactionIndex {
         return result;
     }
 
+    /**
+     * <p>
+     * Compute a snapshot value for each of the supplied Accumulators and store
+     * the resulting value in the Accumulator's checkpointValue field. This
+     * method performs the same function as calling
+     * {@link #getAccumulatorSnapshot(Accumulator, long, int, long)} on each
+     * Accumulator, but is more efficient because it visits each bucket once
+     * rather than once per Accumulator.
+     * </p>
+     * <p>
+     * This method is sensitive to the transactional context in which it is
+     * called. It is intended to be called only within the Transaction context
+     * created during the {@link CheckpointManager#createCheckpoint()} method.
+     * </p>
+     * 
+     * @param timestamp
+     *            checkpoint timestamp
+     * @param accumulators
+     *            List of Accumulators that need to be check-pointed
+     * @throws InterruptedException
+     */
     void checkpointAccumulatorSnapshots(long timestamp, final List<Accumulator> accumulators)
             throws InterruptedException {
         Map<Accumulator, Accumulator> lookupMap = new HashMap<Accumulator, Accumulator>();

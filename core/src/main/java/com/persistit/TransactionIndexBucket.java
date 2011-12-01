@@ -194,6 +194,13 @@ public class TransactionIndexBucket {
         _currentCount++;
     }
 
+    void addAborted(final TransactionStatus status) {
+        assert _lock.isHeldByCurrentThread();
+        status.setNext(_aborted);
+        _aborted = status;
+        _abortedCount++;
+    }
+
     int getIndex() {
         return _hashIndex;
     }

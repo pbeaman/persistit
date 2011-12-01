@@ -662,7 +662,8 @@ public class Persistit {
     }
 
     void finishRecovery() throws PersistitException {
-        _recoveryManager.applyAllCommittedTransactions(_recoveryManager.getDefaultRecoveryListener());
+        _recoveryManager.applyAllCommittedTransactions(_recoveryManager.getDefaultCommitListener(), _recoveryManager
+                .getDefaultRollbackListener());
         _recoveryManager.close();
         flush();
         checkpoint();

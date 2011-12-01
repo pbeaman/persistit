@@ -44,7 +44,8 @@ import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TransactionMapItem;
 import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.JournalRecord.CP;
-import com.persistit.JournalRecord.CU;
+import com.persistit.JournalRecord.D0;
+import com.persistit.JournalRecord.D1;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.IT;
@@ -59,6 +60,7 @@ import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TestException;
 import com.persistit.util.ArgParser;
 import com.persistit.util.Util;
@@ -212,9 +214,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     private RecoveryListener _defaultCommitListener = new DefaultRecoveryListener();
 
-    private RecoveryListener _defaultRollbackListener = new DefaultRecoveryListener();
-
-    // private PrintWriter _logWriter; // TODO
+    private RecoveryListener _defaultRollbackListener = new DefaultRollbackListener();
 
     public interface RecoveryListener {
 
@@ -228,6 +228,9 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 throws PersistitException;
 
         void removeTree(long address, long timestamp, Exchange exchange) throws PersistitException;
+
+        void delta(long address, long timestamp, Tree tree, int index, int accumulatorType, long value)
+                throws PersistitException;
 
         void endTransaction(long address, long timestamp) throws PersistitException;
 
@@ -253,13 +256,73 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         @Override
+        public void delta(final long address, final long timestamp, final Tree tree, final int index,
+                final int accumulatorTypeOrdinal, final long value) throws PersistitException {
+            Accumulator.Type type = Accumulator.Type.values()[accumulatorTypeOrdinal];
+            Accumulator accumulator = tree.getAccumulator(type, index);
+            accumulator.updateBaseValue(value);
+        }
+
+        @Override
         public void startRecovery(long address, long timestamp) throws PersistitException {
             // Default: do nothing
         }
 
         @Override
-        public void startTransaction(long address, long startTimestamp, final long commitTimestamp) throws PersistitException {
+        public void startTransaction(long address, long startTimestamp, final long commitTimestamp)
+                throws PersistitException {
             // Default: do nothing
+        }
+
+        @Override
+        public void endTransaction(long address, long timestamp) throws PersistitException {
+            // Default: do nothing
+        }
+
+        @Override
+        public void endRecovery(long address, long timestamp) throws PersistitException {
+            // Default: do nothing
+        }
+    }
+
+    public class DefaultRollbackListener implements RecoveryListener {
+        @Override
+        public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
+            // TODO
+        }
+
+        @Override
+        public void removeKeyRange(final long address, final long timestamp, Exchange exchange, final Key from,
+                final Key to) throws PersistitException {
+            // TODO
+        }
+
+        @Override
+        public void removeTree(final long address, final long timestamp, Exchange exchange) throws PersistitException {
+            // TODO
+        }
+
+        @Override
+        public void delta(final long address, final long timestamp, final Tree tree, final int index,
+                final int accumulatorType, final long value) throws PersistitException {
+            // TODO
+        }
+
+        @Override
+        public void startRecovery(long address, long timestamp) throws PersistitException {
+            // Default: do nothing
+        }
+
+        @Override
+        public void startTransaction(long address, long startTimestamp, final long commitTimestamp)
+                throws PersistitException {
+            if (startTimestamp < _lastValidCheckpoint.getTimestamp()) {
+                try {
+                    _persistit.getTransactionIndex().injectAbortedTransaction(startTimestamp);
+                } catch (InterruptedException ie) {
+                    throw new PersistitInterruptedException(ie);
+                }
+            }
         }
 
         @Override
@@ -429,12 +492,20 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         return _pageMap.size();
     }
 
-    public RecoveryListener getDefaultRecoveryListener() {
+    public RecoveryListener getDefaultCommitListener() {
         return _defaultCommitListener;
     }
 
-    public void setRecoveryListener(final RecoveryListener listener) {
+    public void setDefaultCommitListener(final RecoveryListener listener) {
         this._defaultCommitListener = listener;
+    }
+
+    public RecoveryListener getDefaultRollbackListener() {
+        return _defaultRollbackListener;
+    }
+
+    public void setDefaultRollbackListener(final RecoveryListener listener) {
+        this._defaultRollbackListener = listener;
     }
 
     @Override
@@ -778,7 +849,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         case SR.TYPE:
         case DR.TYPE:
         case DT.TYPE:
-        case CU.TYPE:
+        case D0.TYPE:
+        case D1.TYPE:
             throw new CorruptJournalException("Unexpected record of type " + type + " at " + addressToString(from));
 
         case IV.TYPE:
@@ -1268,18 +1340,21 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     // ---------------------------- Phase 3 ------------------------------------
 
-    public void applyAllCommittedTransactions(final RecoveryListener listener) {
+    public void applyAllCommittedTransactions(final RecoveryListener commitListener,
+            final RecoveryListener rollbackListener) {
 
         if (_recoveryDisabledForTestMode) {
             return;
         }
 
         TransactionMapItem previous = null;
+        RecoveryListener previousListener = null;
         final SortedSet<TransactionMapItem> sorted = new TreeSet<TransactionMapItem>(_recoveredTransactionMap.values());
         for (final TransactionMapItem item : sorted) {
+            RecoveryListener listener = item.isCommitted() ? commitListener : rollbackListener;
             try {
                 if (previous == null) {
-                    listener.startRecovery(item.getStartAddress(), item.getCommitTimestamp());
+                    commitListener.startRecovery(item.getStartAddress(), item.getCommitTimestamp());
                 }
 
                 applyTransaction(item, listener);
@@ -1294,6 +1369,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                             _recoveredTransactionMap.size() - _appliedTransactionCount - _abortedTransactionCount);
                 }
                 previous = item;
+                previousListener = listener;
             } catch (TestException te) {
                 // Exception thrown by a unit test to interrupt recovery
                 _persistit.getLogBase().recoveryException.log(te, item);
@@ -1305,7 +1381,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
         if (previous != null) {
             try {
-                listener.endTransaction(previous.getStartAddress(), previous.getCommitTimestamp());
+                previousListener.endTransaction(previous.getStartAddress(), previous.getCommitTimestamp());
             } catch (Exception pe) {
                 _persistit.getLogBase().recoveryException.log(pe, previous);
                 _errorCount++;
@@ -1354,28 +1430,15 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         listener.startTransaction(address, startTimestamp, commitTimestamp);
+        applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp, listener);
 
-        if (item.isCommitted()) {
-            applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp,
-                    _defaultCommitListener);
-        } else {
-            applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp,
-                    _defaultRollbackListener);
-        }
-        
         for (Long continuation : chainedAddress) {
             address = continuation.longValue();
             read(address, Transaction.TRANSACTION_BUFFER_SIZE);
             recordSize = TX.getLength(_readBuffer);
-            if (item.isCommitted()) {
-                applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp,
-                        _defaultCommitListener);
-            } else {
-                applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp,
-                        _defaultRollbackListener);
-            }
+            applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp, listener);
         }
-        
+
         listener.endRecovery(address, startTimestamp);
 
     }
@@ -1387,7 +1450,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final int start = bb.position();
         int end = start + recordSize;
         int position = start + TX.OVERHEAD;
-        
+
         while (position < end) {
             bb.position(position);
             final int innerSize = JournalRecord.getLength(bb);
@@ -1461,8 +1524,17 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 break;
             }
 
-            case CU.TYPE: {
-                // TODO - replace with Accumulator logic
+            case D0.TYPE: {
+                final Exchange exchange = getExchange(D0.getTreeHandle(bb), address, startTimestamp);
+                listener.delta(address, startTimestamp, exchange.getTree(), D0.getIndex(bb), D0
+                        .getAccumulatorTypeOrdinal(bb), 1);
+                break;
+            }
+
+            case D1.TYPE: {
+                final Exchange exchange = getExchange(D1.getTreeHandle(bb), address, startTimestamp);
+                listener.delta(address, startTimestamp, exchange.getTree(), D1.getIndex(bb), D1
+                        .getAccumulatorTypeOrdinal(bb), D1.getValue(bb));
                 break;
             }
 
@@ -1474,7 +1546,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             }
             position += innerSize;
         }
-        
+
     }
 
     /**

@@ -198,7 +198,7 @@ public class Bug777918Test extends PersistitUnitTestCase {
         _persistit.crash();
 
         _persistit = new Persistit();
-        _persistit.getRecoveryManager().setRecoveryListener(new TestCrashingRecoveryListener());
+        _persistit.getRecoveryManager().setDefaultCommitListener(new TestCrashingRecoveryListener());
 
         //
         // The recovery process deliberately crashes after applying some

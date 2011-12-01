@@ -138,7 +138,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
             ex.getValue().put("String value #" + i + " for test1");
             ex.clear().append("test1").append(i).store();
         }
-        boolean rollbackThrown = false;
+
         final Transaction txn = ex.getTransaction();
         txn.begin();
         try {
@@ -146,13 +146,9 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                 ex.clear().append("test1").append(i).remove(Key.GTEQ);
             }
             txn.rollback();
-        } catch (final RollbackException rbe) {
-            rollbackThrown = true;
         } finally {
             txn.end();
         }
-
-        assertTrue(rollbackThrown);
 
         for (int i = -1; i < 12; i++) {
             ex.clear().append("test1").append(i).fetch();
@@ -228,7 +224,6 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                     txn.rollback();
                 }
                 txn.commit();
-            } catch (final RollbackException re) {
             } finally {
                 txn.end();
             }

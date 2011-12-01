@@ -103,6 +103,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             }
             jman.writeTransactionToJournal(txn.getTransactionBuffer(), timestamps[i], i % 4 == 3 ? timestamps[i] + 1
                     : 0, 0);
+            if (i % 4 == 3) {
+                commitCount++;
+            }
         }
 
         store1();
@@ -178,8 +181,13 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             public void endRecovery(long address, long timestamp) throws PersistitException {
             }
 
+            @Override
+            public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value)
+                    throws PersistitException {
+            }
+
         };
-        rman.applyAllCommittedTransactions(actor);
+        rman.applyAllCommittedTransactions(actor, rman.getDefaultRollbackListener());
         assertEquals(commitCount, recoveryTimestamps.size());
 
     }
