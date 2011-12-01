@@ -87,7 +87,7 @@ public class TransactionIndex {
     /**
      * Maximum version handle "steps" within one transaction
      */
-    private final static int VERSION_HANDLE_MULTIPLIER = 256;
+    final static int VERSION_HANDLE_MULTIPLIER = 256;
 
     /**
      * The hash table.

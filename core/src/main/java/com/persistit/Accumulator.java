@@ -36,8 +36,8 @@ import com.persistit.exception.PersistitInterruptedException;
  * Accumulator that is consistent with the snapshot view of the database.
  * </p>
  * <p>
- * In more detail: the {@link #update(long, TransactionStatus, int)} method of
- * an Accumulator is invoked within the scope of a transaction T. That update is
+ * In more detail: the {@link #update(long, Transaction)} method of an
+ * Accumulator is invoked within the scope of a transaction T. That update is
  * not visible to other transactions until T commits. Moreover, any other
  * concurrently executing transaction having a start timestamp less than T's
  * commit timestamp does not see the results of the update. To accomplish this,
@@ -72,10 +72,10 @@ import com.persistit.exception.PersistitInterruptedException;
  * <p>
  * The <code>SeqAccumulator</code> is a combination of
  * <code>SumAccumulator</code> and <code>MaxAccumulator</code>. When the
- * {@link #update(long, TransactionStatus, int)} method is called, the supplied
- * long value is atomically added to the Accumulator's <code>live</code> value
- * and the result is returned. In addition, a {@link Delta} holding the
- * resulting sum as a proposed maximum value is added to the transaction.
+ * {@link #update(long, Transaction)} method is called, the supplied long value
+ * is atomically added to the Accumulator's <code>live</code> value and the
+ * result is returned. In addition, a {@link Delta} holding the resulting sum as
+ * a proposed maximum value is added to the transaction.
  * </p>
  * 
  * @author peter
@@ -242,7 +242,7 @@ abstract class Accumulator {
 
     /**
      * An Accumulator used to generate unique ID values. The
-     * {@link #update(long, TransactionStatus, int)} method applied to a
+     * {@link #update(long, Transaction)} method applied to a
      * <code>SeqAccumulator</code> generates a new, unique long value. The
      * transaction records this value as a candidate for maximum value of the
      * Accumulator. On recovery, the highest such value ever allocated by a
@@ -502,6 +502,21 @@ abstract class Accumulator {
     }
 
     /**
+     * @param txn
+     *            The transaction reading the snapshot
+     * @return The value computed by accumulating values contributed by (a) all
+     *         transactions having commit timestamps less than or equal to
+     *         <code>transaction</code>'s start timestamp, and (b) all
+     *         operations performed by the current transaction having step
+     *         numbers equal to zero or less than the <code>transaction</code>'s
+     *         current step.
+     * @throws InterruptedException
+     */
+    public long getSnapshotValue(final Transaction txn) throws PersistitInterruptedException {
+        return getSnapshotValue(txn.getStartTimestamp(), txn.getCurrentStep());
+    }
+
+    /**
      * @param timestamp
      * @param step
      * @return The value computed by accumulating values contributed by (a) all
@@ -511,19 +526,40 @@ abstract class Accumulator {
      *         <code>step</code>.
      * @throws InterruptedException
      */
-    long getSnapshotValue(final long timestamp, final int step) throws InterruptedException {
-        return _transactionIndex.getAccumulatorSnapshot(this, timestamp, step, _baseValue);
+    long getSnapshotValue(final long timestamp, final int step) throws PersistitInterruptedException {
+        try {
+            return _transactionIndex.getAccumulatorSnapshot(this, timestamp, step, _baseValue);
+        } catch (InterruptedException ie) {
+            throw new PersistitInterruptedException(ie);
+        }
     }
 
     /**
      * Update the Accumulator by contributing a value. The contribution is
      * immediately accumulated into the live value, and it is also posted with a
-     * 
-     * @{link {@link Delta} instance to the supplied {@link TransactionStatus}.
+     * @{link {@link Delta} instance to the supplied {@link Transaction}.
      * 
      * @param value
-     * @param ts
+     *            The delta value
+     * @param txn
+     *            The transaction it applies to
+     */
+    public long update(final long value, final Transaction txn) {
+        return update(value, txn.getTransactionStatus(), txn.getCurrentStep());
+    }
+
+    /**
+     * Update the Accumulator by contributing a value. The contribution is
+     * immediately accumulated into the live value, and it is also posted with a
+     * @{link {@link Delta} instance to the supplied {@link Transaction}. This
+     * package-private method is provided primarily for unit tests.
+     * 
+     * @param value
+     *            The delta value
+     * @param status
+     *            The TransactionStatus of the transaction it applies to
      * @param step
+     *            The step at which the value is applied
      */
     long update(final long value, final TransactionStatus status, final int step) {
         assert status.getTc() == TransactionStatus.UNCOMMITTED;
@@ -584,14 +620,7 @@ abstract class Accumulator {
     static void saveAccumulatorCheckpointValues(final List<Accumulator> list) throws PersistitException {
         Exchange exchange = null;
         for (final Accumulator accumulator : list) {
-            try {
-                long snap = accumulator.getSnapshotValue(accumulator.getCheckpointTimestamp(), 0);
-                if (snap != accumulator.getCheckpointValue()) {
-                    System.out.println("boo"); // TODO
-                }
-            } catch (InterruptedException ie) {
-                throw new PersistitInterruptedException(ie);
-            }
+
             final Volume volume = accumulator.getTree().getVolume();
             if (exchange == null || !exchange.getVolume().equals(volume)) {
                 exchange = volume.getStructure().directoryExchange();

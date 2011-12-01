@@ -202,10 +202,10 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             for (int i = 0; i < count; i++) {
                 txn.begin();
                 try {
-                    exchange.clear().append(sequence.update(17, txn.getTransactionStatus(), 0));
+                    exchange.clear().append(sequence.update(17, txn));
                     exchange.getValue().put(RED_FOX);
                     exchange.store();
-                    rowCount.update(1, txn.getTransactionStatus(), 0);
+                    rowCount.update(1, txn);
                     txn.commit();
                 } finally {
                     txn.end();

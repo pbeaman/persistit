@@ -267,7 +267,8 @@ import com.persistit.exception.RollbackException;
  */
 public class Transaction {
     final static int TRANSACTION_BUFFER_SIZE = 65536;
-
+    final static int MAXIMUM_STEP = TransactionIndex.VERSION_HANDLE_MULTIPLIER - 1;
+    
     private static long _idCounter = 100000000;
 
     private final Persistit _persistit;
@@ -289,6 +290,8 @@ public class Transaction {
     private final ByteBuffer _buffer = ByteBuffer.allocate(TRANSACTION_BUFFER_SIZE);
 
     private long _previousJournalAddress;
+    
+    private int _step;
 
     /**
      * Creates a new transaction context. Any transaction performed within this
@@ -900,6 +903,18 @@ public class Transaction {
 
     TransactionStatus getTransactionStatus() {
         return _transactionStatus;
+    }
+    
+    public int getCurrentStep() {
+        return _step;
+    }
+    
+    public void incrementStep() {
+        if (_step < MAXIMUM_STEP) {
+            _step++;
+        } else {
+            throw new IllegalStateException(this + " is already at step " + MAXIMUM_STEP + " and cannot be incremented");
+        }
     }
 
 
