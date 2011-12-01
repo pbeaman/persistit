@@ -278,7 +278,6 @@ public class Transaction {
     private int _nestedDepth;
     private boolean _rollbackPending;
     private boolean _commitCompleted;
-    private RollbackException _rollbackException;
 
     private long _rollbackCount = 0;
     private long _commitCount = 0;
@@ -334,7 +333,7 @@ public class Transaction {
      */
     public void checkPendingRollback() throws RollbackException {
         if (_rollbackPending) {
-            throw _rollbackException;
+            throw new RollbackException();
         }
     }
 
@@ -391,21 +390,20 @@ public class Transaction {
         if (_commitCompleted) {
             throw new IllegalStateException("Attempt to begin a committed transaction");
         }
-
-        _rollbackPending = false;
-        _rollbackException = null;
-
         if (_nestedDepth == 0) {
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
             } catch (InterruptedException e) {
                 throw new PersistitInterruptedException(e);
             }
+            _rollbackPending = false;
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
             _buffer.clear();
             _previousJournalAddress = 0;
+        } else {
+            checkPendingRollback();
         }
         _nestedDepth++;
     }
@@ -433,18 +431,17 @@ public class Transaction {
         }
         _nestedDepth--;
 
-        // Decide whether this is a rollback or a commit.
-        if (!_commitCompleted || _rollbackPending) {
-            if (_rollbackException == null) {
-                _rollbackException = new RollbackException();
-            }
+        // If not committed, this is an implicit rollback (with a log message
+        // if rollback was not called explicitly).
+        //
+        if (!_commitCompleted) {
             if (!_rollbackPending) {
-                _persistit.getLogBase().txnNotCommitted.log(_rollbackException);
+                _persistit.getLogBase().txnNotCommitted.log(new RollbackException());
             }
             _rollbackPending = true;
+            
         }
 
-        // Special handling for the outermost scope.
         if (_nestedDepth == 0) {
             //
             // Perform rollback if needed.
@@ -471,7 +468,6 @@ public class Transaction {
                 _rollbacksSinceLastCommit = 0;
             }
             _rollbackPending = false;
-
         }
         _commitCompleted = false;
     }
@@ -581,25 +577,26 @@ public class Transaction {
             throw new IllegalStateException("Already committed");
         }
 
-        try {
-            if (_rollbackPending) {
-                throw new RollbackException("Already rolled back");
+        checkPendingRollback();
+        if (_nestedDepth == 1) {
+            for (Delta delta = _transactionStatus.getDelta(); delta != null; delta = delta.getNext()) {
+                writeDeltaToJournal(delta);
             }
-            if (_nestedDepth == 1) {
-                for (Delta delta = _transactionStatus.getDelta(); delta != null; delta = delta.getNext()) {
-                    writeDeltaToJournal(delta);
-                }
-                _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                _transactionStatus.commit(_commitTimestamp);
+            _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+            _transactionStatus.commit(_commitTimestamp);
+            try {
+                // TODO - figure out what to do if writes fail - I believe we will want
+                // to mark the transaction status as ABORTED in that case, but need to
+                // go look hard at TransactionIndex.
+                //
                 flushTransactionBuffer();
-                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
-                _commitCompleted = true;
+            } finally {
+                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
             }
-        } finally {
-            _rollbackPending = _rollbackPending & (_nestedDepth > 0);
+            _commitCompleted = true;
         }
     }
 
@@ -791,22 +788,6 @@ public class Transaction {
     }
 
     /**
-     * Returns the most recent occurrence of a <code>RollbackException</code>
-     * within this transaction context. This method can be used to detect and
-     * diagnose implicit rollback from the {@link #end} method.
-     * 
-     * 
-     * @return The <code>RollbackException</code>, if <code>end</code> generated
-     *         an implicit rollback due to a missing call to <code>commit</code>
-     *         , or <code>null</code> if the transaction committed and ended
-     *         normally.
-     */
-    public RollbackException getRollbackException() {
-
-        return _rollbackException;
-    }
-
-    /**
      * Record a store operation.
      * 
      * @param exchange
@@ -816,6 +797,7 @@ public class Transaction {
      */
     void store(Exchange exchange, Key key, Value value) throws PersistitException {
         if (_nestedDepth > 0) {
+            checkPendingRollback();
             final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
             writeStoreRecordToJournal(treeHandle, key, value);
         }
@@ -831,6 +813,7 @@ public class Transaction {
      */
     void remove(Exchange exchange, Key key1, Key key2) throws PersistitException {
         if (_nestedDepth > 0) {
+            checkPendingRollback();
             final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
             writeDeleteRecordToJournal(treeHandle, key1, key2);
         }
@@ -844,6 +827,7 @@ public class Transaction {
      */
     void removeTree(Exchange exchange) throws PersistitException {
         if (_nestedDepth > 0) {
+            checkPendingRollback();
             final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
             writeDeleteTreeToJournal(treeHandle);
         }
@@ -930,6 +914,7 @@ public class Transaction {
     }
 
     public void incrementStep() {
+        checkPendingRollback();
         if (_step < MAXIMUM_STEP) {
             _step++;
         } else {
