@@ -72,9 +72,9 @@ public class Bug882219Test extends PersistitUnitTestCase {
         try {
             while (errors == 0 && System.nanoTime() - start < TIME) {
                 boolean began = false;
-                txn.begin();
-                began = true;
                 try {
+                    txn.begin();
+                    began = true;
                     ex.getValue().put(RED_FOX);
                     for (int i = 0; i < 10000; i++) {
                         ex.to(i).store();

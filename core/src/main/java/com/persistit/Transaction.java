@@ -462,13 +462,8 @@ public class Transaction {
                 _rollbacksSinceLastCommit++;
 
                 // TODO - rollback
-                // Note: A TRX can fail post _transactionStatus.commit() being called
-                // and that doesn't appear to be handled at the moment. These two steps
-                // are not fully correct and only ensure no stale status is in TI
-                if(_transactionStatus.getTc() == TransactionStatus.UNCOMMITTED) {
+                if (!_transactionStatus.isNotified()) {
                     _transactionStatus.abort();
-                }
-                if(!_transactionStatus.isNotified()) {
                     _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
                 }
             } else {
@@ -603,8 +598,8 @@ public class Transaction {
 
                 _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
                 _transactionStatus.commit(_commitTimestamp);
-                flushTransactionBuffer();
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
+                flushTransactionBuffer();
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
@@ -957,4 +952,7 @@ public class Transaction {
         return _buffer;
     }
 
+    TransactionStatus getTransactionStatus() {
+        return _transactionStatus;
+    }
 }
