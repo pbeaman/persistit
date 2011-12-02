@@ -580,6 +580,7 @@ public class Exchange {
         private int _maxOffset;
         private int _maxLength;
         private int _versionCount;
+        private int _removeCount;
         private ArrayList<OffsetAndLength> _toRemove = new ArrayList<OffsetAndLength>();
         private final TransactionIndex _ti;
 
@@ -591,7 +592,7 @@ public class Exchange {
         public void init() {
             _maxVersion = MVV.VERSION_NOT_FOUND;
             _maxOffset = _maxLength = -1;
-            _versionCount = 0;
+            _versionCount = _removeCount = 0;
             _toRemove.clear();
         }
 
@@ -625,6 +626,7 @@ public class Exchange {
         }
 
         private void addRemoved(int offset, int length) {
+            _removeCount++;
             if (!_toRemove.isEmpty()) {
                 OffsetAndLength last = _toRemove.get(_toRemove.size()-1);
                 if ((last.offset + last.length + MVV.LENGTH_PER_VERSION) == offset) {
@@ -636,7 +638,7 @@ public class Exchange {
         }
 
         int getRemainingCount() {
-            return _versionCount - _toRemove.size();
+            return _versionCount - _removeCount;
         }
 
         long getMaxVersion() {
@@ -3786,14 +3788,17 @@ public class Exchange {
                     throw new UnsupportedOperationException("Cannot prune LONG_RECORD");
                 }
 
-                int origSize = _spareValue.getEncodedSize();
-                int newSize = prune(_spareValue.getEncodedBytes(), origSize);
-                if(newSize != origSize) {
-                    Debug.$assert0.t(newSize < origSize);
-                    _spareValue.setEncodedSize(newSize);
-                    boolean splitRequired = putLevel(lc, _key, _spareValue, buffer, foundAt, false);
-                    Debug.$assert0.t(!splitRequired);
+                boolean keepKey = prune(_spareValue);
+                if (!keepKey) {
+                    // TODO: Extract 'quickDelete' code from raw_removeInternal
+                    //       If quick is not possible, add to pruner thread
+                    // Simple for now: turn into anti-value so it won't be seen
+                    _spareValue.clear().putAntiValueMVV();
                 }
+
+                boolean splitRequired = putLevel(lc, _key, _spareValue, buffer, foundAt, false);
+                Debug.$assert0.t(!splitRequired);
+                
                 _volume.getStatistics().bumpFetchCounter();
                 _tree.getStatistics().bumpFetchCounter();
             }
@@ -3805,23 +3810,34 @@ public class Exchange {
         }
     }
 
-    private int prune(final byte[] valueBytes, final int valueSize) throws PersistitException {
+    /**
+     * @param value
+     *            Value to modify in-place by pruning away all unneeded versions
+     * @return <code>true</code> if the key associated should be kept
+     * @throws PersistitException For any error
+     */
+    private boolean prune(Value value) throws PersistitException {
+        byte[] valueBytes = value.getEncodedBytes();
+        int valueSize = value.getEncodedSize();
+                
         MVV.visitAllVersions(_pruneVisitor, valueBytes, valueSize);
 
         int remaining = _pruneVisitor.getRemainingCount();
         if (remaining == 0) {
-            // TODO: This key needs completely pruned away:
-            // If key can be removed without structure change, just remove it. Otherwise add to pruner thread.
-            return valueSize;
-        }
-        else if (remaining == 1 && _pruneVisitor.getMaxVersion() != MVV.VERSION_NOT_FOUND) {
-            // Single committed version left, now primordial
-            return MVV.fetchVersionByOffset(valueBytes, valueSize, _pruneVisitor.getMaxOffset(), valueBytes);
+            // No valid versions left, key needs complete removed
+            return false;
         }
 
-        // Some non-primordial amount left, remove them all
-        int offsetDiff = 0;
+        if (remaining == 1 && _pruneVisitor.getMaxVersion() != MVV.VERSION_NOT_FOUND) {
+            // Single committed version left, now primordial
+            int newSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _pruneVisitor.getMaxOffset(), valueBytes);
+            value.setEncodedSize(newSize);
+            return !(value.isDefined() && value.isAntiValue());
+        }
+
+        // Some non-primordial amount left, remove all unneeded
         int newSize = valueSize;
+        int offsetDiff = 0;
         for(PruneVisitor.OffsetAndLength pair : _pruneVisitor.getRemoveList()) {
             int lengthToRemove = pair.length + MVV.LENGTH_PER_VERSION;
             int dstPos = pair.offset- offsetDiff - MVV.LENGTH_PER_VERSION;
@@ -3831,7 +3847,7 @@ public class Exchange {
             newSize -= lengthToRemove;
             offsetDiff += lengthToRemove;
         }
-
-        return newSize;
+        value.setEncodedSize(newSize);
+        return true;
     }
 }

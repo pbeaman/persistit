@@ -173,6 +173,40 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("value post-rollback post-prune", VALUE, fetch(ex1, KEY));
     }
 
+    public void testPruneRemoved() throws PersistitException {
+        storePrimordial(ex1,  KEY, VALUE);
+
+        trx1.begin();
+        try {
+            assertEquals("key removed", true, remove(ex1, KEY));
+            assertEquals("key exists post-remove", false, ex1.isValueDefined());
+            assertEquals("version count post-remove pre-prune pre-commit", 2, storedVersionCount(ex2, KEY));
+            prune(ex2, KEY);
+            assertEquals("version count post-remove post-prune pre-commit", 2, storedVersionCount(ex2, KEY));
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        prune(ex2, KEY);
+        // NOTE: Next assert is confirming non-removal of a key that can't be quick deleted.
+        //       Will need to be adjusted if that changes (directly, pruner thread, etc).
+        assertEquals("version count prune after commit", 1, storedVersionCount(ex2, KEY));
+
+        ex2.clear().append(KEY);
+        assertEquals("value prune after commit not in txn", false, ex2.isValueDefined());
+
+        trx1.begin();
+        try {
+            assertEquals("key exists prune after commit in trx", false, ex1.isValueDefined());
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
+
 
     //
     // Test helper methods
