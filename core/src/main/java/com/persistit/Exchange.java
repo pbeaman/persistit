@@ -53,6 +53,8 @@ import com.persistit.policy.SplitPolicy;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
+import java.util.ArrayList;
+
 /**
  * <p>
  * The main facade for fetching, storing and removing records from a
@@ -265,6 +267,7 @@ public class Exchange {
     }
 
     private final MvvVisitor _mvvVisitor;
+    private final PruneVisitor _pruneVisitor;
     
 
     private Exchange(final Persistit persistit) {
@@ -277,6 +280,7 @@ public class Exchange {
         _value = new Value(_persistit);
         _spareValue = new Value(_persistit);
         _mvvVisitor = new MvvVisitor(_persistit.getTransactionIndex());
+        _pruneVisitor = new PruneVisitor(_persistit.getTransactionIndex());
     }
 
     /**
@@ -560,6 +564,79 @@ public class Exchange {
             _leftFoundAt = -1;
             _rightFoundAt = -1;
             _flags = 0;
+        }
+    }
+    
+    private static class PruneVisitor implements MVV.VersionVisitor {
+        private class OffsetAndLength {
+            public int offset, length;
+            OffsetAndLength(int offset, int length) {
+                this.offset = offset;
+                this.length = length;
+            }
+        }
+        
+        private long _maxVersion;
+        private int _maxOffset;
+        private int _maxLength;
+        private int _versionCount;
+        private ArrayList<OffsetAndLength> _toRemove = new ArrayList<OffsetAndLength>();
+        private final TransactionIndex _ti;
+
+        PruneVisitor(TransactionIndex ti) {
+            _ti = ti;
+        }
+
+        @Override
+        public void init() {
+            _maxVersion = MVV.VERSION_NOT_FOUND;
+            _maxOffset = _maxLength = -1;
+            _versionCount = 0;
+            _toRemove.clear();
+        }
+
+        @Override
+        public void sawVersion(long version, int valueLength, int offset) throws PersistitException {
+            final long tc;
+            try {
+                tc = _ti.commitStatus(version, MvvVisitor.READ_COMMITTED_TS, 0);
+            }
+            catch (InterruptedException ie) {
+                throw new PersistitInterruptedException(ie);
+            }
+
+            _versionCount++;
+            if (tc == TransactionStatus.ABORTED) {
+                _toRemove.add(new OffsetAndLength(offset, valueLength));
+            }
+            else if(tc != TransactionStatus.UNCOMMITTED && !_ti.hasConcurrentTransaction(0, tc)) {
+                if (version > _maxVersion) {
+                    if (_maxVersion != MVV.VERSION_NOT_FOUND) {
+                        _toRemove.add(new OffsetAndLength(_maxOffset, _maxLength));
+                    }
+                    _maxVersion = version;
+                    _maxOffset = offset;
+                }
+                else {
+                    _toRemove.add(new OffsetAndLength(offset, valueLength));
+                }
+            }
+        }
+
+        int getRemainingCount() {
+            return _versionCount - _toRemove.size();
+        }
+
+        long getMaxVersion() {
+            return _maxVersion;
+        }
+
+        int getMaxOffset() {
+            return _maxOffset;
+        }
+
+        ArrayList<OffsetAndLength> getRemoveList() {
+            return _toRemove;
         }
     }
 
@@ -2539,8 +2616,12 @@ public class Exchange {
         }
     }
 
+    boolean isLongRecord(Value value) {
+        return value.isDefined() && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE;
+    }
+
     void fetchFixupForLongRecords(Value value, int minimumBytes) throws PersistitException {
-        if (value.isDefined() && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE) {
+        if (isLongRecord(value)) {
             //
             // This will potential require numerous pages: the buffer
             // claim is held for the duration to prevent a non-atomic
@@ -3670,5 +3751,75 @@ public class Exchange {
             }
         }
         return sb.toString();
+    }
+
+    /**
+     * Temporary(?) location of prune method. Fully prunes the exchanges
+     * current key.
+     * @throws PersistitException for any error
+     */
+    void prune() throws PersistitException {
+        _persistit.checkClosed();
+        _key.testValidForStoreAndFetch(_volume.getPageSize());
+
+        Buffer buffer = null;
+        try {
+            int foundAt = search(_key, true);
+            LevelCache lc = _levelCache[0];
+            buffer = lc._buffer;
+
+            if ((foundAt & EXACT_MASK) != 0) {
+                buffer.fetch(foundAt, _spareValue);
+                if (isLongRecord(_spareValue)) {
+                    throw new UnsupportedOperationException("Cannot prune LONG_RECORD");
+                }
+
+                int origSize = _spareValue.getEncodedSize();
+                int newSize = prune(_spareValue.getEncodedBytes(), origSize);
+                if(newSize != origSize) {
+                    Debug.$assert0.t(newSize < origSize);
+                    _spareValue.setEncodedSize(newSize);
+                    buffer.putValue(_key, _spareValue, foundAt, false);
+                }
+
+                _volume.getStatistics().bumpFetchCounter();
+                _tree.getStatistics().bumpFetchCounter();
+            }
+        } finally {
+            if (buffer != null) {
+                buffer.releaseTouched();
+            }
+            _treeHolder.verifyReleased();
+        }
+    }
+
+    private int prune(final byte[] valueBytes, final int valueSize) throws PersistitException {
+        MVV.visitAllVersions(_pruneVisitor, valueBytes, valueSize);
+
+        int remaining = _pruneVisitor.getRemainingCount();
+        if (remaining == 0) {
+            // TODO: This key needs completely pruned away:
+            // If not the first or last key just Buffer.removeKeys() it, otherwise add to pruner thread
+            return valueSize;
+        }
+        else if (remaining == 1 && _pruneVisitor.getMaxVersion() != MVV.VERSION_NOT_FOUND) {
+            // Single committed version left, now primordial
+            return MVV.fetchVersionByOffset(valueBytes, valueSize, _pruneVisitor.getMaxOffset(), valueBytes);
+        }
+
+        // Some non-primordial amount left, remove them all
+        int headerLength = MVV.overheadLength(1);
+        int offsetDiff = 0;
+        int newSize = valueSize;
+        for(PruneVisitor.OffsetAndLength pair : _pruneVisitor.getRemoveList()) {
+            int lengthToRemove = pair.length + headerLength;
+            int dstPos = pair.offset- offsetDiff - headerLength;
+            int srcPos = dstPos + lengthToRemove;
+            newSize -= lengthToRemove;
+            offsetDiff += lengthToRemove;
+            System.arraycopy(valueBytes, srcPos, valueBytes, dstPos, newSize - dstPos);
+        }
+
+        return newSize;
     }
 }
