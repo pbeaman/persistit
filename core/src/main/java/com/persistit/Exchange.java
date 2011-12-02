@@ -567,7 +567,7 @@ public class Exchange {
         }
     }
     
-    private static class PruneVisitor implements MVV.VersionVisitor {
+    private class PruneVisitor implements MVV.VersionVisitor {
         private class OffsetAndLength {
             public int offset, length;
             OffsetAndLength(int offset, int length) {
@@ -607,20 +607,32 @@ public class Exchange {
 
             _versionCount++;
             if (tc == TransactionStatus.ABORTED) {
-                _toRemove.add(new OffsetAndLength(offset, valueLength));
+                addRemoved(offset, valueLength);
             }
             else if(tc != TransactionStatus.UNCOMMITTED && !_ti.hasConcurrentTransaction(0, tc)) {
                 if (version > _maxVersion) {
                     if (_maxVersion != MVV.VERSION_NOT_FOUND) {
-                        _toRemove.add(new OffsetAndLength(_maxOffset, _maxLength));
+                        addRemoved(_maxOffset, _maxLength);
                     }
                     _maxVersion = version;
                     _maxOffset = offset;
+                    _maxLength = valueLength;
                 }
                 else {
-                    _toRemove.add(new OffsetAndLength(offset, valueLength));
+                    addRemoved(offset, valueLength);
                 }
             }
+        }
+
+        private void addRemoved(int offset, int length) {
+            if (!_toRemove.isEmpty()) {
+                OffsetAndLength last = _toRemove.get(_toRemove.size()-1);
+                if ((last.offset + last.length + MVV.LENGTH_PER_VERSION) == offset) {
+                    last.length += MVV.LENGTH_PER_VERSION + length;
+                    return;
+                }
+            }
+            _toRemove.add(new OffsetAndLength(offset, length));
         }
 
         int getRemainingCount() {
@@ -3779,9 +3791,9 @@ public class Exchange {
                 if(newSize != origSize) {
                     Debug.$assert0.t(newSize < origSize);
                     _spareValue.setEncodedSize(newSize);
-                    buffer.putValue(_key, _spareValue, foundAt, false);
+                    boolean splitRequired = putLevel(lc, _key, _spareValue, buffer, foundAt, false);
+                    Debug.$assert0.t(!splitRequired);
                 }
-
                 _volume.getStatistics().bumpFetchCounter();
                 _tree.getStatistics().bumpFetchCounter();
             }
@@ -3799,7 +3811,7 @@ public class Exchange {
         int remaining = _pruneVisitor.getRemainingCount();
         if (remaining == 0) {
             // TODO: This key needs completely pruned away:
-            // If not the first or last key just Buffer.removeKeys() it, otherwise add to pruner thread
+            // If key can be removed without structure change, just remove it. Otherwise add to pruner thread.
             return valueSize;
         }
         else if (remaining == 1 && _pruneVisitor.getMaxVersion() != MVV.VERSION_NOT_FOUND) {
@@ -3808,16 +3820,16 @@ public class Exchange {
         }
 
         // Some non-primordial amount left, remove them all
-        int headerLength = MVV.overheadLength(1);
         int offsetDiff = 0;
         int newSize = valueSize;
         for(PruneVisitor.OffsetAndLength pair : _pruneVisitor.getRemoveList()) {
-            int lengthToRemove = pair.length + headerLength;
-            int dstPos = pair.offset- offsetDiff - headerLength;
+            int lengthToRemove = pair.length + MVV.LENGTH_PER_VERSION;
+            int dstPos = pair.offset- offsetDiff - MVV.LENGTH_PER_VERSION;
             int srcPos = dstPos + lengthToRemove;
+            int copyLength = newSize - srcPos;
+            System.arraycopy(valueBytes, srcPos, valueBytes, dstPos, copyLength);
             newSize -= lengthToRemove;
             offsetDiff += lengthToRemove;
-            System.arraycopy(valueBytes, srcPos, valueBytes, dstPos, newSize - dstPos);
         }
 
         return newSize;

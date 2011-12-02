@@ -16,6 +16,7 @@
 package com.persistit;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.RollbackException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +43,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("key found by fetch", false, ex1.getValue().isDefined());
     }
 
-    public void testPrunePrimordial() throws Exception {
+    public void testPrunePrimordial() throws PersistitException {
         // get a primordial by storing outside of transaction
         store(ex1, KEY, VALUE);
         assertEquals("initial primordial fetch", VALUE, fetch(ex1, KEY));
@@ -54,18 +55,15 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("version count after prune", 1, storedVersionCount(ex1, KEY));
     }
 
-    public void testPrunePrimordialAndOneConcurrent() throws Exception {
-        // get a primordial by storing outside of transaction
-        store(ex1, KEY, VALUE);
-        assertEquals("initial primordial fetch", VALUE, fetch(ex1, KEY));
+    public void testPrunePrimordialAndOneConcurrent() throws PersistitException {
+        storePrimordial(ex1, KEY, VALUE);
 
         trx1.begin();
         try {
             store(ex1, KEY, VALUE_TRX1);
             assertEquals("fetch after trx store", VALUE_TRX1, fetch(ex1, KEY));
 
-            ex2.clear().append(KEY);
-            ex2.prune();
+            prune(ex2, KEY);
 
             assertEquals("fetch after prune", VALUE_TRX1, fetch(ex1, KEY));
             assertEquals("version count after prune", 2, storedVersionCount(ex1, KEY));
@@ -75,10 +73,8 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
     }
 
-    public void testPrunePrimordialAndCommitted() throws Exception {
-        // get a primordial by storing outside of transaction
-        store(ex1, KEY, VALUE);
-        assertEquals("initial primordial fetch", VALUE, fetch(ex1, KEY));
+    public void testPrunePrimordialAndCommitted() throws PersistitException {
+        storePrimordial(ex1, KEY, VALUE);
 
         trx1.begin();
         try {
@@ -90,11 +86,91 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
 
         assertEquals("version count after trx store", 2, storedVersionCount(ex1, KEY));
-
-        ex1.clear().append(KEY);
-        ex1.prune();
-
+        prune(ex1, KEY);
         assertEquals("version count after prune", 1, storedVersionCount(ex1, KEY));
+    }
+
+    public void testPruneManyCommitted() throws PersistitException {
+        final int TRX1_COUNT = 5;
+        storePrimordial(ex1, KEY, VALUE);
+
+        for(int i = 1; i <= TRX1_COUNT; ++i) {
+            trx1.begin();
+            try {
+                store(ex1, KEY, VALUE+i);
+                trx1.commit();
+            }
+            finally {
+                trx1.end();
+            }
+        }
+
+        final String highestCommitted = VALUE + TRX1_COUNT;
+
+        trx2.begin();
+        try {
+            assertEquals("value after many commits", highestCommitted, fetch(ex2, KEY));
+            store(ex2, KEY, VALUE_TRX2);
+            assertEquals("value from trx2 after store", VALUE_TRX2, fetch(ex2, KEY));
+
+            prune(ex1, KEY);
+
+            assertEquals("value from trx2 after prune", VALUE_TRX2, fetch(ex2, KEY));
+            assertEquals("value from no trx after prune", highestCommitted, fetch(ex1, KEY));
+
+            assertEquals("version count after prune, trx1&2 active", 2, storedVersionCount(ex1, KEY));
+
+            trx1.begin();
+            try {
+                assertEquals("value from trx1 after prune", highestCommitted, fetch(ex1, KEY));
+                trx1.commit();
+            }
+            finally {
+                trx1.end();
+            }
+
+            trx2.commit();
+        }
+        finally {
+            trx2.end();
+        }
+
+        assertEquals("value from no trx post second commit", VALUE_TRX2, fetch(ex1, KEY));
+        prune(ex2, KEY);
+        assertEquals("value from no trx post second prune", VALUE_TRX2, fetch(ex1, KEY));
+        assertEquals("version count post second prune, no trx active", 1, storedVersionCount(ex2, KEY));
+    }
+
+    public void testPruneAborted() throws PersistitException {
+        storePrimordial(ex1, KEY, VALUE);
+
+        trx1.begin();
+        try {
+            store(ex1, KEY, VALUE_TRX1);
+            assertEquals("value from trx1 store", VALUE_TRX1, fetch(ex1, KEY));
+            trx1.rollback();
+        }
+        catch (RollbackException e) {
+            // Expected
+        }
+        finally {
+            trx1.end();
+        }
+
+        assertEquals("version count post-rollback", 2, storedVersionCount(ex1, KEY));
+        assertEquals("value post rollback pre-prune no trx", VALUE, fetch(ex2, KEY));
+        trx2.begin();
+        try {
+            assertEquals("value post rollback pre-prune in trx", VALUE, fetch(ex2, KEY));
+            trx2.commit();
+        }
+        finally {
+            trx2.end();
+        }
+
+        prune(ex1, KEY);
+        assertEquals("version count post-rollback post prune", 1, storedVersionCount(ex1, KEY));
+        assertEquals("value post-rollback post-prune", VALUE, fetch(ex1, KEY));
     }
 
 
@@ -102,6 +178,12 @@ public class MVCCPruneTest extends MVCCTestBase {
     // Test helper methods
     //
 
+    
+    private void prune(Exchange ex, Object k) throws PersistitException {
+        _persistit.getTransactionIndex().cleanup();
+        ex.clear().append(k);
+        ex.prune();
+    }
     
     private class VersionInfoVisitor implements MVV.VersionVisitor {
         List<Long> _versions = new ArrayList<Long>();
@@ -120,7 +202,6 @@ public class MVCCPruneTest extends MVCCTestBase {
     }
 
     private int storedVersionCount(Exchange ex, Object k1) throws PersistitException {
-        _persistit.getTransactionIndex().cleanup();
         ex.ignoreMVCCFetch(true);
         try {
             ex.clear().append(k1);
@@ -130,10 +211,19 @@ public class MVCCPruneTest extends MVCCTestBase {
             Value value = ex.getValue();
             MVV.visitAllVersions(visitor, value.getEncodedBytes(), value.getEncodedSize());
 
+            ex.clear().getValue().clear();
             return visitor.sawCount();
         }
         finally {
             ex.ignoreMVCCFetch(false);
         }
+    }
+
+    private void storePrimordial(Exchange ex, Object k, Object v) throws PersistitException {
+        if (trx1.isActive()) {
+            throw new IllegalStateException("Can only store primordial when outside transaction");
+        }
+        store(ex, k, v);
+        assertEquals("initial primordial fetch", v, fetch(ex, k));
     }
 }

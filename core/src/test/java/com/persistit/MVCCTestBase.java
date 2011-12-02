@@ -230,7 +230,12 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
         return _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
     }
 
-    protected void showGUI() throws Exception {
-        _persistit.setupGUI(true);
+    protected void showGUI() {
+        try {
+            _persistit.setupGUI(true);
+        }
+        catch(Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

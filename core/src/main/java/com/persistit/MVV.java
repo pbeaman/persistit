@@ -33,7 +33,7 @@ public class MVV {
     private final static int LENGTH_VERSION = 8;        // long
     private final static int LENGTH_VALUE_LENGTH = 2;   // short
 
-    private final static int LENGTH_PER_VERSION = LENGTH_VERSION + LENGTH_VALUE_LENGTH;
+    final static int LENGTH_PER_VERSION = LENGTH_VERSION + LENGTH_VALUE_LENGTH;
 
 
     /**
