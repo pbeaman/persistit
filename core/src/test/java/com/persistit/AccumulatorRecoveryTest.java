@@ -84,7 +84,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             public void removeKeyRange(final long address, final long timestamp, Exchange exchange, Key from, Key to)
                     throws PersistitException {
                 recoveryTimestamps.add(timestamp);
-                expectedRowCount.decrementAndGet();
+                expectedRowCount.addAndGet(from.getDepth() == 2 ? -7 : -1); // because there are 7 rows being deleted by each range delete operation
             }
 
             @Override
@@ -515,7 +515,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             try {
                 boolean removed = ex.clear().append("test1").append(j).remove(Key.GTEQ);
                 if (removed) {
-                    rowCount.update(-1, txn);
+                    rowCount.update(-7, txn);
                 }
                 txn.commit();
             } finally {

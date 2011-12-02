@@ -546,7 +546,7 @@ public class Exchange {
          * Don't write the store operation to the journal - used when storing
          * AntiValues
          **/
-        public static final int DONT_JOURNAL = 1 << 8;
+        public static final int DONT_JOURNAL = 1 << 5;
     }
 
     /**
@@ -1256,7 +1256,7 @@ public class Exchange {
                 newLongRecordPointer = storeOverlengthRecord(value, 0);
             }
 
-            if (!_ignoreTransactions || ((options & StoreOptions.DONT_JOURNAL) == 0)) {
+            if (!_ignoreTransactions && ((options & StoreOptions.DONT_JOURNAL) == 0)) {
                 _transaction.store(this, key, value);
             }
 
@@ -1414,6 +1414,9 @@ public class Exchange {
                             _tree.bumpChangeCount();
                         }
                         committed = true;
+                        if ((options & StoreOptions.MVCC) != 0) {
+                            _transaction.getTransactionStatus().incrementMvvCount();
+                        }
                     }
 
                     buffer.releaseTouched();

@@ -224,19 +224,28 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                     txn.rollback();
                 }
                 txn.commit();
+            } catch (RollbackException re) {
+                assertEquals(0, i % 2);
             } finally {
                 txn.end();
             }
         }
 
         for (int i = -1; i < 110; i++) {
-            ex.clear().append(i).fetch();
-            final Value value = ex.getValue();
-            if ((i < 0) || (i >= 100) || ((i % 2) == 0)) {
-                assertTrue(!value.isDefined());
-            } else {
-                assertTrue(value.isDefined());
-                assertEquals(value.get(), strValue);
+            final Transaction txn = ex.getTransaction();
+            txn.begin();
+            try {
+                ex.clear().append(i).fetch();
+                final Value value = ex.getValue();
+                if ((i < 0) || (i >= 100) || ((i % 2) == 0)) {
+                    assertTrue(!value.isDefined());
+                } else {
+                    assertTrue(value.isDefined());
+                    assertEquals(value.get(), strValue);
+                }
+                txn.commit();
+            } finally {
+                txn.end();
             }
         }
         System.out.println("- done");
