@@ -205,7 +205,7 @@ public class TransactionStatus {
      * @param timestamp
      */
     void commit(final long timestamp) {
-        if (timestamp <= _ts || timestamp == UNCOMMITTED) {
+        if (timestamp < _ts || timestamp == UNCOMMITTED) {
             throw new IllegalArgumentException("Attempt to commit before start: " + this);
         }
         if (_tc != UNCOMMITTED) {
@@ -221,12 +221,12 @@ public class TransactionStatus {
         _tc = ABORTED;
     }
 
-    void complete() {
-        if (_tc > 0) {
+    void complete(final long timestamp) {
+        if (_tc > 0 || -_tc > timestamp) {
             throw new IllegalStateException("Transaction not ready to complete: " + this);
         }
         if (_tc < 0 && _tc != ABORTED) {
-            _tc = -_tc;
+            _tc = timestamp;
         }
         _notified = true;
     }

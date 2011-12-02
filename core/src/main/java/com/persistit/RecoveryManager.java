@@ -1349,6 +1349,19 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
         TransactionMapItem previous = null;
         RecoveryListener previousListener = null;
+        /*
+         * If there is a checkpoint Transaction record, reset its commit
+         * timestamp to the checkpoint timestamp to ensure it gets applied
+         * first. This is required to ensure all Accumulator values are
+         * initialized correctly to their checkpoint snapshot values before any
+         * deltas are applied.
+         */
+        TransactionMapItem checkpointTransactionItem = _recoveredTransactionMap
+                .get(_lastValidCheckpoint.getTimestamp());
+        if (checkpointTransactionItem != null) {
+            checkpointTransactionItem.setCommitTimestamp(_lastValidCheckpoint.getTimestamp());
+        }
+
         final SortedSet<TransactionMapItem> sorted = new TreeSet<TransactionMapItem>(_recoveredTransactionMap.values());
         for (final TransactionMapItem item : sorted) {
             RecoveryListener listener = item.isCommitted() ? commitListener : rollbackListener;

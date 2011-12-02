@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.TreeSet;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -277,23 +278,31 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     }
 
     public void testTraverseShallowTwoTrx() throws Exception {
+        List<KVPair> baseList = kvList("a","A",  "z","Z");
         trx1.begin();
         try {
-            store(ex1, "a", "A");
-            store(ex1, "z", "Z");
+            storeAll(ex1, baseList);
             trx1.commit();
         } finally {
             trx1.end();
         }
 
+        List<KVPair> trx1List = kvList("d","D",  "trx1",111,  "x","X");
+        List<KVPair> trx2List = kvList("b","B",  "c","C",  "trx2",222);
+
         trx1.begin();
         trx2.begin();
         try {
-            List<KVPair> trx1List = kvList("a", "A", "b", "UD", "c", "UD", "trx1", 111, "z", "Z");
-            List<KVPair> trx2List = kvList("a", "A", "b", "UD", "d", "UD", "trx2", 222, "z", "Z");
-
             storeAll(ex1, trx1List);
             storeAll(ex2, trx2List);
+            storeAll(ex1, kvList(arr("e","trx1"),1,  arr("h","trx1"),11));
+            storeAll(ex2, kvList(arr("f","trx2"),2,  arr("g","trx2"),22));
+
+            trx1List.addAll(kvList("e","UD",  "h","UD"));
+            trx2List.addAll(kvList("f","UD",  "g","UD"));
+
+            trx1List = combine(trx1List, baseList);
+            trx2List = combine(trx2List, baseList);
 
             assertEquals("trx1 forward,shallow traversal", trx1List, traverseAllFoward(ex1, false));
             assertEquals("trx2 forward,shallow traversal", trx2List, traverseAllFoward(ex2, false));
@@ -313,8 +322,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
         trx1.begin();
         try {
-            List<KVPair> fList = kvList("a", "A", "b", "UD", "c", "UD", "d", "UD", "trx1", 111, "trx2", 222, "z", "Z");
-
+            List<KVPair> fList = combine(trx1List, trx2List);
             assertEquals("final forward,shallow traversal", fList, traverseAllFoward(ex1, false));
             Collections.reverse(fList);
             assertEquals("final reverse,shallow traversal", fList, traverseAllReverse(ex1, false));
@@ -326,23 +334,27 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     }
 
     public void testTraverseDeepTwoTrx() throws Exception {
+        List<KVPair> baseList = kvList("a","A",  "z","Z");
+
         trx1.begin();
         try {
-            store(ex1, "a", "A");
-            store(ex1, "z", "Z");
+            storeAll(ex1, baseList);
             trx1.commit();
         } finally {
             trx1.end();
         }
 
+        List<KVPair> trx1List = kvList(arr("b","trx1"),1,  arr("d","trx1"),11,  "trx1",111);
+        List<KVPair> trx2List = kvList(arr("b","trx2"),2,  arr("c","trx2"),22,  "trx2",222);
+
         trx1.begin();
         trx2.begin();
         try {
-            List<KVPair> trx1List = kvList("a", "A", arr("b", "trx1"), 1, arr("c", "trx1"), 11, "trx1", 111, "z", "Z");
-            List<KVPair> trx2List = kvList("a", "A", arr("b", "trx2"), 2, arr("d", "trx2"), 22, "trx2", 222, "z", "Z");
-
             storeAll(ex1, trx1List);
             storeAll(ex2, trx2List);
+
+            trx1List = combine(trx1List, baseList);
+            trx2List = combine(trx2List, baseList);
 
             assertEquals("trx1 forward,deep traversal", trx1List, traverseAllFoward(ex1, true));
             assertEquals("trx2 forward,deep traversal", trx2List, traverseAllFoward(ex2, true));
@@ -362,9 +374,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
         trx1.begin();
         try {
-
-            List<KVPair> fList = kvList("a", "A", arr("b", "trx1"), 1, arr("b", "trx2"), 2, arr("c", "trx1"), 11, arr(
-                    "d", "trx2"), 22, "trx1", 111, "trx2", 222, "z", "Z");
+            List<KVPair> fList = combine(trx1List, trx2List);
 
             assertEquals("final forward,deep traversal", fList, traverseAllFoward(ex1, true));
             Collections.reverse(fList);
@@ -480,12 +490,9 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     public void testShallowTraverseWrongParentValueBug() throws Exception {
         trx1.begin();
         try {
-            store(ex1, "a", "A");
-            store(ex1, "a", "a", "AA");
-            store(ex1, "b", "B");
-            store(ex1, "z", "Z");
-
-            List<KVPair> kvList = kvList("a", "A", "b", "B", "z", "Z");
+            List<KVPair> kvList = kvList("a","A",  "b","B",  "z","Z");
+            storeAll(ex1, kvList);
+            store(ex1, "a","a", "AA");
 
             assertEquals("forward traversal", kvList, traverseAllFoward(ex1, false));
             Collections.reverse(kvList);
@@ -549,8 +556,11 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             List<KVPair> trx1List1 = kvList("b", "B", "e", "e", "f", "f", "x", "X");
             storeAll(ex1, trx1List1);
 
-            List<KVPair> trx2List = kvList("d", "D", "g", "G", "v", "V", "y", "Y");
+            List<KVPair> trx2List = kvList("d","D",  "n","N",  "v","V",  "y","Y");
             storeAll(ex2, trx2List);
+
+            // Explicitly testing overlapping ranges, as the overlaps should
+            // not be visible to each other
 
             ka.clear().append("b");
             kb.clear().append("v");
@@ -561,8 +571,10 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             assertEquals("trx2 traverse post trx1 removeKeyRange", combine(bothList, trx2List), traverseAllFoward(ex2,
                     true));
 
-            ex2.removeAll();
-            assertEquals("trx2 traverse post removeAll", kvList(), traverseAllFoward(ex2, true));
+            ka.clear().append("n");
+            kb.clear().append(Key.AFTER);
+            assertTrue("trx2 keys removed", ex2.removeKeyRange(ka, kb));
+            assertEquals("trx2 traverse post removeAll", kvList("a","A",  "d","D",  "m","M"), traverseAllFoward(ex2, true));
             assertEquals("trx1 traverse post trx2 removeAll", trx1List2, traverseAllFoward(ex1, true));
 
             trx1.commit();
@@ -574,7 +586,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
         trx1.begin();
         try {
-            assertEquals("traverse post-commit", kvList("x", "X"), traverseAllFoward(ex1, true));
+            assertEquals("traverse post-commit", kvList("a","A",  "d","D",  "x","X"), traverseAllFoward(ex1, true));
             trx1.commit();
         } finally {
             trx1.end();
@@ -633,7 +645,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
     private static class KVPair implements Comparable<KVPair> {
         Object k1, k2, v;
-
+        
         public KVPair(Object k1, Object k2, Object v) {
             this.k1 = k1;
             this.k2 = k2;
@@ -665,9 +677,9 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             if (!(k1 instanceof Comparable)) {
                 throw new IllegalArgumentException("Not comparable: " + k1);
             }
-            int comp = ((Comparable) k1).compareTo(kvPair.k1);
-            if (comp == 0) {
-                comp = ((Comparable) k2).compareTo(kvPair.k2);
+            int comp = ((Comparable)k1).compareTo(kvPair.k1);
+            if(k2 != null && kvPair.k2 != null && comp == 0) {
+                comp = ((Comparable)k2).compareTo(kvPair.k2);
             }
             return comp;
         }
@@ -768,7 +780,10 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         List<KVPair> outList = new ArrayList<KVPair>();
         outList.addAll(list1);
         outList.addAll(list2);
-        Collections.sort(outList);
+        // sort and unique them
+        TreeSet<KVPair> set = new TreeSet<KVPair>(outList);
+        outList.clear();
+        outList.addAll(set);
         return outList;
     }
 

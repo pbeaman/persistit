@@ -581,7 +581,9 @@ abstract class Accumulator {
      *            The step at which the value is applied
      */
     long update(final long value, final TransactionStatus status, final int step) {
-        assert status.getTc() == TransactionStatus.UNCOMMITTED;
+        if (status.getTc() != TransactionStatus.UNCOMMITTED) {
+            throw new IllegalStateException("Transaction has already committed or aborted");
+        }
         /*
          * Update the live value using compare-and-set
          */

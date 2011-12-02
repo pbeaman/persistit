@@ -39,7 +39,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(0, acc.getSnapshotValue(1, 0));
         status.commit(_tsa.updateTimestamp());
         assertEquals(0, acc.getSnapshotValue(_tsa.getCurrentTimestamp(), 0));
-        ti.notifyCompleted(status);
+        ti.notifyCompleted(status, _tsa.getCurrentTimestamp());
         assertEquals(0, acc.getSnapshotValue(status.getTs(), 0));
         assertEquals(1, acc.getSnapshotValue(status.getTc() + 1, 0));
     }
@@ -62,7 +62,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             maxAcc.update(1000 + (count % 17), status, 0);
             seqAcc.update(3, status, 0);
             status.commit(_tsa.updateTimestamp());
-            ti.notifyCompleted(status);
+            ti.notifyCompleted(status, _tsa.getCurrentTimestamp());
             if ((count % 1000) == 0) {
                 ti.updateActiveTransactionCache();
             }
@@ -80,7 +80,8 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(0, maxAcc.getCheckpointValue());
         assertEquals(0, seqAcc.getCheckpointValue());
 
-        ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp(), Arrays.asList(new Accumulator[]{countAcc, sumAcc, minAcc, maxAcc, seqAcc}));
+        ti.checkpointAccumulatorSnapshots(_tsa.getCurrentTimestamp(), Arrays.asList(new Accumulator[] { countAcc,
+                sumAcc, minAcc, maxAcc, seqAcc }));
 
         assertEquals(countAcc.getLiveValue(), countAcc.getCheckpointValue());
         assertEquals(sumAcc.getLiveValue(), sumAcc.getCheckpointValue());
@@ -88,6 +89,97 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         assertEquals(maxAcc.getLiveValue(), maxAcc.getCheckpointValue());
         assertEquals(seqAcc.getLiveValue(), seqAcc.getCheckpointValue());
 
+    }
+
+    @Test
+    public void testBasicIsolation() throws Exception {
+        final SessionId s1 = new SessionId();
+        final SessionId s2 = new SessionId();
+        _persistit.setSessionId(s1);
+        final Transaction txn1 = _persistit.getTransaction();
+        _persistit.setSessionId(s2);
+        final Transaction txn2 = _persistit.getTransaction();
+        final Tree tree = _persistit.getVolume("persistit").getTree("AccumulatorTest", true);
+        final Accumulator acc = tree.getAccumulator(Accumulator.Type.SUM, 0);
+        assertTrue(txn1 != txn2);
+        txn2.begin();
+        assertEquals(0, acc.getSnapshotValue(txn1));
+        txn1.begin();
+        assertEquals(0, acc.getSnapshotValue(txn1));
+        assertEquals(0, acc.getSnapshotValue(txn2));
+        acc.update(1, txn1);
+        assertEquals(0, acc.getSnapshotValue(txn2));
+        acc.update(1, txn2);
+        assertEquals(1, acc.getSnapshotValue(txn1));
+        assertEquals(1, acc.getSnapshotValue(txn2));
+        txn1.commit();
+        txn1.end();
+        assertEquals(acc.getSnapshotValue(txn2), 1);
+        txn2.commit();
+        txn2.end();
+        txn1.begin();
+        assertEquals(2, acc.getSnapshotValue(txn1));
+        txn1.commit();
+        txn1.end();
+    }
+
+    @Test
+    public void testBasicIsolation2() throws Exception {
+        final Thread[] threads = new Thread[4];
+        final Random random = new Random(1);
+        final TransactionIndex ti = _persistit.getTransactionIndex();
+        for (int i = 0; i < threads.length; i++) {
+            final int index = i;
+            threads[i] = new Thread(new Runnable() {
+                public void run() {
+                    long end = System.currentTimeMillis() + 10000;
+                    int cleanRun = 0;
+                    while (System.currentTimeMillis() < end) {
+                        try {
+                            final Exchange ex = _persistit.getExchange("persistit", "AccumulatorTest", true);
+                            final Transaction txn = ex.getTransaction();
+                            txn.begin();
+                            try {
+                                final Accumulator acc = ex.getTree().getAccumulator(Accumulator.Type.SUM, 0);
+                                final long floor1 = ti.getActiveTransactionFloor();
+                                final long v1 = acc.getSnapshotValue(txn);
+                                Thread.sleep(random.nextInt(2));
+                                final long v2 = acc.getSnapshotValue(txn);
+                                final long floor2 = ti.getActiveTransactionFloor();
+                                acc.update(1, txn);
+                                final long v3 = acc.getSnapshotValue(txn);
+                                final long v4 = acc.getSnapshotValue(txn);
+                                final long v5 = acc.getSnapshotValue(txn);
+
+                                if (v1 != v2 || v2 + 1 != v3 || v3 != v4 || v4 != v5) {
+                                    System.out.printf("Thread #%d v1=%,10d v2=%,10d v3=%,10d v4=%,10d v5=%,10d "
+                                            + "floor1=%,10d floor2=%,10d cleanRun=%,10d %s\n", index, v1, v2, v3, v4,
+                                            v5, floor1, floor2, cleanRun, floor1 == floor2 ? " ***" : "");
+                                    cleanRun = 0;
+                                } else {
+                                    if (floor1 != floor2) {
+                                        cleanRun++;
+                                    }
+                                }
+                                txn.commit();
+                            } finally {
+                                txn.end();
+                            }
+                        } catch (Exception e) {
+                            System.out.println("Exception in thread #" + index);
+                            e.printStackTrace();
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+        for (int i = 0; i < threads.length; i++) {
+            threads[i].start();
+        }
+        for (int i = 0; i < threads.length; i++) {
+            threads[i].join();
+        }
     }
 
     /**
@@ -121,12 +213,12 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                                 Thread.sleep(1);
                                 pauseTime.incrementAndGet();
                             }
-                            status.commit(_tsa.updateTimestamp());
+                            status.commit(_tsa.getCurrentTimestamp());
                             if (random.nextInt(100) < 2) {
                                 Thread.sleep(1);
                                 pauseTime.incrementAndGet();
                             }
-                            ti.notifyCompleted(status);
+                            ti.notifyCompleted(status, _tsa.updateTimestamp());
                             after.incrementAndGet();
                         } catch (TimeoutException e) {
                             e.printStackTrace();
@@ -175,9 +267,9 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         Accumulator sumAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
         TransactionStatus status = ti.registerTransaction();
         sumAcc.update(18, status, 0);
-        status.commit(_tsa.updateTimestamp());
-        ti.notifyCompleted(status);
-        ti.checkpointAccumulatorSnapshots(_tsa.updateTimestamp(), Arrays.asList(new Accumulator[]{sumAcc}));
+        status.commit(_tsa.getCurrentTimestamp());
+        ti.notifyCompleted(status, _tsa.updateTimestamp());
+        ti.checkpointAccumulatorSnapshots(_tsa.updateTimestamp(), Arrays.asList(new Accumulator[] { sumAcc }));
         assertEquals(18, sumAcc.getCheckpointValue());
         value.put(sumAcc);
         Object object = value.get();

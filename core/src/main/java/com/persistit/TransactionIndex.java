@@ -536,16 +536,17 @@ public class TransactionIndex {
      * or aborted. This method allows the TransactionIndex to awaken any threads
      * waiting for resolution of commit status or a write-write dependency.
      * 
-     * @param ts
-     *            The start timestamp of a transaction that has committed or
-     *            aborted.
+     * @param status
+     *            the TransactionStatus that has committed or aborted.
+     * @param timestamp
+     *            the timestamp to post as the transaction's commit timestamp
      */
-    void notifyCompleted(final TransactionStatus status) {
+    void notifyCompleted(final TransactionStatus status, final long timestamp) {
         final int hashIndex = hashIndex(status.getTs());
         final TransactionIndexBucket bucket = _hashTable[hashIndex];
         bucket.lock();
         try {
-            bucket.notifyCompleted(status);
+            bucket.notifyCompleted(status, timestamp);
         } finally {
             bucket.unlock();
         }
@@ -729,14 +730,12 @@ public class TransactionIndex {
      *            Time in milliseconds to wait. If the other transaction has
      *            neither committed nor aborted within this time interval then a
      *            TimeoutException is thrown.
-     * @return commit status of .
-     * @throws TimeoutException
-     *             if the timeout interval is exceeded
+     * @return commit status of the target transaction
      * @throws InterruptedException
      *             if the waiting thread is interrupted
      */
     long wwDependency(final long versionHandle, final TransactionStatus source, final long timeout)
-            throws TimeoutException, InterruptedException, IllegalArgumentException {
+            throws InterruptedException, IllegalArgumentException {
         final long tsv = vh2ts(versionHandle);
         if (tsv == source.getTs()) {
             return 0;
@@ -773,6 +772,11 @@ public class TransactionIndex {
                         if (tc == ABORTED) {
                             return tc;
                         }
+                        /*
+                         * The following is true because the target's wwLock was
+                         * acquired, which means it has either aborted or
+                         * committed.
+                         */
                         if (tc < 0 || tc == UNCOMMITTED) {
                             throw new IllegalStateException("Commit incomplete");
                         }
@@ -846,13 +850,14 @@ public class TransactionIndex {
     private int hashIndex(final long ts) {
         return (((int) ts ^ (int) (ts >>> 32)) & Integer.MAX_VALUE) % _hashTable.length;
     }
-    
+
     /**
-     * Add a TransactionStatus with in the ABORTED state to the appropriate bucket.
-     * This method is called during recovery processing to register transactions that
-     * were 
+     * Add a TransactionStatus with in the ABORTED state to the appropriate
+     * bucket. This method is called during recovery processing to register
+     * transactions that were
+     * 
      * @param timestamp
-     * @throws InterruptedException 
+     * @throws InterruptedException
      */
     void injectAbortedTransaction(final long ts) throws InterruptedException {
         final TransactionStatus status;
@@ -881,7 +886,6 @@ public class TransactionIndex {
         if (!status.wwLock(VERY_LONG_TIMEOUT)) {
             throw new IllegalStateException("wwLock was unavailable on newly allocated TransactionStatus");
         }
-
     }
 
     /**

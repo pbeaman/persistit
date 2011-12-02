@@ -15,11 +15,15 @@
 
 package com.persistit;
 
+import com.persistit.exception.PersistitException;
 import com.persistit.util.Util;
 
 public class MVV {
     final static int TYPE_MVV = 0xFE;
     final static int VERSION_NOT_FOUND = -1;
+
+    final static int STORE_EXISTED_MASK = 0x80000000;
+    final static int STORE_LENGTH_MASK = 0x7FFFFFFF;
     
     private static final byte TYPE_MVV_BYTE = (byte)TYPE_MVV;
     private final static int PRIMORDIAL_VALUE_VERSION = 0;
@@ -114,11 +118,15 @@ public class MVV {
      * @param version Version associated with source
      * @param source Value to store
      * @param sourceLength Length of source currently in use
-     * @return New consumed length of target array
+     * @return Compound value consisting of a flag indicating if the version already
+     *         existed and the new consumed length of target. Use the mask values
+     *         {@link MVV#STORE_EXISTED_MASK} and {@link MVV#STORE_LENGTH_MASK} for
+     *         decoding the two pieces.
      * @throws IllegalArgumentException If target is too small to hold final MVV contents
      */
     public static int storeVersion(byte[] target, int targetLength, long version, byte[] source, int sourceLength) {
         int offset = 0;
+        int existedMask = 0;
         if(targetLength < 0) {
             assertCapacity(target, overheadLength(1) + sourceLength);
             // Promote to MVV, no original state to preserve
@@ -151,6 +159,7 @@ public class MVV {
                 final int chunkOffset = LENGTH_PER_VERSION + size;
                 curOffset += chunkOffset;
                 if(curVersion == version) {
+                    existedMask = STORE_EXISTED_MASK;
                     if(size == sourceLength) {
                         System.arraycopy(source, 0, target, curOffset - size, sourceLength);
                         return targetLength;
@@ -174,7 +183,7 @@ public class MVV {
         offset += writeValueLength(target, offset, sourceLength);
         System.arraycopy(source, 0, target, offset, sourceLength);
 
-        return offset + sourceLength;
+        return (offset + sourceLength) | existedMask;
     }
 
     /**
@@ -220,8 +229,9 @@ public class MVV {
     public static interface VersionVisitor {
         /**
          * Called before iterating over MVV array. Allows for instance re-use.
+         * @throws PersistitException For errors from concrete implementations.
          */
-        void init();
+        void init() throws PersistitException;
 
         /**
          * Called once, and only once, for each version in the MVV array.
@@ -229,8 +239,9 @@ public class MVV {
          * @param version Version of the stored value
          * @param valueLength Length of stored value
          * @param offset Offset in MVV array to start of stored value
+         * @throws PersistitException For errors from concrete implementations.
          */
-        void sawVersion(long version, int valueLength, int offset);
+        void sawVersion(long version, int valueLength, int offset) throws PersistitException;
     }
 
     /**
@@ -239,8 +250,9 @@ public class MVV {
      * @param visitor FetchVisitor for consuming version info
      * @param source MVV array to search
      * @param sourceLength Consumed length of source
+     * @throws PersistitException For any error coming from <code>visitor</code>
      */
-    public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceLength) {
+    public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceLength) throws PersistitException {
         visitor.init();
         if(sourceLength < 0) {
             // No versions

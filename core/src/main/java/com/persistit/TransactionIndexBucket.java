@@ -249,13 +249,13 @@ public class TransactionIndexBucket {
         return _activeTransactionFloor != _transactionIndex.getActiveTransactionFloor();
     }
 
-    void notifyCompleted(final TransactionStatus status) {
+    void notifyCompleted(final TransactionStatus status, final long timestamp) {
         assert _lock.isHeldByCurrentThread();
         final long ts = status.getTs();
         if (ts >= getFloor()) {
             for (TransactionStatus s = getCurrent(); s != null; s = s.getNext()) {
                 if (s == status) {
-                    s.complete();
+                    s.complete(timestamp);
                     if (s.getTs() == getFloor() || hasFloorMoved()) {
                         reduce();
                     }
@@ -268,32 +268,34 @@ public class TransactionIndexBucket {
                 if (s == status) {
                     final TransactionStatus next = s.getNext();
                     assert s.getTc() != UNCOMMITTED;
-                    s.complete();
+                    s.complete(timestamp);
                     boolean moved = false;
-                    if (s.getTc() > 0) {
-                        aggregate(s, true);
-                        if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
-                            s.setNext(_free);
-                            _free = s;
-                            _freeCount++;
-                        } else {
-                            _droppedCount++;
+                    if (s.getTs() < _activeTransactionFloor) {
+                        if (s.getTc() > 0) {
+                            aggregate(s, true);
+                            if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+                                s.setNext(_free);
+                                _free = s;
+                                _freeCount++;
+                            } else {
+                                _droppedCount++;
+                            }
+                            moved = true;
+                        } else if (s.getTc() == ABORTED) {
+                            aggregate(s, false);
+                            s.setNext(_aborted);
+                            _aborted = s;
+                            _abortedCount++;
+                            moved = true;
                         }
-                        moved = true;
-                    } else if (s.getTc() == ABORTED) {
-                        aggregate(status, false);
-                        s.setNext(_aborted);
-                        _aborted = s;
-                        _abortedCount++;
-                        moved = true;
-                    }
-                    if (moved) {
-                        if (previous == null) {
-                            _longRunning = next;
-                        } else {
-                            previous.setNext(next);
+                        if (moved) {
+                            if (previous == null) {
+                                _longRunning = next;
+                            } else {
+                                previous.setNext(next);
+                            }
+                            _longRunningCount--;
                         }
-                        _longRunningCount--;
                     }
                     return;
                 }
@@ -456,9 +458,8 @@ public class TransactionIndexBucket {
         for (TransactionStatus status = _aborted; status != null;) {
             TransactionStatus next = status.getNext();
             assert status.getTc() == ABORTED;
-            aggregate(status, false);
-
             if (status.getMvvCount() == 0 && status.getTa() < activeTransactionFloor) {
+                aggregate(status, false);
                 if (previous == null) {
                     _aborted = next;
                 } else {
@@ -508,6 +509,7 @@ public class TransactionIndexBucket {
     }
 
     private void aggregate(final TransactionStatus status, boolean committed) {
+        assert _lock.isHeldByCurrentThread();
         for (Delta delta = status.takeDelta(); delta != null; delta = freeDelta(delta)) {
             if (committed) {
                 delta.getAccumulator().aggregate(_hashIndex, delta);
@@ -540,7 +542,7 @@ public class TransactionIndexBucket {
             final long tc = status.getTc();
             if (status.getTs() == timestamp) {
                 for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
-                    if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
+                    if (delta.getAccumulator() == accumulator && (delta.getStep() < step || step == 0)) {
                         value = accumulator.applyValue(value, delta.getValue());
                     }
                 }
@@ -565,8 +567,7 @@ public class TransactionIndexBucket {
         return value;
     }
 
-    void checkpointAccumulatorSnapshots(final long timestamp)
-            throws RetryException, InterruptedException {
+    void checkpointAccumulatorSnapshots(final long timestamp) throws RetryException, InterruptedException {
         assert _lock.isHeldByCurrentThread();
         accumulatorCheckpointHelper(_current, timestamp);
         accumulatorCheckpointHelper(_longRunning, timestamp);

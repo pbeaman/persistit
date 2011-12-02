@@ -22,8 +22,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import junit.framework.TestCase;
 
-import com.persistit.exception.TimeoutException;
-
 public class TransactionIndexTest extends TestCase {
 
     private final TimestampAllocator _tsa = new TimestampAllocator();
@@ -73,21 +71,21 @@ public class TransactionIndexTest extends TestCase {
         assertEquals(TransactionStatus.ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
                 .getCurrentTimestamp(), 0));
         assertEquals(4, ti.getCurrentCount());
-        ti.notifyCompleted(ts1);
+        ti.notifyCompleted(ts1, -ts1.getTc() + 1 );
         /*
          * ts1 committed and not concurrent with ts2
          */
         assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts1.getTs()), ts2.getTs(), 0)));
-        ti.notifyCompleted(ts2);
+        ti.notifyCompleted(ts2, _tsa.updateTimestamp());
         /*
          * ts2 committed but ts4 is concurrent
          */
         assertFalse(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()), ts4.getTs(), 0)));
         ts4.commit(_tsa.updateTimestamp());
-        ti.notifyCompleted(ts3);
+        ti.notifyCompleted(ts3, -ts3.getTc() + 1);
         ti.updateActiveTransactionCache();
 
-        ti.notifyCompleted(ts4);
+        ti.notifyCompleted(ts4, -ts4.getTc() + 1);
         assertEquals(0, ti.getCurrentCount());
         assertEquals(3, ti.getFreeCount());
         assertEquals(1, ti.getAbortedCount());
@@ -109,14 +107,14 @@ public class TransactionIndexTest extends TestCase {
         final TransactionStatus ts1 = ti.registerTransaction();
         final TransactionStatus ts2 = ti.registerTransaction();
         ts1.commit(_tsa.updateTimestamp());
-        ti.notifyCompleted(ts1);
+        ti.notifyCompleted(ts1, _tsa.updateTimestamp());
         /*
          * Should return 0 because ts1 has committed and is now primordial.
          */
         assertTrue(isCommitted(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2, 1000)));
         final TransactionStatus ts3 = ti.registerTransaction();
         ts2.abort();
-        ti.notifyCompleted(ts2);
+        ti.notifyCompleted(ts2, _tsa.updateTimestamp());
         /*
          * Should return false because ts1 and ts3 are not concurrent
          */
@@ -141,7 +139,7 @@ public class TransactionIndexTest extends TestCase {
 
         for (int count = 20; count < 70; count++) {
             array[count].abort();
-            ti.notifyCompleted(array[count]);
+            ti.notifyCompleted(array[count], _tsa.updateTimestamp());
         }
         for (int count = 50; count < 60; count++) {
             array[count].decrementMvvCount();
@@ -152,7 +150,7 @@ public class TransactionIndexTest extends TestCase {
         assertEquals(50, ti.getAbortedCount());
         for (int count = 0; count < 20; count++) {
             array[count].commit(array[20].getTs());
-            ti.notifyCompleted(array[count]);
+            ti.notifyCompleted(array[count], array[20].getTs());
         }
         ti.updateActiveTransactionCache();
         assertEquals(ti.getMaxFreeListSize(), ti.getFreeCount());
@@ -172,8 +170,8 @@ public class TransactionIndexTest extends TestCase {
          * transactions.
          */
         for (int count = 70; count < array.length; count++) {
-            array[count].commit(_tsa.updateTimestamp());
-            ti.notifyCompleted(array[count]);
+            array[count].commit(_tsa.getCurrentTimestamp());
+            ti.notifyCompleted(array[count], _tsa.updateTimestamp());
         }
         /*
          * Compute canonical form.  40 aborted transactions should be
@@ -207,8 +205,6 @@ public class TransactionIndexTest extends TestCase {
                     final long start = System.currentTimeMillis();
                     result.set(ti.wwDependency(TransactionIndex.ts2vh(target.getTs()), source, timeout));
                     elapsed.set(System.currentTimeMillis() - start);
-                } catch (TimeoutException e) {
-                    e.printStackTrace();
                 } catch (IllegalArgumentException e) {
                     e.printStackTrace();
                 } catch (InterruptedException e) {
@@ -219,11 +215,11 @@ public class TransactionIndexTest extends TestCase {
         t.start();
         Thread.sleep(wait);
         if (commit) {
-            target.commit(_tsa.updateTimestamp());
+            target.commit(_tsa.getCurrentTimestamp());
         } else {
             target.abort();
         }
-        ti.notifyCompleted(target);
+        ti.notifyCompleted(target, _tsa.updateTimestamp());
         t.join();
         return result.get() > 0;
     }

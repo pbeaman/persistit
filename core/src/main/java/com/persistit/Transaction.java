@@ -439,7 +439,7 @@ public class Transaction {
                 _persistit.getLogBase().txnNotCommitted.log(new RollbackException());
             }
             _rollbackPending = true;
-            
+
         }
 
         if (_nestedDepth == 0) {
@@ -451,17 +451,11 @@ public class Transaction {
                 _rollbacksSinceLastCommit++;
 
                 // TODO - rollback
-                // Note: A TRX can fail post _transactionStatus.commit() being
-                // called
-                // and that doesn't appear to be handled at the moment. These
-                // two steps
-                // are not fully correct and only ensure no stale status is in
-                // TI
-                if (_transactionStatus.getTc() == TransactionStatus.UNCOMMITTED) {
-                    _transactionStatus.abort();
-                }
+
                 if (!_transactionStatus.isNotified()) {
-                    _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
+                    _transactionStatus.abort();
+                    _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                            _persistit.getTimestampAllocator().getCurrentTimestamp());
                 }
             } else {
                 _commitCount++;
@@ -501,7 +495,8 @@ public class Transaction {
 
         // TODO - rollback
         _transactionStatus.abort();
-        _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
+        _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                _persistit.getTimestampAllocator().getCurrentTimestamp());
     }
 
     /**
@@ -582,11 +577,14 @@ public class Transaction {
             for (Delta delta = _transactionStatus.getDelta(); delta != null; delta = delta.getNext()) {
                 writeDeltaToJournal(delta);
             }
+            _transactionStatus.commit(_persistit.getTimestampAllocator().getCurrentTimestamp());
             _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
-            _transactionStatus.commit(_commitTimestamp);
+            _persistit.getTransactionIndex().notifyCompleted(_transactionStatus, _commitTimestamp);
             try {
-                // TODO - figure out what to do if writes fail - I believe we will want
-                // to mark the transaction status as ABORTED in that case, but need to
+                // TODO - figure out what to do if writes fail - I believe we
+                // will want
+                // to mark the transaction status as ABORTED in that case, but
+                // need to
                 // go look hard at TransactionIndex.
                 //
                 flushTransactionBuffer();
@@ -594,7 +592,7 @@ public class Transaction {
                     _persistit.getJournalManager().force();
                 }
             } finally {
-                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
+                // _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
             }
             _commitCompleted = true;
         }
