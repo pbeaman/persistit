@@ -15,8 +15,6 @@
 
 package com.persistit.unit;
 
-import java.io.File;
-import java.io.FilenameFilter;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
@@ -26,7 +24,6 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.KeyFilter;
-import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
@@ -141,7 +138,7 @@ public class TransactionTest1 extends PersistitUnitTestCase {
             ex.getValue().put("String value #" + i + " for test1");
             ex.clear().append("test1").append(i).store();
         }
-        boolean rollbackThrown = false;
+
         final Transaction txn = ex.getTransaction();
         txn.begin();
         try {
@@ -149,13 +146,9 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                 ex.clear().append("test1").append(i).remove(Key.GTEQ);
             }
             txn.rollback();
-        } catch (final RollbackException rbe) {
-            rollbackThrown = true;
         } finally {
             txn.end();
         }
-
-        assertTrue(rollbackThrown);
 
         for (int i = -1; i < 12; i++) {
             ex.clear().append("test1").append(i).fetch();
@@ -231,20 +224,28 @@ public class TransactionTest1 extends PersistitUnitTestCase {
                     txn.rollback();
                 }
                 txn.commit();
-            } catch (final RollbackException re) {
+            } catch (RollbackException re) {
+                assertEquals(0, i % 2);
             } finally {
                 txn.end();
             }
         }
 
         for (int i = -1; i < 110; i++) {
-            ex.clear().append(i).fetch();
-            final Value value = ex.getValue();
-            if ((i < 0) || (i >= 100) || ((i % 2) == 0)) {
-                assertTrue(!value.isDefined());
-            } else {
-                assertTrue(value.isDefined());
-                assertEquals(value.get(), strValue);
+            final Transaction txn = ex.getTransaction();
+            txn.begin();
+            try {
+                ex.clear().append(i).fetch();
+                final Value value = ex.getValue();
+                if ((i < 0) || (i >= 100) || ((i % 2) == 0)) {
+                    assertTrue(!value.isDefined());
+                } else {
+                    assertTrue(value.isDefined());
+                    assertEquals(value.get(), strValue);
+                }
+                txn.commit();
+            } finally {
+                txn.end();
             }
         }
         System.out.println("- done");

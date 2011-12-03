@@ -208,16 +208,16 @@ public class TransactionIndexConcurrencyTest extends TestCase {
             }
         }
         sometimesSleep(5);
-        long tc = tsa.updateTimestamp();
         if (okay) {
-            txn.status.commit(tc);
+            txn.status.commit(tsa.getCurrentTimestamp());
             commits.incrementAndGet();
         } else {
             txn.status.abort();
             aborts.incrementAndGet();
         }
         sometimesSleep(1);
-        ti.notifyCompleted(txn.status);
+        long tc = tsa.updateTimestamp();
+        ti.notifyCompleted(txn.status, tc);
     }
 
     void prune(final MVV mvv) throws TimeoutException, InterruptedException {

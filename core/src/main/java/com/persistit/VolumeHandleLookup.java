@@ -15,7 +15,6 @@
 
 package com.persistit;
 
-import com.persistit.Volume;
 
 interface VolumeHandleLookup {
 

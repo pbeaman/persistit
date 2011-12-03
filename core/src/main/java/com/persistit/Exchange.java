@@ -187,7 +187,10 @@ public class Exchange {
     }
 
     private static class MvvVisitor implements MVV.VersionVisitor {
-        enum Usage { FETCH, STORE }
+        enum Usage {
+            FETCH, STORE
+        }
+
         private final static long READ_COMMITTED_TS = TransactionStatus.UNCOMMITTED - 1;
 
         private TransactionIndex _ti;
@@ -203,8 +206,8 @@ public class Exchange {
 
         /**
          * @param status
-         *            Status to inspect the versions as. <code>null</code>
-         *            is allowed iff <code>usage</code> is {@link Usage#FETCH},
+         *            Status to inspect the versions as. <code>null</code> is
+         *            allowed iff <code>usage</code> is {@link Usage#FETCH},
          *            which signifies 'read committed' mode.
          * @param step
          *            Current step value associated with <code>status</code>.
@@ -243,29 +246,28 @@ public class Exchange {
                         _offset = offset;
                         _maxVersion = status;
                     }
-                break;
+                    break;
 
                 case STORE:
                     long depends = _ti.wwDependency(version, _status, Persistit.SHORT_DELAY);
                     if (depends != 0 && depends != TransactionStatus.ABORTED) {
                         // version is from concurrent txn that already committed
-                        // or timed out waiting to see. Either way, must abort.
+                        // or timed out waiting to see. Either
+                        // way, must abort.
                         throw new RollbackException();
                     }
                     if (version > _maxVersion) {
                         _maxVersion = version;
                     }
-                break;
+                    break;
                 }
-            }
-            catch (InterruptedException ie) {
+            } catch (InterruptedException ie) {
                 throw new PersistitInterruptedException(ie);
             }
         }
     }
 
     private final MvvVisitor _mvvVisitor;
-    
 
     private Exchange(final Persistit persistit) {
         _persistit = persistit;
@@ -569,22 +571,27 @@ public class Exchange {
      */
     static class StoreOptions {
         /** The default, implies none of the further options **/
-        public static final int NONE            = 0;
+        public static final int NONE = 0;
 
         /** Fetch the current value before replacing **/
-        public static final int FETCH           = 1 << 1;
+        public static final int FETCH = 1 << 1;
 
         /** Use MVCC (store as version or fetch restricted version) **/
-        public static final int MVCC            = 1 << 2;
+        public static final int MVCC = 1 << 2;
 
         /** Block and use for any acquire operation **/
-        public static final int WAIT            = 1 << 3;
+        public static final int WAIT = 1 << 3;
 
         /** Perform the store only if key is currently visible **/
         public static final int ONLY_IF_VISIBLE = 1 << 4;
+
+        /**
+         * Don't write the store operation to the journal - used when storing
+         * AntiValues
+         **/
+        public static final int DONT_JOURNAL = 1 << 5;
     }
 
-    
     /**
      * Delegate to {@link Key#reset} on the associated <code>Key</code> object.
      * 
@@ -1199,7 +1206,8 @@ public class Exchange {
      * @param value
      *            The value to store.
      * @return This <code>Exchange</code> to permit method call chaining.
-     * @throws PersistitException Upon error
+     * @throws PersistitException
+     *             Upon error
      */
     Exchange store(Key key, Value value) throws PersistitException {
         if (_volume.isReadOnly()) {
@@ -1215,16 +1223,18 @@ public class Exchange {
         options |= (!_ignoreTransactions && _transaction.isActive()) ? StoreOptions.MVCC : 0;
         storeInternal(key, value, 0, options);
         _treeHolder.verifyReleased();
-        
+
         return this;
     }
 
     /**
      * Inserts or replaces a data value in the database starting at a specified
      * level and working up toward the root of the tree.
-     *
-     * <p><b>Note: Fetch and MVCC are exclusive options.</b></p>
-     *
+     * 
+     * <p>
+     * <b>Note: Fetch and MVCC are exclusive options.</b>
+     * </p>
+     * 
      * @param key
      *            The key to store.
      * @param value
@@ -1234,18 +1244,23 @@ public class Exchange {
      * @param options
      *            Bit flag integer controlling various internal behavior. See
      *            members of {@link StoreOptions} for details.
-     * @return <code>true</code> if <b>any version</b> of the key already existed
-     * @throws PersistitException uponError
+     * @return <code>true</code> if <b>any version</b> of the key already
+     *         existed
+     * @throws PersistitException
+     *             uponError
      */
     boolean storeInternal(Key key, Value value, int level, int options) throws PersistitException {
-        if((options & StoreOptions.FETCH) > 0 && (options & StoreOptions.MVCC) > 0) {
+        if ((options & StoreOptions.FETCH) > 0 && (options & StoreOptions.MVCC) > 0) {
             throw new IllegalArgumentException("Both fetch and MVCC not supported");
         }
 
         final boolean doAnyFetch = (options & StoreOptions.FETCH) > 0 || (options & StoreOptions.MVCC) > 0;
 
-        Debug.$assert0.t(!doAnyFetch || value != _spareValue);      // spare used for fetch
-        Debug.$assert0.t(key != _spareKey1 && key != _spareKey2);   // spares used for new splits/levels
+        Debug.$assert0.t(!doAnyFetch || value != _spareValue); // spare used for
+                                                               // fetch
+        Debug.$assert0.t(key != _spareKey1 && key != _spareKey2); // spares used
+                                                                  // for new
+                                                                  // splits/levels
 
         boolean treeClaimRequired = false;
         boolean treeClaimAcquired = false;
@@ -1273,10 +1288,6 @@ public class Exchange {
 
         boolean isLongRecord = value.getEncodedSize() > maxSimpleValueSize;
 
-        if (!_ignoreTransactions) {
-            _transaction.store(this, key, value);
-        }
-
         boolean keyExisted = false;
 
         try {
@@ -1286,6 +1297,10 @@ public class Exchange {
                 // be called when there are no other claimed resources.
                 //
                 newLongRecordPointer = storeOverlengthRecord(value, 0);
+            }
+
+            if (!_ignoreTransactions && ((options & StoreOptions.DONT_JOURNAL) == 0)) {
+                _transaction.store(this, key, value);
             }
 
             Value valueToStore = value;
@@ -1363,7 +1378,8 @@ public class Exchange {
                             valueToStore = _spareValue;
                             int valueSize = value.getEncodedSize();
 
-                            // If key didn't exist the value is truly non-existent
+                            // If key didn't exist the value is truly
+                            // non-existent
                             // and not just undefined/zero length
                             byte[] spareBytes = _spareValue.getEncodedBytes();
                             int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
@@ -1371,7 +1387,8 @@ public class Exchange {
 
                             if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
                                 // Could be streamlined as a single visit of all
-                                // versions, but current TI interface would still
+                                // versions, but current TI interface would
+                                // still
                                 // require calls to both commitStatus() and
                                 // wwDependency() (which are the costly parts)
                                 _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
@@ -1390,7 +1407,7 @@ public class Exchange {
 
                             long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
                             int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), spareSize,
-                                                                versionHandle, value.getEncodedBytes(), valueSize);
+                                    versionHandle, value.getEncodedBytes(), valueSize);
 
                             if ((storedLength & MVV.STORE_EXISTED_MASK) == 0) {
                                 tStatus.incrementMvvCount();
@@ -1449,6 +1466,9 @@ public class Exchange {
                             _tree.bumpChangeCount();
                         }
                         committed = true;
+                        if ((options & StoreOptions.MVCC) != 0) {
+                            _transaction.getTransactionStatus().incrementMvvCount();
+                        }
                     }
 
                     buffer.releaseTouched();
@@ -1481,7 +1501,8 @@ public class Exchange {
                         //
                         level++;
                         //
-                        // Just inserted index level, should not have had long MVV
+                        // Just inserted index level, should not have had long
+                        // MVV
                         //
                         Debug.$assert0.t(newLongRecordPointerMVV == 0);
                         continue;
@@ -1816,7 +1837,7 @@ public class Exchange {
         final boolean reverse = (direction == LT) || (direction == LTEQ);
         final Value outValue = doFetch ? _value : _spareValue;
         outValue.clear();
-        
+
         Buffer buffer = null;
         boolean edge = direction == EQ || direction == GTEQ || direction == LTEQ;
         boolean nudged = false;
@@ -1939,7 +1960,8 @@ public class Exchange {
                     }
                 }
 
-                // Original search loop end, MVCC must also inspect value before finishing
+                // Original search loop end, MVCC must also inspect value before
+                // finishing
 
                 if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
                     // None
@@ -1971,19 +1993,22 @@ public class Exchange {
                             if (index > 0) {
                                 boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
                                 //
-                                // In any case (matching sibling, child or niece/nephew) we need to ignore this
-                                // particular key and continue search if not visible to current transaction
+                                // In any case (matching sibling, child or
+                                // niece/nephew) we need to ignore this
+                                // particular key and continue search if not
+                                // visible to current transaction
                                 //
-                                if(!isVisibleMatch) {
+                                if (!isVisibleMatch) {
                                     nudged = false;
                                     _key.copyTo(_spareKey1);
                                     nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
                                     continue;
                                 }
                                 //
-                                // It was a niece or nephew, record non-exact match
+                                // It was a niece or nephew, record non-exact
+                                // match
                                 //
-                                if(index != _key.getEncodedSize()) {
+                                if (index != _key.getEncodedSize()) {
                                     foundAt &= ~EXACT_MASK;
                                 }
                             } else {
@@ -1995,12 +2020,12 @@ public class Exchange {
 
                 if (doModify) {
                     if (matches) {
-                        if(_key.getEncodedSize() == index){
+                        if (_key.getEncodedSize() == index) {
                             lc.update(buffer, _key, foundAt);
-                        }
-                        else {
+                        } else {
                             //
-                            // Parent key determined from seeing a child or niece/nephew, need to fetch the actual
+                            // Parent key determined from seeing a child or
+                            // niece/nephew, need to fetch the actual
                             // value of this key before returning
                             //
                             _key.setEncodedSize(index);
@@ -2431,10 +2456,10 @@ public class Exchange {
 
     /**
      * Fetch a single version of a value from a <code>Buffer</code> that is
-     * assumed, but not required, to be an MVV. The correct version is determined
-     * by the current transactions start timestamp. If no transaction is active,
-     * the highest committed version is returned.
-     *
+     * assumed, but not required, to be an MVV. The correct version is
+     * determined by the current transactions start timestamp. If no transaction
+     * is active, the highest committed version is returned.
+     * 
      * @param buffer
      *            The <code>Buffer</code> where the value is stored in.
      * @param value
@@ -2446,17 +2471,18 @@ public class Exchange {
      *            The minimum number of bytes to copy into <code>value</code>.
      *            Note this only affects the final contents, not the amount of
      *            the internal MVV that was copied.
-     * @return <code>true</code> if a version was visible, <code>false</code> otherwise.
-     * @throws PersistitException for any internal error
+     * @return <code>true</code> if a version was visible, <code>false</code>
+     *         otherwise.
+     * @throws PersistitException
+     *             for any internal error
      */
     private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
         buffer.fetch(foundAt, value);
 
-        if(_ignoreMVCCFetch) {
+        if (_ignoreMVCCFetch) {
             fetchFixupForLongRecords(value, minimumBytes);
             return true;
-        }
-        else {
+        } else {
             fetchFixupForLongRecords(value, Integer.MAX_VALUE);
         }
 
@@ -2466,19 +2492,18 @@ public class Exchange {
         int valueSize = value.getEncodedSize();
         byte[] valueBytes = value.getEncodedBytes();
         MVV.visitAllVersions(_mvvVisitor, valueBytes, valueSize);
-        
-        if(_mvvVisitor.foundVersion()) {
+
+        if (_mvvVisitor.foundVersion()) {
             int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _mvvVisitor.getOffset(), valueBytes);
             value.setEncodedSize(finalSize);
             fetchFixupForLongRecords(value, Integer.MAX_VALUE);
-            if(value.isDefined() && value.isAntiValue()) {
+            if (value.isDefined() && value.isAntiValue()) {
                 value.clear();
                 return false;
             }
             return true;
-        }
-        else {
-            if(minimumBytes > 0) {
+        } else {
+            if (minimumBytes > 0) {
                 value.clear();
             }
             return false;
@@ -2752,7 +2777,7 @@ public class Exchange {
      * Removes all records with keys falling between <code>key1</code> and
      * </code>key2</code>, lefty-inclusive. Validity checks and Key value
      * adjustments have been done by caller - this method does the work.
-     *
+     * 
      * @param key1
      *            Key that is less than or equal to the leftmost to be removed
      * @param key2
@@ -2768,35 +2793,39 @@ public class Exchange {
         Debug.$assert0.t(key2.getEncodedSize() > 0);
         Debug.$assert0.t(key1.compareTo(key2) < 0);
 
-        if(_ignoreTransactions || !_transaction.isActive()) {
+        if (_ignoreTransactions || !_transaction.isActive()) {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst);
         }
 
+        // Record the delete operation on the journal
         _persistit.checkClosed();
+
+        _transaction.remove(this, key1, key2);
+
         checkLevelCache();
 
         _value.clear().putAntiValueMVV();
-        final int storeOptions = StoreOptions.MVCC | StoreOptions.WAIT | StoreOptions.ONLY_IF_VISIBLE;
+        final int storeOptions = StoreOptions.MVCC | StoreOptions.WAIT | StoreOptions.ONLY_IF_VISIBLE
+                | StoreOptions.DONT_JOURNAL;
 
         boolean anyRemoved = false;
         boolean keyIsLessThan = true;
-        while(keyIsLessThan && !key1.isRightEdge()) {
+        while (keyIsLessThan && !key1.isRightEdge()) {
             Buffer buffer = null;
             try {
                 int foundAt = search(key1, true);
                 buffer = _levelCache[0]._buffer;
 
-                while(!buffer.isAfterRightEdge(foundAt)) {
+                while (!buffer.isAfterRightEdge(foundAt)) {
                     keyIsLessThan = key1.compareTo(key2) < 0;
-                    if(!keyIsLessThan) {
+                    if (!keyIsLessThan) {
                         break;
                     }
                     anyRemoved |= storeInternal(key1, _value, 0, storeOptions);
                     foundAt = buffer.nextKey(key1, foundAt);
                 }
-            }
-            finally {
-                if(buffer != null) {
+            } finally {
+                if (buffer != null) {
                     buffer.releaseTouched();
                     buffer = null;
                 }
@@ -3403,6 +3432,7 @@ public class Exchange {
         Buffer buffer = null;
         int offset = from + (((longSize - from - 1) / maxSegmentSize) * maxSegmentSize);
         final long timestamp = timestamp();
+        final boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         try {
             for (;;) {
                 while (offset >= from) {
@@ -3426,6 +3456,9 @@ public class Exchange {
                     buffer.setRightSibling(looseChain);
                     looseChain = buffer.getPageAddress();
                     buffer.setDirtyAtTimestamp(timestamp);
+                    if (inTxn) {
+                        buffer.writePage();
+                    }
                     buffer.releaseTouched();
                     offset -= maxSegmentSize;
                     buffer = null;
@@ -3434,6 +3467,7 @@ public class Exchange {
                 long page = looseChain;
                 looseChain = 0;
                 Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
+
                 completed = true;
                 return page;
             }
@@ -3473,13 +3507,15 @@ public class Exchange {
      * Allows for all MVV contents to be returned through the Value object
      * during fetch. This can then be displayed conveniently through
      * {@link Value#toString()} or as an array from {@link Value#get()}.
-     * @param doIgnore If <code>true</code> return MVVs as described
-     *            otherwise return the appropriate single version.
+     * 
+     * @param doIgnore
+     *            If <code>true</code> return MVVs as described otherwise return
+     *            the appropriate single version.
      */
     void ignoreMVCCFetch(boolean doIgnore) {
         _ignoreMVCCFetch = doIgnore;
     }
-    
+
     void ignoreTransactions() {
         _ignoreTransactions = true;
     }

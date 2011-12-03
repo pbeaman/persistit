@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.persistit.Accumulator.Delta;
 import com.persistit.exception.TimeoutException;
 
 public class TransactionStatus {
@@ -110,6 +111,13 @@ public class TransactionStatus {
      * deadlock detection.)
      */
     private volatile TransactionStatus _depends;
+
+    /**
+     * Pointer to first member of a list of Delta instances contributed through
+     * the associated transaction.
+     */
+    private volatile Delta _delta;
+
     /**
      * Indicates whether the transaction has called
      * {@link TransactionIndexBucket#notifyCompleted(long)}. Until then the
@@ -197,7 +205,7 @@ public class TransactionStatus {
      * @param timestamp
      */
     void commit(final long timestamp) {
-        if (timestamp <= _ts || timestamp == UNCOMMITTED) {
+        if (timestamp < _ts || timestamp == UNCOMMITTED) {
             throw new IllegalArgumentException("Attempt to commit before start: " + this);
         }
         if (_tc != UNCOMMITTED) {
@@ -213,14 +221,39 @@ public class TransactionStatus {
         _tc = ABORTED;
     }
 
-    void complete() {
-        if (_tc > 0) {
+    void complete(final long timestamp) {
+        if (_tc > 0 || -_tc > timestamp) {
             throw new IllegalStateException("Transaction not ready to complete: " + this);
         }
         if (_tc < 0 && _tc != ABORTED) {
-            _tc = -_tc;
+            _tc = timestamp;
         }
         _notified = true;
+    }
+
+    Delta getDelta() {
+        return _delta;
+    }
+
+    void addDelta(final Delta delta) {
+        delta.setNext(_delta);
+        _delta = delta;
+    }
+
+    Delta takeDelta() {
+        final Delta delta = _delta;
+        _delta = null;
+        return delta;
+    }
+
+    long accumulate(final long value, final Accumulator accumulator, final int step) {
+        long result = value;
+        for (Delta delta = _delta; delta != null; delta = delta.getNext()) {
+            if (delta.getAccumulator() == accumulator && delta.getStep() < step) {
+                result = accumulator.applyValue(result, delta.getValue());
+            }
+        }
+        return result;
     }
 
     /**
@@ -309,11 +342,12 @@ public class TransactionStatus {
      * @throws InterruptedException
      * @throws TimeoutException
      */
-    void initialize(final long ts) throws InterruptedException, TimeoutException {
+    void initialize(final long ts) {
         _ts = ts;
         _tc = UNCOMMITTED;
         _ta = PRIMORDIAL;
         _next = null;
+        _delta = null;
         _mvvCount.set(0);
         _notified = false;
     }

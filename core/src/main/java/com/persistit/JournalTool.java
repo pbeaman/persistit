@@ -36,7 +36,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.persistit.JournalRecord.CP;
-import com.persistit.JournalRecord.CU;
+import com.persistit.JournalRecord.D0;
+import com.persistit.JournalRecord.D1;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.IT;
@@ -48,7 +49,6 @@ import com.persistit.JournalRecord.PM;
 import com.persistit.JournalRecord.SR;
 import com.persistit.JournalRecord.TM;
 import com.persistit.JournalRecord.TX;
-import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -222,7 +222,9 @@ public class JournalTool {
 
         public void tm(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void cu(final long address, final long timestamp, final int recordSize) throws Exception;
+        public void d0(final long address, final long timestamp, final int recordSize) throws Exception;
+
+        public void d1(final long address, final long timestamp, final int recordSize) throws Exception;
 
         public void eof(final long address) throws Exception;
     }
@@ -513,9 +515,15 @@ public class JournalTool {
             }
             break;
 
-        case CU.TYPE:
+        case D0.TYPE:
             if (_selectedTypes.get(type) && _selectedTimestamps.isSelected(timestamp)) {
-                _action.cu(address, timestamp, recordSize);
+                _action.d0(address, timestamp, recordSize);
+            }
+            break;
+
+        case D1.TYPE:
+            if (_selectedTypes.get(type) && _selectedTimestamps.isSelected(timestamp)) {
+                _action.d1(address, timestamp, recordSize);
             }
             break;
 
@@ -560,11 +568,11 @@ public class JournalTool {
             try {
                 final FileChannel fc = getFileChannel(address);
                 _readBuffer.clear();
-                
+
                 int maxSize = _readBuffer.capacity();
-                long remainingInBlock =addressUp(address) - address;
+                long remainingInBlock = addressUp(address) - address;
                 if (remainingInBlock < maxSize) {
-                    maxSize = (int)remainingInBlock;
+                    maxSize = (int) remainingInBlock;
                 }
 
                 _readBuffer.limit(maxSize);
@@ -855,29 +863,23 @@ public class JournalTool {
         }
 
         @Override
-        public void cu(long address, long timestamp, int recordSize) throws Exception {
+        public void d0(long address, long timestamp, int recordSize) throws Exception {
             read(address, recordSize);
             start(address, timestamp, "CU", recordSize);
-            int start = _readBuffer.position();
-            final long cacheId = CU.getCacheId(_readBuffer);
-            final TransactionalCache tc = _persistit.getTransactionalCache(cacheId);
-            if (tc == null) {
-                appendf(" cacheId %d is undefined", cacheId);
-            } else {
-                appendf(" cacheId %d: ", cacheId);
-                _readBuffer.position(start + CU.OVERHEAD);
-                final int end = start + recordSize;
-                while (_readBuffer.position() < end) {
-                    final byte opCode = _readBuffer.get();
-                    if (opCode == 0) {
-                        appendf(" <saved>");
-                    } else {
-                        final Update update = tc.createUpdate(opCode);
-                        update.readArgs(_readBuffer);
-                        appendf(" %s", update);
-                    }
-                }
-            }
+            final int thandle = D0.getTreeHandle(_readBuffer);
+            final int index = D0.getIndex(_readBuffer);
+            appendf(" tree %05d index %2d value %,5d", thandle, index, 1);
+            end();
+        }
+
+        @Override
+        public void d1(long address, long timestamp, int recordSize) throws Exception {
+            read(address, recordSize);
+            start(address, timestamp, "CU", recordSize);
+            final int thandle = D1.getTreeHandle(_readBuffer);
+            final int index = D1.getIndex(_readBuffer);
+            final long value = D1.getValue(_readBuffer);
+            appendf(" tree %05d index %2d value %,5d", thandle, index, value);
             end();
         }
 

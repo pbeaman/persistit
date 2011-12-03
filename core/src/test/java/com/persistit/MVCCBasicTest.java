@@ -15,14 +15,14 @@
 
 package com.persistit;
 
-import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.TreeSet;
+
+import com.persistit.exception.PersistitException;
+import com.persistit.unit.PersistitUnitTestCase;
 
 public class MVCCBasicTest extends PersistitUnitTestCase {
     private static final String VOL_NAME = "persistit";
@@ -50,18 +50,20 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     }
 
     public final void tearDown() throws Exception {
-        final Volume vol = ex1.getVolume();
-        assertEquals("open read claims",  0, _persistit.getBufferPool(vol.getPageSize()).countInUse(vol, false));
-        assertEquals("open write claims", 0, _persistit.getBufferPool(vol.getPageSize()).countInUse(vol, true));
-        
-        _persistit.releaseExchange(ex1);
-        _persistit.releaseExchange(ex2);
-        ex1 = ex2 = null;
-        trx1 = trx2 = null;
-        session1 = session2 = null;
-        super.tearDown();
-    }
+        try {
+            final Volume vol = ex1.getVolume();
+            assertEquals("open read claims", 0, _persistit.getBufferPool(vol.getPageSize()).countInUse(vol, false));
+            assertEquals("open write claims", 0, _persistit.getBufferPool(vol.getPageSize()).countInUse(vol, true));
 
+            _persistit.releaseExchange(ex1);
+            _persistit.releaseExchange(ex2);
+            ex1 = ex2 = null;
+            trx1 = trx2 = null;
+            session1 = session2 = null;
+        } finally {
+            super.tearDown();
+        }
+    }
 
     public void testTwoTrxDifferentTimestamps() throws PersistitException {
         trx1.begin();
@@ -70,21 +72,19 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             assertFalse("differing start timestamps", trx1.getStartTimestamp() == trx2.getStartTimestamp());
             trx1.commit();
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
             trx2.end();
         }
     }
-    
+
     public void testSingleTrxWriteAndRead() throws Exception {
         trx1.begin();
         try {
             store(ex1, KEY1, VALUE1);
             assertEquals("fetch before commit", VALUE1, fetch(ex1, KEY1));
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -92,8 +92,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         try {
             assertEquals("fetch after commit", VALUE1, fetch(ex1, KEY1));
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
@@ -117,8 +116,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             assertFalse("trx2 sees committed trx1 from future", ex2.getValue().isDefined());
 
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
             trx2.end();
         }
@@ -134,8 +132,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             assertEquals("original trx1 value from new trx2", VALUE1, fetch(ex2, KEY1));
             assertEquals("original trx2 value from new trx2", VALUE2, fetch(ex2, KEY2));
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
             trx2.end();
         }
@@ -145,25 +142,23 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         // Enough for a new index level and many splits
         final int INSERT_COUNT = 5000;
 
-        for(int i = 0; i < INSERT_COUNT; ++i) {
+        for (int i = 0; i < INSERT_COUNT; ++i) {
             trx1.begin();
             try {
                 store(ex1, i, i * 2);
                 trx1.commit();
-            }
-            finally {
+            } finally {
                 trx1.end();
             }
         }
 
         trx1.begin();
         try {
-            for(int i = 0; i < INSERT_COUNT; ++i) {
-                assertEquals(i*2, fetch(ex1, i));
+            for (int i = 0; i < INSERT_COUNT; ++i) {
+                assertEquals(i * 2, fetch(ex1, i));
             }
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
@@ -172,7 +167,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         final int VERSIONS_TO_STORE = 5;
         final String longStr = createString(ex1.getVolume().getPageSize());
 
-        for(int curVer = 0; curVer < VERSIONS_TO_STORE; ++curVer) {
+        for (int curVer = 0; curVer < VERSIONS_TO_STORE; ++curVer) {
             trx1.begin();
             try {
                 store(ex1, curVer, longStr);
@@ -181,21 +176,19 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
                 assertEquals("key after fetch pre-commit", curVer, ex1.getKey().decodeInt());
                 assertEquals("value after fetch pre-commit", longStr, ex1.getValue().getString());
                 trx1.commit();
-            }
-            finally {
+            } finally {
                 trx1.end();
             }
         }
 
-        for(int curVer = 0; curVer < VERSIONS_TO_STORE; ++curVer) {
+        for (int curVer = 0; curVer < VERSIONS_TO_STORE; ++curVer) {
             trx1.begin();
             try {
                 fetch(ex1, curVer, false);
                 assertEquals("fetched key post-commit", curVer, ex1.getKey().decodeInt());
                 assertEquals("fetched value post-commit", longStr, ex1.getValue().getString());
                 trx1.commit();
-            }
-            finally {
+            } finally {
                 trx1.end();
             }
         }
@@ -208,9 +201,9 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     public void testLongMVVFromManySmall() throws Exception {
         final int PER_LENGTH = 250;
         final String smallStr = createString(PER_LENGTH);
-        final int versionCount = (int)((ex1.getVolume().getPageSize() / PER_LENGTH) * 1.1);
+        final int versionCount = (int) ((ex1.getVolume().getPageSize() / PER_LENGTH) * 1.1);
 
-        for(int i = 1; i <= versionCount; ++i) {
+        for (int i = 1; i <= versionCount; ++i) {
             trx1.begin();
             try {
                 final String value = smallStr + i;
@@ -218,12 +211,11 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
                 assertEquals("value pre-commit version " + i, value, fetch(ex1, KEY1));
                 trx1.commit();
                 trx1.end();
-                
+
                 trx1.begin();
                 assertEquals("value post-commit version " + i, value, fetch(ex1, KEY1));
                 trx1.commit();
-            }
-            finally {
+            } finally {
                 trx1.end();
             }
         }
@@ -237,18 +229,13 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     public void testLongMVVFromManySmallAndLong() throws Exception {
         final int pageSize = ex1.getVolume().getPageSize();
         final String longStr = createString(pageSize);
-        final double[] valueLengths = {
-                pageSize*0.05, 10,
-                pageSize*0.80, 0,
-                pageSize*0.20, 25,
-                pageSize*0.40, 10,
-                pageSize*0.10, 45,
-        };
+        final double[] valueLengths = { pageSize * 0.05, 10, pageSize * 0.80, 0, pageSize * 0.20, 25, pageSize * 0.40,
+                10, pageSize * 0.10, 45, };
 
-        for(int i = 0; i < valueLengths.length; ++i) {
+        for (int i = 0; i < valueLengths.length; ++i) {
             trx1.begin();
             try {
-                final int length = (int)valueLengths[i];
+                final int length = (int) valueLengths[i];
                 final String value = longStr.substring(0, length);
                 store(ex1, KEY1, value);
                 assertEquals("value pre-commit version " + i, value, fetch(ex1, KEY1));
@@ -258,8 +245,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
                 trx1.begin();
                 assertEquals("value post-commit version " + i, value, fetch(ex1, KEY1));
                 trx1.commit();
-            }
-            finally {
+            } finally {
                 trx1.end();
             }
         }
@@ -274,11 +260,10 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
             assertFalse("trx1 sees uncommitted trx2 key", ex1.clear().append("trx2").isValueDefined());
             assertFalse("trx2 sees uncommitted trx2 key", ex2.clear().append("trx1").isValueDefined());
-            
+
             trx1.commit();
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -287,8 +272,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             assertTrue("committed trx1 key", ex1.clear().append("trx1").isValueDefined());
             assertTrue("committed trx2 key", ex1.clear().append("trx2").isValueDefined());
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
@@ -299,8 +283,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         try {
             storeAll(ex1, baseList);
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -332,8 +315,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
             trx1.commit();
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
             trx2.end();
         }
@@ -344,10 +326,9 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             assertEquals("final forward,shallow traversal", fList, traverseAllFoward(ex1, false));
             Collections.reverse(fList);
             assertEquals("final reverse,shallow traversal", fList, traverseAllReverse(ex1, false));
-            
+
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
@@ -359,8 +340,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         try {
             storeAll(ex1, baseList);
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -387,8 +367,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
             trx1.commit();
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
             trx2.end();
         }
@@ -402,91 +381,90 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             assertEquals("final reverse,deep traversal", fList, traverseAllReverse(ex1, true));
 
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
 
     public void testTwoTrxManyTraverseManyKeys() throws Exception {
         final int MIN_PAGES = 6;
-        final int MAX_KV_PER_PAGE = ex1.getVolume().getPageSize() / (8 + 14); // ##,trxX  =>  MVV,VER,LEN,##
+        final int MAX_KV_PER_PAGE = ex1.getVolume().getPageSize() / (8 + 14); // ##,trxX
+                                                                              // =>
+                                                                              // MVV,VER,LEN,##
         final int KVS_PER_TRX = (MIN_PAGES * MAX_KV_PER_PAGE) / 2;
         final int TOTAL_KVS = KVS_PER_TRX * 2;
 
         trx1.begin();
         trx2.begin();
         try {
-            for(int i = 0; i < TOTAL_KVS; ++i) {
-                if(i % 2 == 0) {
+            for (int i = 0; i < TOTAL_KVS; ++i) {
+                if (i % 2 == 0) {
                     store(ex1, i, "trx1", i);
-                }
-                else {
+                } else {
                     store(ex2, i, "trx2", i);
                 }
             }
 
-            Exchange[] exchanges = {ex1, ex1};
-            Key.Direction[] directions = {Key.GT, Key.LT};
-            boolean[] deepFlags = {true, false};
+            Exchange[] exchanges = { ex1, ex1 };
+            Key.Direction[] directions = { Key.GT, Key.LT };
+            boolean[] deepFlags = { true, false };
 
-            for(Exchange ex : exchanges) {
+            for (Exchange ex : exchanges) {
                 final String expectedSeg2 = (ex == ex1) ? "trx1" : "trx2";
                 final Key key = ex.getKey();
                 final Value value = ex.getValue();
 
-                for(Key.Direction dir : directions) {
+                for (Key.Direction dir : directions) {
                     final Key.EdgeValue startEdge = (dir == Key.GT) ? Key.BEFORE : Key.AFTER;
 
-                    for(boolean deep : deepFlags) {
+                    for (boolean deep : deepFlags) {
                         final String desc = expectedSeg2 + " " + dir + " " + (deep ? "deep" : "shallow") + ", ";
 
                         int traverseCount = 0;
                         ex.clear().append(startEdge);
-                        while(ex.traverse(dir, deep)) {
+                        while (ex.traverse(dir, deep)) {
                             ++traverseCount;
-                            if(deep) {
+                            if (deep) {
                                 assertEquals(desc + "key depth", 2, key.getDepth());
                                 int keySeg1 = key.indexTo(0).decodeInt();
                                 String keySeg2 = key.indexTo(1).decodeString();
                                 int val = value.getInt();
                                 assertEquals(desc + "key seg1 equals value", keySeg1, val);
                                 assertEquals(desc + "key seg2", expectedSeg2, keySeg2);
-                            }
-                            else {
+                            } else {
                                 assertEquals(desc + "key depth", 1, key.getDepth());
                                 assertEquals(desc + "value defined", false, value.isDefined());
                             }
                         }
 
-                        assertEquals(desc+"traverse count", KVS_PER_TRX, traverseCount);
+                        assertEquals(desc + "traverse count", KVS_PER_TRX, traverseCount);
                     }
                 }
             }
 
             trx1.commit();
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
             trx2.end();
         }
     }
 
     /*
-     * Simple sanity check as KeyFilter inspects the keys but doesn't care, directly, about MVCC
+     * Simple sanity check as KeyFilter inspects the keys but doesn't care,
+     * directly, about MVCC
      */
     public void testKeyFilterTraverseTwoTrx() throws Exception {
         trx1.begin();
         trx2.begin();
         try {
-            List<KVPair> trx1List = kvList("a","A",  "c","C",  "e","E",  "f","f",  "i","I");
-            List<KVPair> trx2List = kvList("b","B",  "d","D",  "g","G",  "h","H",  "j","J");
+            List<KVPair> trx1List = kvList("a", "A", "c", "C", "e", "E", "f", "f", "i", "I");
+            List<KVPair> trx2List = kvList("b", "B", "d", "D", "g", "G", "h", "H", "j", "J");
 
             storeAll(ex1, trx1List);
             storeAll(ex2, trx2List);
 
-            KeyFilter filter = new KeyFilter(new KeyFilter.Term[]{ KeyFilter.rangeTerm("b", "i") });
+            KeyFilter filter = new KeyFilter(new KeyFilter.Term[] { KeyFilter.rangeTerm("b", "i") });
             trx1List.remove(0);
             trx2List.remove(trx2List.size() - 1);
 
@@ -501,8 +479,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
             trx1.commit();
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
@@ -522,8 +499,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             assertEquals("reverse traversal", kvList, traverseAllReverse(ex1, false));
 
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
@@ -543,8 +519,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             assertFalse("key defined post-remove pre-commit", ex1.isValueDefined());
 
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -557,20 +532,18 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             assertFalse("key defined post-remove pre-commit", ex1.isValueDefined());
 
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
 
     public void testTwoTrxRemoveRanges() throws Exception {
-        List<KVPair> bothList = kvList("a","A",  "m","M",  "z","Z");
+        List<KVPair> bothList = kvList("a", "A", "m", "M", "z", "Z");
         trx1.begin();
         try {
             storeAll(ex1, bothList);
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -580,7 +553,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         trx1.begin();
         trx2.begin();
         try {
-            List<KVPair> trx1List1 = kvList("b","B",  "e","e",  "f","f",  "x","X");
+            List<KVPair> trx1List1 = kvList("b", "B", "e", "e", "f", "f", "x", "X");
             storeAll(ex1, trx1List1);
 
             List<KVPair> trx2List = kvList("d","D",  "n","N",  "v","V",  "y","Y");
@@ -593,9 +566,10 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             kb.clear().append("v");
             assertTrue("trx1 keys removed", ex1.removeKeyRange(ka, kb));
 
-            List<KVPair> trx1List2 = kvList("a","A",  "x","X",  "z","Z");
+            List<KVPair> trx1List2 = kvList("a", "A", "x", "X", "z", "Z");
             assertEquals("trx1 traverse post removeKeyRange", trx1List2, traverseAllFoward(ex1, true));
-            assertEquals("trx2 traverse post trx1 removeKeyRange", combine(bothList, trx2List), traverseAllFoward(ex2, true));
+            assertEquals("trx2 traverse post trx1 removeKeyRange", combine(bothList, trx2List), traverseAllFoward(ex2,
+                    true));
 
             ka.clear().append("n");
             kb.clear().append(Key.AFTER);
@@ -605,8 +579,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
             trx1.commit();
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
             trx2.end();
         }
@@ -615,8 +588,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         try {
             assertEquals("traverse post-commit", kvList("a","A",  "d","D",  "x","X"), traverseAllFoward(ex1, true));
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
@@ -639,13 +611,12 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
     private void insertRemoveAllAndVerify(int keyCount) throws Exception {
         trx1.begin();
         try {
-            for(int i = 0; i < keyCount; ++i) {
+            for (int i = 0; i < keyCount; ++i) {
                 ex1.getValue().clear();
                 ex1.clear().append(String.format("%05d", i)).store();
             }
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -655,8 +626,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
             ex1.removeAll();
             assertEquals("traversed count post-remove pre-commit", 0, traverseAllFoward(ex1, true).size());
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -664,17 +634,14 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         try {
             assertEquals("traverse post-remove post-commit", 0, traverseAllFoward(ex1, true).size());
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
 
-
     //
     // Internal test methods
     //
-    
 
     private static class KVPair implements Comparable<KVPair> {
         Object k1, k2, v;
@@ -687,7 +654,7 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
         @Override
         public String toString() {
-            if(k2 == null) {
+            if (k2 == null) {
                 return String.format("%s->%s", k1, v);
             }
             return String.format("%s,%s->%s", k1, k2, v);
@@ -695,17 +662,19 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
         @Override
         public boolean equals(Object o) {
-            if(this == o) return true;
-            if(!(o instanceof KVPair)) return false;
+            if (this == o)
+                return true;
+            if (!(o instanceof KVPair))
+                return false;
             KVPair rhs = (KVPair) o;
             return k1.equals(rhs.k1) && !(k2 != null ? !k2.equals(rhs.k2) : rhs.k2 != null) && v.equals(rhs.v);
 
         }
 
-        @SuppressWarnings({"unchecked"})
+        @SuppressWarnings({ "unchecked" })
         @Override
         public int compareTo(KVPair kvPair) {
-            if(!(k1 instanceof Comparable)) {
+            if (!(k1 instanceof Comparable)) {
                 throw new IllegalArgumentException("Not comparable: " + k1);
             }
             int comp = ((Comparable)k1).compareTo(kvPair.k1);
@@ -716,18 +685,18 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         }
     }
 
-    private static Object[] arr(Object ...values) {
+    private static Object[] arr(Object... values) {
         return values;
     }
 
     private static String createString(int exactLength) {
         StringBuilder sb = new StringBuilder(exactLength);
         // Simple 0..9a..z string
-        for(int i = 0; i < 36; ++i) {
+        for (int i = 0; i < 36; ++i) {
             sb.append(Character.forDigit(i, 36));
         }
         final String numAndLetters = sb.toString();
-        while(sb.length() < exactLength) {
+        while (sb.length() < exactLength) {
             sb.append(numAndLetters);
         }
         return sb.toString().substring(0, exactLength);
@@ -735,10 +704,15 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
 
     private static void addTraverseResult(Collection<KVPair> collection, Key key, Value value) {
         Object k1, k2 = null;
-        switch(key.getDepth()) {
-            default: throw new IllegalArgumentException("Unexpected key depth: " + key.getDepth());
-            case 2: key.indexTo(1); k2 = key.decode();
-            case 1: key.indexTo(0); k1 = key.decode();
+        switch (key.getDepth()) {
+        default:
+            throw new IllegalArgumentException("Unexpected key depth: " + key.getDepth());
+        case 2:
+            key.indexTo(1);
+            k2 = key.decode();
+        case 1:
+            key.indexTo(0);
+            k1 = key.decode();
         }
         Object v = value.isDefined() ? value.get() : "UD";
         collection.add(new KVPair(k1, k2, v));
@@ -752,55 +726,56 @@ public class MVCCBasicTest extends PersistitUnitTestCase {
         return doTraverse(Key.AFTER, e, Key.LT, deep);
     }
 
-    private static List<KVPair> doTraverse(Key.EdgeValue startAt, Exchange ex, Key.Direction dir, KeyFilter filter) throws Exception {
+    private static List<KVPair> doTraverse(Key.EdgeValue startAt, Exchange ex, Key.Direction dir, KeyFilter filter)
+            throws Exception {
         ex.clear().append(startAt);
         List<KVPair> out = new ArrayList<KVPair>();
-        while(ex.traverse(dir, filter, Integer.MAX_VALUE)) {
+        while (ex.traverse(dir, filter, Integer.MAX_VALUE)) {
             addTraverseResult(out, ex.getKey(), ex.getValue());
         }
         return out;
     }
 
-    private static List<KVPair> doTraverse(Key.EdgeValue startAt, Exchange e, Key.Direction dir, boolean deep) throws Exception {
+    private static List<KVPair> doTraverse(Key.EdgeValue startAt, Exchange e, Key.Direction dir, boolean deep)
+            throws Exception {
         e.clear().append(startAt);
         List<KVPair> out = new ArrayList<KVPair>();
-        while(e.traverse(dir,  deep)) {
+        while (e.traverse(dir, deep)) {
             addTraverseResult(out, e.getKey(), e.getValue());
         }
         return out;
     }
 
     private static List<KVPair> kvList(Object... values) {
-        if((values.length % 2) != 0) {
+        if ((values.length % 2) != 0) {
             throw new IllegalArgumentException("Must be even number of objects to create pairs from");
         }
         List<KVPair> out = new ArrayList<KVPair>();
-        for(int i = 0; i < values.length; i += 2) {
+        for (int i = 0; i < values.length; i += 2) {
             Object k1, k2 = null;
-            if(values[i].getClass() == values.getClass()) {
-                Object[] ks = (Object[])values[i];
+            if (values[i].getClass() == values.getClass()) {
+                Object[] ks = (Object[]) values[i];
                 k1 = ks[0];
                 k2 = ks[1];
-            }
-            else {
+            } else {
                 k1 = values[i];
             }
-            out.add(new KVPair(k1, k2, values[i+1]));
+            out.add(new KVPair(k1, k2, values[i + 1]));
         }
         return out;
     }
 
     private static void storeAll(Exchange ex, List<KVPair> list) throws PersistitException {
-        for(KVPair kv : list) {
+        for (KVPair kv : list) {
             ex.clear().append(kv.k1);
-            if(kv.k2 != null) {
+            if (kv.k2 != null) {
                 ex.append(kv.k2);
             }
             ex.getValue().put(kv.v);
             ex.store();
         }
     }
-    
+
     private static List<KVPair> combine(List<KVPair> list1, List<KVPair> list2) {
         List<KVPair> outList = new ArrayList<KVPair>();
         outList.addAll(list1);

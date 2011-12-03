@@ -369,6 +369,7 @@ public final class Value {
     //
     // Indicates a record in a directory tree.
     //
+    final static int CLASS_ACCUMULATOR = 58;
     final static int CLASS_TREE_STATISTICS = 59;
     final static int CLASS_TREE = 60;
     //
@@ -425,7 +426,8 @@ public final class Value {
     // that the highest byte in a standard class encoding will be 0xF0 (240).
     //
     // An MVV is introduced by 0xFE (254) as the first byte. This is mostly
-    // opaque to the Value class but exposed here for consistency, documentation,
+    // opaque to the Value class but exposed here for consistency,
+    // documentation,
     // and for use by debug and toString() methods.
     //
     private final static int TYPE_MVV = MVV.TYPE_MVV;
@@ -1301,6 +1303,7 @@ public final class Value {
             final int savedSize = _size;
             sb.append("[");
 
+
             try {
                 MVV.visitAllVersions(new MVV.VersionVisitor() {
                     boolean first = true;
@@ -1337,7 +1340,7 @@ public final class Value {
             
             sb.append("]");
         }
-        break;
+            break;
 
         default: {
             if (classHandle >= CLASS1) {
@@ -2093,6 +2096,23 @@ public final class Value {
             break;
         }
 
+        case CLASS_ACCUMULATOR: {
+            AccumulatorState accumulator;
+            if (target != null && target instanceof AccumulatorState) {
+                accumulator = (AccumulatorState) target;
+            } else {
+                accumulator = new AccumulatorState();
+            }
+            _depth++;
+            try {
+                accumulator.load(this);
+            } finally {
+                _depth--;
+            }
+            object = accumulator;
+            break;
+        }
+
         case CLASS_TREE_STATISTICS: {
             TreeStatistics treeStatistics;
             if (target != null && target instanceof TreeStatistics) {
@@ -2316,7 +2336,7 @@ public final class Value {
             
             return outList.toArray();
         }
-        
+
         default: {
             int saveDepth = _depth;
             try {
@@ -3289,10 +3309,19 @@ public final class Value {
             _bytes[_size++] = (byte) CLASS_DOUBLE;
             Util.putLong(_bytes, _size, Double.doubleToRawLongBits(((Double) object).doubleValue()));
             _size += 8;
+        } else if (object instanceof Accumulator) {
+            ensureFit(Accumulator.MAX_SERIALIZED_SIZE);
+            _bytes[_size++] = (byte) CLASS_ACCUMULATOR;
+            _depth++;
+            try {
+                ((Accumulator) object).store(this);
+            } finally {
+                _depth--;
+            }
         } else if (cl == TreeStatistics.class) {
             ensureFit(TreeStatistics.MAX_SERIALIZED_SIZE);
-            _bytes[_size++] = (byte)CLASS_TREE_STATISTICS;
-            _size += ((TreeStatistics)object).store(_bytes, _size);
+            _bytes[_size++] = (byte) CLASS_TREE_STATISTICS;
+            _size += ((TreeStatistics) object).store(_bytes, _size);
         } else if (cl == Tree.class) {
             ensureFit(Tree.MAX_SERIALIZED_SIZE);
             _bytes[_size++] = (byte) CLASS_TREE;

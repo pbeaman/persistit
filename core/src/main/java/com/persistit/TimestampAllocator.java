@@ -15,8 +15,6 @@
 
 package com.persistit;
 
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
 
 class TimestampAllocator {
@@ -24,59 +22,14 @@ class TimestampAllocator {
     /**
      * Default interval in nanoseconds between checkpoints - two minutes.
      */
-    private final static long DEFAULT_CHECKPOINT_INTERVAL = 120000000000L;
-
     private final AtomicLong _timestamp = new AtomicLong();
-
-    private volatile Checkpoint _checkpoint = new Checkpoint(0, 0);
-
-    private volatile long _checkpointInterval = DEFAULT_CHECKPOINT_INTERVAL;
-
-    private volatile long _lastCheckpointNanos;
-
-    /**
-     * A structure containing a timestamp and system clock time at which
-     * Persistit will attempt to record a valid Checkpoint to disk.
-     */
-    public static class Checkpoint {
-
-        private final static SimpleDateFormat SDF = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
-        private final long _timestamp;
-
-        private final long _systemTime;
-
-        public Checkpoint(final long timestamp, final long systemTime) {
-            _timestamp = timestamp;
-            _systemTime = systemTime;
-        }
-
-        public long getTimestamp() {
-            return _timestamp;
-        }
-
-        public long getSystemTimeMillis() {
-            return _systemTime;
-        }
-
-        @Override
-        public String toString() {
-            return String.format("Checkpoint %,d @ %s", _timestamp, SDF.format(new Date(_systemTime)));
-        }
-
-        @Override
-        public boolean equals(final Object object) {
-            if (!(object instanceof Checkpoint)) {
-                return false;
-            }
-            Checkpoint cp = (Checkpoint) object;
-            return cp._systemTime == _systemTime && cp._timestamp == _timestamp;
-        }
-
-    }
 
     public long updateTimestamp() {
         return _timestamp.incrementAndGet();
+    }
+    
+    long bumpTimestamp(final long delta) {
+        return _timestamp.addAndGet(delta);
     }
 
     public long updateTimestamp(final long timestamp) {
@@ -97,32 +50,5 @@ class TimestampAllocator {
         return _timestamp.get();
     }
 
-    public Checkpoint updatedCheckpoint() {
-        final long now = System.nanoTime();
-        if (_lastCheckpointNanos + _checkpointInterval < now) {
-            _lastCheckpointNanos = now;
-            return forceCheckpoint();
-        } else {
-            return _checkpoint;
-        }
-    }
-
-    public synchronized Checkpoint forceCheckpoint() {
-        final long checkpointTimestamp = _timestamp.addAndGet(10000);
-        _checkpoint = new Checkpoint(checkpointTimestamp, System.currentTimeMillis());
-        return _checkpoint;
-    }
-
-    public synchronized Checkpoint getCurrentCheckpoint() {
-        return _checkpoint;
-    }
-
-    public long getCheckpointInterval() {
-        return _checkpointInterval;
-    }
-
-    public void setCheckpointInterval(long checkpointInterval) {
-        _checkpointInterval = checkpointInterval;
-    }
 
 }

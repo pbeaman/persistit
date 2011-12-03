@@ -15,19 +15,14 @@
 
 package com.persistit;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
-import com.persistit.JournalRecord.CU;
+import com.persistit.Accumulator.Delta;
+import com.persistit.JournalRecord.D0;
+import com.persistit.JournalRecord.D1;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.SR;
-import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.TransactionalCache.Update;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
@@ -36,8 +31,7 @@ import com.persistit.exception.RollbackException;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit},
- * {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <code>commit</code> is performed. At that
  * point, all the updates are written atomically - that is, completely or not at
@@ -274,6 +268,7 @@ import com.persistit.exception.RollbackException;
  */
 public class Transaction {
     final static int TRANSACTION_BUFFER_SIZE = 65536;
+    final static int MAXIMUM_STEP = TransactionIndex.VERSION_HANDLE_MULTIPLIER - 1;
 
     private static long _idCounter = 100000000;
 
@@ -283,7 +278,6 @@ public class Transaction {
     private int _nestedDepth;
     private boolean _rollbackPending;
     private boolean _commitCompleted;
-    private RollbackException _rollbackException;
 
     private long _rollbackCount = 0;
     private long _commitCount = 0;
@@ -293,13 +287,11 @@ public class Transaction {
     private long _startTimestamp;
     private long _commitTimestamp;
 
-    private Map<TransactionalCache, List<Update>> _transactionCacheUpdates = new HashMap<TransactionalCache, List<Update>>();
-
     private final ByteBuffer _buffer = ByteBuffer.allocate(TRANSACTION_BUFFER_SIZE);
 
-    private Checkpoint _transactionalCacheCheckpoint;
-
     private long _previousJournalAddress;
+
+    private int _step;
 
     /**
      * Creates a new transaction context. Any transaction performed within this
@@ -341,7 +333,7 @@ public class Transaction {
      */
     public void checkPendingRollback() throws RollbackException {
         if (_rollbackPending) {
-            throw _rollbackException;
+            throw new RollbackException();
         }
     }
 
@@ -398,21 +390,20 @@ public class Transaction {
         if (_commitCompleted) {
             throw new IllegalStateException("Attempt to begin a committed transaction");
         }
-
-        _rollbackPending = false;
-        _rollbackException = null;
-
         if (_nestedDepth == 0) {
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
             } catch (InterruptedException e) {
                 throw new PersistitInterruptedException(e);
             }
+            _rollbackPending = false;
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
-            _transactionCacheUpdates.clear();
+            _step = 0;
             _buffer.clear();
             _previousJournalAddress = 0;
+        } else {
+            checkPendingRollback();
         }
         _nestedDepth++;
     }
@@ -440,20 +431,18 @@ public class Transaction {
         }
         _nestedDepth--;
 
-        // Decide whether this is a rollback or a commit.
-        if (!_commitCompleted || _rollbackPending) {
-            if (_rollbackException == null) {
-                _rollbackException = new RollbackException();
-            }
+        // If not committed, this is an implicit rollback (with a log message
+        // if rollback was not called explicitly).
+        //
+        if (!_commitCompleted) {
             if (!_rollbackPending) {
-                _persistit.getLogBase().txnNotCommitted.log(_rollbackException);
+                _persistit.getLogBase().txnNotCommitted.log(new RollbackException());
             }
             _rollbackPending = true;
+
         }
 
-        // Special handling for the outermost scope.
         if (_nestedDepth == 0) {
-            _transactionCacheUpdates.clear();
             //
             // Perform rollback if needed.
             //
@@ -462,26 +451,26 @@ public class Transaction {
                 _rollbacksSinceLastCommit++;
 
                 // TODO - rollback
+
                 if (!_transactionStatus.isNotified()) {
                     _transactionStatus.abort();
-                    _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
+                    _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                            _persistit.getTimestampAllocator().getCurrentTimestamp());
                 }
             } else {
                 _commitCount++;
                 _rollbacksSinceLastCommit = 0;
             }
             _rollbackPending = false;
-
         }
         _commitCompleted = false;
     }
 
     /**
      * <p>
-     * Explicitly rolls back all work done within the scope of this transaction
-     * and throws a RollbackException. If this transaction is not active, then
-     * this method does nothing. No further updates can be applied within the
-     * scope of this transaction.
+     * Explicitly rolls back all work done within the scope of this transaction.
+     * If this transaction is not active, then this method throws an Exception.
+     * No further updates can be applied within the scope of this transaction.
      * </p>
      * <p>
      * If called within the scope of a nested transaction, this method causes
@@ -492,10 +481,8 @@ public class Transaction {
      * @throws IllegalStateException
      *             if there is no transaction scope or the current scope has
      *             already been committed.
-     * @throws RollbackException
-     *             in all other cases
      */
-    public void rollback() throws PersistitException {
+    public void rollback() {
         if (_commitCompleted) {
             throw new IllegalStateException("Already committed");
         }
@@ -505,15 +492,11 @@ public class Transaction {
         }
 
         _rollbackPending = true;
-        if (_rollbackException == null) {
-            _rollbackException = new RollbackException();
-        }
 
         // TODO - rollback
         _transactionStatus.abort();
-        _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
-
-        throw _rollbackException;
+        _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                _persistit.getTimestampAllocator().getCurrentTimestamp());
     }
 
     /**
@@ -589,24 +572,29 @@ public class Transaction {
             throw new IllegalStateException("Already committed");
         }
 
-        try {
-            if (_rollbackPending)
-                throw _rollbackException;
-            if (_nestedDepth == 1) {
-
-                // TODO - commit
-
-                _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                _transactionStatus.commit(_commitTimestamp);
-                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
+        checkPendingRollback();
+        if (_nestedDepth == 1) {
+            for (Delta delta = _transactionStatus.getDelta(); delta != null; delta = delta.getNext()) {
+                writeDeltaToJournal(delta);
+            }
+            _transactionStatus.commit(_persistit.getTimestampAllocator().getCurrentTimestamp());
+            _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+            _persistit.getTransactionIndex().notifyCompleted(_transactionStatus, _commitTimestamp);
+            try {
+                // TODO - figure out what to do if writes fail - I believe we
+                // will want
+                // to mark the transaction status as ABORTED in that case, but
+                // need to
+                // go look hard at TransactionIndex.
+                //
                 flushTransactionBuffer();
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
-                _commitCompleted = true;
+            } finally {
+                // _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
             }
-        } finally {
-            _rollbackPending = _rollbackPending & (_nestedDepth > 0);
+            _commitCompleted = true;
         }
     }
 
@@ -798,35 +786,6 @@ public class Transaction {
     }
 
     /**
-     * Returns the most recent occurrence of a <code>RollbackException</code>
-     * within this transaction context. This method can be used to detect and
-     * diagnose implicit rollback from the {@link #end} method.
-     * 
-     * 
-     * @return The <code>RollbackException</code>, if <code>end</code> generated
-     *         an implicit rollback due to a missing call to <code>commit</code>
-     *         , or <code>null</code> if the transaction committed and ended
-     *         normally.
-     */
-    public RollbackException getRollbackException() {
-
-        return _rollbackException;
-    }
-
-    void setTransactionalCacheCheckpoint(final Checkpoint checkpoint) {
-        _transactionalCacheCheckpoint = checkpoint;
-    }
-
-    List<Update> updateList(final TransactionalCache tc) {
-        List<Update> list = _transactionCacheUpdates.get(tc);
-        if (list == null) {
-            list = new ArrayList<Update>();
-            _transactionCacheUpdates.put(tc, list);
-        }
-        return list;
-    }
-
-    /**
      * Record a store operation.
      * 
      * @param exchange
@@ -836,6 +795,7 @@ public class Transaction {
      */
     void store(Exchange exchange, Key key, Value value) throws PersistitException {
         if (_nestedDepth > 0) {
+            checkPendingRollback();
             final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
             writeStoreRecordToJournal(treeHandle, key, value);
         }
@@ -851,6 +811,7 @@ public class Transaction {
      */
     void remove(Exchange exchange, Key key1, Key key2) throws PersistitException {
         if (_nestedDepth > 0) {
+            checkPendingRollback();
             final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
             writeDeleteRecordToJournal(treeHandle, key1, key2);
         }
@@ -864,6 +825,7 @@ public class Transaction {
      */
     void removeTree(Exchange exchange) throws PersistitException {
         if (_nestedDepth > 0) {
+            checkPendingRollback();
             final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
             writeDeleteTreeToJournal(treeHandle);
         }
@@ -878,7 +840,7 @@ public class Transaction {
         }
     }
 
-    private void flushTransactionBuffer() throws PersistitIOException {
+    void flushTransactionBuffer() throws PersistitIOException {
         if (_buffer.position() > 0) {
             _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, _commitTimestamp, _previousJournalAddress);
@@ -917,30 +879,45 @@ public class Transaction {
         JournalRecord.putLength(_buffer, DT.OVERHEAD);
         DT.putType(_buffer);
         DT.putTreeHandle(_buffer, treeHandle);
+        _buffer.position(_buffer.position() + DT.OVERHEAD);
     }
 
-    void writeCacheUpdatesToJournal(final long cacheId, final List<Update> updates) throws PersistitIOException {
-        int estimate = CU.OVERHEAD;
-        for (int index = 0; index < updates.size(); index++) {
-            estimate += (1 + updates.get(index).size());
+    void writeDeltaToJournal(final Delta delta) throws PersistitIOException {
+        if (delta.getValue() == 1) {
+            prepare(D0.OVERHEAD);
+            JournalRecord.putLength(_buffer, D0.OVERHEAD);
+            D0.putType(_buffer);
+            D0.putTreeHandle(_buffer, delta.getAccumulator().getTree().getHandle());
+            D0.putAccumulatorTypeOrdinal(_buffer, delta.getAccumulator().getType().ordinal());
+            D0.putIndex(_buffer, delta.getAccumulator().getIndex());
+            _buffer.position(_buffer.position() + D0.OVERHEAD);
+        } else {
+            prepare(D1.OVERHEAD);
+            JournalRecord.putLength(_buffer, D1.OVERHEAD);
+            D1.putType(_buffer);
+            D1.putTreeHandle(_buffer, delta.getAccumulator().getTree().getHandle());
+            D1.putIndex(_buffer, delta.getAccumulator().getIndex());
+            D1.putAccumulatorTypeOrdinal(_buffer, delta.getAccumulator().getType().ordinal());
+            D1.putValue(_buffer, delta.getValue());
+            _buffer.position(_buffer.position() + D1.OVERHEAD);
         }
-        prepare(estimate);
-        int start = _buffer.position();
-        CU.putType(_buffer);
-        CU.putCacheId(_buffer, cacheId);
-        _buffer.position(_buffer.position() + CU.OVERHEAD);
-        for (int index = 0; index < updates.size(); index++) {
-            final Update update = updates.get(index);
-            try {
-                update.write(_buffer);
-            } catch (IOException e) {
-                throw new PersistitIOException(e);
-            }
+    }
+
+    TransactionStatus getTransactionStatus() {
+        return _transactionStatus;
+    }
+
+    public int getCurrentStep() {
+        return _step;
+    }
+
+    public void incrementStep() {
+        checkPendingRollback();
+        if (_step < MAXIMUM_STEP) {
+            _step++;
+        } else {
+            throw new IllegalStateException(this + " is already at step " + MAXIMUM_STEP + " and cannot be incremented");
         }
-        int recordSize = _buffer.position() - start;
-        _buffer.position(start);
-        CU.putLength(_buffer, recordSize);
-        _buffer.position(start + recordSize);
     }
 
     /**
@@ -952,7 +929,4 @@ public class Transaction {
         return _buffer;
     }
 
-    TransactionStatus getTransactionStatus() {
-        return _transactionStatus;
-    }
 }
