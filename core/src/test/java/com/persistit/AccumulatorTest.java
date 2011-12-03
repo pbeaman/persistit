@@ -36,12 +36,17 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         TransactionStatus status = ti.registerTransaction();
         acc.update(1, status, 0);
         assertEquals(1, acc.getLiveValue());
-        assertEquals(0, acc.getSnapshotValue(1, 0));
+        assertEquals(1, acc.getSnapshotValue(1, 0));
+        assertEquals(1, acc.getSnapshotValue(1, 1));
+        acc.update(1, status, 1);
+        assertEquals(1, acc.getSnapshotValue(1, 0));
+        assertEquals(1, acc.getSnapshotValue(1, 1));
+        assertEquals(2, acc.getSnapshotValue(1, 2));
         status.commit(_tsa.updateTimestamp());
         assertEquals(0, acc.getSnapshotValue(_tsa.getCurrentTimestamp(), 0));
         ti.notifyCompleted(status, _tsa.getCurrentTimestamp());
-        assertEquals(0, acc.getSnapshotValue(status.getTs(), 0));
-        assertEquals(1, acc.getSnapshotValue(status.getTc() + 1, 0));
+        assertEquals(0, acc.getSnapshotValue(status.getTs() + 1, 0));
+        assertEquals(2, acc.getSnapshotValue(status.getTc() + 1, 0));
     }
 
     @Test

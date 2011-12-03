@@ -1744,13 +1744,13 @@ public class Persistit {
         }
         //
         // Even on simulating a crash we need to try to close
-        // the volumes - otherwise there will be left over channels
+        // the volume files - otherwise there will be left over channels
         // and FileLocks that interfere with subsequent tests.
         //
         final List<Volume> volumes = new ArrayList<Volume>(_volumes);
         for (final Volume volume : volumes) {
             try {
-                volume.close();
+                volume.getStorage().close();
             } catch (PersistitException pe) {
                 // ignore -
             }

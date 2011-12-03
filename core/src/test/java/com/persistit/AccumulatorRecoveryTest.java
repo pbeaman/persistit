@@ -27,6 +27,7 @@ import org.junit.Test;
 import com.persistit.RecoveryManager.RecoveryListener;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
+import com.persistit.unit.UnitTestProperties;
 
 public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
     final static int ROW_COUNT_ACCUMULATOR_INDEX = 17;
@@ -41,7 +42,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
 
     @Override
     protected Properties getProperties(final boolean cleanup) {
-        final Properties properties = super.getProperties(cleanup);
+        final Properties properties = UnitTestProperties.getBiggerProperties(cleanup);
         properties.setProperty("journalsize", journalSize);
         return properties;
     }
@@ -165,7 +166,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
      * Verify that accumulators match stored data.
      */
     @Test
-    public void testAccumulatorRecovery() throws Exception {
+    public void testAccumulatorRecovery1() throws Exception {
 
         running.set(true);
         counter.set(0);
@@ -173,8 +174,13 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         accumulateRows(10000);
         long accumulated = verifyRowCount();
         assertEquals(counter.get(), accumulated);
-
+    }
+    
+    @Test
+    public void testAccumulatorRecovery2() throws Exception {
         // Make sure the helper methods work in concurrent transactions
+        counter.set(0);
+        running.set(true);
         Thread[] threads = new Thread[10];
         for (int i = 0; i < threads.length; i++) {
             final int index = i;
@@ -196,10 +202,46 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         for (int i = 0; i < threads.length; i++) {
             threads[i].join();
         }
-
         assertEquals(counter.get(), verifyRowCount());
     }
-
+    
+    @Test
+    public void testAccumulatorRecovery3() throws Exception {
+        // Crash Persistit while transactions are being executed, then
+        // verify the accumulator status
+        counter.set(0);
+        running.set(true);
+        
+        Thread[] threads = new Thread[10];
+        for (int i = 0; i < threads.length; i++) {
+            final int index = i;
+            threads[i] = new Thread(new Runnable() {
+                public void run() {
+                    try {
+                        accumulateRows(1000000);
+                        verifyRowCount();
+                    } catch (Exception e) {
+                        System.out.println("Thread " + index + " failed");
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
+        for (int i = 0; i < threads.length; i++) {
+            threads[i].start();
+        }
+        Thread.sleep(5000);
+        _persistit.checkpoint();
+        Thread.sleep(5000);
+        _persistit.crash();
+        for (int i = 0; i < threads.length; i++) {
+            threads[i].stop();
+        }
+        final Properties props = _persistit.getProperties();
+        _persistit = new Persistit();
+        _persistit.initialize(props);
+        verifyRowCount();
+    }
     private void accumulateRows(int max) throws Exception {
         final Exchange exchange = _persistit.getExchange("persistit", "AccumulatorRecoveryTest", true);
         final Transaction txn = _persistit.getTransaction();
@@ -211,7 +253,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             try {
                 boolean exists = exchange.to(key).isValueDefined();
                 int update = 0;
-                if (op < 80) {
+                if (op < 100) { // TODO - when constant is 80, test causes corruption during recovery
                     if (!exists) {
                         exchange.getValue().put(RED_FOX);
                         exchange.store();

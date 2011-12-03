@@ -139,7 +139,7 @@ public class TransactionIndexTest extends TestCase {
 
         for (int count = 20; count < 70; count++) {
             array[count].abort();
-            ti.notifyCompleted(array[count], _tsa.updateTimestamp());
+            ti.notifyCompleted(array[count], _tsa.getCurrentTimestamp());
         }
         for (int count = 50; count < 60; count++) {
             array[count].decrementMvvCount();
@@ -153,6 +153,7 @@ public class TransactionIndexTest extends TestCase {
             ti.notifyCompleted(array[count], array[20].getTs());
         }
         ti.updateActiveTransactionCache();
+        ti.cleanup();
         assertEquals(ti.getMaxFreeListSize(), ti.getFreeCount());
         assertEquals(50, ti.getAbortedCount());
         assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());

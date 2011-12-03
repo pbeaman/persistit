@@ -3456,10 +3456,10 @@ public class Exchange {
                     buffer.setRightSibling(looseChain);
                     looseChain = buffer.getPageAddress();
                     buffer.setDirtyAtTimestamp(timestamp);
-                    buffer.releaseTouched();
                     if (inTxn) {
                         buffer.writePage();
                     }
+                    buffer.releaseTouched();
                     offset -= maxSegmentSize;
                     buffer = null;
                 }
