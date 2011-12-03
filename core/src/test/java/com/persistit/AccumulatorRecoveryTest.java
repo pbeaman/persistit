@@ -181,10 +181,8 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             threads[i] = new Thread(new Runnable() {
                 public void run() {
                     try {
-                        for (int j = 0; j < 10; j++) {
-                            accumulateRows(100);
-                            verifyRowCount();
-                        }
+                        accumulateRows(1000);
+                        verifyRowCount();
                     } catch (Exception e) {
                         System.out.println("Thread " + index + " failed");
                         e.printStackTrace();

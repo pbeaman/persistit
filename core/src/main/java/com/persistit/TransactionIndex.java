@@ -46,7 +46,7 @@ public class TransactionIndex {
     /**
      * Interval in milliseconds for updating the active transaction cache
      */
-    final static long POLLING_TASK_INTERVAL = 50L;
+    final static long POLLING_TASK_INTERVAL = 50;
 
     /**
      * Default threshold value for moving long-running transactions to the

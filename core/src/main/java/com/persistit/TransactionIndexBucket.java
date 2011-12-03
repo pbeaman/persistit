@@ -270,7 +270,7 @@ public class TransactionIndexBucket {
                     assert s.getTc() != UNCOMMITTED;
                     s.complete(timestamp);
                     boolean moved = false;
-                    if (s.getTs() < _activeTransactionFloor) {
+                    if (s.getTc() < _activeTransactionFloor) {
                         if (s.getTc() > 0) {
                             aggregate(s, true);
                             if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
@@ -336,7 +336,7 @@ public class TransactionIndexBucket {
                  * Is this TransactionStatus aborted and notified?
                  */
                 final boolean aborted = status.getTc() == ABORTED && status.isNotified();
-                final boolean committed = status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.isNotified();
+                final boolean committed = isCommitted(status);
 
                 if (status.getTs() == _floor) {
                     /*
@@ -352,7 +352,7 @@ public class TransactionIndexBucket {
                      * Move the TransactionStatus somewhere if any of these
                      * conditions hold
                      */
-                    if (committed && !_transactionIndex.hasConcurrentTransaction(status.getTs(), status.getTc())) {
+                    if (committed && isObsolete(status)) {
                         aggregate(status, true);
                         /*
                          * committed
@@ -485,8 +485,8 @@ public class TransactionIndexBucket {
         previous = null;
         for (TransactionStatus status = _longRunning; status != null;) {
             TransactionStatus next = status.getNext();
-            if (status.isNotified() && status.getTc() > 0 && status.getTc() != UNCOMMITTED
-                    && !_transactionIndex.hasConcurrentTransaction(status.getTs(), status.getTc())) {
+            if (status.isNotified() && isCommitted(status)
+                    && isObsolete(status)) {
                 aggregate(status, true);
                 if (previous == null) {
                     _longRunning = next;
@@ -507,9 +507,19 @@ public class TransactionIndexBucket {
             status = next;
         }
     }
+    
+    private boolean isCommitted(final TransactionStatus status) {
+        return status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.isNotified();
+    }
+
+    private boolean isObsolete(final TransactionStatus status) {
+        return status.getDelta() != null ? status.getTc() < _activeTransactionFloor : !_transactionIndex
+                .hasConcurrentTransaction(status.getTs(), status.getTc());
+    }
 
     private void aggregate(final TransactionStatus status, boolean committed) {
         assert _lock.isHeldByCurrentThread();
+
         for (Delta delta = status.takeDelta(); delta != null; delta = freeDelta(delta)) {
             if (committed) {
                 delta.getAccumulator().aggregate(_hashIndex, delta);

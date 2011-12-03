@@ -125,14 +125,14 @@ public class AccumulatorTest extends PersistitUnitTestCase {
 
     @Test
     public void testBasicIsolation2() throws Exception {
-        final Thread[] threads = new Thread[4];
+        final Thread[] threads = new Thread[25];
         final Random random = new Random(1);
         final TransactionIndex ti = _persistit.getTransactionIndex();
         for (int i = 0; i < threads.length; i++) {
             final int index = i;
             threads[i] = new Thread(new Runnable() {
                 public void run() {
-                    long end = System.currentTimeMillis() + 10000;
+                    long end = System.currentTimeMillis() + 60000;
                     int cleanRun = 0;
                     while (System.currentTimeMillis() < end) {
                         try {
