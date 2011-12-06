@@ -97,8 +97,9 @@ abstract class VolumeStorage extends SharedResource {
 
     /**
      * @return the channel used to read and write pages of this volume.
+     * @throws PersistitIOException 
      */
-    abstract FileChannel getChannel();
+    abstract FileChannel getChannel() throws PersistitIOException;
 
     /**
      * Create a new <code>Volume</code> backing file according to the

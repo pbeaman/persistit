@@ -79,7 +79,8 @@ public class CommandLineTest extends PersistitUnitTestCase {
         _persistit.close();
 
         final String datapath = _persistit.getProperty("datapath");
-        final StringReader stringReader = new StringReader(String.format("open datapath=%s\nicheck -v\n", datapath));
+        final String rmiport = _persistit.getProperty("rmiport");
+        final StringReader stringReader = new StringReader(String.format("open datapath=%s rmiport=%s\nicheck -v\n", datapath, rmiport));
         final BufferedReader reader = new BufferedReader(stringReader);
         final StringWriter stringWriter = new StringWriter();
         final PrintWriter writer = new PrintWriter(stringWriter);
