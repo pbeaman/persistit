@@ -177,8 +177,8 @@ public class Exchange {
     private Transaction _transaction;
 
     private boolean _ignoreTransactions;
-
     private boolean _ignoreMVCCFetch;
+    private boolean _storeCausedSplit;
 
     private Object _appCache;
 
@@ -545,6 +545,14 @@ public class Exchange {
                 _keyGeneration = -1;
                 _foundAt = -1;
             }
+        }
+
+        /**
+         * Re-save the current buffer generation. Can only be used when
+         * all other data (key gens, foundAt, etc) is still valid.
+         */
+        private void updateBufferGeneration() {
+            _bufferGeneration = _buffer.getGeneration();
         }
 
         private Sequence sequence(final int foundAt) {
@@ -1020,6 +1028,16 @@ public class Exchange {
     }
 
     /**
+     * Internal value that, if <code>true</code>, indicates the last store
+     * operation caused a page split. Reset on every call to a store method.
+     *
+     * @return storeCausedSplit
+     */
+    boolean getStoreCausedSplit() {
+        return _storeCausedSplit;
+    }
+
+    /**
      * Return a displayable String containing the volume name, tree name and
      * current key state for this <code>Exchange</code>.
      * 
@@ -1333,11 +1351,13 @@ public class Exchange {
             throw new IllegalArgumentException("Both fetch and MVCC not supported");
         }
 
-        final boolean doAnyFetch = (options & StoreOptions.FETCH) > 0 || (options & StoreOptions.MVCC) > 0;
+        final boolean doMVCC = (options & StoreOptions.MVCC) > 0;
+        final boolean doAnyFetch = (options & StoreOptions.FETCH) > 0 || doMVCC;
 
         Debug.$assert0.t(!doAnyFetch || value != _spareValue);      // spare used for fetch
         Debug.$assert0.t(key != _spareKey1 && key != _spareKey2);   // spares used for new splits/levels
 
+        _storeCausedSplit = false;
         boolean treeClaimRequired = false;
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
@@ -1441,66 +1461,73 @@ public class Exchange {
                     Debug.$assert0.t(buffer != null && (buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                             && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
 
-                    if (buffer.isDataPage()) {
-                        keyExisted = (foundAt & EXACT_MASK) != 0;
-                        if (keyExisted) {
-                            oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
-                        }
-                        if (doAnyFetch) {
-                            buffer.fetch(foundAt, _spareValue);
-                            fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
-                        }
-                        if ((options & StoreOptions.MVCC) != 0) {
-                            valueToStore = _spareValue;
-                            int valueSize = value.getEncodedSize();
+                    boolean splitRequired = true;
+                    for (int pruneCount = 0; pruneCount < 2 && splitRequired; ++pruneCount) {
+                        if (buffer.isDataPage()) {
+                            keyExisted = (foundAt & EXACT_MASK) != 0;
+                            if (keyExisted) {
+                                oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
+                            }
+                            if (doAnyFetch) {
+                                buffer.fetch(foundAt, _spareValue);
+                                fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                            }
+                            if (doMVCC) {
+                                valueToStore = _spareValue;
+                                int valueSize = value.getEncodedSize();
 
-                            // If key didn't exist the value is truly non-existent
-                            // and not just undefined/zero length
-                            byte[] spareBytes = _spareValue.getEncodedBytes();
-                            int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
-                            TransactionStatus tStatus = _transaction.getTransactionStatus();
+                                // If key didn't exist the value is truly non-existent
+                                // and not just undefined/zero length
+                                byte[] spareBytes = _spareValue.getEncodedBytes();
+                                int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
+                                TransactionStatus tStatus = _transaction.getTransactionStatus();
 
-                            if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
-                                // Could be streamlined as a single visit of all
-                                // versions, but current TI interface would still
-                                // require calls to both commitStatus() and
-                                // wwDependency() (which are the costly parts)
-                                _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
+                                if (pruneCount == 0 && (options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
+                                    // Could be streamlined as a single visit of all
+                                    // versions, but current TI interface would still
+                                    // require calls to both commitStatus() and
+                                    // wwDependency() (which are the costly parts)
+                                    _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
+                                    MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
+                                    if (!_mvvVisitor.foundVersion()) {
+                                        break;
+                                    }
+                                }
+
+                                // Visit all versions for ww detection
+                                _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.STORE);
                                 MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
-                                if (!_mvvVisitor.foundVersion()) {
-                                    break;
+
+                                int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
+                                _spareValue.ensureFit(mvvSize);
+
+                                long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
+                                int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), spareSize,
+                                                                    versionHandle, value.getEncodedBytes(), valueSize);
+
+                                if ((storedLength & MVV.STORE_EXISTED_MASK) == 0) {
+                                    tStatus.incrementMvvCount();
+                                }
+                                storedLength &= MVV.STORE_LENGTH_MASK;
+                                _spareValue.setEncodedSize(storedLength);
+
+                                if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
+                                    newLongRecordPointerMVV = storeOverlengthRecord(_spareValue, 0);
                                 }
                             }
+                        }
 
-                            // Visit all versions for ww detection
-                            _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.STORE);
-                            MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
+                        Debug.$assert0.t(valueToStore.getEncodedSize() <= maxSimpleValueSize);
 
-                            int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
-                            _spareValue.ensureFit(mvvSize);
-
-                            long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
-                            int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), spareSize,
-                                                                versionHandle, value.getEncodedBytes(), valueSize);
-
-                            if ((storedLength & MVV.STORE_EXISTED_MASK) == 0) {
-                                tStatus.incrementMvvCount();
-                            }
-                            storedLength &= MVV.STORE_LENGTH_MASK;
-                            _spareValue.setEncodedSize(storedLength);
-
-                            if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
-                                newLongRecordPointerMVV = storeOverlengthRecord(_spareValue, 0);
-                            }
+                        splitRequired = putLevel(lc, key, valueToStore, buffer, foundAt, treeClaimAcquired);
+                        if (treeClaimAcquired) {
+                            break;
+                        }
+                        if (splitRequired && pruneCount == 0 && buffer.isDataPage() && doMVCC) {
+                            prune(buffer, _spareKey1, _spareValue);
+                            lc.updateBufferGeneration();
                         }
                     }
-
-                    Debug.$assert0.t(valueToStore.getEncodedSize() <= maxSimpleValueSize);
-
-                    // Here we have a buffer with a writer claim and
-                    // a correct foundAt value
-                    //
-                    boolean splitRequired = putLevel(lc, key, valueToStore, buffer, foundAt, treeClaimAcquired);
 
                     Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                             && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
@@ -1726,6 +1753,7 @@ public class Exchange {
                 if (!okToSplit) {
                     return true;
                 }
+                _storeCausedSplit = true;
                 //
                 // Allocate a new page
                 //
@@ -3810,6 +3838,22 @@ public class Exchange {
         }
     }
 
+    private void prune(Buffer buffer, Key key, Value value) throws PersistitException {
+        Debug.$assert0.t(buffer.isWriter());
+        key.clear();
+        int foundAt = buffer.nextKey(key, buffer.getKeyBlockStart() | EXACT_MASK);
+        while (!buffer.isAfterRightEdge(foundAt)) {
+            buffer.fetch(foundAt, value);
+            prune(value);
+            int success = buffer.putValue(key, value, foundAt, false);
+            Debug.$assert0.t(success > 0);
+            foundAt = buffer.nextKey(key, foundAt);
+        }
+        long timestamp = timestamp();
+        buffer.writePageOnCheckpoint(timestamp);
+        buffer.setDirtyAtTimestamp(timestamp);
+    }
+
     /**
      * @param value
      *            Value to modify in-place by pruning away all unneeded versions
@@ -3819,6 +3863,10 @@ public class Exchange {
     private boolean prune(Value value) throws PersistitException {
         byte[] valueBytes = value.getEncodedBytes();
         int valueSize = value.getEncodedSize();
+
+        if (!MVV.isArrayMVV(valueBytes, valueSize)) {
+            return true;
+        }
                 
         MVV.visitAllVersions(_pruneVisitor, valueBytes, valueSize);
 

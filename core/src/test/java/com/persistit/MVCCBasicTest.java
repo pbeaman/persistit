@@ -107,7 +107,7 @@ public class MVCCBasicTest extends MVCCTestBase {
     public void testSingleTrxManyInserts() throws Exception {
         // Enough for a new index level and many splits
         final int INSERT_COUNT = 5000;
-
+        
         for(int i = 0; i < INSERT_COUNT; ++i) {
             trx1.begin();
             try {
