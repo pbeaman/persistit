@@ -36,6 +36,7 @@ class VolumeStructure {
      */
     final static String TREE_ROOT = "root";
     final static String TREE_STATS = "stats";
+    final static String TREE_ACCUMULATOR = "totals";
 
     private final Persistit _persistit;
     private final Volume _volume;

@@ -20,7 +20,6 @@ package com.persistit.test;
 
 import java.util.StringTokenizer;
 
-import com.persistit.logging.LogBase;
 import com.persistit.util.Debug;
 
 public class TestResult {

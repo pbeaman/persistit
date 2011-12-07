@@ -20,9 +20,14 @@ import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.persistit.Accumulator.Delta;
+import com.persistit.exception.RetryException;
 import com.persistit.exception.TimeoutException;
 
 /**
@@ -41,7 +46,7 @@ public class TransactionIndex {
     /**
      * Interval in milliseconds for updating the active transaction cache
      */
-    final static long POLLING_TASK_INTERVAL = 50L;
+    final static long POLLING_TASK_INTERVAL = 50;
 
     /**
      * Default threshold value for moving long-running transactions to the
@@ -54,6 +59,11 @@ public class TransactionIndex {
      * list.
      */
     final static int DEFAULT_MAX_FREE_LIST_SIZE = 20;
+
+    /**
+     * Default maximum number of Delta instances to hold on the free list.
+     */
+    final static int DEFAULT_MAX_FREE_DELTA_LIST_SIZE = 50;
 
     /**
      * TODO - more thought on timeout processing.
@@ -77,7 +87,7 @@ public class TransactionIndex {
     /**
      * Maximum version handle "steps" within one transaction
      */
-    private final static int VERSION_HANDLE_MULTIPLIER = 256;
+    final static int VERSION_HANDLE_MULTIPLIER = 256;
 
     /**
      * The hash table.
@@ -92,11 +102,16 @@ public class TransactionIndex {
     volatile int _longRunningThreshold = DEFAULT_LONG_RUNNING_THRESHOLD;
 
     /**
-     * Maximum number of TransactionStatus objects to hold on the free list.
-     * Once this number is reached any addition deallocated instances are
+     * Maximum number of {@link TransactionStatus) objects to hold on the free
+     * list. Once this number is reached any addition deallocated instances are
      * released for garbage collection.
      */
     volatile int _maxFreeListSize = DEFAULT_MAX_FREE_LIST_SIZE;
+
+    /**
+     * Maximum number of {@link Delta} instances to hold on the free list.
+     */
+    volatile int _maxFreeDeltaListSize = DEFAULT_MAX_FREE_DELTA_LIST_SIZE;
 
     /**
      * One of two ActiveTransactionCache instances
@@ -123,7 +138,7 @@ public class TransactionIndex {
      * The system-wide timestamp allocator
      */
     private final TimestampAllocator _timestampAllocator;
-    
+
     private ActiveTransactionCachePollTask _activeTransactionCachePollTask;
 
     class ActiveTransactionCachePollTask extends IOTaskRunnable {
@@ -187,6 +202,7 @@ public class TransactionIndex {
      * indicate that such a transaction is still active. Again, the result of
      * that imprecision is that in some cases an MVV may not be optimally pruned
      * until a later attempt.
+     * </p>
      * 
      */
     class ActiveTransactionCache {
@@ -303,16 +319,24 @@ public class TransactionIndex {
     TransactionIndex(final TimestampAllocator timestampAllocator, final int hashTableSize) {
         _timestampAllocator = timestampAllocator;
         _hashTable = new TransactionIndexBucket[hashTableSize];
-        for (int index = 0; index < hashTableSize; index++) {
-            _hashTable[index] = new TransactionIndexBucket(this);
+        for (int hashIndex = 0; hashIndex < hashTableSize; hashIndex++) {
+            _hashTable[hashIndex] = new TransactionIndexBucket(this, hashIndex);
         }
         _atCache1 = new ActiveTransactionCache();
         _atCache2 = new ActiveTransactionCache();
         _atCache = _atCache1;
     }
 
+    int getHashTableSize() {
+        return _hashTable.length;
+    }
+
     int getMaxFreeListSize() {
         return _maxFreeListSize;
+    }
+
+    int getMaxFreeDeltaListSize() {
+        return _maxFreeDeltaListSize;
     }
 
     int getLongRunningThreshold() {
@@ -512,16 +536,17 @@ public class TransactionIndex {
      * or aborted. This method allows the TransactionIndex to awaken any threads
      * waiting for resolution of commit status or a write-write dependency.
      * 
-     * @param ts
-     *            The start timestamp of a transaction that has committed or
-     *            aborted.
+     * @param status
+     *            the TransactionStatus that has committed or aborted.
+     * @param timestamp
+     *            the timestamp to post as the transaction's commit timestamp
      */
-    void notifyCompleted(final TransactionStatus status) {
+    void notifyCompleted(final TransactionStatus status, final long timestamp) {
         final int hashIndex = hashIndex(status.getTs());
         final TransactionIndexBucket bucket = _hashTable[hashIndex];
         bucket.lock();
         try {
-            bucket.notifyCompleted(status);
+            bucket.notifyCompleted(status, timestamp);
         } finally {
             bucket.unlock();
         }
@@ -705,14 +730,12 @@ public class TransactionIndex {
      *            Time in milliseconds to wait. If the other transaction has
      *            neither committed nor aborted within this time interval then a
      *            TimeoutException is thrown.
-     * @return commit status of .
-     * @throws TimeoutException
-     *             if the timeout interval is exceeded
+     * @return commit status of the target transaction
      * @throws InterruptedException
      *             if the waiting thread is interrupted
      */
     long wwDependency(final long versionHandle, final TransactionStatus source, final long timeout)
-            throws TimeoutException, InterruptedException, IllegalArgumentException {
+            throws InterruptedException, IllegalArgumentException {
         final long tsv = vh2ts(versionHandle);
         if (tsv == source.getTs()) {
             return 0;
@@ -749,6 +772,11 @@ public class TransactionIndex {
                         if (tc == ABORTED) {
                             return tc;
                         }
+                        /*
+                         * The following is true because the target's wwLock was
+                         * acquired, which means it has either aborted or
+                         * committed.
+                         */
                         if (tc < 0 || tc == UNCOMMITTED) {
                             throw new IllegalStateException("Commit incomplete");
                         }
@@ -824,6 +852,43 @@ public class TransactionIndex {
     }
 
     /**
+     * Add a TransactionStatus with in the ABORTED state to the appropriate
+     * bucket. This method is called during recovery processing to register
+     * transactions that were
+     * 
+     * @param timestamp
+     * @throws InterruptedException
+     */
+    void injectAbortedTransaction(final long ts) throws InterruptedException {
+        final TransactionStatus status;
+        final TransactionIndexBucket bucket;
+        synchronized (this) {
+            int index = hashIndex(ts);
+            bucket = _hashTable[index];
+            bucket.lock();
+            try {
+                status = bucket.allocateTransactionStatus();
+                status.initialize(ts);
+                status.abort();
+                status.setMvvCount(Integer.MAX_VALUE);
+                bucket.addAborted(status);
+            } finally {
+                bucket.unlock();
+            }
+        }
+
+        /*
+         * The TransactionStatus is locked for the entire duration of the
+         * running transaction. The following call should always succeed
+         * immediately; a TimeoutException here signifies a software failure or
+         * a thread terminated by {@link Thread#stop()} somewhere else.
+         */
+        if (!status.wwLock(VERY_LONG_TIMEOUT)) {
+            throw new IllegalStateException("wwLock was unavailable on newly allocated TransactionStatus");
+        }
+    }
+
+    /**
      * Refresh the ActiveTransactionCache. This method walks the hashTable to
      * update the non-current ActiveTransactionCache instance and then makes it
      * current. This method will block until it can acquire an exclusive lock on
@@ -857,6 +922,96 @@ public class TransactionIndex {
             } finally {
                 bucket.unlock();
             }
+        }
+    }
+
+    /**
+     * Compute and return the snapshot value of an Accumulator
+     * 
+     * @throws InterruptedException
+     */
+    long getAccumulatorSnapshot(final Accumulator accumulator, final long timestamp, final int step,
+            final long initialValue) throws InterruptedException {
+        long result = initialValue;
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            boolean again = true;
+            while (again) {
+                again = false;
+                bucket.lock();
+                try {
+                    result = accumulator
+                            .applyValue(result, bucket.getAccumulatorSnapshot(accumulator, timestamp, step));
+                } catch (RetryException e) {
+                    again = true;
+                } finally {
+                    bucket.unlock();
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * <p>
+     * Compute a snapshot value for each of the supplied Accumulators and store
+     * the resulting value in the Accumulator's checkpointValue field. This
+     * method performs the same function as calling
+     * {@link #getAccumulatorSnapshot(Accumulator, long, int, long)} on each
+     * Accumulator, but is more efficient because it visits each bucket once
+     * rather than once per Accumulator.
+     * </p>
+     * <p>
+     * This method is sensitive to the transactional context in which it is
+     * called. It is intended to be called only within the Transaction context
+     * created during the {@link CheckpointManager#createCheckpoint()} method.
+     * </p>
+     * 
+     * @param timestamp
+     *            checkpoint timestamp
+     * @param accumulators
+     *            List of Accumulators that need to be check-pointed
+     * @throws InterruptedException
+     */
+    void checkpointAccumulatorSnapshots(long timestamp, final List<Accumulator> accumulators)
+            throws InterruptedException {
+        Map<Accumulator, Accumulator> lookupMap = new HashMap<Accumulator, Accumulator>();
+        for (final Accumulator accumulator : accumulators) {
+            lookupMap.put(accumulator, accumulator);
+            accumulator.setCheckpointValueAndTimestamp(accumulator.getBaseValue(), Long.MIN_VALUE);
+        }
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            boolean again = true;
+            while (again) {
+                again = false;
+                bucket.lock();
+                try {
+                    for (final Accumulator accumulator : accumulators) {
+                        accumulator.setCheckpointTemp(accumulator.getBucketValue(bucket.getIndex()));
+                    }
+                    bucket.checkpointAccumulatorSnapshots(timestamp);
+                    for (final Accumulator accumulator : accumulators) {
+                        accumulator.setCheckpointValueAndTimestamp(accumulator.applyValue(accumulator
+                                .getCheckpointValue(), accumulator.getCheckpointTemp()), timestamp);
+                    }
+                } catch (RetryException e) {
+                    again = true;
+                } finally {
+                    bucket.unlock();
+                }
+            }
+        }
+    }
+
+    Delta addDelta(final TransactionStatus status) {
+        final int hashIndex = hashIndex(status.getTs());
+        final TransactionIndexBucket bucket = _hashTable[hashIndex];
+        bucket.lock();
+        try {
+            Delta delta = bucket.allocateDelta();
+            status.addDelta(delta);
+            return delta;
+        } finally {
+            bucket.unlock();
         }
     }
 
@@ -918,7 +1073,7 @@ public class TransactionIndex {
         _activeTransactionCachePollTask = new ActiveTransactionCachePollTask(persistit);
         _activeTransactionCachePollTask.start(POLLING_TASK_NAME, POLLING_TASK_INTERVAL);
     }
-    
+
     void close() {
         ActiveTransactionCachePollTask task = _activeTransactionCachePollTask;
         if (task != null) {
@@ -926,7 +1081,7 @@ public class TransactionIndex {
             _activeTransactionCachePollTask = null;
         }
     }
-    
+
     void crash() {
         ActiveTransactionCachePollTask task = _activeTransactionCachePollTask;
         if (task != null) {
@@ -934,6 +1089,5 @@ public class TransactionIndex {
             _activeTransactionCachePollTask = null;
         }
     }
-    
 
 }

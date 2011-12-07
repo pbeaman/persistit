@@ -18,7 +18,11 @@ package com.persistit;
 import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
+import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
+
+import com.persistit.Accumulator.Delta;
+import com.persistit.exception.RetryException;
 
 /**
  * <p>
@@ -54,7 +58,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * transaction started before the current floor, the transaction is known to
  * have committed unless a <code>TransactionStatus</code> object is found on
  * either the aborted or longRunning lists. These are intended as exceptional
- * cases, and are expected to remain relatively short. The
+ * cases, and their lists are expected to remain relatively short. The
  * <code>TransactionStatus</code> for a committed transaction (the usual case)
  * is simply moved to the free list once the floor is raised.
  * </p>
@@ -67,6 +71,10 @@ public class TransactionIndexBucket {
      * The owner of the hash table that contains this bucket
      */
     final TransactionIndex _transactionIndex;
+    /**
+     * Index of this bucket in the TransactionIndex hash table
+     */
+    final int _hashIndex;
 
     /**
      * Floor timestamp. A transaction that started before this time is usually
@@ -141,9 +149,18 @@ public class TransactionIndexBucket {
      * structure. Fair to prevent barging.
      */
     ReentrantLock _lock = new ReentrantLock(true);
+    /**
+     * Singly-linked list of Delta objects available for reuse
+     */
+    Delta _freeDeltaList;
+    /**
+     * Count of Delta instances on the free Delta list
+     */
+    int _freeDeltaCount;
 
-    TransactionIndexBucket(final TransactionIndex index) {
-        _transactionIndex = index;
+    TransactionIndexBucket(final TransactionIndex transactionIndex, final int hashIndex) {
+        _transactionIndex = transactionIndex;
+        _hashIndex = hashIndex;
     }
 
     void lock() {
@@ -167,13 +184,6 @@ public class TransactionIndexBucket {
         }
     }
 
-    void releaseTransactionStatus(final TransactionStatus status) {
-        assert _lock.isHeldByCurrentThread();
-        status.setNext(_free);
-        _free = status;
-        _freeCount++;
-    }
-
     void addCurrent(final TransactionStatus status) {
         assert _lock.isHeldByCurrentThread();
         status.setNext(_current);
@@ -182,6 +192,17 @@ public class TransactionIndexBucket {
         }
         _current = status;
         _currentCount++;
+    }
+
+    void addAborted(final TransactionStatus status) {
+        assert _lock.isHeldByCurrentThread();
+        status.setNext(_aborted);
+        _aborted = status;
+        _abortedCount++;
+    }
+
+    int getIndex() {
+        return _hashIndex;
     }
 
     TransactionStatus getCurrent() {
@@ -228,13 +249,13 @@ public class TransactionIndexBucket {
         return _activeTransactionFloor != _transactionIndex.getActiveTransactionFloor();
     }
 
-    void notifyCompleted(final TransactionStatus status) {
+    void notifyCompleted(final TransactionStatus status, final long timestamp) {
         assert _lock.isHeldByCurrentThread();
         final long ts = status.getTs();
         if (ts >= getFloor()) {
             for (TransactionStatus s = getCurrent(); s != null; s = s.getNext()) {
                 if (s == status) {
-                    s.complete();
+                    s.complete(timestamp);
                     if (s.getTs() == getFloor() || hasFloorMoved()) {
                         reduce();
                     }
@@ -247,30 +268,34 @@ public class TransactionIndexBucket {
                 if (s == status) {
                     final TransactionStatus next = s.getNext();
                     assert s.getTc() != UNCOMMITTED;
-                    s.complete();
+                    s.complete(timestamp);
                     boolean moved = false;
-                    if (s.getTc() > 0) {
-                        if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
-                            s.setNext(_free);
-                            _free = s;
-                            _freeCount++;
-                        } else {
-                            _droppedCount++;
+                    if (s.getTc() < _activeTransactionFloor) {
+                        if (s.getTc() > 0) {
+                            aggregate(s, true);
+                            if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+                                s.setNext(_free);
+                                _free = s;
+                                _freeCount++;
+                            } else {
+                                _droppedCount++;
+                            }
+                            moved = true;
+                        } else if (s.getTc() == ABORTED) {
+                            aggregate(s, false);
+                            s.setNext(_aborted);
+                            _aborted = s;
+                            _abortedCount++;
+                            moved = true;
                         }
-                        moved = true;
-                    } else if (s.getTc() == ABORTED) {
-                        s.setNext(_aborted);
-                        _aborted = s;
-                        _abortedCount++;
-                        moved = true;
-                    }
-                    if (moved) {
-                        if (previous == null) {
-                            _longRunning = next;
-                        } else {
-                            previous.setNext(next);
+                        if (moved) {
+                            if (previous == null) {
+                                _longRunning = next;
+                            } else {
+                                previous.setNext(next);
+                            }
+                            _longRunningCount--;
                         }
-                        _longRunningCount--;
                     }
                     return;
                 }
@@ -311,7 +336,7 @@ public class TransactionIndexBucket {
                  * Is this TransactionStatus aborted and notified?
                  */
                 final boolean aborted = status.getTc() == ABORTED && status.isNotified();
-                final boolean committed = status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.isNotified();
+                final boolean committed = isCommitted(status);
 
                 if (status.getTs() == _floor) {
                     /*
@@ -327,7 +352,8 @@ public class TransactionIndexBucket {
                      * Move the TransactionStatus somewhere if any of these
                      * conditions hold
                      */
-                    if (committed && !_transactionIndex.hasConcurrentTransaction(status.getTs(), status.getTc())) {
+                    if (committed && isObsolete(status)) {
+                        aggregate(status, true);
                         /*
                          * committed
                          */
@@ -340,6 +366,7 @@ public class TransactionIndexBucket {
                         }
                         moved = true;
                     } else if (aborted) {
+                        aggregate(status, false);
                         /*
                          * aborted
                          */
@@ -395,10 +422,10 @@ public class TransactionIndexBucket {
      * Move <code>TransactionStatus</code> instances from the
      * <code>_aborted</code> and <code>_longRunning</code> lists back to the
      * {@link #_free} list when there are no longer any active transactions that
-     * need them. This method is called periodically whenever the {@link #reduce()}
-     * method detects that the ActiveTransactionCache has been updated. It is
-     * also called by <code>TransactionIndex{@link #cleanup(long)}</code> for
-     * unit tests.
+     * need them. This method is called periodically whenever the
+     * {@link #reduce()} method detects that the ActiveTransactionCache has been
+     * updated. It is also called by
+     * <code>TransactionIndex{@link #cleanup(long)}</code> for unit tests.
      * <p>
      * An aborted <code>TransactionStatus</code> can be freed once its MVV count
      * becomes zero indicating that no versions written by that transaction
@@ -432,6 +459,7 @@ public class TransactionIndexBucket {
             TransactionStatus next = status.getNext();
             assert status.getTc() == ABORTED;
             if (status.getMvvCount() == 0 && status.getTa() < activeTransactionFloor) {
+                aggregate(status, false);
                 if (previous == null) {
                     _aborted = next;
                 } else {
@@ -457,8 +485,9 @@ public class TransactionIndexBucket {
         previous = null;
         for (TransactionStatus status = _longRunning; status != null;) {
             TransactionStatus next = status.getNext();
-            if (status.isNotified() && status.getTc() > 0 && status.getTc() != UNCOMMITTED
-                    && !_transactionIndex.hasConcurrentTransaction(status.getTs(), status.getTc())) {
+            if (status.isNotified() && isCommitted(status)
+                    && isObsolete(status)) {
+                aggregate(status, true);
                 if (previous == null) {
                     _longRunning = next;
                 } else {
@@ -478,12 +507,136 @@ public class TransactionIndexBucket {
             status = next;
         }
     }
+    
+    private boolean isCommitted(final TransactionStatus status) {
+        return status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.isNotified();
+    }
+
+    private boolean isObsolete(final TransactionStatus status) {
+        return status.getDelta() != null ? status.getTc() < _activeTransactionFloor : !_transactionIndex
+                .hasConcurrentTransaction(status.getTs(), status.getTc());
+    }
+
+    private void aggregate(final TransactionStatus status, boolean committed) {
+        assert _lock.isHeldByCurrentThread();
+
+        for (Delta delta = status.takeDelta(); delta != null; delta = freeDelta(delta)) {
+            if (committed) {
+                delta.getAccumulator().aggregate(_hashIndex, delta);
+                delta.getAccumulator().checkpointNeeded();
+            }
+        }
+    }
+
+    /**
+     * Compute and return the snapshot value of an Accumulator
+     * 
+     * @throws RetryException
+     *             if a TransactionStatus started but had not finished
+     *             committing.
+     * @throws InterruptedException
+     */
+    long getAccumulatorSnapshot(final Accumulator accumulator, final long timestamp, final int step)
+            throws RetryException, InterruptedException {
+        assert _lock.isHeldByCurrentThread();
+        long value = accumulator.getBucketValue(_hashIndex);
+        value = accumulatorSnapshotHelper(_current, accumulator, timestamp, step, value);
+        value = accumulatorSnapshotHelper(_longRunning, accumulator, timestamp, step, value);
+        return value;
+    }
+
+    private long accumulatorSnapshotHelper(final TransactionStatus start, final Accumulator accumulator,
+            final long timestamp, final int step, final long initialValue) throws RetryException, InterruptedException {
+        long value = initialValue;
+        for (TransactionStatus status = start; status != null; status = status.getNext()) {
+            final long tc = status.getTc();
+            if (status.getTs() == timestamp) {
+                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                    if (delta.getAccumulator() == accumulator && (delta.getStep() < step || delta.getStep() == 0)) {
+                        value = accumulator.applyValue(value, delta.getValue());
+                    }
+                }
+            } else if (tc > 0 && tc != UNCOMMITTED && tc < timestamp) {
+                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                    if (delta.getAccumulator() == accumulator) {
+                        value = accumulator.applyValue(value, delta.getValue());
+                    }
+                }
+            } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
+                boolean locked = false;
+                try {
+                    locked = status.wwLock(TransactionIndex.SHORT_TIMEOUT);
+                } finally {
+                    if (locked) {
+                        status.wwUnlock();
+                    }
+                }
+                throw RetryException.SINGLE;
+            }
+        }
+        return value;
+    }
+
+    void checkpointAccumulatorSnapshots(final long timestamp) throws RetryException, InterruptedException {
+        assert _lock.isHeldByCurrentThread();
+        accumulatorCheckpointHelper(_current, timestamp);
+        accumulatorCheckpointHelper(_longRunning, timestamp);
+    }
+
+    private void accumulatorCheckpointHelper(final TransactionStatus start, final long timestamp)
+            throws RetryException, InterruptedException {
+        for (TransactionStatus status = start; status != null; status = status.getNext()) {
+            final long tc = status.getTc();
+            if (tc > 0 && tc != UNCOMMITTED && tc < timestamp) {
+                for (Delta delta = status.getDelta(); delta != null; delta = delta.getNext()) {
+                    final Accumulator accumulator = delta.getAccumulator();
+                    long newValue = accumulator.applyValue(accumulator.getCheckpointTemp(), delta.getValue());
+                    accumulator.setCheckpointTemp(newValue);
+                }
+            } else if (tc < 0 && tc != ABORTED && -tc < timestamp) {
+                boolean locked = false;
+                try {
+                    locked = status.wwLock(TransactionIndex.SHORT_TIMEOUT);
+                } finally {
+                    if (locked) {
+                        status.wwUnlock();
+                    }
+                }
+                throw RetryException.SINGLE;
+            }
+        }
+    }
+
+    private Delta freeDelta(final Delta delta) {
+        final Delta next = delta.getNext();
+        /**
+         * If the free Delta list is already full then simply drop this one and
+         * let it be garbage collected
+         */
+        if (_freeDeltaCount < _transactionIndex.getMaxFreeDeltaListSize()) {
+            delta.setNext(_freeDeltaList);
+            _freeDeltaList = delta;
+            _freeDeltaCount++;
+        }
+        return next;
+    }
+
+    Delta allocateDelta() {
+        Delta delta = _freeDeltaList;
+        if (delta != null) {
+            _freeDeltaList = delta.getNext();
+            _freeDeltaCount--;
+            return delta;
+        } else {
+            return new Delta();
+        }
+    }
 
     @Override
     public String toString() {
-        return String.format("<floor=%s current=[%s]\n    aborted=[%s]\n    long=[%s]\n    free=[%s]>", TransactionIndex
-                .minMaxString(_floor), listString(_current), listString(_aborted), listString(_longRunning),
-                listString(_free));
+        return String.format("<floor=%s current=[%s]\n    aborted=[%s]\n    long=[%s]\n    free=[%s]>",
+                TransactionIndex.minMaxString(_floor), listString(_current), listString(_aborted),
+                listString(_longRunning), listString(_free));
     }
 
     String listString(final TransactionStatus list) {

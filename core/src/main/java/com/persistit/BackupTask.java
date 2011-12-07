@@ -30,9 +30,9 @@ import java.util.zip.ZipOutputStream;
 
 import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.Management.JournalInfo;
 import com.persistit.Management.VolumeInfo;
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.util.Util;
 
 /**

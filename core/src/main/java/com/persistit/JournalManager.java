@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.IT;
 import com.persistit.JournalRecord.IV;
@@ -41,7 +42,6 @@ import com.persistit.JournalRecord.PA;
 import com.persistit.JournalRecord.PM;
 import com.persistit.JournalRecord.TM;
 import com.persistit.JournalRecord.TX;
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -144,8 +144,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private volatile long _readPageCount = 0;
 
     private volatile long _copiedPageCount = 0;
-
-    private long _unitTestNeverCloseTransactionTimestamp = 0;
 
     /**
      * Tunable parameters that determine how vigorously the copyBack thread
@@ -2019,16 +2017,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      */
     public int getHandleCount() {
         return _handleCounter;
-    }
-
-    /**
-     * For use only by unit tests that prove having an open transaction prevents
-     * deletion of journal files.
-     * 
-     * @param id
-     */
-    void setUnitTestNeverCloseTransactionId(final long id) {
-        _unitTestNeverCloseTransactionTimestamp = id;
     }
 
     /**
