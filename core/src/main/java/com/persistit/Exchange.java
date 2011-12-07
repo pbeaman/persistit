@@ -1416,7 +1416,6 @@ public class Exchange {
             }
 
             Value valueToStore = value;
-            OUTER:
             for (;;) {
                 Debug.$assert0.t(buffer == null);
                 if (Debug.ENABLED) {
@@ -1478,12 +1477,18 @@ public class Exchange {
                     Debug.$assert0.t(buffer != null && (buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                             && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
 
-                    boolean splitRequired = true;
-                    for (int pruneCount = 0; pruneCount < 2 && splitRequired; ++pruneCount) {
+                    boolean didPrune = false;
+                    boolean splitRequired = false;
+                    PRUNE_BLOCK: {
                         if (buffer.isDataPage()) {
                             keyExisted = (foundAt & EXACT_MASK) != 0;
                             if (keyExisted) {
                                 oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
+                            }
+                            if (newLongRecordPointerMVV != 0) {
+                                _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
+                                newLongRecordPointerMVV = 0;
+                                _spareValue.setLongRecordMode(false);
                             }
                             if (doAnyFetch) {
                                 buffer.fetch(foundAt, _spareValue);
@@ -1499,15 +1504,15 @@ public class Exchange {
                                 int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
                                 TransactionStatus tStatus = _transaction.getTransactionStatus();
 
-                                if (pruneCount == 0 && (options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
-                                    // Could be streamlined as a single visit of all
-                                    // versions, but current TI interface would still
-                                    // require calls to both commitStatus() and
-                                    // wwDependency() (which are the costly parts)
+                                if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
+                                    // Could be single visit of all versions but
+                                    // current TI would still require calls to
+                                    // both commitStatus() and wwDependency()
                                     _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
                                     MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
                                     if (!_mvvVisitor.foundVersion()) {
-                                        break OUTER;
+                                        // Completely done, nothing to store
+                                        break;
                                     }
                                 }
 
@@ -1535,12 +1540,11 @@ public class Exchange {
                         Debug.$assert0.t(valueToStore.getEncodedSize() <= maxSimpleValueSize);
 
                         splitRequired = putLevel(lc, key, valueToStore, buffer, foundAt, treeClaimAcquired);
-                        if (treeClaimAcquired) {
-                            break;
-                        }
-                        if (splitRequired && pruneCount == 0 && buffer.isDataPage() && doMVCC) {
+                        if (splitRequired && !didPrune && doMVCC && buffer.isDataPage()) {
                             prune(buffer, _spareKey1, _spareValue);
                             lc.updateBufferGeneration();
+                            didPrune = true;
+                            break PRUNE_BLOCK;
                         }
                     }
 
