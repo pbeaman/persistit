@@ -44,24 +44,31 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
     }
 
     public final void tearDown() throws Exception {
-        final Volume vol = ex1.getVolume();
-        assertEquals("open read claims",  0, _persistit.getBufferPool(vol.getPageSize()).countInUse(vol, false));
-        assertEquals("open write claims", 0, _persistit.getBufferPool(vol.getPageSize()).countInUse(vol, true));
-        
-        _persistit.releaseExchange(ex1);
-        _persistit.releaseExchange(ex2);
-        ex1 = ex2 = null;
-        trx1 = trx2 = null;
-        session1 = session2 = null;
-        
-        super.tearDown();
+        try {
+            assertEquals("open read claims",  0, countClaims(false));
+            assertEquals("open write claims", 0, countClaims(true));
+            
+            _persistit.releaseExchange(ex1);
+            _persistit.releaseExchange(ex2);
+            ex1 = ex2 = null;
+            trx1 = trx2 = null;
+            session1 = session2 = null;
+        }
+        finally {
+            super.tearDown();
+        }
     }
 
 
     //
     // Internal test methods
     //
+
     
+    protected int countClaims(boolean writer) {
+        final Volume vol = ex1.getVolume();
+        return _persistit.getBufferPool(vol.getPageSize()).countInUse(vol, writer);
+    }
 
     protected static class KVPair implements Comparable<KVPair> {
         Object k1, k2, v;
