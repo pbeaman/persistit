@@ -38,9 +38,16 @@ class CheckpointManager extends IOTaskRunnable {
 
         private final long _systemTime;
 
+        private volatile boolean _completed = false;
+
         public Checkpoint(final long timestamp, final long systemTime) {
             _timestamp = timestamp;
             _systemTime = systemTime;
+        }
+        
+        Checkpoint(final long timestamp, final long systemTime, final boolean completed) {
+            this(timestamp, systemTime);
+            _completed = completed;
         }
 
         public long getTimestamp() {
@@ -51,9 +58,17 @@ class CheckpointManager extends IOTaskRunnable {
             return _systemTime;
         }
 
+        void completed() {
+            _completed = true;
+        }
+
+        public boolean isCompleted() {
+            return _completed;
+        }
+
         @Override
         public String toString() {
-            return String.format("Checkpoint %,d @ %s", _timestamp, SDF.format(new Date(_systemTime)));
+            return String.format("Checkpoint %,d%s @ %s", _timestamp, isCompleted() ? "c" : "u", SDF.format(new Date(_systemTime)));
         }
 
         @Override
@@ -71,7 +86,7 @@ class CheckpointManager extends IOTaskRunnable {
      */
     private final static long DEFAULT_CHECKPOINT_INTERVAL = 120000000000L;
 
-    private final static int CHECKPOINT_TIMESTAMP_MARKER_INTERVAL = 100;
+    private final static Checkpoint UNAVALABLE_CHECKPOINT = new Checkpoint(0, 0);
 
     private volatile long _checkpointInterval = DEFAULT_CHECKPOINT_INTERVAL;
 
@@ -81,9 +96,7 @@ class CheckpointManager extends IOTaskRunnable {
 
     private final static long FLUSH_CHECKPOINT_INTERVAL = 5000;
 
-    private final List<Checkpoint> _outstandingCheckpoints = new ArrayList<Checkpoint>();
-
-    private volatile Checkpoint _currentCheckpoint = new Checkpoint(0, 0);
+    private volatile Checkpoint _currentCheckpoint = new Checkpoint(0, 0, true);
 
     private AtomicBoolean _closed = new AtomicBoolean();
 
@@ -122,8 +135,10 @@ class CheckpointManager extends IOTaskRunnable {
         while (true) {
             kick();
             synchronized (this) {
-                if (!_outstandingCheckpoints.contains(checkpoint)) {
+                if (checkpoint.isCompleted()) {
                     return checkpoint;
+                } else if (_currentCheckpoint != checkpoint) {
+                    return UNAVALABLE_CHECKPOINT;
                 }
             }
             try {
@@ -157,9 +172,9 @@ class CheckpointManager extends IOTaskRunnable {
      * </p>
      * <p>
      * This method is synchronized because it computes a checkpoint value for
-     * each Accumulator and then serializes that value into the database.
-     * That process is not threadsafe, and there is no use case
-     * for concurrent checkpoints.
+     * each Accumulator and then serializes that value into the database. That
+     * process is not threadsafe, and there is no use case for concurrent
+     * checkpoints.
      * 
      * @return The newly created Checkpoint
      * @throws PersistitException
@@ -176,28 +191,19 @@ class CheckpointManager extends IOTaskRunnable {
         if (txn.isActive()) {
             throw new IllegalStateException("Checkpoint may not be created inside a transaction");
         }
-        
-        _lastCheckpointNanos = System.nanoTime();
 
-        /*
-         * Add a gap to the timestamp counter - this is useful only for humans
-         * trying to decipher timestamps in the journal - not necessary for
-         * correct function.
-         */
-        _persistit.getTimestampAllocator().bumpTimestamp(CHECKPOINT_TIMESTAMP_MARKER_INTERVAL);
-        txn.begin();
+        _lastCheckpointNanos = System.nanoTime();
+        _currentCheckpoint = UNAVALABLE_CHECKPOINT;
+
+        txn.beginCheckpoint();
         try {
             List<Accumulator> accumulators = _persistit.getCheckpointAccumulators();
             _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp(), accumulators);
             Accumulator.saveAccumulatorCheckpointValues(accumulators);
-            txn.commit();
-            final Checkpoint checkpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
-            synchronized (this) {
-                _outstandingCheckpoints.add(checkpoint);
-                _currentCheckpoint = checkpoint;
-            }
-            _persistit.getLogBase().checkpointProposed.log(checkpoint);
-            return checkpoint;
+            txn.commit(true);
+            _currentCheckpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
+            _persistit.getLogBase().checkpointProposed.log(_currentCheckpoint);
+            return _currentCheckpoint;
         } catch (InterruptedException ie) {
             throw new PersistitInterruptedException(ie);
         } finally {
@@ -211,52 +217,24 @@ class CheckpointManager extends IOTaskRunnable {
      * these whether a currently outstanding checkpoint is ready to complete.
      */
     void pollFlushCheckpoint() {
-        final Checkpoint validCheckpoint;
-        synchronized (this) {
-            validCheckpoint = findValidCheckpoint(_outstandingCheckpoints);
-        }
-        if (validCheckpoint != null) {
-            try {
-                _persistit.getJournalManager().writeCheckpointToJournal(validCheckpoint);
-                synchronized (this) {
-                    _outstandingCheckpoints.remove(validCheckpoint);
-                }
-            } catch (PersistitIOException e) {
-                _persistit.getLogBase().exception.log(e);
-            }
-        }
-    }
-
-    /**
-     * Given a List of outstanding Checkpoints, find the latest one that is safe
-     * to write and return it. If there is no safe Checkpoint, return
-     * <code>null</code>
-     * 
-     * @param List
-     *            of outstanding Checkpoint instances
-     * @return The latest Checkpoint from the list that can be written, or
-     *         <code>null</code> if there are none.
-     */
-    private Checkpoint findValidCheckpoint(final List<Checkpoint> outstandingCheckpoints) {
-        if (!outstandingCheckpoints.isEmpty()) {
+        Checkpoint checkpoint = _currentCheckpoint;
+        if (!checkpoint.isCompleted()) {
             long earliestDirtyTimestamp = Math.min(_persistit.earliestLiveTransaction(), _persistit
                     .earliestDirtyTimestamp());
-            for (int index = outstandingCheckpoints.size(); --index >= 0;) {
-                final Checkpoint checkpoint = outstandingCheckpoints.get(index);
-                if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
-                    for (int k = index - 1; k >= 0; --k) {
-                        outstandingCheckpoints.remove(k);
-                    }
-                    return checkpoint;
+            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
+                try {
+                    _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
+                    checkpoint.completed();
+                } catch (PersistitIOException e) {
+                    _persistit.getLogBase().exception.log(e);
                 }
             }
         }
-        return null;
     }
 
     @Override
     protected synchronized boolean shouldStop() {
-        return _closed.get() && (_outstandingCheckpoints.isEmpty() || _fastClose.get());
+        return _closed.get() && (_currentCheckpoint.isCompleted() || _fastClose.get());
     }
 
     @Override

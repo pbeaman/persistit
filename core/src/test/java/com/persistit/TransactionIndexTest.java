@@ -29,12 +29,12 @@ public class TransactionIndexTest extends TestCase {
     public void testBasicMethods() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
 
-        TransactionStatus ts1 = ti.registerTransaction();
+        TransactionStatus ts1 = ti.registerTransaction(false);
         ti.updateActiveTransactionCache();
         assertTrue(ti.hasConcurrentTransaction(0, ts1.getTs() + 1));
         ts1.commit(_tsa.updateTimestamp());
 
-        TransactionStatus ts2 = ti.registerTransaction();
+        TransactionStatus ts2 = ti.registerTransaction(false);
         /*
          * True because the ActiveTransactionCache hasn't been updated yet.
          */
@@ -56,8 +56,8 @@ public class TransactionIndexTest extends TestCase {
         assertFalse(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()) + 1, ts2.getTs(), 1)));
         assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()) + 1, ts2.getTs(), 2)));
 
-        TransactionStatus ts3 = ti.registerTransaction();
-        TransactionStatus ts4 = ti.registerTransaction();
+        TransactionStatus ts3 = ti.registerTransaction(false);
+        TransactionStatus ts4 = ti.registerTransaction(false);
 
         ts2.commit(_tsa.updateTimestamp());
         ti.updateActiveTransactionCache();
@@ -104,15 +104,15 @@ public class TransactionIndexTest extends TestCase {
 
     public void testNonBlockingWwDependency() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
-        final TransactionStatus ts1 = ti.registerTransaction();
-        final TransactionStatus ts2 = ti.registerTransaction();
+        final TransactionStatus ts1 = ti.registerTransaction(false);
+        final TransactionStatus ts2 = ti.registerTransaction(false);
         ts1.commit(_tsa.updateTimestamp());
         ti.notifyCompleted(ts1, _tsa.updateTimestamp());
         /*
          * Should return 0 because ts1 has committed and is now primordial.
          */
         assertTrue(isCommitted(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts2, 1000)));
-        final TransactionStatus ts3 = ti.registerTransaction();
+        final TransactionStatus ts3 = ti.registerTransaction(false);
         ts2.abort();
         ti.notifyCompleted(ts2, _tsa.updateTimestamp());
         /*
@@ -131,7 +131,7 @@ public class TransactionIndexTest extends TestCase {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
 
         for (int count = 0; count < array.length; count++) {
-            array[count] = ti.registerTransaction();
+            array[count] = ti.registerTransaction(false);
             array[count].incrementMvvCount();
         }
         assertEquals(ti.getLongRunningThreshold(), ti.getCurrentCount());
@@ -184,13 +184,13 @@ public class TransactionIndexTest extends TestCase {
 
     public void testBlockingWwDependency() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
-        final TransactionStatus ts1 = ti.registerTransaction();
-        final TransactionStatus ts2 = ti.registerTransaction();
+        final TransactionStatus ts1 = ti.registerTransaction(false);
+        final TransactionStatus ts2 = ti.registerTransaction(false);
         final AtomicLong elapsed = new AtomicLong();
         final boolean result1 = tryBlockingWwDependency(ti, ts1, ts2, 1000, 10000, elapsed, true);
         assertTrue(result1);
         assertTrue(elapsed.get() >= 900);
-        final TransactionStatus ts3 = ti.registerTransaction();
+        final TransactionStatus ts3 = ti.registerTransaction(false);
         final boolean result2 = tryBlockingWwDependency(ti, ts2, ts3, 1000, 10000, elapsed, false);
         assertFalse(result2);
         assertTrue(elapsed.get() >= 900);

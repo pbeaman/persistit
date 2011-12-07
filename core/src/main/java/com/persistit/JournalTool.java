@@ -687,6 +687,7 @@ public class JournalTool {
 
         private void end() {
             _writer.println(sb.toString());
+//            _writer.flush();
         }
 
         // -----------------------
@@ -865,7 +866,7 @@ public class JournalTool {
         @Override
         public void d0(long address, long timestamp, int recordSize) throws Exception {
             read(address, recordSize);
-            start(address, timestamp, "CU", recordSize);
+            start(address, timestamp, "D0", recordSize);
             final int thandle = D0.getTreeHandle(_readBuffer);
             final int index = D0.getIndex(_readBuffer);
             appendf(" tree %05d index %2d value %,5d", thandle, index, 1);
@@ -875,7 +876,7 @@ public class JournalTool {
         @Override
         public void d1(long address, long timestamp, int recordSize) throws Exception {
             read(address, recordSize);
-            start(address, timestamp, "CU", recordSize);
+            start(address, timestamp, "D1", recordSize);
             final int thandle = D1.getTreeHandle(_readBuffer);
             final int index = D1.getIndex(_readBuffer);
             final long value = D1.getValue(_readBuffer);

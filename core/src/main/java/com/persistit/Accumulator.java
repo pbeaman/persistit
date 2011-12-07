@@ -644,7 +644,7 @@ abstract class Accumulator {
 
             final Volume volume = accumulator.getTree().getVolume();
             if (exchange == null || !exchange.getVolume().equals(volume)) {
-                exchange = volume.getStructure().directoryExchange();
+                exchange = volume.getStructure().accumulatorExchange();
             }
             exchange.clear().append(VolumeStructure.DIRECTORY_TREE_NAME).append(VolumeStructure.TREE_ACCUMULATOR)
                     .append(accumulator.getTree().getName()).append(accumulator.getIndex());

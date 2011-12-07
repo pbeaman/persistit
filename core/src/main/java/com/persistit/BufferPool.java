@@ -1069,6 +1069,12 @@ public class BufferPool {
     };
 
     long getEarliestDirtyTimestamp() {
+        for (int i = 0; i < _bufferCount; i++) {
+            Buffer buffer = _buffers[i];
+            if (buffer.isValid() && buffer.isDirty() && buffer.getTimestamp() < _earliestDirtyTimestamp) {
+                System.out.println("Boo");
+            }
+        }
         return _earliestDirtyTimestamp;
     }
 

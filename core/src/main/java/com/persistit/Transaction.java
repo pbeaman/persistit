@@ -392,7 +392,7 @@ public class Transaction {
         }
         if (_nestedDepth == 0) {
             try {
-                _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
+                _transactionStatus = _persistit.getTransactionIndex().registerTransaction(false);
             } catch (InterruptedException e) {
                 throw new PersistitInterruptedException(e);
             }
@@ -406,6 +406,29 @@ public class Transaction {
             checkPendingRollback();
         }
         _nestedDepth++;
+    }
+    
+    void beginCheckpoint() throws PersistitException {
+        if (_commitCompleted) {
+            throw new IllegalStateException("Attempt to begin a committed transaction");
+        }
+        if (_nestedDepth == 0) {
+            try {
+                _transactionStatus = _persistit.getTransactionIndex().registerTransaction(true);
+            } catch (InterruptedException e) {
+                throw new PersistitInterruptedException(e);
+            }
+            _rollbackPending = false;
+            _startTimestamp = _transactionStatus.getTs();
+            _commitTimestamp = 0;
+            _step = 0;
+            _buffer.clear();
+            _previousJournalAddress = 0;
+        } else {
+            checkPendingRollback();
+        }
+        _nestedDepth++;
+        
     }
 
     /**

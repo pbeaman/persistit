@@ -489,11 +489,16 @@ public class TransactionIndex {
      * @throws InterruptedException
      * @throws TimeoutException
      */
-    TransactionStatus registerTransaction() throws TimeoutException, InterruptedException {
+    TransactionStatus registerTransaction(final boolean forCheckpoint) throws TimeoutException, InterruptedException {
         final TransactionStatus status;
         final TransactionIndexBucket bucket;
         synchronized (this) {
-            final long ts = _timestampAllocator.updateTimestamp();
+            final long ts;
+            if (forCheckpoint) {
+                ts = _timestampAllocator.allocateCheckpoint();
+            } else {
+                ts = _timestampAllocator.updateTimestamp();
+            }
             int index = hashIndex(ts);
             bucket = _hashTable[index];
             bucket.lock();

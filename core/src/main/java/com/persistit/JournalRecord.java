@@ -981,7 +981,7 @@ class JournalRecord {
     static class D1 extends JournalRecord {
         public final static int TYPE = ('D' << 8) | '1';
 
-        public final static int OVERHEAD = 22;
+        public final static int OVERHEAD = 24;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -996,27 +996,27 @@ class JournalRecord {
         }
 
         public static void putIndex(final ByteBuffer bb, final int index) {
-            putByte(bb, 12, index);
+            putChar(bb, 12, index);
         }
 
         public static int getIndex(final ByteBuffer bb) {
-            return getByte(bb, 12);
+            return getChar(bb, 12);
         }
         
         public static void putAccumulatorTypeOrdinal(final ByteBuffer bb, final int type) {
-            putByte(bb, 13, type);
+            putChar(bb, 14, type);
         }
         
         public static int getAccumulatorTypeOrdinal(final ByteBuffer bb) {
-            return getByte(bb, 13);
+            return getChar(bb, 14);
         }
 
         public static long getValue(final ByteBuffer bb) {
-            return getLong(bb, 14);
+            return getLong(bb, 16);
         }
 
         public static void putValue(final ByteBuffer bb, final long value) {
-            putLong(bb, 14, value);
+            putLong(bb, 16, value);
         }
 
     }
@@ -1024,7 +1024,7 @@ class JournalRecord {
     static class D0 extends JournalRecord {
         public final static int TYPE = ('D' << 8) | '0';
 
-        public final static int OVERHEAD = 14;
+        public final static int OVERHEAD = 16;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -1039,19 +1039,19 @@ class JournalRecord {
         }
 
         public static void putIndex(final ByteBuffer bb, final int index) {
-            putByte(bb, 12, index);
+            putChar(bb, 12, index);
         }
 
         public static int getIndex(final ByteBuffer bb) {
-            return getByte(bb, 12);
+            return getChar(bb, 12);
         }
         
         public static void putAccumulatorTypeOrdinal(final ByteBuffer bb, final int type) {
-            putByte(bb, 13, type);
+            putChar(bb, 14, type);
         }
         
         public static int getAccumulatorTypeOrdinal(final ByteBuffer bb) {
-            return getByte(bb, 13);
+            return getChar(bb, 14);
         }
     }
 }
