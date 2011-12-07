@@ -16,6 +16,7 @@
 package com.persistit;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
@@ -67,7 +68,10 @@ import java.nio.channels.spi.AbstractInterruptibleChannel;
  */
 class MediatedFileChannel extends FileChannel {
 
+    private final static String LOCK_EXTENSION = ".lck";
+
     final File _file;
+    final File _lockFile;
     final String _mode;
 
     volatile FileChannel _channel;
@@ -82,6 +86,7 @@ class MediatedFileChannel extends FileChannel {
 
     MediatedFileChannel(final File file, final String mode) throws IOException {
         _file = file;
+        _lockFile = new File(file.getParentFile(), file.getName() + LOCK_EXTENSION);
         _mode = mode;
         openChannel();
     }
@@ -241,7 +246,19 @@ class MediatedFileChannel extends FileChannel {
     public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
         if (_lockChannel == null) {
             injectFailure('l');
-            _lockChannel = new RandomAccessFile(_file, _mode).getChannel();
+            try {
+                _lockChannel = new RandomAccessFile(_lockFile, "rw").getChannel();
+            } catch (IOException ioe) {
+                if (!shared) {
+                    throw ioe;
+                } else {
+                    /*
+                     * Read-only volume, probably failed to create a lock file
+                     * due to permissions. We'll assume that means no other
+                     * process could be modifying the corresponding volume file.
+                     */
+                }
+            }
         }
         return _lockChannel.tryLock(position, size, shared);
     }
@@ -275,6 +292,7 @@ class MediatedFileChannel extends FileChannel {
             IOException exception = null;
             try {
                 if (_lockChannel != null) {
+                    _lockFile.delete();
                     _lockChannel.close();
                 }
             } catch (IOException e) {

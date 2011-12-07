@@ -351,7 +351,7 @@ class ManagementImpl implements Management {
                 info.commitCount = 0;
                 info.rollbackCount = 0;
                 info.rollbackSinceCommitCount = 0;
-                _persistit.populateTransactionList(transactions, -1, -1);
+                _persistit.populateTransactionList(transactions);
                 for (final Transaction txn : transactions) {
                     info.commitCount += txn.getCommittedTransactionCount();
                     info.rollbackCount += txn.getRolledBackTransactionCount();

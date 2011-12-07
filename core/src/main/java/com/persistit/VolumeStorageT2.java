@@ -106,10 +106,17 @@ class VolumeStorageT2 extends VolumeStorage {
     /**
      * @return the channel used to read and write pages of this volume.
      */
-    FileChannel getChannel() {
+    FileChannel getChannel() throws PersistitIOException {
+        if (_channel == null) {
+            try {
+            _channel = new MediatedFileChannel(_path, "rw");
+            } catch (IOException ioe) {
+                _persistit.getLogBase().tempVolumeCreateException.log(ioe, _path);
+                throw new PersistitIOException(ioe);
+            }
+        }
         return _channel;
     }
-
 
     /**
      * Create a new <code>Volume</code> backing file according to the
@@ -123,7 +130,7 @@ class VolumeStorageT2 extends VolumeStorage {
         try {
             final File file = File.createTempFile(TEMP_FILE_PREFIX, null, directory);
             _path = file.getPath();
-            _channel = new MediatedFileChannel(file, "rw");
+            _channel = null;
             truncate();
             _opened = true;
         } catch (IOException ioe) {
@@ -283,7 +290,7 @@ class VolumeStorageT2 extends VolumeStorage {
                 int read = 0;
                 while (read < buffer.getBufferSize()) {
                     long position = (page - 1) * _volume.getStructure().getPageSize() + bb.position();
-                    int bytesRead = _channel.read(bb, position);
+                    int bytesRead = getChannel().read(bb, position);
                     if (bytesRead <= 0) {
                         throw new PersistitIOException("Unable to read bytes at position " + position + " in " + this);
                     }
@@ -327,7 +334,7 @@ class VolumeStorageT2 extends VolumeStorage {
             }
 
             try {
-                _channel.write(bb, (page - 1) * pageSize);
+                getChannel().write(bb, (page - 1) * pageSize);
 
             } catch (IOException ioe) {
                 _persistit.getLogBase().writeException.log(ioe, this, page);

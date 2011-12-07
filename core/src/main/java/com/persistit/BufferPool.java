@@ -90,7 +90,7 @@ public class BufferPool {
     private final static float SMALL_VOLUME_RATIO = 0.1f;
 
     /**
-     * The Persistit instance that references this BufferBool.
+     * The Persistit instance that references this BufferPool.
      */
     private final Persistit _persistit;
 
@@ -1069,12 +1069,6 @@ public class BufferPool {
     };
 
     long getEarliestDirtyTimestamp() {
-        for (int i = 0; i < _bufferCount; i++) {
-            Buffer buffer = _buffers[i];
-            if (buffer.isValid() && buffer.isDirty() && buffer.getTimestamp() < _earliestDirtyTimestamp) {
-                System.out.println("Boo");
-            }
-        }
         return _earliestDirtyTimestamp;
     }
 

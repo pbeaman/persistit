@@ -687,7 +687,6 @@ public class JournalTool {
 
         private void end() {
             _writer.println(sb.toString());
-//            _writer.flush();
         }
 
         // -----------------------

@@ -53,12 +53,12 @@ class TimestampAllocator {
     /**
      * Atomically allocate a new checkpoint timestamp. This method ensures that
      * the proposed checkpoint timestamp contains the largest timestamp ever
-     * allocated. In particular, it prevents another thread from allocated a
+     * allocated. In particular, it prevents another thread from allocating a
      * larger timestamp before the checkpointTimestamp field is set.
      * 
      * @return the allocated timestamp
      */
-    long allocateCheckpoint() {
+    long allocateCheckpointTimestamp() {
         /*
          * Add a gap to the timestamp counter - this is useful only for humans
          * trying to decipher timestamps in the journal - is not necessary for

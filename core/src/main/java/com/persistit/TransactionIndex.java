@@ -495,7 +495,7 @@ public class TransactionIndex {
         synchronized (this) {
             final long ts;
             if (forCheckpoint) {
-                ts = _timestampAllocator.allocateCheckpoint();
+                ts = _timestampAllocator.allocateCheckpointTimestamp();
             } else {
                 ts = _timestampAllocator.updateTimestamp();
             }
