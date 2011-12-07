@@ -1377,6 +1377,7 @@ public class Exchange {
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
         boolean committed = false;
+        boolean incrementMVVCount = false;
 
         final int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
 
@@ -1521,9 +1522,7 @@ public class Exchange {
                                 int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), spareSize,
                                                                     versionHandle, value.getEncodedBytes(), valueSize);
 
-                                if ((storedLength & MVV.STORE_EXISTED_MASK) == 0) {
-                                    tStatus.incrementMvvCount();
-                                }
+                                incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
                                 storedLength &= MVV.STORE_LENGTH_MASK;
                                 _spareValue.setEncodedSize(storedLength);
 
@@ -1583,7 +1582,7 @@ public class Exchange {
                             _tree.bumpChangeCount();
                         }
                         committed = true;
-                        if ((options & StoreOptions.MVCC) != 0) {
+                        if (incrementMVVCount) {
                             _transaction.getTransactionStatus().incrementMvvCount();
                         }
                     }
