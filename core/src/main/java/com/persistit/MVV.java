@@ -101,6 +101,18 @@ public class MVV {
     }
 
     /**
+     * Simple helper method to test if a given byte array is an MVV.
+     *
+     * @param source Potential MVV to test
+     * @param sourceLength Length of the given array currently in use.
+     *
+     * @return <code>true</code> if the array is an MVV
+     */
+    static boolean isArrayMVV(byte[] source, int sourceLength) {
+        return (sourceLength > 0) && (source[0] == TYPE_MVV_BYTE);
+    }
+
+    /**
      * Write a value, with the specified version and length, into the given MVV byte array.
      * The resulting contents of the target array will always be MVV no matter the starting
      * state (ie. empty, primordial, or MVV). That is, an empty or primordial target will be

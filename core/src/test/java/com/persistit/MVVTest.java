@@ -72,6 +72,24 @@ public class MVVTest {
     }
 
     @Test
+    public void isMVVAllInputs() {
+        final byte[] empty = {};
+        assertEquals("empty and unused", false, MVV.isArrayMVV(empty, -1));
+        assertEquals("empty and undefined", false, MVV.isArrayMVV(empty, 0));
+
+        final byte[] primordial = newArray(0xA,0xB,0xC);
+        assertEquals("primordial and unused", false, MVV.isArrayMVV(primordial, -1));
+        assertEquals("primordial and used", false, MVV.isArrayMVV(primordial, primordial.length));
+
+        final byte[] mvvEmptyVersion = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,0);
+        assertEquals("mvv empty value", true, MVV.isArrayMVV(mvvEmptyVersion, mvvEmptyVersion.length));
+        assertEquals("mvv array but unused", false, MVV.isArrayMVV(mvvEmptyVersion, -1));
+
+        final byte[] mvvTwoVersions = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,2, 0xA,0xB,  0,0,0,0,0,0,0,9, 0,1, 0xC);
+        assertEquals("mvv two versions", true, MVV.isArrayMVV(mvvTwoVersions, mvvTwoVersions.length));
+    }
+
+    @Test
     public void storeToUnused() {
         final int vh = 200;
         final byte[] source = {0xA,0xB,0xC};
