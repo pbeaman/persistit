@@ -1400,6 +1400,7 @@ public class Exchange {
             }
 
             Value valueToStore = value;
+            OUTER:
             for (;;) {
                 Debug.$assert0.t(buffer == null);
                 if (Debug.ENABLED) {
@@ -1490,7 +1491,7 @@ public class Exchange {
                                     _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
                                     MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
                                     if (!_mvvVisitor.foundVersion()) {
-                                        break;
+                                        break OUTER;
                                     }
                                 }
 
