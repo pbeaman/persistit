@@ -33,7 +33,7 @@ public class MVV {
     private final static int LENGTH_VERSION = 8;        // long
     private final static int LENGTH_VALUE_LENGTH = 2;   // short
 
-    private final static int LENGTH_PER_VERSION = LENGTH_VERSION + LENGTH_VALUE_LENGTH;
+    final static int LENGTH_PER_VERSION = LENGTH_VERSION + LENGTH_VALUE_LENGTH;
 
 
     /**
@@ -98,6 +98,18 @@ public class MVV {
             }
             return sourceLength + LENGTH_PER_VERSION + newVersionLength;
         }
+    }
+
+    /**
+     * Simple helper method to test if a given byte array is an MVV.
+     *
+     * @param source Potential MVV to test
+     * @param sourceLength Length of the given array currently in use.
+     *
+     * @return <code>true</code> if the array is an MVV
+     */
+    static boolean isArrayMVV(byte[] source, int sourceLength) {
+        return (sourceLength > 0) && (source[0] == TYPE_MVV_BYTE);
     }
 
     /**
