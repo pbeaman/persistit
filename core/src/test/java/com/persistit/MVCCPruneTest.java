@@ -207,6 +207,44 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
     }
 
+    /*
+     * Tests currently heuristic for pruning on split. That is, always prune
+     * entire page when deciding to split. Will need updated if that changes.
+     */
+    public void testPruneOnSplit() throws PersistitException {
+        final int MAX_KEYS = 2500;
+        
+        String curKey = "";
+        boolean hadSplit = false;
+        for (int i = 0; i < MAX_KEYS; ++i) {
+            _persistit.getTransactionIndex().cleanup();
+            trx1.begin();
+            try {
+                curKey = String.format("k%4d", i);
+                store(ex1, curKey, i);
+                hadSplit = ex1.getStoreCausedSplit();
+                trx1.commit();
+                if (hadSplit) {
+                    break;
+                }
+            }
+            finally {
+                trx1.end();
+            }
+        }
+        
+        assertEquals("had split before inserting max number of keys", true, hadSplit);
+
+        Value ex1Value = ex1.getValue();
+        ex1.ignoreMVCCFetch(true);
+        ex1.clear().append(Key.BEFORE);
+        while (ex1.next()) {
+            boolean isMVV = MVV.isArrayMVV(ex1Value.getEncodedBytes(), ex1Value.getEncodedSize());
+            assertEquals("last key is MVV", ex1.getKey().decodeString().equals(curKey), isMVV);
+        }
+        ex1.ignoreMVCCFetch(false);
+    }
+
 
     //
     // Test helper methods
