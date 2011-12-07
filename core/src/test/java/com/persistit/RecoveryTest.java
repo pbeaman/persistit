@@ -214,6 +214,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
         jman.unitTestClearTransactionMap();
 
         jman.rollover();
+        // needed so that checkpoint accurately sees committed transactions.
+        _persistit.getTransactionIndex().updateActiveTransactionCache();
         _persistit.checkpoint();
         jman.copyBack();
 
