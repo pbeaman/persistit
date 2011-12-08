@@ -457,9 +457,9 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
     void writePageOnCheckpoint(final long timestamp) throws PersistitException {
         Debug.$assert0.t(isMine());
-        final Checkpoint checkpoint = _persistit.getCurrentCheckpoint();
-        if (isDirty() && !isTemporary() && getTimestamp() < checkpoint.getTimestamp()
-                && timestamp > checkpoint.getTimestamp()) {
+        final long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
+        if (isDirty() && !isTemporary() && getTimestamp() < checkpointTimestamp
+                && timestamp > checkpointTimestamp) {
             writePage();
             _pool.bumpForcedCheckpointWrites();
         }

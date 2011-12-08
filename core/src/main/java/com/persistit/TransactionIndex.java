@@ -490,10 +490,34 @@ public class TransactionIndex {
      * @throws TimeoutException
      */
     TransactionStatus registerTransaction() throws TimeoutException, InterruptedException {
+        return registerTransaction(false);
+    }
+
+    /**
+     * Atomically assign a timestamp as described by
+     * {@link #registerTransaction()} AND atomically assign that timestamp as a
+     * new checkpoint timestamp. This method should be called only by
+     * {@link CheckpointManager#createCheckpoint()}.
+     * 
+     * @return the TransactionStatus.
+     * @throws InterruptedException
+     * @throws TimeoutException
+     */
+    TransactionStatus registerCheckpointTransaction() throws TimeoutException, InterruptedException {
+        return registerTransaction(true);
+    }
+
+    private TransactionStatus registerTransaction(final boolean forCheckpoint) throws TimeoutException,
+            InterruptedException {
         final TransactionStatus status;
         final TransactionIndexBucket bucket;
         synchronized (this) {
-            final long ts = _timestampAllocator.updateTimestamp();
+            final long ts;
+            if (forCheckpoint) {
+                ts = _timestampAllocator.allocateCheckpointTimestamp();
+            } else {
+                ts = _timestampAllocator.updateTimestamp();
+            }
             int index = hashIndex(ts);
             bucket = _hashTable[index];
             bucket.lock();

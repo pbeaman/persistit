@@ -90,7 +90,7 @@ public class BufferPool {
     private final static float SMALL_VOLUME_RATIO = 0.1f;
 
     /**
-     * The Persistit instance that references this BufferBool.
+     * The Persistit instance that references this BufferPool.
      */
     private final Persistit _persistit;
 

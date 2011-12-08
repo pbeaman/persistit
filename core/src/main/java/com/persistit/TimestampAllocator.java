@@ -19,15 +19,19 @@ import java.util.concurrent.atomic.AtomicLong;
 
 class TimestampAllocator {
 
+    private final static int CHECKPOINT_TIMESTAMP_MARKER_INTERVAL = 100;
+
     /**
      * Default interval in nanoseconds between checkpoints - two minutes.
      */
     private final AtomicLong _timestamp = new AtomicLong();
 
+    private volatile long _checkpointTimestamp = 0;
+
     public long updateTimestamp() {
         return _timestamp.incrementAndGet();
     }
-    
+
     long bumpTimestamp(final long delta) {
         return _timestamp.addAndGet(delta);
     }
@@ -46,9 +50,36 @@ class TimestampAllocator {
         }
     }
 
+    /**
+     * Atomically allocate a new checkpoint timestamp. This method ensures that
+     * the proposed checkpoint timestamp contains the largest timestamp ever
+     * allocated. In particular, it prevents another thread from allocating a
+     * larger timestamp before the checkpointTimestamp field is set.
+     * 
+     * @return the allocated timestamp
+     */
+    long allocateCheckpointTimestamp() {
+        /*
+         * Add a gap to the timestamp counter - this is useful only for humans
+         * trying to decipher timestamps in the journal - is not necessary for
+         * correct function.
+         */
+        bumpTimestamp(CHECKPOINT_TIMESTAMP_MARKER_INTERVAL);
+        while (true) {
+            long candidate = _timestamp.get();
+            _checkpointTimestamp = candidate;
+            if (_timestamp.get() == candidate) {
+                return candidate;
+            }
+        }
+    }
+
     public long getCurrentTimestamp() {
         return _timestamp.get();
     }
 
+    public long getProposedCheckpointTimestamp() {
+        return _checkpointTimestamp;
+    }
 
 }

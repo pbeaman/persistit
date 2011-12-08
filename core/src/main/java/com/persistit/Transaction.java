@@ -31,7 +31,8 @@ import com.persistit.exception.RollbackException;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit},
+ * {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <code>commit</code> is performed. At that
  * point, all the updates are written atomically - that is, completely or not at
@@ -406,6 +407,29 @@ public class Transaction {
             checkPendingRollback();
         }
         _nestedDepth++;
+    }
+
+    void beginCheckpoint() throws PersistitException {
+        if (_commitCompleted) {
+            throw new IllegalStateException("Attempt to begin a committed transaction");
+        }
+        if (_nestedDepth == 0) {
+            try {
+                _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
+            } catch (InterruptedException e) {
+                throw new PersistitInterruptedException(e);
+            }
+            _rollbackPending = false;
+            _startTimestamp = _transactionStatus.getTs();
+            _commitTimestamp = 0;
+            _step = 0;
+            _buffer.clear();
+            _previousJournalAddress = 0;
+        } else {
+            checkPendingRollback();
+        }
+        _nestedDepth++;
+
     }
 
     /**

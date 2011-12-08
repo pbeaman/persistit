@@ -96,6 +96,10 @@ class VolumeStructure {
         return ex;
     }
 
+    Exchange accumulatorExchange() {
+        return new Exchange(_directoryTree);
+    }
+    
     /**
      * Create a new tree in this volume. A tree is represented by an index root
      * page and all the index and data pages pointed to by that root page.
@@ -145,6 +149,9 @@ class VolumeStructure {
      * @throws PersistitException
      */
     public synchronized Tree getTree(String name, boolean createIfNecessary) throws PersistitException {
+        if (DIRECTORY_TREE_NAME.equals(name)) {
+            throw new IllegalArgumentException("Tree name is reserved: " + name);
+        }
         Tree tree;
         WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
         if (treeRef != null) {

@@ -302,7 +302,7 @@ public class Persistit {
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
 
-    private final static int TRANSACTION_INDEX_SIZE = 1; // TODO
+    private final static int TRANSACTION_INDEX_SIZE = 1024;
 
     final static long SHORT_DELAY = 500;
 
@@ -1090,7 +1090,7 @@ public class Persistit {
         synchronized (_exchangePoolMap) {
             stack = _exchangePoolMap.get(sessionId);
             if (stack == null) {
-                throw new IllegalStateException("Release not preceded by get"); // TODO
+                throw new IllegalStateException("Release not preceded by get");
             }
         }
         if (stack.size() < MAX_POOLED_EXCHANGES) {
@@ -1504,9 +1504,7 @@ public class Persistit {
     }
 
     final long earliestLiveTransaction() {
-        long earliest = Long.MAX_VALUE;
-        // TODO - get this from TransactionIndex
-        return earliest;
+        return _transactionIndex.getActiveTransactionFloor();
     }
 
     final long earliestDirtyTimestamp() {
@@ -1947,7 +1945,7 @@ public class Persistit {
     }
 
     /**
-     * Gets the <code>Transaction</code> object for the current thread. The
+     * Get the <code>Transaction</code> object for the current thread. The
      * <code>Transaction</code> object lasts for the life of the thread. See
      * {@link com.persistit.Transaction} for more information on how to use
      * Persistit's transaction facilities.
@@ -1967,24 +1965,23 @@ public class Persistit {
     }
 
     /**
-     * Copies the current set of Transaction objects to the supplied List. This
-     * method is used by JOURNAL_FLUSHER to look for transactions that need to
-     * be written to the Journal, and BufferPool checkpoint code to look for
-     * uncommitted transactions. For each session, add that session's
-     * transaction to the supplied list if and only if it has a startTimestamp
-     * greater than <code>from</code> and a commitTimestamp greater than
-     * <code>to</code>.
+     * Copy the {@link Transaction} context objects belonging to threads that
+     * are currently alive to the supplied List. This method is used by
+     * JOURNAL_FLUSHER to look for transactions that need to be written to the
+     * Journal and by {@link ManagementImpl to get transaction commit and
+     * rollback statistics.
      * 
-     * @param transactions
-     *            List of Transaction objects to be populated
-     * @param from
-     *            minimum startTimestamp, or -1 for any
-     * @param to
-     *            minimum commitTimestamp, or -1 for any
+     * @param transactions List of Transaction objects to be populated
      */
-    void populateTransactionList(final List<Transaction> transactions, final long from, final long to) {
+    void populateTransactionList(final List<Transaction> transactions) {
         transactions.clear();
-        // TODO - get from TransactionIndex
+        for (final Map.Entry<SessionId, Transaction> entry : _transactionSessionMap.entrySet()) {
+            final SessionId session = entry.getKey();
+            final Transaction txn = entry.getValue();
+            if (session.isAlive()) {
+                transactions.add(txn);
+            }
+        }
     }
 
     /**

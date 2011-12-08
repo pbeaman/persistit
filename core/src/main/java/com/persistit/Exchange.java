@@ -442,7 +442,7 @@ public class Exchange {
         _spareKey2.clear(secure);
         _spareValue.clear(secure);
         _transaction = null;
-        _ignoreTransactions = _volume.isTemporary();
+        _ignoreTransactions = false;
         _splitPolicy = _persistit.getDefaultSplitPolicy();
         _joinPolicy = _persistit.getDefaultJoinPolicy();
         _treeHolder.verifyReleased();
@@ -1086,7 +1086,7 @@ public class Exchange {
             return searchTree(key, 0, writer);
         }
 
-        checkPageType(buffer, PAGE_TYPE_DATA);
+        checkPageType(buffer, PAGE_TYPE_DATA, true);
 
         int foundAt = findKey(buffer, key, lc);
 
@@ -1183,7 +1183,7 @@ public class Exchange {
                             + key.toString() + "> " + " is before left edge");
                 }
 
-                checkPageType(buffer, currentLevel + PAGE_TYPE_DATA);
+                checkPageType(buffer, currentLevel + PAGE_TYPE_DATA, true);
 
                 if (currentLevel == toLevel) {
                     for (int level = currentLevel; --level > 0;) {
@@ -1266,7 +1266,7 @@ public class Exchange {
                 if (buffer == null) {
                     buffer = _pool.get(_volume, pageAddress, writer, true);
                 }
-                checkPageType(buffer, currentLevel + PAGE_TYPE_DATA);
+                checkPageType(buffer, currentLevel + PAGE_TYPE_DATA, true);
 
                 //
                 // Release previous buffer after claiming this one. This
@@ -2062,7 +2062,7 @@ public class Exchange {
                             // of the right sibling page.
                             //
                             buffer = rightSibling;
-                            checkPageType(buffer, PAGE_TYPE_DATA);
+                            checkPageType(buffer, PAGE_TYPE_DATA, false);
                             foundAt = buffer.traverse(_key, direction, buffer.toKeyBlock(0));
                         }
                     }
@@ -2104,6 +2104,8 @@ public class Exchange {
                                 _key.copyTo(_spareKey1);
                                 index = _key.getEncodedSize();
                                 nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
+                                buffer.release();
+                                buffer = null;
                                 continue;
                             }
                         }
@@ -2129,6 +2131,8 @@ public class Exchange {
                                     nudged = false;
                                     _key.copyTo(_spareKey1);
                                     nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
+                                    buffer.release();
+                                    buffer = null;
                                     continue;
                                 }
                                 //
@@ -2941,6 +2945,8 @@ public class Exchange {
 
         boolean anyRemoved = false;
         boolean keyIsLessThan = true;
+        Key nextKey = new Key(key1);
+        
         while (keyIsLessThan && !key1.isRightEdge()) {
             Buffer buffer = null;
             try {
@@ -2952,8 +2958,12 @@ public class Exchange {
                     if (!keyIsLessThan) {
                         break;
                     }
+                    foundAt = buffer.nextKey(nextKey, foundAt);
+                    buffer.releaseTouched();
+                    buffer = null;
                     anyRemoved |= storeInternal(key1, _value, 0, storeOptions);
-                    foundAt = buffer.nextKey(key1, foundAt);
+                    nextKey.copyTo(key1);
+                    break;
                 }
             } finally {
                 if (buffer != null) {
@@ -3052,9 +3062,10 @@ public class Exchange {
                             // then don't try it again on a RetryException.
                             tryQuickDelete = false;
                         } finally {
-                            if (buffer != null)
+                            if (buffer != null) {
                                 buffer.releaseTouched();
-                            buffer = null;
+                                buffer = null;
+                            }
                         }
                     }
 
@@ -3343,7 +3354,7 @@ public class Exchange {
                             long deferredPage = lc._deferredReindexPage;
                             buffer = _pool.get(_volume, deferredPage, false, true);
                             if (buffer.getGeneration() == lc._deferredReindexChangeCount) {
-                                checkPageType(buffer, level + PAGE_TYPE_DATA);
+                                checkPageType(buffer, level + PAGE_TYPE_DATA, false);
                                 buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
                                 _value.setPointerValue(buffer.getPageAddress());
                                 _value.setPointerPageType(buffer.getPageType());
@@ -3613,10 +3624,12 @@ public class Exchange {
         }
     }
 
-    private void checkPageType(Buffer buffer, int expectedType) throws PersistitException {
+    private void checkPageType(Buffer buffer, int expectedType, boolean releaseOnFailure) throws PersistitException {
         int type = buffer.getPageType();
         if (type != expectedType) {
-            buffer.releaseTouched();
+            if (releaseOnFailure) {
+                buffer.releaseTouched();
+            }
             corrupt("Volume " + _volume + " page " + buffer.getPageAddress() + " invalid page type " + type
                     + ": should be " + expectedType);
         }
@@ -3725,7 +3738,7 @@ public class Exchange {
             lc = _levelCache[treeDepth];
             buffer = lc._buffer;
             if (buffer != null) {
-                checkPageType(buffer, treeDepth + 1);
+                checkPageType(buffer, treeDepth + 1, false);
             }
 
             while (foundAt != -1) {
@@ -3741,7 +3754,7 @@ public class Exchange {
                         // of the right sibling page.
                         //
                         buffer = rightSibling;
-                        checkPageType(buffer, treeDepth + 1);
+                        checkPageType(buffer, treeDepth + 1, false);
                         foundAt = buffer.traverse(_key, GT, buffer.toKeyBlock(0));
                     } else {
                         foundAt = -1;

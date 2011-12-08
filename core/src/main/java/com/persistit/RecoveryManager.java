@@ -1149,7 +1149,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
         read(address, CP.OVERHEAD);
         final long systemTimeMillis = CP.getSystemTimeMillis(_readBuffer);
-        final Checkpoint checkpoint = new Checkpoint(timestamp, systemTimeMillis);
+        final Checkpoint checkpoint = new Checkpoint(timestamp, systemTimeMillis, true);
         final long baseAddress = CP.getBaseAddress(_readBuffer);
 
         if (baseAddress < _baseAddress || baseAddress > _currentAddress) {
@@ -1721,7 +1721,11 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
         volume.verifyId(volume.getId());
 
-        return _persistit.getExchange(volume, td.getTreeName(), true);
+        if (VolumeStructure.DIRECTORY_TREE_NAME.equals(td.getTreeName())) {
+            return volume.getStructure().directoryExchange();
+        } else {
+            return _persistit.getExchange(volume, td.getTreeName(), true);
+        }
     }
 
     boolean analyze() throws Exception {
