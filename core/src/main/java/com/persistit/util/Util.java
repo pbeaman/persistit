@@ -22,6 +22,7 @@ import java.util.Date;
 import com.persistit.KeyState;
 import com.persistit.Persistit;
 import com.persistit.ValueState;
+import com.persistit.exception.PersistitInterruptedException;
 
 /**
  * @author pbeaman
@@ -540,6 +541,18 @@ public class Util {
             }
         }
         return true;
+    }
+    
+    public static void sleep(final long millis) throws PersistitInterruptedException {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ie) {
+            throw new PersistitInterruptedException(ie);
+        }
+    }
+    
+    public static void spinSleep() throws PersistitInterruptedException {
+        sleep(1);
     }
 
 }

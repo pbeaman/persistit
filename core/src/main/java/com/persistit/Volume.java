@@ -26,6 +26,7 @@ import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.exception.WrongVolumeException;
+import com.persistit.util.Util;
 
 /**
  * Represent the identity and optionally the service classes that manage a
@@ -157,11 +158,7 @@ public class Volume {
             } finally {
                 storage.release();
             }
-            try {
-                Thread.sleep(Persistit.SHORT_DELAY);
-            } catch (InterruptedException ie) {
-                throw new PersistitInterruptedException(ie);
-            }
+            Util.sleep(Persistit.SHORT_DELAY);
         }
     }
 
@@ -204,11 +201,7 @@ public class Volume {
                     getStorage().release();
                 }
             }
-            try {
-                Thread.sleep(Persistit.SHORT_DELAY);
-            } catch (InterruptedException ie) {
-                throw new PersistitInterruptedException(ie);
-            }
+            Util.sleep(Persistit.SHORT_DELAY);
         }
     }
 

@@ -1893,11 +1893,7 @@ public class Persistit {
      */
     public void checkSuspended() throws PersistitInterruptedException {
         while (isUpdateSuspended()) {
-            try {
-                Thread.sleep(SHORT_DELAY);
-            } catch (InterruptedException ie) {
-                throw new PersistitInterruptedException(ie);
-            }
+            Util.sleep(SHORT_DELAY);
         }
     }
 

@@ -27,6 +27,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
+import com.persistit.util.Util;
 
 /**
  * <p>
@@ -727,9 +728,8 @@ public class Transaction {
                 retryCount--;
                 if (retryDelay > 0) {
                     try {
-                        Thread.sleep(retryDelay);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
+                        Util.sleep(retryDelay);
+                    } catch (PersistitInterruptedException ie) {
                         throw re;
                     }
                 }
