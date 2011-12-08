@@ -45,7 +45,6 @@ import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
-import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -1400,7 +1399,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 iterator.remove();
             }
         }
-
+        
+        checkpoint.completed();
     }
 
     static class TreeDescriptor {

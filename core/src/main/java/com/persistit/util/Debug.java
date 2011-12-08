@@ -18,13 +18,19 @@ package com.persistit.util;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.StringTokenizer;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Debug {
 
     public final static boolean ENABLED = false;
 
     public final static boolean VERIFY_PAGES = false;
+
+    public final static Random RANDOM = new Random(123);
+
+    private final static AtomicLong PAUSES = new AtomicLong();
 
     public interface Dbg {
         void t(boolean b);
@@ -149,4 +155,22 @@ public class Debug {
         return sw.toString();
     }
 
+    /**
+     * Debugging aid: code can invoke this method to introduce a pause.
+     * 
+     * @param probability
+     *            Probability of pausing: 0 - 1.0f
+     * @param millis
+     *            time interval in milliseconds
+     */
+    public static void debugPause(final float probability, final long millis) {
+        if (RANDOM.nextInt(1000000000) < (int) (1000000000f * probability)) {
+            try {
+                Thread.sleep(millis);
+                PAUSES.incrementAndGet();
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
 }

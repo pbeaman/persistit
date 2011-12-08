@@ -604,20 +604,18 @@ public class Transaction {
             }
             _transactionStatus.commit(_persistit.getTimestampAllocator().getCurrentTimestamp());
             _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
-            _persistit.getTransactionIndex().notifyCompleted(_transactionStatus, _commitTimestamp);
             try {
-                // TODO - figure out what to do if writes fail - I believe we
-                // will want
-                // to mark the transaction status as ABORTED in that case, but
-                // need to
-                // go look hard at TransactionIndex.
-                //
+                /*
+                 * TODO - figure out what to do if writes fail - I believe we
+                 * will want to mark the transaction status as ABORTED in that
+                 * case, but need to go look hard at TransactionIndex.
+                 */
                 flushTransactionBuffer();
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
             } finally {
-                // _persistit.getTransactionIndex().notifyCompleted(_transactionStatus);
+                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus, _commitTimestamp);
             }
             _commitCompleted = true;
         }
@@ -625,7 +623,7 @@ public class Transaction {
 
     /**
      * Returns the nested level count. When no transaction scope is active this
-     * method returns 0. Within the outermost transaction scope this this method
+     * method returns 0. Within the outermost transaction scope this method
      * returns 1. For nested transactions this method returns a value of 2 or
      * higher.
      * 
@@ -681,7 +679,7 @@ public class Transaction {
      * <p>
      * If <code>retryCount</code> is greater than zero, this method will make up
      * to <code>retryCount</code> additional of attempts to complete and commit
-     * thetransaction. Once the retry count is exhausted, this method throws a
+     * the transaction. Once the retry count is exhausted, this method throws a
      * <code>RollbackException</code>.
      * </p>
      * 
