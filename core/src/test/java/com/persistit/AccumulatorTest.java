@@ -33,7 +33,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     public void testBasicMethodsOneBucket() throws Exception {
         final TransactionIndex ti = new TransactionIndex(_tsa, 1);
         Accumulator acc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
-        TransactionStatus status = ti.registerTransaction(false);
+        TransactionStatus status = ti.registerTransaction();
         acc.update(1, status, 0);
         assertEquals(1, acc.getLiveValue());
         assertEquals(1, acc.getSnapshotValue(1, 0));
@@ -58,7 +58,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         Accumulator maxAcc = Accumulator.accumulator(Accumulator.Type.MAX, null, 0, 0, ti);
         Accumulator seqAcc = Accumulator.accumulator(Accumulator.Type.SEQ, null, 0, 0, ti);
         for (int count = 0; count < 100000; count++) {
-            TransactionStatus status = ti.registerTransaction(false);
+            TransactionStatus status = ti.registerTransaction();
             assertEquals(count, countAcc.getLiveValue());
             assertEquals(count * 3, seqAcc.getLiveValue());
             countAcc.update(1, status, 0);
@@ -211,7 +211,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
                     while (System.currentTimeMillis() < stopTime) {
                         final TransactionStatus status;
                         try {
-                            status = ti.registerTransaction(false);
+                            status = ti.registerTransaction();
                             acc.update(1, status, 0);
                             before.incrementAndGet();
                             if (random.nextInt(100) < 2) {
@@ -270,7 +270,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         final Value value = new Value((Persistit) null);
         final TransactionIndex ti = new TransactionIndex(_tsa, 5000);
         Accumulator sumAcc = Accumulator.accumulator(Accumulator.Type.SUM, null, 0, 0, ti);
-        TransactionStatus status = ti.registerTransaction(false);
+        TransactionStatus status = ti.registerTransaction();
         sumAcc.update(18, status, 0);
         status.commit(_tsa.getCurrentTimestamp());
         ti.notifyCompleted(status, _tsa.updateTimestamp());

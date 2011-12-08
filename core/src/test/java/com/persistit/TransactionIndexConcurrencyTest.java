@@ -161,7 +161,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
     }
 
     private void runTransaction(final Txn txn) throws Exception {
-        txn.status = ti.registerTransaction(false);
+        txn.status = ti.registerTransaction();
         final long ts = txn.status.getTs();
         sometimesSleep(5);
         int vcount = RANDOM.nextInt(4);

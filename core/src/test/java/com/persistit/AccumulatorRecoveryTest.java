@@ -36,7 +36,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
      * This class needs to be in com.persistit because of some package-private
      * methods used in controlling the test.
      */
-    private String journalSize = "10000000";
+    private String journalSize = "100000000";
     private Random random = new Random();
     final AtomicBoolean running = new AtomicBoolean();
     final AtomicLong counter = new AtomicLong();
@@ -213,7 +213,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         counter.set(0);
         running.set(true);
 
-        Thread[] threads = new Thread[1];
+        Thread[] threads = new Thread[10];
         for (int i = 0; i < threads.length; i++) {
             final int index = i;
             threads[i] = new Thread(new Runnable() {
@@ -287,7 +287,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
                     break;
                 } catch (RollbackException re) {
                     retryCount++;
-                    assertTrue(retryCount < 3);
+                    assertTrue(retryCount < 5);
                     System.out.println("(Acceptable) rollback in " + Thread.currentThread().getName());
                 } catch (Exception e) {
                     exception = e;

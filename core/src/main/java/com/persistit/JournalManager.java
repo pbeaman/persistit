@@ -640,7 +640,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     private void advance(final int recordSize) {
-        Debug.$assert0.t(recordSize > 0 && recordSize + _writeBuffer.position() <= _writeBuffer.capacity());
+        Debug.$assert1.t(recordSize > 0 && recordSize + _writeBuffer.position() <= _writeBuffer.capacity());
         _currentAddress += recordSize;
         _writeBuffer.position(_writeBuffer.position() + recordSize);
     }
@@ -829,14 +829,25 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             }
 
             volume = buffer.getVolume();
-            final int available = buffer.getAvailableSize();
-            recordSize = PA.OVERHEAD + buffer.getBufferSize() - available;
-            prepareWriteBuffer(recordSize);
             int handle = handleForVolume(volume);
+            int leftSize;
+            int rightSize;
+            if (buffer.isDataPage() || buffer.isIndexPage() || buffer.isGarbagePage()) {
+                leftSize = buffer.getKeyBlockEnd();
+                rightSize = buffer.getBufferSize() - buffer.getAlloc();
+            } else {
+                leftSize = buffer.getBufferSize();
+                rightSize = 0;
+            }
+            
+            recordSize = PA.OVERHEAD + leftSize + rightSize;
+
+            prepareWriteBuffer(recordSize);
+            Debug.$assert1.t(_writeBuffer.remaining() >= recordSize);
+            
             final long address = _currentAddress;
             final int position = _writeBuffer.position();
 
-            final int leftSize = available == 0 ? 0 : buffer.getAlloc() - available;
             JournalRecord.putLength(_writeBuffer, recordSize);
             PA.putVolumeHandle(_writeBuffer, handle);
             PA.putType(_writeBuffer);
@@ -845,10 +856,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             PA.putBufferSize(_writeBuffer, buffer.getBufferSize());
             PA.putPageAddress(_writeBuffer, buffer.getPageAddress());
             advance(PA.OVERHEAD);
-            final int payloadSize = recordSize - PA.OVERHEAD;
 
             if (leftSize > 0) {
-                final int rightSize = payloadSize - leftSize;
                 _writeBuffer.put(buffer.getBytes(), 0, leftSize);
                 _writeBuffer.put(buffer.getBytes(), buffer.getBufferSize() - rightSize, rightSize);
             } else {

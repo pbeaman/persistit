@@ -214,9 +214,15 @@ public class RecoveryTest extends PersistitUnitTestCase {
         jman.unitTestClearTransactionMap();
 
         jman.rollover();
-        // needed so that checkpoint accurately sees committed transactions.
-        _persistit.getTransactionIndex().updateActiveTransactionCache();
         _persistit.checkpoint();
+        /*
+         * The TI active transaction cache may be a bit out of date, which 
+         * can cause the copier to preserve records on the journal that are
+         * in fact obsolete.  Since the following assertion looks for
+         * equality, we'll artificially update the active transaction cache
+         * to verify that the copier does the right thing.
+         */
+        _persistit.getTransactionIndex().updateActiveTransactionCache();
         jman.copyBack();
 
         assertEquals(jman.getBaseAddress(), jman.getCurrentAddress());

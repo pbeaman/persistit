@@ -2814,6 +2814,8 @@ public class Exchange {
 
         boolean anyRemoved = false;
         boolean keyIsLessThan = true;
+        Key nextKey = new Key(key1);
+        
         while (keyIsLessThan && !key1.isRightEdge()) {
             Buffer buffer = null;
             try {
@@ -2825,8 +2827,12 @@ public class Exchange {
                     if (!keyIsLessThan) {
                         break;
                     }
+                    foundAt = buffer.nextKey(nextKey, foundAt);
+                    buffer.releaseTouched();
+                    buffer = null;
                     anyRemoved |= storeInternal(key1, _value, 0, storeOptions);
-                    foundAt = buffer.nextKey(key1, foundAt);
+                    nextKey.copyTo(key1);
+                    break;
                 }
             } finally {
                 if (buffer != null) {

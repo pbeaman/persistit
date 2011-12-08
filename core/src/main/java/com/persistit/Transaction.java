@@ -393,7 +393,7 @@ public class Transaction {
         }
         if (_nestedDepth == 0) {
             try {
-                _transactionStatus = _persistit.getTransactionIndex().registerTransaction(false);
+                _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
             } catch (InterruptedException e) {
                 throw new PersistitInterruptedException(e);
             }
@@ -415,7 +415,7 @@ public class Transaction {
         }
         if (_nestedDepth == 0) {
             try {
-                _transactionStatus = _persistit.getTransactionIndex().registerTransaction(true);
+                _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
             } catch (InterruptedException e) {
                 throw new PersistitInterruptedException(e);
             }
