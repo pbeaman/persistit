@@ -245,6 +245,46 @@ public class MVCCPruneTest extends MVCCTestBase {
         ex1.ignoreMVCCFetch(false);
     }
 
+    public void testPruneMultipleOutOfOrderVersions() throws PersistitException {
+        final int VERSION_COUNT = 5;
+        storePrimordial(ex1, KEY, VALUE);
+
+        for (int i = 0; i < VERSION_COUNT; ++i) {
+            trx1.begin();
+            try {
+                if (i % 2 == 0) {
+                    store(ex1, KEY, VALUE+"_aborted"+i);
+                    trx1.rollback();
+                }
+                else {
+                    store(ex1, KEY, VALUE+"_committed"+i);
+                    trx1.commit();
+                }
+            }
+            finally {
+                trx1.end();
+            }
+        }
+
+        assertEquals("stored versions", VERSION_COUNT + 1, storedVersionCount(ex2, KEY));
+        
+        trx1.begin();
+        try {
+            String value = VALUE + "_final";
+            store(ex1, KEY, value);
+            assertEquals("trx value fetched before pre-prune pre-commit", value, fetch(ex1, KEY));
+
+            prune(ex1, KEY);
+            assertEquals("trx value fetched before post-prune pre-commit", value, fetch(ex1, KEY));
+
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        assertEquals("stored versions", 2, storedVersionCount(ex2, KEY));
+    }
 
     //
     // Test helper methods
