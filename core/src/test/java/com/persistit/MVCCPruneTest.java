@@ -245,6 +245,69 @@ public class MVCCPruneTest extends MVCCTestBase {
         ex1.ignoreMVCCFetch(false);
     }
 
+    public void testPruneAlternatingAbortedAndCommittedVersions() throws PersistitException {
+        final char VERSIONS[] = {'A', 'C', 'A', 'C', 'A'};
+        storePrimordial(ex1, KEY, VALUE);
+
+        for (int i = 0; i < VERSIONS.length; ++i) {
+            trx1.begin();
+            try {
+                store(ex1, KEY, VALUE + VERSIONS[i] + i);
+                if (VERSIONS[i] == 'A') {
+                    trx1.rollback();
+                }
+                else {
+                    trx1.commit();
+                }
+            }
+            finally {
+                trx1.end();
+            }
+        }
+
+        assertEquals("stored versions", VERSIONS.length + 1, storedVersionCount(ex2, KEY));
+
+        trx1.begin();
+        try {
+            String value = VALUE + "_final";
+            store(ex1, KEY, value);
+            assertEquals("trx value fetched before pre-prune pre-commit", value, fetch(ex1, KEY));
+
+            prune(ex1, KEY);
+            assertEquals("trx value fetched before post-prune pre-commit", value, fetch(ex1, KEY));
+
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        assertEquals("stored versions", 2, storedVersionCount(ex2, KEY));
+    }
+
+    public void testPruneRunOfAbortedAndCommittedVersions() throws PersistitException {
+        final char VERSIONS[] = {'A', 'A', 'A', 'C', 'A', 'A', 'C'};
+
+        for (int i = 0; i < VERSIONS.length; ++i) {
+            trx1.begin();
+            try {
+                store(ex1, KEY, VALUE + i + VERSIONS[i]);
+                if (VERSIONS[i] == 'A') {
+                    trx1.rollback();
+                }
+                else {
+                    trx1.commit();
+                }
+            }
+            finally {
+                trx1.end();
+            }
+        }
+
+        assertEquals("stored versions pre-prune", VERSIONS.length, storedVersionCount(ex2, KEY));
+        prune(ex1, KEY);
+        assertEquals("stored versions post-prune", 1, storedVersionCount(ex2, KEY));
+    }
 
     //
     // Test helper methods
@@ -252,6 +315,7 @@ public class MVCCPruneTest extends MVCCTestBase {
 
     
     private void prune(Exchange ex, Object k) throws PersistitException {
+        _persistit.getTransactionIndex().cleanup();
         _persistit.getTransactionIndex().cleanup();
         ex.clear().append(k);
         ex.prune();

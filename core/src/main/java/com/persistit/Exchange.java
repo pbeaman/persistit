@@ -637,10 +637,17 @@ public class Exchange {
 
         private void addRemoved(int offset, int length) {
             _removeCount++;
-            if (!_toRemove.isEmpty()) {
-                OffsetAndLength last = _toRemove.get(_toRemove.size()-1);
-                if ((last.offset + last.length + MVV.LENGTH_PER_VERSION) == offset) {
-                    last.length += MVV.LENGTH_PER_VERSION + length;
+            for (int i = _toRemove.size() - 1; i >= 0; --i) {
+                OffsetAndLength oal = _toRemove.get(i);
+                // Is new removed immediately after current spot in list?
+                if ((oal.offset + oal.length + MVV.LENGTH_PER_VERSION) == offset) {
+                    oal.length += MVV.LENGTH_PER_VERSION + length;
+                    return;
+                }
+                // Is new removed immediately before current spot in list?
+                else if ((offset + length + MVV.LENGTH_PER_VERSION) == oal.offset) {
+                    oal.offset = offset;
+                    oal.length += MVV.LENGTH_PER_VERSION + length;
                     return;
                 }
             }

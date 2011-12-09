@@ -129,7 +129,7 @@ class ClassIndex {
                     txn.commit();
                 } catch (Exception e) {
                     _persistit.getLogBase().exception.log(e);
-                    throw e;
+                    throw new ConversionException(e);
                 } finally {
                     txn.end();
                 }
