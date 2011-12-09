@@ -15,7 +15,6 @@
 package com.persistit;
 
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -23,6 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.util.Util;
 
 class CheckpointManager extends IOTaskRunnable {
 
@@ -141,11 +141,7 @@ class CheckpointManager extends IOTaskRunnable {
                     return UNAVALABLE_CHECKPOINT;
                 }
             }
-            try {
-                Thread.sleep(SHORT_DELAY);
-            } catch (InterruptedException ie) {
-                throw new PersistitInterruptedException(ie);
-            }
+            Util.sleep(SHORT_DELAY);
         }
     }
 
@@ -224,7 +220,6 @@ class CheckpointManager extends IOTaskRunnable {
             if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
                 try {
                     _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
-                    checkpoint.completed();
                 } catch (PersistitIOException e) {
                     _persistit.getLogBase().exception.log(e);
                 }

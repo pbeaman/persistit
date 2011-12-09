@@ -28,7 +28,7 @@ import com.persistit.CLI.Cmd;
 import com.persistit.Management.BufferPoolInfo;
 import com.persistit.Management.JournalInfo;
 import com.persistit.Management.TransactionInfo;
-import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.util.Util;
 
 /**
  * Task that reports, either once or periodically, various runtime statistics.
@@ -162,18 +162,14 @@ public class StatisticsTask extends Task {
         for (long count = 0; count < _count || count == 0; count++) {
             if (count != 0) {
                 next += (_delay * NANOS_PER_SECOND);
-                try {
-                    while (true) {
-                        poll();
-                        now = System.nanoTime();
-                        long sleep = Math.min(1000, (next - now) / NANOS_PER_MILLI);
-                        if (sleep <= 0) {
-                            break;
-                        }
-                        Thread.sleep(sleep);
+                while (true) {
+                    poll();
+                    now = System.nanoTime();
+                    long sleep = Math.min(1000, (next - now) / NANOS_PER_MILLI);
+                    if (sleep <= 0) {
+                        break;
                     }
-                } catch (InterruptedException e) {
-                    throw new PersistitInterruptedException(e);
+                    Util.sleep(sleep);
                 }
             }
             updateStatistics(now);

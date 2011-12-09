@@ -17,10 +17,14 @@ package com.persistit;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.util.Util;
+
 class TimestampAllocator {
 
     private final static int CHECKPOINT_TIMESTAMP_MARKER_INTERVAL = 100;
 
+    private final static long UNAVAILABLE_CHECKPOINT_TIMESTAMP = -1;
     /**
      * Default interval in nanoseconds between checkpoints - two minutes.
      */
@@ -51,10 +55,35 @@ class TimestampAllocator {
     }
 
     /**
-     * Atomically allocate a new checkpoint timestamp. This method ensures that
-     * the proposed checkpoint timestamp contains the largest timestamp ever
-     * allocated. In particular, it prevents another thread from allocating a
-     * larger timestamp before the checkpointTimestamp field is set.
+     * <p>
+     * Atomically allocate a new checkpoint timestamp. This method temporarily
+     * marks the checkpoint timestamp field as "unavailable" until a new value
+     * is computed. This prevents another thread executing
+     * {@link Buffer#writePageOnCheckpoint(long)} from trusting the old
+     * checkpoint timestamp while a new one is being allocated.
+     * </p>
+     * <p>
+     * Here's the execution sequence to avoid:
+     * <ol>
+     * <li>Let the initial checkpoint timestamp be c0.
+     * <li>Thread A (the checkpoint thread invoking this method) gets an updated
+     * timestamp c1 which will become the new checkpoint timestamp.</li>
+     * <li>Thread B (a thread attempting to modify a page that is already dirty
+     * with timestamp t0) gets an updated timestamp t1 greater than c1</li>
+     * <li>Thread B in writePageOnCheckpoint determines that t0 is larger than
+     * the current checkpoint c0 (because the checkpoint timestamp field has not
+     * been updated yet) and therefore continues on to further modify the page
+     * without writing its state at t0.</li>
+     * <li>Thread A now updates the checkpoint timestamp field to contain c1.
+     * </ul> In this scenario the version of the page at t0 was never written to
+     * the journal even though t0 < c1 and t1 > c1. This violates the recovery
+     * safety requirement.
+     * </p>
+     * <p>
+     * The solution is to stall the {@link #getProposedCheckpointTimestamp()}
+     * method called by writePageOnCheckpoint before c1 is allocated until after
+     * the checkpointTimestamp field containing c1 is visible.
+     * </p>
      * 
      * @return the allocated timestamp
      */
@@ -65,21 +94,34 @@ class TimestampAllocator {
          * correct function.
          */
         bumpTimestamp(CHECKPOINT_TIMESTAMP_MARKER_INTERVAL);
-        while (true) {
-            long candidate = _timestamp.get();
-            _checkpointTimestamp = candidate;
-            if (_timestamp.get() == candidate) {
-                return candidate;
-            }
-        }
+        /*
+         * Prevents Buffer#writePageOnCheckpoint from seeing the old checkpoint
+         * while we are assigning the new one. The
+         * getProposedCheckpointTimestamp method below spins until this has been
+         * settled.
+         */
+        _checkpointTimestamp = UNAVAILABLE_CHECKPOINT_TIMESTAMP;
+        long timestamp = updateTimestamp();
+        _checkpointTimestamp = timestamp;
+        return timestamp;
     }
 
     public long getCurrentTimestamp() {
         return _timestamp.get();
     }
 
-    public long getProposedCheckpointTimestamp() {
-        return _checkpointTimestamp;
+    public long getProposedCheckpointTimestamp() throws PersistitInterruptedException {
+        long timestamp;
+        /*
+         * Spin until stable. This value must not be observed until set.
+         */
+        for (int iterations = 0; (timestamp = _checkpointTimestamp) == UNAVAILABLE_CHECKPOINT_TIMESTAMP; iterations++) {
+            if (iterations > 10) {
+                Util.spinSleep();
+            }
+        }
+            
+        return timestamp;
     }
 
 }

@@ -42,6 +42,7 @@
                         <exclude>.settings/**</exclude>
                         <exclude>.project</exclude>
                         <exclude>.classpath</exclude>
+                        <exclude>bench/**</exclude>
                     </excludes>
                     <properties>
                         <year>2011</year>

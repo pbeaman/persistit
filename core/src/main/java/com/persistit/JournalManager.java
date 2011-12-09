@@ -45,8 +45,8 @@ import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
-import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
+import com.persistit.util.Util;
 
 /**
  * Manages the disk-based I/O journal. The journal contains both committed
@@ -1329,15 +1329,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      */
     public void copyBack() throws PersistitException {
         if (!_appendOnly.get()) {
+            /*
+             * Set so state is visible at a debugger breakpoint
+             */
             int pagesLeft = 0;
             _copyFast.set(true);
             while (_copyFast.get()) {
                 _copier.kick();
-                try {
-                    Thread.sleep(Persistit.SHORT_DELAY);
-                } catch (InterruptedException ie) {
-                    throw new PersistitInterruptedException(ie);
-                }
+                Util.sleep(Persistit.SHORT_DELAY);
             }
             pagesLeft = _pageMap.size();
         }
@@ -1400,7 +1399,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 iterator.remove();
             }
         }
-
+        
+        checkpoint.completed();
     }
 
     static class TreeDescriptor {

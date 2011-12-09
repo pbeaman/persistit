@@ -21,7 +21,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TaskEndedException;
+import com.persistit.util.Util;
 
 /**
  * Abstract superclass of classes that perform long-running utility operations,
@@ -220,8 +222,8 @@ public abstract class Task implements Runnable {
                 }
                 _state = STATE_SUSPENDED;
                 try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ie) {
+                    Util.sleep(Persistit.SHORT_DELAY);
+                } catch (PersistitInterruptedException ie) {
                     throw new TaskEndedException("Interrupted");
                 }
             }

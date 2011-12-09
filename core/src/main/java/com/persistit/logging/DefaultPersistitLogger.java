@@ -19,6 +19,9 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 
+import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.util.Util;
+
 /**
  * The default implementation of logging for Persistit. Writes log messages to a
  * file and/or System.err.
@@ -51,8 +54,8 @@ public class DefaultPersistitLogger implements PersistitLogger {
         public void run() {
             while (!_stop) {
                 try {
-                    Thread.sleep(FLUSH_DELAY_INTERVAL);
-                } catch (InterruptedException ie) {
+                    Util.sleep(FLUSH_DELAY_INTERVAL);
+                } catch (PersistitInterruptedException ie) {
                     break;
                 }
                 flush();

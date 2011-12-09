@@ -148,7 +148,7 @@ public class IntegrityCheck extends Task {
                         // currently in progress. We do this only if
                         // we are going to fix holes.
                         //
-                        Thread.sleep(3000);
+                        Util.sleep(3000);
                     }
                     postMessage("Checking " + tree.getName() + " in " + volume.getPath(), LOG_VERBOSE);
                     long saveIndexPageCount = _indexPageCount;
@@ -166,8 +166,6 @@ public class IntegrityCheck extends Task {
                     appendMessage(okay ? " - OKAY" : " - FAULTS", LOG_VERBOSE);
                 } catch (PersistitException pe) {
                     postMessage(pe.toString(), LOG_NORMAL);
-                } catch (InterruptedException ie) {
-                    throw new PersistitInterruptedException(ie);
                 }
             }
             _currentVolume = null;

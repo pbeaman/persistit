@@ -290,6 +290,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     public void testCheckpointSaveAccumulators() throws Exception {
         int count = 1000;
         for (int retry = 0; retry < 10; retry++) {
+            System.out.printf("Retry %,5d\n", retry);
             final Transaction txn = _persistit.getTransaction();
             final String treeName = String.format("AccumulatorTest%2d", retry);
             final Exchange exchange = _persistit.getExchange("persistit", treeName, true);
@@ -313,9 +314,6 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             assertEquals(count * 17, sequence.getLiveValue());
 
             _persistit.checkpoint();
-
-            assertEquals(count, rowCount.getCheckpointValue());
-            assertEquals(count * 17, sequence.getCheckpointValue());
 
             AccumulatorState as;
 

@@ -21,6 +21,8 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.RollbackException;
+import com.persistit.exception.TransactionFailedException;
 
 /**
  * <p>
@@ -77,7 +79,9 @@ class ClassIndex {
     /**
      * Package-private constructor used only by {@link Persistit} during
      * initialization.
-     * @param persistit Owning Persistit instance.
+     * 
+     * @param persistit
+     *            Owning Persistit instance.
      */
     ClassIndex(Persistit persistit) {
         _persistit = persistit;
@@ -123,8 +127,10 @@ class ClassIndex {
                 try {
                     ex.clear().append(BY_HANDLE).append(handle).fetch();
                     txn.commit();
-                }
-                finally {
+                } catch (Exception e) {
+                    _persistit.getLogBase().exception.log(e);
+                    throw e;
+                } finally {
                     txn.end();
                 }
                 Value value = ex.getValue();
@@ -256,8 +262,7 @@ class ClassIndex {
                     txn.commit();
                     hashClassInfo(ci);
                     return ci;
-                }
-                finally {
+                } finally {
                     txn.end();
                 }
             } catch (PersistitException pe) {
@@ -276,7 +281,8 @@ class ClassIndex {
      * sorted. See {@link com.persistit.encoding.CoderManager} for further
      * information.
      * 
-     * @param clazz Class instance to register.
+     * @param clazz
+     *            Class instance to register.
      */
     public void registerClass(Class<?> clazz) {
         lookupByClass(clazz);
@@ -336,5 +342,5 @@ class ClassIndex {
     private void releaseExchange(Exchange ex) {
         _persistit.releaseExchange(ex);
     }
-    
+
 }
