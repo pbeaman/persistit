@@ -1785,7 +1785,6 @@ public class Persistit {
                 _logBase.exception.log(e);
             }
         }
-        _transactionIndex = null;
 
         if (_management != null) {
             unregisterMXBeans();
