@@ -720,7 +720,7 @@ public class TransactionIndex {
      * immediately returns a value depending on its outcome:
      * <ul>
      * <li>If the target is concurrent with this transaction and committed, then
-     * this method returns its commit status, indicating that this transaction
+     * this method returns its commit timestamp, indicating that this transaction
      * must abort.</li>
      * <li>If the target aborted or committed before this transaction started,
      * then this method returns 0 meaning that the write-write dependency has
@@ -762,23 +762,36 @@ public class TransactionIndex {
             throws InterruptedException, IllegalArgumentException {
         final long tsv = vh2ts(versionHandle);
         if (tsv == source.getTs()) {
+            /*
+             * Same transaction
+             */
             return 0;
         }
         final TransactionStatus target = getStatus(tsv);
         if (target == null) {
+            /*
+             * Target is gone
+             */
             return 0;
         }
-        /*
-         * By the time the selected TransactionStatus has been found, it may
-         * already be allocated to another transaction. If that's true the the
-         * original transaction must have committed. The following code checks
-         * the identity of the transaction on each iteration after short lock
-         * attempts.
-         */
         if (target.getTs() != tsv) {
+            /*
+             * By the time the selected TransactionStatus has been found, it may
+             * already be allocated to another transaction. If that's true the the
+             * original transaction must have committed. The following code checks
+             * the identity of the transaction on each iteration after short lock
+             * attempts.
+             */
             return 0;
         }
 
+        if (target.getTc() > 0 && target.getTc() < source.getTs() || target.getTc() == ABORTED) {
+            /*
+             * Target is committed or aborted
+             */
+            return 0;
+        }
+        
         final long start = System.currentTimeMillis();
         /*
          * Blocks until the target transaction finishes, either by committing or
@@ -789,12 +802,12 @@ public class TransactionIndex {
             try {
                 if (target.wwLock(Math.min(timeout, SHORT_TIMEOUT))) {
                     try {
-                        final long tc = target.getTc();
                         if (target.getTs() != tsv) {
                             return 0;
                         }
+                        final long tc = target.getTc();
                         if (tc == ABORTED) {
-                            return tc;
+                            return 0;
                         }
                         /*
                          * The following is true because the target's wwLock was
