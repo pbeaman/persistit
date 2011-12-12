@@ -71,7 +71,7 @@ public class TransactionIndexTest extends TestCase {
         assertEquals(TransactionStatus.ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
                 .getCurrentTimestamp(), 0));
         assertEquals(4, ti.getCurrentCount());
-        ti.notifyCompleted(ts1, -ts1.getTc() + 1 );
+        ti.notifyCompleted(ts1, -ts1.getTc() + 1);
         /*
          * ts1 committed and not concurrent with ts2
          */
@@ -98,8 +98,8 @@ public class TransactionIndexTest extends TestCase {
         assertEquals(0, ti.getAbortedCount());
     }
 
-    private boolean isCommitted(final long ts) {
-        return ts >= 0 && ts != UNCOMMITTED;
+    private boolean isCommitted(final long tc) {
+        return tc >= 0 && tc != UNCOMMITTED;
     }
 
     public void testNonBlockingWwDependency() throws Exception {
@@ -118,11 +118,11 @@ public class TransactionIndexTest extends TestCase {
         /*
          * Should return false because ts1 and ts3 are not concurrent
          */
-        assert (isCommitted(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3, 1000)));
+        assertTrue(isCommitted(ti.wwDependency(TransactionIndex.ts2vh(ts1.getTs()), ts3, 1000)));
         /*
          * Should return false because ts2 aborted
          */
-        assertEquals(ABORTED, ti.wwDependency(TransactionIndex.ts2vh(ts2.getTs()), ts3, 1000));
+        assertTrue(isCommitted(ti.wwDependency(TransactionIndex.ts2vh(ts2.getTs()), ts3, 1000)));
         ts3.commit(_tsa.updateTimestamp());
     }
 
@@ -175,8 +175,8 @@ public class TransactionIndexTest extends TestCase {
             ti.notifyCompleted(array[count], _tsa.updateTimestamp());
         }
         /*
-         * Compute canonical form.  40 aborted transactions should be
-         * left over because their mvv counts were not decremented.
+         * Compute canonical form. 40 aborted transactions should be left over
+         * because their mvv counts were not decremented.
          */
         ti.cleanup();
         assertEquals(40, ti.getAbortedCount());

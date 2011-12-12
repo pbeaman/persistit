@@ -90,7 +90,7 @@ class CheckpointManager extends IOTaskRunnable {
 
     private volatile long _checkpointInterval = DEFAULT_CHECKPOINT_INTERVAL;
 
-    private volatile long _lastCheckpointNanos;
+    private volatile long _lastCheckpointNanos = Long.MAX_VALUE;
 
     private final static long SHORT_DELAY = 500;
 

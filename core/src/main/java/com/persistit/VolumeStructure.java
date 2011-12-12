@@ -236,6 +236,7 @@ class VolumeStructure {
             Exchange ex = directoryExchange();
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove();
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove();
         } finally {
             tree.release();
         }

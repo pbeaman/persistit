@@ -456,18 +456,18 @@ public class Transaction {
         }
         _nestedDepth--;
 
-        // If not committed, this is an implicit rollback (with a log message
-        // if rollback was not called explicitly).
-        //
-        if (!_commitCompleted) {
-            if (!_rollbackPending) {
-                _persistit.getLogBase().txnNotCommitted.log(new RollbackException());
-            }
-            _rollbackPending = true;
-
-        }
-
         if (_nestedDepth == 0) {
+            // If not committed, this is an implicit rollback (with a log
+            // message
+            // if rollback was not called explicitly).
+            //
+            if (!_commitCompleted) {
+                if (!_rollbackPending) {
+                    _persistit.getLogBase().txnNotCommitted.log(new RollbackException());
+                }
+                _rollbackPending = true;
+
+            }
             //
             // Perform rollback if needed.
             //
@@ -758,12 +758,18 @@ public class Transaction {
     }
 
     /**
-     * Returns the internal start timestamp of this transaction.
-     * 
-     * @return The start time
+     * @return the internal start timestamp of this transaction.
      */
     long getStartTimestamp() {
         return _startTimestamp;
+    }
+
+    /**
+     * @return the commit timestamp - is zero during a currently executing
+     *         transaction.
+     */
+    long getCommitTimestamp() {
+        return _commitTimestamp;
     }
 
     /**

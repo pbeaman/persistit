@@ -474,6 +474,7 @@ public class Persistit {
             startTransactionIndexPollTask();
             finishRecovery();
             flush();
+            _checkpointManager.checkpoint();
 
             _initialized.set(true);
             done = true;
@@ -1784,7 +1785,6 @@ public class Persistit {
                 _logBase.exception.log(e);
             }
         }
-        _transactionIndex = null;
 
         if (_management != null) {
             unregisterMXBeans();
