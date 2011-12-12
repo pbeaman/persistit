@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.exception.MissingThreadException;
 import com.persistit.util.Util;
 
 class CheckpointManager extends IOTaskRunnable {
@@ -140,6 +141,9 @@ class CheckpointManager extends IOTaskRunnable {
                 } else if (_currentCheckpoint != checkpoint) {
                     return UNAVALABLE_CHECKPOINT;
                 }
+            }
+            if (!getThread().isAlive()) {
+                throw new MissingThreadException(getThread().getName());
             }
             Util.sleep(SHORT_DELAY);
         }
