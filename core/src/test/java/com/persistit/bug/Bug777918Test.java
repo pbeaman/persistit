@@ -25,8 +25,10 @@ import com.persistit.RecoveryManager.DefaultRecoveryListener;
 import com.persistit.TestShim;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TestException;
+import com.persistit.exception.MissingThreadException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
+import com.persistit.util.Util;
 
 /**
  * Found a way to reproduce this which matches some of the events others have
@@ -204,7 +206,11 @@ public class Bug777918Test extends PersistitUnitTestCase {
         // The recovery process deliberately crashes after applying some
         // transactions.
         //
+        try {
         _persistit.initialize(properties);
+        } catch (MissingThreadException e) {
+            // expected
+        }
 
         // This startup should divide the pages into page- and branch-map
         // and apply committed transactions using branch-map pages.
@@ -244,6 +250,10 @@ public class Bug777918Test extends PersistitUnitTestCase {
             if (startTimestamp > 100000 && !crashed) {
                 _persistit.crash();
                 crashed = true;
+                /*
+                 * Make sure the checkpoint manager thread has ended.
+                 */
+                Util.sleep(1000);
                 throw new Bug777918Exception(startTimestamp);
             }
         }
