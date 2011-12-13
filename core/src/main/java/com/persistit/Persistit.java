@@ -1186,7 +1186,7 @@ public class Persistit {
      * {@link BufferPool} having the largest page size.
      * <p />
      * The backing store file for a temporary volume is created in the directory
-     * specified by the configuration property <code>tvdirectory</code>, or if
+     * specified by the configuration property <code>tmpvoldir</code>, or if
      * unspecified, the system temporary directory..
      * 
      * @return the temporary <code>Volume</code>.
@@ -1210,7 +1210,7 @@ public class Persistit {
      * results that can be recreated in the event the system restarts.
      * <p />
      * The backing store file for a temporary volume is created in the directory
-     * specified by the configuration property <code>tvdirectory</code>, or if
+     * specified by the configuration property <code>tmpvoldir</code>, or if
      * unspecified, the system temporary directory..
      * 
      * @param pageSize
