@@ -80,7 +80,7 @@ import com.persistit.exception.PersistitInterruptedException;
  * 
  * @author peter
  */
-abstract class Accumulator {
+public abstract class Accumulator {
 
     public static enum Type {
         SUM, MAX, MIN, SEQ
