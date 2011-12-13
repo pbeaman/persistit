@@ -694,6 +694,10 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     int getKeyBlockEnd() {
         return _keyBlockEnd;
     }
+    
+    int getMvvCount() {
+        return _mvvCount;
+    }
 
     void setKeyBlockEnd(final int index) {
         Debug.$assert0.t(index >= KEY_BLOCK_START && index <= (_pool.getMaxKeys() * KEYBLOCK_LENGTH) + KEY_BLOCK_START
@@ -3293,7 +3297,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 final int offset = tail + _tailHeaderSize + klength;
                 final int oldSize = oldTailSize - klength - _tailHeaderSize;
                 if (oldSize > 0) {
-                    final int valueByte = _bytes[tail + _tailHeaderSize + klength] & 0xFF;
+                    int valueByte = _bytes[tail + _tailHeaderSize + klength] & 0xFF;
                     if (valueByte == MVV2.TYPE_MVV) {
                         final int newSize = MVV2.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true);
                         if (newSize != oldSize) {
@@ -3307,6 +3311,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                             }
                             // Rewrite the tail block header
                             putInt(tail, encodeTailBlock(newTailSize, klength));
+                            valueByte = _bytes[tail + _tailHeaderSize + klength] & 0xFF;
                         }
                         if (MVV2.isArrayMVV(_bytes, offset, oldSize)) {
                             _mvvCount++;
@@ -3314,8 +3319,14 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                     } else if (oldSize == LONGREC_SIZE && valueByte == LONGREC_TYPE
                             && (_bytes[tail + _tailHeaderSize + klength + LONGREC_PREFIX_OFFSET] == LONGREC_TYPE)) {
                         // TODO : enqueue background pruner
-                    } else if (p == KEY_BLOCK_START && valueByte == MVV2.TYPE_ANTIVALUE) {
+                    }
+                    if (valueByte == MVV2.TYPE_ANTIVALUE) {
+                        if (p == KEY_BLOCK_START) {
                         // TODO : enqueue background pruner
+                        } else {
+                            removeKeys(p, p + KEYBLOCK_LENGTH, spareKey);
+                            p -= KEYBLOCK_LENGTH;
+                        }
                     }
                 }
             }
