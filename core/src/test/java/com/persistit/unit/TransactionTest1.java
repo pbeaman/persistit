@@ -450,6 +450,13 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         txn.begin();
         txn.commit();
         txn.end();
+        /*
+         * Ensure a file has been created
+         */
+        assertNotNull(TestShim.getVolumeChannel(txn.getTransactionTemporaryVolume()));
+        /*
+         * Verify file is present
+         */
         assertEquals(1, new File(dataPath).listFiles(fnf).length);
         TestShim.closeTransaction(txn);
         assertEquals(0, new File(dataPath).listFiles(fnf).length);
@@ -478,6 +485,9 @@ public class TransactionTest1 extends PersistitUnitTestCase {
         }
         threads = null;
         _persistit.cleanup();
+        /*
+         * Verify file has been cleaned up
+         */
         assertEquals(0, new File(dataPath).listFiles(fnf).length);
 
     }
