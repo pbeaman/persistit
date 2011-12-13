@@ -27,6 +27,7 @@ import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.VolumeClosedException;
+import com.persistit.exception.VolumeFullException;
 
 /**
  * Manage all details of file I/O for a temporary <code>Volume</code> backing
@@ -41,7 +42,8 @@ import com.persistit.exception.VolumeClosedException;
 class VolumeStorageT2 extends VolumeStorage {
 
     private final static String TEMP_FILE_PREFIX = "persistit_tempvol_";
-
+    private final static String TEMP_FILE_UNCREATED_NAME = "temp_volume_file_not_created_yet";
+    private long _maxPages;
     private volatile String _path;
     private volatile FileChannel _channel;
 
@@ -110,7 +112,11 @@ class VolumeStorageT2 extends VolumeStorage {
     FileChannel getChannel() throws PersistitIOException {
         if (_channel == null) {
             try {
-            _channel = new MediatedFileChannel(_path, "rw");
+                final String directoryName = _persistit.getProperty(Persistit.TEMPORARY_VOLUME_DIR_NAME, null);
+                final File directory = directoryName == null ? null : new File(directoryName);
+                final File file = File.createTempFile(TEMP_FILE_PREFIX, null, directory);
+                _path = file.getPath();
+                _channel = new MediatedFileChannel(_path, "rw");
             } catch (IOException ioe) {
                 _persistit.getLogBase().tempVolumeCreateException.log(ioe, _path);
                 throw new PersistitIOException(ioe);
@@ -126,29 +132,13 @@ class VolumeStorageT2 extends VolumeStorage {
      * @throws PersistitException
      */
     void create() throws PersistitException {
-        final String directoryName = _persistit.getProperty(Persistit.TEMPORARY_VOLUME_DIR_NAME, null);
-        final File directory = directoryName == null ? null : new File(directoryName);
-        try {
-            final File file = File.createTempFile(TEMP_FILE_PREFIX, null, directory);
-            _path = file.getPath();
-            _channel = null;
-            truncate();
-            _opened = true;
-        } catch (IOException ioe) {
-            throw new PersistitIOException(ioe);
-        } finally {
-            if (!_opened) {
-                try {
-                    closeChannel();
-                } catch (IOException e) {
-                    // Not much to do - we're going to try to delete
-                    // the file anyway.
-                }
-                if (getPath() != null) {
-                    new File(getPath()).delete();
-                }
-            }
-        }
+        final long maxSize = _persistit.getLongProperty(Persistit.TEMPORARY_VOLUME_MAX_SIZE, Long.MAX_VALUE,
+                4 * Buffer.MAX_BUFFER_SIZE, Long.MAX_VALUE);
+        _maxPages = maxSize / _volume.getStructure().getPageSize();
+        _path = TEMP_FILE_UNCREATED_NAME;
+        _channel = null;
+        truncate();
+        _opened = true;
     }
 
     /**
@@ -348,6 +338,9 @@ class VolumeStorageT2 extends VolumeStorage {
     }
 
     long allocNewPage() throws PersistitException {
+        if (_nextAvailablePage >= _maxPages) {
+            throw new VolumeFullException(_volume.getName());
+        }
         long page = _nextAvailablePage++;
         _volume.getStatistics().setNextAvailablePage(page);
         return page;

@@ -209,7 +209,12 @@ public class Persistit {
     /**
      * Property name for specifying default temporary volume directory
      */
-    public final static String TEMPORARY_VOLUME_DIR_NAME = "tvdirectory";
+    public final static String TEMPORARY_VOLUME_DIR_NAME = "tmpvoldir";
+    
+    /**
+     * Property name for specifying upper bound on temporary volume size
+     */
+    public final static String TEMPORARY_VOLUME_MAX_SIZE = "tmpvolmaxsize";
     
     /**
      * Property name for specifying a transaction volume

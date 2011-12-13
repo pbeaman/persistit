@@ -15,6 +15,8 @@
 
 package com.persistit.unit;
 
+import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.util.Properties;
 
@@ -23,9 +25,11 @@ import org.junit.Test;
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.Management;
+import com.persistit.Persistit;
 import com.persistit.Value;
 import com.persistit.Volume;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.VolumeFullException;
 
 public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
 
@@ -383,6 +387,52 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
         final int length2 = sb2.length();
         assertEquals(length, length2);
         assertTrue(sb.toString().equals(sb2.toString()));
+    }
+
+    @Test
+    public void testLazyCreateFile() throws Exception {
+        final Exchange ex = _persistit.getExchange(_volume, "T2", true);
+        FileFilter ff = new FileFilter() {
+
+            @Override
+            public boolean accept(File pathname) {
+                return pathname.getName().contains("persistit_tempvol_");
+            }
+
+        };
+        // File should not be there
+        assertEquals(0, new File(_persistit.getProperty("datapath")).listFiles(ff).length);
+        ex.getValue().put(RED_FOX);
+        for (int index = 0; index < 1000000; index++) {
+            ex.to(index).store();
+        }
+        // File should be there
+        assertEquals(1, new File(_persistit.getProperty("datapath")).listFiles(ff).length);
+    }
+    
+    @Test
+    public void testMaxSize() throws Exception {
+        _persistit.setProperty(Persistit.TEMPORARY_VOLUME_MAX_SIZE, "64K");
+        Volume volume2 = _persistit.createTemporaryVolume();
+        final Exchange ex1 = _persistit.getExchange(_volume, "T2", true);
+        final Exchange ex2 = _persistit.getExchange(volume2, "T2", true);
+        ex1.getValue().put(RED_FOX);
+        ex2.getValue().put(RED_FOX);
+        boolean full1 = false;
+        boolean full2 = false;
+        for (int index = 0; index < 1000000; index++) {
+            full1 = full2 = true;
+            try {
+            ex1.to(index).store();
+            full1 = false;
+            ex2.to(index).store();
+            full2 = false;
+            } catch (VolumeFullException e) {
+                assertTrue(!full1);
+                assertTrue(full2);
+                break;
+            }
+        }
     }
 
     @Test
