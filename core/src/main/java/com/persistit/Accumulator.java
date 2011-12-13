@@ -519,6 +519,9 @@ public abstract class Accumulator {
      * @throws InterruptedException
      */
     public long getSnapshotValue(final Transaction txn) throws PersistitInterruptedException {
+        if (!txn.isActive()) {
+            throw new IllegalStateException("Transaction has not been started");
+        }
         return getSnapshotValue(txn.getStartTimestamp(), txn.getCurrentStep());
     }
 
