@@ -168,8 +168,7 @@ public class MVVTest {
                                           0,0,0,0,0,0,0,vh3, 0,4, 0x6,0x7,0x8,0x9);
         final byte[] source = {0xD,0xE,0xF};
         final int storedLength = MVV.storeVersion(target, targetLength, vh2, source, source.length);
-
-        assertEquals(targetLength, storedLength);
+        assertTrue("version existed", (storedLength & STORE_EXISTED_MASK) != 0);
         assertArrayEqualsLen(newArray(TYPE_MVV,
                                       0,0,0,0,0,0,0,vh1, 0,2, 0x4,0x5,
                                       0,0,0,0,0,0,0,vh2, 0,3, 0xD,0xE,0xF,

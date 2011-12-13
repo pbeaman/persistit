@@ -26,7 +26,6 @@ import java.util.BitSet;
 import java.util.Set;
 import java.util.Stack;
 
-import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.Exchange.Sequence;
 import com.persistit.JournalRecord.IV;
 import com.persistit.JournalRecord.PA;
@@ -338,6 +337,11 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      * Count of unused bytes above _alloc.
      */
     private int _slack;
+    
+    /**
+     * Count of MVV values
+     */
+    private int _mvvCount;
 
     /**
      * Singly-linked list of Buffers current having the same hash code.
@@ -380,6 +384,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         _rightSibling = original._rightSibling;
         _alloc = original._alloc;
         _slack = original._slack;
+        _mvvCount = original._mvvCount;
         setKeyBlockEnd(original._keyBlockEnd);
         _tailHeaderSize = original._tailHeaderSize;
         System.arraycopy(original._bytes, 0, _bytes, 0, _bytes.length);
@@ -395,6 +400,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         _rightSibling = 0;
         _alloc = _bufferSize;
         _slack = 0;
+        _mvvCount = 0;
         // _generation = 0;
         bumpGeneration();
     }
@@ -444,6 +450,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
                 if (isDataPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_DATA;
+                    _mvvCount = Integer.MAX_VALUE;
                 } else if (isIndexPage()) {
                     _tailHeaderSize = TAILBLOCK_HDR_SIZE_INDEX;
                 }
@@ -458,8 +465,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     void writePageOnCheckpoint(final long timestamp) throws PersistitException {
         Debug.$assert0.t(isMine());
         final long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
-        if (isDirty() && !isTemporary() && getTimestamp() < checkpointTimestamp
-                && timestamp > checkpointTimestamp) {
+        if (isDirty() && !isTemporary() && getTimestamp() < checkpointTimestamp && timestamp > checkpointTimestamp) {
             writePage();
             _pool.bumpForcedCheckpointWrites();
         }
@@ -1412,6 +1418,9 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 putInt(newTail + TAILBLOCK_POINTER, pointer);
             } else if (value != Value.EMPTY_VALUE) {
                 System.arraycopy(value.getEncodedBytes(), 0, _bytes, newTail + _tailHeaderSize + klength, length);
+                if (MVV2.isArrayMVV(value.getEncodedBytes(), 0, length)) {
+                    _mvvCount++;
+                }
             }
 
             if (fastIndex != null) {
@@ -1487,6 +1496,14 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         int tbData = getInt(tail);
         int klength = decodeTailBlockKLength(tbData);
         int oldTailSize = decodeTailBlockSize(tbData);
+        boolean wasMVV = false;
+        boolean isMVV = false;
+        
+        if (isDataPage()) {
+            wasMVV = MVV2.isArrayMVV(_bytes, tail + _tailHeaderSize + klength, oldTailSize - klength - _tailHeaderSize);
+            isMVV = MVV2.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize());
+            _mvvCount += (wasMVV ? -1 : 0) + (isMVV ? 1 : 0); 
+        }
 
         int length;
         if (isIndexPage()) {
@@ -3258,6 +3275,52 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         }
         releaseRepackPlanBuffer(plan);
         return null;
+    }
+
+    boolean pruneMvvValues(final Key spareKey) throws PersistitException {
+        boolean changed = false;
+        if (!isMine()) {
+            throw new IllegalStateException("Exclusive claim required");
+        }
+        if (isDataPage() && _mvvCount != 0) {
+            _mvvCount = 0;
+            for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
+                final int kbData = getInt(p);
+                final int tail = decodeKeyBlockTail(kbData);
+                final int tbData = getInt(tail);
+                final int klength = decodeTailBlockKLength(tbData);
+                final int oldTailSize = decodeTailBlockSize(tbData);
+                final int offset = tail + _tailHeaderSize + klength;
+                final int oldSize = oldTailSize - klength - _tailHeaderSize;
+                if (oldSize > 0) {
+                    final int valueByte = _bytes[tail + _tailHeaderSize + klength] & 0xFF;
+                    if (valueByte == MVV2.TYPE_MVV) {
+                        final int newSize = MVV2.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true);
+                        if (newSize != oldSize) {
+                            changed = true;
+                            int newTailSize = klength + newSize + _tailHeaderSize;
+                            int oldNext = (tail + oldTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+                            int newNext = (tail + newTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+                            if (newNext < oldNext) {
+                                // Free the remainder of the old tail block
+                                deallocTail(newNext, oldNext - newNext);
+                            }
+                            // Rewrite the tail block header
+                            putInt(tail, encodeTailBlock(newTailSize, klength));
+                        }
+                        if (MVV2.isArrayMVV(_bytes, offset, oldSize)) {
+                            _mvvCount++;
+                        }
+                    } else if (oldSize == LONGREC_SIZE && valueByte == LONGREC_TYPE
+                            && (_bytes[tail + _tailHeaderSize + klength + LONGREC_PREFIX_OFFSET] == LONGREC_TYPE)) {
+                        // TODO : enqueue background pruner
+                    } else if (p == KEY_BLOCK_START && valueByte == MVV2.TYPE_ANTIVALUE) {
+                        // TODO : enqueue background pruner
+                    }
+                }
+            }
+        }
+        return changed;
     }
 
     /**

@@ -40,6 +40,7 @@ import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
 
 import com.persistit.Key.Direction;
+import com.persistit.exception.CorruptValueException;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
@@ -550,8 +551,8 @@ public class Exchange {
         }
 
         /**
-         * Re-save the current buffer generation. Can only be used when
-         * all other data (key gens, foundAt, etc) is still valid.
+         * Re-save the current buffer generation. Can only be used when all
+         * other data (key gens, foundAt, etc) is still valid.
          */
         private void updateBufferGeneration() {
             _bufferGeneration = _buffer.getGeneration();
@@ -576,16 +577,17 @@ public class Exchange {
             _flags = 0;
         }
     }
-    
+
     private class PruneVisitor implements MVV.VersionVisitor {
         private class OffsetAndLength {
             public int offset, length;
+
             OffsetAndLength(int offset, int length) {
                 this.offset = offset;
                 this.length = length;
             }
         }
-        
+
         private long _maxVersion;
         private int _maxOffset;
         private int _maxLength;
@@ -611,16 +613,14 @@ public class Exchange {
             final long tc;
             try {
                 tc = _ti.commitStatus(version, MvvVisitor.READ_COMMITTED_TS, 0);
-            }
-            catch (InterruptedException ie) {
+            } catch (InterruptedException ie) {
                 throw new PersistitInterruptedException(ie);
             }
 
             _versionCount++;
             if (tc == TransactionStatus.ABORTED) {
                 addRemoved(offset, valueLength);
-            }
-            else if(tc != TransactionStatus.UNCOMMITTED && !_ti.hasConcurrentTransaction(0, tc)) {
+            } else if (tc != TransactionStatus.UNCOMMITTED && !_ti.hasConcurrentTransaction(0, tc)) {
                 if (version > _maxVersion) {
                     if (_maxVersion != MVV.VERSION_NOT_FOUND) {
                         addRemoved(_maxOffset, _maxLength);
@@ -628,8 +628,7 @@ public class Exchange {
                     _maxVersion = version;
                     _maxOffset = offset;
                     _maxLength = valueLength;
-                }
-                else {
+                } else {
                     addRemoved(offset, valueLength);
                 }
             }
@@ -657,7 +656,7 @@ public class Exchange {
         boolean noVersionsLeft() {
             return (_versionCount - _removeCount) == 0;
         }
-        
+
         boolean isPrimordial() {
             return (_versionCount - _removeCount) == 1 && _maxVersion != MVV.VERSION_NOT_FOUND;
         }
@@ -699,9 +698,7 @@ public class Exchange {
     }
 
     static enum PruneStatus {
-        REMOVED,
-        CHANGED,
-        UNCHANGED
+        REMOVED, CHANGED, UNCHANGED
     }
 
     /**
@@ -1050,7 +1047,7 @@ public class Exchange {
     /**
      * Internal value that, if <code>true</code>, indicates the last store
      * operation caused a page split. Reset on every call to a store method.
-     *
+     * 
      * @return storeCausedSplit
      */
     boolean getStoreCausedSplit() {
@@ -1511,7 +1508,8 @@ public class Exchange {
                                 valueToStore = _spareValue;
                                 int valueSize = value.getEncodedSize();
 
-                                // If key didn't exist the value is truly non-existent
+                                // If key didn't exist the value is truly
+                                // non-existent
                                 // and not just undefined/zero length
                                 byte[] spareBytes = _spareValue.getEncodedBytes();
                                 int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
@@ -1538,7 +1536,7 @@ public class Exchange {
 
                                 long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
                                 int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), spareSize,
-                                                                    versionHandle, value.getEncodedBytes(), valueSize);
+                                        versionHandle, value.getEncodedBytes(), valueSize);
 
                                 incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
                                 storedLength &= MVV.STORE_LENGTH_MASK;
@@ -1554,10 +1552,12 @@ public class Exchange {
 
                         splitRequired = putLevel(lc, key, valueToStore, buffer, foundAt, treeClaimAcquired);
                         if (splitRequired && !didPrune && doMVCC && buffer.isDataPage()) {
-                            prune(buffer, _spareKey1, _spareValue);
-                            lc.updateBufferGeneration();
+                            // prune(buffer, _spareKey1, _spareValue);
+                            if (buffer.pruneMvvValues(_spareKey1)) {
+                                lc.updateBufferGeneration();
+                                break PRUNE_BLOCK;
+                            }
                             didPrune = true;
-                            break PRUNE_BLOCK;
                         }
                     }
 
@@ -2953,7 +2953,7 @@ public class Exchange {
         boolean anyRemoved = false;
         boolean keyIsLessThan = true;
         Key nextKey = new Key(key1);
-        
+
         while (keyIsLessThan && !key1.isRightEdge()) {
             Buffer buffer = null;
             try {
@@ -3860,12 +3860,12 @@ public class Exchange {
     }
 
     /**
-     * Reduce this Exchanges current <code>Key</code> and <code>Value</code> pair
-     * to the minimal possible state. Does not explicitly modify any other value
-     * in the associated page.
-     *
+     * Reduce this Exchanges current <code>Key</code> and <code>Value</code>
+     * pair to the minimal possible state. Does not explicitly modify any other
+     * value in the associated page.
+     * 
      * @throws PersistitException
-     *            For any internal error.
+     *             For any internal error.
      */
     void prune() throws PersistitException {
         _persistit.checkClosed();
@@ -3897,15 +3897,16 @@ public class Exchange {
     /**
      * Visit all keys in the buffer and prune each value. After returning, all
      * values in the buffer will be in most primordial state possible.
-     *
+     * 
      * @param buffer
      *            Buffer to prune. Write claim must be taken by callee.
      * @param extraKey
      *            Key used in the process of traversing the buffer.
      * @param extraValue
-     *            Spare value used during prune process, essentially scratch space.
+     *            Spare value used during prune process, essentially scratch
+     *            space.
      * @throws PersistitException
-     *            For any internal error.
+     *             For any internal error.
      */
     private void prune(Buffer buffer, Key extraKey, Value extraValue) throws PersistitException {
         Debug.$assert0.t(buffer.isWriter());
@@ -3936,7 +3937,7 @@ public class Exchange {
         if (status == PruneStatus.UNCHANGED) {
             return false;
         }
-        if (status == PruneStatus.REMOVED) { 
+        if (status == PruneStatus.REMOVED) {
             // TODO: Extract 'quickDelete' code from raw_removeInternal
             // or add to prune thread. Simple for now: turn into AntiValue
             value.clear().putAntiValueMVV();
@@ -3947,14 +3948,15 @@ public class Exchange {
     /**
      * Reduce the given value to the most primordial state possible. The value
      * will be modified in-place.
-     *
+     * 
      * @param value
      *            Value to remove all obsolete versions from.
      * @return Status of the prune operation.
      * @throws PersistitException
-     *            For any error
+     *             For any error
      */
-    private PruneStatus prune(Value value) throws PersistitException {
+    private PruneStatus prune2(Value value) throws PersistitException {
+
         byte[] valueBytes = value.getEncodedBytes();
         int valueSize = value.getEncodedSize();
 
@@ -3962,7 +3964,32 @@ public class Exchange {
         if (isLongRecord(value) || !MVV.isArrayMVV(valueBytes, valueSize)) {
             return PruneStatus.UNCHANGED;
         }
-                
+
+        int newSize = MVV2.prune(valueBytes, 0, valueSize, _persistit.getTransactionIndex(), true);
+        if (newSize > valueSize) {
+            throw new CorruptValueException("Pruning operation lengthened the value");
+        }
+        value.setEncodedSize(newSize);
+        if (newSize == 1 && MVV2.isArrayMVV(valueBytes, 0, 1)) {
+            return PruneStatus.REMOVED;
+        }
+        if (newSize < valueSize) {
+            return (value.isDefined() && value.isAntiValue()) ? PruneStatus.REMOVED : PruneStatus.CHANGED;
+        }
+
+        return PruneStatus.UNCHANGED;
+    }
+
+    private PruneStatus prune1(Value value) throws PersistitException {
+
+        byte[] valueBytes = value.getEncodedBytes();
+        int valueSize = value.getEncodedSize();
+
+        // TODO: Handle LONG_RECORD
+        if (isLongRecord(value) || !MVV.isArrayMVV(valueBytes, valueSize)) {
+            return PruneStatus.UNCHANGED;
+        }
+
         MVV.visitAllVersions(_pruneVisitor, valueBytes, valueSize);
         if (_pruneVisitor.noVersionsLeft()) {
             return PruneStatus.REMOVED;
@@ -3987,5 +4014,21 @@ public class Exchange {
         }
         value.setEncodedSize(newSize);
         return PruneStatus.CHANGED;
+    }
+
+    private PruneStatus prune(final Value value) throws PersistitException {
+        return prune2(value);
+        // Value value1 = new Value(value);
+        // Value value2 = new Value(value);
+        // PruneStatus result1 = prune1(value1);
+        // PruneStatus result2 = prune2(value2);
+        // if (result1.equals(result2) && value1.getEncodedSize()==
+        // value2.getEncodedSize()) {
+        // value1.copyTo(value);
+        // return result1;
+        // }
+        // value2.copyTo(value);
+        // return result2;
+
     }
 }

@@ -359,7 +359,7 @@ public final class Value {
     // Indicates a key range to be removed. Used only in representing
     // pending remove operations in the Transaction tree.
     //
-    private final static int CLASS_ANTIVALUE = 49;
+    final static int CLASS_ANTIVALUE = 49;
     //
     // Indicates a reference to an object that was encoded earlier in this
     // Value. Followed by the identityHashCode and a unique handle for the
