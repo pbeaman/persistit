@@ -240,8 +240,9 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         for (int i = 0; i < threads.length; i++) {
             threads[i].join();
         }
-        _persistit.getJournalManager().flush();
+        
         _persistit.crash();
+        
         final Properties props = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(props);

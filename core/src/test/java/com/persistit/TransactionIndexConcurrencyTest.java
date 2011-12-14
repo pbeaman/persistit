@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import junit.framework.TestCase;
@@ -44,6 +45,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
     final MVV[] mvvs;
     final AtomicLong commits = new AtomicLong();
     final AtomicLong aborts = new AtomicLong();
+    final AtomicLong timeouts = new AtomicLong();
 
     static int hashTableSize = HASH_TABLE_SIZE;
     static int mvvCount = MVV_COUNT;
@@ -99,6 +101,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
         final long start = System.currentTimeMillis();
         final AtomicLong reported = new AtomicLong(start);
         Timer timer = new Timer();
+        final AtomicInteger errCount = new AtomicInteger();
         timer.schedule(new TimerTask() {
 
             @Override
@@ -122,6 +125,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
                             runTransaction(txn);
                         }
                     } catch (Exception e) {
+                        errCount.incrementAndGet();
                         e.printStackTrace();
                     }
                 }
@@ -150,6 +154,10 @@ public class TransactionIndexConcurrencyTest extends TestCase {
             prune(mvvs[i]);
             assertTrue(mvvs[i].versionHandles.isEmpty());
         }
+        assertEquals(0, errCount.get());
+        assertTrue(aborts.get() > 0);
+        assertTrue(commits.get() > 0);
+        assertTrue(timeouts.get() > 0);
     }
 
     private void report(final long elapsed) {
@@ -181,6 +189,7 @@ public class TransactionIndexConcurrencyTest extends TestCase {
                         long vh = mvv.versionHandles.get(index);
                         long tc = ti.wwDependency(vh, txn.status, 0);
                         if (tc == TIMED_OUT) {
+                            timeouts.incrementAndGet();
                             versionHandle = vh;
                             retry = true;
                             break;
