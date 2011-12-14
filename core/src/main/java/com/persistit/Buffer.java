@@ -337,7 +337,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      * Count of unused bytes above _alloc.
      */
     private int _slack;
-    
+
     /**
      * Count of MVV values
      */
@@ -694,7 +694,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     int getKeyBlockEnd() {
         return _keyBlockEnd;
     }
-    
+
     int getMvvCount() {
         return _mvvCount;
     }
@@ -1502,11 +1502,11 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         int oldTailSize = decodeTailBlockSize(tbData);
         boolean wasMVV = false;
         boolean isMVV = false;
-        
+
         if (isDataPage()) {
             wasMVV = MVV2.isArrayMVV(_bytes, tail + _tailHeaderSize + klength, oldTailSize - klength - _tailHeaderSize);
             isMVV = MVV2.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize());
-            _mvvCount += (wasMVV ? -1 : 0) + (isMVV ? 1 : 0); 
+            _mvvCount += (wasMVV ? -1 : 0) + (isMVV ? 1 : 0);
         }
 
         int length;
@@ -3283,6 +3283,8 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
     boolean pruneMvvValues(final Key spareKey) throws PersistitException {
         boolean changed = false;
+        boolean bumped = false;
+        long timestamp = -1;
         if (!isMine()) {
             throw new IllegalStateException("Exclusive claim required");
         }
@@ -3301,6 +3303,10 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                     if (valueByte == MVV2.TYPE_MVV) {
                         final int newSize = MVV2.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true);
                         if (newSize != oldSize) {
+                            if (timestamp == -1) {
+                                timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                                writePageOnCheckpoint(timestamp);
+                            }
                             changed = true;
                             int newTailSize = klength + newSize + _tailHeaderSize;
                             int oldNext = (tail + oldTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
@@ -3322,14 +3328,33 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                     }
                     if (valueByte == MVV2.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
-                        // TODO : enqueue background pruner
+                            // TODO : enqueue background pruner
+                        } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
+                            Debug.$assert1.t(false);
                         } else {
-                            removeKeys(p, p + KEYBLOCK_LENGTH, spareKey);
-                            p -= KEYBLOCK_LENGTH;
+                            if (timestamp == -1) {
+                                timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                                writePageOnCheckpoint(timestamp);
+                            }
+                            if (removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey)) {
+                                p -= KEYBLOCK_LENGTH;
+                                changed = true;
+                                if (!bumped) {
+                                    bumpGeneration();
+                                    bumped = true;
+                                }
+                            }
                         }
                     }
                 }
             }
+        }
+        if (Debug.ENABLED && changed) {
+            assertVerify();
+        }
+        if (changed) {
+            assert timestamp != -1 : "Timestamp writePageOnCheckpoint not called";
+            setDirtyAtTimestamp(timestamp);
         }
         return changed;
     }

@@ -137,19 +137,22 @@ public class MVV {
      * @throws IllegalArgumentException If target is too small to hold final MVV contents
      */
     public static int storeVersion(byte[] target, int targetLength, long version, byte[] source, int sourceLength) {
-        byte[] target2 = new byte[target.length];
-        System.arraycopy(target, 0, target2, 0, target.length);
-        int result1= storeVersion1(target2,targetLength, version, source, sourceLength);
+//        byte[] target2 = new byte[target.length];
+//        System.arraycopy(target, 0, target2, 0, target.length);
+//        int result1= storeVersion1(target2,targetLength, version, source, sourceLength);
+        if (MVV2.exactRequiredLength(target, targetLength, version, sourceLength) > target.length) {
+            throw new IllegalArgumentException("Too short");
+        }
         int result2 = MVV2.storeVersion(target, 0, targetLength, version, source, 0, sourceLength);
-        if (result1 != result2) {
-            System.out.println("boo");
-        }
-        for (int i = 0; i < target.length; i++) {
-            if (target[i] != target2[i]) {
-                System.out.println("hoo");
-                break;
-            }
-        }
+//        if (result1 != result2) {
+//            System.out.println("boo");
+//        }
+//        for (int i = 0; i < target.length; i++) {
+//            if (target[i] != target2[i]) {
+//                System.out.println("hoo");
+//                break;
+//            }
+//        }
         return result2;
     }
     

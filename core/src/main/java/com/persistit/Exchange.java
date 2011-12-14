@@ -1489,75 +1489,75 @@ public class Exchange {
 
                     boolean didPrune = false;
                     boolean splitRequired = false;
-                    PRUNE_BLOCK: {
-                        if (buffer.isDataPage()) {
-                            keyExisted = (foundAt & EXACT_MASK) != 0;
-                            if (keyExisted) {
-                                oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
-                            }
-                            if (newLongRecordPointerMVV != 0) {
-                                _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
-                                newLongRecordPointerMVV = 0;
-                                _spareValue.setLongRecordMode(false);
-                            }
-                            if (doAnyFetch) {
-                                buffer.fetch(foundAt, _spareValue);
-                                fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
-                            }
-                            if (doMVCC) {
-                                valueToStore = _spareValue;
-                                int valueSize = value.getEncodedSize();
+                    if (buffer.isDataPage()) {
+                        keyExisted = (foundAt & EXACT_MASK) != 0;
+                        if (keyExisted) {
+                            oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
+                        }
+                        if (newLongRecordPointerMVV != 0) {
+                            _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
+                            newLongRecordPointerMVV = 0;
+                            _spareValue.setLongRecordMode(false);
+                        }
+                        if (doAnyFetch) {
+                            buffer.fetch(foundAt, _spareValue);
+                            fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                        }
+                        if (doMVCC) {
+                            valueToStore = _spareValue;
+                            int valueSize = value.getEncodedSize();
+                            /*
+                             * If key didn't exist the value is truly
+                             * non-existent and not just undefined/zero length
+                             */
+                            byte[] spareBytes = _spareValue.getEncodedBytes();
+                            int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
+                            spareSize = MVV2.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false);
 
-                                // If key didn't exist the value is truly
-                                // non-existent
-                                // and not just undefined/zero length
-                                byte[] spareBytes = _spareValue.getEncodedBytes();
-                                int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
-                                TransactionStatus tStatus = _transaction.getTransactionStatus();
+                            TransactionStatus tStatus = _transaction.getTransactionStatus();
 
-                                if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
-                                    // Could be single visit of all versions but
-                                    // current TI would still require calls to
-                                    // both commitStatus() and wwDependency()
-                                    _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
-                                    MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
-                                    if (!_mvvVisitor.foundVersion()) {
-                                        // Completely done, nothing to store
-                                        break;
-                                    }
-                                }
-
-                                // Visit all versions for ww detection
-                                _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.STORE);
+                            if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
+                                /*
+                                 * Could be single visit of all versions but
+                                 * current TI would still require calls to both
+                                 * commitStatus() and wwDependency()
+                                 */
+                                _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
                                 MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
-
-                                int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
-                                _spareValue.ensureFit(mvvSize);
-
-                                long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
-                                int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), spareSize,
-                                        versionHandle, value.getEncodedBytes(), valueSize);
-
-                                incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
-                                storedLength &= MVV.STORE_LENGTH_MASK;
-                                _spareValue.setEncodedSize(storedLength);
-
-                                if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
-                                    newLongRecordPointerMVV = storeOverlengthRecord(_spareValue, 0);
+                                if (!_mvvVisitor.foundVersion()) {
+                                    // Completely done, nothing to store
+                                    break;
                                 }
+                            }
+
+                            // Visit all versions for ww detection
+                            _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.STORE);
+                            MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
+
+                            int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
+                            _spareValue.ensureFit(mvvSize);
+
+                            long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
+                            int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), spareSize,
+                                    versionHandle, value.getEncodedBytes(), valueSize);
+
+                            incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
+                            storedLength &= MVV.STORE_LENGTH_MASK;
+                            _spareValue.setEncodedSize(storedLength);
+
+                            if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
+                                newLongRecordPointerMVV = storeOverlengthRecord(_spareValue, 0);
                             }
                         }
+                    }
 
-                        Debug.$assert0.t(valueToStore.getEncodedSize() <= maxSimpleValueSize);
+                    Debug.$assert0.t(valueToStore.getEncodedSize() <= maxSimpleValueSize);
 
-                        splitRequired = putLevel(lc, key, valueToStore, buffer, foundAt, treeClaimAcquired);
-                        if (splitRequired && !didPrune && doMVCC && buffer.isDataPage()) {
-                            // prune(buffer, _spareKey1, _spareValue);
-                            if (buffer.pruneMvvValues(_spareKey1)) {
-                                lc.updateBufferGeneration();
-                                break PRUNE_BLOCK;
-                            }
-                            didPrune = true;
+                    splitRequired = putLevel(lc, key, valueToStore, buffer, foundAt, treeClaimAcquired);
+                    if (splitRequired && !didPrune && buffer.isDataPage()) {
+                        didPrune = true;
+                        if (buffer.pruneMvvValues(_spareKey1)) {
+                            continue;
                         }
                     }
 

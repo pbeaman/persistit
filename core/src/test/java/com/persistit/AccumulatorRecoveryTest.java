@@ -311,6 +311,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             exchange.to(Key.BEFORE);
             while (exchange.next()) {
                 counted++;
+                assertFalse(exchange.getValue().isAntiValue());
             }
             long accumulated2 = rowCount.getSnapshotValue(txn);
             if (accumulated != counted || accumulated != accumulated2) {

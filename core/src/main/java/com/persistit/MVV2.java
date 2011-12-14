@@ -446,7 +446,7 @@ public class MVV2 {
                         from += vlength + LENGTH_PER_VERSION;
                     }
                 }
-                return newLength;
+                return to - offset;
             }
         } catch (InterruptedException ie) {
             throw new PersistitInterruptedException(ie);

@@ -63,12 +63,12 @@ public class TransactionIndexTest extends TestCase {
         ti.updateActiveTransactionCache();
         assertFalse(ti.hasConcurrentTransaction(0, ts2.getTs() + 1));
         _tsa.updateTimestamp();
-        assertEquals(TransactionStatus.UNCOMMITTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
+        assertEquals(UNCOMMITTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
                 .getCurrentTimestamp(), 0));
         assertEquals(ts3.getTs(), ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), ts3.getTs(), 0));
         ts3.incrementMvvCount();
         ts3.abort();
-        assertEquals(TransactionStatus.ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
+        assertEquals(ABORTED, ti.commitStatus(TransactionIndex.ts2vh(ts3.getTs()), _tsa
                 .getCurrentTimestamp(), 0));
         assertEquals(4, ti.getCurrentCount());
         ti.notifyCompleted(ts1, -ts1.getTc() + 1);
