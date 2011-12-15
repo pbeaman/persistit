@@ -1422,7 +1422,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 putInt(newTail + TAILBLOCK_POINTER, pointer);
             } else if (value != Value.EMPTY_VALUE) {
                 System.arraycopy(value.getEncodedBytes(), 0, _bytes, newTail + _tailHeaderSize + klength, length);
-                if (MVV2.isArrayMVV(value.getEncodedBytes(), 0, length)) {
+                if (MVV.isArrayMVV(value.getEncodedBytes(), 0, length)) {
                     _mvvCount++;
                 }
             }
@@ -1504,8 +1504,8 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         boolean isMVV = false;
 
         if (isDataPage()) {
-            wasMVV = MVV2.isArrayMVV(_bytes, tail + _tailHeaderSize + klength, oldTailSize - klength - _tailHeaderSize);
-            isMVV = MVV2.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize());
+            wasMVV = MVV.isArrayMVV(_bytes, tail + _tailHeaderSize + klength, oldTailSize - klength - _tailHeaderSize);
+            isMVV = MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize());
             _mvvCount += (wasMVV ? -1 : 0) + (isMVV ? 1 : 0);
         }
 
@@ -3300,8 +3300,8 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 final int oldSize = oldTailSize - klength - _tailHeaderSize;
                 if (oldSize > 0) {
                     int valueByte = _bytes[tail + _tailHeaderSize + klength] & 0xFF;
-                    if (valueByte == MVV2.TYPE_MVV) {
-                        final int newSize = MVV2.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true);
+                    if (valueByte == MVV.TYPE_MVV) {
+                        final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true);
                         if (newSize != oldSize) {
                             if (timestamp == -1) {
                                 timestamp = _persistit.getTimestampAllocator().updateTimestamp();
@@ -3319,14 +3319,14 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                             putInt(tail, encodeTailBlock(newTailSize, klength));
                             valueByte = _bytes[tail + _tailHeaderSize + klength] & 0xFF;
                         }
-                        if (MVV2.isArrayMVV(_bytes, offset, oldSize)) {
+                        if (MVV.isArrayMVV(_bytes, offset, oldSize)) {
                             _mvvCount++;
                         }
                     } else if (oldSize == LONGREC_SIZE && valueByte == LONGREC_TYPE
                             && (_bytes[tail + _tailHeaderSize + klength + LONGREC_PREFIX_OFFSET] == LONGREC_TYPE)) {
                         // TODO : enqueue background pruner
                     }
-                    if (valueByte == MVV2.TYPE_ANTIVALUE) {
+                    if (valueByte == MVV.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
                             // TODO : enqueue background pruner
                         } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {

@@ -15,11 +15,19 @@
 
 package com.persistit;
 
+import static com.persistit.TransactionIndex.vh2ts;
+import static com.persistit.TransactionStatus.UNCOMMITTED;
+
+import com.persistit.exception.CorruptValueException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.exception.TimeoutException;
 import com.persistit.util.Util;
 
 public class MVV {
     final static int TYPE_MVV = 0xFE;
+    final static int TYPE_ANTIVALUE = Value.CLASS_ANTIVALUE;
+
     final static int VERSION_NOT_FOUND = -1;
 
     final static int STORE_EXISTED_MASK = 0x80000000;
@@ -34,6 +42,34 @@ public class MVV {
     private final static int LENGTH_VALUE_LENGTH = 2;   // short
 
     final static int LENGTH_PER_VERSION = LENGTH_VERSION + LENGTH_VALUE_LENGTH;
+
+    static long getVersion(final byte[] bytes, final int offset) {
+        return Util.getLong(bytes, offset);
+    }
+
+    static void putVersion(final byte[] bytes, final int offset, final long version) {
+        Util.putLong(bytes, offset, version);
+    }
+
+    static int getLength(final byte[] bytes, final int offset) {
+        return Util.getChar(bytes, offset + LENGTH_VERSION) & 0x7FFF;
+    }
+
+    static void putLength(final byte[] bytes, final int offset, final int length) {
+        Util.putChar(bytes, offset + LENGTH_VERSION, length);
+    }
+
+    static boolean isMarked(final byte[] bytes, final int offset) {
+        return (Util.getChar(bytes, offset + LENGTH_VERSION) & 0x8000) != 0;
+    }
+
+    static void mark(final byte[] bytes, final int offset) {
+        Util.putChar(bytes, offset + LENGTH_VERSION, Util.getChar(bytes, offset + LENGTH_VERSION) | 0x8000);
+    }
+
+    static void unmark(final byte[] bytes, final int offset) {
+        Util.putChar(bytes, offset + LENGTH_VERSION, Util.getChar(bytes, offset + LENGTH_VERSION) & 0x7FFF);
+    }
 
 
     /**
@@ -102,122 +138,333 @@ public class MVV {
 
     /**
      * Simple helper method to test if a given byte array is an MVV.
-     *
-     * @param source Potential MVV to test
-     * @param sourceLength Length of the given array currently in use.
-     *
+     * 
+     * @param source
+     *            Potential MVV to test
+     * @param sourceLength
+     *            Length of the given array currently in use.
+     * 
      * @return <code>true</code> if the array is an MVV
      */
-    static boolean isArrayMVV(byte[] source, int sourceLength) {
-        return (sourceLength > 0) && (source[0] == TYPE_MVV_BYTE);
-    }
-
-    /**
-     * Write a value, with the specified version and length, into the given MVV byte array.
-     * The resulting contents of the target array will always be MVV no matter the starting
-     * state (ie. empty, primordial, or MVV). That is, an empty or primordial target will be
-     * promoted to an MVV and an MVV will get appended to. If the exact version already exists
-     * in the target array it will be updated as required.
-     *
-     * @param target Destination MVV array to append to or update
-     * @param targetLength Length of target currently in use. The state of the target array,
-     * which corresponds to the higher level {@link com.persistit.Value} state, is indicated by lengths
-     * <ul>
-     *     <li>&lt; 0: target currently unoccupied and unused (no key or value)</li>
-     *     <li>= 0: target currently unoccupied but used (key but no value, i.e. undefined)</li>
-     *     <li>> 0: target currently occupied and used (key and value)</li>
-     * </ul>
-     * @param version Version associated with source
-     * @param source Value to store
-     * @param sourceLength Length of source currently in use
-     * @return Compound value consisting of a flag indicating if the version already
-     *         existed and the new consumed length of target. Use the mask values
-     *         {@link MVV#STORE_EXISTED_MASK} and {@link MVV#STORE_LENGTH_MASK} for
-     *         decoding the two pieces.
-     * @throws IllegalArgumentException If target is too small to hold final MVV contents
-     */
-    public static int storeVersion(byte[] target, int targetLength, long version, byte[] source, int sourceLength) {
-//        byte[] target2 = new byte[target.length];
-//        System.arraycopy(target, 0, target2, 0, target.length);
-//        int result1= storeVersion1(target2,targetLength, version, source, sourceLength);
-        if (MVV2.exactRequiredLength(target, targetLength, version, sourceLength) > target.length) {
-            throw new IllegalArgumentException("Too short");
-        }
-        int result2 = MVV2.storeVersion(target, 0, targetLength, version, source, 0, sourceLength);
-//        if (result1 != result2) {
-//            System.out.println("boo");
-//        }
-//        for (int i = 0; i < target.length; i++) {
-//            if (target[i] != target2[i]) {
-//                System.out.println("hoo");
-//                break;
-//            }
-//        }
-        return result2;
+    static boolean isArrayMVV(byte[] source, int offset, int length) {
+        return (length > 0) && (source[offset] == TYPE_MVV_BYTE);
     }
     
-    public static int storeVersion1(byte[] target, int targetLength, long version, byte[] source, int sourceLength) {
-        int offset = 0;
+    /**
+     * <p>
+     * Write a value, with the specified version and length, into the given MVV
+     * byte array. The resulting contents of the target array will always be MVV
+     * no matter the starting state (i.e., empty, primordial, or MVV). That is,
+     * an empty or primordial target will be promoted to an MVV and an MVV will
+     * get appended to. If the exact version already exists in the target array
+     * it will be updated as required.
+     * </p>
+     * <p>
+     * The target MVV array must have enough available space to hold the updated
+     * value. The caller can invoke the
+     * {@link #exactRequiredLength(byte[], int, long, int)} method to determine
+     * how much space is required.
+     * </p>
+     * 
+     * @param target
+     *            Destination byte array to append to or update
+     * @param targetOffset
+     *            starting offset within the destination array
+     * @param targetLength
+     *            Length of destination currently in use. The state of the
+     *            destination array, which corresponds to the higher level
+     *            {@link com.persistit.Value} state, is indicated by lengths
+     *            <ul>
+     *            <li>&lt; 0: target currently unoccupied and unused (no key or
+     *            value)</li>
+     *            <li>=0: target currently unoccupied but used (key but no
+     *            value, i.e. undefined)</li>
+     *            <li>>0: target currently occupied and used (key and value)</li>
+     *            </ul>
+     * @param versionHandle
+     *            Version associated with source
+     * @param source
+     *            Value to store
+     * @param sourceOffset
+     *            starting offset within the source array
+     * @param sourceLength
+     *            Length of source currently in use
+     * @return Compound value consisting of a flag indicating if the version
+     *         already existed and the new consumed length of target. Use the
+     *         mask values {@link MVV2#STORE_EXISTED_MASK} and
+     *         {@link MVV2#STORE_LENGTH_MASK} for decoding the two pieces.
+     * @throws IllegalArgumentException
+     *             If target is too small to hold final MVV contents
+     */
+    public static int storeVersion(byte[] target, int targetOffset, int targetLength, long versionHandle,
+            byte[] source, int sourceOffset, int sourceLength) {
         int existedMask = 0;
-        if(targetLength < 0) {
-            assertCapacity(target, overheadLength(1) + sourceLength);
+        int to = targetOffset;
+
+        /*
+         * Value did not previously exist. Result will be an MVV with one
+         * version.
+         */
+        if (targetLength < 0) {
             // Promote to MVV, no original state to preserve
-            target[offset++] = TYPE_MVV_BYTE;
+            target[to++] = TYPE_MVV_BYTE;
         }
-        else if(targetLength == 0) {
-            assertCapacity(target, overheadLength(2) + sourceLength);
+
+        /*
+         * Value previously existed as a primordial undefined value (length =
+         * 0). Result will be an MVV with two versions.
+         */
+        else if (targetLength == 0) {
             // Promote to MVV, original state is undefined
-            target[offset++] = TYPE_MVV_BYTE;
-            offset += writeVersionHandle(target, offset, PRIMORDIAL_VALUE_VERSION);
-            offset += writeValueLength(target, offset, UNDEFINED_VALUE_LENGTH);
+            target[to++] = TYPE_MVV_BYTE;
+            to += writeVersionHandle(target, to, PRIMORDIAL_VALUE_VERSION);
+            to += writeValueLength(target, to, UNDEFINED_VALUE_LENGTH);
         }
-        else if(target[0] != TYPE_MVV_BYTE) {
-            assertCapacity(target, overheadLength(2) + targetLength + sourceLength);
+
+        /*
+         * Value previously existed as a primordial value. Result will be an MVV
+         * with two versions.
+         */
+        else if (target[0] != TYPE_MVV_BYTE) {
             // Promote to MVV, shift existing down for header
-            System.arraycopy(target, 0, target, LENGTH_TYPE_MVV + LENGTH_PER_VERSION, targetLength);
-            target[offset++] = TYPE_MVV_BYTE;
-            offset += writeVersionHandle(target, offset, PRIMORDIAL_VALUE_VERSION);
-            offset += writeValueLength(target, offset, targetLength);
-            offset += targetLength;
+            System.arraycopy(target, to, target, to + LENGTH_TYPE_MVV + LENGTH_PER_VERSION, targetLength);
+            target[to++] = TYPE_MVV_BYTE;
+            to += writeVersionHandle(target, to, PRIMORDIAL_VALUE_VERSION);
+            to += writeValueLength(target, to, targetLength);
+            to += targetLength;
         }
+
+        /*
+         * Value previously existed as an MVV. Result will be an MVV with an
+         * extra version in most cases. The number result has the same number of
+         * versions when the supplied versionHandle matches one of the existing
+         * versions, in which case the value associated with that version is
+         * simply replaced.
+         */
         else {
-            // Search for version
-            //   if size == sourceLength, plop down over
-            //   else shift remaining left, add to end
-            int curOffset = 1;
-            while(curOffset < targetLength) {
-                final long curVersion = Util.getLong(target, curOffset);
-                final int size = Util.getShort(target, curOffset + LENGTH_VERSION);
-                final int chunkOffset = LENGTH_PER_VERSION + size;
-                curOffset += chunkOffset;
-                if(curVersion == version) {
+            /*
+             * Search for the matching version.
+             */
+            to++;
+            int next = to;
+            int end = targetOffset + targetLength;
+
+            while (next < end) {
+                final long curVersion = getVersion(target, to);
+                final int vlength = getLength(target, to);
+                next += LENGTH_PER_VERSION + vlength;
+                if (curVersion == versionHandle) {
                     existedMask = STORE_EXISTED_MASK;
-                    if(size == sourceLength) {
-                        System.arraycopy(source, 0, target, curOffset - size, sourceLength);
-                        return targetLength;
+                    if (vlength == sourceLength) {
+                        /*
+                         * Replace the version having the same version handle;
+                         * same length - can simply be copied in place.
+                         */
+                        System.arraycopy(source, sourceOffset, target, next - vlength, vlength);
+                        return targetLength | existedMask;
+                    } else {
+                        /*
+                         * Remove the version having the same version handle -
+                         * the new version will be added below.
+                         */
+                        System.arraycopy(target, next, target, to, targetOffset + targetLength - next);
+                        end -= (next - to);
+                        next = to;
                     }
-                    else {
-                        assertCapacity(target, targetLength - size + sourceLength);
-                        
-                        System.arraycopy(target, curOffset, target, curOffset - chunkOffset, targetLength - curOffset);
-                        targetLength -= chunkOffset;
+                }
+                to = next;
+            }
+        }
+
+        // Append new value
+        to += writeVersionHandle(target, to, versionHandle);
+        to += writeValueLength(target, to, sourceLength);
+        System.arraycopy(source, sourceOffset, target, to, sourceLength);
+        to += sourceLength;
+
+        return (to - targetOffset) | existedMask;
+    }
+    
+    /**
+     * <p>
+     * Remove obsolete or aborted values from an MVV. The MVV is defined by the
+     * supplied byte array, starting offset and length. The result is that a
+     * pruned version of the same MVV is written to the same byte array and
+     * offset, and the length of the modified version is returned. Pruning never
+     * lengths an MVV and therefore the returned length is guaranteed to be less
+     * than or equal the the initial length.
+     * </p>
+     * <p>
+     * This method leaves the byte array unchanged if any of its checked
+     * Exceptions is thrown.
+     * </p>
+     * 
+     * @param bytes
+     *            the byte array
+     * @param offset
+     *            the index of the first byte of the MVV within the byte array
+     * @param length
+     *            the count of bytes in the MVV
+     * @param ti
+     *            The TransactionIndex
+     * @param convertToPrimordial
+     *            indicates whether the MVV should be converted to a primordial
+     *            (non-MVV) value if possible. A reason for not doing so is if
+     *            the caller will immediately store a new value.
+     * @throws PersistitInterruptedException
+     *             if the TransactionIndex throws an InterruptedException
+     * @throws TimeoutException
+     *             if the TransactionIndex times out while attempting to acquire
+     *             a lock
+     * @throws CorruptValueException
+     *             if the MVV value is corrupt
+     */
+    static int prune(final byte[] bytes, final int offset, final int length, final TransactionIndex ti,
+            boolean convertToPrimordial) throws PersistitInterruptedException, TimeoutException, CorruptValueException {
+        if (!isArrayMVV(bytes, offset, length)) {
+            /*
+             * Not an MVV
+             */
+            return length;
+        }
+        boolean primordial = convertToPrimordial;
+        int marked = 0;
+        try {
+            int from = offset + 1;
+            int to = from;
+            /*
+             * Used to keep track of the latest version discovered in the
+             * traversal. These variables identify a version that should be kept
+             * only because it is the highest version in the MVV.
+             */
+            int lastVersionIndex = -1;
+            long lastVersionHandle = Long.MIN_VALUE;
+            long uncommittedTransactionTs = 0;
+            /*
+             * First pass - mark all the versions to keep. Keep every
+             * UNCOMMITTED version (there may be more than one created by the
+             * same transaction), every version needed to support a concurrent
+             * transaction, and the most recent committed version.
+             */
+            while (from < offset + length) {
+                final int vlength = getLength(bytes, from);
+                final long versionHandle = getVersion(bytes, from);
+                final long tc = ti.commitStatus(versionHandle, UNCOMMITTED, 0);
+                if (tc >= 0) {
+                    if (tc == UNCOMMITTED) {
+                        long ts = vh2ts(versionHandle);
+                        if (uncommittedTransactionTs != 0 && uncommittedTransactionTs != ts) {
+                            throw new CorruptValueException("Multiple uncommitted version");
+                        }
+                        uncommittedTransactionTs = ts;
+                        mark(bytes, from);
+                        marked++;
+                        /*
+                         * Mark the last committed version too because the
+                         * transaction for the current version may abort
+                         */
+                        if (lastVersionIndex != -1) {
+                            mark(bytes, lastVersionIndex);
+                            marked++;
+                            lastVersionIndex = -1;
+                        }
+                        primordial = false;
+                    } else {
+                        if (lastVersionIndex != -1
+                                && ti.hasConcurrentTransaction(vh2ts(lastVersionHandle), vh2ts(versionHandle))) {
+                            mark(bytes, lastVersionIndex);
+                            marked++;
+                            primordial = false;
+                        }
+                        lastVersionIndex = from;
+                        lastVersionHandle = versionHandle;
+                    }
+                }
+                from += vlength + LENGTH_PER_VERSION;
+                if (from > offset + length) {
+                    throw new CorruptValueException("MVV Value is corrupt at index: " + from);
+                }
+            }
+            if (lastVersionIndex != -1) {
+                mark(bytes, lastVersionIndex);
+                marked++;
+                if (ti.hasConcurrentTransaction(0, vh2ts(lastVersionHandle))) {
+                    primordial = false;
+                }
+            }
+            /*
+             * Second pass - remove any unmarked versions and unmark any marked
+             * versions.
+             */
+            if (primordial && marked <= 1) {
+                /*
+                 * Special handling for conversion to primordial value. Find the
+                 * marked version and promote it to primordial.
+                 */
+                if (marked > 0) {
+                    from = offset + 1;
+                    while (from < offset + length) {
+                        int vlength = getLength(bytes, from);
+                        if (isMarked(bytes, from)) {
+                            System.arraycopy(bytes, from + LENGTH_PER_VERSION, bytes, offset, vlength);
+                            marked--;
+                            return vlength;
+                        }
+                        from += vlength + LENGTH_PER_VERSION;
+                    }
+                }
+                /*
+                 * No marked versions - indicate by leaving primordial AntiValue.
+                 */
+                bytes[offset] = TYPE_ANTIVALUE;
+                return 1;
+            } else {
+                /*
+                 * Multiple versions will remain in the MVV. Remove the unmarked
+                 * ones.
+                 */
+                from = offset + 1;
+                to = from;
+                int newLength = length;
+                while (from < offset + newLength) {
+                    final int vlength = getLength(bytes, from);
+                    if (isMarked(bytes, from)) {
+                        unmark(bytes, from);
+                        marked--;
+                        if (from > to) {
+                            System.arraycopy(bytes, from, bytes, to, offset + length - from);
+                        }
+                        newLength -= (from - to);
+                        to += vlength + LENGTH_PER_VERSION;
+                        from = to;
+                    } else {
+                        from += vlength + LENGTH_PER_VERSION;
+                    }
+                }
+                return to - offset;
+            }
+        } catch (InterruptedException ie) {
+            throw new PersistitInterruptedException(ie);
+        } finally {
+            /*
+             * Make sure all marks are removed even if this method exits via an
+             * Exception.
+             */
+            if (marked > 0) {
+                int index = offset + 1;
+                while (index < length) {
+                    int vlength = getLength(bytes, index);
+                    unmark(bytes, index);
+                    index += vlength + LENGTH_PER_VERSION;
+                    if (vlength <= 0) {
                         break;
                     }
                 }
             }
-
-            assertCapacity(target, targetLength + LENGTH_PER_VERSION + sourceLength);
-            offset = targetLength;
         }
-
-        // Append new value
-        offset += writeVersionHandle(target, offset, version);
-        offset += writeValueLength(target, offset, sourceLength);
-        System.arraycopy(source, 0, target, offset, sourceLength);
-
-        return (offset + sourceLength) | existedMask;
     }
 
+   
     /**
      * Search for a known version within a MVV array. If the version is found within the array,
      * copy the contents out to the target and return the consumed length.
@@ -251,7 +498,7 @@ public class MVV {
         }
 
         if(length > 0) {
-            assertCapacity(target, length);
+            assertCapacity(target.length, length);
             System.arraycopy(source, offset, target, 0, length);
         }
 
@@ -326,7 +573,7 @@ public class MVV {
         }
         final int length = (offset == 0) ? sourceLength : Util.getShort(source, offset - LENGTH_VALUE_LENGTH);
         if(length > 0) {
-            assertCapacity(target, length);
+            assertCapacity(target.length, length);
             System.arraycopy(source, offset, target, 0, length);
         }
         return length;
@@ -366,9 +613,9 @@ public class MVV {
      * @param length Length needed
      * @throws IllegalArgumentException If the array is too small
      */
-    private static void assertCapacity(byte[] target, int length) throws IllegalArgumentException {
-        if(target.length < length) {
-            throw new IllegalArgumentException("Destination array not big enough: " + target.length + " < " + length);
+    private static void assertCapacity(int limit, int length) throws IllegalArgumentException {
+        if(limit < length) {
+            throw new IllegalArgumentException("Destination array not big enough: " + limit + " < " + length);
         }
     }
 }

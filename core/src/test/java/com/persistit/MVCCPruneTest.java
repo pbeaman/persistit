@@ -229,7 +229,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         ex1.ignoreMVCCFetch(true);
         ex1.clear().append(Key.BEFORE);
         while (ex1.next()) {
-            boolean isMVV = MVV.isArrayMVV(ex1Value.getEncodedBytes(), ex1Value.getEncodedSize());
+            boolean isMVV = MVV.isArrayMVV(ex1Value.getEncodedBytes(), 0, ex1Value.getEncodedSize());
             assertEquals("last key is MVV", ex1.getKey().decodeString().equals(curKey), isMVV);
         }
         ex1.ignoreMVCCFetch(false);

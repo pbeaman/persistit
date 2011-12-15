@@ -1512,7 +1512,7 @@ public class Exchange {
                              */
                             byte[] spareBytes = _spareValue.getEncodedBytes();
                             int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
-                            spareSize = MVV2.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false);
+                            spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false);
 
                             TransactionStatus tStatus = _transaction.getTransactionStatus();
 
@@ -1538,8 +1538,8 @@ public class Exchange {
                             _spareValue.ensureFit(mvvSize);
 
                             long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
-                            int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), spareSize,
-                                    versionHandle, value.getEncodedBytes(), valueSize);
+                            int storedLength = MVV.storeVersion(_spareValue.getEncodedBytes(), 0, spareSize,
+                                    versionHandle, value.getEncodedBytes(), 0, valueSize);
 
                             incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
                             storedLength &= MVV.STORE_LENGTH_MASK;
@@ -3464,6 +3464,27 @@ public class Exchange {
         raw_removeKeyRangeInternal(_spareKey1, _spareKey2, false);
     }
 
+    void prune() throws PersistitException {
+        prune(_key);
+    }
+
+    boolean prune(final Key key) throws PersistitException {
+        Buffer buffer = null;
+        try {
+            search(key, true);
+            buffer = _levelCache[0]._buffer;
+            if (buffer != null) {
+                return buffer.pruneMvvValues(_spareKey1);
+            } else {
+                return false;
+            }
+        } finally {
+            if (buffer != null) {
+                buffer.release();
+            }
+        }
+    }
+
     /**
      * Decodes the LONG_RECORD pointer that has previously been fetched into the
      * Value. This will replace the byte array in that value with the actual
@@ -3859,176 +3880,4 @@ public class Exchange {
         return sb.toString();
     }
 
-    /**
-     * Reduce this Exchanges current <code>Key</code> and <code>Value</code>
-     * pair to the minimal possible state. Does not explicitly modify any other
-     * value in the associated page.
-     * 
-     * @throws PersistitException
-     *             For any internal error.
-     */
-    void prune() throws PersistitException {
-        _persistit.checkClosed();
-        _key.testValidForStoreAndFetch(_volume.getPageSize());
-
-        Buffer buffer = null;
-        try {
-            int foundAt = search(_key, true);
-            LevelCache lc = _levelCache[0];
-            buffer = lc._buffer;
-
-            if ((foundAt & EXACT_MASK) != 0) {
-                buffer.fetch(foundAt, _spareValue);
-                PruneStatus status = prune(_spareValue);
-                if (handlePruneStatus(status, _spareValue)) {
-                    boolean splitRequired = putLevel(lc, _key, _spareValue, buffer, foundAt, false);
-                    Debug.$assert0.t(!splitRequired);
-                }
-                _volume.getStatistics().bumpFetchCounter();
-                _tree.getStatistics().bumpFetchCounter();
-            }
-        } finally {
-            if (buffer != null) {
-                buffer.releaseTouched();
-            }
-        }
-    }
-
-    /**
-     * Visit all keys in the buffer and prune each value. After returning, all
-     * values in the buffer will be in most primordial state possible.
-     * 
-     * @param buffer
-     *            Buffer to prune. Write claim must be taken by callee.
-     * @param extraKey
-     *            Key used in the process of traversing the buffer.
-     * @param extraValue
-     *            Spare value used during prune process, essentially scratch
-     *            space.
-     * @throws PersistitException
-     *             For any internal error.
-     */
-    private void prune(Buffer buffer, Key extraKey, Value extraValue) throws PersistitException {
-        Debug.$assert0.t(buffer.isWriter());
-        extraKey.clear();
-        int foundAt = buffer.nextKey(extraKey, buffer.getKeyBlockStart() | EXACT_MASK);
-        while (!buffer.isAfterRightEdge(foundAt)) {
-            buffer.fetch(foundAt, extraValue);
-            PruneStatus status = prune(extraValue);
-            if (handlePruneStatus(status, extraValue)) {
-                int success = buffer.putValue(extraKey, extraValue, foundAt, false);
-                Debug.$assert0.t(success > 0);
-            }
-            foundAt = buffer.nextKey(extraKey, foundAt);
-        }
-        long timestamp = timestamp();
-        buffer.writePageOnCheckpoint(timestamp);
-        buffer.setDirtyAtTimestamp(timestamp);
-    }
-
-    /**
-     * @param status
-     *            Status from last prune operation.
-     * @param value
-     *            Value that was just pruned.
-     * @return <code>true</code> if the value was changed in some way.
-     */
-    private boolean handlePruneStatus(PruneStatus status, Value value) {
-        if (status == PruneStatus.UNCHANGED) {
-            return false;
-        }
-        if (status == PruneStatus.REMOVED) {
-            // TODO: Extract 'quickDelete' code from raw_removeInternal
-            // or add to prune thread. Simple for now: turn into AntiValue
-            value.clear().putAntiValueMVV();
-        }
-        return true;
-    }
-
-    /**
-     * Reduce the given value to the most primordial state possible. The value
-     * will be modified in-place.
-     * 
-     * @param value
-     *            Value to remove all obsolete versions from.
-     * @return Status of the prune operation.
-     * @throws PersistitException
-     *             For any error
-     */
-    private PruneStatus prune2(Value value) throws PersistitException {
-
-        byte[] valueBytes = value.getEncodedBytes();
-        int valueSize = value.getEncodedSize();
-
-        // TODO: Handle LONG_RECORD
-        if (isLongRecord(value) || !MVV.isArrayMVV(valueBytes, valueSize)) {
-            return PruneStatus.UNCHANGED;
-        }
-
-        int newSize = MVV2.prune(valueBytes, 0, valueSize, _persistit.getTransactionIndex(), true);
-        if (newSize > valueSize) {
-            throw new CorruptValueException("Pruning operation lengthened the value");
-        }
-        value.setEncodedSize(newSize);
-        if (newSize == 1 && MVV2.isArrayMVV(valueBytes, 0, 1)) {
-            return PruneStatus.REMOVED;
-        }
-        if (newSize < valueSize) {
-            return (value.isDefined() && value.isAntiValue()) ? PruneStatus.REMOVED : PruneStatus.CHANGED;
-        }
-
-        return PruneStatus.UNCHANGED;
-    }
-
-    private PruneStatus prune1(Value value) throws PersistitException {
-
-        byte[] valueBytes = value.getEncodedBytes();
-        int valueSize = value.getEncodedSize();
-
-        // TODO: Handle LONG_RECORD
-        if (isLongRecord(value) || !MVV.isArrayMVV(valueBytes, valueSize)) {
-            return PruneStatus.UNCHANGED;
-        }
-
-        MVV.visitAllVersions(_pruneVisitor, valueBytes, valueSize);
-        if (_pruneVisitor.noVersionsLeft()) {
-            return PruneStatus.REMOVED;
-        }
-        if (_pruneVisitor.isPrimordial()) {
-            int newSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _pruneVisitor.getMaxOffset(), valueBytes);
-            value.setEncodedSize(newSize);
-            return (value.isDefined() && value.isAntiValue()) ? PruneStatus.REMOVED : PruneStatus.CHANGED;
-        }
-
-        // Some non-primordial amount left, remove all unneeded
-        int newSize = valueSize;
-        int offsetDiff = 0;
-        for (PruneVisitor.OffsetAndLength pair : _pruneVisitor.getRemoveList()) {
-            int lengthToRemove = pair.length + MVV.LENGTH_PER_VERSION;
-            int dstPos = pair.offset - offsetDiff - MVV.LENGTH_PER_VERSION;
-            int srcPos = dstPos + lengthToRemove;
-            int copyLength = newSize - srcPos;
-            System.arraycopy(valueBytes, srcPos, valueBytes, dstPos, copyLength);
-            newSize -= lengthToRemove;
-            offsetDiff += lengthToRemove;
-        }
-        value.setEncodedSize(newSize);
-        return PruneStatus.CHANGED;
-    }
-
-    private PruneStatus prune(final Value value) throws PersistitException {
-        return prune2(value);
-        // Value value1 = new Value(value);
-        // Value value2 = new Value(value);
-        // PruneStatus result1 = prune1(value1);
-        // PruneStatus result2 = prune2(value2);
-        // if (result1.equals(result2) && value1.getEncodedSize()==
-        // value2.getEncodedSize()) {
-        // value1.copyTo(value);
-        // return result1;
-        // }
-        // value2.copyTo(value);
-        // return result2;
-
-    }
 }
