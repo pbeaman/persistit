@@ -17,6 +17,7 @@ package com.persistit;
 
 import com.persistit.Exchange.Sequence;
 import com.persistit.Management.RecordInfo;
+import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -28,6 +29,7 @@ public class BufferTest extends PersistitUnitTestCase {
         final StringBuilder sb = new StringBuilder();
         final Buffer b1 = ex.getBufferPool().get(ex.getVolume(), 1, true, false);
         final Buffer b2 = ex.getBufferPool().get(ex.getVolume(), 2, true, false);
+        RawValueWriter vwriter = new RawValueWriter();
         b1.init(Buffer.PAGE_TYPE_DATA);
         b2.init(Buffer.PAGE_TYPE_DATA);
         b1.getFastIndex();
@@ -40,13 +42,14 @@ public class BufferTest extends PersistitUnitTestCase {
             sb.append((char) i).append((char) i);
             key.to(sb);
             value.putString(sb);
-            b1.putValue(key, value);
+            vwriter.init(value);
+            b1.putValue(key, vwriter);
         }
 
         sb.setLength(20);
         key.to(sb);
         final int foundAt = b1.findKey(key);
-        b1.split(b2, key, value, foundAt, indexKey, Sequence.NONE, SplitPolicy.NICE_BIAS);
+        b1.split(b2, key, vwriter, foundAt, indexKey, Sequence.NONE, SplitPolicy.NICE_BIAS);
 
         // final String s1 = bufferDump(b1);
         // final String s2= bufferDump(b2);

@@ -54,21 +54,21 @@ public class MVVTest {
     @Test
     public void lengthExactly() {
         byte[] source = {};
-        assertEquals(MVV.exactRequiredLength(source, -1, 1, 5), MVV.overheadLength(1) + 5);
-        assertEquals(MVV.exactRequiredLength(source, source.length, 1, 5), MVV.overheadLength(2) + 5);
+        assertEquals(MVV.exactRequiredLength(source, 0, -1, 1, 5), MVV.overheadLength(1) + 5);
+        assertEquals(MVV.exactRequiredLength(source, 0, source.length, 1, 5), MVV.overheadLength(2) + 5);
 
         source = newArray(0xA, 0xB, 0xC, 0xD, 0xE, 0xF);
-        assertEquals(MVV.exactRequiredLength(source, 2, 1, 74), MVV.overheadLength(2) + 2 + 74);
-        assertEquals(MVV.exactRequiredLength(source, source.length, 1, 74), MVV.overheadLength(2) + source.length + 74);
+        assertEquals(MVV.exactRequiredLength(source, 0, 2, 1, 74), MVV.overheadLength(2) + 2 + 74);
+        assertEquals(MVV.exactRequiredLength(source, 0, source.length, 1, 74), MVV.overheadLength(2) + source.length + 74);
 
         source = newArray(TYPE_MVV, 0,0,0,0,0,0,0,1, 0,2, 0x1,0x2, 0,0,0,0,0,0,0,2, 0,1, 0xA, /*extra*/0,0,0,0,0);
         final int usedLength = source.length - 5;
         // new version (-1 = MVV type ID)
-        assertEquals(MVV.exactRequiredLength(source, usedLength, 3, 3), usedLength + MVV.overheadLength(1) + 3 - 1);
+        assertEquals(MVV.exactRequiredLength(source, 0, usedLength, 3, 3), usedLength + MVV.overheadLength(1) + 3 - 1);
         // replace version, shorter
-        assertEquals(MVV.exactRequiredLength(source, usedLength, 1, 1), usedLength - 1);
+        assertEquals(MVV.exactRequiredLength(source, 0, usedLength, 1, 1), usedLength - 1);
         // replace version, longer
-        assertEquals(MVV.exactRequiredLength(source, usedLength, 1, 3), usedLength + 1);
+        assertEquals(MVV.exactRequiredLength(source, 0, usedLength, 1, 3), usedLength + 1);
     }
 
     @Test
@@ -627,11 +627,7 @@ public class MVVTest {
      */
     static int storeVersion(byte[] target,  int targetLength, long versionHandle,
             byte[] source, int sourceLength) {
-        final int requiredLength = MVV.exactRequiredLength(target, targetLength, versionHandle, sourceLength);
-        if (requiredLength > target.length) {
-            throw new IllegalArgumentException();
-        }
-        return MVV.storeVersion(target, 0, targetLength, versionHandle, source, 0, sourceLength);
+        return MVV.storeVersion(target, 0, targetLength, target.length, versionHandle, source, 0, sourceLength);
     }
 
 }

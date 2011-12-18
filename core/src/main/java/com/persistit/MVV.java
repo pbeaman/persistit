@@ -16,6 +16,7 @@
 package com.persistit;
 
 import static com.persistit.TransactionIndex.vh2ts;
+import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
 import com.persistit.exception.CorruptValueException;
@@ -25,6 +26,7 @@ import com.persistit.exception.TimeoutException;
 import com.persistit.util.Util;
 
 public class MVV {
+
     final static int TYPE_MVV = 0xFE;
     final static int TYPE_ANTIVALUE = Value.CLASS_ANTIVALUE;
 
@@ -32,14 +34,14 @@ public class MVV {
 
     final static int STORE_EXISTED_MASK = 0x80000000;
     final static int STORE_LENGTH_MASK = 0x7FFFFFFF;
-    
-    private static final byte TYPE_MVV_BYTE = (byte)TYPE_MVV;
+
+    private static final byte TYPE_MVV_BYTE = (byte) TYPE_MVV;
     private final static int PRIMORDIAL_VALUE_VERSION = 0;
     private final static int UNDEFINED_VALUE_LENGTH = 0;
 
-    private final static int LENGTH_TYPE_MVV = 1;       // byte
-    private final static int LENGTH_VERSION = 8;        // long
-    private final static int LENGTH_VALUE_LENGTH = 2;   // short
+    private final static int LENGTH_TYPE_MVV = 1; // byte
+    private final static int LENGTH_VERSION = 8; // long
+    private final static int LENGTH_VALUE_LENGTH = 2; // short
 
     final static int LENGTH_PER_VERSION = LENGTH_VERSION + LENGTH_VALUE_LENGTH;
 
@@ -71,12 +73,13 @@ public class MVV {
         Util.putChar(bytes, offset + LENGTH_VERSION, Util.getChar(bytes, offset + LENGTH_VERSION) & 0x7FFF);
     }
 
-
     /**
-     * Get the full length of all overhead for the desired number of versions. Note in practice
-     * a single version, i.e. primordial, doesn't actually have any overhead.
-     *
-     * @param numVersions Number of versions to compute overhead for.
+     * Get the full length of all overhead for the desired number of versions.
+     * Note in practice a single version, i.e. primordial, doesn't actually have
+     * any overhead.
+     * 
+     * @param numVersions
+     *            Number of versions to compute overhead for.
      * @return length of all overhead
      */
     static int overheadLength(int numVersions) {
@@ -84,55 +87,61 @@ public class MVV {
     }
 
     /**
-     * Compute and estimate of the required length to append a new version to the given MVV array. This
-     * method is a loose estimate and may be greater, but never less, than the length ultimately needed.
+     * Compute and estimate of the required length to append a new version to
+     * the given MVV array. This method is a loose estimate and may be greater,
+     * but never less, than the length ultimately needed.
      * 
-     * @param source MVV array of any size/state
-     * @param sourceLength Length of {@code source} currently in use
-     * @param newVersionLength Length of the new version that will be put into {@code source}
+     * @param source
+     *            MVV array of any size/state
+     * @param sourceLength
+     *            Length of {@code source} currently in use
+     * @param newVersionLength
+     *            Length of the new version that will be put into {@code source}
      * @return Required length estimate
      */
     static int estimateRequiredLength(byte[] source, int sourceLength, int newVersionLength) {
-        if(sourceLength < 0) {
+        if (sourceLength < 0) {
             return overheadLength(1) + newVersionLength;
-        }
-        else if(sourceLength == 0 || source[0] != TYPE_MVV_BYTE) {
+        } else if (sourceLength == 0 || source[0] != TYPE_MVV_BYTE) {
             return overheadLength(2) + sourceLength + newVersionLength;
-        }
-        else {
+        } else {
             return sourceLength + LENGTH_PER_VERSION + newVersionLength;
         }
     }
 
     /**
-     * Compute the final length needed to add, or update, a specific version into the given MVV array.
-     * More costly than {@link #estimateRequiredLength(byte[], int, int)} as all existing versions must be
-     * inspected to handle update cases.
+     * Compute the final length needed to add, or update, a specific version
+     * into the given MVV array. More costly than
+     * {@link #estimateRequiredLength(byte[], int, int)} as all existing
+     * versions must be inspected to handle update cases.
      * 
-     * @param source MVV array of any size/state
-     * @param sourceLength Length of {@code source} currently in use
-     * @param newVersion Version to be inserted
-     * @param newVersionLength Length of version being inserted
+     * @param target
+     *            MVV array of any size/state
+     * @param targetLength
+     *            Length of {@code source} currently in use
+     * @param newVersion
+     *            Version to be inserted
+     * @param newVersionLength
+     *            Length of version being inserted
      * @return Exact required length
      */
-    static int exactRequiredLength(byte[] source, int sourceLength, long newVersion, int newVersionLength) {
-        if(sourceLength < 0) {
+    static int exactRequiredLength(byte[] target, int targetOffset, int targetLength, long newVersion,
+            int newVersionLength) {
+        if (targetLength < 0) {
             return overheadLength(1) + newVersionLength;
-        }
-        else if(sourceLength == 0 || source[0] != TYPE_MVV_BYTE) {
-            return overheadLength(2) + sourceLength + newVersionLength;
-        }
-        else {
-            int offset = 1;
-            while(offset < sourceLength) {
-                final long version = Util.getLong(source, offset);
-                final int valueLength = Util.getShort(source, offset + LENGTH_VERSION);
+        } else if (targetLength == 0 || target[targetOffset] != TYPE_MVV_BYTE) {
+            return overheadLength(2) + targetLength + newVersionLength;
+        } else {
+            int offset = targetOffset + 1;
+            while (offset < targetLength) {
+                final long version = Util.getLong(target, offset);
+                final int valueLength = Util.getShort(target, offset + LENGTH_VERSION);
                 offset += LENGTH_PER_VERSION + valueLength;
-                if(version == newVersion) {
-                    return sourceLength - valueLength + newVersionLength;
+                if (version == newVersion) {
+                    return targetLength - valueLength + newVersionLength;
                 }
             }
-            return sourceLength + LENGTH_PER_VERSION + newVersionLength;
+            return targetLength + LENGTH_PER_VERSION + newVersionLength;
         }
     }
 
@@ -149,7 +158,7 @@ public class MVV {
     static boolean isArrayMVV(byte[] source, int offset, int length) {
         return (length > 0) && (source[offset] == TYPE_MVV_BYTE);
     }
-    
+
     /**
      * <p>
      * Write a value, with the specified version and length, into the given MVV
@@ -181,6 +190,10 @@ public class MVV {
      *            value, i.e. undefined)</li>
      *            <li>>0: target currently occupied and used (key and value)</li>
      *            </ul>
+     * @param targetLimit
+     *            maximum index within target array to which bytes can be
+     *            written. If this limit is exceeded an IllegalArgumentException
+     *            is thrown.
      * @param versionHandle
      *            Version associated with source
      * @param source
@@ -196,16 +209,23 @@ public class MVV {
      * @throws IllegalArgumentException
      *             If target is too small to hold final MVV contents
      */
-    public static int storeVersion(byte[] target, int targetOffset, int targetLength, long versionHandle,
-            byte[] source, int sourceOffset, int sourceLength) {
+    public static int storeVersion(byte[] target, int targetOffset, int targetLength, int targetLimit,
+            long versionHandle, byte[] source, int sourceOffset, int sourceLength) {
         int existedMask = 0;
         int to = targetOffset;
-
+        if (targetLimit > target.length) {
+            throw new IllegalArgumentException("Target limit exceed target array length: " + targetLimit + " > "
+                    + target.length);
+        }
+        if (source == target) {
+            throw new IllegalArgumentException("Source and target arrays must be different");
+        }
         /*
          * Value did not previously exist. Result will be an MVV with one
          * version.
          */
         if (targetLength < 0) {
+            assertCapacity(targetLimit, targetOffset + sourceLength + overheadLength(1));
             // Promote to MVV, no original state to preserve
             target[to++] = TYPE_MVV_BYTE;
         }
@@ -215,6 +235,7 @@ public class MVV {
          * 0). Result will be an MVV with two versions.
          */
         else if (targetLength == 0) {
+            assertCapacity(targetLimit, targetOffset + sourceLength + overheadLength(2));
             // Promote to MVV, original state is undefined
             target[to++] = TYPE_MVV_BYTE;
             to += writeVersionHandle(target, to, PRIMORDIAL_VALUE_VERSION);
@@ -226,6 +247,7 @@ public class MVV {
          * with two versions.
          */
         else if (target[0] != TYPE_MVV_BYTE) {
+            assertCapacity(targetLimit, targetOffset + sourceLength + targetLength + overheadLength(2));
             // Promote to MVV, shift existing down for header
             System.arraycopy(target, to, target, to + LENGTH_TYPE_MVV + LENGTH_PER_VERSION, targetLength);
             target[to++] = TYPE_MVV_BYTE;
@@ -263,6 +285,8 @@ public class MVV {
                         System.arraycopy(source, sourceOffset, target, next - vlength, vlength);
                         return targetLength | existedMask;
                     } else {
+                        assertCapacity(targetLimit, targetOffset + targetLength + overheadLength(1) + to - next
+                                + sourceLength);
                         /*
                          * Remove the version having the same version handle -
                          * the new version will be added below.
@@ -275,7 +299,7 @@ public class MVV {
                 to = next;
             }
         }
-
+        assertCapacity(targetLimit, to + LENGTH_PER_VERSION + sourceLength);
         // Append new value
         to += writeVersionHandle(target, to, versionHandle);
         to += writeValueLength(target, to, sourceLength);
@@ -284,7 +308,7 @@ public class MVV {
 
         return (to - targetOffset) | existedMask;
     }
-    
+
     /**
      * <p>
      * Remove obsolete or aborted values from an MVV. The MVV is defined by the
@@ -298,6 +322,12 @@ public class MVV {
      * This method leaves the byte array unchanged if any of its checked
      * Exceptions is thrown.
      * </p>
+     * <p>
+     * This method removes any version previously added by an aborted
+     * transaction. It also decrements the MVV count of the affected
+     * transaction, indicating that it is not necessary to perform proactive
+     * cleanup to discard that the associated TransactionStatus. Therefore it is
+     * mandatory for the caller to write the pruned MVV back into the B-Tree.
      * 
      * @param bytes
      *            the byte array
@@ -379,6 +409,8 @@ public class MVV {
                         lastVersionIndex = from;
                         lastVersionHandle = versionHandle;
                     }
+                } else if (tc == ABORTED) {
+                    ti.decrementMvvCount(versionHandle);
                 }
                 from += vlength + LENGTH_PER_VERSION;
                 if (from > offset + length) {
@@ -414,7 +446,8 @@ public class MVV {
                     }
                 }
                 /*
-                 * No marked versions - indicate by leaving primordial AntiValue.
+                 * No marked versions - indicate by leaving primordial
+                 * AntiValue.
                  */
                 bytes[offset] = TYPE_ANTIVALUE;
                 return 1;
@@ -464,32 +497,37 @@ public class MVV {
         }
     }
 
-   
     /**
-     * Search for a known version within a MVV array. If the version is found within the array,
-     * copy the contents out to the target and return the consumed length.
+     * Search for a known version within a MVV array. If the version is found
+     * within the array, copy the contents out to the target and return the
+     * consumed length.
      * 
-     * @param source MVV array to search
-     * @param sourceLength Valid length of source
-     * @param version Version to search for
-     * @param target Array to copy desired value to
-     * @return Length of new contents in target or {@link MVV#VERSION_NOT_FOUND} if no value was copied.
-     * @throws IllegalArgumentException If the target array is too small to hold the value
+     * @param source
+     *            MVV array to search
+     * @param sourceLength
+     *            Valid length of source
+     * @param version
+     *            Version to search for
+     * @param target
+     *            Array to copy desired value to
+     * @return Length of new contents in target or {@link MVV#VERSION_NOT_FOUND}
+     *         if no value was copied.
+     * @throws IllegalArgumentException
+     *             If the target array is too small to hold the value
      */
     public static int fetchVersion(byte[] source, int sourceLength, long version, byte[] target) {
         int offset = 0;
         int length = VERSION_NOT_FOUND;
 
-        if(version == 0 && (sourceLength == 0 || source[0] != TYPE_MVV_BYTE)) {
+        if (version == 0 && (sourceLength == 0 || source[0] != TYPE_MVV_BYTE)) {
             length = sourceLength;
-        }
-        else if(sourceLength > 0 && source[0] == TYPE_MVV_BYTE) {
+        } else if (sourceLength > 0 && source[0] == TYPE_MVV_BYTE) {
             offset = 1;
-            while(offset < sourceLength) {
+            while (offset < sourceLength) {
                 long curVersion = Util.getLong(source, offset);
                 int curLength = Util.getShort(source, offset + LENGTH_VERSION);
                 offset += LENGTH_PER_VERSION;
-                if(curVersion == version) {
+                if (curVersion == version) {
                     length = curLength;
                     break;
                 }
@@ -497,7 +535,7 @@ public class MVV {
             }
         }
 
-        if(length > 0) {
+        if (length > 0) {
             assertCapacity(target.length, length);
             System.arraycopy(source, offset, target, 0, length);
         }
@@ -508,43 +546,52 @@ public class MVV {
     public static interface VersionVisitor {
         /**
          * Called before iterating over MVV array. Allows for instance re-use.
-         * @throws PersistitException For errors from concrete implementations.
+         * 
+         * @throws PersistitException
+         *             For errors from concrete implementations.
          */
         void init() throws PersistitException;
 
         /**
          * Called once, and only once, for each version in the MVV array.
          * 
-         * @param version Version of the stored value
-         * @param valueLength Length of stored value
-         * @param offset Offset in MVV array to start of stored value
-         * @throws PersistitException For errors from concrete implementations.
+         * @param version
+         *            Version of the stored value
+         * @param valueLength
+         *            Length of stored value
+         * @param offset
+         *            Offset in MVV array to start of stored value
+         * @throws PersistitException
+         *             For errors from concrete implementations.
          */
         void sawVersion(long version, int valueLength, int offset) throws PersistitException;
     }
 
     /**
-     * Enumerate all versions of the values contained within the given MVV array.
+     * Enumerate all versions of the values contained within the given MVV
+     * array.
      * 
-     * @param visitor FetchVisitor for consuming version info
-     * @param source MVV array to search
-     * @param sourceLength Consumed length of source
-     * @throws PersistitException For any error coming from <code>visitor</code>
+     * @param visitor
+     *            FetchVisitor for consuming version info
+     * @param source
+     *            MVV array to search
+     * @param sourceLength
+     *            Consumed length of source
+     * @throws PersistitException
+     *             For any error coming from <code>visitor</code>
      */
-    public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceLength) throws PersistitException {
+    public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceLength)
+            throws PersistitException {
         visitor.init();
-        if(sourceLength < 0) {
+        if (sourceLength < 0) {
             // No versions
-        }
-        else if(sourceLength == 0) {
+        } else if (sourceLength == 0) {
             visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, UNDEFINED_VALUE_LENGTH, 0);
-        }
-        else if(source[0] != TYPE_MVV_BYTE) {
+        } else if (source[0] != TYPE_MVV_BYTE) {
             visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, sourceLength, 0);
-        }
-        else {
+        } else {
             int offset = 1;
-            while(offset < sourceLength) {
+            while (offset < sourceLength) {
                 final long version = Util.getLong(source, offset);
                 final int valueLength = Util.getShort(source, offset + LENGTH_VERSION);
                 offset += LENGTH_PER_VERSION;
@@ -555,37 +602,47 @@ public class MVV {
     }
 
     /**
-     * Fetch a version of a value from a MVV array given a known offset. The offset should
-     * be the starting position of of the actual value and not the MVV header bytes. Intended
-     * to be used in connection with the {@link #visitAllVersions(VersionVisitor, byte[], int)}
-     * method which gives this offset.
+     * Fetch a version of a value from a MVV array given a known offset. The
+     * offset should be the starting position of of the actual value and not the
+     * MVV header bytes. Intended to be used in connection with the
+     * {@link #visitAllVersions(VersionVisitor, byte[], int)} method which gives
+     * this offset.
      * 
-     * @param source MVV array to search
-     * @param sourceLength Consumed length of source
-     * @param offset Offset inside {@code source} to start of actual value
-     * @param target Array to copy desired value to
-     * @return Length of new contents in target or {@link MVV#VERSION_NOT_FOUND} if no value was copied.
-     * @throws IllegalArgumentException If the target array is too small to hold the value
+     * @param source
+     *            MVV array to search
+     * @param sourceLength
+     *            Consumed length of source
+     * @param offset
+     *            Offset inside {@code source} to start of actual value
+     * @param target
+     *            Array to copy desired value to
+     * @return Length of new contents in target or {@link MVV#VERSION_NOT_FOUND}
+     *         if no value was copied.
+     * @throws IllegalArgumentException
+     *             If the target array is too small to hold the value
      */
     public static int fetchVersionByOffset(byte[] source, int sourceLength, int offset, byte[] target) {
-        if(offset < 0 || (offset > 0 && offset > sourceLength)) {
+        if (offset < 0 || (offset > 0 && offset > sourceLength)) {
             throw new IllegalArgumentException("Offset out of range: " + offset);
         }
         final int length = (offset == 0) ? sourceLength : Util.getShort(source, offset - LENGTH_VALUE_LENGTH);
-        if(length > 0) {
+        if (length > 0) {
             assertCapacity(target.length, length);
             System.arraycopy(source, offset, target, 0, length);
         }
         return length;
     }
 
-
     /**
-     * Internal helper. Write a version handle into the given byte array at the specified offset.
+     * Internal helper. Write a version handle into the given byte array at the
+     * specified offset.
      * 
-     * @param target Destination array
-     * @param offset Position in target to write
-     * @param versionHandle Version to write
+     * @param target
+     *            Destination array
+     * @param offset
+     *            Position in target to write
+     * @param versionHandle
+     *            Version to write
      * @return Byte count consumed in target
      */
     private static int writeVersionHandle(byte[] target, int offset, long versionHandle) {
@@ -594,11 +651,15 @@ public class MVV {
     }
 
     /**
-     * Internal helper. Write a value length given byte array at the specified offset.
+     * Internal helper. Write a value length given byte array at the specified
+     * offset.
      * 
-     * @param target Destination array
-     * @param offset Position in target to write
-     * @param length Length to write
+     * @param target
+     *            Destination array
+     * @param offset
+     *            Position in target to write
+     * @param length
+     *            Length to write
      * @return Byte count consumed in target
      */
     private static int writeValueLength(byte[] target, int offset, int length) {
@@ -607,14 +668,18 @@ public class MVV {
     }
 
     /**
-     * Internal helper. Used to assert a given byte array is large enough before writing.
+     * Internal helper. Used to assert a given byte array is large enough before
+     * writing.
      * 
-     * @param target Array to check
-     * @param length Length needed
-     * @throws IllegalArgumentException If the array is too small
+     * @param target
+     *            Array to check
+     * @param length
+     *            Length needed
+     * @throws IllegalArgumentException
+     *             If the array is too small
      */
     private static void assertCapacity(int limit, int length) throws IllegalArgumentException {
-        if(limit < length) {
+        if (limit < length) {
             throw new IllegalArgumentException("Destination array not big enough: " + limit + " < " + length);
         }
     }

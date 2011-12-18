@@ -304,7 +304,6 @@ public class MVCCPruneTest extends MVCCTestBase {
 
     private void prune(Exchange ex, Object k) throws PersistitException {
         _persistit.getTransactionIndex().cleanup();
-        _persistit.getTransactionIndex().cleanup();
         ex.clear().append(k);
         ex.prune();
     }

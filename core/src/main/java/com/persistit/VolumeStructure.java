@@ -120,8 +120,8 @@ class VolumeStructure {
 
         try {
             rootPageBuffer.init(Buffer.PAGE_TYPE_DATA);
-            rootPageBuffer.putValue(Key.LEFT_GUARD_KEY, Value.EMPTY_VALUE);
-            rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
+            rootPageBuffer.putValue(Key.LEFT_GUARD_KEY, ValueHelper.EMPTY_VALUE_WRITER);
+            rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, ValueHelper.EMPTY_VALUE_WRITER);
             rootPageBuffer.setDirtyAtTimestamp(timestamp);
         } finally {
             rootPageBuffer.releaseTouched();

@@ -364,6 +364,8 @@ public class Persistit {
 
     private final CheckpointManager _checkpointManager = new CheckpointManager(this);
 
+    private final CleanupManager _cleanupManager = new CleanupManager(this);
+
     private final IOMeter _ioMeter = new IOMeter();
 
     private TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
@@ -475,6 +477,7 @@ public class Persistit {
             finishRecovery();
             flush();
             _checkpointManager.checkpoint();
+            startCleanupManager();
 
             _initialized.set(true);
             done = true;
@@ -646,6 +649,10 @@ public class Persistit {
 
     void startCheckpointManager() {
         _checkpointManager.start();
+    }
+
+    void startCleanupManager() {
+        _cleanupManager.start();
     }
 
     void startTransactionIndexPollTask() {
@@ -2080,6 +2087,10 @@ public class Persistit {
 
     CheckpointManager getCheckpointManager() {
         return _checkpointManager;
+    }
+    
+    CleanupManager getCleanupManager() {
+        return _cleanupManager;
     }
 
     IOMeter getIOMeter() {
