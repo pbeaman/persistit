@@ -108,7 +108,12 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         final Accumulator acc = tree.getAccumulator(Accumulator.Type.SUM, 0);
         assertTrue(txn1 != txn2);
         txn2.begin();
-        assertEquals(0, acc.getSnapshotValue(txn1));
+        try {
+            acc.getSnapshotValue(txn1);
+            fail("Should have thrown an exceptio");
+        } catch (IllegalStateException e) {
+            // expected
+        }
         txn1.begin();
         assertEquals(0, acc.getSnapshotValue(txn1));
         assertEquals(0, acc.getSnapshotValue(txn2));

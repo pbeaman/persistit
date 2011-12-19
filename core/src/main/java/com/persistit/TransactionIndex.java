@@ -530,27 +530,32 @@ public class TransactionIndex {
             }
         }
 
-        /*
-         * The TransactionStatus is locked for the entire duration of the
-         * running transaction. The following call should always succeed
-         * immediately; a TimeoutException here signifies a software failure or
-         * a thread terminated by {@link Thread#stop()} somewhere else.
-         */
-        if (!status.wwLock(VERY_LONG_TIMEOUT)) {
-            throw new IllegalStateException("wwLock was unavailable on newly allocated TransactionStatus");
-        }
-        /*
-         * General hygiene - call reduce if the current count is bigger than the
-         * threshold - but this is merely an optimization and the test does not
-         * need to be synchronized.
-         */
-        if (bucket.getCurrentCount() > _longRunningThreshold) {
-            bucket.lock();
-            try {
-                bucket.reduce();
-            } finally {
-                bucket.unlock();
+        try {
+            /*
+             * The TransactionStatus is locked for the entire duration of the
+             * running transaction. The following call should always succeed
+             * immediately; a TimeoutException here signifies a software failure
+             * or a thread terminated by {@link Thread#stop()} somewhere else.
+             */
+            if (!status.wwLock(VERY_LONG_TIMEOUT)) {
+                throw new IllegalStateException("wwLock was unavailable on newly allocated TransactionStatus");
             }
+            /*
+             * General hygiene - call reduce if the current count is bigger than
+             * the threshold - but this is merely an optimization and the test
+             * does not need to be synchronized.
+             */
+            if (bucket.getCurrentCount() > _longRunningThreshold) {
+                bucket.lock();
+                try {
+                    bucket.reduce();
+                } finally {
+                    bucket.unlock();
+                }
+            }
+        } catch (InterruptedException ie) {
+            status.abort();
+            throw ie;
         }
         return status;
     }
@@ -720,8 +725,8 @@ public class TransactionIndex {
      * immediately returns a value depending on its outcome:
      * <ul>
      * <li>If the target is concurrent with this transaction and committed, then
-     * this method returns its commit timestamp, indicating that this transaction
-     * must abort.</li>
+     * this method returns its commit timestamp, indicating that this
+     * transaction must abort.</li>
      * <li>If the target aborted or committed before this transaction started,
      * then this method returns 0 meaning that the write-write dependency has
      * been cleared and this transaction may proceed.</li>
@@ -777,10 +782,10 @@ public class TransactionIndex {
         if (target.getTs() != tsv) {
             /*
              * By the time the selected TransactionStatus has been found, it may
-             * already be allocated to another transaction. If that's true the the
-             * original transaction must have committed. The following code checks
-             * the identity of the transaction on each iteration after short lock
-             * attempts.
+             * already be allocated to another transaction. If that's true the
+             * the original transaction must have committed. The following code
+             * checks the identity of the transaction on each iteration after
+             * short lock attempts.
              */
             return 0;
         }
@@ -791,7 +796,7 @@ public class TransactionIndex {
              */
             return 0;
         }
-        
+
         final long start = System.currentTimeMillis();
         /*
          * Blocks until the target transaction finishes, either by committing or
