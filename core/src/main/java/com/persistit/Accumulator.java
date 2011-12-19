@@ -80,7 +80,7 @@ import com.persistit.exception.PersistitInterruptedException;
  * 
  * @author peter
  */
-abstract class Accumulator {
+public abstract class Accumulator {
 
     public static enum Type {
         SUM, MAX, MIN, SEQ
@@ -519,6 +519,9 @@ abstract class Accumulator {
      * @throws InterruptedException
      */
     public long getSnapshotValue(final Transaction txn) throws PersistitInterruptedException {
+        if (!txn.isActive()) {
+            throw new IllegalStateException("Transaction has not been started");
+        }
         return getSnapshotValue(txn.getStartTimestamp(), txn.getCurrentStep());
     }
 
