@@ -3399,7 +3399,7 @@ public class Exchange {
         }
     }
     
-    boolean pruneAntiValue(final long page) throws PersistitException {
+    boolean pruneLeftEdgeValue(final long page) throws PersistitException {
         Buffer buffer = null;
         try {
             buffer = _pool.get(_volume, page, true, true);

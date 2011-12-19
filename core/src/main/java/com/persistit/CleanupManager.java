@@ -25,25 +25,26 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.exception.PersistitException;
 
-class CleanupManager extends IOTaskRunnable {
+class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     interface CleanupAction extends Comparable<CleanupAction> {
         int getType();
+
         void performAction(Persistit persistit) throws PersistitException;
     }
 
     final static long DEFAULT_CLEANUP_INTERVAL = 1000;
-    
+
     final static int DEFAULT_QUEUE_SIZE = 10000;
-    
+
     final static int WORKLIST_LENGTH = 100;
 
     final static Queue<CleanupAction> _cleanupActionQueue = new ArrayBlockingQueue<CleanupAction>(DEFAULT_QUEUE_SIZE);
-    
+
     final static List<CleanupAction> _workList = new ArrayList<CleanupAction>(WORKLIST_LENGTH);
-    
+
     private AtomicBoolean _closed = new AtomicBoolean();
-    
+
     private AtomicLong _accepted = new AtomicLong();
 
     private AtomicLong _refused = new AtomicLong();
@@ -58,7 +59,7 @@ class CleanupManager extends IOTaskRunnable {
 
     public void start() {
         _closed.set(false);
-        start("CHECKPOINT_WRITER", DEFAULT_CLEANUP_INTERVAL);
+        start("CLEANUP_WRITER", DEFAULT_CLEANUP_INTERVAL);
     }
 
     public void close(final boolean flush) throws PersistitException {
@@ -76,7 +77,7 @@ class CleanupManager extends IOTaskRunnable {
     }
 
     synchronized boolean offer(CleanupAction action) {
-        boolean accepted =  _cleanupActionQueue.offer(action);
+        boolean accepted = _cleanupActionQueue.offer(action);
         if (accepted) {
             _accepted.incrementAndGet();
         } else {
@@ -84,32 +85,32 @@ class CleanupManager extends IOTaskRunnable {
         }
         return accepted;
     }
-    
+
     public long getAcceptedCount() {
         return _accepted.get();
     }
-    
+
     public long getRefusedCount() {
         return _refused.get();
     }
-    
+
     public long getPerformedCount() {
         return _performed.get();
     }
-    
+
     public long getErrorCount() {
         return _errors.get();
     }
-    
+
     public long getEnqueuedCount() {
         return _cleanupActionQueue.size();
     }
-    
+
     public synchronized void poll() throws Exception {
         _workList.clear();
         while (_workList.size() < WORKLIST_LENGTH) {
             final CleanupAction action;
-                action = _cleanupActionQueue.poll();
+            action = _cleanupActionQueue.poll();
             if (action == null) {
                 break;
             }
@@ -118,49 +119,58 @@ class CleanupManager extends IOTaskRunnable {
         if (!_workList.isEmpty()) {
             Collections.sort(_workList);
         }
-        
+
         for (final CleanupAction action : _workList) {
             try {
                 action.performAction(_persistit);
                 _performed.incrementAndGet();
             } catch (PersistitException e) {
+                lastException(e);
                 _persistit.getLogBase().cleanupException.log(e, action.toString());
                 _errors.incrementAndGet();
             }
         }
-
     }
-    
-    public synchronized void clearQueue() {
+
+    public synchronized void clear() {
         _cleanupActionQueue.clear();
     }
     
+    @Override
+    public synchronized String toString() {
+        StringBuilder sb = new StringBuilder("[");
+        for (final CleanupAction a: _cleanupActionQueue) {
+            if (sb.length() >1) {
+                sb.append(",\n ");
+            }
+            sb.append(a);
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+
     static class CleanupAntiValue implements CleanupAction {
         final int _treeHandle;
         final long _page;
-        
+
         CleanupAntiValue(final int treeHandle, final long page) {
             _treeHandle = treeHandle;
             _page = page;
         }
-        
+
         @Override
         public int getType() {
             return 1;
         }
-        
+
         @Override
         public int compareTo(CleanupAction other) {
-            int d = getType() - other.getType();
+            CleanupAntiValue a = (CleanupAntiValue) other;
+            int d = _treeHandle - a._treeHandle;
             if (d != 0) {
                 return d;
             }
-            CleanupAntiValue a = (CleanupAntiValue)other;
-            d = _treeHandle - a._treeHandle;
-            if (d != 0) {
-                return d;
-            }
-            return _page  > a._page ? 1 : _page < a._page ? -1 : 0;
+            return _page > a._page ? 1 : _page < a._page ? -1 : 0;
         }
 
         @Override
@@ -168,14 +178,14 @@ class CleanupManager extends IOTaskRunnable {
             final Tree tree = persistit.getJournalManager().treeForHandle(_treeHandle);
             if (tree != null) {
                 final Exchange exchange = persistit.getExchange(tree.getVolume(), tree.getName(), false);
-                exchange.pruneAntiValue(_page);
+                exchange.pruneLeftEdgeValue(_page);
             }
         }
-        
+
         @Override
         public String toString() {
-            return String.format("Cleanup Antivalue on page %,d in tree handle [%d]", _page, _treeHandle); 
+            return String.format("Cleanup Antivalue on page %,d in tree handle [%d]", _page, _treeHandle);
         }
-        
+
     }
 }

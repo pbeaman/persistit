@@ -692,6 +692,7 @@ public class Persistit {
         try {
             registerMBean(getManagement(), ManagementMXBean.MXBEAN_NAME);
             registerMBean(_ioMeter, IOMeterMXBean.MXBEAN_NAME);
+            registerMBean(_cleanupManager, CleanupManagerMXBean.MXBEAN_NAME);
             registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
             registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
         } catch (Exception exception) {
@@ -719,6 +720,7 @@ public class Persistit {
         try {
             unregisterMBean(RecoveryManagerMXBean.MXBEAN_NAME);
             unregisterMBean(JournalManagerMXBean.MXBEAN_NAME);
+            unregisterMBean(CleanupManagerMXBean.MXBEAN_NAME);
             unregisterMBean(IOMeterMXBean.MXBEAN_NAME);
             unregisterMBean(ManagementMXBean.MXBEAN_NAME);
         } catch (InstanceNotFoundException exception) {
