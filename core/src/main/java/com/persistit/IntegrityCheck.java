@@ -18,11 +18,10 @@ package com.persistit;
 import java.util.ArrayList;
 import java.util.BitSet;
 
+import com.persistit.Buffer.VerifyVisitor;
 import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
-import com.persistit.exception.InvalidPageStructureException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
@@ -65,6 +64,9 @@ public class IntegrityCheck extends Task {
     private long _dataBytesInUse = 0;
     private long _longRecordPageCount = 0;
     private long _longRecordBytesInUse = 0;
+    private long _mvvCount = 0;
+    private long _mvvOverhead = 0;
+    private long _mvvAntiValues = 0;
 
     private Buffer[] _edgeBuffers = new Buffer[Exchange.MAX_TREE_DEPTH];
     private long[] _edgePages = new long[Exchange.MAX_TREE_DEPTH];
@@ -82,6 +84,46 @@ public class IntegrityCheck extends Task {
 
     // Used in checking long values
     private Value _value = new Value((Persistit) null);
+    private MVVVisitor _versionVisitor = new MVVVisitor();
+
+
+    private static class MVVVisitor implements MVV.VersionVisitor {
+        int _lastOffset;
+        int _count;
+
+        @Override
+        public void init() throws PersistitException {
+            _lastOffset = 0;
+            _count = 0;
+        }
+
+        @Override
+        public void sawVersion(long version, int offset, int valueLength) throws PersistitException {
+            if (version != MVV.PRIMORDIAL_VALUE_VERSION) {
+                _count++;
+                _lastOffset = offset;
+            }
+        }
+    };
+
+    private VerifyVisitor _visitor = new VerifyVisitor() {
+
+        @Override
+        protected void visitDataRecord(Key key, int foundAt, int tail, int klength, int offset, int length, byte[] bytes)
+                throws PersistitException {
+            MVV.visitAllVersions(_versionVisitor, bytes, offset, length);
+            if (_versionVisitor._count > 0) {
+                _mvvCount++;
+                int voffset = _versionVisitor._lastOffset;
+                int vlength = length - (voffset - offset);
+                _mvvOverhead += length - vlength;
+                if (vlength == 1 && bytes[voffset] == MVV.TYPE_ANTIVALUE) {
+                    _mvvOverhead++;
+                    _mvvAntiValues++;
+                }
+            }
+        }
+    };
 
     @Cmd("icheck")
     static Task icheck(@Arg("trees|string|Tree selector: Volumes/Trees to check") String treeSelectorString,
@@ -157,11 +199,15 @@ public class IntegrityCheck extends Task {
                     long saveDataBytesInUse = _dataBytesInUse;
                     long saveLongRecordPageCount = _longRecordPageCount;
                     long saveLongRecordBytesInUse = _longRecordBytesInUse;
+                    long saveMvvCount = _mvvCount;
+                    long saveMvvOverhead = _mvvOverhead;
+                    long saveMvvAntiValues = _mvvAntiValues;
                     boolean okay = checkWholeVolume ? checkVolume(volume) : checkTree(tree);
                     appendMessage(inUseInfo((_indexPageCount - saveIndexPageCount),
                             (_indexBytesInUse - saveIndexBytesInUse), (_dataPageCount - saveDataPageCount),
                             (_dataBytesInUse - saveDataBytesInUse), (_longRecordPageCount - saveLongRecordPageCount),
-                            (_longRecordBytesInUse - saveLongRecordBytesInUse)), LOG_VERBOSE);
+                            (_longRecordBytesInUse - saveLongRecordBytesInUse), (_mvvCount - saveMvvCount),
+                            (_mvvOverhead - saveMvvOverhead), (_mvvAntiValues - saveMvvAntiValues)), LOG_VERBOSE);
 
                     appendMessage(okay ? " - OKAY" : " - FAULTS", LOG_VERBOSE);
                 } catch (PersistitException pe) {
@@ -331,6 +377,30 @@ public class IntegrityCheck extends Task {
     }
 
     /**
+     * @return Count of records containing multiple versions. These will be
+     *         condensed to primordial values by the CLEANUP_MANAGER.
+     */
+    public long getMvvCount() {
+        return _mvvCount;
+    }
+
+    /**
+     * @return Approximate overhead in bytes occupied by multi-version values.
+     *         This space will be condensed by the CLEANUP_MANAGER.
+     */
+    public long getMvvOverhead() {
+        return _mvvOverhead;
+    }
+
+    /**
+     * @return Count records containing AntiValues. These records will be
+     *         removed from the tree by the CLEANUP_MANAGER.
+     */
+    public long getMvvAntiValues() {
+        return _mvvAntiValues;
+    }
+
+    /**
      * Returns an approximate indication of progress during the integrity
      * checking process, where 0.0 indicates that work has not started, and 1.0
      * represents completion.
@@ -367,10 +437,11 @@ public class IntegrityCheck extends Task {
      */
     @Override
     public String getStatus() {
-        if (_currentVolume == null)
+        if (_currentVolume == null) {
             return null;
-        else
+        } else {
             return _pagesVisited + "/" + _totalPages + " (" + resourceName() + ")";
+        }
     }
 
     /**
@@ -405,7 +476,7 @@ public class IntegrityCheck extends Task {
         } else
             sb.append("is OKAY");
         sb.append(inUseInfo(_indexPageCount, _indexBytesInUse, _dataPageCount, _dataBytesInUse, _longRecordPageCount,
-                _longRecordBytesInUse));
+                _longRecordBytesInUse, _mvvCount, _mvvOverhead, _mvvAntiValues));
 
         if (details) {
             for (int index = 0; index < _faults.size(); index++) {
@@ -418,10 +489,11 @@ public class IntegrityCheck extends Task {
     }
 
     private String inUseInfo(long indexPageCount, long indexBytesInUse, long dataPageCount, long dataBytesInUse,
-            long longRecordPageCount, long longRecordBytesInUse) {
-        return String.format(" Index: %,d pages / %,d bytes, Data: %,d pages / %,d bytes,"
-                + " Long Record: %,d pages / %,d bytes", indexPageCount, indexBytesInUse, dataPageCount,
-                dataBytesInUse, longRecordPageCount, longRecordBytesInUse);
+            long longRecordPageCount, long longRecordBytesInUse, long mvvCount, long mvvOverhead, long mvvAntiValues) {
+        return String.format(" Index: %,6d pages /%,8d bytes Data: %,6d pages / %,8d bytes"
+                + " Long Record: %,6d pages / %,8d bytes MVV count/overhead/antivalues %,d / %,d / %,d",
+                indexPageCount, indexBytesInUse, dataPageCount, dataBytesInUse, longRecordPageCount,
+                longRecordBytesInUse, mvvCount, mvvOverhead, mvvAntiValues);
     }
 
     private static class Hole {
@@ -707,8 +779,9 @@ public class IntegrityCheck extends Task {
 
                     for (int p = Buffer.KEY_BLOCK_START;; p += Buffer.KEYBLOCK_LENGTH) {
                         p = buffer.nextLongRecord(_value, p);
-                        if (p == -1)
+                        if (p == -1) {
                             break;
+                        }
                         verifyLongRecord(_value, page, p);
                     }
                 } else if (buffer.isIndexPage()) {
@@ -912,7 +985,7 @@ public class IntegrityCheck extends Task {
         }
 
         if (buffer.isDataPage() || buffer.isIndexPage()) {
-            InvalidPageStructureException ipse = buffer.verify(key);
+            PersistitException ipse = buffer.verify(key, _visitor);
             if (ipse != null) {
                 addFault(ipse.getMessage(), page, level, 0);
                 key.clear();

@@ -183,7 +183,7 @@ public class Exchange {
         }
 
         @Override
-        public void sawVersion(long version, int valueLength, int offset) throws PersistitException {
+        public void sawVersion(long version, int offset, int valueLength) throws PersistitException {
             try {
                 switch (_usage) {
                 case FETCH:
@@ -1434,7 +1434,7 @@ public class Exchange {
                                  * commitStatus() and wwDependency()
                                  */
                                 _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
-                                MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
+                                MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
                                 if (!_mvvVisitor.foundVersion()) {
                                     // Completely done, nothing to store
                                     break;
@@ -1443,7 +1443,7 @@ public class Exchange {
 
                             // Visit all versions for ww detection
                             _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.STORE);
-                            MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
+                            MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
 
                             int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
                             _spareValue.ensureFit(mvvSize);
@@ -2541,7 +2541,7 @@ public class Exchange {
 
         int valueSize = value.getEncodedSize();
         byte[] valueBytes = value.getEncodedBytes();
-        MVV.visitAllVersions(_mvvVisitor, valueBytes, valueSize);
+        MVV.visitAllVersions(_mvvVisitor, valueBytes, 0, valueSize);
 
         if (_mvvVisitor.foundVersion()) {
             int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _mvvVisitor.getOffset(), valueBytes);

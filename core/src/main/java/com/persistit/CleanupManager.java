@@ -57,7 +57,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     public void start() {
         _closed.set(false);
-        start("CLEANUP_WRITER", DEFAULT_CLEANUP_INTERVAL);
+        start("CLEANUP_MANAGER", DEFAULT_CLEANUP_INTERVAL);
     }
 
     public void close(final boolean flush) throws PersistitException {

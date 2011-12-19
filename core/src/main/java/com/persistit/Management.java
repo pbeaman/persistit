@@ -1079,6 +1079,8 @@ public interface Management extends Remote, ManagementMXBean {
         int availableBytes;
         int alloc;
         int slack;
+        int mvvCount;
+        int mvvSize;
         int keyBlockStart;
         int keyBlockEnd;
 
@@ -1088,10 +1090,10 @@ public interface Management extends Remote, ManagementMXBean {
 
         @ConstructorProperties({ "poolIndex", "type", "typeName", "status", "statusName", "writerThreadName",
                 "pageAddress", "rightSiblingAddress", "volumeName", "volumeId", "timestamp", "bufferSize",
-                "availableBytes", "alloc", "slack", "keyBlockStart", "keyBlockEnd" })
+                "availableBytes", "alloc", "slack", "mvvCount", "mvvSize", "keyBlockStart", "keyBlockEnd" })
         public BufferInfo(int poolIndex, int type, String typeName, int status, String statusName,
                 String writerThreadName, long pageAddress, long rightSiblingAddress, String volumeName, long volumeId,
-                long timestamp, int bufferSize, int availableBytes, int alloc, int slack, int keyBlockStart,
+                long timestamp, int bufferSize, int availableBytes, int alloc, int slack, int mvvCount, int mvvSize, int keyBlockStart,
                 int keyBlockEnd) {
             super();
             this.poolIndex = poolIndex;
@@ -1109,6 +1111,8 @@ public interface Management extends Remote, ManagementMXBean {
             this.availableBytes = availableBytes;
             this.alloc = alloc;
             this.slack = slack;
+            this.mvvCount = mvvCount;
+            this.mvvSize = mvvSize;
             this.keyBlockStart = keyBlockStart;
             this.keyBlockEnd = keyBlockEnd;
         }
@@ -1166,8 +1170,8 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the position of this <code>Buffer</code> within the
-         * <code>BufferPool</code>.
+         * Return the index of this <code>Buffer</code> within the
+         * <code>BufferPool</code> array.
          * 
          * @return The index
          */
@@ -1248,13 +1252,6 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the page address of the page currently occupying the
-         * <code>Buffer</code>. The address is an ordinal number that indicates
-         * the page's position within a volume file.In a standard Volume, page
-         * address <code>P</code> is located at file address
-         * <code>P * pageSize</code>. Page address 0 denotes the head page of
-         * the Volume.
-         * 
          * @return The page address.
          */
         public long getPageAddress() {
@@ -1262,8 +1259,6 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the page address of the next page in key order on this level.
-         * 
          * @return The page address of the right sibling page.
          */
         public long getRightSiblingAddress() {
@@ -1271,9 +1266,6 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the full pathname of the Volume of the page occupying this
-         * buffer if there is one, otherwise returns <code>null</code>.
-         * 
          * @return the Volume Name
          */
         public String getVolumeName() {
@@ -1281,9 +1273,6 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the internal ID value of the Volume of the page occupying this
-         * buffer if there is one, otherwise returns 0.
-         * 
          * @return the volume ID
          */
         public long getVolumeId() {
@@ -1291,52 +1280,57 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the count of times the state of the page occupying this buffer
-         * has changed.
-         * 
-         * @return The change count
+         * @return the timestamp at which the page occupying this buffer
+         * was last changed.
          */
         public long getTimestamp() {
             return timestamp;
         }
 
         /**
-         * Return the buffer size, in bytes
-         * 
-         * @return the size
+         * @return the buffer size, in bytes
          */
         public int getBufferSize() {
             return bufferSize;
         }
 
         /**
-         * Return the number of unused bytes available to hold additional
+         * @return the number of unused bytes available to hold additional
          * key/value pairs.
-         * 
-         * @return The number of avaiable bytes in the <code>Buffer</code>.
          */
         public int getAvailableBytes() {
             return availableBytes;
         }
 
         /**
-         * Return an offset within the <code>Buffer</code> used internally in
+         * @return he offset within the <code>Buffer</code> used internally in
          * allocating space for key/value pairs.
-         * 
-         * @return The alloc offset
          */
         public int getAlloc() {
             return alloc;
         }
 
         /**
-         * Return a size used internally in allocating space for key/value
+         * @return a size used internally in allocating space for key/value
          * pairs.
-         * 
-         * @return The slack size
          */
         public int getSlack() {
             return slack;
+        }
+        
+        /**
+         * @return the approximate count of key/value pairs containing multi-version values.
+         */
+        public int getMvvCount() {
+            return mvvCount;
+        }
+        
+        /**
+         * @return the approximate number of bytes consumed by multi-version values which are 
+         * no longer visible to current transactions.
+         */
+        public int getMvvSize() {
+            return mvvSize;
         }
 
         /**

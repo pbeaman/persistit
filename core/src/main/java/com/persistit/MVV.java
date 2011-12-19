@@ -35,9 +35,9 @@ public class MVV {
     final static int STORE_EXISTED_MASK = 0x80000000;
     final static int STORE_LENGTH_MASK = 0x7FFFFFFF;
 
-    private static final byte TYPE_MVV_BYTE = (byte) TYPE_MVV;
-    private final static int PRIMORDIAL_VALUE_VERSION = 0;
-    private final static int UNDEFINED_VALUE_LENGTH = 0;
+    static final byte TYPE_MVV_BYTE = (byte) TYPE_MVV;
+    final static int PRIMORDIAL_VALUE_VERSION = 0;
+    final static int UNDEFINED_VALUE_LENGTH = 0;
 
     private final static int LENGTH_TYPE_MVV = 1; // byte
     private final static int LENGTH_VERSION = 8; // long
@@ -557,14 +557,14 @@ public class MVV {
          * 
          * @param version
          *            Version of the stored value
+         * @param valueOffset
+         *            Offset in MVV array to start of stored value
          * @param valueLength
          *            Length of stored value
-         * @param offset
-         *            Offset in MVV array to start of stored value
          * @throws PersistitException
          *             For errors from concrete implementations.
          */
-        void sawVersion(long version, int valueLength, int offset) throws PersistitException;
+        void sawVersion(long version, int valueOffset, int valueLength) throws PersistitException;
     }
 
     /**
@@ -580,22 +580,22 @@ public class MVV {
      * @throws PersistitException
      *             For any error coming from <code>visitor</code>
      */
-    public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceLength)
+    public static void visitAllVersions(VersionVisitor visitor, byte[] source, int sourceOffset, int sourceLength)
             throws PersistitException {
         visitor.init();
         if (sourceLength < 0) {
             // No versions
         } else if (sourceLength == 0) {
-            visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, UNDEFINED_VALUE_LENGTH, 0);
-        } else if (source[0] != TYPE_MVV_BYTE) {
-            visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, sourceLength, 0);
+            visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, sourceOffset, UNDEFINED_VALUE_LENGTH);
+        } else if (source[sourceOffset] != TYPE_MVV_BYTE) {
+            visitor.sawVersion(PRIMORDIAL_VALUE_VERSION, sourceOffset, sourceLength);
         } else {
-            int offset = 1;
-            while (offset < sourceLength) {
+            int offset = sourceOffset + 1;
+            while (offset < sourceOffset + sourceLength) {
                 final long version = Util.getLong(source, offset);
                 final int valueLength = Util.getShort(source, offset + LENGTH_VERSION);
                 offset += LENGTH_PER_VERSION;
-                visitor.sawVersion(version, valueLength, offset);
+                visitor.sawVersion(version, offset, valueLength);
                 offset += valueLength;
             }
         }

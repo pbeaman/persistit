@@ -257,6 +257,20 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     private final static Stack<int[]> REPACK_BUFFER_STACK = new Stack<int[]>();
 
     public final static int MAX_KEY_RATIO = 16;
+    
+    abstract static class VerifyVisitor {
+
+        protected void visitPage(long timestamp, Volume volume, long page, int type, int bufferSize, int keyBlockStart,
+                int keyBlockEnd, int alloc, int available, long rightSibling) throws PersistitException {
+        }
+
+        protected void visitIndexRecord(Key key, int foundAt, int tail, int kLength, long pointer) throws PersistitException {
+
+        }
+
+        protected void visitDataRecord(Key key, int foundAt, int tail, int klength, int offset, int length, byte[] bytes) throws PersistitException {
+        }
+    }
 
     // For debugging - set true in debugger to create verbose toString() output.
     //
@@ -1012,7 +1026,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         int result = right | (depth << DEPTH_SHIFT);
         return result;
     }
-    
+
     boolean isPrimordialAntiValue(final int foundAt) {
         if (isDataPage()) {
             final int p = foundAt & P_MASK;
@@ -3190,135 +3204,151 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         }
     }
 
-    InvalidPageStructureException verify(Key key) {
-        if (_page == 0) {
-            return new InvalidPageStructureException("head page is neither a data page nor an index page");
-        }
-        if (!isIndexPage() && !isDataPage()) {
-            return new InvalidPageStructureException("page type " + _type + " is neither data page nor an index page");
-        }
-        BitSet bitSet = null;
-        if (isIndexPage())
-            bitSet = new BitSet();
-        if (key == null)
-            key = new Key(_persistit);
-
-        byte[] kb = key.getEncodedBytes();
-        int[] plan = getRepackPlanBuffer();
-        for (int index = 0; index < plan.length; index++) {
-            plan[index] = 0;
-        }
-
-        for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
-            int kbData = getInt(p);
-            int db = decodeKeyBlockDb(kbData);
-            int ebc = decodeKeyBlockEbc(kbData);
-            int tail = decodeKeyBlockTail(kbData);
-
-            if (p == KEY_BLOCK_START && ebc != 0) {
-                return new InvalidPageStructureException("invalid initial ebc " + ebc + " for keyblock at " + p
-                        + " --[" + summarize() + "]");
+    PersistitException verify(Key key, VerifyVisitor visitor) {
+        try {
+            if (_page == 0) {
+                return new InvalidPageStructureException("head page is neither a data page nor an index page");
+            }
+            if (!isIndexPage() && !isDataPage()) {
+                return new InvalidPageStructureException("page type " + _type
+                        + " is neither data page nor an index page");
+            }
+            if (key == null) {
+                key = new Key(_persistit);
             }
 
-            if (tail < _keyBlockEnd || tail < _alloc || tail > _bufferSize - _tailHeaderSize
-                    || (tail & ~TAILBLOCK_MASK) != 0) {
-                return new InvalidPageStructureException("invalid tail block offset " + tail + " for keyblock at " + p
-                        + " --[" + summarize() + "]");
+            byte[] kb = key.getEncodedBytes();
+            int[] plan = getRepackPlanBuffer();
+            for (int index = 0; index < plan.length; index++) {
+                plan[index] = 0;
             }
-            int tbData = getInt(tail);
-            int klength = decodeTailBlockKLength(tbData);
-            if ((tbData & TAILBLOCK_INUSE_MASK) == 0) {
-                return new InvalidPageStructureException("not in-use tail block offset " + tail + " for keyblock at "
-                        + p + " --[" + summarize() + "]");
+
+            if (visitor != null) {
+                visitor.visitPage(getTimestamp(), getVolume(), getPageAddress(), getPageType(), getBufferSize(),
+                        getKeyBlockStart(), getKeyBlockEnd(), getAlloc(), getAvailableSize(), getRightSibling());
             }
-            // Verify that first key in this pages matches the final key
-            // of the preceding page.
-            if (p == KEY_BLOCK_START && key.getEncodedSize() != 0) {
-                int index = 0;
-                int compare = 0;
-                int size = key.getEncodedSize();
-                if (klength < size)
-                    size = klength + 1;
-                compare = (kb[0] & 0xFF) - db;
-                while (compare == 0 && ++index < size) {
-                    compare = (kb[index] & 0xFF) - (_bytes[tail + _tailHeaderSize + index - 1] & 0xFF);
+
+            for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
+                int kbData = getInt(p);
+                int db = decodeKeyBlockDb(kbData);
+                int ebc = decodeKeyBlockEbc(kbData);
+                int tail = decodeKeyBlockTail(kbData);
+
+                if (p == KEY_BLOCK_START && ebc != 0) {
+                    return new InvalidPageStructureException("invalid initial ebc " + ebc + " for keyblock at " + p
+                            + " --[" + summarize() + "]");
                 }
-                if (compare != 0) {
-                    String s = compare < 0 ? "too big" : "too small";
-                    return new InvalidPageStructureException("initial key " + s + " at offset " + index
+
+                if (tail < _keyBlockEnd || tail < _alloc || tail > _bufferSize - _tailHeaderSize
+                        || (tail & ~TAILBLOCK_MASK) != 0) {
+                    return new InvalidPageStructureException("invalid tail block offset " + tail + " for keyblock at "
+                            + p + " --[" + summarize() + "]");
+                }
+                int tbData = getInt(tail);
+                int klength = decodeTailBlockKLength(tbData);
+                if ((tbData & TAILBLOCK_INUSE_MASK) == 0) {
+                    return new InvalidPageStructureException("not in-use tail block offset " + tail
                             + " for keyblock at " + p + " --[" + summarize() + "]");
                 }
-            }
-            // Verify that successor keys follow in sequence.
-            if (p > KEY_BLOCK_START && ebc < key.getEncodedSize()) {
-                int dbPrev = kb[ebc] & 0xFF;
-                if (db < dbPrev) {
-                    return new InvalidPageStructureException("db not greater: db=" + db + " dbPrev=" + dbPrev
-                            + " for keyblock at " + p + " --[" + summarize() + "]");
-                }
-            }
-            //
-            // If this is an index page, make sure the pointer isn't redundant
-            //
-            if (isIndexPage()) {
-                int pointer = getInt(tail + 4);
-                if (pointer == -1) {
-                    if (p + KEYBLOCK_LENGTH != _keyBlockEnd) {
-                        return new InvalidPageStructureException("index pointer has pointer to -1 "
+                // Verify that first key in this pages matches the final key
+                // of the preceding page.
+                if (p == KEY_BLOCK_START && key.getEncodedSize() != 0) {
+                    int index = 0;
+                    int compare = 0;
+                    int size = key.getEncodedSize();
+                    if (klength < size)
+                        size = klength + 1;
+                    compare = (kb[0] & 0xFF) - db;
+                    while (compare == 0 && ++index < size) {
+                        compare = (kb[index] & 0xFF) - (_bytes[tail + _tailHeaderSize + index - 1] & 0xFF);
+                    }
+                    if (compare != 0) {
+                        String s = compare < 0 ? "too big" : "too small";
+                        return new InvalidPageStructureException("initial key " + s + " at offset " + index
                                 + " for keyblock at " + p + " --[" + summarize() + "]");
                     }
-                } else if (bitSet.get(pointer)) {
-                    return new InvalidPageStructureException("index page has multiple keys pointing to same page "
-                            + " for keyblock at " + p + " --[" + summarize() + "]");
-                } else
-                    bitSet.set(pointer);
-            }
-
-            if (_pool != null && getKeyCount() > _pool.getMaxKeys()) {
-                return new InvalidPageStructureException("page has too many keys: has " + getKeyCount()
-                        + " but max is " + _pool.getMaxKeys());
-            }
-
-            kb[ebc] = (byte) db;
-            System.arraycopy(_bytes, tail + _tailHeaderSize, kb, ebc + 1, klength);
-            key.setEncodedSize(ebc + klength + 1);
-            plan[tail / TAILBLOCK_FACTOR] = p;
-        }
-
-        // Now check the free blocks
-
-        int formerBlock = _alloc;
-        for (int tail = _alloc; tail < _bufferSize;) {
-            if ((tail & ~TAILBLOCK_MASK) != 0 || tail < 0 || tail > _bufferSize) {
-                return new InvalidPageStructureException("Tail block at " + formerBlock + " is invalid");
-            }
-            int tbData = getInt(tail);
-            int size = decodeTailBlockSize(tbData);
-            if (size <= ~TAILBLOCK_MASK || size >= _bufferSize - _keyBlockEnd) {
-                return new InvalidPageStructureException("Tailblock at " + tail + " has invalid size=" + size);
-            }
-            if ((tbData & TAILBLOCK_INUSE_MASK) != 0) {
-                if (plan[tail / TAILBLOCK_FACTOR] == 0) {
-                    return new InvalidPageStructureException("Tailblock at " + tail + " is in use, but no key "
-                            + " block points to it.");
                 }
-                int klength = decodeTailBlockKLength(tbData);
-                {
-                    if (klength + _tailHeaderSize > size) {
-                        return new InvalidPageStructureException("Tailblock at " + tail + " has klength=" + klength
-                                + " longer than size=" + size + " - headerSize=" + _tailHeaderSize);
+                // Verify that successor keys follow in sequence.
+                if (p > KEY_BLOCK_START && ebc < key.getEncodedSize()) {
+                    int dbPrev = kb[ebc] & 0xFF;
+                    if (db < dbPrev) {
+                        return new InvalidPageStructureException("db not greater: db=" + db + " dbPrev=" + dbPrev
+                                + " for keyblock at " + p + " --[" + summarize() + "]");
                     }
                 }
-            } else {
-                if (plan[tail / TAILBLOCK_FACTOR] != 0) {
-                    return new InvalidPageStructureException("Tailblock at " + tail + " is marked free, but the "
-                            + " key block at " + plan[tail / TAILBLOCK_FACTOR] + " points to it.");
+                //
+                // If this is an index page, make sure the pointer isn't
+                // redundant
+                //
+                if (isIndexPage()) {
+                    int pointer = getInt(tail + 4);
+                    if (visitor != null) {
+                        visitor.visitIndexRecord(key, p, tail, klength, pointer);
+                    }
+                    if (pointer == -1) {
+                        if (p + KEYBLOCK_LENGTH != _keyBlockEnd) {
+                            return new InvalidPageStructureException("index pointer has pointer to -1 "
+                                    + " for keyblock at " + p + " --[" + summarize() + "]");
+                        }
+                    }
+                } else if (isDataPage()) {
+                    int size = decodeTailBlockSize(tbData);
+                    int offset = tail + _tailHeaderSize + klength;
+                    int length = size - klength - _tailHeaderSize;
+                    if (visitor != null) {
+                        visitor.visitDataRecord(key, p, tail, klength, offset, length, getBytes());
+                    }
                 }
+
+                if (_pool != null && getKeyCount() > _pool.getMaxKeys()) {
+                    return new InvalidPageStructureException("page has too many keys: has " + getKeyCount()
+                            + " but max is " + _pool.getMaxKeys());
+                }
+
+                kb[ebc] = (byte) db;
+                System.arraycopy(_bytes, tail + _tailHeaderSize, kb, ebc + 1, klength);
+                key.setEncodedSize(ebc + klength + 1);
+                plan[tail / TAILBLOCK_FACTOR] = p;
             }
-            tail += ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
+
+            // Now check the free blocks
+
+            int formerBlock = _alloc;
+            for (int tail = _alloc; tail < _bufferSize;) {
+                if ((tail & ~TAILBLOCK_MASK) != 0 || tail < 0 || tail > _bufferSize) {
+                    return new InvalidPageStructureException("Tail block at " + formerBlock + " is invalid");
+                }
+                int tbData = getInt(tail);
+                int size = decodeTailBlockSize(tbData);
+                if (size <= ~TAILBLOCK_MASK || size >= _bufferSize - _keyBlockEnd) {
+                    return new InvalidPageStructureException("Tailblock at " + tail + " has invalid size=" + size);
+                }
+                if ((tbData & TAILBLOCK_INUSE_MASK) != 0) {
+                    if (plan[tail / TAILBLOCK_FACTOR] == 0) {
+                        return new InvalidPageStructureException("Tailblock at " + tail + " is in use, but no key "
+                                + " block points to it.");
+                    }
+                    int klength = decodeTailBlockKLength(tbData);
+                    {
+                        if (klength + _tailHeaderSize > size) {
+                            return new InvalidPageStructureException("Tailblock at " + tail + " has klength=" + klength
+                                    + " longer than size=" + size + " - headerSize=" + _tailHeaderSize);
+                        }
+                    }
+                } else {
+                    if (plan[tail / TAILBLOCK_FACTOR] != 0) {
+                        return new InvalidPageStructureException("Tailblock at " + tail + " is marked free, but the "
+                                + " key block at " + plan[tail / TAILBLOCK_FACTOR] + " points to it.");
+                    }
+                }
+                tail += ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
+            }
+            releaseRepackPlanBuffer(plan);
+            return null;
+        } catch (PersistitException pe) {
+            return pe;
         }
-        releaseRepackPlanBuffer(plan);
-        return null;
+
     }
 
     boolean pruneMvvValues(final Tree tree, final Key spareKey) throws PersistitException {
@@ -3624,7 +3654,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
     void assertVerify() {
         if (Debug.VERIFY_PAGES) {
-            Exception verifyException = verify(null);
+            Exception verifyException = verify(null, null);
             Debug.$assert1.t(verifyException == null);
         }
     }
