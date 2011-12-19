@@ -1710,8 +1710,13 @@ public class Persistit {
             }
         }
 
+
+        _cleanupManager.close(flush);
+        waitForIOTaskStop(_cleanupManager);
+
         _checkpointManager.close(flush);
         waitForIOTaskStop(_checkpointManager);
+
         _closed.set(true);
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
@@ -1771,6 +1776,7 @@ public class Persistit {
             }
         }
         _transactionIndex.crash();
+        _cleanupManager.crash();
         _checkpointManager.crash();
         _closed.set(true);
         releaseAllResources();

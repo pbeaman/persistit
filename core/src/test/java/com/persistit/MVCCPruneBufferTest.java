@@ -123,8 +123,8 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         _persistit.getCleanupManager().poll();
         
         assertEquals(_persistit.getCleanupManager().getAcceptedCount(), _persistit.getCleanupManager().getPerformedCount());
-        
-        int antiValueCount3= 0;
+
+        int antiValueCount3 = 0;
         ex1.to(Key.BEFORE);
         while (ex1.next()) {
             antiValueCount3++;

@@ -1012,6 +1012,24 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         int result = right | (depth << DEPTH_SHIFT);
         return result;
     }
+    
+    boolean isPrimordialAntiValue(final int foundAt) {
+        if (isDataPage()) {
+            final int p = foundAt & P_MASK;
+            if (p >= KEY_BLOCK_START && p < _keyBlockEnd) {
+                int kbData = getInt(p);
+                int tail = decodeKeyBlockTail(kbData);
+                int tbData = getInt(tail);
+                int klength = decodeTailBlockKLength(tbData);
+                int size = decodeTailBlockSize(tbData);
+                int offset = tail + _tailHeaderSize + klength;
+                int valueSize = size - klength - _tailHeaderSize;
+                return valueSize == 1 && _bytes[offset] == MVV.TYPE_ANTIVALUE;
+            }
+        }
+        return false;
+
+    }
 
     boolean hasValue(Key key) throws PersistitInterruptedException {
         int foundAt = findKey(key);

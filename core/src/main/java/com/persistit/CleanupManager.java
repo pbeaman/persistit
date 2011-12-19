@@ -39,9 +39,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     final static int WORKLIST_LENGTH = 100;
 
-    final static Queue<CleanupAction> _cleanupActionQueue = new ArrayBlockingQueue<CleanupAction>(DEFAULT_QUEUE_SIZE);
-
-    final static List<CleanupAction> _workList = new ArrayList<CleanupAction>(WORKLIST_LENGTH);
+    final Queue<CleanupAction> _cleanupActionQueue = new ArrayBlockingQueue<CleanupAction>(DEFAULT_QUEUE_SIZE);
 
     private AtomicBoolean _closed = new AtomicBoolean();
 
@@ -106,21 +104,23 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         return _cleanupActionQueue.size();
     }
 
-    public synchronized void poll() throws Exception {
-        _workList.clear();
-        while (_workList.size() < WORKLIST_LENGTH) {
-            final CleanupAction action;
-            action = _cleanupActionQueue.poll();
-            if (action == null) {
-                break;
+    public void poll() throws Exception {
+        final List<CleanupAction> workList = new ArrayList<CleanupAction>(WORKLIST_LENGTH);
+        synchronized (this) {
+            while (workList.size() < WORKLIST_LENGTH) {
+                final CleanupAction action;
+                action = _cleanupActionQueue.poll();
+                if (action == null) {
+                    break;
+                }
+                workList.add(action);
             }
-            _workList.add(action);
         }
-        if (!_workList.isEmpty()) {
-            Collections.sort(_workList);
+        if (!workList.isEmpty()) {
+            Collections.sort(workList);
         }
 
-        for (final CleanupAction action : _workList) {
+        for (final CleanupAction action : workList) {
             try {
                 action.performAction(_persistit);
                 _performed.incrementAndGet();
@@ -135,12 +135,12 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     public synchronized void clear() {
         _cleanupActionQueue.clear();
     }
-    
+
     @Override
     public synchronized String toString() {
         StringBuilder sb = new StringBuilder("[");
-        for (final CleanupAction a: _cleanupActionQueue) {
-            if (sb.length() >1) {
+        for (final CleanupAction a : _cleanupActionQueue) {
+            if (sb.length() > 1) {
                 sb.append(",\n ");
             }
             sb.append(a);
@@ -178,7 +178,11 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
             final Tree tree = persistit.getJournalManager().treeForHandle(_treeHandle);
             if (tree != null) {
                 final Exchange exchange = persistit.getExchange(tree.getVolume(), tree.getName(), false);
-                exchange.pruneLeftEdgeValue(_page);
+                try {
+                    exchange.pruneLeftEdgeValue(_page);
+                } finally {
+                    persistit.releaseExchange(exchange);
+                }
             }
         }
 
