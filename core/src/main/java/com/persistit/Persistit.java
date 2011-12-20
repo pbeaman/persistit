@@ -364,6 +364,8 @@ public class Persistit {
 
     private final CheckpointManager _checkpointManager = new CheckpointManager(this);
 
+    private final CleanupManager _cleanupManager = new CleanupManager(this);
+
     private final IOMeter _ioMeter = new IOMeter();
 
     private TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
@@ -475,6 +477,7 @@ public class Persistit {
             finishRecovery();
             flush();
             _checkpointManager.checkpoint();
+            startCleanupManager();
 
             _initialized.set(true);
             done = true;
@@ -648,6 +651,10 @@ public class Persistit {
         _checkpointManager.start();
     }
 
+    void startCleanupManager() {
+        _cleanupManager.start();
+    }
+
     void startTransactionIndexPollTask() {
         _transactionIndex.start(this);
     }
@@ -685,6 +692,7 @@ public class Persistit {
         try {
             registerMBean(getManagement(), ManagementMXBean.MXBEAN_NAME);
             registerMBean(_ioMeter, IOMeterMXBean.MXBEAN_NAME);
+            registerMBean(_cleanupManager, CleanupManagerMXBean.MXBEAN_NAME);
             registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
             registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
         } catch (Exception exception) {
@@ -712,6 +720,7 @@ public class Persistit {
         try {
             unregisterMBean(RecoveryManagerMXBean.MXBEAN_NAME);
             unregisterMBean(JournalManagerMXBean.MXBEAN_NAME);
+            unregisterMBean(CleanupManagerMXBean.MXBEAN_NAME);
             unregisterMBean(IOMeterMXBean.MXBEAN_NAME);
             unregisterMBean(ManagementMXBean.MXBEAN_NAME);
         } catch (InstanceNotFoundException exception) {
@@ -1701,8 +1710,13 @@ public class Persistit {
             }
         }
 
+
+        _cleanupManager.close(flush);
+        waitForIOTaskStop(_cleanupManager);
+
         _checkpointManager.close(flush);
         waitForIOTaskStop(_checkpointManager);
+
         _closed.set(true);
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
@@ -1762,6 +1776,7 @@ public class Persistit {
             }
         }
         _transactionIndex.crash();
+        _cleanupManager.crash();
         _checkpointManager.crash();
         _closed.set(true);
         releaseAllResources();
@@ -2080,6 +2095,10 @@ public class Persistit {
 
     CheckpointManager getCheckpointManager() {
         return _checkpointManager;
+    }
+    
+    CleanupManager getCleanupManager() {
+        return _cleanupManager;
     }
 
     IOMeter getIOMeter() {

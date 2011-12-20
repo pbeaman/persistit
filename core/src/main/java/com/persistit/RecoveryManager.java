@@ -247,7 +247,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         @Override
         public void removeKeyRange(final long address, final long timestamp, Exchange exchange, final Key from,
                 final Key to) throws PersistitException {
-            exchange.raw_removeKeyRangeInternal(from, to, false);
+            exchange.raw_removeKeyRangeInternal(from, to, false, false);
         }
 
         @Override
@@ -1451,7 +1451,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             recordSize = TX.getLength(_readBuffer);
             applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp, listener);
         }
-
+        _persistit.getTimestampAllocator().updateTimestamp(commitTimestamp);
         listener.endRecovery(address, startTimestamp);
 
     }

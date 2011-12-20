@@ -240,8 +240,9 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         for (int i = 0; i < threads.length; i++) {
             threads[i].join();
         }
-        _persistit.getJournalManager().flush();
+        
         _persistit.crash();
+        
         final Properties props = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(props);
@@ -311,6 +312,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             exchange.to(Key.BEFORE);
             while (exchange.next()) {
                 counted++;
+                assertFalse(exchange.getValue().isAntiValue());
             }
             long accumulated2 = rowCount.getSnapshotValue(txn);
             if (accumulated != counted || accumulated != accumulated2) {

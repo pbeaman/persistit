@@ -26,7 +26,6 @@ public class MVCCPruneTest extends MVCCTestBase {
     final static String VALUE = "A";
     final static String VALUE_TRX1 = "A_trx1";
     final static String VALUE_TRX2 = "A_trx2";
-    
 
     public void testPruneNonExistingKey() throws PersistitException {
         ex1.getValue().clear();
@@ -67,8 +66,7 @@ public class MVCCPruneTest extends MVCCTestBase {
 
             assertEquals("fetch after prune", VALUE_TRX1, fetch(ex1, KEY));
             assertEquals("version count after prune", 2, storedVersionCount(ex1, KEY));
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
@@ -80,8 +78,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         try {
             store(ex1, KEY, VALUE_TRX1);
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -94,13 +91,12 @@ public class MVCCPruneTest extends MVCCTestBase {
         final int TRX1_COUNT = 5;
         storePrimordial(ex1, KEY, VALUE);
 
-        for(int i = 1; i <= TRX1_COUNT; ++i) {
+        for (int i = 1; i <= TRX1_COUNT; ++i) {
             trx1.begin();
             try {
-                store(ex1, KEY, VALUE+i);
+                store(ex1, KEY, VALUE + i);
                 trx1.commit();
-            }
-            finally {
+            } finally {
                 trx1.end();
             }
         }
@@ -124,14 +120,12 @@ public class MVCCPruneTest extends MVCCTestBase {
             try {
                 assertEquals("value from trx1 after prune", highestCommitted, fetch(ex1, KEY));
                 trx1.commit();
-            }
-            finally {
+            } finally {
                 trx1.end();
             }
 
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx2.end();
         }
 
@@ -149,11 +143,9 @@ public class MVCCPruneTest extends MVCCTestBase {
             store(ex1, KEY, VALUE_TRX1);
             assertEquals("value from trx1 store", VALUE_TRX1, fetch(ex1, KEY));
             trx1.rollback();
-        }
-        catch (RollbackException e) {
+        } catch (RollbackException e) {
             // Expected
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -163,8 +155,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         try {
             assertEquals("value post rollback pre-prune in trx", VALUE, fetch(ex2, KEY));
             trx2.commit();
-        }
-        finally {
+        } finally {
             trx2.end();
         }
 
@@ -174,7 +165,7 @@ public class MVCCPruneTest extends MVCCTestBase {
     }
 
     public void testPruneRemoved() throws PersistitException {
-        storePrimordial(ex1,  KEY, VALUE);
+        storePrimordial(ex1, KEY, VALUE);
 
         trx1.begin();
         try {
@@ -184,14 +175,15 @@ public class MVCCPruneTest extends MVCCTestBase {
             prune(ex2, KEY);
             assertEquals("version count post-remove post-prune pre-commit", 2, storedVersionCount(ex2, KEY));
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
         prune(ex2, KEY);
-        // NOTE: Next assert is confirming non-removal of a key that can't be quick deleted.
-        //       Will need to be adjusted if that changes (directly, pruner thread, etc).
+        // NOTE: Next assert is confirming non-removal of a key that can't be
+        // quick deleted.
+        // Will need to be adjusted if that changes (directly, pruner thread,
+        // etc).
         assertEquals("version count prune after commit", 1, storedVersionCount(ex2, KEY));
 
         ex2.clear().append(KEY);
@@ -201,8 +193,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         try {
             assertEquals("key exists prune after commit in trx", false, ex1.isValueDefined());
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
     }
@@ -213,7 +204,7 @@ public class MVCCPruneTest extends MVCCTestBase {
      */
     public void testPruneOnSplit() throws PersistitException {
         final int MAX_KEYS = 2500;
-        
+
         String curKey = "";
         boolean hadSplit = false;
         for (int i = 0; i < MAX_KEYS; ++i) {
@@ -227,26 +218,25 @@ public class MVCCPruneTest extends MVCCTestBase {
                 if (hadSplit) {
                     break;
                 }
-            }
-            finally {
+            } finally {
                 trx1.end();
             }
         }
-        
+
         assertEquals("had split before inserting max number of keys", true, hadSplit);
 
         Value ex1Value = ex1.getValue();
         ex1.ignoreMVCCFetch(true);
         ex1.clear().append(Key.BEFORE);
         while (ex1.next()) {
-            boolean isMVV = MVV.isArrayMVV(ex1Value.getEncodedBytes(), ex1Value.getEncodedSize());
+            boolean isMVV = MVV.isArrayMVV(ex1Value.getEncodedBytes(), 0, ex1Value.getEncodedSize());
             assertEquals("last key is MVV", ex1.getKey().decodeString().equals(curKey), isMVV);
         }
         ex1.ignoreMVCCFetch(false);
     }
 
     public void testPruneAlternatingAbortedAndCommittedVersions() throws PersistitException {
-        final char VERSIONS[] = {'A', 'C', 'A', 'C', 'A'};
+        final char VERSIONS[] = { 'A', 'C', 'A', 'C', 'A' };
         storePrimordial(ex1, KEY, VALUE);
 
         for (int i = 0; i < VERSIONS.length; ++i) {
@@ -255,17 +245,16 @@ public class MVCCPruneTest extends MVCCTestBase {
                 store(ex1, KEY, VALUE + VERSIONS[i] + i);
                 if (VERSIONS[i] == 'A') {
                     trx1.rollback();
-                }
-                else {
+                } else {
                     trx1.commit();
                 }
-            }
-            finally {
+            } finally {
                 trx1.end();
             }
         }
-
-        assertEquals("stored versions", VERSIONS.length + 1, storedVersionCount(ex2, KEY));
+        int VERSIONS_NOW_REMOVED_BY_PRUNING_BEFORE_STORE = 2;
+        assertEquals("stored versions", VERSIONS.length + 1 - VERSIONS_NOW_REMOVED_BY_PRUNING_BEFORE_STORE,
+                storedVersionCount(ex2, KEY));
 
         trx1.begin();
         try {
@@ -277,8 +266,7 @@ public class MVCCPruneTest extends MVCCTestBase {
             assertEquals("trx value fetched before post-prune pre-commit", value, fetch(ex1, KEY));
 
             trx1.commit();
-        }
-        finally {
+        } finally {
             trx1.end();
         }
 
@@ -286,7 +274,7 @@ public class MVCCPruneTest extends MVCCTestBase {
     }
 
     public void testPruneRunOfAbortedAndCommittedVersions() throws PersistitException {
-        final char VERSIONS[] = {'A', 'A', 'A', 'C', 'A', 'A', 'C'};
+        final char VERSIONS[] = { 'A', 'A', 'A', 'C', 'A', 'A', 'C' };
 
         for (int i = 0; i < VERSIONS.length; ++i) {
             trx1.begin();
@@ -294,17 +282,18 @@ public class MVCCPruneTest extends MVCCTestBase {
                 store(ex1, KEY, VALUE + i + VERSIONS[i]);
                 if (VERSIONS[i] == 'A') {
                     trx1.rollback();
-                }
-                else {
+                } else {
                     trx1.commit();
                 }
-            }
-            finally {
+            } finally {
                 trx1.end();
             }
         }
 
-        assertEquals("stored versions pre-prune", VERSIONS.length, storedVersionCount(ex2, KEY));
+        int VERSIONS_NOW_REMOVED_BY_PRUNING_BEFORE_STORE = 5;
+
+        assertEquals("stored versions pre-prune", VERSIONS.length - VERSIONS_NOW_REMOVED_BY_PRUNING_BEFORE_STORE,
+                storedVersionCount(ex2, KEY));
         prune(ex1, KEY);
         assertEquals("stored versions post-prune", 1, storedVersionCount(ex2, KEY));
     }
@@ -313,19 +302,18 @@ public class MVCCPruneTest extends MVCCTestBase {
     // Test helper methods
     //
 
-    
     private void prune(Exchange ex, Object k) throws PersistitException {
-        _persistit.getTransactionIndex().cleanup();
         _persistit.getTransactionIndex().cleanup();
         ex.clear().append(k);
         ex.prune();
     }
-    
+
     private class VersionInfoVisitor implements MVV.VersionVisitor {
         List<Long> _versions = new ArrayList<Long>();
 
         @Override
-        public void init() {}
+        public void init() {
+        }
 
         @Override
         public void sawVersion(long version, int valueLength, int offset) throws PersistitException {
@@ -349,8 +337,7 @@ public class MVCCPruneTest extends MVCCTestBase {
 
             ex.clear().getValue().clear();
             return visitor.sawCount();
-        }
-        finally {
+        } finally {
             ex.ignoreMVCCFetch(false);
         }
     }

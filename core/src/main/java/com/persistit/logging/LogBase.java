@@ -193,8 +193,11 @@ public class LogBase {
     @Message("ERROR|BTree structure error %s")
     public final LogItem corruptVolume = PersistitLogMessage.empty();
 
-    @Message("WARNING|Exception while flushing non-essential administrative data")
+    @Message("WARNING|%s while flushing non-essential administrative data")
     public final LogItem adminFlushException = PersistitLogMessage.empty();
+
+    @Message("WARNING|%s while performing cleanup action %s")
+    public final LogItem cleanupException = PersistitLogMessage.empty();
 
     public void configure(final PersistitLogger logger) {
         for (final Field field : this.getClass().getDeclaredFields()) {

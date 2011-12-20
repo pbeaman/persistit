@@ -111,8 +111,10 @@ public class AccumulatorTest extends PersistitUnitTestCase {
         txn2.begin();
         try {
             acc.getSnapshotValue(txn1);
+            fail("Should have thrown an exceptio");
         } catch (IllegalStateException e) {
             expectedErrors++;
+            // expected
         }
         assertEquals(1, expectedErrors);
         txn1.begin();

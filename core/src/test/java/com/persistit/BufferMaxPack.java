@@ -17,6 +17,7 @@ package com.persistit;
 
 import org.junit.Test;
 
+import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class BufferMaxPack extends PersistitUnitTestCase {
@@ -28,9 +29,11 @@ public class BufferMaxPack extends PersistitUnitTestCase {
         b1.claim(true);
         final Key key = new Key((Persistit) null);
         final Value value = new Value((Persistit) null);
+        RawValueWriter vwriter = new RawValueWriter();
+        vwriter.init(value);
         for (int i = 0; i < 4096; i++) {
             key.clear().append(i);
-            int at = b1.putValue(key, value);
+            int at = b1.putValue(key, vwriter);
             if (at < 0) {
                 break;
             }
