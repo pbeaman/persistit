@@ -100,6 +100,7 @@ public class AccumulatorTest extends PersistitUnitTestCase {
     public void testBasicIsolation() throws Exception {
         final SessionId s1 = new SessionId();
         final SessionId s2 = new SessionId();
+        int expectedErrors = 0;
         _persistit.setSessionId(s1);
         final Transaction txn1 = _persistit.getTransaction();
         _persistit.setSessionId(s2);
@@ -112,8 +113,10 @@ public class AccumulatorTest extends PersistitUnitTestCase {
             acc.getSnapshotValue(txn1);
             fail("Should have thrown an exceptio");
         } catch (IllegalStateException e) {
+            expectedErrors++;
             // expected
         }
+        assertEquals(1, expectedErrors);
         txn1.begin();
         assertEquals(0, acc.getSnapshotValue(txn1));
         assertEquals(0, acc.getSnapshotValue(txn2));
