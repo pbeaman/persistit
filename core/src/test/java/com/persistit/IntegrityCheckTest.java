@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import java.io.PrintWriter;
+
 import org.junit.Test;
 
 import com.persistit.exception.PersistitException;
@@ -29,7 +31,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         final Exchange ex = _persistit.getExchange(_volumeName, "primordial", true);
         nonTransactionalStore(ex);
         
-        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        IntegrityCheck icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertTrue(icheck.getDataByteCount() >= RED_FOX.length() * 1000);
         assertTrue(icheck.getDataPageCount() > 0);
@@ -41,7 +43,6 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         assertEquals(0, icheck.getMvvCount());
         assertEquals(0, icheck.getMvvOverhead());
         assertEquals(0, icheck.getMvvAntiValues());
-        System.out.println(icheck.toString(true));
     }
     
     @Test
@@ -51,7 +52,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         
         transactionalStore(ex);
         
-        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        IntegrityCheck icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertTrue(icheck.getDataByteCount() >= RED_FOX.length() * 1000);
         assertTrue(icheck.getDataPageCount() > 0);
@@ -63,8 +64,6 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         assertEquals(1000, icheck.getMvvCount());
         assertTrue(icheck.getMvvOverhead() > 0);
         assertEquals(500, icheck.getMvvAntiValues());
-
-        System.out.println(icheck.toString(true));
     }
 
     @Test
@@ -75,28 +74,21 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         transactionalStore(ex);
         
         corrupt1(ex);
-        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        IntegrityCheck icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertTrue(icheck.getFaults().length > 0);
 
-        System.out.println(icheck.toString(true));
-        
     }
     
     @Test
     public void testBrokenMVVs() throws Exception {
         final Exchange ex = _persistit.getExchange(_volumeName, "mvv", true);
         _persistit.getCleanupManager().setPollInterval(Integer.MAX_VALUE);
-        
         transactionalStore(ex);
-        
         corrupt2(ex);
-        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        IntegrityCheck icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertTrue(icheck.getFaults().length > 0);
-
-        System.out.println(icheck.toString(true));
-        
     }
     
     private String key(final int i) {
@@ -163,5 +155,12 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
             }
         }
         ex.ignoreMVCCFetch(false);
+    }
+    
+    private IntegrityCheck icheck() {
+        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        icheck.setMessageLogVerbosity(Task.LOG_VERBOSE);
+        icheck.setMessageWriter(new PrintWriter(System.out));
+        return icheck;
     }
 }

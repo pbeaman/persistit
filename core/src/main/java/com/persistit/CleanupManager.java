@@ -147,24 +147,28 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         sb.append("]");
         return sb.toString();
     }
-    
+
     abstract static class CleanupTreePage implements CleanupAction {
         final int _treeHandle;
         final long _page;
-        
+
         protected CleanupTreePage(final int treeHandle, final long page) {
             _treeHandle = treeHandle;
             _page = page;
         }
-        
+
         @Override
         public int compareTo(CleanupAction other) {
-            CleanupAntiValue a = (CleanupAntiValue) other;
-            int d = _treeHandle - a._treeHandle;
-            if (d != 0) {
-                return d;
+            if (other instanceof CleanupTreePage) {
+                CleanupTreePage a = (CleanupTreePage) other;
+                int d = _treeHandle - a._treeHandle;
+                if (d != 0) {
+                    return d;
+                }
+                return _page > a._page ? 1 : _page < a._page ? -1 : 0;
+            } else {
+                return -1;
             }
-            return _page > a._page ? 1 : _page < a._page ? -1 : 0;
         }
     }
 
@@ -173,7 +177,6 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         CleanupAntiValue(final int treeHandle, final long page) {
             super(treeHandle, page);
         }
-
 
         @Override
         public void performAction(final Persistit persistit) throws PersistitException {
@@ -195,6 +198,26 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     }
     
+    static class CleanupPruneAction extends CleanupTreePage {
+        
+        CleanupPruneAction(int treeHandle, long page) {
+            super(treeHandle, page);
+        }
+        
+        @Override
+        public void performAction(final Persistit persistit) throws PersistitException {
+            final Tree tree = persistit.getJournalManager().treeForHandle(_treeHandle);
+            if (tree != null) {
+                final Exchange exchange = persistit.getExchange(tree.getVolume(), tree.getName(), false);
+                try {
+                    exchange.prune(_page);
+                } finally {
+                    persistit.releaseExchange(exchange);
+                }
+            }
+        }
+    }
+
     static class CleanupIndexHole extends CleanupTreePage {
         int _level;
 
@@ -216,8 +239,6 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
             }
         }
 
-        
     }
-
 
 }

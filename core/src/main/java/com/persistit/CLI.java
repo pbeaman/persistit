@@ -589,7 +589,7 @@ public class CLI {
     String open(@Arg("datapath|string|Data path") String datapath,
             @Arg("journalpath|string|Journal path") String journalpath,
             @Arg("volumepath|string|Volume file") String volumepath,
-            @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport, @Arg("_flag|g|Show AdminUI") boolean g,
+            @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport,
             @Arg("_flag|y|Recover committed transactions") boolean y) throws Exception {
         close(false);
 
@@ -622,9 +622,6 @@ public class CLI {
 
         if (rmiport > 0) {
             properties.put(Persistit.RMI_REGISTRY_PORT, Integer.toString(rmiport));
-        }
-        if (g) {
-            properties.put(Persistit.SHOW_GUI_PROPERTY, "true");
         }
         properties.put(Persistit.JMX_PARAMS, "true");
 

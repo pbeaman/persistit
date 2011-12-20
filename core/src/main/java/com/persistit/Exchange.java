@@ -3420,6 +3420,19 @@ public class Exchange {
             }
         }
     }
+    
+    boolean prune(final long page) throws PersistitException {
+        Buffer buffer = null;
+        try {
+            buffer = _pool.get(_volume, page, false, true);
+            return buffer.pruneMvvValues(_tree, _spareKey1);
+        } finally {
+            if (buffer != null) {
+                buffer.release();
+            }
+        }
+        
+    }
 
     boolean pruneLeftEdgeValue(final long page) throws PersistitException {
         _ignoreTransactions = true;
