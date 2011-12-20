@@ -198,7 +198,7 @@ class VolumeStructure {
     }
 
     void storeTreeStatistics(Tree tree) throws PersistitException {
-        if (tree.getStatistics().isDirty() && DIRECTORY_TREE_NAME.equals(tree.getName())) {
+        if (tree.getStatistics().isDirty() && !DIRECTORY_TREE_NAME.equals(tree.getName())) {
             Exchange ex = directoryExchange();
             ex.getValue().put(tree.getStatistics());
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).store();
