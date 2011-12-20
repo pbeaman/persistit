@@ -644,7 +644,6 @@ public abstract class Accumulator {
     static void saveAccumulatorCheckpointValues(final List<Accumulator> list) throws PersistitException {
         Exchange exchange = null;
         for (final Accumulator accumulator : list) {
-
             final Volume volume = accumulator.getTree().getVolume();
             if (exchange == null || !exchange.getVolume().equals(volume)) {
                 exchange = volume.getStructure().accumulatorExchange();

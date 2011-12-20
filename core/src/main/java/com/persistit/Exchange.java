@@ -3447,6 +3447,27 @@ public class Exchange {
             }
         }
     }
+    
+    boolean fixIndexHole(final long page, final int level) throws PersistitException {
+        Buffer buffer = null;
+        if (!_treeHolder.claim(false, Persistit.SHORT_DELAY)) {
+            return false;
+        }
+        try {
+            buffer = _pool.get(_volume, page, false, true);
+            buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
+            _value.setPointerValue(page);
+            _value.setPointerPageType(buffer.getPageType());
+            storeInternal(_spareKey2, _value, level + 1, Exchange.StoreOptions.NONE);
+            return true;
+        } finally {
+            _treeHolder.release();
+            if (buffer != null) {
+                buffer.release();
+                buffer = null;
+            }
+        }
+    }
 
     /**
      * Decodes the LONG_RECORD pointer that has previously been fetched into the

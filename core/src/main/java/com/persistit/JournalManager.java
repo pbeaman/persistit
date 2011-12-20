@@ -1329,16 +1329,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      */
     public void copyBack() throws PersistitException {
         if (!_appendOnly.get()) {
-            /*
-             * Set so state is visible at a debugger breakpoint
-             */
-            int pagesLeft = 0;
             _copyFast.set(true);
             while (_copyFast.get()) {
                 _copier.kick();
                 Util.sleep(Persistit.SHORT_DELAY);
             }
-            pagesLeft = _pageMap.size();
         }
     }
 

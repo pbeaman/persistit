@@ -14,8 +14,6 @@
  */
 package com.persistit;
 
-import org.junit.Test;
-
 import com.persistit.CleanupManager.CleanupAction;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -37,11 +35,6 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
         public int compareTo(CleanupAction action) {
             return _sequence - ((CleanupMockAction)action)._sequence;
             
-        }
-
-        @Override
-        public int getType() {
-            return 0;
         }
 
         @Override

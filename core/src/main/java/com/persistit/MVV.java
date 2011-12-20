@@ -598,6 +598,10 @@ public class MVV {
                 visitor.sawVersion(version, offset, valueLength);
                 offset += valueLength;
             }
+            if (offset != sourceOffset + sourceLength) {
+                throw new CorruptValueException("invalid length in MVV at offset/length=" + sourceOffset + "/"
+                        + sourceLength);
+            }
         }
     }
 

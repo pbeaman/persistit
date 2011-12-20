@@ -17,6 +17,7 @@ package com.persistit;
 
 import org.junit.Test;
 
+import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class IntegrityCheckTest extends PersistitUnitTestCase {
@@ -24,13 +25,9 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
     private String _volumeName = "persistit";
 
     @Test
-    public void testCheckIntegritySimplePrimordialTree() throws Exception {
+    public void testSimplePrimordialTree() throws Exception {
         final Exchange ex = _persistit.getExchange(_volumeName, "primordial", true);
-        ex.getValue().put(RED_FOX);
-        for (int i = 0; i < 1000; i++) {
-            ex.to(String.format("%05d%s", i, RED_FOX));
-            ex.store();
-        }
+        nonTransactionalStore(ex);
         
         IntegrityCheck icheck = new IntegrityCheck(_persistit);
         icheck.checkTree(ex.getTree());
@@ -48,25 +45,12 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
     }
     
     @Test
-    public void testCheckIntegritySimpleMvvTree() throws Exception {
-        final Exchange ex = _persistit.getExchange(_volumeName, "primordial", true);
+    public void testSimpleMvvTree() throws Exception {
+        final Exchange ex = _persistit.getExchange(_volumeName, "mvv", true);
         _persistit.getCleanupManager().setPollInterval(Integer.MAX_VALUE);
-        final Transaction txn = ex.getTransaction();
-        txn.begin();
-        ex.getValue().put(RED_FOX);
-        for (int i = 0; i < 1000; i++) {
-            ex.to(String.format("%05d%s", i, RED_FOX));
-            ex.store();
-        }
-        txn.commit();
-        txn.end();
-        txn.begin();
-        for (int i = 1; i < 1000; i += 2) {
-            ex.to(String.format("%05d%s", i, RED_FOX));
-            ex.remove();
-        }
-        txn.commit();
-        txn.end();
+        
+        transactionalStore(ex);
+        
         IntegrityCheck icheck = new IntegrityCheck(_persistit);
         icheck.checkTree(ex.getTree());
         assertTrue(icheck.getDataByteCount() >= RED_FOX.length() * 1000);
@@ -83,4 +67,101 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         System.out.println(icheck.toString(true));
     }
 
+    @Test
+    public void testBrokenKeySequence() throws Exception {
+        final Exchange ex = _persistit.getExchange(_volumeName, "mvv", true);
+        _persistit.getCleanupManager().setPollInterval(Integer.MAX_VALUE);
+        
+        transactionalStore(ex);
+        
+        corrupt1(ex);
+        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        icheck.checkTree(ex.getTree());
+        assertTrue(icheck.getFaults().length > 0);
+
+        System.out.println(icheck.toString(true));
+        
+    }
+    
+    @Test
+    public void testBrokenMVVs() throws Exception {
+        final Exchange ex = _persistit.getExchange(_volumeName, "mvv", true);
+        _persistit.getCleanupManager().setPollInterval(Integer.MAX_VALUE);
+        
+        transactionalStore(ex);
+        
+        corrupt2(ex);
+        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        icheck.checkTree(ex.getTree());
+        assertTrue(icheck.getFaults().length > 0);
+
+        System.out.println(icheck.toString(true));
+        
+    }
+    
+    private String key(final int i) {
+        return String.format("%05d%s", i, RED_FOX);
+    }
+    
+    private void nonTransactionalStore(final Exchange ex) throws PersistitException {
+        ex.getValue().put(RED_FOX);
+        for (int i = 0; i < 1000; i++) {
+            ex.to(key(i));
+            ex.store();
+        }
+        for (int i = 1; i < 1000; i += 2) {
+            ex.to(key(i));
+            ex.remove();
+        }
+        
+    }
+    
+    
+    private void transactionalStore(final Exchange ex) throws PersistitException {
+        final Transaction txn = ex.getTransaction();
+        txn.begin();
+        ex.getValue().put(RED_FOX);
+        for (int i = 0; i < 1000; i++) {
+            ex.to(key(i));
+            ex.store();
+        }
+        txn.commit();
+        txn.end();
+        txn.begin();
+        for (int i = 1; i < 1000; i += 2) {
+            ex.to(key(i));
+            ex.remove();
+        }
+        txn.commit();
+        txn.end();
+
+    }
+    private void corrupt1(final Exchange ex) throws PersistitException {
+        Key key = ex.getKey();
+        ex.clear().to(key(500));
+        Buffer copy = ex.fetchBufferCopy(0);
+        Buffer buffer = ex.getBufferPool().get(ex.getVolume(), copy.getPageAddress(), true, true);
+        buffer.nextKey(key, buffer.toKeyBlock(0));
+        assertTrue(key.getEncodedSize() > 1);
+        int t = (int)(buffer.at(buffer.toKeyBlock(0)) >>> 32);
+        buffer.getBytes()[t - key.getEncodedSize() + 1]++;
+        buffer.setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
+        buffer.release();
+    }
+    
+    private void corrupt2(final Exchange ex) throws PersistitException {
+        ex.ignoreMVCCFetch(true);
+        ex.clear().to(key(500));
+        int corrupted = 0;
+        while (corrupted < 10 && ex.next()) {
+            byte[] bytes = ex.getValue().getEncodedBytes();
+            int length = ex.getValue().getEncodedSize();
+            if (MVV.isArrayMVV(bytes, 0, length)) {
+                bytes[9]++;
+                ex.store();
+                corrupted++;
+            }
+        }
+        ex.ignoreMVCCFetch(false);
+    }
 }

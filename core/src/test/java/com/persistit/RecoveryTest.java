@@ -197,7 +197,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
         txn.end();
 
         jman.rollover();
-        _persistit.checkpoint();
+        _persistit.cleanup();
+        _persistit.getCheckpointManager().checkpoint();
         jman.copyBack();
         //
         // Because JournalManager thinks there's an open transaction

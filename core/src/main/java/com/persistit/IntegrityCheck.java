@@ -21,6 +21,7 @@ import java.util.BitSet;
 import com.persistit.Buffer.VerifyVisitor;
 import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
+import com.persistit.CleanupManager.CleanupIndexHole;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
@@ -50,6 +51,7 @@ import com.persistit.util.Util;
  */
 public class IntegrityCheck extends Task {
     final static int MAX_FAULTS = 200;
+    final static int MAX_HOLES_TO_FIX = 1000;
     final static int MAX_WALK_RIGHT = 1000;
 
     private Volume _currentVolume;
@@ -79,7 +81,7 @@ public class IntegrityCheck extends Task {
     private boolean _fixHoles;
 
     private ArrayList<Fault> _faults = new ArrayList<Fault>();
-    private ArrayList<Hole> _holes = new ArrayList<Hole>();
+    private ArrayList<CleanupIndexHole> _holes = new ArrayList<CleanupIndexHole>();
     private int _holeCount;
 
     // Used in checking long values
@@ -152,7 +154,7 @@ public class IntegrityCheck extends Task {
 
     @Override
     protected void runTask() {
-        boolean freeze = !_persistit.isUpdateSuspended() && (_suspendUpdates || _fixHoles);
+        boolean freeze = !_persistit.isUpdateSuspended() && (_suspendUpdates);
         boolean needsToDrain = false;
         if (freeze) {
             _persistit.setUpdateSuspended(true);
@@ -496,18 +498,6 @@ public class IntegrityCheck extends Task {
                 longRecordBytesInUse, mvvCount, mvvOverhead, mvvAntiValues);
     }
 
-    private static class Hole {
-        Tree _tree;
-        long _page;
-        int _level;
-
-        Hole(Tree tree, long page, int level) {
-            _tree = tree;
-            _page = page;
-            _level = level;
-        }
-    }
-
     /**
      * A representation of an error or inconsistency within a {@link Tree}.
      */
@@ -688,12 +678,10 @@ public class IntegrityCheck extends Task {
                     if (_fixHoles) {
                         postMessage("Fixing " + _holes.size() + " unindexed page" + (_holeCount > 1 ? "s" : "")
                                 + " in tree " + tree.getName() + " in volume " + tree.getVolume().getPath(), LOG_NORMAL);
-
-                        fixIndexHoles();
-
-                        if (_holeCount > _holes.size()) {
-                            again = true;
+                        for (final CleanupIndexHole hole : _holes) {
+                            _persistit.getCleanupManager().offer(hole);
                         }
+
                     } else {
                         postMessage("Tree " + tree.getName() + " in volume " + tree.getVolume().getPath() + " has "
                                 + _holeCount + " unindexed page" + (_holeCount > 1 ? "s" : ""), LOG_NORMAL);
@@ -934,8 +922,8 @@ public class IntegrityCheck extends Task {
                 }
 
                 _holeCount++;
-                if (_holeCount < MAX_FAULTS) {
-                    _holes.add(new Hole(_currentTree, page, level));
+                if (_holeCount < MAX_HOLES_TO_FIX) {
+                    _holes.add(new CleanupIndexHole(_currentTree.getHandle(), page, level));
                 }
 
                 if (page <= 0 || page > Buffer.MAX_VALID_PAGE_ADDR) {
@@ -1051,38 +1039,6 @@ public class IntegrityCheck extends Task {
         }
 
         return true;
-    }
-
-    private void fixIndexHoles() throws PersistitException {
-        Exchange exchange = null;
-        Tree tree = null;
-        Volume volume = null;
-        for (int index = 0; index < _holes.size(); index++) {
-            Hole hole = _holes.get(index);
-            if (hole._tree != tree) {
-                tree = hole._tree;
-                volume = tree.getVolume();
-                exchange = _persistit.getExchange(volume, tree.getName(), false);
-            }
-            Key spareKey2 = exchange.getAuxiliaryKey2();
-            long page = hole._page;
-            int level = _depth - hole._level;
-            Buffer buffer = null;
-
-            try {
-                buffer = volume.getPool().get(volume, page, false, true);
-                buffer.nextKey(spareKey2, buffer.toKeyBlock(0));
-                _value.setPointerValue(page);
-                _value.setPointerPageType(buffer.getPageType());
-
-                exchange.storeInternal(spareKey2, _value, level + 1, Exchange.StoreOptions.NONE);
-            } finally {
-                if (buffer != null) {
-                    buffer.release();
-                    buffer = null;
-                }
-            }
-        }
     }
 
     private Buffer getPage(long page) throws PersistitException {
