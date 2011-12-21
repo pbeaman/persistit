@@ -2808,11 +2808,11 @@ public class Exchange {
 
         // Special case for empty key
         if (key1.getEncodedSize() == 0) {
-            _spareKey1.append(BEFORE);
+            _spareKey3.append(BEFORE);
         }
 
         if (key2.getEncodedSize() == 0) {
-            _spareKey2.append(AFTER);
+            _spareKey4.append(AFTER);
         }
 
         if (_spareKey3.compareTo(_spareKey4) >= 0) {
