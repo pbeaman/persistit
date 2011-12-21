@@ -108,6 +108,14 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
             }
             return comp;
         }
+        
+        public void fillKey(Key key) {
+            key.clear();
+            key.append(k1);
+            if (k2 != null) {
+                key.append(k2);
+            }
+        }
     }
 
     protected static Object[] arr(Object ...values) {
@@ -139,11 +147,13 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
     }
 
     protected static List<KVPair> traverseAllFoward(Exchange e, boolean deep) throws Exception {
-        return doTraverse(Key.BEFORE, e, Key.GT, deep);
+        e.clear().append(Key.BEFORE);
+        return doTraverse(e, Key.GT, deep);
     }
 
     protected static List<KVPair> traverseAllReverse(Exchange e, boolean deep) throws Exception {
-        return doTraverse(Key.AFTER, e, Key.LT, deep);
+        e.clear().append(Key.AFTER);
+        return doTraverse(e, Key.LT, deep);
     }
 
     protected static List<KVPair> doTraverse(Key.EdgeValue startAt, Exchange ex, Key.Direction dir, KeyFilter filter) throws Exception {
@@ -155,8 +165,7 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
         return out;
     }
 
-    protected static List<KVPair> doTraverse(Key.EdgeValue startAt, Exchange e, Key.Direction dir, boolean deep) throws Exception {
-        e.clear().append(startAt);
+    protected static List<KVPair> doTraverse(Exchange e, Key.Direction dir, boolean deep) throws Exception {
         List<KVPair> out = new ArrayList<KVPair>();
         while(e.traverse(dir,  deep)) {
             addTraverseResult(out, e.getKey(), e.getValue());
@@ -186,10 +195,7 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
 
     protected static void storeAll(Exchange ex, List<KVPair> list) throws PersistitException {
         for(KVPair kv : list) {
-            ex.clear().append(kv.k1);
-            if(kv.k2 != null) {
-                ex.append(kv.k2);
-            }
+            kv.fillKey(ex.getKey());
             ex.getValue().put(kv.v);
             ex.store();
         }
@@ -229,6 +235,13 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
     protected static boolean remove(Exchange ex, Object k) throws PersistitException {
         ex.clear().append(k);
         return ex.remove();
+    }
+
+    protected static void removeAll(Exchange ex, List<KVPair> list) throws PersistitException {
+        for(KVPair kv : list) {
+            kv.fillKey(ex.getKey());
+            ex.remove();
+        }
     }
 
     protected Exchange createUniqueExchange() throws PersistitException {

@@ -498,6 +498,53 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    public void testRemovedKeysHaveChildrenBug() throws Exception {
+        final List<KVPair> keepList = kvList(arr("a",1),"A1",  arr("c",2),"C2");
+        final List<KVPair> removeList = kvList(arr("b",1),"B1",  arr("b",2),"B2",  arr("b",3),"B3",  arr("c",1),"C1");
+
+        trx1.begin();
+        try {
+            storeAll(ex1, keepList);
+            storeAll(ex1, removeList);
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        // concurrent transaction to prevent pruning of originals
+        trx1.begin();
+        try {
+            trx2.begin();
+            try {
+                final Key key = ex2.getKey();
+
+                key.clear().append("b").append(1);
+                assertEquals(key + " initially exists", true, ex2.isValueDefined());
+
+                key.clear().append("b");
+                assertEquals(key + " initially has children", true, ex2.hasChildren());
+
+                removeAll(ex2, removeList);
+
+                key.clear().append("b").append(1);
+                assertEquals(key + " exists after removal", false, ex2.isValueDefined());
+
+                key.clear().append("b");
+                assertEquals(key + " has children after removal", false, ex2.hasChildren());
+
+                trx2.commit();
+            }
+            finally {
+                trx2.end();
+            }
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
+
     public void testTwoTrxRemoveRanges() throws Exception {
         List<KVPair> bothList = kvList("a", "A", "m", "M", "z", "Z");
         trx1.begin();
