@@ -1313,7 +1313,7 @@ public final class Value {
                     }
 
                     @Override
-                    public void sawVersion(long version, int valueLength, int offset) {
+                    public void sawVersion(long version, int offset, int valueLength) {
                         if(!first) {
                             sb.append(", ");
                         }
@@ -1329,7 +1329,7 @@ public final class Value {
                         first = false;
                     }
 
-                }, getEncodedBytes(), getEncodedSize());
+                }, getEncodedBytes(), 0, getEncodedSize());
             } 
             catch (Throwable t) {
                 sb.append("<<").append(t).append(">>");
@@ -2314,7 +2314,7 @@ public final class Value {
                     }
 
                     @Override
-                    public void sawVersion(long version, int valueLength, int offset) {
+                    public void sawVersion(long version, int offset, int valueLength) {
                         Object obj = null;
                         if(valueLength > 0) {
                             _next = offset;
@@ -2324,7 +2324,7 @@ public final class Value {
                         outList.add(obj);
                     }
 
-                }, getEncodedBytes(), getEncodedSize());
+                }, getEncodedBytes(), 0, getEncodedSize());
             }
             catch (PersistitException pe) {
                 throw new ConversionException("@" + start, pe);

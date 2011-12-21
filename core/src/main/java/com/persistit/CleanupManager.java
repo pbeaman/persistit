@@ -28,7 +28,6 @@ import com.persistit.exception.PersistitException;
 class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     interface CleanupAction extends Comparable<CleanupAction> {
-        int getType();
 
         void performAction(Persistit persistit) throws PersistitException;
     }
@@ -57,7 +56,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     public void start() {
         _closed.set(false);
-        start("CLEANUP_WRITER", DEFAULT_CLEANUP_INTERVAL);
+        start("CLEANUP_MANAGER", DEFAULT_CLEANUP_INTERVAL);
     }
 
     public void close(final boolean flush) throws PersistitException {
@@ -149,28 +148,34 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         return sb.toString();
     }
 
-    static class CleanupAntiValue implements CleanupAction {
+    abstract static class CleanupTreePage implements CleanupAction {
         final int _treeHandle;
         final long _page;
 
-        CleanupAntiValue(final int treeHandle, final long page) {
+        protected CleanupTreePage(final int treeHandle, final long page) {
             _treeHandle = treeHandle;
             _page = page;
         }
 
         @Override
-        public int getType() {
-            return 1;
-        }
-
-        @Override
         public int compareTo(CleanupAction other) {
-            CleanupAntiValue a = (CleanupAntiValue) other;
-            int d = _treeHandle - a._treeHandle;
-            if (d != 0) {
-                return d;
+            if (other instanceof CleanupTreePage) {
+                CleanupTreePage a = (CleanupTreePage) other;
+                int d = _treeHandle - a._treeHandle;
+                if (d != 0) {
+                    return d;
+                }
+                return _page > a._page ? 1 : _page < a._page ? -1 : 0;
+            } else {
+                return -1;
             }
-            return _page > a._page ? 1 : _page < a._page ? -1 : 0;
+        }
+    }
+
+    static class CleanupAntiValue extends CleanupTreePage {
+
+        CleanupAntiValue(final int treeHandle, final long page) {
+            super(treeHandle, page);
         }
 
         @Override
@@ -192,4 +197,48 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         }
 
     }
+    
+    static class CleanupPruneAction extends CleanupTreePage {
+        
+        CleanupPruneAction(int treeHandle, long page) {
+            super(treeHandle, page);
+        }
+        
+        @Override
+        public void performAction(final Persistit persistit) throws PersistitException {
+            final Tree tree = persistit.getJournalManager().treeForHandle(_treeHandle);
+            if (tree != null) {
+                final Exchange exchange = persistit.getExchange(tree.getVolume(), tree.getName(), false);
+                try {
+                    exchange.prune(_page);
+                } finally {
+                    persistit.releaseExchange(exchange);
+                }
+            }
+        }
+    }
+
+    static class CleanupIndexHole extends CleanupTreePage {
+        int _level;
+
+        CleanupIndexHole(int treeHandle, long page, int level) {
+            super(treeHandle, page);
+            _level = level;
+        }
+
+        @Override
+        public void performAction(final Persistit persistit) throws PersistitException {
+            final Tree tree = persistit.getJournalManager().treeForHandle(_treeHandle);
+            if (tree != null) {
+                final Exchange exchange = persistit.getExchange(tree.getVolume(), tree.getName(), false);
+                try {
+                    exchange.fixIndexHole(_page, _level);
+                } finally {
+                    persistit.releaseExchange(exchange);
+                }
+            }
+        }
+
+    }
+
 }

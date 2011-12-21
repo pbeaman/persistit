@@ -316,7 +316,7 @@ public class MVCCPruneTest extends MVCCTestBase {
         }
 
         @Override
-        public void sawVersion(long version, int valueLength, int offset) throws PersistitException {
+        public void sawVersion(long version, int offset, int valueLength) throws PersistitException {
             _versions.add(version);
         }
 
@@ -333,7 +333,7 @@ public class MVCCPruneTest extends MVCCTestBase {
 
             VersionInfoVisitor visitor = new VersionInfoVisitor();
             Value value = ex.getValue();
-            MVV.visitAllVersions(visitor, value.getEncodedBytes(), value.getEncodedSize());
+            MVV.visitAllVersions(visitor, value.getEncodedBytes(), 0, value.getEncodedSize());
 
             ex.clear().getValue().clear();
             return visitor.sawCount();

@@ -183,7 +183,7 @@ public class Exchange {
         }
 
         @Override
-        public void sawVersion(long version, int valueLength, int offset) throws PersistitException {
+        public void sawVersion(long version, int offset, int valueLength) throws PersistitException {
             try {
                 switch (_usage) {
                 case FETCH:
@@ -1434,7 +1434,7 @@ public class Exchange {
                                  * commitStatus() and wwDependency()
                                  */
                                 _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
-                                MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
+                                MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
                                 if (!_mvvVisitor.foundVersion()) {
                                     // Completely done, nothing to store
                                     break;
@@ -1443,7 +1443,7 @@ public class Exchange {
 
                             // Visit all versions for ww detection
                             _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.STORE);
-                            MVV.visitAllVersions(_mvvVisitor, spareBytes, spareSize);
+                            MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
 
                             int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
                             _spareValue.ensureFit(mvvSize);
@@ -2541,7 +2541,7 @@ public class Exchange {
 
         int valueSize = value.getEncodedSize();
         byte[] valueBytes = value.getEncodedBytes();
-        MVV.visitAllVersions(_mvvVisitor, valueBytes, valueSize);
+        MVV.visitAllVersions(_mvvVisitor, valueBytes, 0, valueSize);
 
         if (_mvvVisitor.foundVersion()) {
             int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _mvvVisitor.getOffset(), valueBytes);
@@ -3420,6 +3420,19 @@ public class Exchange {
             }
         }
     }
+    
+    boolean prune(final long page) throws PersistitException {
+        Buffer buffer = null;
+        try {
+            buffer = _pool.get(_volume, page, false, true);
+            return buffer.pruneMvvValues(_tree, _spareKey1);
+        } finally {
+            if (buffer != null) {
+                buffer.release();
+            }
+        }
+        
+    }
 
     boolean pruneLeftEdgeValue(final long page) throws PersistitException {
         _ignoreTransactions = true;
@@ -3444,6 +3457,27 @@ public class Exchange {
         } finally {
             if (buffer != null) {
                 buffer.release();
+            }
+        }
+    }
+    
+    boolean fixIndexHole(final long page, final int level) throws PersistitException {
+        Buffer buffer = null;
+        if (!_treeHolder.claim(false, Persistit.SHORT_DELAY)) {
+            return false;
+        }
+        try {
+            buffer = _pool.get(_volume, page, false, true);
+            buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
+            _value.setPointerValue(page);
+            _value.setPointerPageType(buffer.getPageType());
+            storeInternal(_spareKey2, _value, level + 1, Exchange.StoreOptions.NONE);
+            return true;
+        } finally {
+            _treeHolder.release();
+            if (buffer != null) {
+                buffer.release();
+                buffer = null;
             }
         }
     }

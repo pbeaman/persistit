@@ -99,7 +99,7 @@ class VolumeStructure {
     Exchange accumulatorExchange() {
         return new Exchange(_directoryTree);
     }
-    
+
     /**
      * Create a new tree in this volume. A tree is represented by an index root
      * page and all the index and data pages pointed to by that root page.
@@ -196,13 +196,16 @@ class VolumeStructure {
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).store();
         }
     }
-    
+
     void storeTreeStatistics(Tree tree) throws PersistitException {
-        Exchange ex = directoryExchange();
-        ex.getValue().put(tree.getStatistics());
-        ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).store();
+        if (tree.getStatistics().isDirty() && !DIRECTORY_TREE_NAME.equals(tree.getName())) {
+            Exchange ex = directoryExchange();
+            ex.getValue().put(tree.getStatistics());
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).store();
+            tree.getStatistics().setDirty(false);
+        }
     }
-    
+
     void loadTreeStatistics(Tree tree) throws PersistitException {
         Exchange ex = directoryExchange();
         ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).fetch();
@@ -293,15 +296,15 @@ class VolumeStructure {
         tree.getStatistics().reset();
         storeTreeStatistics(tree);
     }
-    
+
     /**
-     * Flush dirty {@link TreeStatistics} instances.  Called periodically
-     * on the PAGE_WRITER thread from {@link Persistit#cleanup()}.
+     * Flush dirty {@link TreeStatistics} instances. Called periodically on the
+     * PAGE_WRITER thread from {@link Persistit#cleanup()}.
      */
     void flushStatistics() {
         try {
             final List<Tree> trees = new ArrayList<Tree>();
-            synchronized(this) {
+            synchronized (this) {
                 for (final WeakReference<Tree> ref : _treeNameHashMap.values()) {
                     final Tree tree = ref.get();
                     if (tree != null && tree != _directoryTree) {
@@ -310,9 +313,7 @@ class VolumeStructure {
                 }
             }
             for (final Tree tree : trees) {
-                if (tree.getStatistics().isDirty()) {
                     storeTreeStatistics(tree);
-                }
             }
         } catch (Exception e) {
             _persistit.getLogBase().adminFlushException.log(e);
@@ -358,7 +359,7 @@ class VolumeStructure {
             return null;
         }
     }
-    
+
     synchronized List<Tree> referencedTrees() {
         final List<Tree> list = new ArrayList<Tree>();
         for (final WeakReference<Tree> ref : _treeNameHashMap.values()) {

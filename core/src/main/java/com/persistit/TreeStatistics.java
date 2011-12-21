@@ -124,8 +124,8 @@ class TreeStatistics {
         return _dirty.get();
     }
 
-    void dirty() {
-        _dirty.set(true);
+    void setDirty(final boolean dirty) {
+        _dirty.set(dirty);
     }
 
     /**
@@ -140,37 +140,37 @@ class TreeStatistics {
         _removeCounter.set(0);
         _mvvCounter.set(0);
         _mvvOverhead.set(0);
-        dirty();
+        setDirty(true);
     }
 
     void bumpFetchCounter() {
         _fetchCounter.incrementAndGet();
-        dirty();
+        setDirty(true);
     }
 
     void bumpTraverseCounter() {
         _traverseCounter.incrementAndGet();
-        dirty();
+        setDirty(true);
     }
 
     void bumpStoreCounter() {
         _storeCounter.incrementAndGet();
-        dirty();
+        setDirty(true);
     }
 
     void bumpRemoveCounter() {
         _removeCounter.incrementAndGet();
-        dirty();
+        setDirty(true);
     }
 
     void bumpMvvCounter() {
         _mvvCounter.incrementAndGet();
-        dirty();
+        setDirty(true);
     }
 
     void bumpMvvOverhead(final int delta) {
         _mvvOverhead.addAndGet(delta);
-        dirty();
+        setDirty(true);
     }
 
     /**
@@ -191,7 +191,6 @@ class TreeStatistics {
      * @return length of serialized statistics
      */
     int store(final byte[] bytes, int index) {
-        _dirty.set(false);
         long bits = 0;
         int offset = index + 8;
         int field = 0;

@@ -433,7 +433,7 @@ public class MVVTest {
     public void visitUnused() throws PersistitException {
         final byte[] source = {};
         TestVisitor visitor = new TestVisitor();
-        MVV.visitAllVersions(visitor, source, -1);
+        MVV.visitAllVersions(visitor, source, 0, -1);
         assertTrue(visitor.initCalled);
         assertEquals(newVisitorMap(), visitor.versions);
     }
@@ -442,7 +442,7 @@ public class MVVTest {
     public void visitUndefined() throws PersistitException {
         final byte[] source = {};
         TestVisitor visitor = new TestVisitor();
-        MVV.visitAllVersions(visitor, source, source.length);
+        MVV.visitAllVersions(visitor, source, 0, source.length);
         assertTrue(visitor.initCalled);
         assertEquals(newVisitorMap(0,0,0), visitor.versions);
     }
@@ -451,7 +451,7 @@ public class MVVTest {
     public void visitAndFetchByOffsetPrimordial() throws PersistitException {
         final byte[] source = {0xA,0xB,0xC};
         TestVisitor visitor = new TestVisitor();
-        MVV.visitAllVersions(visitor, source, source.length);
+        MVV.visitAllVersions(visitor, source, 0, source.length);
         assertTrue(visitor.initCalled);
         assertEquals(newVisitorMap(0,3,0), visitor.versions);
 
@@ -473,7 +473,7 @@ public class MVVTest {
                 0,0,0,0,0,0,0,3,   0,0
         };
         TestVisitor visitor = new TestVisitor();
-        MVV.visitAllVersions(visitor, source, source.length);
+        MVV.visitAllVersions(visitor, source, 0, source.length);
         assertTrue(visitor.initCalled);
         assertEquals(newVisitorMap(1,3,11, 2,2,24, 11,5,36, 127,0,51, 9,1,61, 283686952306183L,3,72, 3,0,85),
                      visitor.versions);
@@ -605,7 +605,7 @@ public class MVVTest {
         }
 
         @Override
-        public void sawVersion(long version, int valueLength, int offset) {
+        public void sawVersion(long version, int offset, int valueLength) {
             versions.put(version, new LengthAndOffset(valueLength, offset));
         }
     }
