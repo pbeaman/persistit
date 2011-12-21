@@ -66,7 +66,7 @@ public class IntegrityCheck extends Task {
     private long[] _edgePages = new long[Exchange.MAX_TREE_DEPTH];
     private int[] _edgePositions = new int[Exchange.MAX_TREE_DEPTH];
     private Key[] _edgeKeys = new Key[Exchange.MAX_TREE_DEPTH];
-    private int _depth = -1;
+    private int _treeDepth = -1;
 
     private TreeSelector _treeSelector;
     private boolean _suspendUpdates;
@@ -75,7 +75,6 @@ public class IntegrityCheck extends Task {
 
     private ArrayList<Fault> _faults = new ArrayList<Fault>();
     private ArrayList<CleanupIndexHole> _holes = new ArrayList<CleanupIndexHole>();
-    private int _holeCount;
 
     // Used in checking long values
     private Value _value = new Value((Persistit) null);
@@ -89,6 +88,7 @@ public class IntegrityCheck extends Task {
         private long _dataBytesInUse = 0;
         private long _longRecordPageCount = 0;
         private long _longRecordBytesInUse = 0;
+        private long _indexHoleCount = 0;
         private long _mvvPageCount = 0;
         private long _mvvCount = 0;
         private long _mvvOverhead = 0;
@@ -105,6 +105,7 @@ public class IntegrityCheck extends Task {
             _dataBytesInUse = counters._dataBytesInUse;
             _longRecordPageCount = counters._longRecordPageCount;
             _longRecordBytesInUse = counters._longRecordBytesInUse;
+            _indexHoleCount = counters._indexHoleCount;
             _mvvPageCount = counters._mvvPageCount;
             _mvvCount = counters._mvvCount - _mvvCount;
             _mvvOverhead = counters._mvvOverhead - _mvvOverhead;
@@ -118,6 +119,7 @@ public class IntegrityCheck extends Task {
             _dataBytesInUse = counters._dataBytesInUse - _dataBytesInUse;
             _longRecordPageCount = counters._longRecordPageCount - _longRecordPageCount;
             _longRecordBytesInUse = counters._longRecordBytesInUse - _longRecordBytesInUse;
+            _indexHoleCount = counters._indexHoleCount - _indexHoleCount;
             _mvvPageCount = counters._mvvPageCount - _mvvPageCount;
             _mvvCount = counters._mvvCount - _mvvCount;
             _mvvOverhead = counters._mvvOverhead - _mvvOverhead;
@@ -126,10 +128,11 @@ public class IntegrityCheck extends Task {
 
         @Override
         public String toString() {
-            return String.format("Index pages/bytes: %,6d / %,9d Data pages/bytes: %,8d / %,12d"
-                    + " LongRec pages/bytes: %,6d / %,12d  MVV pages/records/bytes/antivalues: %,d / %,d / %,d / %,d",
-                    _indexPageCount, _indexBytesInUse, _dataPageCount, _dataBytesInUse, _longRecordPageCount,
-                    _longRecordBytesInUse, _mvvPageCount, _mvvCount, _mvvOverhead, _mvvAntiValues);
+            return String.format("Index pages/bytes: %,d / %,d Data pages/bytes: %,d / %,d"
+                    + " LongRec pages/bytes: %,d / %,d  MVV pages/records/bytes/antivalues: "
+                    + "%,d / %,d / %,d / %,d  Holes %,d", _indexPageCount, _indexBytesInUse, _dataPageCount,
+                    _dataBytesInUse, _longRecordPageCount, _longRecordBytesInUse, _mvvPageCount, _mvvCount,
+                    _mvvOverhead, _mvvAntiValues, _indexHoleCount);
         }
 
     }
@@ -154,7 +157,7 @@ public class IntegrityCheck extends Task {
     };
 
     private VerifyVisitor _visitor = new VerifyVisitor() {
-        
+
         @Override
         protected void visitDataRecord(Key key, int foundAt, int tail, int klength, int offset, int length, byte[] bytes)
                 throws PersistitException {
@@ -222,7 +225,7 @@ public class IntegrityCheck extends Task {
                 Volume volume = tree.getVolume();
                 boolean checkWholeVolume = false;
                 if (volume != previousVolume) {
-                    initialize();
+                    reset();
                     if (tree == volume.getDirectoryTree()) {
                         checkWholeVolume = true;
                     }
@@ -291,14 +294,13 @@ public class IntegrityCheck extends Task {
     private void initTree(Tree tree) {
         _currentVolume = tree.getVolume();
         _currentTree = tree;
-        _holeCount = 0;
         _holes.clear();
+        _treeDepth = tree.getDepth();
         for (int index = Exchange.MAX_TREE_DEPTH; --index >= 0;) {
             _edgeBuffers[index] = null;
             _edgePages[index] = 0;
             _edgeKeys[index] = null;
             _edgePositions[index] = 0;
-            _depth = -1;
         }
     }
 
@@ -471,6 +473,13 @@ public class IntegrityCheck extends Task {
     }
 
     /**
+     * @return Count of pages for which an expected index pointer is missing
+     */
+    public long getIndexHoleCount() {
+        return _counters._indexHoleCount;
+    }
+
+    /**
      * Returns an approximate indication of progress during the integrity
      * checking process, where 0.0 indicates that work has not started, and 1.0
      * represents completion.
@@ -564,17 +573,18 @@ public class IntegrityCheck extends Task {
         Fault(String treeName, IntegrityCheck work, String description, long page, int level, int position) {
             _treeName = treeName;
             _description = description;
-            _path = new long[level + 1];
-            for (int index = 0; index <= level; index++) {
+            _depth = work._treeDepth;
+            _path = new long[_depth - level];
+            for (int index = _depth; --index > level;) {
                 if (index >= work._edgeBuffers.length) {
-                    _path[index] = 0;
+                    _path[index - level] = 0;
                 } else {
-                    _path[index] = work._edgePages[index];
+                    _path[index - level] = work._edgePages[index];
                 }
             }
             _path[level] = page;
             _level = level;
-            _depth = work._depth;
+            _depth = work._treeDepth;
             _position = position;
         }
 
@@ -591,10 +601,12 @@ public class IntegrityCheck extends Task {
                 sb.append(_treeName);
                 sb.append(" ");
                 sb.append(_description);
-                sb.append(" (path");
-                for (int index = 0; index <= _level; index++) {
-                    sb.append("->");
-                    sb.append(_path[index]);
+                sb.append(" (path ");
+                for (int index = _depth; --index >= _level;) {
+                    if (index < _depth - 1) {
+                        sb.append("->");
+                    }
+                    sb.append(String.format("%,d", _path[index - _level]));
                 }
                 if (_position != 0) {
                     sb.append(":");
@@ -617,7 +629,7 @@ public class IntegrityCheck extends Task {
      */
     private static class LongBitSet {
         //
-        // Temporary implementation uses ints. This limits its use to
+        // Temporary implementation uses integers. This limits its use to
         // volumes with fewer than Integer.MAX_VALUE pages.
         //
         BitSet _bitSet = new BitSet();
@@ -641,19 +653,17 @@ public class IntegrityCheck extends Task {
     }
 
     /**
-     * Resets this <code>IntegrityCheck</code> to its initial state by removing
-     * all <code>Fault</code>s and optional resetting all counters.
+     * Resets this <code>IntegrityCheck</code> to handle a new volume.
      * 
      * @param initCounts
      *            <code>true</code> to reset all counters to zero.
      */
-    public void initialize() {
+    private void reset() {
         _currentVolume = null;
         _currentTree = null;
         _usedPageBits = new LongBitSet();
         _totalPages = 0;
         _pagesVisited = 0;
-
     }
 
     /**
@@ -666,7 +676,7 @@ public class IntegrityCheck extends Task {
      * @throws PersistitException
      */
     public boolean checkVolume(Volume volume) throws PersistitException {
-        initialize();
+        reset();
         int faults = _faults.size();
         postMessage("Volume " + resourceName(volume) + " - checking", LOG_VERBOSE);
         Counters counters = new Counters(_counters);
@@ -707,48 +717,44 @@ public class IntegrityCheck extends Task {
         postMessage("  Tree " + resourceName(tree) + " - checking", LOG_VERBOSE);
         Counters treeCounters = new Counters(_counters);
         int faults = _faults.size();
-
-        boolean again = true;
         if (!tree.claim(true)) {
             throw new TimeoutException(tree + " is in use");
         }
         try {
-            while (again) {
-                try {
-                    again = false;
-                    initTree(tree);
-                    checkTree(new Key(_persistit), 0, tree.getRootPageAddr(), 0, tree);
-                } finally {
-                    //
-                    // Release all the buffers.
-                    //
-                    for (int index = Exchange.MAX_TREE_DEPTH; --index >= 0;) {
-                        Buffer buffer = _edgeBuffers[index];
-                        if (buffer != null) {
-                            buffer.release();
-                            _edgeBuffers[index] = null;
-                            _edgePages[index] = 0;
-                        }
+            try {
+                initTree(tree);
+                checkTree(new Key(_persistit), 0, tree.getRootPageAddr(), _treeDepth - 1, tree);
+            } finally {
+                //
+                // Release all the buffers.
+                //
+                for (int index = 0; index < Exchange.MAX_TREE_DEPTH; index++) {
+                    Buffer buffer = _edgeBuffers[index];
+                    if (buffer != null) {
+                        buffer.release();
+                        _edgeBuffers[index] = null;
+                        _edgePages[index] = 0;
                     }
-                    _currentTree = null;
                 }
-                if (_holeCount > 0) {
-                    if (_fixHoles) {
-                        postMessage("  Tree " + resourceName(tree) + " fixing "
-                                + plural(_holes.size(), "unindexed page"), LOG_NORMAL);
-                        for (final CleanupIndexHole hole : _holes) {
-                            _persistit.getCleanupManager().offer(hole);
+                _currentTree = null;
+            }
+            if (_holes.size() > 0) {
+                postMessage("  Tree " + resourceName(tree) + " has " + plural(_holes.size(), "unindexed page"),
+                        LOG_NORMAL);
+                if (_fixHoles) {
+                    int offered = 0;
+                    for (final CleanupIndexHole hole : _holes) {
+                        if (_persistit.getCleanupManager().offer(hole)) {
+                            offered++;
                         }
-
-                    } else {
-                        postMessage("  Tree " + resourceName(tree) + " has " + plural(_holes.size(), "unindexed page"),
-                                LOG_NORMAL);
                     }
+                    appendMessage(" - enqueued " + offered + " for repair", LOG_NORMAL);
                 }
             }
         } finally {
             tree.release();
         }
+
         faults = _faults.size() - faults;
         treeCounters.difference(_counters);
         postMessage("  Tree " + resourceName(tree) + " " + faults + " faults", LOG_VERBOSE);
@@ -821,10 +827,6 @@ public class IntegrityCheck extends Task {
 
             if (checkPageType(buffer, level, tree) && verifyPage(buffer, page, level, key, tree)) {
                 if (buffer.isDataPage()) {
-                    if (_depth >= 0 & _depth != level) {
-                        addFault("Data page at wrong level", page, level, 0);
-                    }
-                    _depth = level;
                     _counters._dataPageCount++;
                     _counters._dataBytesInUse += (buffer.getBufferSize() - buffer.getAvailableSize() - Buffer.DATA_PAGE_OVERHEAD);
 
@@ -861,7 +863,7 @@ public class IntegrityCheck extends Task {
                         }
 
                         // Recursively check the subtree.
-                        checkTree(key, page, child, level + 1, tree);
+                        checkTree(key, page, child, level - 1, tree);
                     }
                 } else {
                     throw new RuntimeException("should never happen!");
@@ -880,7 +882,6 @@ public class IntegrityCheck extends Task {
                 _edgePages[level] = 0;
                 buffer.release();
             }
-
         }
     }
 
@@ -950,10 +951,9 @@ public class IntegrityCheck extends Task {
     }
 
     private boolean checkPageType(Buffer buffer, int level, Tree tree) {
-        int expectedDepth = tree.getDepth() - level - 1;
         int type = buffer.getPageType();
 
-        if (type != Buffer.PAGE_TYPE_DATA + expectedDepth) {
+        if (type != Buffer.PAGE_TYPE_DATA + level) {
             addFault("Unexpected page type " + type, buffer.getPageAddress(), level, 0);
             return false;
         } else {
@@ -984,8 +984,8 @@ public class IntegrityCheck extends Task {
                     return startingBuffer;
                 }
 
-                _holeCount++;
-                if (_holeCount < MAX_HOLES_TO_FIX) {
+                _counters._indexHoleCount++;
+                if (_holes.size() < MAX_HOLES_TO_FIX) {
                     _holes.add(new CleanupIndexHole(_currentTree.getHandle(), page, level));
                 }
 
@@ -1057,17 +1057,17 @@ public class IntegrityCheck extends Task {
         int size = value.getEncodedSize();
         byte[] bytes = value.getEncodedBytes();
         if (size != Buffer.LONGREC_SIZE) {
-            addFault("Invalid long record stub size (" + size + ")", page, _depth, foundAt);
+            addFault("Invalid long record stub size (" + size + ")", page, 0, foundAt);
             return false;
         }
         int longSize = Buffer.decodeLongRecordDescriptorSize(bytes, 0);
         long pointer = Buffer.decodeLongRecordDescriptorPointer(bytes, 0);
 
         if (longSize < Buffer.LONGREC_PREFIX_SIZE) {
-            addFault("Invalid long record size (" + longSize + ")", page, _depth, foundAt);
+            addFault("Invalid long record size (" + longSize + ")", page, 0, foundAt);
         }
         if (pointer <= 0 || pointer > Buffer.MAX_VALID_PAGE_ADDR) {
-            addFault("Invalid long record pointer (" + pointer + ")", page, _depth, foundAt);
+            addFault("Invalid long record pointer (" + pointer + ")", page, 0, foundAt);
         }
 
         long fromPage = page;
@@ -1075,12 +1075,12 @@ public class IntegrityCheck extends Task {
 
         for (long longPage = pointer; longPage != 0;) {
             if (_usedPageBits.get(longPage)) {
-                addFault("Long record page " + longPage + " is multiply linked", page, _depth, foundAt);
+                addFault("Long record page " + longPage + " is multiply linked", page, 0, foundAt);
                 break;
             }
             _usedPageBits.set(longPage, true);
             if (longSize <= 0) {
-                addFault("Long record chain too long at page " + longPage + " pointed to by " + fromPage, page, _depth,
+                addFault("Long record chain too long at page " + longPage + " pointed to by " + fromPage, page, 0,
                         foundAt);
                 break;
             }
@@ -1089,7 +1089,7 @@ public class IntegrityCheck extends Task {
                 longBuffer = getPage(longPage);
                 if (!longBuffer.isLongRecordPage()) {
                     addFault("Invalid long record page " + longPage + ": type=" + longBuffer.getPageTypeName(), page,
-                            _depth, foundAt);
+                            0, foundAt);
                     break;
                 }
                 int segmentSize = longBuffer.getBufferSize() - Buffer.HEADER_SIZE;
