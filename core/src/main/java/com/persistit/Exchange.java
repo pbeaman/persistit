@@ -1878,6 +1878,7 @@ public class Exchange {
             throws PersistitException {
         _persistit.checkClosed();
 
+        final Key spareKey = _spareKey1;
         final boolean doFetch = minimumBytes > 0;
         final boolean doModify = minimumBytes >= 0;
         final boolean reverse = (direction == LT) || (direction == LTEQ);
@@ -1906,7 +1907,7 @@ public class Exchange {
             // Now we are committed to computing a new key value. Save the
             // original key value for comparison.
             //
-            _key.copyTo(_spareKey1);
+            _key.copyTo(spareKey);
             int index = _key.getEncodedSize();
 
             int foundAt = 0;
@@ -1997,8 +1998,8 @@ public class Exchange {
                     // search.
                     //
 
-                    if (!nudged && !deep && _key.compareKeyFragment(_spareKey1, 0, _spareKey1.getEncodedSize()) == 0) {
-                        _key.setEncodedSize(_spareKey1.getEncodedSize());
+                    if (!nudged && !deep && _key.compareKeyFragment(spareKey, 0, spareKey.getEncodedSize()) == 0) {
+                        _key.setEncodedSize(spareKey.getEncodedSize());
                         lc._keyGeneration = -1;
                         buffer.release();
                         buffer = null;
@@ -2020,8 +2021,6 @@ public class Exchange {
                             matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
                             if (!matches && direction != EQ) {
                                 nudged = false;
-                                _key.copyTo(_spareKey1);
-                                index = _key.getEncodedSize();
                                 nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
                                 buffer.release();
                                 buffer = null;
@@ -2029,12 +2028,12 @@ public class Exchange {
                             }
                         }
                     } else {
-                        int parentIndex = _spareKey1.previousElementIndex(index);
+                        int parentIndex = spareKey.previousElementIndex(index);
                         if (parentIndex < 0) {
                             parentIndex = 0;
                         }
 
-                        matches = (_spareKey1.compareKeyFragment(_key, 0, parentIndex) == 0);
+                        matches = (spareKey.compareKeyFragment(_key, 0, parentIndex) == 0);
 
                         if (matches) {
                             index = _key.nextElementIndex(parentIndex);
@@ -2048,7 +2047,6 @@ public class Exchange {
                                 //
                                 if (!isVisibleMatch) {
                                     nudged = false;
-                                    _key.copyTo(_spareKey1);
                                     nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
                                     buffer.release();
                                     buffer = null;
@@ -2085,7 +2083,7 @@ public class Exchange {
                         if (deep) {
                             _key.setEncodedSize(0);
                         } else {
-                            _spareKey1.copyTo(_key);
+                            spareKey.copyTo(_key);
                         }
                         _key.cut();
                         if (reverse) {
@@ -2096,7 +2094,7 @@ public class Exchange {
                     }
                 } else {
                     // Restore original key
-                    _spareKey1.copyTo(_key);
+                    spareKey.copyTo(_key);
                 }
 
                 // Done
@@ -2641,13 +2639,13 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
-        _key.copyTo(_spareKey1);
+        _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
         boolean result = traverse(GT, true, 0);
-        if (result && _key.getEncodedSize() < size || _spareKey1.compareKeyFragment(_key, 0, size) != 0) {
+        if (result && _key.getEncodedSize() < size || _spareKey2.compareKeyFragment(_key, 0, size) != 0) {
             result = false;
         }
-        _spareKey1.copyTo(_key);
+        _spareKey2.copyTo(_key);
         return result;
     }
 
@@ -2810,11 +2808,11 @@ public class Exchange {
 
         // Special case for empty key
         if (key1.getEncodedSize() == 0) {
-            _spareKey1.append(BEFORE);
+            _spareKey3.append(BEFORE);
         }
 
         if (key2.getEncodedSize() == 0) {
-            _spareKey2.append(AFTER);
+            _spareKey4.append(AFTER);
         }
 
         if (_spareKey3.compareTo(_spareKey4) >= 0) {
