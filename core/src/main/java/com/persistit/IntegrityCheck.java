@@ -66,7 +66,7 @@ public class IntegrityCheck extends Task {
     private long[] _edgePages = new long[Exchange.MAX_TREE_DEPTH];
     private int[] _edgePositions = new int[Exchange.MAX_TREE_DEPTH];
     private Key[] _edgeKeys = new Key[Exchange.MAX_TREE_DEPTH];
-    int _treeDepth = -1;
+    private int _treeDepth = -1;
 
     private TreeSelector _treeSelector;
     private boolean _suspendUpdates;
