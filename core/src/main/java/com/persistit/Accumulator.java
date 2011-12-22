@@ -552,6 +552,7 @@ public abstract class Accumulator {
      */
     void updateBaseValue(final long value) {
         _baseValue = applyValue(_baseValue, value);
+        _liveValue.set(_baseValue);
     }
 
     /**
