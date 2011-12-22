@@ -32,8 +32,7 @@ import com.persistit.util.Util;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit},
- * {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <code>commit</code> is performed. At that
  * point, all the updates are written atomically - that is, completely or not at
@@ -486,6 +485,7 @@ public class Transaction {
                 _commitCount++;
                 _rollbacksSinceLastCommit = 0;
             }
+            _transactionStatus = null;
             _rollbackPending = false;
         }
         _commitCompleted = false;
@@ -911,11 +911,12 @@ public class Transaction {
     }
 
     void writeDeltaToJournal(final Delta delta) throws PersistitIOException {
+        final int treeHandle = _persistit.getJournalManager().handleForTree(delta.getAccumulator().getTree());
         if (delta.getValue() == 1) {
             prepare(D0.OVERHEAD);
             JournalRecord.putLength(_buffer, D0.OVERHEAD);
             D0.putType(_buffer);
-            D0.putTreeHandle(_buffer, delta.getAccumulator().getTree().getHandle());
+            D0.putTreeHandle(_buffer, treeHandle);
             D0.putAccumulatorTypeOrdinal(_buffer, delta.getAccumulator().getType().ordinal());
             D0.putIndex(_buffer, delta.getAccumulator().getIndex());
             _buffer.position(_buffer.position() + D0.OVERHEAD);
@@ -923,7 +924,7 @@ public class Transaction {
             prepare(D1.OVERHEAD);
             JournalRecord.putLength(_buffer, D1.OVERHEAD);
             D1.putType(_buffer);
-            D1.putTreeHandle(_buffer, delta.getAccumulator().getTree().getHandle());
+            D1.putTreeHandle(_buffer, treeHandle);
             D1.putIndex(_buffer, delta.getAccumulator().getIndex());
             D1.putAccumulatorTypeOrdinal(_buffer, delta.getAccumulator().getType().ordinal());
             D1.putValue(_buffer, delta.getValue());
