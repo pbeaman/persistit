@@ -11,16 +11,20 @@ logpath $logpath$/result_$timestamp$.log
 // 
 //    java -cp ${PERSISTIT_JAR} com.persistit.test.TestRunner 
 //              script=recovery_1.plan datapath=/tmp/persistit_test_data -e
+//              > /tmp/persistit_test_data/recovery.log
 //
 // The -e flag causes TestRunner to exit with a non-zero status on failure.
+// Cat the output to /tmp/persistit_test_data/recovery.log because that's where
+// recovery_2.plan expects to find the ticket stream for verification.
 //
 
-delete $datapath$/persistit $datapath$/persistit_journal.*
+delete $datapath$/persistit
+delete $datapath$/persistit_journal*
 
-prop buffer.count.8192=50000
-prop volume.1=$datapath$/persistit,create,pageSize:8192,initialSize:100M,extensionSize:100M,maximumSize:100G,alias:persistit
+prop buffer.memory.16384=64M,1T,256M,0.7
+prop volume.1=$datapath$/persistit,create,pageSize:16384,initialSize:100M,extensionSize:100M,maximumSize:100G,alias:persistit
 prop journalpath=$datapath$/persistit_journal
-prop logfile=$logpath$/persistit_$timestamp$.log
+prop logfile=$datapath$/persistit_$timestamp$.log
 prop rmiport=8081
 
 //

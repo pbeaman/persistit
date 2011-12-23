@@ -237,7 +237,8 @@ public class StressRecovery extends StressBase {
     }
 
     class SimpleTransactionType implements TransactionType {
-
+        private static final int SCALE = 10000;
+        
         @Override
         public void performTransaction(long ticketId) throws Exception {
             Transaction txn = _persistit.getTransaction();
@@ -245,7 +246,7 @@ public class StressRecovery extends StressBase {
                 txn.begin();
                 try {
                     _exs.getValue().putString("ticket " + ticketId + " value");
-                    _exs.clear().append(ticketId % 1000).append(ticketId / 1000);
+                    _exs.clear().append(ticketId % SCALE).append(ticketId / SCALE);
                     _exs.store();
                     txn.commit(false);
                     break;
@@ -259,7 +260,7 @@ public class StressRecovery extends StressBase {
 
         @Override
         public void verifyTransaction(long ticketId) throws Exception {
-            _exs.clear().append(ticketId % 1000).append(ticketId / 1000);
+            _exs.clear().append(ticketId % SCALE).append(ticketId / SCALE);
             _exs.fetch();
             check(ticketId, _exs, "ticket " + ticketId + " value");
         }

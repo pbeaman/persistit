@@ -6,8 +6,8 @@ logpath $logpath$/result_$timestamp$.log
 // This second phase tests whether each completed transaction
 // is actually present in the recovered database.
 //
-// This plan assumes that competed tickets were piped to
-// file $datapath$/recover.log
+// This plan assumes that completed tickets were piped to
+// file $datapath$/recovery.log
 //
 //
 // To run this:
@@ -17,8 +17,8 @@ logpath $logpath$/result_$timestamp$.log
 //
 // The -e flag causes TestRunner to exit with a non-zero status on failure.
 //
-prop buffer.count.8192=5000
-prop volume.1=$datapath$/persistit,create,pageSize:8192,initialPages:10K,extensionPages:10K,maximumPages:1M,alias:persistit
+prop buffer.memory.16384=64M,1T,256M,0.7
+prop volume.1=$datapath$/persistit,create,pageSize:16384,initialSize:100M,extensionSize:100M,maximumSize:100G,alias:persistit
 prop journalpath=$datapath$/persistit_journal
 prop logfile=$logpath$/persistit_$timestamp$.log
 prop rmiport=8081
