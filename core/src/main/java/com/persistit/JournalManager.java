@@ -633,7 +633,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             Arrays.fill(bb.array(), leftSize, bufferSize - rightSize, (byte) 0);
         }
         bb.limit(bufferSize).position(0);
-        buffer.claim(true, 0);
+        boolean acquired = buffer.claim(true, 0);
+        assert acquired : "buffer in use";
         buffer.load();
         buffer.release();
         return buffer;

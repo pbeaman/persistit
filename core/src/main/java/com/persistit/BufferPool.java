@@ -48,9 +48,9 @@ public class BufferPool {
     /**
      * Default PageWriter polling interval
      */
-    private final static long DEFAULT_WRITER_POLL_INTERVAL = 1000;
+    private final static long DEFAULT_WRITER_POLL_INTERVAL = 5000;
 
-    private final static int PAGE_WRITER_TRANCHE_SIZE = 1000;
+    private final static int PAGE_WRITER_TRANCHE_SIZE = 5000;
 
     /**
      * Sleep time when buffers are exhausted
@@ -89,6 +89,11 @@ public class BufferPool {
      * Ratio determines which of two volume invalidation algorithms to invoke.
      */
     private final static float SMALL_VOLUME_RATIO = 0.1f;
+
+    /**
+     * Ratio of age-based write priority bump
+     */
+    private final static int WRITE_AGE_THRESHOLD_RATIO = 4;
 
     /**
      * The Persistit instance that references this BufferPool.
@@ -323,8 +328,6 @@ public class BufferPool {
         IOTaskRunnable.crash(_writer);
     }
 
-
-
     void flush(final long timestamp) throws PersistitInterruptedException {
         setFlushTimestamp(timestamp);
         _writer.kick();
@@ -392,6 +395,7 @@ public class BufferPool {
         info.validPageCount = validPages;
         info.readerClaimedPageCount = readerClaimedPages;
         info.writerClaimedPageCount = writerClaimedPages;
+        info.earliestDirtyTimestamp = getEarliestDirtyTimestamp();
 
         info.updateAcquisitonTime();
     }
@@ -906,7 +910,8 @@ public class BufferPool {
         // Didn't find it in the pool, so we'll read a copy.
         //
         buffer = new Buffer(_bufferSize, -1, this, _persistit);
-        buffer.claim(true);
+        boolean acquired = buffer.claim(true);
+        assert acquired : "buffer not unavailable";
         buffer.load(vol, page);
         buffer.setValid();
         buffer.release();
@@ -1063,7 +1068,11 @@ public class BufferPool {
         WRITTEN, UNAVAILABLE, ERROR
     };
 
-    long getEarliestDirtyTimestamp() {
+    /**
+     * @return Earliest timestamp of any dirty page in this
+     *         <code>BufferPool</code>.
+     */
+    public long getEarliestDirtyTimestamp() {
         return _earliestDirtyTimestamp;
     }
 
@@ -1105,44 +1114,68 @@ public class BufferPool {
         final int clock = _clock.get();
 
         final long checkpointTimestamp = _persistit.getCurrentCheckpoint().getTimestamp();
+        final long currentTimestamp = _persistit.getCurrentTimestamp();
+
         long earliestDirtyTimestamp = checkpointTimestamp;
         long flushTimestamp = _flushTimestamp.get();
 
         boolean flushed = true;
         for (int index = clock; index < clock + _bufferCount; index++) {
             final Buffer buffer = _buffers[index % _bufferCount];
-            if (!buffer.claim(false, SELECT_DIRTY_BUFFERS_WAIT_INTERVAL)) {
-                earliestDirtyTimestamp = _earliestDirtyTimestamp;
-                flushed = false;
+            long timestamp = buffer.getTimestamp();
+            /*
+             * The following is subtle timing dance. If the buffer claim is
+             * acquired here then no other thread can modify its timestamp or
+             * dirty flag until it is released, and the timestamp reflects the
+             * true sequence at which the buffer became dirty. However, if the
+             * buffer is in use by another thread, then the timestamp reflects
+             * either (a) the timestamp at which the buffer became dirty if is
+             * is dirty, or (b) the the timestamp at which the thread holding
+             * the claim acquired it.
+             */
+            if (!buffer.claim(false, 0)) {
+                /*
+                 * Without a claim, we are still guaranteed that the buffer will
+                 * never receive a dirty timestamp less than the current
+                 * timestamp.
+                 */
+                if (timestamp < earliestDirtyTimestamp) {
+                    earliestDirtyTimestamp = timestamp;
+                }
+                if (timestamp < flushTimestamp) {
+                    flushed = false;
+                }
             } else {
                 try {
-                    final int priority = writePriority(buffer, clock, checkpointTimestamp);
-                    if (priority > 0) {
-                        if (priority <= min) {
-                            if (count < priorities.length) {
-                                priorities[count] = priority;
-                                buffers[count] = buffer;
+                    if (buffer.isDirty()) {
+                        final int priority = writePriority(buffer, clock, checkpointTimestamp, currentTimestamp);
+                        if (priority > 0) {
+                            if (priority <= min) {
+                                if (count < priorities.length) {
+                                    priorities[count] = priority;
+                                    buffers[count] = buffer;
+                                    count++;
+                                    min = priority;
+                                }
+                            } else {
+                                count = Math.min(count, priorities.length - 1);
+                                int where;
+                                for (where = count; --where >= 0 && priorities[where] < priority;) {
+                                }
+                                System.arraycopy(priorities, where + 1, priorities, where + 2, count - where - 1);
+                                System.arraycopy(buffers, where + 1, buffers, where + 2, count - where - 1);
+                                priorities[where + 1] = priority;
+                                buffers[where + 1] = buffer;
                                 count++;
-                                min = priority;
                             }
-                        } else {
-                            count = Math.min(count, priorities.length - 1);
-                            int where;
-                            for (where = count; --where >= 0 && priorities[where] < priority;) {
-                            }
-                            System.arraycopy(priorities, where + 1, priorities, where + 2, count - where - 1);
-                            System.arraycopy(buffers, where + 1, buffers, where + 2, count - where - 1);
-                            priorities[where + 1] = priority;
-                            buffers[where + 1] = buffer;
-                            count++;
-                        }
-                        if (!buffer.isTemporary()) {
-                            if (buffer.getTimestamp() < earliestDirtyTimestamp) {
-                                earliestDirtyTimestamp = buffer.getTimestamp();
-                            }
-
-                            if (buffer.getTimestamp() <= flushTimestamp) {
-                                flushed = false;
+                            if (!buffer.isTemporary()) {
+                                timestamp = buffer.getTimestamp();
+                                if (timestamp < earliestDirtyTimestamp) {
+                                    earliestDirtyTimestamp = timestamp;
+                                }
+                                if (timestamp <= flushTimestamp) {
+                                    flushed = false;
+                                }
                             }
                         }
                     }
@@ -1150,6 +1183,7 @@ public class BufferPool {
                     buffer.release();
                 }
             }
+
         }
 
         _earliestDirtyTimestamp = earliestDirtyTimestamp;
@@ -1167,7 +1201,7 @@ public class BufferPool {
      * 
      * @return priority
      */
-    private int writePriority(final Buffer buffer, int clock, long checkpointTimestamp) {
+    private int writePriority(final Buffer buffer, int clock, long checkpointTimestamp, final long currentTimestamp) {
         int status = buffer.getStatus();
         if ((status & Buffer.VALID_MASK) == 0 || (status & Buffer.DIRTY_MASK) == 0) {
             // ineligible
@@ -1178,6 +1212,7 @@ public class BufferPool {
         // distance results in lower priority.
         //
         int distance = (buffer.getIndex() - _clock.get() + _bufferCount) % _bufferCount;
+        int age = 0;
         //
         // If this buffer has been touched, then it won't be evicted for at
         // least another _bufferCount cycles, and its distance is therefore
@@ -1188,29 +1223,19 @@ public class BufferPool {
         }
 
         if (!buffer.isTemporary()) {
-            //
-            // Give higher priority to a dirty buffer that needs to be
-            // check-pointed.
-            //
-            if (buffer.getTimestamp() < checkpointTimestamp) {
-                distance -= _bufferCount;
-                //
-                // And give even higher priority to a dirty buffer that
-                // is older than the previous checkpoint since that buffer
-                // is preventing a new checkpoint from being written.
-                //
-                if (buffer.getTimestamp() < checkpointTimestamp
-                        - _persistit.getCheckpointManager().getCheckpointInterval()) {
-                    distance -= _bufferCount;
-                }
+            long timestampThreshold = (currentTimestamp * WRITE_AGE_THRESHOLD_RATIO + checkpointTimestamp)
+                    / WRITE_AGE_THRESHOLD_RATIO;
+            if (_flushTimestamp.get() > timestampThreshold) {
+                timestampThreshold = _flushTimestamp.get();
             }
             //
-            // If there's a flushTimestamp then increase the priority of
-            // writing this buffer it its timestamp is older than the
-            // flushTimestamp.
+            // Give higher priority to a older dirty buffers that need to be
+            // written soon
+            // to allow a checkpoint.
             //
-            if (buffer.getTimestamp() < _flushTimestamp.get()) {
-                distance -= _bufferCount;
+            if (buffer.getTimestamp() < timestampThreshold) {
+                age = (int) Math.min(timestampThreshold - buffer.getTimestamp(), Integer.MAX_VALUE / 2);
+                distance = 0;
             }
         } else {
             //
@@ -1224,7 +1249,7 @@ public class BufferPool {
         //
         // Bias to a large positive integer (magnitude doesn't matter)
         //
-        return Integer.MAX_VALUE / 2 - distance;
+        return _bufferCount * 2 - distance + age;
     }
 
     /**
@@ -1249,11 +1274,8 @@ public class BufferPool {
             _persistit.cleanup();
 
             int cleanCount = _bufferCount - _dirtyPageCount.get();
-            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2
-                    && cleanCount > _bufferCount / 8
-                    && !isFlushing()
-                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint()
-                            .getTimestamp()) {
+            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8 && !isFlushing()
+                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {
                 return;
             }
             writeDirtyBuffers(_priorities, _selectedBuffers);

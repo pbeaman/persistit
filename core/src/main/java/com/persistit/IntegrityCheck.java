@@ -23,6 +23,7 @@ import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
 import com.persistit.CleanupManager.CleanupIndexHole;
 import com.persistit.CleanupManager.CleanupPruneAction;
+import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
@@ -718,7 +719,7 @@ public class IntegrityCheck extends Task {
         Counters treeCounters = new Counters(_counters);
         int faults = _faults.size();
         if (!tree.claim(true)) {
-            throw new TimeoutException(tree + " is in use");
+            throw new InUseException("Unable to acquire claim on " + this);
         }
         try {
             try {

@@ -294,6 +294,8 @@ public class Transaction {
 
     private int _step;
 
+    private String _threadName;
+
     /**
      * Creates a new transaction context. Any transaction performed within this
      * context will be isolated from all other transactions.
@@ -403,6 +405,7 @@ public class Transaction {
             _step = 0;
             _buffer.clear();
             _previousJournalAddress = 0;
+            _threadName = Thread.currentThread().getName();
         } else {
             checkPendingRollback();
         }
@@ -487,6 +490,7 @@ public class Transaction {
             }
             _transactionStatus = null;
             _rollbackPending = false;
+            _threadName = null;
         }
         _commitCompleted = false;
     }
@@ -518,7 +522,6 @@ public class Transaction {
 
         _rollbackPending = true;
 
-        // TODO - rollback
         _transactionStatus.abort();
         _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
                 _persistit.getTimestampAllocator().getCurrentTimestamp());
@@ -744,8 +747,18 @@ public class Transaction {
      */
     @Override
     public String toString() {
-        return "Transaction_" + _id + " depth=" + _nestedDepth + " _rollbackPending=" + _rollbackPending
-                + " _commitCompleted=" + _commitCompleted;
+        return "Transaction_" + _id + " depth=" + _nestedDepth + " status=" + getStatus()
+                + (_threadName == null ? "" : " owner=" + _threadName);
+    }
+
+    String getStatus() {
+        final TransactionStatus status = _transactionStatus;
+        final long ts = getStartTimestamp();
+        if (status != null && status.getTs() == ts) {
+            return status.toString();
+        } else {
+            return "<not running>";
+        }
     }
 
     /**
@@ -936,10 +949,30 @@ public class Transaction {
         return _transactionStatus;
     }
 
+    /**
+     * @return Get the current step index. Incremented by
+     *         {@link #incrementStep()} when server detects the start of a new
+     *         query within a transaction.
+     */
     public int getCurrentStep() {
         return _step;
     }
 
+    /**
+     * Increment this transaction's current step index. Once the step is
+     * non-zero, values written by updates within this transaction are visible
+     * (within this transaction) only of they were written with earlier step
+     * indexes. In other words, a transaction that writes an update at step N
+     * where N > 0 cannot see the result of that update when reading database
+     * values, but can see updates written at steps N-1 and before. This
+     * mechanism helps solve the "Halloween" problem in which a SELECT query
+     * producing values to UPDATE should not be able to read back those update
+     * values.
+     * 
+     * @throws IllegalStateException
+     *             if this method is called 100 times or more within the scope
+     *             of one transaction.
+     */
     public void incrementStep() {
         checkPendingRollback();
         if (_step < MAXIMUM_STEP) {

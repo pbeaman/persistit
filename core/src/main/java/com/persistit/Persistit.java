@@ -376,10 +376,6 @@ public class Persistit {
 
     private long _defaultTimeout;
 
-    private final SharedResource _transactionResourceA = new SharedResource(this);
-
-    private final SharedResource _transactionResourceB = new SharedResource(this);
-
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
@@ -693,6 +689,7 @@ public class Persistit {
             registerMBean(getManagement(), ManagementMXBean.MXBEAN_NAME);
             registerMBean(_ioMeter, IOMeterMXBean.MXBEAN_NAME);
             registerMBean(_cleanupManager, CleanupManagerMXBean.MXBEAN_NAME);
+            registerMBean(_transactionIndex, TransactionIndexMXBean.MXBEAN_NAME);
             registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
             registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
         } catch (Exception exception) {
@@ -720,6 +717,7 @@ public class Persistit {
         try {
             unregisterMBean(RecoveryManagerMXBean.MXBEAN_NAME);
             unregisterMBean(JournalManagerMXBean.MXBEAN_NAME);
+            unregisterMBean(TransactionIndexMXBean.MXBEAN_NAME);
             unregisterMBean(CleanupManagerMXBean.MXBEAN_NAME);
             unregisterMBean(IOMeterMXBean.MXBEAN_NAME);
             unregisterMBean(ManagementMXBean.MXBEAN_NAME);
@@ -1609,6 +1607,37 @@ public class Persistit {
     }
 
     /**
+     * Reports status of the <code>max</code> longest-running transactions, in order
+     * from oldest to youngest.
+     * @param max
+     * @return
+     */
+    public String transactionReport(final int max) {
+        long[] timestamps = _transactionIndex.oldestTransactions(max);
+        if (timestamps == null) {
+            return "Unstable after 10 retries";
+        }
+        if (timestamps.length == 0) {
+            return "";
+        }
+        final StringBuilder sb = new StringBuilder();
+        for (int index = 0; index < timestamps.length; index++) {
+            boolean found = false;
+            for (final Transaction txn : _transactionSessionMap.values()) {
+                if (txn.isActive() && txn.getStartTimestamp() == timestamps[index]) {
+                    sb.append(txn.toString());
+                    found = true;
+                }
+            }
+            if (!found) {
+                sb.append(String.format("No active transaction starting at %,d remains active", timestamps[index]));
+            }
+            sb.append(Util.NEW_LINE);
+        }
+        return sb.toString();
+    }
+
+    /**
      * <p>
      * Close the Persistit Journal and all {@link Volume}s. This method is
      * equivalent to {@link #close(boolean) close(true)}.
@@ -1709,7 +1738,6 @@ public class Persistit {
                 volume.getStorage().flush();
             }
         }
-
 
         _cleanupManager.close(flush);
         waitForIOTaskStop(_cleanupManager);
@@ -1975,7 +2003,7 @@ public class Persistit {
         }
     }
 
-    /**
+/**
      * Copy the {@link Transaction} context objects belonging to threads that
      * are currently alive to the supplied List. This method is used by
      * JOURNAL_FLUSHER to look for transactions that need to be written to the
@@ -2096,7 +2124,7 @@ public class Persistit {
     CheckpointManager getCheckpointManager() {
         return _checkpointManager;
     }
-    
+
     CleanupManager getCleanupManager() {
         return _cleanupManager;
     }
@@ -2107,14 +2135,6 @@ public class Persistit {
 
     TransactionIndex getTransactionIndex() {
         return _transactionIndex;
-    }
-
-    SharedResource getTransactionResourceA() {
-        return _transactionResourceA;
-    }
-
-    SharedResource getTransactionResourceB() {
-        return _transactionResourceB;
     }
 
     /**

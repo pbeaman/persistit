@@ -50,6 +50,7 @@ import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TreeNotFoundException;
+import com.persistit.exception.WWRetryException;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
 import com.persistit.util.Debug;
@@ -196,7 +197,10 @@ public class Exchange {
                     break;
 
                 case STORE:
-                    long depends = _ti.wwDependency(version, _status, Persistit.SHORT_DELAY);
+                    long depends = _ti.wwDependency(version, _status, 0);
+                    if (depends == TransactionStatus.TIMED_OUT) {
+                        throw new WWRetryException(version);
+                    }
                     if (depends != 0 && depends != TransactionStatus.ABORTED) {
                         // version is from concurrent txn that already committed
                         // or timed out waiting to see. Either
@@ -1245,7 +1249,9 @@ public class Exchange {
         }
         key.testValidForStoreAndFetch(_volume.getPageSize());
         _persistit.checkClosed();
-        _persistit.checkSuspended();
+        if (!isDirectoryExchange()) {
+            _persistit.checkSuspended();
+        }
 
         // TODO: directoryExchange, and lots of tests, don't use transactions.
         // Skip MVCC for now.
@@ -1553,6 +1559,26 @@ public class Exchange {
                         continue;
                     }
 
+                } catch (WWRetryException re) {
+                    newLongRecordPointer = 0;
+                    newLongRecordPointerMVV = 0;
+                    oldLongRecordPointer = 0;
+                    if (buffer != null) {
+                        buffer.releaseTouched();
+                        buffer = null;
+                    }
+                    try {
+                        long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
+                                _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME); // TODO
+                    if (depends != 0 && depends != TransactionStatus.ABORTED) {
+                        // version is from concurrent txn that already committed
+                        // or timed out waiting to see. Either
+                        // way, must abort.
+                        throw new RollbackException();
+                    }
+                    } catch (InterruptedException ie) {
+                        throw new PersistitInterruptedException(ie);
+                    }
                 } catch (RetryException re) {
                     newLongRecordPointer = 0;
                     newLongRecordPointerMVV = 0;
@@ -2963,7 +2989,7 @@ public class Exchange {
                                     foundAt2 &= P_MASK;
                                     if (foundAt2 < buffer.getKeyBlockEnd()) {
                                         Debug.$assert0.t(foundAt2 >= foundAt1);
-                                        
+
                                         if (removeOnlyAntiValue) {
                                             for (int p = foundAt1; p < foundAt2; p += KEYBLOCK_LENGTH) {
                                                 if (!buffer.isPrimordialAntiValue(p)) {
@@ -3101,11 +3127,12 @@ public class Exchange {
                     }
 
                     LevelCache lc = _levelCache[0];
-                    if (removeOnlyAntiValue & !isKeyRangeAntiValue(lc._leftBuffer, lc._leftFoundAt, lc._rightBuffer, lc._rightFoundAt)) {
+                    if (removeOnlyAntiValue
+                            & !isKeyRangeAntiValue(lc._leftBuffer, lc._leftFoundAt, lc._rightBuffer, lc._rightFoundAt)) {
                         result = false;
                         break;
                     }
-                    
+
                     if (fetchFirst) {
                         removeFetchFirst(lc._leftBuffer, lc._leftFoundAt, lc._rightBuffer, lc._rightFoundAt);
                     }
@@ -3310,7 +3337,6 @@ public class Exchange {
                         buffer.releaseTouched();
                         buffer = null;
                     }
-                    waitForTreeExclusive();
                 } finally {
                     if (buffer != null) {
                         buffer.releaseTouched();
@@ -3384,20 +3410,20 @@ public class Exchange {
         }
     }
 
-    private boolean isKeyRangeAntiValue(final Buffer buffer1, final int foundAt1, final Buffer buffer2, final int foundAt2) {
-    if (buffer1.getKeyBlockEnd() != (foundAt1 & P_MASK) + KEYBLOCK_LENGTH ) {
-        return false;
+    private boolean isKeyRangeAntiValue(final Buffer buffer1, final int foundAt1, final Buffer buffer2,
+            final int foundAt2) {
+        if (buffer1.getKeyBlockEnd() != (foundAt1 & P_MASK) + KEYBLOCK_LENGTH) {
+            return false;
+        }
+        if (buffer2.getKeyBlockStart() != (foundAt2 & P_MASK) - KEYBLOCK_LENGTH) {
+            return false;
+        }
+        if (buffer1.getRightSibling() != buffer2.getPageAddress()) {
+            return false;
+        }
+        return buffer2.isPrimordialAntiValue(Buffer.KEY_BLOCK_START);
     }
-    if (buffer2.getKeyBlockStart() != (foundAt2 & P_MASK) - KEYBLOCK_LENGTH ) {
-        return false;
-    }
-    if (buffer1.getRightSibling() != buffer2.getPageAddress()) {
-        return false;
-    }
-    return buffer2.isPrimordialAntiValue(Buffer.KEY_BLOCK_START);
-    }
-    
-    
+
     void prune() throws PersistitException {
         prune(_key);
     }
@@ -3418,7 +3444,7 @@ public class Exchange {
             }
         }
     }
-    
+
     boolean prune(final long page) throws PersistitException {
         Buffer buffer = null;
         try {
@@ -3429,7 +3455,7 @@ public class Exchange {
                 buffer.release();
             }
         }
-        
+
     }
 
     boolean pruneLeftEdgeValue(final long page) throws PersistitException {
@@ -3458,7 +3484,7 @@ public class Exchange {
             }
         }
     }
-    
+
     boolean fixIndexHole(final long page, final int level) throws PersistitException {
         Buffer buffer = null;
         if (!_treeHolder.claim(false, Persistit.SHORT_DELAY)) {
@@ -3724,15 +3750,6 @@ public class Exchange {
 
     public void setJoinPolicy(JoinPolicy policy) {
         _joinPolicy = policy;
-    }
-
-    /**
-     * Called after RetryException due to an operation discovering too late it
-     * needs exclusive access to a Tree
-     */
-    private void waitForTreeExclusive() throws PersistitException {
-        _treeHolder.claim(true);
-        _treeHolder.release();
     }
 
     public KeyHistogram computeHistogram(final Key start, final Key end, final int sampleSize, final int keyDepth,

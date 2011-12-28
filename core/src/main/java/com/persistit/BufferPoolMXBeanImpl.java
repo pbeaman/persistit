@@ -208,4 +208,13 @@ public class BufferPoolMXBeanImpl implements BufferPoolMXBean {
         return recent().getWriterClaimedPageCount();
     }
 
+    /**
+     * @return Earliest timestamp of any dirty page in this
+     *         <code>BufferPool</code>.
+     */
+    @Override
+    public long getEarliestDirtyTimestamp() {
+        return recent().getEarliestDirtyTimestamp();
+    }
+
 }

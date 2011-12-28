@@ -128,4 +128,10 @@ public interface BufferPoolMXBean {
      */
     public int getWriterClaimedPageCount();
 
+    /**
+     * @return Earliest timestamp of any dirty page in this
+     *         <code>BufferPool</code>.
+     */
+    public long getEarliestDirtyTimestamp();
+
 }

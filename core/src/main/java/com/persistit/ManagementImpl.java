@@ -364,6 +364,11 @@ class ManagementImpl implements Management {
     }
 
     @Override
+    public String transactionReport(int max) {
+        return _persistit.transactionReport(max);
+    }
+    
+    @Override
     public LogicalRecord[] getLogicalRecordArray(String volumeName, String treeName, String keyFilterString,
             KeyState fromKey, Key.Direction direction, int maxCount, int maxValueBytes, boolean decodeStrings)
             throws RemoteException {

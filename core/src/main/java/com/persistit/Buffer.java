@@ -257,18 +257,20 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     private final static Stack<int[]> REPACK_BUFFER_STACK = new Stack<int[]>();
 
     public final static int MAX_KEY_RATIO = 16;
-    
+
     abstract static class VerifyVisitor {
 
         protected void visitPage(long timestamp, Volume volume, long page, int type, int bufferSize, int keyBlockStart,
                 int keyBlockEnd, int alloc, int available, long rightSibling) throws PersistitException {
         }
 
-        protected void visitIndexRecord(Key key, int foundAt, int tail, int kLength, long pointer) throws PersistitException {
+        protected void visitIndexRecord(Key key, int foundAt, int tail, int kLength, long pointer)
+                throws PersistitException {
 
         }
 
-        protected void visitDataRecord(Key key, int foundAt, int tail, int klength, int offset, int length, byte[] bytes) throws PersistitException {
+        protected void visitDataRecord(Key key, int foundAt, int tail, int klength, int offset, int length, byte[] bytes)
+                throws PersistitException {
         }
     }
 
@@ -516,6 +518,21 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         }
         _timestamp = timestamp;
         bumpGeneration();
+    }
+
+    boolean claim(boolean writer) throws PersistitInterruptedException {
+        return claim(writer, DEFAULT_MAX_WAIT_TIME);
+    }
+
+    boolean claim(boolean writer, long timeout) throws PersistitInterruptedException {
+        if (super.claim(writer, timeout)) {
+            if (!isDirty()) {
+                _timestamp = _persistit.getCurrentTimestamp();
+            }
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**

@@ -109,7 +109,7 @@ class VolumeStorageT2 extends VolumeStorage {
     FileChannel getChannel() throws PersistitIOException {
         if (_channel == null) {
             try {
-            _channel = new MediatedFileChannel(_path, "rw");
+                _channel = new MediatedFileChannel(_path, "rw");
             } catch (IOException ioe) {
                 _persistit.getLogBase().tempVolumeCreateException.log(ioe, _path);
                 throw new PersistitIOException(ioe);
@@ -237,17 +237,25 @@ class VolumeStorageT2 extends VolumeStorage {
     }
 
     void truncate() throws PersistitException {
-        VolumeStatistics stat = _volume.getStatistics();
-        VolumeStructure struc = _volume.getStructure();
+        if (!claim(true, 0)) {
+            throw new InUseException("Unable to acquire claim on " + this);
+        }
+        try {
+            VolumeStatistics stat = _volume.getStatistics();
+            VolumeStructure struc = _volume.getStructure();
 
-        long now = System.currentTimeMillis();
-        stat.setCreateTime(now);
-        stat.setOpenTime(now);
+            long now = System.currentTimeMillis();
+            stat.setCreateTime(now);
+            stat.setOpenTime(now);
 
-        _nextAvailablePage = 1;
+            _nextAvailablePage = 1;
 
-        struc.init(0, 0);
+            struc.init(0, 0);
+        } finally {
+            release();
+        }
         flushMetaData();
+
     }
 
     boolean isOpened() {

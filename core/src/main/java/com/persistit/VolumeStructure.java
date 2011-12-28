@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.persistit.exception.CorruptVolumeException;
+import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
@@ -200,9 +201,11 @@ class VolumeStructure {
     void storeTreeStatistics(Tree tree) throws PersistitException {
         if (tree.getStatistics().isDirty() && !DIRECTORY_TREE_NAME.equals(tree.getName())) {
             Exchange ex = directoryExchange();
-            ex.getValue().put(tree.getStatistics());
-            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).store();
-            tree.getStatistics().setDirty(false);
+            if (!ex.getVolume().isReadOnly()) {
+                ex.getValue().put(tree.getStatistics());
+                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).store();
+                tree.getStatistics().setDirty(false);
+            }
         }
     }
 
@@ -223,7 +226,9 @@ class VolumeStructure {
         int depth = -1;
         long page = -1;
 
-        tree.claim(true);
+        if (!tree.claim(true)) {
+            throw new InUseException("Unable to acquire writer claim on " + tree);
+        }
 
         synchronized (this) {
             _treeNameHashMap.remove(tree.getName());
@@ -313,7 +318,7 @@ class VolumeStructure {
                 }
             }
             for (final Tree tree : trees) {
-                    storeTreeStatistics(tree);
+                storeTreeStatistics(tree);
             }
         } catch (Exception e) {
             _persistit.getLogBase().adminFlushException.log(e);
@@ -381,13 +386,13 @@ class VolumeStructure {
      */
     Buffer allocPage() throws PersistitException {
         Buffer buffer = null;
-        _volume.getStorage().claimHeadBuffer();
-        try {
-            long garbageRoot = getGarbageRoot();
-            if (garbageRoot != 0) {
-                Buffer garbageBuffer = _pool.get(_volume, garbageRoot, true, true);
+        long garbageRoot = getGarbageRoot();
+        if (garbageRoot != 0) {
+            Buffer garbageBuffer = _pool.get(_volume, garbageRoot, true, true);
+            try {
                 final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                 garbageBuffer.writePageOnCheckpoint(timestamp);
+                _volume.getStorage().claimHeadBuffer();
                 try {
                     Debug.$assert0.t(garbageBuffer.isGarbagePage());
                     Debug.$assert0.t((garbageBuffer.getStatus() & Buffer.CLAIMED_MASK) == 1);
@@ -431,32 +436,31 @@ class VolumeStructure {
                                     && buffer.getPageAddress() != _directoryRootPage);
 
                     harvestLongRecords(buffer, 0, Integer.MAX_VALUE);
-
                     buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
                     buffer.clear();
                     return buffer;
                 } finally {
-                    if (garbageBuffer != null) {
-                        garbageBuffer.releaseTouched();
-                    }
+                    _volume.getStorage().releaseHeadBuffer();
                 }
-            } else {
-                long page = _volume.getStorage().allocNewPage();
-
-                // No need to read the prior content of the page - we trust
-                // it's never been used before.
-                buffer = _pool.get(_volume, page, true, false);
-                buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
-                // -
-                // debug
-
-                _volume.getStorage().flushMetaData();
-
-                Debug.$assert0.t(buffer.getPageAddress() != 0);
-                return buffer;
+            } finally {
+                if (garbageBuffer != null) {
+                    garbageBuffer.releaseTouched();
+                }
             }
-        } finally {
-            _volume.getStorage().releaseHeadBuffer();
+        } else {
+            long page = _volume.getStorage().allocNewPage();
+
+            // No need to read the prior content of the page - we trust
+            // it's never been used before.
+            buffer = _pool.get(_volume, page, true, false);
+            buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
+            // -
+            // debug
+
+            _volume.getStorage().flush();
+
+            Debug.$assert0.t(buffer.getPageAddress() != 0);
+            return buffer;
         }
     }
 
