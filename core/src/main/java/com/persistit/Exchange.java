@@ -3333,10 +3333,7 @@ public class Exchange {
                     }
                     deferredReindexRequired = false;
                 } catch (RetryException re) {
-                    if (buffer != null) {
-                        buffer.releaseTouched();
-                        buffer = null;
-                    }
+                    // can this even be thrown here?
                 } finally {
                     if (buffer != null) {
                         buffer.releaseTouched();
@@ -3363,18 +3360,6 @@ public class Exchange {
     }
 
     private void removeKeyRangeReleaseLevel(final int level) {
-        int offset = 0;
-        for (int lvl = 0; lvl < level; lvl++) {
-            final LevelCache lc = _levelCache[lvl];
-            Buffer buffer1 = lc._leftBuffer;
-            Buffer buffer2 = lc._rightBuffer;
-            if (buffer2 != null && (lc._flags & RIGHT_CLAIMED) != 0) {
-                offset++;
-            }
-            if (buffer1 != null && (lc._flags & LEFT_CLAIMED) != 0) {
-                offset++;
-            }
-        }
 
         final LevelCache lc = _levelCache[level];
         Buffer buffer1 = lc._leftBuffer;
@@ -3501,7 +3486,6 @@ public class Exchange {
             _treeHolder.release();
             if (buffer != null) {
                 buffer.release();
-                buffer = null;
             }
         }
     }
@@ -3558,8 +3542,9 @@ public class Exchange {
                     corrupt("LONG_RECORD chain is invalid at page " + page + " - invalid page type: " + buffer);
                 }
                 int segmentSize = buffer.getBufferSize() - HEADER_SIZE;
-                if (segmentSize > remainingSize)
+                if (segmentSize > remainingSize) {
                     segmentSize = remainingSize;
+                }
 
                 System.arraycopy(buffer.getBytes(), HEADER_SIZE, value.getEncodedBytes(), offset, segmentSize);
 
@@ -3580,8 +3565,9 @@ public class Exchange {
             value.setLongSize(rawSize);
             value.setEncodedSize(offset);
         } finally {
-            if (buffer != null)
+            if (buffer != null) {
                 buffer.releaseTouched();
+            }
         }
     }
 

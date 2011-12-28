@@ -125,7 +125,7 @@ class VolumeStructure {
             rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, ValueHelper.EMPTY_VALUE_WRITER);
             rootPageBuffer.setDirtyAtTimestamp(timestamp);
         } finally {
-            rootPageBuffer.releaseTouched();
+            rootPageBuffer = releaseBuffer(rootPageBuffer);
         }
         return rootPage;
     }
@@ -276,9 +276,7 @@ class VolumeStructure {
                     page = -1;
                 }
             } finally {
-                if (buffer != null)
-                    buffer.releaseTouched();
-                buffer = null;
+                buffer = releaseBuffer(buffer);
             }
             if (deallocate != -1) {
                 deallocateGarbageChain(deallocate, 0);
@@ -391,9 +389,9 @@ class VolumeStructure {
             long garbageRoot = getGarbageRoot();
             if (garbageRoot != 0) {
                 Buffer garbageBuffer = _pool.get(_volume, garbageRoot, true, true);
-                final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                garbageBuffer.writePageOnCheckpoint(timestamp);
                 try {
+                    final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                    garbageBuffer.writePageOnCheckpoint(timestamp);
                     Debug.$assert0.t(garbageBuffer.isGarbagePage());
                     Debug.$assert0.t((garbageBuffer.getStatus() & Buffer.CLAIMED_MASK) == 1);
 
@@ -441,9 +439,7 @@ class VolumeStructure {
                     buffer.clear();
                     return buffer;
                 } finally {
-                    if (garbageBuffer != null) {
-                        garbageBuffer.releaseTouched();
-                    }
+                    garbageBuffer = releaseBuffer(garbageBuffer);
                 }
             }
         } finally {
@@ -485,8 +481,7 @@ class VolumeStructure {
                     return;
                 } else {
                     _persistit.getLogBase().garbagePageFull.log(left, right, garbageBufferInfo(garbageBuffer));
-                    garbageBuffer.releaseTouched();
-                    garbageBuffer = null;
+                    garbageBuffer = releaseBuffer(garbageBuffer);
                 }
             }
             boolean solitaire = (right == -1);
@@ -539,6 +534,13 @@ class VolumeStructure {
             }
         }
         return anyLongRecords;
+    }
+    
+    private Buffer releaseBuffer(final Buffer buffer) {
+        if (buffer != null) {
+            buffer.releaseTouched();
+        }
+        return null;
     }
 
     public long getDirectoryRoot() {
