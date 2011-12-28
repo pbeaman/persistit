@@ -386,13 +386,13 @@ class VolumeStructure {
      */
     Buffer allocPage() throws PersistitException {
         Buffer buffer = null;
-        long garbageRoot = getGarbageRoot();
-        if (garbageRoot != 0) {
-            Buffer garbageBuffer = _pool.get(_volume, garbageRoot, true, true);
-            try {
+        _volume.getStorage().claimHeadBuffer();
+        try {
+            long garbageRoot = getGarbageRoot();
+            if (garbageRoot != 0) {
+                Buffer garbageBuffer = _pool.get(_volume, garbageRoot, true, true);
                 final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                 garbageBuffer.writePageOnCheckpoint(timestamp);
-                _volume.getStorage().claimHeadBuffer();
                 try {
                     Debug.$assert0.t(garbageBuffer.isGarbagePage());
                     Debug.$assert0.t((garbageBuffer.getStatus() & Buffer.CLAIMED_MASK) == 1);
@@ -436,32 +436,28 @@ class VolumeStructure {
                                     && buffer.getPageAddress() != _directoryRootPage);
 
                     harvestLongRecords(buffer, 0, Integer.MAX_VALUE);
+
                     buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
                     buffer.clear();
                     return buffer;
                 } finally {
-                    _volume.getStorage().releaseHeadBuffer();
-                }
-            } finally {
-                if (garbageBuffer != null) {
-                    garbageBuffer.releaseTouched();
+                    if (garbageBuffer != null) {
+                        garbageBuffer.releaseTouched();
+                    }
                 }
             }
-        } else {
-            long page = _volume.getStorage().allocNewPage();
-
-            // No need to read the prior content of the page - we trust
-            // it's never been used before.
-            buffer = _pool.get(_volume, page, true, false);
-            buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
-            // -
-            // debug
-
-            _volume.getStorage().flush();
-
-            Debug.$assert0.t(buffer.getPageAddress() != 0);
-            return buffer;
+        } finally {
+            _volume.getStorage().releaseHeadBuffer();
         }
+        /*
+         * If there was no garbage chain above then we need to allocate a new page from the volume.
+         */
+        long page = _volume.getStorage().allocNewPage();
+        buffer = _pool.get(_volume, page, true, false);
+        buffer.init(Buffer.PAGE_TYPE_UNALLOCATED);
+        Debug.$assert0.t(buffer.getPageAddress() != 0);
+        return buffer;
+
     }
 
     void deallocateGarbageChain(long left, long right) throws PersistitException {
