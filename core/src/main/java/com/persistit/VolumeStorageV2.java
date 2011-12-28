@@ -542,6 +542,7 @@ class VolumeStorageV2 extends VolumeStorage {
     void extend(final long pageAddr) throws PersistitException {
         if (pageAddr >= _extendedPageCount) {
             extend();
+            flush();
         }
     }
 
@@ -606,8 +607,6 @@ class VolumeStorageV2 extends VolumeStorage {
         // Do not extend past maximum pages
         long pageCount = Math.min(_extendedPageCount + extensionPages, maximumPages);
         resize(pageCount);
-        flush();
-
     }
 
     private void resize(long pageCount) throws PersistitException {
