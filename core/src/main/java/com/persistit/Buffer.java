@@ -520,36 +520,50 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         bumpGeneration();
     }
 
+    @Override
     boolean claim(boolean writer) throws PersistitInterruptedException {
         return claim(writer, DEFAULT_MAX_WAIT_TIME);
     }
 
+    @Override
     boolean claim(boolean writer, long timeout) throws PersistitInterruptedException {
         if (super.claim(writer, timeout)) {
             if (!isDirty()) {
                 _timestamp = _persistit.getCurrentTimestamp();
             }
+            _pool._lockManager.registerClaim(this, writer);
             return true;
         } else {
             return false;
         }
     }
 
-    /**
-     * Release a writer claim on a buffer. This method also relinquishes the
-     * reservation this buffer may have had if it is clean.
-     */
     void release() {
         if (Debug.ENABLED && isDirty() && (isDataPage() || isIndexPage())) {
             assertVerify();
         }
+        _pool._lockManager.unregisterClaim(this);
         super.release();
+    }
+    
+    @Override
+    boolean upgradeClaim() {
+        boolean result = super.upgradeClaim();
+        _pool._lockManager.registerUpgrade(this);
+        return result;
+    }
+    
+    @Override
+    void releaseWriterClaim() {
+        _pool._lockManager.registerDownrade(this);
     }
 
     void releaseTouched() {
         setTouched();
         release();
     }
+    
+    
 
     /**
      * Zero out all bytes in this buffer.
