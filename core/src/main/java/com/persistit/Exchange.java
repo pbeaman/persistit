@@ -454,6 +454,8 @@ public class Exchange {
         _splitPolicy = _persistit.getDefaultSplitPolicy();
         _joinPolicy = _persistit.getDefaultJoinPolicy();
         _treeHolder.verifyReleased();
+        _pool._lockManager.verify();
+
     }
 
     void initCache() {
@@ -1259,6 +1261,7 @@ public class Exchange {
         options |= (!_ignoreTransactions && _transaction.isActive()) ? StoreOptions.MVCC : 0;
         storeInternal(key, value, 0, options);
         _treeHolder.verifyReleased();
+//        _pool._lockManager.verify();
 
         return this;
     }
@@ -1840,7 +1843,9 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean traverse(Direction direction, boolean deep) throws PersistitException {
-        return traverse(direction, deep, Integer.MAX_VALUE);
+        boolean result = traverse(direction, deep, Integer.MAX_VALUE);
+        _pool._lockManager.verify();
+        return result;
     }
 
     /**
@@ -2635,6 +2640,8 @@ public class Exchange {
                 buffer.releaseTouched();
             }
             _treeHolder.verifyReleased();
+            _pool._lockManager.verify();
+
         }
     }
 
@@ -2801,7 +2808,7 @@ public class Exchange {
 
         final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, fetchFirst);
         _treeHolder.verifyReleased();
-
+        _pool._lockManager.verify();
         return result;
     }
 
@@ -2847,6 +2854,7 @@ public class Exchange {
 
         final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, false);
         _treeHolder.verifyReleased();
+        _pool._lockManager.verify();
 
         return result;
     }

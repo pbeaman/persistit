@@ -107,4 +107,13 @@ public class LockManager {
         }
         return sb.toString();
     }
+    
+    public void verify() {
+        Thread t = Thread.currentThread();
+        Holder[] holders = _map.get(t);
+        for (int p = 0; p < MAX_INDEX; p++) {
+            Holder h = holders[p];
+            Debug.$assert1.t(h._readers == 0 && !h._writer);
+        }
+    }
 }
