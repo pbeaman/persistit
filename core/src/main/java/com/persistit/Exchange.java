@@ -2108,6 +2108,10 @@ public class Exchange {
                             // value of this key before returning
                             //
                             _key.setEncodedSize(index);
+                            if (buffer != null) {
+                                buffer.releaseTouched();
+                                buffer = null;
+                            }
                             fetch(minimumBytes);
                         }
                     } else {
@@ -2640,7 +2644,7 @@ public class Exchange {
                 buffer.releaseTouched();
             }
             _treeHolder.verifyReleased();
-            _pool._lockManager.verify();
+//            _pool._lockManager.verify();
 
         }
     }

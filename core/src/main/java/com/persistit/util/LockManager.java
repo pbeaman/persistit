@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.persistit.Buffer;
 
 public class LockManager {
-    final static int MAX_INDEX = 100;
+    final static int MAX_INDEX = 10;
 
     final Map<Thread, Holder[]> _map = new ConcurrentHashMap<Thread, Holder[]>();
 
