@@ -44,6 +44,7 @@ public class LockManager {
             Holder h = holders[p];
             h._readers++;
             h._writer |= writer;
+            Debug.$assert1.t(h._readers < 100 && h._readers >= 0);
         }
     }
 
@@ -56,6 +57,7 @@ public class LockManager {
             Holder h = holders[p];
             h._readers--;
             h._writer = false;
+            Debug.$assert1.t(h._readers < 100 && h._readers >= 0);
         }
     }
 
@@ -67,10 +69,11 @@ public class LockManager {
             Debug.$assert1.t(holders != null);
             Holder h = holders[p];
             h._writer = true;
+            Debug.$assert1.t(h._readers < 100 && h._readers >= 0);
         }
     }
 
-    public void registerDownrade(final Buffer buffer) {
+    public void registerDowngrade(final Buffer buffer) {
         if (buffer.getPageAddress() < MAX_PAGE_ADDRESS) {
             Thread t = Thread.currentThread();
             int p = (int) buffer.getPageAddress();
@@ -78,6 +81,7 @@ public class LockManager {
             Debug.$assert1.t(holders != null);
             Holder h = holders[p];
             h._writer = false;
+            Debug.$assert1.t(h._readers < 100 && h._readers >= 0);
         }
     }
 
@@ -96,9 +100,9 @@ public class LockManager {
                     added = true;
                     sb.append(" " + t.getName() + " <" + h._readers + (h._writer ? "*" : "") + ">");
                 }
-                if (added) {
-                    sb.append(Util.NEW_LINE);
-                }
+            }
+            if (added) {
+                sb.append(Util.NEW_LINE);
             }
         }
         return sb.toString();

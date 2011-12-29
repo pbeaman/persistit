@@ -555,7 +555,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     
     @Override
     void releaseWriterClaim() {
-        _pool._lockManager.registerDownrade(this);
+        _pool._lockManager.registerDowngrade(this);
     }
 
     void releaseTouched() {
