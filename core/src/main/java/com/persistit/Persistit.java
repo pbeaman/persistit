@@ -30,10 +30,12 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -47,7 +49,8 @@ import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
-import com.persistit.TimestampAllocator.Checkpoint;
+import com.persistit.Accumulator.AccumulatorRef;
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.encoding.CoderManager;
 import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.ValueCoder;
@@ -56,8 +59,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.PropertiesNotFoundException;
-import com.persistit.exception.RollbackException;
-import com.persistit.exception.TransactionFailedException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
@@ -306,6 +307,8 @@ public class Persistit {
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
 
+    private final static int TRANSACTION_INDEX_SIZE = 1024;
+
     final static long SHORT_DELAY = 500;
 
     private final static long KILO = 1024;
@@ -366,7 +369,11 @@ public class Persistit {
 
     private final CheckpointManager _checkpointManager = new CheckpointManager(this);
 
+    private final CleanupManager _cleanupManager = new CleanupManager(this);
+
     private final IOMeter _ioMeter = new IOMeter();
+
+    private TransactionIndex _transactionIndex = new TransactionIndex(_timestampAllocator, TRANSACTION_INDEX_SIZE);
 
     private Map<SessionId, List<Exchange>> _exchangePoolMap = new WeakHashMap<SessionId, List<Exchange>>();
 
@@ -378,7 +385,7 @@ public class Persistit {
 
     private final SharedResource _transactionResourceB = new SharedResource(this);
 
-    private final HashMap<Long, TransactionalCache> _transactionalCaches = new HashMap<Long, TransactionalCache>();
+    private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
@@ -458,6 +465,8 @@ public class Persistit {
     public void initialize(Properties properties) throws PersistitException {
         boolean done = false;
         try {
+            _closed.set(false);
+
             initializeProperties(properties);
             initializeLogging();
             initializeManagement();
@@ -469,11 +478,13 @@ public class Persistit {
             startJournal();
             startBufferPools();
             startCheckpointManager();
+            startTransactionIndexPollTask();
             finishRecovery();
             flush();
+            _checkpointManager.checkpoint();
+            startCleanupManager();
 
             _initialized.set(true);
-            _closed.set(false);
             done = true;
         } finally {
             if (!done) {
@@ -645,6 +656,14 @@ public class Persistit {
         _checkpointManager.start();
     }
 
+    void startCleanupManager() {
+        _cleanupManager.start();
+    }
+
+    void startTransactionIndexPollTask() {
+        _transactionIndex.start(this);
+    }
+
     void startBufferPools() throws PersistitException {
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.startThreads();
@@ -656,7 +675,8 @@ public class Persistit {
     }
 
     void finishRecovery() throws PersistitException {
-        _recoveryManager.applyAllCommittedTransactions(_recoveryManager.getDefaultRecoveryListener());
+        _recoveryManager.applyAllCommittedTransactions(_recoveryManager.getDefaultCommitListener(), _recoveryManager
+                .getDefaultRollbackListener());
         _recoveryManager.close();
         flush();
         checkpoint();
@@ -677,6 +697,7 @@ public class Persistit {
         try {
             registerMBean(getManagement(), ManagementMXBean.MXBEAN_NAME);
             registerMBean(_ioMeter, IOMeterMXBean.MXBEAN_NAME);
+            registerMBean(_cleanupManager, CleanupManagerMXBean.MXBEAN_NAME);
             registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
             registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
         } catch (Exception exception) {
@@ -704,6 +725,7 @@ public class Persistit {
         try {
             unregisterMBean(RecoveryManagerMXBean.MXBEAN_NAME);
             unregisterMBean(JournalManagerMXBean.MXBEAN_NAME);
+            unregisterMBean(CleanupManagerMXBean.MXBEAN_NAME);
             unregisterMBean(IOMeterMXBean.MXBEAN_NAME);
             unregisterMBean(ManagementMXBean.MXBEAN_NAME);
         } catch (InstanceNotFoundException exception) {
@@ -1083,7 +1105,7 @@ public class Persistit {
         synchronized (_exchangePoolMap) {
             stack = _exchangePoolMap.get(sessionId);
             if (stack == null) {
-                throw new IllegalStateException("Release not preceded by get"); // TODO
+                throw new IllegalStateException("Release not preceded by get");
             }
         }
         if (stack.size() < MAX_POOLED_EXCHANGES) {
@@ -1114,7 +1136,7 @@ public class Persistit {
      * @return the List
      * @throws PersistitException
      */
-    public List<Tree> getSelectedTrees(final TreeSelector selector) throws PersistitException {
+    public synchronized List<Tree> getSelectedTrees(final TreeSelector selector) throws PersistitException {
         final List<Tree> list = new ArrayList<Tree>();
         for (final Volume volume : _volumes) {
             if (selector.isSelected(volume)) {
@@ -1384,18 +1406,6 @@ public class Persistit {
     }
 
     /**
-     * <p>
-     * Returns the temporary volume used by the current Thread to transiently
-     * hold pending updates prior to transaction commit.
-     * </p>
-     * 
-     * @return the <code>Volume</code>
-     */
-    public Volume getTransactionVolume() {
-        return getTransaction().getTransactionTemporaryVolume();
-    }
-
-    /**
      * Return the default timeout for operations on an <code>Exchange</code>.
      * The application may override this default value for an instance of an
      * <code>Exchange</code> through the {@link Exchange#setTimeout(long)}
@@ -1490,7 +1500,7 @@ public class Persistit {
      * @return The most recently proposed Checkpoint.
      */
     public Checkpoint getCurrentCheckpoint() {
-        return _timestampAllocator.getCurrentCheckpoint();
+        return _checkpointManager.getCurrentCheckpoint();
     }
 
     /**
@@ -1500,56 +1510,16 @@ public class Persistit {
      * @return the Checkpoint allocated by this process.
      * @throws PersistitInterruptedException
      */
-    public Checkpoint checkpoint() throws PersistitInterruptedException {
+    public Checkpoint checkpoint() throws PersistitException {
         if (_closed.get() || !_initialized.get()) {
             return null;
         }
+        cleanup();
         return _checkpointManager.checkpoint();
     }
 
-    boolean flushTransactionalCaches(final Checkpoint checkpoint) {
-        if (_transactionalCaches.isEmpty()) {
-            return true;
-        }
-        try {
-            final Transaction transaction = getTransaction();
-            transaction.setTransactionalCacheCheckpoint(checkpoint);
-            int retries = 10;
-            while (true) {
-                transaction.begin();
-                try {
-                    for (final TransactionalCache tc : _transactionalCaches.values()) {
-                        tc.save(checkpoint);
-                    }
-                    transaction.commit();
-                    break;
-                } catch (RollbackException e) {
-                    if (--retries >= 0) {
-                        continue;
-                    } else {
-                        throw new TransactionFailedException("Retry limit 10 exceeeded");
-                    }
-                } finally {
-                    transaction.end();
-                }
-            }
-            return true;
-        } catch (PersistitException e) {
-            // log this
-            return false;
-        }
-    }
-
     final long earliestLiveTransaction() {
-        long earliest = Long.MAX_VALUE;
-        synchronized (_transactionSessionMap) {
-            for (final Transaction t : _transactionSessionMap.values()) {
-                if (t.getStartTimestamp() != -1 && t.getCommitTimestamp() == -1) {
-                    earliest = Math.min(earliest, t.getStartTimestamp());
-                }
-            }
-        }
-        return earliest;
+        return _transactionIndex.getActiveTransactionFloor();
     }
 
     final long earliestDirtyTimestamp() {
@@ -1633,6 +1603,13 @@ public class Persistit {
                     }
                 }
             }
+        }
+        final List<Volume> volumes;
+        synchronized (this) {
+            volumes = new ArrayList<Volume>(_volumes);
+        }
+        for (final Volume volume : volumes) {
+            volume.getStructure().flushStatistics();
         }
     }
 
@@ -1726,26 +1703,33 @@ public class Persistit {
         getTransaction().close();
         cleanup();
 
-        if (flush) {
-            for (final Volume volume : _volumes) {
-                volume.getStorage().flush();
-            }
-        }
-
-        _checkpointManager.close(flush);
-        waitForIOTaskStop(_checkpointManager);
-        _closed.set(true);
-
         final List<Volume> volumes;
         synchronized (this) {
             volumes = new ArrayList<Volume>(_volumes);
         }
+
+        if (flush) {
+            for (final Volume volume : volumes) {
+                volume.getStructure().flushStatistics();
+                volume.getStorage().flush();
+            }
+        }
+
+
+        _cleanupManager.close(flush);
+        waitForIOTaskStop(_cleanupManager);
+
+        _checkpointManager.close(flush);
+        waitForIOTaskStop(_checkpointManager);
+
+        _closed.set(true);
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
             unregisterBufferPoolMXBean(pool.getBufferSize());
         }
         _journalManager.close();
+        _transactionIndex.close();
 
         for (final Volume volume : volumes) {
             volume.close();
@@ -1778,13 +1762,13 @@ public class Persistit {
         }
         //
         // Even on simulating a crash we need to try to close
-        // the volumes - otherwise there will be left over channels
+        // the volume files - otherwise there will be left over channels
         // and FileLocks that interfere with subsequent tests.
         //
         final List<Volume> volumes = new ArrayList<Volume>(_volumes);
         for (final Volume volume : volumes) {
             try {
-                volume.close();
+                volume.getStorage().close();
             } catch (PersistitException pe) {
                 // ignore -
             }
@@ -1796,6 +1780,8 @@ public class Persistit {
                 pool.crash();
             }
         }
+        _transactionIndex.crash();
+        _cleanupManager.crash();
         _checkpointManager.crash();
         _closed.set(true);
         releaseAllResources();
@@ -1803,12 +1789,9 @@ public class Persistit {
     }
 
     private void releaseAllResources() {
+        _accumulators.clear();
         _volumes.clear();
         _bufferPoolTable.clear();
-        for (final TransactionalCache cache : _transactionalCaches.values()) {
-            cache.close();
-        }
-        _transactionalCaches.clear();
         _exchangePoolMap.clear();
         Set<Transaction> transactions;
         synchronized (_transactionSessionMap) {
@@ -1854,6 +1837,7 @@ public class Persistit {
             return false;
         }
         for (final Volume volume : _volumes) {
+            volume.getStructure().flushStatistics();
             volume.getStorage().flush();
             volume.getStorage().force();
         }
@@ -1929,11 +1913,7 @@ public class Persistit {
      */
     public void checkSuspended() throws PersistitInterruptedException {
         while (isUpdateSuspended()) {
-            try {
-                Thread.sleep(SHORT_DELAY);
-            } catch (InterruptedException ie) {
-                throw new PersistitInterruptedException(ie);
-            }
+            Util.sleep(SHORT_DELAY);
         }
     }
 
@@ -1981,7 +1961,7 @@ public class Persistit {
     }
 
     /**
-     * Gets the <code>Transaction</code> object for the current thread. The
+     * Get the <code>Transaction</code> object for the current thread. The
      * <code>Transaction</code> object lasts for the life of the thread. See
      * {@link com.persistit.Transaction} for more information on how to use
      * Persistit's transaction facilities.
@@ -2001,28 +1981,21 @@ public class Persistit {
     }
 
     /**
-     * Copies the current set of Transaction objects to the supplied List. This
-     * method is used by JOURNAL_FLUSHER to look for transactions that need to
-     * be written to the Journal, and BufferPool checkpoint code to look for
-     * uncommitted transactions. For each session, add that session's
-     * transaction to the supplied list if and only if it has a startTimestamp
-     * greater than <code>from</code> and a commitTimestamp greater than
-     * <code>to</code>.
+     * Copy the {@link Transaction} context objects belonging to threads that
+     * are currently alive to the supplied List. This method is used by
+     * JOURNAL_FLUSHER to look for transactions that need to be written to the
+     * Journal and by {@link ManagementImpl to get transaction commit and
+     * rollback statistics.
      * 
-     * @param transactions
-     *            List of Transaction objects to be populated
-     * @param from
-     *            minimum startTimestamp, or -1 for any
-     * @param to
-     *            minimum commitTimestamp, or -1 for any
+     * @param transactions List of Transaction objects to be populated
      */
-    void populateTransactionList(final List<Transaction> transactions, final long from, final long to) {
+    void populateTransactionList(final List<Transaction> transactions) {
         transactions.clear();
-        synchronized (_transactionSessionMap) {
-            for (final Transaction t : _transactionSessionMap.values()) {
-                if (t != null && t.getStartTimestamp() >= from && t.getCommitTimestamp() >= to) {
-                    transactions.add(t);
-                }
+        for (final Map.Entry<SessionId, Transaction> entry : _transactionSessionMap.entrySet()) {
+            final SessionId session = entry.getKey();
+            final Transaction txn = entry.getValue();
+            if (session.isAlive()) {
+                transactions.add(txn);
             }
         }
     }
@@ -2125,8 +2098,20 @@ public class Persistit {
         return _timestampAllocator;
     }
 
+    CheckpointManager getCheckpointManager() {
+        return _checkpointManager;
+    }
+    
+    CleanupManager getCleanupManager() {
+        return _cleanupManager;
+    }
+
     IOMeter getIOMeter() {
         return _ioMeter;
+    }
+
+    TransactionIndex getTransactionIndex() {
+        return _transactionIndex;
     }
 
     SharedResource getTransactionResourceA() {
@@ -2524,35 +2509,28 @@ public class Persistit {
      *            <code>true</code> to suspend all updates; <code>false</code>
      *            to enable updates.
      */
-    public synchronized void setUpdateSuspended(boolean suspended) {
+    public void setUpdateSuspended(boolean suspended) {
         _suspendUpdates.set(suspended);
     }
 
-    /**
-     * Register a <code>TransactionalCache</code> instance. This method may only
-     * be called before {@link #initialize()}. Each instance must have a unique
-     * <code>cacheId</code>.
-     * 
-     * @param tc
-     */
-    void addTransactionalCache(TransactionalCache tc) {
-        if (_initialized.get()) {
-            throw new IllegalStateException("TransactionalCache must be added" + " before Persistit initialization");
-        }
-        if (getTransactionalCache(tc.cacheId()) != null) {
-            throw new IllegalStateException("TransactionalCache cacheId must be unique");
-        }
-        _transactionalCaches.put(tc.cacheId(), tc);
+    synchronized void addAccumulator(final Accumulator accumulator) {
+        _accumulators.add(accumulator.getAccumulatorRef());
     }
 
-    /**
-     * Get a TransactionalCache instance by its unique <code>cacheId</code>.
-     * 
-     * @param cacheId
-     * @return the corresponding <code>TransactionalCache</code>.
-     */
-    TransactionalCache getTransactionalCache(final long cacheId) {
-        return _transactionalCaches.get(cacheId);
+    synchronized List<Accumulator> getCheckpointAccumulators() {
+        final List<Accumulator> result = new ArrayList<Accumulator>();
+        for (final Iterator<AccumulatorRef> refIterator = _accumulators.iterator(); refIterator.hasNext();) {
+            final AccumulatorRef ref = refIterator.next();
+            if (!ref.isLive()) {
+                refIterator.remove();
+            }
+            final Accumulator acc = ref.takeCheckpointRef();
+            if (acc != null) {
+                result.add(acc);
+            }
+        }
+        Collections.sort(result, Accumulator.SORT_COMPARATOR);
+        return result;
     }
 
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",

@@ -15,6 +15,9 @@
 
 package com.persistit.unit;
 
+import org.junit.Ignore;
+import org.junit.Test;
+
 import com.persistit.Exchange;
 import com.persistit.Key;
 import com.persistit.exception.PersistitException;
@@ -39,6 +42,8 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
 
     }
 
+    @Ignore
+    @Test
     public void test1() throws PersistitException {
         System.out.print("test1");
         final Exchange ex = _persistit.getExchange("persistit", "LongRecordTest1", true);
@@ -73,6 +78,8 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         System.out.println(" - done");
     }
 
+    @Ignore
+    @Test
     public void test2() throws PersistitException {
         System.out.print("test2");
         final Exchange ex = _persistit.getExchange("persistit", "LongRecordTest1", true);
@@ -92,6 +99,8 @@ public class LongRecordTest1 extends PersistitUnitTestCase {
         System.out.println(" - done");
     }
 
+    @Ignore
+    @Test
     public void test3() throws PersistitException {
         System.out.print("test3");
         final Exchange ex = _persistit.getExchange("persistit", "LongRecordTest1", true);

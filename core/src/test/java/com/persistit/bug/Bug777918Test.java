@@ -25,8 +25,10 @@ import com.persistit.RecoveryManager.DefaultRecoveryListener;
 import com.persistit.TestShim;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TestException;
+import com.persistit.exception.MissingThreadException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
+import com.persistit.util.Util;
 
 /**
  * Found a way to reproduce this which matches some of the events others have
@@ -198,13 +200,17 @@ public class Bug777918Test extends PersistitUnitTestCase {
         _persistit.crash();
 
         _persistit = new Persistit();
-        _persistit.getRecoveryManager().setRecoveryListener(new TestCrashingRecoveryListener());
+        _persistit.getRecoveryManager().setDefaultCommitListener(new TestCrashingRecoveryListener());
 
         //
         // The recovery process deliberately crashes after applying some
         // transactions.
         //
+        try {
         _persistit.initialize(properties);
+        } catch (MissingThreadException e) {
+            // expected
+        }
 
         // This startup should divide the pages into page- and branch-map
         // and apply committed transactions using branch-map pages.
@@ -236,15 +242,19 @@ public class Bug777918Test extends PersistitUnitTestCase {
         boolean crashed = false;
 
         @Override
-        public void startTransaction(long address, long timestamp) throws PersistitException {
-            if (timestamp > 50000 && !checkpointed) {
+        public void startTransaction(long address, long startTimestamp, long commitTimestamp) throws PersistitException {
+            if (startTimestamp > 50000 && !checkpointed) {
                 _persistit.checkpoint();
                 checkpointed = true;
             }
-            if (timestamp > 100000 && !crashed) {
+            if (startTimestamp > 100000 && !crashed) {
                 _persistit.crash();
                 crashed = true;
-                throw new Bug777918Exception(timestamp);
+                /*
+                 * Make sure the checkpoint manager thread has ended.
+                 */
+                Util.sleep(1000);
+                throw new Bug777918Exception(startTimestamp);
             }
         }
     }

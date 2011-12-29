@@ -27,10 +27,10 @@ import java.util.TreeSet;
 
 import org.junit.Test;
 
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.RecoveryManager.RecoveryListener;
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
@@ -43,7 +43,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
      * methods used in controlling the test.
      */
 
-    private String journalSize = "20M";
+    private String journalSize = "10000000";
     private String _volumeName = "persistit";
 
     @Override
@@ -127,7 +127,8 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
 
             @Override
-            public void startTransaction(long address, long timestamp) throws PersistitException {
+            public void startTransaction(long address, long startTmestamp, long commitTimestamp)
+                    throws PersistitException {
             }
 
             @Override
@@ -138,8 +139,13 @@ public class RecoveryTest extends PersistitUnitTestCase {
             public void endRecovery(long address, long timestamp) throws PersistitException {
             }
 
+            @Override
+            public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value)
+                    throws PersistitException {
+            }
+
         };
-        plan.applyAllCommittedTransactions(actor);
+        plan.applyAllCommittedTransactions(actor, plan.getDefaultRollbackListener());
         assertEquals(15, recoveryTimestamps.size());
     }
 
@@ -159,7 +165,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit.initialize(saveProperties);
         assertTrue(rman.getCommittedCount() > 0);
         rman.setRecoveryDisabledForTestMode(false);
-        rman.applyAllCommittedTransactions(rman.getDefaultRecoveryListener());
+        rman.applyAllCommittedTransactions(rman.getDefaultCommitListener(), rman.getDefaultRollbackListener());
         fetch3();
     }
 
@@ -180,18 +186,23 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
         txn.begin();
         store1();
-        jman.setUnitTestNeverCloseTransactionId(txn.getStartTimestamp());
         txn.commit();
         txn.end();
-        jman.setUnitTestNeverCloseTransactionId(Long.MIN_VALUE);
+        // Flush an uncommitted version of this transaction - should
+        // prevent journal cleanup.
+        txn.begin();
+        store0();
+        txn.flushTransactionBuffer();
+        txn.rollback();
+        txn.end();
 
         jman.rollover();
-        _persistit.checkpoint();
+        _persistit.cleanup();
+        _persistit.getCheckpointManager().checkpoint();
         jman.copyBack();
         //
         // Because JournalManager thinks there's an open transaction
-        // (due to the call to setUnitTestNeverCloseTransactionId method)
-        // it should preserve the journal file containing the TS record
+        // it should preserve the journal file containing the TX record
         // for the transaction.
         //
         assertEquals(0, jman.getPageMapSize());
@@ -205,6 +216,14 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
         jman.rollover();
         _persistit.checkpoint();
+        /*
+         * The TI active transaction cache may be a bit out of date, which 
+         * can cause the copier to preserve records on the journal that are
+         * in fact obsolete.  Since the following assertion looks for
+         * equality, we'll artificially update the active transaction cache
+         * to verify that the copier does the right thing.
+         */
+        _persistit.getTransactionIndex().updateActiveTransactionCache();
         jman.copyBack();
 
         assertEquals(jman.getBaseAddress(), jman.getCurrentAddress());
@@ -465,6 +484,13 @@ public class RecoveryTest extends PersistitUnitTestCase {
             assertEquals(i < count, exchange.to(i).isValueDefined());
         }
 
+    }
+
+    private void store0() throws PersistitException {
+        final Exchange exchange = _persistit.getExchange(_volumeName, "RecoveryTest", true);
+        exchange.removeAll();
+        exchange.getValue().put(RED_FOX);
+        exchange.clear().append(1).store();
     }
 
     private void store1() throws PersistitException {

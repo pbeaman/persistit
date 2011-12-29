@@ -29,7 +29,7 @@ public interface JournalManagerMXBean {
      * Version number for the journal file format defined in this edition. Will
      * change if the journal file format changes.
      */
-    final static int VERSION = 1;
+    final static int VERSION = 2;
 
     /**
      * Default size of one journal file (10^9).

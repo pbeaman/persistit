@@ -25,7 +25,6 @@ import com.persistit.encoding.CoderContext;
 import com.persistit.util.Util;
 
 /**
- * <p>
  * Interface for a service object that exposes information about the Persistit
  * environment. With this public API, embedding applications can query
  * performance metrics and resources within Persistit that are not exposed by
@@ -35,7 +34,6 @@ import com.persistit.util.Util;
  * managing Persistit.
  * 
  * @version 1.0
- *          </p>
  */
 public interface Management extends Remote, ManagementMXBean {
     /**
@@ -1081,6 +1079,8 @@ public interface Management extends Remote, ManagementMXBean {
         int availableBytes;
         int alloc;
         int slack;
+        int mvvCount;
+        int mvvSize;
         int keyBlockStart;
         int keyBlockEnd;
 
@@ -1090,10 +1090,10 @@ public interface Management extends Remote, ManagementMXBean {
 
         @ConstructorProperties({ "poolIndex", "type", "typeName", "status", "statusName", "writerThreadName",
                 "pageAddress", "rightSiblingAddress", "volumeName", "volumeId", "timestamp", "bufferSize",
-                "availableBytes", "alloc", "slack", "keyBlockStart", "keyBlockEnd" })
+                "availableBytes", "alloc", "slack", "mvvCount", "mvvSize", "keyBlockStart", "keyBlockEnd" })
         public BufferInfo(int poolIndex, int type, String typeName, int status, String statusName,
                 String writerThreadName, long pageAddress, long rightSiblingAddress, String volumeName, long volumeId,
-                long timestamp, int bufferSize, int availableBytes, int alloc, int slack, int keyBlockStart,
+                long timestamp, int bufferSize, int availableBytes, int alloc, int slack, int mvvCount, int mvvSize, int keyBlockStart,
                 int keyBlockEnd) {
             super();
             this.poolIndex = poolIndex;
@@ -1111,6 +1111,8 @@ public interface Management extends Remote, ManagementMXBean {
             this.availableBytes = availableBytes;
             this.alloc = alloc;
             this.slack = slack;
+            this.mvvCount = mvvCount;
+            this.mvvSize = mvvSize;
             this.keyBlockStart = keyBlockStart;
             this.keyBlockEnd = keyBlockEnd;
         }
@@ -1168,8 +1170,8 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the position of this <code>Buffer</code> within the
-         * <code>BufferPool</code>.
+         * Return the index of this <code>Buffer</code> within the
+         * <code>BufferPool</code> array.
          * 
          * @return The index
          */
@@ -1250,13 +1252,6 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the page address of the page currently occupying the
-         * <code>Buffer</code>. The address is an ordinal number that indicates
-         * the page's position within a volume file.In a standard Volume, page
-         * address <code>P</code> is located at file address
-         * <code>P * pageSize</code>. Page address 0 denotes the head page of
-         * the Volume.
-         * 
          * @return The page address.
          */
         public long getPageAddress() {
@@ -1264,8 +1259,6 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the page address of the next page in key order on this level.
-         * 
          * @return The page address of the right sibling page.
          */
         public long getRightSiblingAddress() {
@@ -1273,9 +1266,6 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the full pathname of the Volume of the page occupying this
-         * buffer if there is one, otherwise returns <code>null</code>.
-         * 
          * @return the Volume Name
          */
         public String getVolumeName() {
@@ -1283,9 +1273,6 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the internal ID value of the Volume of the page occupying this
-         * buffer if there is one, otherwise returns 0.
-         * 
          * @return the volume ID
          */
         public long getVolumeId() {
@@ -1293,52 +1280,57 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * Return the count of times the state of the page occupying this buffer
-         * has changed.
-         * 
-         * @return The change count
+         * @return the timestamp at which the page occupying this buffer
+         * was last changed.
          */
         public long getTimestamp() {
             return timestamp;
         }
 
         /**
-         * Return the buffer size, in bytes
-         * 
-         * @return the size
+         * @return the buffer size, in bytes
          */
         public int getBufferSize() {
             return bufferSize;
         }
 
         /**
-         * Return the number of unused bytes available to hold additional
+         * @return the number of unused bytes available to hold additional
          * key/value pairs.
-         * 
-         * @return The number of avaiable bytes in the <code>Buffer</code>.
          */
         public int getAvailableBytes() {
             return availableBytes;
         }
 
         /**
-         * Return an offset within the <code>Buffer</code> used internally in
+         * @return he offset within the <code>Buffer</code> used internally in
          * allocating space for key/value pairs.
-         * 
-         * @return The alloc offset
          */
         public int getAlloc() {
             return alloc;
         }
 
         /**
-         * Return a size used internally in allocating space for key/value
+         * @return a size used internally in allocating space for key/value
          * pairs.
-         * 
-         * @return The slack size
          */
         public int getSlack() {
             return slack;
+        }
+        
+        /**
+         * @return the approximate count of key/value pairs containing multi-version values.
+         */
+        public int getMvvCount() {
+            return mvvCount;
+        }
+        
+        /**
+         * @return the approximate number of bytes consumed by multi-version values which are 
+         * no longer visible to current transactions.
+         */
+        public int getMvvSize() {
+            return mvvSize;
         }
 
         /**
@@ -1728,6 +1720,13 @@ public interface Management extends Remote, ManagementMXBean {
         String volumePathName;
         String status;
         String writerThreadName;
+        long _fetchCounter;
+        long _traverseCounter;
+        long _storeCounter;
+        long _removeCounter;
+        long _mvvCounter;
+        long _mvvOverhead;
+
 
         TreeInfo(Tree tree) {
             super();
@@ -1738,12 +1737,21 @@ public interface Management extends Remote, ManagementMXBean {
             volumePathName = tree.getVolume().getPath();
             Thread thread = tree.getWriterThread();
             writerThreadName = thread == null ? null : thread.getName();
+            final TreeStatistics stats = tree.getStatistics();
+            this._fetchCounter = stats.getFetchCounter();
+            this._traverseCounter = stats.getTraverseCounter();
+            this._storeCounter = stats.getStoreCounter();
+            this._removeCounter = stats.getRemoveCounter();
+            this._mvvCounter = stats.getMvvCounter();
+            this._mvvOverhead = stats.getMvvOverhead();
         }
 
         @ConstructorProperties({ "name", "index", "rootPageAddress", "depth", "volumePathName", "status",
-                "writerThreadName" })
+                "writerThreadName", "fetchCounter", "traverseCounter", "storeCounter",
+                "removeCounter", "mvvCounter", "mvvOverhead" })
         public TreeInfo(String name, long rootPageAddress, int depth, String volumePathName, String status,
-                String writerThreadName) {
+                String writerThreadName, long fetchCounter, long traverseCounter, long storeCounter,
+                long removeCounter, long mvvCounter, long mvvOverhead) {
             super();
             this.name = name;
             this.rootPageAddress = rootPageAddress;
@@ -1751,6 +1759,13 @@ public interface Management extends Remote, ManagementMXBean {
             this.volumePathName = volumePathName;
             this.status = status;
             this.writerThreadName = writerThreadName;
+            this._fetchCounter = fetchCounter;
+            this._traverseCounter = traverseCounter;
+            this._storeCounter = storeCounter;
+            this._removeCounter = removeCounter;
+            this._mvvCounter = mvvCounter;
+            this._mvvOverhead = mvvOverhead;
+            
         }
 
         /**
@@ -1787,6 +1802,57 @@ public interface Management extends Remote, ManagementMXBean {
          */
         public String getVolumePathName() {
             return volumePathName;
+        }
+        
+        /**
+         * @return the count of {@link Exchange#fetch} operations, including
+         *         {@link Exchange#fetchAndStore} and
+         *         {@link Exchange#fetchAndRemove} operations.
+         */
+        public long getFetchCounter() {
+            return _fetchCounter;
+        }
+
+        /**
+         * @return the count of {@link Exchange#traverse} operations including
+         *         {@link Exchange#next} and {@link Exchange#_previous}.
+         */
+        public long getTraverseCounter() {
+            return _traverseCounter;
+        }
+
+        /**
+         * @return the count of {@link Exchange#store} operations, including
+         *         {@link Exchange#fetchAndStore} and
+         *         {@link Exchange#incrementValue} operations.
+         */
+        public long getStoreCounter() {
+            return _storeCounter;
+        }
+
+        /**
+         * @return the count of {@link Exchange#remove} operations, including
+         *         {@link Exchange#fetchAndRemove} operations.
+         */
+        public long getRemoveCounter() {
+            return _removeCounter;
+        }
+        
+
+        /**
+         * @return Count of records in this <code>Tree</code> having multi-version
+         *         values.
+         */
+        public long getMvvCounter() {
+            return _mvvCounter;
+        }
+
+        /**
+         * @return Overhead bytes consumed by multi-version values that will be
+         *         removed by pruning.
+         */
+        public long getMvvOverhead() {
+            return _mvvOverhead;
         }
 
         /**

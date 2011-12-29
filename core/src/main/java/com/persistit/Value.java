@@ -30,6 +30,7 @@ import java.math.BigInteger;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -42,6 +43,7 @@ import com.persistit.encoding.ValueRenderer;
 import com.persistit.exception.ConversionException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.MalformedValueException;
+import com.persistit.exception.PersistitException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -301,8 +303,8 @@ public final class Value {
 
     private final static char TRUE_CHAR = 'T';
     private final static char FALSE_CHAR = 'F';
+    private final static String UNDEFINED = "undefined";
 
-    private final static int TYPE_ZERO = 0;
     //
     // Primitive values first. Codes allocated for .net types as well as
     // Java and mutually available types.
@@ -357,18 +359,19 @@ public final class Value {
     // Indicates a key range to be removed. Used only in representing
     // pending remove operations in the Transaction tree.
     //
-    private final static int CLASS_ANTIVALUE = 49;
+    final static int CLASS_ANTIVALUE = 49;
     //
     // Indicates a reference to an object that was encoded earlier in this
     // Value. Followed by the identityHashCode and a unique handle for the
     // object.
     //
     private final static int CLASS_REREF = 50;
-
     //
     // Indicates a record in a directory tree.
     //
-    private final static int CLASS_TREE = 60;
+    final static int CLASS_ACCUMULATOR = 58;
+    final static int CLASS_TREE_STATISTICS = 59;
+    final static int CLASS_TREE = 60;
     //
     // Serialized type introducer. Followed by the Persistit handle for the
     // type (even though serialization also represents that type - we need to
@@ -418,10 +421,19 @@ public final class Value {
     // can encode values up to Integer.MAX_VALUE. (With
     // 5 bits left available if needed for longer values.
     //
-    // Note that a LONGREC is introduced by 0xFF (255) as the first byte. This
-    // scheme will not collide because CLASS5 always has zeros in its low 4
-    // bits, meaning that the highest byte in a standard class encoding will
-    // be 0xF0 (240).
+    // There are 15 open values following the CLASS encoding scheme. Collisions
+    // are avoided because CLASS5 always has zeros in its low 4 bits, meaning
+    // that the highest byte in a standard class encoding will be 0xF0 (240).
+    //
+    // An MVV is introduced by 0xFE (254) as the first byte. This is mostly
+    // opaque to the Value class but exposed here for consistency,
+    // documentation,
+    // and for use by debug and toString() methods.
+    //
+    private final static int TYPE_MVV = MVV.TYPE_MVV;
+    //
+    // Note that a LONGREC is introduced by 0xFF (255) as the first byte.
+    //
 
     private final static int BASE1 = 0x00;
     private final static int BASE2 = 0x10;
@@ -547,8 +559,6 @@ public final class Value {
 
     private long _pointer = -1;
     private int _pointerPageType = -1;
-    private boolean _atomicIncrementArmed = false;
-    private long _atomicIncrementValue;
 
     private ValueObjectInputStream _vis;
     private ValueObjectOutputStream _vos;
@@ -761,16 +771,16 @@ public final class Value {
         if (length > 0 && length * SIZE_GROWTH_DENOMINATOR < _size) {
             length = _size / SIZE_GROWTH_DENOMINATOR;
         }
-        int newSize = _size + length;
-        if (_size + length <= _bytes.length)
+        final int newSize = _size + length;
+        if (newSize <= _bytes.length)
             return false;
-        newSize = ((newSize + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY) * SIZE_GRANULARITY;
-        if (newSize > _maximumSize)
-            newSize = _maximumSize;
-        if (newSize < length + _size) {
-            throw new ConversionException("Requested size=" + length + " exceeds maximum size=" + _maximumSize);
+        int newArraySize = ((newSize + SIZE_GRANULARITY - 1) / SIZE_GRANULARITY) * SIZE_GRANULARITY;
+        if (newArraySize > _maximumSize)
+            newArraySize = _maximumSize;
+        if (newArraySize < newSize) {
+            throw new ConversionException("Requested size=" + newSize + " exceeds maximum size=" + _maximumSize);
         }
-        byte[] bytes = new byte[newSize];
+        byte[] bytes = new byte[newArraySize];
         System.arraycopy(_bytes, 0, bytes, 0, _size);
         _bytes = bytes;
 
@@ -886,6 +896,17 @@ public final class Value {
         _maximumSize = size;
     }
 
+    public int getCursor() {
+        return _next;
+    }
+
+    public void setCursor(int cursor) {
+        if (cursor < 0 || cursor > _size) {
+            throw new IllegalArgumentException("Cursor out of bound (0," + _size + ")");
+        }
+        _next = cursor;
+    }
+
     /**
      * Enables or disables stream mode. See <a href="#_streamMode">Stream
      * Mode</a> for further information.
@@ -951,7 +972,7 @@ public final class Value {
      */
     public String toString() {
         if (_size == 0) {
-            return "undefined";
+            return UNDEFINED;
         }
 
         if (_longMode && (_bytes[0] & 0xFF) == Buffer.LONGREC_TYPE && (_size >= Buffer.LONGREC_SIZE)) {
@@ -962,7 +983,6 @@ public final class Value {
         int saveLevel = _level;
         int saveNext = _next;
         int saveEnd = _end;
-        boolean saveAtomic = _atomicIncrementArmed;
         StringBuilder sb = new StringBuilder();
         setStreamMode(true);
         try {
@@ -980,7 +1000,6 @@ public final class Value {
         } catch (Exception e) {
             sb.append("Exception " + e + " while decoding value at index=" + _next + ": " + e);
         } finally {
-            _atomicIncrementArmed = saveAtomic;
             _end = saveEnd;
             _next = saveNext;
             _level = saveLevel;
@@ -1033,7 +1052,7 @@ public final class Value {
      *            A <code>CoderContext</code> to be passed to any underlying
      *            {@link ValueDisplayer}.
      */
-    public void decodeDisplayable(boolean quoted, StringBuilder sb, CoderContext context) {
+    public void decodeDisplayable(final boolean quoted, final StringBuilder sb, final CoderContext context) {
         checkSize(1);
 
         int start = _next;
@@ -1280,6 +1299,49 @@ public final class Value {
             break;
         }
 
+        case TYPE_MVV: {
+            final int savedSize = _size;
+            sb.append("[");
+
+
+            try {
+                MVV.visitAllVersions(new MVV.VersionVisitor() {
+                    boolean first = true;
+
+                    @Override
+                    public void init() {
+                    }
+
+                    @Override
+                    public void sawVersion(long version, int offset, int valueLength) {
+                        if(!first) {
+                            sb.append(", ");
+                        }
+                        sb.append(version);
+                        sb.append(':');
+                        if(valueLength == 0) {
+                            sb.append(UNDEFINED);
+                        } else {
+                            _next = offset;
+                            _end = _size = _next + valueLength;
+                            decodeDisplayable(quoted, sb, context);
+                        }
+                        first = false;
+                    }
+
+                }, getEncodedBytes(), 0, getEncodedSize());
+            } 
+            catch (Throwable t) {
+                sb.append("<<").append(t).append(">>");
+            }
+            finally {
+                _next = _end = _size = savedSize;
+            }
+            
+            sb.append("]");
+        }
+            break;
+
         default: {
             if (classHandle >= CLASS1) {
                 try {
@@ -1454,6 +1516,9 @@ public final class Value {
                 sb.append(value);
             } else if (value instanceof DisplayMarker) {
                 sb.append(value);
+            } else if (value instanceof AntiValue) {
+                sb.append(cl.getSimpleName());
+                sb.append(value.toString());
             } else {
                 appendParenthesizedFriendlyClassName(sb, cl);
                 try {
@@ -1549,7 +1614,7 @@ public final class Value {
      * <code>Value</code> and verifies that it is <code>null</code>.
      * 
      * @return <code>null</code>
-     * @throws ConverisonException
+     * @throws ConversionException
      *             if this <code>Value</code> does not currently represent
      *             <code>null</code>.
      */
@@ -1853,11 +1918,9 @@ public final class Value {
         final int saveLevel = _level;
         final int saveNext = _next;
         final int saveEnd = _end;
-        final boolean saveAtomic = _atomicIncrementArmed;
         try {
             object = get(target, context);
         } finally {
-            _atomicIncrementArmed = saveAtomic;
             _end = saveEnd;
             _next = saveNext;
             _level = saveLevel;
@@ -1954,7 +2017,7 @@ public final class Value {
      * @throws MalformedValueException
      *             if this <code>Value</code> is structurally corrupt.
      */
-    public Object get(Object target, CoderContext context) {
+    public Object get(final Object target, final CoderContext context) {
         Object object = null;
         int start = _next;
         int classHandle = nextType();
@@ -2007,7 +2070,12 @@ public final class Value {
         case CLASS_STRING: {
             char[] sab = getStringAssemblyBuffer(_end - _next);
             int length = utfToCharArray(sab, _next, _end);
-            object = new String(sab, 0, length);
+            if (target != null && target instanceof StringBuilder) {
+                ((StringBuilder) target).append(sab, 0, length);
+                object = target;
+            } else {
+                object = new String(sab, 0, length);
+            }
             closeVariableLengthItem();
             break;
         }
@@ -2028,6 +2096,48 @@ public final class Value {
             break;
         }
 
+        case CLASS_ACCUMULATOR: {
+            AccumulatorState accumulator;
+            if (target != null && target instanceof AccumulatorState) {
+                accumulator = (AccumulatorState) target;
+            } else {
+                accumulator = new AccumulatorState();
+            }
+            _depth++;
+            try {
+                accumulator.load(this);
+            } finally {
+                _depth--;
+            }
+            object = accumulator;
+            break;
+        }
+
+        case CLASS_TREE_STATISTICS: {
+            TreeStatistics treeStatistics;
+            if (target != null && target instanceof TreeStatistics) {
+                treeStatistics = (TreeStatistics) target;
+            } else {
+                treeStatistics = new TreeStatistics();
+            }
+            _next += treeStatistics.load(_bytes, _next, _end - _next);
+            object = treeStatistics;
+            break;
+        }
+
+        case CLASS_TREE: {
+            if (target != null && target instanceof Tree) {
+                final Tree tree = (Tree) target;
+                _next += tree.load(_bytes, _next, _end - _next);
+                object = tree;
+            } else {
+                final TreeState treeState = new TreeState();
+                _next += treeState.load(_bytes, _next, _end - _next);
+                object = treeState;
+            }
+            break;
+        }
+
         case CLASS_BIG_DECIMAL: {
             int length = _end - _next;
             int scale = Util.getInt(_bytes, _next);
@@ -2041,9 +2151,13 @@ public final class Value {
 
         case CLASS_ANTIVALUE: {
             int length = _end - _next;
-            int elisionCount = Util.getShort(_bytes, _next);
-            byte[] bytes = new byte[length - 2];
-            System.arraycopy(_bytes, _next + 2, bytes, 0, length - 2);
+            int elisionCount = 0;
+            byte[] bytes = null;
+            if (length > 0) {
+                elisionCount = Util.getShort(_bytes, _next);
+                bytes = new byte[length - 2];
+                System.arraycopy(_bytes, _next + 2, bytes, 0, length - 2);
+            }
             _next += length;
             object = new AntiValue(elisionCount, bytes);
             closeVariableLengthItem();
@@ -2185,6 +2299,42 @@ public final class Value {
             int handle = decodeVariableLengthInt(base);
             object = getValueCache().get(handle);
             break;
+        }
+
+        case TYPE_MVV: {
+            final int savedSize = _size;
+            final ArrayList<Object> outList = new ArrayList<Object>();
+
+            try {
+                _depth++;
+
+                MVV.visitAllVersions(new MVV.VersionVisitor() {
+                    @Override
+                    public void init() {
+                    }
+
+                    @Override
+                    public void sawVersion(long version, int offset, int valueLength) {
+                        Object obj = null;
+                        if(valueLength > 0) {
+                            _next = offset;
+                            _end = _size = _next + valueLength;
+                            obj = get(target, context);
+                        }
+                        outList.add(obj);
+                    }
+
+                }, getEncodedBytes(), 0, getEncodedSize());
+            }
+            catch (PersistitException pe) {
+                throw new ConversionException("@" + start, pe);
+            }
+            finally {
+                _depth--;
+                _next = _end = _size = savedSize;
+            }
+            
+            return outList.toArray();
         }
 
         default: {
@@ -3159,6 +3309,23 @@ public final class Value {
             _bytes[_size++] = (byte) CLASS_DOUBLE;
             Util.putLong(_bytes, _size, Double.doubleToRawLongBits(((Double) object).doubleValue()));
             _size += 8;
+        } else if (object instanceof Accumulator) {
+            ensureFit(Accumulator.MAX_SERIALIZED_SIZE);
+            _bytes[_size++] = (byte) CLASS_ACCUMULATOR;
+            _depth++;
+            try {
+                ((Accumulator) object).store(this);
+            } finally {
+                _depth--;
+            }
+        } else if (cl == TreeStatistics.class) {
+            ensureFit(TreeStatistics.MAX_SERIALIZED_SIZE);
+            _bytes[_size++] = (byte) CLASS_TREE_STATISTICS;
+            _size += ((TreeStatistics) object).store(_bytes, _size);
+        } else if (cl == Tree.class) {
+            ensureFit(Tree.MAX_SERIALIZED_SIZE);
+            _bytes[_size++] = (byte) CLASS_TREE;
+            _size += ((Tree) object).store(_bytes, _size);
         } else if (cl.isArray()) {
             Class componentClass = cl.getComponentType();
             int length = Array.getLength(object);
@@ -3893,35 +4060,11 @@ public final class Value {
         endVariableSizeItem(_size - start);
     }
 
-    void performAtomicIncrement() {
-
-        int type;
-        _atomicIncrementArmed = false;
-        switch (type = _bytes[0]) {
-        case TYPE_BYTE: {
-            put((byte) (getByte() + _atomicIncrementValue));
-            break;
-        }
-        case TYPE_SHORT: {
-            put((short) (getShort() + _atomicIncrementValue));
-            break;
-        }
-        case TYPE_CHAR: {
-            put((char) (getChar() + _atomicIncrementValue));
-            break;
-        }
-        case TYPE_INT: {
-            put((int) (getInt() + _atomicIncrementValue));
-            break;
-        }
-        case TYPE_LONG: {
-            put((long) (getLong() + _atomicIncrementValue));
-            break;
-        }
-        default: {
-            throw new ConversionException("Existing value is not numeric. Type=" + type);
-        }
-        }
+    void putAntiValueMVV() {
+        preparePut();
+        ensureFit(1);
+        _bytes[_size++] = (byte) CLASS_ANTIVALUE;
+        _serializedItemCount++;
     }
 
     long getPointerValue() {
@@ -3938,23 +4081,6 @@ public final class Value {
 
     void setPointerPageType(int pageType) {
         _pointerPageType = pageType;
-    }
-
-    final void armAtomicIncrement(long value) {
-        _atomicIncrementArmed = true;
-        _atomicIncrementValue = value;
-    }
-
-    final void disarmAtomicIncrement() {
-        _atomicIncrementArmed = false;
-    }
-
-    final boolean isAtomicIncrementArmed() {
-        return _atomicIncrementArmed;
-    }
-
-    final long getAtomicIncrementValue() {
-        return _atomicIncrementValue;
     }
 
     byte[] getLongBytes() {
@@ -4021,7 +4147,6 @@ public final class Value {
         if (_endArray != null && _endArray.length > TOO_MANY_LEVELS_THRESHOLD) {
             _endArray = null;
         }
-        _atomicIncrementArmed = false;
         releaseValueCache();
     }
 
@@ -4336,8 +4461,10 @@ public final class Value {
     void decodeAntiValue(Exchange exchange) throws InvalidKeyException {
         nextType(CLASS_ANTIVALUE);
         int length = _end - _next;
-        int elisionCount = Util.getShort(_bytes, _next);
-        AntiValue.fixupKeys(exchange, elisionCount, _bytes, _next + 2, length - 2);
+        if (length > 0) {
+            int elisionCount = Util.getShort(_bytes, _next);
+            AntiValue.fixUpKeys(exchange, elisionCount, _bytes, _next + 2, length - 2);
+        }
         _next += length;
         closeVariableLengthItem();
     }

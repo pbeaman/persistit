@@ -50,9 +50,9 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
 
     private static final long serialVersionUID = 1;
 
-    private static final String PROTOTYPE_VOLUME_NAME = "c:/this/that/persistit";
+    private static final String PROTOTYPE_VOLUME_NAME = "/this/that/persistit";
 
-    private static final String PROTOTYPE_TREE_NAME = "aTreeName (c:/this/that/other)";
+    private static final String PROTOTYPE_TREE_NAME = "aTreeName (/var/lib/this/that/other)";
 
     private final static int VISIBLE_ROW_COUNT = 12;
 

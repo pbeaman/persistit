@@ -249,8 +249,7 @@ import com.persistit.util.Util;
  * </tr>
  * <tr valign="top">
  * <td>+16</td>
- * <td>isCommitted (byte) - indicates whether the journal already contains a TC
- * record for this transaction</td>
+ * <td>isCommitted (byte) - indicates whether this transaction committed</td>
  * </tr>
  * </table>
  * </td>
@@ -277,47 +276,50 @@ import com.persistit.util.Util;
  * </tr>
  * 
  * <tr valign="top">
- * <td>TS</td>
- * <td>Transaction Start: binds subsequent records having same timestamp to a
- * commit
+ * <td>TX</td>
+ * <td>Transaction update record - encapsulates a set of updates applied to the
+ * database. This record type encapsulates SR, DR, DT, DV, and CU records
+ * defined below.
  * <table>
  * <tr valign="top">
  * <td>+16</td>
- * <td>Starting timestamp (long)- the timestamp assigned when the transaction
- * started. The base timestamp is the later commit timestamp.</td>
+ * <td>Commit timestamp, or -1 if the transaction has not committed.</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>+24</td>
+ * <td>Previous record journal address (long).</td>
+ * </tr>
+ * <tr valign="top">
+ * <td>+32</td>
+ * <td>serialized updates as a series of contiguous SR, DR, DT, DV, and CU
+ * records</td>
  * </tr>
  * </table>
- * </td>
  * </tr>
  * 
- * <tr valign="top">
- * <td>TC</td>
- * <td>Transaction Commit: all records having same or linked time-stamps should
- * be applied
- * <table>
- * <tr valign="top">
- * <td>+16</td>
- * <td>Transaction ID (long).</td>
- * </tr>
  * </table>
- * </td>
- * </tr>
+ * <p>
+ * The following sub-record types are encapsulated inside of a TX record. Their
+ * format differs from the main record types by not including timestamp or
+ * backpointer fields.
  * 
+ * 
+ * <table border="1">
  * <tr valign="top">
  * <td>SR</td>
  * <td>Store Record - specifies a Tree into which a key/value pair should be
  * inserted
  * <table>
  * <tr valign="top">
- * <td>+16</td>
+ * <td>+8</td>
  * <td>Tree handle (int) - matches a tree identified in a preceding IT record</td>
  * </tr>
  * <tr valign="top">
- * <td>+20</td>
+ * <td>+12</td>
  * <td>Key size (short)</td>
  * </tr>
  * <tr valign="top">
- * <td>+22</td>
+ * <td>+14</td>
  * <td>Key bytes immediately followed by Value bytes (variable).</td>
  * </tr>
  * </table>
@@ -332,19 +334,19 @@ import com.persistit.util.Util;
  * Key1; only the remaining unique bytes are stored in the record.
  * <table>
  * <tr valign="top">
- * <td>+16</td>
+ * <td>+8</td>
  * <td>Tree handle (int) - matches a tree identified in a preceding IT record</td>
  * </tr>
  * <tr valign="top">
- * <td>+20</td>
+ * <td>+12</td>
  * <td>Key1_size (short)</td>
  * </tr>
  * <tr valign="top">
- * <td>+22</td>
+ * <td>+14</td>
  * <td>Key2 Elision_count (short)</td>
  * </tr>
  * <tr valign="top">
- * <td>+24</td>
+ * <td>+16</td>
  * <td>Key bytes</td>
  * </tr>
  * </table>
@@ -355,7 +357,7 @@ import com.persistit.util.Util;
  * <td>Delete Tree - specifies a Tree to be deleted.
  * <table>
  * <tr valign="top">
- * <td>+16</td>
+ * <td>+8</td>
  * <td>Tree handle (int) - matches a tree identified in a preceding IT record</td>
  * </tr>
  * </table>
@@ -367,7 +369,7 @@ import com.persistit.util.Util;
  * <td>Delete Volume - specifies a Volume to be deleted.
  * <table>
  * <tr valign="top">
- * <td>+16</td>
+ * <td>+8</td>
  * <td>Volume handle (int) - matches a volume identified in a preceding IV
  * record</td>
  * </tr>
@@ -381,12 +383,12 @@ import com.persistit.util.Util;
  * records is determined by the <code>TransactionalCache</code> implementation.
  * <table>
  * <tr valign="top">
- * <td>+16</td>
+ * <td>+8</td>
  * <td>cacheId (long) - unique identifier of <code>TransactionalCache</code>
  * instance</td>
  * </tr>
  * <tr valign="top">
- * <td>+24</td>
+ * <td>+16</td>
  * <td>Updates (variable-length) - the serialized updates</td>
  * </tr>
  * </table>
@@ -399,12 +401,12 @@ import com.persistit.util.Util;
  */
 class JournalRecord {
 
+    final static int OVERHEAD = 16;
+
     private final static Charset UTF8 = Charset.forName("UTF-8");
 
-    public final static int OVERHEAD = 16;
-
     public final static int[] TYPES = new int[] { JE.TYPE, JH.TYPE, PA.TYPE, PM.TYPE, SR.TYPE, DR.TYPE, DT.TYPE,
-            TM.TYPE, TS.TYPE, TC.TYPE, CP.TYPE, IV.TYPE, IT.TYPE, CU.TYPE };
+            TM.TYPE, CP.TYPE, IV.TYPE, IT.TYPE, D1.TYPE, D0.TYPE, TX.TYPE };
 
     public static boolean isValidType(final int t) {
         for (int type : TYPES) {
@@ -646,7 +648,7 @@ class JournalRecord {
 
         public final static int OVERHEAD = 16;
 
-        public final static int ENTRY_SIZE = 24;
+        public final static int ENTRY_SIZE = 32;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
@@ -669,11 +671,16 @@ class JournalRecord {
             return getLong(bb, 16 + (index * ENTRY_SIZE));
         }
 
+        public static long getLastRecordAddress(final ByteBuffer bb, final int index) {
+            return getLong(bb, 24 + (index * ENTRY_SIZE));
+        }
+
         public static void putEntry(final ByteBuffer bb, final int index, final long startTimestamp,
-                final long commitTimestamp, final long journalAddress) {
+                final long commitTimestamp, final long journalAddress, final long lastRecordAddress) {
             putLong(bb, 0 + (index * ENTRY_SIZE), startTimestamp);
             putLong(bb, 8 + (index * ENTRY_SIZE), commitTimestamp);
             putLong(bb, 16 + (index * ENTRY_SIZE), journalAddress);
+            putLong(bb, 24 + (index * ENTRY_SIZE), lastRecordAddress);
         }
 
     }
@@ -843,40 +850,42 @@ class JournalRecord {
     }
 
     /**
-     * Transaction Start
+     * Transaction update envelope
      */
-    static class TS extends JournalRecord {
+    static class TX extends JournalRecord {
 
-        public final static int TYPE = ('T' << 8) | 'S';
+        public final static int TYPE = ('T' << 8) | 'X';
 
-        public final static int OVERHEAD = 16;
+        public final static int OVERHEAD = 32;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
-        }
-    }
-
-    /**
-     * Transaction Commit
-     */
-    static class TC extends JournalRecord {
-
-        public final static int TYPE = ('T' << 8) | 'C';
-
-        public final static int OVERHEAD = 24;
-
-        public static void putType(final ByteBuffer bb) {
-            putType(bb, TYPE);
-        }
-
-        public static void putCommitTimestamp(final ByteBuffer bb, final long commitTimestamp) {
-            putLong(bb, 16, commitTimestamp);
         }
 
         public static long getCommitTimestamp(final ByteBuffer bb) {
             return getLong(bb, 16);
         }
+
+        public static void putCommitTimestamp(final ByteBuffer bb, final long address) {
+            putLong(bb, 16, address);
+        }
+
+        public static long getBackchainAddress(final ByteBuffer bb) {
+            return getLong(bb, 24);
+        }
+
+        public static void putBackchainAddress(final ByteBuffer bb, final long address) {
+            putLong(bb, 24, address);
+        }
     }
+
+    /*
+     * -------------------------------------------------------------
+     * 
+     * The following record types occur only within the scope of a TX record.
+     * 
+     * -------------------------------------------------------------
+     */
 
     /**
      * Store Record
@@ -885,26 +894,26 @@ class JournalRecord {
 
         public final static int TYPE = ('S' << 8) | 'R';
 
-        public final static int OVERHEAD = 22;
+        public final static int OVERHEAD = 14;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
         }
 
         public static void putTreeHandle(final ByteBuffer bb, final int handle) {
-            putInt(bb, 16, handle);
+            putInt(bb, 8, handle);
         }
 
         public static int getTreeHandle(final ByteBuffer bb) {
-            return getInt(bb, 16);
+            return getInt(bb, 8);
         }
 
         public static void putKeySize(final ByteBuffer bb, final int size) {
-            putChar(bb, 20, size);
+            putChar(bb, 12, size);
         }
 
         public static int getKeySize(final ByteBuffer bb) {
-            return getChar(bb, 20);
+            return getChar(bb, 12);
         }
     }
 
@@ -915,26 +924,34 @@ class JournalRecord {
 
         public final static int TYPE = ('D' << 8) | 'R';
 
-        public final static int OVERHEAD = 22;
+        public final static int OVERHEAD = 16;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
         }
 
         public static void putTreeHandle(final ByteBuffer bb, final int handle) {
-            putInt(bb, 16, handle);
+            putInt(bb, 8, handle);
         }
 
         public static int getTreeHandle(final ByteBuffer bb) {
-            return getInt(bb, 16);
+            return getInt(bb, 8);
         }
 
         public static void putKey1Size(final ByteBuffer bb, final int size) {
-            putChar(bb, 20, size);
+            putChar(bb, 12, size);
         }
 
         public static int getKey1Size(final ByteBuffer bb) {
-            return getChar(bb, 20);
+            return getChar(bb, 12);
+        }
+
+        public static void putKey2Elision(final ByteBuffer bb, final int elisionCount) {
+            putChar(bb, 14, elisionCount);
+        }
+
+        public static int getKey2Elision(final ByteBuffer bb) {
+            return getChar(bb, 14);
         }
 
     }
@@ -946,27 +963,23 @@ class JournalRecord {
 
         public final static int TYPE = ('D' << 8) | 'T';
 
-        public final static int OVERHEAD = 20;
+        public final static int OVERHEAD = 12;
 
         public static void putType(final ByteBuffer bb) {
             putType(bb, TYPE);
         }
 
         public static void putTreeHandle(final ByteBuffer bb, final int handle) {
-            putInt(bb, 16, handle);
+            putInt(bb, 8, handle);
         }
 
         public static int getTreeHandle(final ByteBuffer bb) {
-            return getInt(bb, 16);
+            return getInt(bb, 8);
         }
     }
 
-    /**
-     * Cache Update
-     */
-    static class CU extends JournalRecord {
-
-        public final static int TYPE = ('C' << 8) | 'U';
+    static class D1 extends JournalRecord {
+        public final static int TYPE = ('D' << 8) | '1';
 
         public final static int OVERHEAD = 24;
 
@@ -974,13 +987,71 @@ class JournalRecord {
             putType(bb, TYPE);
         }
 
-        public static void putCacheId(final ByteBuffer bb, final long id) {
-            putLong(bb, 16, id);
+        public static void putTreeHandle(final ByteBuffer bb, final int handle) {
+            putInt(bb, 8, handle);
         }
 
-        public static long getCacheId(final ByteBuffer bb) {
+        public static int getTreeHandle(final ByteBuffer bb) {
+            return getInt(bb, 8);
+        }
+
+        public static void putIndex(final ByteBuffer bb, final int index) {
+            putChar(bb, 12, index);
+        }
+
+        public static int getIndex(final ByteBuffer bb) {
+            return getChar(bb, 12);
+        }
+        
+        public static void putAccumulatorTypeOrdinal(final ByteBuffer bb, final int type) {
+            putChar(bb, 14, type);
+        }
+        
+        public static int getAccumulatorTypeOrdinal(final ByteBuffer bb) {
+            return getChar(bb, 14);
+        }
+
+        public static long getValue(final ByteBuffer bb) {
             return getLong(bb, 16);
         }
+
+        public static void putValue(final ByteBuffer bb, final long value) {
+            putLong(bb, 16, value);
+        }
+
     }
 
+    static class D0 extends JournalRecord {
+        public final static int TYPE = ('D' << 8) | '0';
+
+        public final static int OVERHEAD = 16;
+
+        public static void putType(final ByteBuffer bb) {
+            putType(bb, TYPE);
+        }
+
+        public static void putTreeHandle(final ByteBuffer bb, final int handle) {
+            putInt(bb, 8, handle);
+        }
+
+        public static int getTreeHandle(final ByteBuffer bb) {
+            return getInt(bb, 8);
+        }
+
+        public static void putIndex(final ByteBuffer bb, final int index) {
+            putChar(bb, 12, index);
+        }
+
+        public static int getIndex(final ByteBuffer bb) {
+            return getChar(bb, 12);
+        }
+        
+        public static void putAccumulatorTypeOrdinal(final ByteBuffer bb, final int type) {
+            putChar(bb, 14, type);
+        }
+        
+        public static int getAccumulatorTypeOrdinal(final ByteBuffer bb) {
+            return getChar(bb, 14);
+        }
+    }
 }

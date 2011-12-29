@@ -308,6 +308,8 @@ public class IOFailureTest extends PersistitUnitTestCase {
             // expected
         }
         file1.delete();
+
+        _persistit = new Persistit();
         _persistit.initialize(properties);
         
         

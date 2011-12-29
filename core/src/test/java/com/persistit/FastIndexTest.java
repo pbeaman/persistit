@@ -17,6 +17,7 @@ package com.persistit;
 
 import java.util.Random;
 
+import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.unit.PersistitUnitTestCase;
 
 public class FastIndexTest extends PersistitUnitTestCase {
@@ -63,32 +64,34 @@ public class FastIndexTest extends PersistitUnitTestCase {
         b1.init(Buffer.PAGE_TYPE_DATA);
         Key key = new Key(_persistit);
         Value value = new Value(_persistit);
+        RawValueWriter vwriter = new RawValueWriter();
+        vwriter.init(value);
         fakeKey(key, "A");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "ABC");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "ABK");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "ABZ");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "AC");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "C");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "B");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "E");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "D");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "DA");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "ABB");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "ABA");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
         fakeKey(key, "ABJ");
-        b1.putValue(key, value);
+        b1.putValue(key, vwriter);
 
         FastIndex fi = b1.getFastIndex();
         String inserteds = fi.toString();
@@ -118,7 +121,9 @@ public class FastIndexTest extends PersistitUnitTestCase {
             random.nextBytes(bytes);
             System.arraycopy(bytes, 0, key.getEncodedBytes(), 0, size);
             key.setEncodedSize(size);
-            b1.putValue(key, value);
+            RawValueWriter vwriter = new RawValueWriter();
+            vwriter.init(value);
+            b1.putValue(key, vwriter);
 
             String s1 = f1.toString();
             f1.recompute();

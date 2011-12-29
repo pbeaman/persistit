@@ -18,7 +18,6 @@ package com.persistit.stress;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.Transaction;
-import com.persistit.Transaction.CommitListener;
 import com.persistit.Value;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
@@ -106,25 +105,7 @@ public class Stress12txn extends StressBase {
                             final long currentValue = getCount(_exs.getValue());
                             putCount(_exs.getValue(), currentValue + 1);
                             _exs.store();
-                            txn.commit(new CommitListener() {
-
-                                @Override
-                                public void committed() {
-                                    final long check = _counters[keyInteger].incrementAndGet();
-                                    if (check != currentValue + 1) {
-                                        _result = new TestResult(false, String.format(
-                                                "Count mismatch in commit listener:"
-                                                        + " counter is %d, value in B-Tree is %d", check,
-                                                currentValue + 1));
-                                        forceStop();
-                                    }
-                                }
-
-                                @Override
-                                public void rolledBack() {
-
-                                }
-                            }, false);
+                            txn.commit();
                             break;
                         } catch (final RollbackException re) {
                             if (--retries < 0) {

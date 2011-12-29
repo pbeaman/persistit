@@ -36,6 +36,7 @@ import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.VolumeClosedException;
 import com.persistit.util.Debug;
+import com.persistit.util.Util;
 
 /**
  * A pool of {@link Buffer} objects, maintained on various lists that permit
@@ -90,7 +91,7 @@ public class BufferPool {
     private final static float SMALL_VOLUME_RATIO = 0.1f;
 
     /**
-     * The Persistit instance that references this BufferBool.
+     * The Persistit instance that references this BufferPool.
      */
     private final Persistit _persistit;
 
@@ -322,19 +323,13 @@ public class BufferPool {
         IOTaskRunnable.crash(_writer);
     }
 
-    private void pause() throws PersistitInterruptedException {
-        try {
-            Thread.sleep(RETRY_SLEEP_TIME);
-        } catch (InterruptedException ie) {
-            throw new PersistitInterruptedException(ie);
-        }
-    }
+
 
     void flush(final long timestamp) throws PersistitInterruptedException {
         setFlushTimestamp(timestamp);
         _writer.kick();
         while (isFlushing()) {
-            pause();
+            Util.sleep(RETRY_SLEEP_TIME);
         }
     }
 
@@ -665,7 +660,7 @@ public class BufferPool {
         Debug.$assert0.t(buffer.isValid() && buffer.isMine());
 
         while (!detach(buffer)) {
-            pause();
+            Util.spinSleep();
         }
         buffer.clearValid();
         buffer.clearDirty();
@@ -759,7 +754,7 @@ public class BufferPool {
                     // get some buffers written.
                     //
                     if (buffer != null) {
-
+                        Debug.$assert1.t(!buffer.isDirty());
                         Debug.$assert0.t(buffer != _hashTable[hash]);
                         Debug.$assert0.t(buffer.getNext() != buffer);
 
@@ -1109,7 +1104,7 @@ public class BufferPool {
         int min = Integer.MAX_VALUE;
         final int clock = _clock.get();
 
-        final long checkpointTimestamp = _persistit.getTimestampAllocator().getCurrentCheckpoint().getTimestamp();
+        final long checkpointTimestamp = _persistit.getCurrentCheckpoint().getTimestamp();
         long earliestDirtyTimestamp = checkpointTimestamp;
         long flushTimestamp = _flushTimestamp.get();
 
@@ -1205,7 +1200,7 @@ public class BufferPool {
                 // is preventing a new checkpoint from being written.
                 //
                 if (buffer.getTimestamp() < checkpointTimestamp
-                        - _persistit.getTimestampAllocator().getCheckpointInterval()) {
+                        - _persistit.getCheckpointManager().getCheckpointInterval()) {
                     distance -= _bufferCount;
                 }
             }
@@ -1254,8 +1249,11 @@ public class BufferPool {
             _persistit.cleanup();
 
             int cleanCount = _bufferCount - _dirtyPageCount.get();
-            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8 && !isFlushing()
-                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {
+            if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2
+                    && cleanCount > _bufferCount / 8
+                    && !isFlushing()
+                    && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint()
+                            .getTimestamp()) {
                 return;
             }
             writeDirtyBuffers(_priorities, _selectedBuffers);

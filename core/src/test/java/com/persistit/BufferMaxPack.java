@@ -15,23 +15,25 @@
 
 package com.persistit;
 
-import static org.junit.Assert.assertTrue;
-
 import org.junit.Test;
 
-public class BufferMaxPack {
+import com.persistit.ValueHelper.RawValueWriter;
+import com.persistit.unit.PersistitUnitTestCase;
+
+public class BufferMaxPack extends PersistitUnitTestCase {
 
     @Test
     public void testJoinBuffer() throws Exception {
-        final Persistit db = new Persistit();
-        final Buffer b1 = new Buffer(16384, 0, null, db);
+        final Buffer b1 = _persistit.getBufferPool(16384).get(_persistit.getVolume("persistit"), 1, true, false);
         b1.init(Buffer.PAGE_TYPE_DATA);
         b1.claim(true);
         final Key key = new Key((Persistit) null);
         final Value value = new Value((Persistit) null);
+        RawValueWriter vwriter = new RawValueWriter();
+        vwriter.init(value);
         for (int i = 0; i < 4096; i++) {
             key.clear().append(i);
-            int at = b1.putValue(key, value);
+            int at = b1.putValue(key, vwriter);
             if (at < 0) {
                 break;
             }

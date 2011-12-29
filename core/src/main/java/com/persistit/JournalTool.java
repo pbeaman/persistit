@@ -36,7 +36,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.persistit.JournalRecord.CP;
-import com.persistit.JournalRecord.CU;
+import com.persistit.JournalRecord.D0;
+import com.persistit.JournalRecord.D1;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.IT;
@@ -46,10 +47,8 @@ import com.persistit.JournalRecord.JH;
 import com.persistit.JournalRecord.PA;
 import com.persistit.JournalRecord.PM;
 import com.persistit.JournalRecord.SR;
-import com.persistit.JournalRecord.TC;
 import com.persistit.JournalRecord.TM;
-import com.persistit.JournalRecord.TS;
-import com.persistit.TransactionalCache.Update;
+import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -209,9 +208,7 @@ public class JournalTool {
 
         public void cp(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void ts(final long address, final long timestamp, final int recordSize) throws Exception;
-
-        public void tc(final long address, final long timestamp, final int recordSize) throws Exception;
+        public void tx(final long address, final long timestamp, final int recordSize) throws Exception;
 
         public void sr(final long address, final long timestamp, final int recordSize) throws Exception;
 
@@ -225,7 +222,9 @@ public class JournalTool {
 
         public void tm(final long address, final long timestamp, final int recordSize) throws Exception;
 
-        public void cu(final long address, final long timestamp, final int recordSize) throws Exception;
+        public void d0(final long address, final long timestamp, final int recordSize) throws Exception;
+
+        public void d1(final long address, final long timestamp, final int recordSize) throws Exception;
 
         public void eof(final long address) throws Exception;
     }
@@ -374,20 +373,23 @@ public class JournalTool {
     }
 
     public void scan() throws Exception {
-        _currentAddress = _startAddr;
-        _readBufferAddress = Long.MIN_VALUE;
-        while (_currentAddress < _endAddr) {
-            int type = scanOneRecord();
-            switch (type) {
-            case JE.TYPE:
-            case EOF:
-                _currentAddress = addressUp(_currentAddress);
-                break;
-            case EOJ:
-                return;
+        try {
+            _currentAddress = _startAddr;
+            _readBufferAddress = Long.MIN_VALUE;
+            while (_currentAddress < _endAddr) {
+                int type = scanOneRecord();
+                switch (type) {
+                case JE.TYPE:
+                case EOF:
+                    _currentAddress = addressUp(_currentAddress);
+                    break;
+                case EOJ:
+                    return;
+                }
             }
+        } finally {
+            _writer.flush();
         }
-        _writer.flush();
     }
 
     /**
@@ -422,104 +424,117 @@ public class JournalTool {
         final int recordSize = getLength(_readBuffer);
         final int type = getType(_readBuffer);
         final long timestamp = getTimestamp(_readBuffer);
+        _currentAddress = processOneRecord(from, timestamp, recordSize, type);
+        return type;
+    }
 
+    long processOneRecord(final long from, final long timestamp, final int recordSize, final int type) throws Exception {
         if (recordSize >= _blockSize || recordSize < OVERHEAD) {
             throw new CorruptJournalException("Bad JournalRecord length " + recordSize + " at position "
                     + addressToString(from, timestamp));
         }
+        long address = from;
+        switch (type) {
 
-        if (_selectedTypes.get(type)) {
-            switch (type) {
+        case JE.TYPE:
+            if (_selectedTypes.get(type)) {
+                _action.je(address, timestamp, recordSize);
+            }
+            break;
 
-            case JE.TYPE:
-                _action.je(from, timestamp, recordSize);
-                break;
+        case JH.TYPE:
+            read(_currentAddress, recordSize);
+            final long blockSize = JH.getBlockSize(_readBuffer);
+            if (blockSize != _blockSize) {
+                address = _currentAddress = (_currentAddress / _blockSize) * blockSize;
+                _readBufferAddress = _currentAddress;
+                _blockSize = blockSize;
+            }
+            if (_selectedTypes.get(type)) {
+                _action.jh(address, timestamp, recordSize);
+            }
+            break;
 
-            case JH.TYPE:
-                read(_currentAddress, recordSize);
-                final long blockSize = JH.getBlockSize(_readBuffer);
-                if (blockSize != _blockSize) {
-                    from = _currentAddress = (_currentAddress / _blockSize) * blockSize;
-                    _readBufferAddress = _currentAddress;
-                    _blockSize = blockSize;
-                }
+        case SR.TYPE:
+            if (_selectedTypes.get(type) && _selectedTimestamps.isSelected(timestamp)) {
+                _action.sr(address, timestamp, recordSize);
+            }
+            break;
 
-                _action.jh(from, timestamp, recordSize);
-                break;
+        case DR.TYPE:
+            if (_selectedTypes.get(type) && _selectedTimestamps.isSelected(timestamp)) {
+                _action.dr(address, timestamp, recordSize);
+            }
+            break;
 
-            case SR.TYPE:
-                if (_selectedTimestamps.isSelected(timestamp)) {
-                    _action.sr(from, timestamp, recordSize);
-                }
-                break;
+        case DT.TYPE:
+            if (_selectedTypes.get(type) && _selectedTimestamps.isSelected(timestamp)) {
+                _action.dt(address, timestamp, recordSize);
+            }
+            break;
 
-            case DR.TYPE:
-                if (_selectedTimestamps.isSelected(timestamp)) {
-                    _action.dr(from, timestamp, recordSize);
-                }
-                break;
+        case IV.TYPE:
+            if (_selectedTypes.get(type)) {
+                _action.iv(address, timestamp, recordSize);
+            }
+            break;
 
-            case DT.TYPE:
-                if (_selectedTimestamps.isSelected(timestamp)) {
-                    _action.dt(from, timestamp, recordSize);
-                }
-                break;
+        case IT.TYPE:
+            if (_selectedTypes.get(type)) {
+                _action.it(address, timestamp, recordSize);
+            }
+            break;
 
-            case IV.TYPE:
-                _action.iv(from, timestamp, recordSize);
-                break;
+        case PA.TYPE:
+            if (_selectedTypes.get(type) && _selectedTimestamps.isSelected(timestamp)) {
+                _action.pa(address, timestamp, recordSize);
+            }
+            break;
 
-            case IT.TYPE:
-                _action.it(from, timestamp, recordSize);
-                break;
+        case PM.TYPE:
+            if (_selectedTypes.get(type)) {
+                _action.pm(address, timestamp, recordSize);
+            }
+            break;
 
-            case PA.TYPE:
-                if (_selectedTimestamps.isSelected(timestamp)) {
-                    _action.pa(from, timestamp, recordSize);
-                }
-                break;
+        case TM.TYPE:
+            if (_selectedTypes.get(type)) {
+                _action.tm(address, timestamp, recordSize);
+            }
+            break;
 
-            case PM.TYPE:
-                _action.pm(from, timestamp, recordSize);
-                break;
+        case TX.TYPE:
+            if (_selectedTypes.get(type) && _selectedTimestamps.isSelected(timestamp)) {
+                _action.tx(address, timestamp, recordSize);
+            }
+            break;
 
-            case TM.TYPE:
-                _action.tm(from, timestamp, recordSize);
-                break;
+        case CP.TYPE:
+            if (_selectedTypes.get(type) && _selectedTimestamps.isSelected(timestamp)) {
+                _action.cp(address, timestamp, recordSize);
+            }
+            break;
 
-            case TS.TYPE:
-                if (_selectedTimestamps.isSelected(timestamp)) {
-                    _action.ts(from, timestamp, recordSize);
-                }
-                break;
+        case D0.TYPE:
+            if (_selectedTypes.get(type) && _selectedTimestamps.isSelected(timestamp)) {
+                _action.d0(address, timestamp, recordSize);
+            }
+            break;
 
-            case TC.TYPE:
-                if (_selectedTimestamps.isSelected(timestamp)) {
-                    _action.tc(from, timestamp, recordSize);
-                }
-                break;
+        case D1.TYPE:
+            if (_selectedTypes.get(type) && _selectedTimestamps.isSelected(timestamp)) {
+                _action.d1(address, timestamp, recordSize);
+            }
+            break;
 
-            case CP.TYPE:
-                if (_selectedTimestamps.isSelected(timestamp)) {
-                    _action.cp(from, timestamp, recordSize);
-                }
-                break;
-
-            case CU.TYPE:
-                if (_selectedTimestamps.isSelected(timestamp)) {
-                    _action.cu(from, timestamp, recordSize);
-                }
-                break;
-
-            default:
-                if (!isValidType(type)) {
-                    _currentAddress -= OVERHEAD;
-                    throw new CorruptJournalException("Invalid record type " + type + " at " + addressToString(from));
-                }
+        default:
+            if (!isValidType(type)) {
+                _currentAddress -= OVERHEAD;
+                throw new CorruptJournalException("Invalid record type " + type + " at " + addressToString(address));
             }
         }
-        _currentAddress = from + recordSize;
-        return type;
+        return address + recordSize;
+
     }
 
     private long addressUp(final long address) {
@@ -553,11 +568,11 @@ public class JournalTool {
             try {
                 final FileChannel fc = getFileChannel(address);
                 _readBuffer.clear();
-                
+
                 int maxSize = _readBuffer.capacity();
-                long remainingInBlock =addressUp(address) - address;
+                long remainingInBlock = addressUp(address) - address;
                 if (remainingInBlock < maxSize) {
-                    maxSize = (int)remainingInBlock;
+                    maxSize = (int) remainingInBlock;
                 }
 
                 _readBuffer.limit(maxSize);
@@ -736,19 +751,22 @@ public class JournalTool {
         }
 
         @Override
-        public void ts(final long address, final long timestamp, final int recordSize) throws Exception {
+        public void tx(final long address, final long timestamp, final int recordSize) throws Exception {
             read(address, recordSize);
-            start(address, timestamp, "TS", recordSize);
+            start(address, timestamp, "TX", recordSize);
+            appendf(" committed %,d backchain %,d", TX.getCommitTimestamp(_readBuffer), TX
+                    .getBackchainAddress(_readBuffer));
             end();
-        }
-
-        @Override
-        public void tc(final long address, final long timestamp, final int recordSize) throws Exception {
-            read(address, recordSize);
-            final long commitTimestamp = TC.getCommitTimestamp(_readBuffer);
-            start(address, timestamp, "TC", recordSize);
-            appendf(" commitTimestamp %,16d", commitTimestamp);
-            end();
+            int start = _readBuffer.position();
+            int end = start + recordSize;
+            _readBuffer.position(_readBuffer.position() + TX.OVERHEAD);
+            while (_readBuffer.position() < end) {
+                final int innerSize = getLength(_readBuffer);
+                final int type = getType(_readBuffer);
+                final int position = _readBuffer.position();
+                processOneRecord(address + position - start, timestamp, innerSize, type);
+                _readBuffer.position(position + innerSize);
+            }
         }
 
         @Override
@@ -756,13 +774,15 @@ public class JournalTool {
             read(address, recordSize);
             final int thandle = DR.getTreeHandle(_readBuffer);
             final int key1Size = DR.getKey1Size(_readBuffer);
+            final int elisionCount = DR.getKey2Elision(_readBuffer);
             final int key2Size = recordSize - key1Size - DR.OVERHEAD;
             System.arraycopy(_readBuffer.array(), _readBuffer.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0,
                     key1Size);
             key1.setEncodedSize(key1Size);
+            System.arraycopy(key1.getEncodedBytes(), 0, key2.getEncodedBytes(), 0, elisionCount);
             System.arraycopy(_readBuffer.array(), _readBuffer.position() + DR.OVERHEAD + key1Size, key2
-                    .getEncodedBytes(), 0, key2Size);
-            key2.setEncodedSize(key2Size);
+                    .getEncodedBytes(), elisionCount, key2Size);
+            key2.setEncodedSize(key2Size + elisionCount);
             start(address, timestamp, "DR", recordSize);
             appendf(" tree %05d key1Size %,5d key2Size %,5d  ", thandle, key1Size, key2Size);
             keyf(key1);
@@ -843,29 +863,23 @@ public class JournalTool {
         }
 
         @Override
-        public void cu(long address, long timestamp, int recordSize) throws Exception {
+        public void d0(long address, long timestamp, int recordSize) throws Exception {
             read(address, recordSize);
-            start(address, timestamp, "CU", recordSize);
-            int start = _readBuffer.position();
-            final long cacheId = CU.getCacheId(_readBuffer);
-            final TransactionalCache tc = _persistit.getTransactionalCache(cacheId);
-            if (tc == null) {
-                appendf(" cacheId %d is undefined", cacheId);
-            } else {
-                appendf(" cacheId %d: ", cacheId);
-                _readBuffer.position(start + CU.OVERHEAD);
-                final int end = start + recordSize;
-                while (_readBuffer.position() < end) {
-                    final byte opCode = _readBuffer.get();
-                    if (opCode == 0) {
-                        appendf(" <saved>");
-                    } else {
-                        final Update update = tc.createUpdate(opCode);
-                        update.readArgs(_readBuffer);
-                        appendf(" %s", update);
-                    }
-                }
-            }
+            start(address, timestamp, "D0", recordSize);
+            final int thandle = D0.getTreeHandle(_readBuffer);
+            final int index = D0.getIndex(_readBuffer);
+            appendf(" tree %05d index %2d value %,5d", thandle, index, 1);
+            end();
+        }
+
+        @Override
+        public void d1(long address, long timestamp, int recordSize) throws Exception {
+            read(address, recordSize);
+            start(address, timestamp, "D1", recordSize);
+            final int thandle = D1.getTreeHandle(_readBuffer);
+            final int index = D1.getIndex(_readBuffer);
+            final long value = D1.getValue(_readBuffer);
+            appendf(" tree %05d index %2d value %,5d", thandle, index, value);
             end();
         }
 

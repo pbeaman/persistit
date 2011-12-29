@@ -40,12 +40,15 @@ import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
 
 import com.persistit.Key.Direction;
+import com.persistit.ValueHelper.MVVValueWriter;
+import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.RetryException;
+import com.persistit.exception.RollbackException;
 import com.persistit.exception.TreeNotFoundException;
 import com.persistit.policy.JoinPolicy;
 import com.persistit.policy.SplitPolicy;
@@ -125,6 +128,92 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 public class Exchange {
+
+    public enum Sequence {
+        NONE, FORWARD, REVERSE
+    }
+
+    private static class MvvVisitor implements MVV.VersionVisitor {
+        enum Usage {
+            FETCH, STORE
+        }
+
+        private final static long READ_COMMITTED_TS = TransactionStatus.UNCOMMITTED - 1;
+
+        private TransactionIndex _ti;
+        private TransactionStatus _status;
+        private int _step;
+        private int _offset;
+        private long _maxVersion;
+        private Usage _usage;
+
+        private MvvVisitor(TransactionIndex ti) {
+            _ti = ti;
+        }
+
+        /**
+         * @param status
+         *            Status to inspect the versions as. <code>null</code> is
+         *            allowed iff <code>usage</code> is {@link Usage#FETCH},
+         *            which signifies 'read committed' mode.
+         * @param step
+         *            Current step value associated with <code>status</code>.
+         * @param usage
+         *            What reason this visit is being done for.
+         */
+        public void initInternal(TransactionStatus status, int step, Usage usage) {
+            Debug.$assert0.t(status != null || usage != Usage.STORE);
+            _status = status;
+            _step = step;
+            _usage = usage;
+        }
+
+        public int getOffset() {
+            return _offset;
+        }
+
+        public boolean foundVersion() {
+            return _maxVersion != MVV.VERSION_NOT_FOUND;
+        }
+
+        @Override
+        public void init() {
+            _maxVersion = MVV.VERSION_NOT_FOUND;
+            _offset = -1;
+        }
+
+        @Override
+        public void sawVersion(long version, int offset, int valueLength) throws PersistitException {
+            try {
+                switch (_usage) {
+                case FETCH:
+                    long ts = _status != null ? _status.getTs() : READ_COMMITTED_TS;
+                    long status = _ti.commitStatus(version, ts, _step);
+                    if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status > _maxVersion) {
+                        _offset = offset;
+                        _maxVersion = status;
+                    }
+                    break;
+
+                case STORE:
+                    long depends = _ti.wwDependency(version, _status, Persistit.SHORT_DELAY);
+                    if (depends != 0 && depends != TransactionStatus.ABORTED) {
+                        // version is from concurrent txn that already committed
+                        // or timed out waiting to see. Either
+                        // way, must abort.
+                        throw new RollbackException();
+                    }
+                    if (version > _maxVersion) {
+                        _maxVersion = version;
+                    }
+                    break;
+                }
+            } catch (InterruptedException ie) {
+                throw new PersistitInterruptedException(ie);
+            }
+        }
+    }
+
     /**
      * Maximum number of levels in one tree. (This count represents a highly
      * pathological case: most trees, even large ones, are no more than four or
@@ -159,9 +248,10 @@ public class Exchange {
     private volatile long _cachedTreeGeneration = -1;
     private volatile int _cacheDepth = 0;
 
-    private boolean _exclusive;
     private Key _spareKey1;
     private Key _spareKey2;
+    private Key _spareKey3;
+    private Key _spareKey4;
 
     private Value _spareValue;
 
@@ -173,15 +263,27 @@ public class Exchange {
     private Transaction _transaction;
 
     private boolean _ignoreTransactions;
-
-    private long _longRecordPageAddress;
+    private boolean _ignoreMVCCFetch;
+    private boolean _storeCausedSplit;
 
     private Object _appCache;
 
     private ReentrantResourceHolder _treeHolder;
 
-    public enum Sequence {
-        NONE, FORWARD, REVERSE
+    private final MvvVisitor _mvvVisitor;
+    private RawValueWriter _rawValueWriter = new RawValueWriter();
+    private MVVValueWriter _mvvValueWriter = new MVVValueWriter();
+
+    private Exchange(final Persistit persistit) {
+        _persistit = persistit;
+        _key = new Key(_persistit);
+        _spareKey1 = new Key(_persistit);
+        _spareKey2 = new Key(_persistit);
+        _spareKey3 = new Key(_persistit);
+        _spareKey4 = new Key(_persistit);
+        _value = new Value(_persistit);
+        _spareValue = new Value(_persistit);
+        _mvvVisitor = new MvvVisitor(_persistit.getTransactionIndex());
     }
 
     /**
@@ -240,12 +342,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public Exchange(Persistit persistit, Volume volume, String treeName, boolean create) throws PersistitException {
-        _persistit = persistit;
-        _key = new Key(persistit);
-        _spareKey1 = new Key(persistit);
-        _spareKey2 = new Key(persistit);
-        _value = new Value(persistit);
-        _spareValue = new Value(persistit);
+        this(persistit);
         if (volume == null) {
             throw new NullPointerException();
         }
@@ -264,12 +361,7 @@ public class Exchange {
      *            The <code>Exchange</code> to copy from.
      */
     public Exchange(Exchange exchange) {
-        _persistit = exchange._persistit;
-        _key = new Key(_persistit);
-        _spareKey1 = new Key(_persistit);
-        _spareKey2 = new Key(_persistit);
-        _value = new Value(_persistit);
-        _spareValue = new Value(_persistit);
+        this(exchange._persistit);
         init(exchange);
     }
 
@@ -281,13 +373,8 @@ public class Exchange {
      *            The <code>Tree</code> to access.
      */
     public Exchange(Tree tree) {
-        _persistit = tree._persistit;
-        _key = new Key(_persistit);
-        _spareKey1 = new Key(_persistit);
-        _spareKey2 = new Key(_persistit);
-        _value = new Value(_persistit);
+        this(tree._persistit);
         init(tree);
-        _spareValue = new Value(_persistit);
         _volume = tree.getVolume();
         _isDirectoryExchange = tree == _volume.getDirectoryTree();
         initCache();
@@ -308,6 +395,7 @@ public class Exchange {
     void init(final Tree tree) {
         final Volume volume = tree.getVolume();
         _ignoreTransactions = volume.isTemporary();
+        _ignoreMVCCFetch = false;
         _pool = _persistit.getBufferPool(volume.getPageSize());
         _transaction = _persistit.getTransaction();
         _key.clear();
@@ -329,6 +417,7 @@ public class Exchange {
         _persistit = exchange._persistit;
         _volume = exchange._volume;
         _ignoreTransactions = _volume.isTemporary();
+        _ignoreMVCCFetch = false;
         _tree = exchange._tree;
         _treeHolder = new ReentrantResourceHolder(_tree);
         _pool = exchange._pool;
@@ -356,7 +445,8 @@ public class Exchange {
         _spareKey2.clear(secure);
         _spareValue.clear(secure);
         _transaction = null;
-        _ignoreTransactions = _volume.isTemporary();
+        _ignoreTransactions = false;
+        _ignoreMVCCFetch = false;
         _splitPolicy = _persistit.getDefaultSplitPolicy();
         _joinPolicy = _persistit.getDefaultJoinPolicy();
         _treeHolder.verifyReleased();
@@ -389,7 +479,6 @@ public class Exchange {
                 lc.invalidate();
             }
         }
-
     }
 
     private class LevelCache {
@@ -401,7 +490,7 @@ public class Exchange {
         int _foundAt;
         int _lastInsertAt;
         //
-        // The remaining fields are used only by removeKeyRangeInternal and
+        // The remaining fields are used only by raw_removeKeyRangeInternal and
         // its helpers.
         //
         Buffer _leftBuffer;
@@ -464,6 +553,14 @@ public class Exchange {
             }
         }
 
+        /**
+         * Re-save the current buffer generation. Can only be used when all
+         * other data (key gens, foundAt, etc) is still valid.
+         */
+        private void updateBufferGeneration() {
+            _bufferGeneration = _buffer.getGeneration();
+        }
+
         private Sequence sequence(final int foundAt) {
             int delta = ((foundAt & P_MASK) - (_lastInsertAt & P_MASK));
             if ((foundAt & EXACT_MASK) == 0 && delta == KEYBLOCK_LENGTH) {
@@ -484,7 +581,37 @@ public class Exchange {
         }
     }
 
-    // -----------------------------------------------------------------
+    /**
+     * Bit flags that are passed to {@link #storeInternal(Key, Value, int, int)}
+     * to control various behavior. See each member for specifics.
+     */
+    static class StoreOptions {
+        /** The default, implies none of the further options **/
+        public static final int NONE = 0;
+
+        /** Fetch the current value before replacing **/
+        public static final int FETCH = 1 << 1;
+
+        /** Use MVCC (store as version or fetch restricted version) **/
+        public static final int MVCC = 1 << 2;
+
+        /** Block and use for any acquire operation **/
+        public static final int WAIT = 1 << 3;
+
+        /** Perform the store only if key is currently visible **/
+        public static final int ONLY_IF_VISIBLE = 1 << 4;
+
+        /**
+         * Don't write the store operation to the journal - used when storing
+         * AntiValues
+         **/
+        public static final int DONT_JOURNAL = 1 << 5;
+    }
+
+    static enum PruneStatus {
+        REMOVED, CHANGED, UNCHANGED
+    }
+
     /**
      * Delegate to {@link Key#reset} on the associated <code>Key</code> object.
      * 
@@ -829,6 +956,16 @@ public class Exchange {
     }
 
     /**
+     * Internal value that, if <code>true</code>, indicates the last store
+     * operation caused a page split. Reset on every call to a store method.
+     * 
+     * @return storeCausedSplit
+     */
+    boolean getStoreCausedSplit() {
+        return _storeCausedSplit;
+    }
+
+    /**
      * Return a displayable String containing the volume name, tree name and
      * current key state for this <code>Exchange</code>.
      * 
@@ -854,24 +991,24 @@ public class Exchange {
      *         made valid in the level cache.
      * @throws PMapException
      */
-    private int search(Key key) throws PersistitException {
+    private int search(Key key, boolean writer) throws PersistitException {
         Buffer buffer = null;
         checkLevelCache();
         LevelCache lc = _levelCache[0];
-        buffer = reclaimQuickBuffer(lc);
+        buffer = reclaimQuickBuffer(lc, writer);
 
         if (buffer == null) {
-            return searchTree(key, 0);
+            return searchTree(key, 0, writer);
         }
 
-        checkPageType(buffer, PAGE_TYPE_DATA);
+        checkPageType(buffer, PAGE_TYPE_DATA, true);
 
         int foundAt = findKey(buffer, key, lc);
 
         if (buffer.isBeforeLeftEdge(foundAt) || buffer.isAfterRightEdge(foundAt)) {
             // TODO - should this be touched?
             buffer.releaseTouched();
-            return searchTree(key, 0);
+            return searchTree(key, 0, writer);
         }
         return foundAt;
     }
@@ -923,7 +1060,7 @@ public class Exchange {
      *         within the level cache.
      * @throws PMapException
      */
-    private int searchTree(Key key, int toLevel) throws PersistitException {
+    private int searchTree(Key key, int toLevel, boolean writer) throws PersistitException {
         Buffer oldBuffer = null;
         int currentLevel;
         int foundAt = -1;
@@ -946,7 +1083,7 @@ public class Exchange {
                             + oldPageAddress + " key=<" + key.toString() + "> " + " invalid page address");
                 }
 
-                foundAt = searchLevel(key, false, pageAddress, currentLevel);
+                foundAt = searchLevel(key, false, pageAddress, currentLevel, writer && currentLevel == toLevel);
                 if (oldBuffer != null) {
                     oldBuffer.releaseTouched();
                     oldBuffer = null;
@@ -961,7 +1098,7 @@ public class Exchange {
                             + key.toString() + "> " + " is before left edge");
                 }
 
-                checkPageType(buffer, currentLevel + PAGE_TYPE_DATA);
+                checkPageType(buffer, currentLevel + PAGE_TYPE_DATA, true);
 
                 if (currentLevel == toLevel) {
                     for (int level = currentLevel; --level > 0;) {
@@ -1022,7 +1159,8 @@ public class Exchange {
      * @return Encoded key location within the page.
      * @throws PMapException
      */
-    private int searchLevel(Key key, boolean edge, long pageAddress, int currentLevel) throws PersistitException {
+    private int searchLevel(Key key, boolean edge, long pageAddress, int currentLevel, boolean writer)
+            throws PersistitException {
         Buffer oldBuffer = null;
         try {
             long initialPageAddress = pageAddress; // DEBUG - debugging only
@@ -1037,13 +1175,13 @@ public class Exchange {
                 LevelCache lc = _levelCache[currentLevel];
 
                 if (lc._page == pageAddress) {
-                    buffer = reclaimQuickBuffer(lc);
+                    buffer = reclaimQuickBuffer(lc, writer);
                 }
 
                 if (buffer == null) {
-                    buffer = _pool.get(_volume, pageAddress, _exclusive, true);
+                    buffer = _pool.get(_volume, pageAddress, writer, true);
                 }
-                checkPageType(buffer, currentLevel + PAGE_TYPE_DATA);
+                checkPageType(buffer, currentLevel + PAGE_TYPE_DATA, true);
 
                 //
                 // Release previous buffer after claiming this one. This
@@ -1093,7 +1231,13 @@ public class Exchange {
     /**
      * Inserts or replaces a data value in the database.
      * 
-     * @return
+     * @param key
+     *            The key to store.
+     * @param value
+     *            The value to store.
+     * @return This <code>Exchange</code> to permit method call chaining.
+     * @throws PersistitException
+     *             Upon error
      */
     Exchange store(Key key, Value value) throws PersistitException {
         if (_volume.isReadOnly()) {
@@ -1102,8 +1246,12 @@ public class Exchange {
         key.testValidForStoreAndFetch(_volume.getPageSize());
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        storeInternal(key, value, 0, false, false);
 
+        // TODO: directoryExchange, and lots of tests, don't use transactions.
+        // Skip MVCC for now.
+        int options = StoreOptions.WAIT;
+        options |= (!_ignoreTransactions && _transaction.isActive()) ? StoreOptions.MVCC : 0;
+        storeInternal(key, value, 0, options);
         _treeHolder.verifyReleased();
 
         return this;
@@ -1113,25 +1261,52 @@ public class Exchange {
      * Inserts or replaces a data value in the database starting at a specified
      * level and working up toward the root of the tree.
      * 
-     * @return this Exchange
+     * <p>
+     * <b>Note: Fetch and MVCC are exclusive options.</b>
+     * </p>
+     * 
+     * @param key
+     *            The key to store.
+     * @param value
+     *            The value to store.
+     * @param level
+     *            The level of the backing tree to start the insert at.
+     * @param options
+     *            Bit flag integer controlling various internal behavior. See
+     *            members of {@link StoreOptions} for details.
+     * @return <code>true</code> if <b>any version</b> of the key already
+     *         existed
+     * @throws PersistitException
+     *             uponError
      */
-    void storeInternal(Key key, Value value, int level, boolean fetchFirst, boolean dontWait) throws PersistitException {
+    boolean storeInternal(Key key, Value value, int level, int options) throws PersistitException {
+        if ((options & StoreOptions.FETCH) > 0 && (options & StoreOptions.MVCC) > 0) {
+            throw new IllegalArgumentException("Both fetch and MVCC not supported");
+        }
+
+        final boolean doMVCC = (options & StoreOptions.MVCC) > 0;
+        final boolean doAnyFetch = (options & StoreOptions.FETCH) > 0 || doMVCC;
+
+        Debug.$assert0.t(!doAnyFetch || value != _spareValue); // spare used for
+                                                               // fetch
+        Debug.$assert0.t(key != _spareKey1 && key != _spareKey2); // spares used
+                                                                  // for new
+                                                                  // splits/levels
+
+        _storeCausedSplit = false;
         boolean treeClaimRequired = false;
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
         boolean committed = false;
+        boolean incrementMVVCount = false;
 
-        final boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-
-        int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
+        final int maxSimpleValueSize = maxValueSize(key.getEncodedSize());
 
         //
         // First insert the record in the data page
         //
-        _exclusive = true;
         Buffer buffer = null;
 
-        // long originalRootPageAddr = _tree.getRootPageAddr();
         //
         // The LONG_RECORD pointer that was present before the update, if
         // there is a long record being replaced.
@@ -1142,18 +1317,26 @@ public class Exchange {
         // the new value is long.
         //
         long newLongRecordPointer = 0;
+        long newLongRecordPointerMVV = 0;
 
-        boolean overlength = value.getEncodedSize() > maxSimpleValueSize;
+        boolean isLongRecord = value.getEncodedSize() > maxSimpleValueSize;
+        if (isLongRecord) {
+            //
+            // This method may delay significantly for I/O and must
+            // be called when there are no other claimed resources.
+            //
+            newLongRecordPointer = storeOverlengthRecord(value, 0);
+        }
+
+        if (!_ignoreTransactions && ((options & StoreOptions.DONT_JOURNAL) == 0)) {
+            _transaction.store(this, key, value);
+        }
+
+        boolean keyExisted = false;
 
         try {
-            if (overlength) {
-                //
-                // This method may delay significantly for I/O and must
-                // be called when there are no other claimed resources.
-                //
-                newLongRecordPointer = storeOverlengthRecord(value, 0);
-            }
 
+            Value valueToStore = value;
             for (;;) {
                 Debug.$assert0.t(buffer == null);
                 if (Debug.ENABLED) {
@@ -1172,33 +1355,6 @@ public class Exchange {
                 checkLevelCache();
 
                 try {
-                    if (inTxn) {
-                        if (value.isAtomicIncrementArmed()) {
-                            long from = value.getLong();
-                            if (_transaction.fetch(this, value, Integer.MAX_VALUE) == null) {
-                                fetch(value);
-                            }
-                            if (!value.isDefined()) {
-                                value.put(from);
-                            } else {
-                                value.performAtomicIncrement();
-                            }
-                            fetchFirst = false;
-                        } else if (fetchFirst) {
-                            if (_transaction.fetch(this, _spareValue, Integer.MAX_VALUE) == null) {
-                                fetch(_spareValue);
-                            }
-                        }
-
-                        // TODO - check whether this can happen
-                        if (value.getEncodedSize() > maxSimpleValueSize) {
-                            newLongRecordPointer = storeOverlengthRecord(value, 0);
-                        }
-                        _transaction.store(this, key, value);
-                        committed = true;
-                        break;
-                    }
-
                     if (level >= _cacheDepth) {
                         Debug.$assert0.t(level == _cacheDepth);
                         //
@@ -1211,15 +1367,15 @@ public class Exchange {
                             throw new RetryException();
                         }
 
-                        Debug.$assert0.t(value.getPointerValue() > 0);
-                        insertIndexLevel(key, value);
+                        Debug.$assert0.t(valueToStore.getPointerValue() > 0);
+                        insertIndexLevel(key, valueToStore);
                         break;
                     }
 
                     Debug.$assert0.t(buffer == null);
                     int foundAt = -1;
                     LevelCache lc = _levelCache[level];
-                    buffer = reclaimQuickBuffer(lc);
+                    buffer = reclaimQuickBuffer(lc, true);
 
                     if (buffer != null) {
                         //
@@ -1228,38 +1384,94 @@ public class Exchange {
                         foundAt = findKey(buffer, key, lc);
 
                         if (buffer.isBeforeLeftEdge(foundAt) || buffer.isAfterRightEdge(foundAt)) {
-                            // TODO -maybe not touched
-                            buffer.releaseTouched();
+                            buffer.release();
                             buffer = null;
                         }
                     }
 
                     if (buffer == null) {
-                        foundAt = searchTree(key, level);
+                        foundAt = searchTree(key, level, true);
                         buffer = lc._buffer;
                     }
 
                     Debug.$assert0.t(buffer != null && (buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                             && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
-                    if ((foundAt & EXACT_MASK) != 0) {
-                        oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
+
+                    boolean didPrune = false;
+                    boolean splitRequired = false;
+
+                    if (buffer.isDataPage()) {
+                        keyExisted = (foundAt & EXACT_MASK) != 0;
+                        if (keyExisted) {
+                            oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
+                        }
+                        if (newLongRecordPointerMVV != 0) {
+                            _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
+                            newLongRecordPointerMVV = 0;
+                            _spareValue.setLongRecordMode(false);
+                        }
+                        if (doAnyFetch) {
+                            buffer.fetch(foundAt, _spareValue);
+                            fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                        }
+                        if (doMVCC) {
+                            valueToStore = _spareValue;
+                            int valueSize = value.getEncodedSize();
+                            /*
+                             * If key didn't exist the value is truly
+                             * non-existent and not just undefined/zero length
+                             */
+                            byte[] spareBytes = _spareValue.getEncodedBytes();
+                            int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
+                            spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false);
+
+                            TransactionStatus tStatus = _transaction.getTransactionStatus();
+
+                            if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
+                                /*
+                                 * Could be single visit of all versions but
+                                 * current TI would still require calls to both
+                                 * commitStatus() and wwDependency()
+                                 */
+                                _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
+                                MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
+                                if (!_mvvVisitor.foundVersion()) {
+                                    // Completely done, nothing to store
+                                    break;
+                                }
+                            }
+
+                            // Visit all versions for ww detection
+                            _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.STORE);
+                            MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
+
+                            int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
+                            _spareValue.ensureFit(mvvSize);
+                            spareBytes = _spareValue.getEncodedBytes();
+
+                            long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
+                            int storedLength = MVV.storeVersion(spareBytes, 0, spareSize, spareBytes.length,
+                                    versionHandle, value.getEncodedBytes(), 0, valueSize);
+
+                            incrementMVVCount = (storedLength & MVV.STORE_EXISTED_MASK) == 0;
+                            storedLength &= MVV.STORE_LENGTH_MASK;
+                            _spareValue.setEncodedSize(storedLength);
+
+                            if (_spareValue.getEncodedSize() > maxSimpleValueSize) {
+                                newLongRecordPointerMVV = storeOverlengthRecord(_spareValue, 0);
+                            }
+                        }
                     }
 
-                    if (fetchFirst && buffer.isDataPage()) {
-                        buffer.fetch(foundAt, _spareValue);
-                        fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                    Debug.$assert0.t(valueToStore.getEncodedSize() <= maxSimpleValueSize);
+                    _rawValueWriter.init(valueToStore);
+                    splitRequired = putLevel(lc, key, _rawValueWriter, buffer, foundAt, treeClaimAcquired);
+                    if (splitRequired && !didPrune && buffer.isDataPage()) {
+                        didPrune = true;
+                        if (buffer.pruneMvvValues(_tree, _spareKey1)) {
+                            continue;
+                        }
                     }
-
-                    // TODO - How would this condition ever be true?
-                    if (value.getEncodedSize() > maxSimpleValueSize && !overlength) {
-                        newLongRecordPointer = storeLongRecord(value, oldLongRecordPointer, 0);
-                    } else {
-                        _longRecordPageAddress = 0;
-                    }
-                    // Here we have a buffer with a writer claim and
-                    // a correct foundAt value
-                    //
-                    boolean splitRequired = putLevel(lc, key, value, buffer, foundAt, treeClaimAcquired);
 
                     Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                             && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
@@ -1273,9 +1485,19 @@ public class Exchange {
                         //
                         // TODO - is it worth it to try an instantaneous claim
                         // and retry?
+                        //
                         treeClaimRequired = true;
                         buffer.releaseTouched();
                         buffer = null;
+                        //
+                        // Must come back through and fetch buffer again. Could
+                        // reuse these reserved pages(?) but not their contents.
+                        //
+                        if (newLongRecordPointerMVV != 0) {
+                            _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
+                            newLongRecordPointerMVV = 0;
+                            _spareValue.changeLongRecordMode(false);
+                        }
                         continue;
                     }
                     //
@@ -1285,10 +1507,13 @@ public class Exchange {
                     // committed.
                     //
                     if (buffer.isDataPage()) {
-                        if ((foundAt & EXACT_MASK) == 0) {
+                        if (!keyExisted) {
                             _tree.bumpChangeCount();
                         }
                         committed = true;
+                        if (incrementMVVCount) {
+                            _transaction.getTransactionStatus().incrementMvvCount();
+                        }
                     }
 
                     buffer.releaseTouched();
@@ -1302,7 +1527,7 @@ public class Exchange {
                     } else {
                         // Otherwise we need to index the new right
                         // sibling at the next higher index level.
-                        Debug.$assert0.t(value.getPointerValue() > 0);
+                        Debug.$assert0.t(valueToStore.getPointerValue() > 0);
                         //
                         // This maneuver sets key to the key value of
                         // the first record in the newly inserted page.
@@ -1320,11 +1545,17 @@ public class Exchange {
                         // into the next higher index level.
                         //
                         level++;
+                        //
+                        // Just inserted index level, should not have had long
+                        // MVV
+                        //
+                        Debug.$assert0.t(newLongRecordPointerMVV == 0);
                         continue;
                     }
 
                 } catch (RetryException re) {
                     newLongRecordPointer = 0;
+                    newLongRecordPointerMVV = 0;
                     oldLongRecordPointer = 0;
                     if (buffer != null) {
                         buffer.releaseTouched();
@@ -1335,9 +1566,10 @@ public class Exchange {
                         _treeHolder.release();
                         treeClaimAcquired = false;
                     }
-                    treeClaimAcquired = _treeHolder.claim(true, dontWait ? 0 : SharedResource.DEFAULT_MAX_WAIT_TIME);
+                    boolean doWait = (options & StoreOptions.WAIT) != 0;
+                    treeClaimAcquired = _treeHolder.claim(true, doWait ? SharedResource.DEFAULT_MAX_WAIT_TIME : 0);
                     if (!treeClaimAcquired) {
-                        if (dontWait) {
+                        if (!doWait) {
                             throw re;
                         } else {
                             throw new InUseException("Thread " + Thread.currentThread().getName()
@@ -1352,14 +1584,13 @@ public class Exchange {
                 }
             }
         } finally {
-            _exclusive = false;
-
             if (treeClaimAcquired) {
                 _treeHolder.release();
                 treeClaimAcquired = false;
             }
 
             value.changeLongRecordMode(false);
+            _spareValue.changeLongRecordMode(false);
             if (!committed) {
                 //
                 // We failed to write the new LONG_RECORD. If there was
@@ -1370,14 +1601,20 @@ public class Exchange {
                 if (newLongRecordPointer != oldLongRecordPointer && newLongRecordPointer != 0) {
                     _volume.getStructure().deallocateGarbageChain(newLongRecordPointer, 0);
                 }
+                if (newLongRecordPointerMVV != 0) {
+                    _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
+                }
             } else if (oldLongRecordPointer != newLongRecordPointer && oldLongRecordPointer != 0) {
                 _volume.getStructure().deallocateGarbageChain(oldLongRecordPointer, 0);
             }
         }
         _volume.getStatistics().bumpStoreCounter();
-        if (fetchFirst) {
+        _tree.getStatistics().bumpStoreCounter();
+        if (doAnyFetch) {
             _volume.getStatistics().bumpFetchCounter();
+            _tree.getStatistics().bumpFetchCounter();
         }
+        return keyExisted;
     }
 
     private long timestamp() {
@@ -1403,14 +1640,15 @@ public class Exchange {
             // Note: left and right sibling are of the same level and therefore
             // it is not necessary to invoke value.setPointerPageType() here.
             //
+            _rawValueWriter.init(value);
             value.setPointerValue(leftSiblingPointer);
-            buffer.putValue(LEFT_GUARD_KEY, value);
+            buffer.putValue(LEFT_GUARD_KEY, _rawValueWriter);
 
             value.setPointerValue(rightSiblingPointer);
-            buffer.putValue(key, value);
+            buffer.putValue(key, _rawValueWriter);
 
             value.setPointerValue(-1);
-            buffer.putValue(RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
+            buffer.putValue(RIGHT_GUARD_KEY, _rawValueWriter);
 
             buffer.setDirtyAtTimestamp(timestamp);
 
@@ -1438,9 +1676,8 @@ public class Exchange {
      * @throws PMapException
      */
     // TODO - Check insertIndexLevel timestamps
-    private boolean putLevel(LevelCache lc, Key key, Value value, Buffer buffer, int foundAt, boolean okToSplit)
-            throws PersistitException {
-        Debug.$assert0.t(_exclusive);
+    private boolean putLevel(LevelCache lc, Key key, ValueHelper valueWriter, Buffer buffer, int foundAt,
+            boolean okToSplit) throws PersistitException {
         Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                 && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
         final Sequence sequence = lc.sequence(foundAt);
@@ -1448,7 +1685,7 @@ public class Exchange {
         long timestamp = timestamp();
         buffer.writePageOnCheckpoint(timestamp);
 
-        int result = buffer.putValue(key, value, foundAt, false);
+        int result = buffer.putValue(key, valueWriter, foundAt, false);
         if (result != -1) {
             buffer.setDirtyAtTimestamp(timestamp);
             lc.updateInsert(buffer, key, result);
@@ -1465,6 +1702,7 @@ public class Exchange {
                 if (!okToSplit) {
                     return true;
                 }
+                _storeCausedSplit = true;
                 //
                 // Allocate a new page
                 //
@@ -1485,7 +1723,7 @@ public class Exchange {
                 // level cache for this level will become
                 // (appropriately) invalid.
                 //
-                int at = buffer.split(rightSibling, key, value, foundAt, _spareKey1, sequence, _splitPolicy);
+                int at = buffer.split(rightSibling, key, valueWriter, foundAt, _spareKey1, sequence, _splitPolicy);
                 if (at < 0) {
                     lc.updateInsert(rightSibling, key, -at);
                 } else {
@@ -1501,8 +1739,7 @@ public class Exchange {
                 rightSibling.setRightSibling(oldRightSibling);
                 buffer.setRightSibling(newRightSibling);
 
-                value.setPointerValue(newRightSibling);
-                value.setPointerPageType(rightSibling.getPageType());
+                valueWriter.setPointerValue(newRightSibling);
 
                 rightSibling.setDirtyAtTimestamp(timestamp);
                 buffer.setDirtyAtTimestamp(timestamp);
@@ -1517,12 +1754,12 @@ public class Exchange {
         }
     }
 
-    private Buffer reclaimQuickBuffer(LevelCache lc) throws PersistitException {
+    private Buffer reclaimQuickBuffer(LevelCache lc, boolean writer) throws PersistitException {
         Buffer buffer = lc._buffer;
         if (buffer == null)
             return null;
 
-        boolean available = buffer.claim(_exclusive, 0);
+        boolean available = buffer.claim(writer, 0);
         if (available) {
             if (buffer.getPageAddress() == lc._page && buffer.getVolume() == _volume
                     && _cachedTreeGeneration == _tree.getGeneration() && buffer.getGeneration() == lc._bufferGeneration
@@ -1641,18 +1878,14 @@ public class Exchange {
             throws PersistitException {
         _persistit.checkClosed();
 
-        boolean doFetch = minimumBytes > 0;
-        boolean doModify = minimumBytes >= 0;
-        boolean result;
-
-        boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        Buffer buffer = null;
-
-        if (doFetch) {
-            _value.clear();
-        }
-
+        final Key spareKey = _spareKey1;
+        final boolean doFetch = minimumBytes > 0;
+        final boolean doModify = minimumBytes >= 0;
         final boolean reverse = (direction == LT) || (direction == LTEQ);
+        final Value outValue = doFetch ? _value : _spareValue;
+        outValue.clear();
+
+        Buffer buffer = null;
         boolean edge = direction == EQ || direction == GTEQ || direction == LTEQ;
         boolean nudged = false;
 
@@ -1663,7 +1896,6 @@ public class Exchange {
                 _key.appendBefore();
             }
             nudged = true;
-
         }
 
         _key.testValidForTraverse();
@@ -1671,62 +1903,25 @@ public class Exchange {
         checkLevelCache();
 
         try {
-            if (inTxn && edge && !_key.isSpecial()) {
-                Boolean txnResult = _transaction.fetch(this, this.getValue(), minimumBytes);
-                //
-                // A pending STORE transaction record overrides
-                // the base record.
-                //
-                if (txnResult == null) {
-                    /*
-                     * if the transaction is null then the pending operations do
-                     * not affect the result
-                     */
-                } else if (txnResult.equals(Boolean.TRUE)) {
-                    return true;
-                } else if (txnResult.equals(Boolean.FALSE)) {
-                    //
-                    // A pending DELETE transaction record overrides the
-                    // base record.
-                    //
-                    if (direction == EQ) {
-                        return false;
-                    } else {
-                        edge = false;
-                    }
-                }
-            }
-
             //
             // Now we are committed to computing a new key value. Save the
             // original key value for comparison.
             //
-            _key.copyTo(_spareKey1);
+            _key.copyTo(spareKey);
             int index = _key.getEncodedSize();
 
-            if (index == 0) {
-                if (reverse) {
-                    _key.appendAfter();
-                } else {
-                    _key.appendBefore();
-                }
-                nudged = true;
-            }
-
             int foundAt = 0;
-            LevelCache lc;
-            boolean fetchFromPendingTxn = false;
-            boolean matches = false;
+            boolean nudgeForMVCC = false;
 
             for (;;) {
-
-                lc = _levelCache[0];
+                LevelCache lc = _levelCache[0];
+                boolean matches = false;
                 //
                 // Optimal path - pick up the buffer and location left
                 // by previous operation.
                 //
-                if (lc._keyGeneration == _key.getGeneration()) {
-                    buffer = reclaimQuickBuffer(lc);
+                if (buffer == null && lc._keyGeneration == _key.getGeneration()) {
+                    buffer = reclaimQuickBuffer(lc, false);
                     foundAt = lc._foundAt;
                 }
                 //
@@ -1734,12 +1929,9 @@ public class Exchange {
                 // edge of the buffer, re-do with a key search - there is no
                 // other way to find the left sibling page.
                 //
-                if (reverse && buffer != null && (foundAt & P_MASK) <= buffer.getKeyBlockStart()) {
+                if (buffer != null && (nudgeForMVCC || (reverse && (foundAt & P_MASK) <= buffer.getKeyBlockStart()))) {
                     // Going left from first record in the page requires a
                     // key search.
-                    if (inTxn) {
-                        _transaction.touchedPage(this, buffer);
-                    }
                     buffer.releaseTouched();
                     buffer = null;
                 }
@@ -1748,7 +1940,7 @@ public class Exchange {
                 // look it up with search.
                 //
                 if (buffer == null) {
-                    if (!edge && !nudged) {
+                    if (nudgeForMVCC || (!edge && !nudged)) {
                         if (reverse) {
                             if (!_key.isSpecial()) {
                                 _key.nudgeLeft();
@@ -1763,18 +1955,18 @@ public class Exchange {
                             }
                         }
                         nudged = true;
+                        nudgeForMVCC = false;
                     }
-                    foundAt = search(_key);
+                    foundAt = search(_key, false);
                     buffer = lc._buffer;
                 }
 
                 if (edge && (foundAt & EXACT_MASK) != 0) {
                     matches = true;
-                    break;
                 } else if (edge && !deep && Buffer.decodeDepth(foundAt) == index) {
-                    break;
+                    // None
                 } else if (direction == EQ) {
-                    break;
+                    // None
                 } else {
                     edge = false;
                     foundAt = buffer.traverse(_key, direction, foundAt);
@@ -1783,19 +1975,15 @@ public class Exchange {
 
                         Debug.$assert0.t(rightSiblingPage >= 0 && rightSiblingPage <= MAX_VALID_PAGE_ADDR);
                         if (rightSiblingPage > 0) {
-                            Buffer rightSibling = _pool.get(_volume, rightSiblingPage, _exclusive, true);
-                            if (inTxn) {
-                                _transaction.touchedPage(this, buffer);
-                            }
+                            Buffer rightSibling = _pool.get(_volume, rightSiblingPage, false, true);
                             buffer.releaseTouched();
                             //
                             // Reset foundAtNext to point to the first key block
                             // of the right sibling page.
                             //
                             buffer = rightSibling;
-                            checkPageType(buffer, PAGE_TYPE_DATA);
+                            checkPageType(buffer, PAGE_TYPE_DATA, false);
                             foundAt = buffer.traverse(_key, direction, buffer.toKeyBlock(0));
-
                         }
                     }
 
@@ -1810,163 +1998,116 @@ public class Exchange {
                     // search.
                     //
 
-                    if (!nudged && !deep && _key.compareKeyFragment(_spareKey1, 0, _spareKey1.getEncodedSize()) == 0) {
-                        _key.setEncodedSize(_spareKey1.getEncodedSize());
+                    if (!nudged && !deep && _key.compareKeyFragment(spareKey, 0, spareKey.getEncodedSize()) == 0) {
+                        _key.setEncodedSize(spareKey.getEncodedSize());
                         lc._keyGeneration = -1;
-                        if (inTxn) {
-                            _transaction.touchedPage(this, buffer);
-                        }
                         buffer.release();
                         buffer = null;
                         continue;
                     }
                 }
 
-                if (inTxn) {
-                    //
-                    // Here we need to test whether pending updates in a
-                    // transaction, if there is one, will modify the result.
-                    // The candidate key is in _key. This code
-                    // determines whether (a) that key has been deleted by
-                    // the pending transaction, or (b) there's a nearer key
-                    // that has been added by the pending transaction.
-                    // This is split into two calls. The first looks for
-                    // a pending remove operation that affects the result.
-                    //
-                    Boolean txnResult = _transaction.traverse(_tree, _spareKey1, _key, direction, deep, minimumBytes);
+                // Original search loop end, MVCC must also inspect value before
+                // finishing
 
-                    if (txnResult != null) {
-                        _transaction.touchedPage(this, buffer);
-                        buffer.releaseTouched();
-                        buffer = null;
-
-                        if (txnResult.equals(Boolean.TRUE)) {
-                            // There's a pending new record that
-                            // yields a closer key. The key
-                            // was updated to reflect its content, and
-                            // if the key is selected by criteria below
-                            // then the pending value is fetched.
-                            //
-                            fetchFromPendingTxn = true;
-                        } else {
-                            //
-                            // There's a pending remove operation that
-                            // covers the candidate key. The key has been
-                            // modified to the beginning or end, depending
-                            // on direction, of the remove range, and then
-                            // we must go back and traverse again.
-                            //
-                            if (!_key.isSpecial()) {
-                                if (direction == LTEQ) {
-                                    _key.nudgeLeft();
-                                    nudged = true;
-                                } else if (direction == GTEQ) {
-                                    if (deep) {
-                                        _key.nudgeDeeper();
-                                    } else {
-                                        _key.nudgeRight();
-                                    }
-                                    nudged = true;
-                                }
-                            }
-                            continue;
-                        }
-                    }
-                }
-                break;
-            }
-
-            if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
-
-            } else {
-                if (deep) {
-                    matches |= direction != EQ;
-                    index = _key.getEncodedSize();
-
-                    if (doFetch && matches) {
-                        if (fetchFromPendingTxn) {
-                            _transaction.fetchFromLastTraverse(this, minimumBytes);
-                        } else {
-                            buffer.fetch(foundAt, _value);
-                            fetchFixupForLongRecords(_value, minimumBytes);
-                        }
-                    }
-                } else {
-                    int parentIndex = _spareKey1.previousElementIndex(index);
-                    if (parentIndex < 0) {
-                        parentIndex = 0;
-                    }
-
-                    matches = (_spareKey1.compareKeyFragment(_key, 0, parentIndex) == 0);
-
-                    if (matches) {
-                        index = _key.nextElementIndex(parentIndex);
-                        if (index > 0) {
-                            if (index == _key.getEncodedSize()) {
-                                if (doFetch) {
-                                    if (fetchFromPendingTxn) {
-                                        _transaction.fetchFromLastTraverse(this, minimumBytes);
-                                    } else {
-                                        buffer.fetch(foundAt, _value);
-                                        fetchFixupForLongRecords(_value, minimumBytes);
-                                    }
-                                }
-                            } else {
-                                //
-                                // The physical traversal went to a child
-                                // of the next sibling (i.e. a niece or
-                                // nephew), so therefore there must not be
-                                // a record associated with the key value
-                                // we are going to return. This makes
-                                // the Value for this Exchange undefined.
-                                //
-                                if (doFetch) {
-                                    _value.clear();
-                                }
-                                foundAt &= ~EXACT_MASK;
-                            }
-                        } else
-                            matches = false;
-                    }
-                }
-            }
-
-            if (doModify) {
-                if (matches) {
-                    _key.setEncodedSize(index);
-                    if (!fetchFromPendingTxn && !reverse) {
-                        lc.update(buffer, _key, foundAt);
-                    }
+                if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
+                    // None
                 } else {
                     if (deep) {
-                        _key.setEncodedSize(0);
+                        matches |= direction != EQ;
+                        index = _key.getEncodedSize();
+
+                        if (matches) {
+                            matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                            if (!matches && direction != EQ) {
+                                nudged = false;
+                                nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
+                                buffer.release();
+                                buffer = null;
+                                continue;
+                            }
+                        }
                     } else {
-                        _spareKey1.copyTo(_key);
-                    }
-                    _key.cut();
-                    if (reverse) {
-                        _key.appendAfter();
-                    } else {
-                        _key.appendBefore();
+                        int parentIndex = spareKey.previousElementIndex(index);
+                        if (parentIndex < 0) {
+                            parentIndex = 0;
+                        }
+
+                        matches = (spareKey.compareKeyFragment(_key, 0, parentIndex) == 0);
+
+                        if (matches) {
+                            index = _key.nextElementIndex(parentIndex);
+                            if (index > 0) {
+                                boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                                //
+                                // In any case (matching sibling, child or
+                                // niece/nephew) we need to ignore this
+                                // particular key and continue search if not
+                                // visible to current transaction
+                                //
+                                if (!isVisibleMatch) {
+                                    nudged = false;
+                                    nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
+                                    buffer.release();
+                                    buffer = null;
+                                    continue;
+                                }
+                                //
+                                // It was a niece or nephew, record non-exact
+                                // match
+                                //
+                                if (index != _key.getEncodedSize()) {
+                                    foundAt &= ~EXACT_MASK;
+                                }
+                            } else {
+                                matches = false;
+                            }
+                        }
                     }
                 }
-            } else {
-                // Restore original key
-                _spareKey1.copyTo(_key);
-            }
-            result = matches;
 
+                if (doModify) {
+                    if (matches) {
+                        if (_key.getEncodedSize() == index) {
+                            lc.update(buffer, _key, foundAt);
+                        } else {
+                            //
+                            // Parent key determined from seeing a child or
+                            // niece/nephew, need to fetch the actual
+                            // value of this key before returning
+                            //
+                            _key.setEncodedSize(index);
+                            fetch(minimumBytes);
+                        }
+                    } else {
+                        if (deep) {
+                            _key.setEncodedSize(0);
+                        } else {
+                            spareKey.copyTo(_key);
+                        }
+                        _key.cut();
+                        if (reverse) {
+                            _key.appendAfter();
+                        } else {
+                            _key.appendBefore();
+                        }
+                    }
+                } else {
+                    // Restore original key
+                    spareKey.copyTo(_key);
+                }
+
+                // Done
+                _volume.getStatistics().bumpTraverseCounter();
+                _tree.getStatistics().bumpTraverseCounter();
+                return matches;
+            }
         } finally {
             if (buffer != null) {
-                if (inTxn) {
-                    _transaction.touchedPage(this, buffer);
-                }
                 buffer.releaseTouched();
                 buffer = null;
             }
         }
-        _volume.getStatistics().bumpTraverseCounter();
-        return result;
     }
 
     /**
@@ -2292,7 +2433,7 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
         _key.testValidForStoreAndFetch(_volume.getPageSize());
-        storeInternal(_key, _value, 0, true, false);
+        storeInternal(_key, _value, 0, StoreOptions.FETCH | StoreOptions.WAIT);
         _spareValue.copyTo(_value);
         return this;
     }
@@ -2362,6 +2503,62 @@ public class Exchange {
     }
 
     /**
+     * Fetch a single version of a value from a <code>Buffer</code> that is
+     * assumed, but not required, to be an MVV. The correct version is
+     * determined by the current transactions start timestamp. If no transaction
+     * is active, the highest committed version is returned.
+     * 
+     * @param buffer
+     *            The <code>Buffer</code> where the value is stored in.
+     * @param value
+     *            The <code>Value</code> into which the value should be fetched.
+     * @param foundAt
+     *            The full foundAt value where the key was located. As returned
+     *            by, for example, {@link Buffer#findKey(Key)}.
+     * @param minimumBytes
+     *            The minimum number of bytes to copy into <code>value</code>.
+     *            Note this only affects the final contents, not the amount of
+     *            the internal MVV that was copied.
+     * @return <code>true</code> if a version was visible, <code>false</code>
+     *         otherwise.
+     * @throws PersistitException
+     *             for any internal error
+     */
+    private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
+        buffer.fetch(foundAt, value);
+
+        if (_ignoreMVCCFetch) {
+            fetchFixupForLongRecords(value, minimumBytes);
+            return true;
+        } else {
+            fetchFixupForLongRecords(value, Integer.MAX_VALUE);
+        }
+
+        TransactionStatus status = _transaction.isActive() ? _transaction.getTransactionStatus() : null;
+        _mvvVisitor.initInternal(status, 0, MvvVisitor.Usage.FETCH);
+
+        int valueSize = value.getEncodedSize();
+        byte[] valueBytes = value.getEncodedBytes();
+        MVV.visitAllVersions(_mvvVisitor, valueBytes, 0, valueSize);
+
+        if (_mvvVisitor.foundVersion()) {
+            int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _mvvVisitor.getOffset(), valueBytes);
+            value.setEncodedSize(finalSize);
+            fetchFixupForLongRecords(value, Integer.MAX_VALUE);
+            if (value.isDefined() && value.isAntiValue()) {
+                value.clear();
+                return false;
+            }
+            return true;
+        } else {
+            if (minimumBytes > 0) {
+                value.clear();
+            }
+            return false;
+        }
+    }
+
+    /**
      * <p>
      * Fetches or partially fetches the value associated with the current
      * <code>Key</code> into the supplied <code>Value</code> object (instead of
@@ -2397,34 +2594,30 @@ public class Exchange {
         _key.testValidForStoreAndFetch(_volume.getPageSize());
         if (minimumBytes < 0)
             minimumBytes = 0;
-        boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-
-        if (inTxn && _transaction.fetch(this, value, minimumBytes) != null) {
-            return this;
-        }
 
         Buffer buffer = null;
         try {
-            int foundAt = search(_key);
+            int foundAt = search(_key, false);
             LevelCache lc = _levelCache[0];
             buffer = lc._buffer;
-            buffer.fetch(foundAt, value);
-            fetchFixupForLongRecords(value, minimumBytes);
+            mvccFetch(buffer, value, foundAt, minimumBytes);
             _volume.getStatistics().bumpFetchCounter();
+            _tree.getStatistics().bumpFetchCounter();
             return this;
         } finally {
             if (buffer != null) {
-                if (inTxn) {
-                    _transaction.touchedPage(this, buffer);
-                }
                 buffer.releaseTouched();
             }
             _treeHolder.verifyReleased();
         }
     }
 
+    boolean isLongRecord(Value value) {
+        return value.isDefined() && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE;
+    }
+
     void fetchFixupForLongRecords(Value value, int minimumBytes) throws PersistitException {
-        if (value.isDefined() && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE) {
+        if (isLongRecord(value)) {
             //
             // This will potential require numerous pages: the buffer
             // claim is held for the duration to prevent a non-atomic
@@ -2432,56 +2625,6 @@ public class Exchange {
             //
             fetchLongRecord(value, minimumBytes);
         }
-    }
-
-    /**
-     * Atomically increment a stored integer value and return the result. If the
-     * key currently has no associated value, then initialize the value to zero.
-     * Otherwise add 1 to whatever value is stored, store the result and return
-     * it.
-     * 
-     * @return The incremented value.
-     * @throws PersistitException
-     */
-    public long incrementValue() throws PersistitException {
-        return incrementValue(1);
-    }
-
-    /**
-     * Atomically increment a stored integer value and return the result. If the
-     * key currently has no associated value, then initialize the value to zero.
-     * Otherwise add <code>by</code> to whatever value is stored, store the
-     * result and return it.
-     * 
-     * @param by
-     *            The amount by which to increment the stored value
-     * @return The incremented value.
-     * @throws PersistitException
-     */
-    public long incrementValue(long by) throws PersistitException {
-        return incrementValue(by, 0);
-    }
-
-    /**
-     * Atomically increment a stored integer value and return the result. If the
-     * key currently has no associated value, then initialize the value to
-     * <code>from</code>. Otherwise add <code>by</code> to whatever value is
-     * stored, store the result and return it.
-     * 
-     * @param by
-     *            The amount by which to increment the stored value
-     * @return The incremented value.
-     * @throws PersistitException
-     */
-    public long incrementValue(long by, long from) throws PersistitException {
-        _persistit.checkClosed();
-        if (_volume.isReadOnly()) {
-            throw new ReadOnlyVolumeException(_volume.toString());
-        }
-        _value.put(from);
-        _value.armAtomicIncrement(by);
-        store();
-        return _value.getLong();
     }
 
     /**
@@ -2496,13 +2639,13 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean hasChildren() throws PersistitException {
-        _key.copyTo(_spareKey1);
+        _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
         boolean result = traverse(GT, true, 0);
-        if (result && _key.getEncodedSize() < size || _spareKey1.compareKeyFragment(_key, 0, size) != 0) {
+        if (result && _key.getEncodedSize() < size || _spareKey2.compareKeyFragment(_key, 0, size) != 0) {
             result = false;
         }
-        _spareKey1.copyTo(_key);
+        _spareKey2.copyTo(_key);
         return result;
     }
 
@@ -2521,7 +2664,7 @@ public class Exchange {
         _persistit.checkClosed();
         _persistit.checkSuspended();
         _spareValue.clear();
-        boolean result = remove(EQ, true);
+        boolean result = removeInternal(EQ, true);
         _spareValue.copyTo(_value);
         Debug.$assert0.t(_value.isDefined() == result);
         return result;
@@ -2538,14 +2681,15 @@ public class Exchange {
     public void removeTree() throws PersistitException {
         _persistit.checkClosed();
         _persistit.checkSuspended();
-        boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
-        clear();
-        _value.clear();
-        if (inTxn) {
+
+        if (!_ignoreTransactions) {
             _transaction.removeTree(this);
-        } else {
-            _volume.getStructure().removeTree(_tree);
         }
+
+        clear();
+
+        _value.clear();
+        _volume.getStructure().removeTree(_tree);
         initCache();
     }
 
@@ -2557,7 +2701,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean remove() throws PersistitException {
-        return remove(EQ, false);
+        return removeInternal(EQ, false);
     }
 
     /**
@@ -2568,7 +2712,7 @@ public class Exchange {
      */
     public boolean removeAll() throws PersistitException {
         clear();
-        return remove(GTEQ);
+        return removeInternal(GTEQ, false);
     }
 
     /**
@@ -2596,10 +2740,10 @@ public class Exchange {
      * @throws PersistitException
      */
     public boolean remove(Direction direction) throws PersistitException {
-        return remove(direction, false);
+        return removeInternal(direction, false);
     }
 
-    private boolean remove(Direction selection, boolean fetchFirst) throws PersistitException {
+    private boolean removeInternal(Direction selection, boolean fetchFirst) throws PersistitException {
         _persistit.checkClosed();
 
         if (selection != EQ && selection != GTEQ && selection != GT) {
@@ -2608,28 +2752,28 @@ public class Exchange {
 
         int keySize = _key.getEncodedSize();
 
-        _key.copyTo(_spareKey1);
-        _key.copyTo(_spareKey2);
+        _key.copyTo(_spareKey3);
+        _key.copyTo(_spareKey4);
 
         // Special case for empty key
         if (keySize == 0) {
             if (selection == EQ) {
                 return false;
             }
-            _spareKey1.append(BEFORE);
-            _spareKey2.append(AFTER);
+            _spareKey3.append(BEFORE);
+            _spareKey4.append(AFTER);
         } else {
             if (selection == EQ) {
-                _spareKey2.nudgeDeeper();
+                _spareKey4.nudgeDeeper();
             } else if (selection == GT) {
-                _spareKey1.nudgeDeeper();
-                _spareKey2.nudgeRight();
+                _spareKey3.nudgeDeeper();
+                _spareKey4.nudgeRight();
             } else if (selection == GTEQ) {
-                _spareKey2.nudgeRight();
+                _spareKey4.nudgeRight();
             }
         }
 
-        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, fetchFirst);
+        final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, fetchFirst);
         _treeHolder.verifyReleased();
 
         return result;
@@ -2654,26 +2798,28 @@ public class Exchange {
      *         else </i>false</i>.
      * 
      * @throws PersistitException
-     * @throws IllegalArgymentException
+     *             if there are any internal errors
+     * @throws IllegalArgumentException
      *             if key1 is equal to or greater than key2
      */
     public boolean removeKeyRange(Key key1, Key key2) throws PersistitException {
-        key1.copyTo(_spareKey1);
-        key2.copyTo(_spareKey2);
+        key1.copyTo(_spareKey3);
+        key2.copyTo(_spareKey4);
 
         // Special case for empty key
         if (key1.getEncodedSize() == 0) {
-            _spareKey1.append(BEFORE);
+            _spareKey3.append(BEFORE);
         }
 
         if (key2.getEncodedSize() == 0) {
-            _spareKey2.append(AFTER);
+            _spareKey4.append(AFTER);
         }
 
-        if (_spareKey1.compareTo(_spareKey2) >= 0) {
+        if (_spareKey3.compareTo(_spareKey4) >= 0) {
             throw new IllegalArgumentException("Second key must be greater than the first");
         }
-        final boolean result = removeKeyRangeInternal(_spareKey1, _spareKey2, false);
+
+        final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, false);
         _treeHolder.verifyReleased();
 
         return result;
@@ -2694,7 +2840,81 @@ public class Exchange {
      * @return <code>true</code> if any records were removed.
      * @throws PersistitException
      */
-    boolean removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
+    private boolean removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst) throws PersistitException {
+        Debug.$assert0.t(key1.getEncodedSize() > 0);
+        Debug.$assert0.t(key2.getEncodedSize() > 0);
+        Debug.$assert0.t(key1.compareTo(key2) < 0);
+
+        if (_ignoreTransactions || !_transaction.isActive()) {
+            return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
+        }
+
+        // Record the delete operation on the journal
+        _persistit.checkClosed();
+
+        _transaction.remove(this, key1, key2);
+
+        checkLevelCache();
+
+        _value.clear().putAntiValueMVV();
+        final int storeOptions = StoreOptions.MVCC | StoreOptions.WAIT | StoreOptions.ONLY_IF_VISIBLE
+                | StoreOptions.DONT_JOURNAL;
+
+        boolean anyRemoved = false;
+        boolean keyIsLessThan = true;
+        Key nextKey = new Key(key1);
+
+        while (keyIsLessThan && !key1.isRightEdge()) {
+            Buffer buffer = null;
+            try {
+                int foundAt = search(key1, true);
+                buffer = _levelCache[0]._buffer;
+
+                while (!buffer.isAfterRightEdge(foundAt)) {
+                    keyIsLessThan = key1.compareTo(key2) < 0;
+                    if (!keyIsLessThan) {
+                        break;
+                    }
+                    foundAt = buffer.nextKey(nextKey, foundAt);
+                    buffer.releaseTouched();
+                    buffer = null;
+                    anyRemoved |= storeInternal(key1, _value, 0, storeOptions);
+                    nextKey.copyTo(key1);
+                    break;
+                }
+            } finally {
+                if (buffer != null) {
+                    buffer.releaseTouched();
+                    buffer = null;
+                }
+            }
+        }
+
+        return anyRemoved;
+    }
+
+    /**
+     * Removes all records with keys falling between <code>key1</code> and
+     * </code>key2</code>, lefty-inclusive. Validity checks and Key value
+     * adjustments have been done by caller - this method does the work.
+     * 
+     * @param key1
+     *            Key that is less than or equal to the leftmost to be removed
+     * @param key2
+     *            Key that is greater than the rightmost to be removed
+     * @param fetchFirst
+     *            Control whether to copy the existing value for the first key
+     *            into _spareValue before deleting the record.
+     * @param removeOnlyAntiValue
+     *            Control whether to remove normal records or only an AntiValue.
+     *            If true then this method tests whether there is one record
+     *            being identified and removes it only if it is a primordial
+     *            AntiValue.
+     * @return <code>true</code> if any records were removed.
+     * @throws PersistitException
+     */
+    boolean raw_removeKeyRangeInternal(Key key1, Key key2, boolean fetchFirst, boolean removeOnlyAntiValue)
+            throws PersistitException {
         if (_volume.isReadOnly()) {
             throw new ReadOnlyVolumeException(_volume.toString());
         }
@@ -2704,15 +2924,17 @@ public class Exchange {
         if (Debug.ENABLED) {
             Debug.suspend();
         }
-        boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         boolean treeClaimAcquired = false;
         boolean treeWriterClaimRequired = false;
         boolean result = false;
-        _exclusive = true;
 
         boolean deallocationRequired = true; // assume until proven false
         boolean deferredReindexRequired = false;
         boolean tryQuickDelete = true;
+
+        if (!_ignoreTransactions) {
+            _transaction.remove(this, key1, key2);
+        }
 
         try {
             //
@@ -2726,17 +2948,13 @@ public class Exchange {
                 // populated the level cache.
 
                 try {
-                    if (inTxn) {
-                        result = _transaction.remove(this, key1, key2, fetchFirst);
-                        break;
-                    }
                     //
                     // First try for a quick delete from a single data page.
                     //
                     if (tryQuickDelete) {
                         Buffer buffer = null;
                         try {
-                            int foundAt1 = search(key1) & P_MASK;
+                            int foundAt1 = search(key1, true) & P_MASK;
                             buffer = _levelCache[0]._buffer;
 
                             if (foundAt1 > buffer.getKeyBlockStart() && foundAt1 < buffer.getKeyBlockEnd()) {
@@ -2745,6 +2963,14 @@ public class Exchange {
                                     foundAt2 &= P_MASK;
                                     if (foundAt2 < buffer.getKeyBlockEnd()) {
                                         Debug.$assert0.t(foundAt2 >= foundAt1);
+                                        
+                                        if (removeOnlyAntiValue) {
+                                            for (int p = foundAt1; p < foundAt2; p += KEYBLOCK_LENGTH) {
+                                                if (!buffer.isPrimordialAntiValue(p)) {
+                                                    return false;
+                                                }
+                                            }
+                                        }
                                         if (fetchFirst) {
                                             removeFetchFirst(buffer, foundAt1, buffer, foundAt2);
                                         }
@@ -2767,9 +2993,10 @@ public class Exchange {
                             // then don't try it again on a RetryException.
                             tryQuickDelete = false;
                         } finally {
-                            if (buffer != null)
+                            if (buffer != null) {
                                 buffer.releaseTouched();
-                            buffer = null;
+                                buffer = null;
+                            }
                         }
                     }
 
@@ -2802,7 +3029,7 @@ public class Exchange {
                         lc.initRemoveFields();
                         depth = level;
 
-                        int foundAt1 = searchLevel(key1, true, pageAddr1, level);
+                        int foundAt1 = searchLevel(key1, true, pageAddr1, level, true);
                         int foundAt2 = -1;
 
                         //
@@ -2846,7 +3073,7 @@ public class Exchange {
                                 }
                             }
 
-                            foundAt2 = searchLevel(key2, false, pageAddr2, level);
+                            foundAt2 = searchLevel(key2, false, pageAddr2, level, true);
 
                             buffer = lc._buffer;
                             lc._flags |= RIGHT_CLAIMED;
@@ -2858,7 +3085,7 @@ public class Exchange {
                         if (lc._leftBuffer.isIndexPage()) {
                             Debug.$assert0.t(lc._rightBuffer.isIndexPage() && depth > 0);
                             //
-                            // Come down the left of the key.
+                            // Come down to the left of the key.
                             //
                             int p1 = lc._leftBuffer.previousKeyBlock(foundAt1);
                             int p2 = lc._rightBuffer.previousKeyBlock(foundAt2);
@@ -2873,8 +3100,13 @@ public class Exchange {
                         }
                     }
 
+                    LevelCache lc = _levelCache[0];
+                    if (removeOnlyAntiValue & !isKeyRangeAntiValue(lc._leftBuffer, lc._leftFoundAt, lc._rightBuffer, lc._rightFoundAt)) {
+                        result = false;
+                        break;
+                    }
+                    
                     if (fetchFirst) {
-                        LevelCache lc = _levelCache[0];
                         removeFetchFirst(lc._leftBuffer, lc._leftFoundAt, lc._rightBuffer, lc._rightFoundAt);
                     }
                     //
@@ -2884,7 +3116,7 @@ public class Exchange {
                     //
                     final long timestamp = timestamp();
                     for (int level = _cacheDepth; --level >= 0;) {
-                        LevelCache lc = _levelCache[level];
+                        lc = _levelCache[level];
                         Buffer buffer1 = lc._leftBuffer;
                         Buffer buffer2 = lc._rightBuffer;
                         int foundAt1 = lc._leftFoundAt;
@@ -2959,7 +3191,8 @@ public class Exchange {
                                         // Try it the simple way
                                         _value.setPointerValue(buffer2.getPageAddress());
                                         _value.setPointerPageType(buffer2.getPageType());
-                                        int fit = buffer.putValue(_spareKey1, _value, foundAt, false);
+                                        _rawValueWriter.init(_value);
+                                        int fit = buffer.putValue(_spareKey1, _rawValueWriter, foundAt, false);
 
                                         // If it worked then we're done.
                                         if (fit != -1) {
@@ -3022,6 +3255,7 @@ public class Exchange {
                     treeClaimAcquired = true;
                 }
             }
+
             while (deallocationRequired) {
                 long left = -1;
                 long right = -1;
@@ -3057,11 +3291,11 @@ public class Exchange {
                             long deferredPage = lc._deferredReindexPage;
                             buffer = _pool.get(_volume, deferredPage, false, true);
                             if (buffer.getGeneration() == lc._deferredReindexChangeCount) {
-                                checkPageType(buffer, level + PAGE_TYPE_DATA);
+                                checkPageType(buffer, level + PAGE_TYPE_DATA, false);
                                 buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
                                 _value.setPointerValue(buffer.getPageAddress());
                                 _value.setPointerPageType(buffer.getPageType());
-                                storeInternal(_spareKey2, _value, level + 1, false, true);
+                                storeInternal(_spareKey2, _value, level + 1, StoreOptions.NONE);
                             } else {
                                 _persistit.getLogBase().unindexedPage.log(deferredPage, _volume, _tree.getName());
                             }
@@ -3084,24 +3318,25 @@ public class Exchange {
                     }
                 }
             }
+
         } finally {
             if (treeClaimAcquired) {
                 _tree.bumpGeneration();
                 _treeHolder.release();
                 treeClaimAcquired = false;
             }
-            _exclusive = false;
         }
-        // if (journalId != -1)
-        // journal().completed(journalId);
+
         _volume.getStatistics().bumpRemoveCounter();
-        if (fetchFirst)
+        _tree.getStatistics().bumpRemoveCounter();
+        if (fetchFirst) {
             _volume.getStatistics().bumpFetchCounter();
+            _tree.getStatistics().bumpFetchCounter();
+        }
         return result;
     }
 
     private void removeKeyRangeReleaseLevel(final int level) {
-
         int offset = 0;
         for (int lvl = 0; lvl < level; lvl++) {
             final LevelCache lc = _levelCache[lvl];
@@ -3149,14 +3384,100 @@ public class Exchange {
         }
     }
 
-    void removeAntiValue(AntiValue av) throws PersistitException {
-        _key.copyTo(_spareKey1);
-        _key.copyTo(_spareKey2);
-        byte[] bytes = av.getBytes();
-        int elisionCount = av.getElisionCount();
-        System.arraycopy(bytes, 0, _spareKey2.getEncodedBytes(), elisionCount, bytes.length);
-        _spareKey2.setEncodedSize(elisionCount + bytes.length);
-        removeKeyRangeInternal(_spareKey1, _spareKey2, false);
+    private boolean isKeyRangeAntiValue(final Buffer buffer1, final int foundAt1, final Buffer buffer2, final int foundAt2) {
+    if (buffer1.getKeyBlockEnd() != (foundAt1 & P_MASK) + KEYBLOCK_LENGTH ) {
+        return false;
+    }
+    if (buffer2.getKeyBlockStart() != (foundAt2 & P_MASK) - KEYBLOCK_LENGTH ) {
+        return false;
+    }
+    if (buffer1.getRightSibling() != buffer2.getPageAddress()) {
+        return false;
+    }
+    return buffer2.isPrimordialAntiValue(Buffer.KEY_BLOCK_START);
+    }
+    
+    
+    void prune() throws PersistitException {
+        prune(_key);
+    }
+
+    boolean prune(final Key key) throws PersistitException {
+        Buffer buffer = null;
+        try {
+            search(key, true);
+            buffer = _levelCache[0]._buffer;
+            if (buffer != null) {
+                return buffer.pruneMvvValues(null, _spareKey1);
+            } else {
+                return false;
+            }
+        } finally {
+            if (buffer != null) {
+                buffer.release();
+            }
+        }
+    }
+    
+    boolean prune(final long page) throws PersistitException {
+        Buffer buffer = null;
+        try {
+            buffer = _pool.get(_volume, page, true, true);
+            return buffer.pruneMvvValues(_tree, _spareKey1);
+        } finally {
+            if (buffer != null) {
+                buffer.release();
+            }
+        }
+        
+    }
+
+    boolean pruneLeftEdgeValue(final long page) throws PersistitException {
+        _ignoreTransactions = true;
+        Buffer buffer = null;
+        try {
+            buffer = _pool.get(_volume, page, false, true);
+            long at = buffer.at(Buffer.KEY_BLOCK_START);
+            if (at > 0) {
+                int offset = (int) (at >>> 32);
+                int size = (int) at;
+                if (size == 1 && buffer.getBytes()[offset] == MVV.TYPE_ANTIVALUE) {
+                    buffer.nextKey(_spareKey1, Buffer.KEY_BLOCK_START);
+                    buffer.release();
+                    buffer = null;
+                    _spareKey1.copyTo(_spareKey2);
+                    _spareKey2.nudgeDeeper();
+                    raw_removeKeyRangeInternal(_spareKey1, _spareKey2, false, true);
+                    return true;
+                }
+            }
+            return false;
+        } finally {
+            if (buffer != null) {
+                buffer.release();
+            }
+        }
+    }
+    
+    boolean fixIndexHole(final long page, final int level) throws PersistitException {
+        Buffer buffer = null;
+        if (!_treeHolder.claim(false, Persistit.SHORT_DELAY)) {
+            return false;
+        }
+        try {
+            buffer = _pool.get(_volume, page, false, true);
+            buffer.nextKey(_spareKey2, buffer.toKeyBlock(0));
+            _value.setPointerValue(page);
+            _value.setPointerPageType(buffer.getPageType());
+            storeInternal(_spareKey2, _value, level + 1, Exchange.StoreOptions.NONE);
+            return true;
+        } finally {
+            _treeHolder.release();
+            if (buffer != null) {
+                buffer.release();
+                buffer = null;
+            }
+        }
     }
 
     /**
@@ -3171,7 +3492,6 @@ public class Exchange {
     private void fetchLongRecord(Value value, int minimumBytesFetched) throws PersistitException {
 
         Buffer buffer = null;
-        boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
 
         try {
             byte[] rawBytes = value.getEncodedBytes();
@@ -3221,9 +3541,6 @@ public class Exchange {
                 remainingSize -= segmentSize;
                 // previousPage = page;
                 page = buffer.getRightSibling();
-                if (inTxn) {
-                    _transaction.touchedPage(this, buffer);
-                }
                 buffer.releaseTouched();
                 buffer = null;
 
@@ -3239,142 +3556,6 @@ public class Exchange {
         } finally {
             if (buffer != null)
                 buffer.releaseTouched();
-        }
-    }
-
-    /**
-     * <p>
-     * Stores the raw bytes of a long record in Value into a LONG_RECORD chain,
-     * then replaces the content of the raw bytes of the Value with a
-     * LONG_RECORD descriptor.
-     * </p>
-     * <p>
-     * If a non-zero page address is supplied, this is the address of the long
-     * record chain that was previously associated with this record. In this
-     * case, storeLongRecord will attempt to reuse those pages rather than
-     * allocating new pages to hold the long record.
-     * </p>
-     * <p>
-     * Called with a writer claim on the data page that will contain the
-     * LONG_RECORD value, and that page is reserved. This method will claim and
-     * reserve an indefinite number of additional pages. Upon completion, All of
-     * those claims will be released, and if no change was made they will be
-     * unreserved. Throws a RetryException if it was not possible to reserve all
-     * the necessary pages.
-     * </p>
-     * 
-     * @param value
-     *            The Value object containing the long record. The Value must be
-     *            in "long record mode".
-     * 
-     * @param page
-     *            Address of first page of LONG_RECORD chain being overwritten,
-     *            or 0 if there is none.
-     * 
-     * @returns the page address of the first page of the LONG_RECORD chain
-     * @throws PersistitException
-     */
-    long storeLongRecord(Value value, long oldChain, long newChain) throws PersistitException {
-        // Calculate how many LONG_RECORD pages we will need.
-        //
-        boolean completed = false;
-        value.changeLongRecordMode(true);
-
-        long page = oldChain;
-        int longSize = value.getLongSize();
-        int remainingSize = longSize;
-        byte[] longBytes = value.getLongBytes();
-        byte[] rawBytes = value.getEncodedBytes();
-        int loosePageIndex = -1;
-        int index = 0;
-        long looseChain = 0;
-        Buffer[] bufferArray = null;
-
-        Debug.$assert0.t(value.isLongRecordMode());
-        Debug.$assert0.t(rawBytes.length == LONGREC_SIZE);
-
-        System.arraycopy(longBytes, 0, rawBytes, LONGREC_PREFIX_OFFSET, LONGREC_PREFIX_SIZE);
-
-        remainingSize -= LONGREC_PREFIX_SIZE;
-        int maxSegmentSize = _pool.getBufferSize() - HEADER_SIZE;
-        int count = (remainingSize + (maxSegmentSize - 1)) / maxSegmentSize;
-
-        try {
-            bufferArray = new Buffer[count];
-            for (; index < count && page != 0; index++) {
-                Buffer buffer = _pool.get(_volume, page, true, true);
-                Debug.$assert0.t(buffer.isLongRecordPage());
-                bufferArray[index] = buffer;
-                page = buffer.getRightSibling();
-
-                // verify that there's no cycle
-                for (int i = 0; i < index; i++) {
-                    if (bufferArray[i].getPageAddress() == page) {
-                        corrupt("LONG_RECORD chain cycle at " + bufferArray[0]);
-                    }
-                }
-            }
-
-            if (index == count) {
-                looseChain = page;
-                loosePageIndex = index;
-            }
-
-            for (; index < count; index++) {
-                Buffer buffer = _volume.getStructure().allocPage();
-                bufferArray[index] = buffer;
-            }
-            final long timestamp = timestamp();
-            //
-            // Now we're committed - the just-allocated pages are no longer
-            // subject to being deallocated by a retry.
-            //
-            page = newChain;
-            for (index = count; --index >= 0;) {
-                int offset = LONGREC_PREFIX_SIZE + (index * maxSegmentSize);
-                int segmentSize = longSize - offset;
-                if (segmentSize > maxSegmentSize)
-                    segmentSize = maxSegmentSize;
-                Buffer buffer = bufferArray[index];
-                buffer.writePageOnCheckpoint(timestamp);
-
-                buffer.init(PAGE_TYPE_LONG_RECORD);
-                buffer.setRightSibling(page);
-
-                System.arraycopy(longBytes, offset, buffer.getBytes(), HEADER_SIZE, segmentSize);
-
-                int end = HEADER_SIZE + segmentSize;
-                if (end < buffer.getBufferSize()) {
-                    buffer.clearBytes(end, buffer.getBufferSize());
-                }
-                buffer.setDirtyAtTimestamp(timestamp);
-                bufferArray[index] = null;
-                page = buffer.getPageAddress(); // current head of the chain
-                buffer.releaseTouched();
-            }
-            completed = true;
-            Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
-            _longRecordPageAddress = page;
-            return page;
-        } finally {
-            if (!completed) {
-                if (bufferArray != null) {
-                    for (index = count; --index >= 0;) {
-                        Buffer buffer = bufferArray[index];
-                        if (buffer != null) {
-                            buffer.releaseTouched();
-                            if (loosePageIndex >= 0 && index >= loosePageIndex) {
-                                _volume.getStructure().deallocateGarbageChain(buffer.getPageAddress(), -1);
-                            }
-                        }
-                    }
-                }
-                value.changeLongRecordMode(false);
-            } else {
-                if (looseChain != 0) {
-                    _volume.getStructure().deallocateGarbageChain(looseChain, 0);
-                }
-            }
         }
     }
 
@@ -3416,6 +3597,7 @@ public class Exchange {
         Buffer buffer = null;
         int offset = from + (((longSize - from - 1) / maxSegmentSize) * maxSegmentSize);
         final long timestamp = timestamp();
+        final boolean inTxn = _transaction.isActive() && !_ignoreTransactions;
         try {
             for (;;) {
                 while (offset >= from) {
@@ -3439,6 +3621,9 @@ public class Exchange {
                     buffer.setRightSibling(looseChain);
                     looseChain = buffer.getPageAddress();
                     buffer.setDirtyAtTimestamp(timestamp);
+                    if (inTxn) {
+                        buffer.writePage();
+                    }
                     buffer.releaseTouched();
                     offset -= maxSegmentSize;
                     buffer = null;
@@ -3447,8 +3632,8 @@ public class Exchange {
                 long page = looseChain;
                 looseChain = 0;
                 Buffer.writeLongRecordDescriptor(value.getEncodedBytes(), longSize, page);
+
                 completed = true;
-                _longRecordPageAddress = page;
                 return page;
             }
         } finally {
@@ -3462,40 +3647,12 @@ public class Exchange {
         }
     }
 
-    void writeLongRecordPagesToJournal() throws PersistitException {
-        Buffer buffer = null;
-        long page = _longRecordPageAddress;
-        if (page == 0) {
-            return;
-        }
-        try {
-            for (int count = 0; page != 0; count++) {
-                buffer = _volume.getPool().get(_volume, page, false, true);
-                if (buffer.getPageType() != PAGE_TYPE_LONG_RECORD) {
-                    corrupt("LONG_RECORD chain starting at " + _longRecordPageAddress + " is invalid at page " + page
-                            + " - invalid page type: " + buffer);
-                }
-                if (buffer.isDirty()) {
-                    buffer.writePage();
-                }
-                page = buffer.getRightSibling();
-                buffer.releaseTouched();
-                buffer = null;
-                if (count > Exchange.MAX_LONG_RECORD_CHAIN) {
-                    corrupt("LONG_RECORD chain starting at " + _longRecordPageAddress + " is too long");
-                }
-            }
-        } finally {
-            if (buffer != null) {
-                buffer.releaseTouched();
-            }
-        }
-    }
-
-    private void checkPageType(Buffer buffer, int expectedType) throws PersistitException {
+    private void checkPageType(Buffer buffer, int expectedType, boolean releaseOnFailure) throws PersistitException {
         int type = buffer.getPageType();
         if (type != expectedType) {
-            buffer.releaseTouched();
+            if (releaseOnFailure) {
+                buffer.releaseTouched();
+            }
             corrupt("Volume " + _volume + " page " + buffer.getPageAddress() + " invalid page type " + type
                     + ": should be " + expectedType);
         }
@@ -3511,6 +3668,19 @@ public class Exchange {
      */
     public Transaction getTransaction() {
         return _transaction;
+    }
+
+    /**
+     * Allows for all MVV contents to be returned through the Value object
+     * during fetch. This can then be displayed conveniently through
+     * {@link Value#toString()} or as an array from {@link Value#get()}.
+     * 
+     * @param doIgnore
+     *            If <code>true</code> return MVVs as described otherwise return
+     *            the appropriate single version.
+     */
+    void ignoreMVCCFetch(boolean doIgnore) {
+        _ignoreMVCCFetch = doIgnore;
     }
 
     void ignoreTransactions() {
@@ -3586,12 +3756,12 @@ public class Exchange {
             direction = GT;
         }
 
-        int foundAt = searchTree(_key, treeDepth);
+        int foundAt = searchTree(_key, treeDepth, false);
         try {
             lc = _levelCache[treeDepth];
             buffer = lc._buffer;
             if (buffer != null) {
-                checkPageType(buffer, treeDepth + 1);
+                checkPageType(buffer, treeDepth + 1, false);
             }
 
             while (foundAt != -1) {
@@ -3600,14 +3770,14 @@ public class Exchange {
                 if (buffer.isAfterRightEdge(foundAt)) {
                     long rightSiblingPage = buffer.getRightSibling();
                     if (rightSiblingPage > 0) {
-                        Buffer rightSibling = _pool.get(_volume, rightSiblingPage, _exclusive, true);
+                        Buffer rightSibling = _pool.get(_volume, rightSiblingPage, false, true);
                         buffer.releaseTouched();
                         //
                         // Reset foundAtNext to point to the first key block
                         // of the right sibling page.
                         //
                         buffer = rightSibling;
-                        checkPageType(buffer, treeDepth + 1);
+                        checkPageType(buffer, treeDepth + 1, false);
                         foundAt = buffer.traverse(_key, GT, buffer.toKeyBlock(0));
                     } else {
                         foundAt = -1;
@@ -3676,8 +3846,7 @@ public class Exchange {
             throw new IllegalArgumentException("Tree depth is " + _tree.getDepth());
         }
         int lvl = level >= 0 ? level : _tree.getDepth() + level;
-        _exclusive = false;
-        int foundAt = searchTree(_key, lvl);
+        int foundAt = searchTree(_key, lvl, false);
         final Buffer buffer = _levelCache[lvl]._buffer;
         try {
             if (foundAt == -1) {
@@ -3705,4 +3874,5 @@ public class Exchange {
         }
         return sb.toString();
     }
+
 }

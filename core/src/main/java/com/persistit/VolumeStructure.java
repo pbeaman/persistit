@@ -34,7 +34,9 @@ class VolumeStructure {
     /**
      * Key segment name for index by directory tree name.
      */
-    final static String BY_NAME = "byName";
+    final static String TREE_ROOT = "root";
+    final static String TREE_STATS = "stats";
+    final static String TREE_ACCUMULATOR = "totals";
 
     private final Persistit _persistit;
     private final Volume _volume;
@@ -94,6 +96,10 @@ class VolumeStructure {
         return ex;
     }
 
+    Exchange accumulatorExchange() {
+        return new Exchange(_directoryTree);
+    }
+
     /**
      * Create a new tree in this volume. A tree is represented by an index root
      * page and all the index and data pages pointed to by that root page.
@@ -114,8 +120,8 @@ class VolumeStructure {
 
         try {
             rootPageBuffer.init(Buffer.PAGE_TYPE_DATA);
-            rootPageBuffer.putValue(Key.LEFT_GUARD_KEY, Value.EMPTY_VALUE);
-            rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, Value.EMPTY_VALUE);
+            rootPageBuffer.putValue(Key.LEFT_GUARD_KEY, ValueHelper.EMPTY_VALUE_WRITER);
+            rootPageBuffer.putValue(Key.RIGHT_GUARD_KEY, ValueHelper.EMPTY_VALUE_WRITER);
             rootPageBuffer.setDirtyAtTimestamp(timestamp);
         } finally {
             rootPageBuffer.releaseTouched();
@@ -143,6 +149,9 @@ class VolumeStructure {
      * @throws PersistitException
      */
     public synchronized Tree getTree(String name, boolean createIfNecessary) throws PersistitException {
+        if (DIRECTORY_TREE_NAME.equals(name)) {
+            throw new IllegalArgumentException("Tree name is reserved: " + name);
+        }
         Tree tree;
         WeakReference<Tree> treeRef = _treeNameHashMap.get(name);
         if (treeRef != null) {
@@ -152,16 +161,18 @@ class VolumeStructure {
             }
         }
         final Exchange ex = directoryExchange();
-        ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(name);
+        ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(name);
         Value value = ex.fetch().getValue();
         tree = new Tree(_persistit, _volume, name);
         if (value.isDefined()) {
-            tree.load(ex.getValue());
+            value.get(tree);
+            loadTreeStatistics(tree);
             tree.setValid();
         } else if (createIfNecessary) {
             final long rootPageAddr = createTreeRoot(tree);
             tree.setRootPageAddress(rootPageAddr);
             updateDirectoryTree(tree);
+            storeTreeStatistics(tree);
             tree.setValid();
         } else {
             return null;
@@ -181,8 +192,25 @@ class VolumeStructure {
             }
         } else {
             Exchange ex = directoryExchange();
-            tree.store(ex.getValue());
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(tree.getName()).store();
+            ex.getValue().put(tree);
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).store();
+        }
+    }
+
+    void storeTreeStatistics(Tree tree) throws PersistitException {
+        if (tree.getStatistics().isDirty() && !DIRECTORY_TREE_NAME.equals(tree.getName())) {
+            Exchange ex = directoryExchange();
+            ex.getValue().put(tree.getStatistics());
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).store();
+            tree.getStatistics().setDirty(false);
+        }
+    }
+
+    void loadTreeStatistics(Tree tree) throws PersistitException {
+        Exchange ex = directoryExchange();
+        ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).fetch();
+        if (ex.getValue().isDefined()) {
+            ex.getValue().get(tree.getStatistics());
         }
     }
 
@@ -209,7 +237,9 @@ class VolumeStructure {
             page = rootPage;
             depth = tree.getDepth();
             Exchange ex = directoryExchange();
-            ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append(tree.getName()).remove();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove();
         } finally {
             tree.release();
         }
@@ -263,6 +293,31 @@ class VolumeStructure {
         final long rootPageAddr = createTreeRoot(tree);
         tree.setRootPageAddress(rootPageAddr);
         updateDirectoryTree(tree);
+        tree.getStatistics().reset();
+        storeTreeStatistics(tree);
+    }
+
+    /**
+     * Flush dirty {@link TreeStatistics} instances. Called periodically on the
+     * PAGE_WRITER thread from {@link Persistit#cleanup()}.
+     */
+    void flushStatistics() {
+        try {
+            final List<Tree> trees = new ArrayList<Tree>();
+            synchronized (this) {
+                for (final WeakReference<Tree> ref : _treeNameHashMap.values()) {
+                    final Tree tree = ref.get();
+                    if (tree != null && tree != _directoryTree) {
+                        trees.add(tree);
+                    }
+                }
+            }
+            for (final Tree tree : trees) {
+                    storeTreeStatistics(tree);
+            }
+        } catch (Exception e) {
+            _persistit.getLogBase().adminFlushException.log(e);
+        }
     }
 
     /**
@@ -275,7 +330,7 @@ class VolumeStructure {
     public String[] getTreeNames() throws PersistitException {
         List<String> list = new ArrayList<String>();
         Exchange ex = directoryExchange();
-        ex.clear().append(DIRECTORY_TREE_NAME).append(BY_NAME).append("");
+        ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append("");
         while (ex.next()) {
             String treeName = ex.getKey().indexTo(-1).decodeString();
             list.add(treeName);
@@ -304,7 +359,7 @@ class VolumeStructure {
             return null;
         }
     }
-    
+
     synchronized List<Tree> referencedTrees() {
         final List<Tree> list = new ArrayList<Tree>();
         for (final WeakReference<Tree> ref : _treeNameHashMap.values()) {

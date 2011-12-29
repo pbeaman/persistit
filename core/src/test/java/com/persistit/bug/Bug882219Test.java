@@ -75,41 +75,28 @@ public class Bug882219Test extends PersistitUnitTestCase {
                 try {
                     txn.begin();
                     began = true;
-                    try {
-                        ex.getValue().put(RED_FOX);
-                        for (int i = 0; i < 10000; i++) {
-                            ex.to(i).store();
-                        }
-                        txn.commit(true); // force disk I/O
-                        commits++;
-                    } catch (PersistitInterruptedException e) {
-                        // clear interrupted flag and ignore
-                        Thread.interrupted();
-                    } catch (PersistitIOException e) {
-                        if (e.getCause() instanceof InterruptedIOException) {
-                            // ignore
-                        }
-                    } catch (Exception e) {
-                        // of interest
-                        e.printStackTrace();
-                        errors++;
-                        break;
-                    } finally {
-                        if (began) {
-                            txn.end();
-                            transactions++;
-                        }
+                    ex.getValue().put(RED_FOX);
+                    for (int i = 0; i < 10000; i++) {
+                        ex.to(i).store();
                     }
+                    txn.commit(true); // force disk I/O
+                    commits++;
                 } catch (PersistitInterruptedException e) {
                     // clear interrupted flag and ignore
                     Thread.interrupted();
                 } catch (PersistitIOException e) {
                     if (e.getCause() instanceof InterruptedIOException) {
-                        // clear interrupted flag and ignore
-
-                        Thread.interrupted();
-                    } else {
-                        throw e;
+                        // ignore
+                    }
+                } catch (Exception e) {
+                    // of interest
+                    e.printStackTrace();
+                    errors++;
+                    break;
+                } finally {
+                    if (began) {
+                        txn.end();
+                        transactions++;
                     }
                 }
             }

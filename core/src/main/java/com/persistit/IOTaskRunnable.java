@@ -60,21 +60,26 @@ abstract class IOTaskRunnable implements Runnable {
         }
     }
 
-    synchronized long getPollInterval() {
+    public synchronized long getPollInterval() {
         return _pollInterval;
     }
 
-    synchronized void setPollInterval(long pollInterval) {
+    public synchronized void setPollInterval(long pollInterval) {
         _pollInterval = pollInterval;
         kick();
     }
 
-    synchronized Exception getLastException() {
+    public synchronized Exception getLastException() {
         return _lastException;
     }
 
-    synchronized void setLastException(Exception lastException) {
-        _lastException = lastException;
+    synchronized boolean lastException(Exception exception) {
+        if (_lastException == null || exception == null || !_lastException.getClass().equals(exception.getClass())) {
+            _lastException = exception;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     protected synchronized boolean isStopped() {
@@ -119,8 +124,7 @@ abstract class IOTaskRunnable implements Runnable {
             try {
                 runTask();
             } catch (Exception e) {
-                if (!e.equals(_lastException)) {
-                    _lastException = e;
+                if (lastException(e)) {
                     _persistit.getLogBase().exception.log(e);
                 }
             }

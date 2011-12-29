@@ -15,37 +15,19 @@
 
 package com.persistit;
 
-import static com.persistit.JournalRecord.getLength;
-import static com.persistit.JournalRecord.getType;
-
-import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
-import com.persistit.JournalRecord.CU;
+import com.persistit.Accumulator.Delta;
+import com.persistit.JournalRecord.D0;
+import com.persistit.JournalRecord.D1;
 import com.persistit.JournalRecord.DR;
 import com.persistit.JournalRecord.DT;
 import com.persistit.JournalRecord.SR;
-import com.persistit.JournalRecord.TC;
-import com.persistit.JournalRecord.TS;
-import com.persistit.TimestampAllocator.Checkpoint;
-import com.persistit.TransactionalCache.Update;
-import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
-import com.persistit.exception.TimeoutException;
-import com.persistit.util.Debug;
-import com.persistit.util.InternalHashSet;
+import com.persistit.util.Util;
 
 /**
  * <p>
@@ -286,21 +268,8 @@ import com.persistit.util.InternalHashSet;
  * @version 1.1
  */
 public class Transaction {
-    public final static int DEFAULT_PESSIMISTIC_RETRY_THRESHOLD = 3;
-
-    private final static int DEFAULT_TXN_BUFFER_SIZE = 64 * 1024;
-
-    private final static int MIN_TXN_BUFFER_CAPACITY = 1024;
-
-    private final static int MAX_TXN_BUFFER_CAPACITY = 64 * 1024 * 1024;
-
-    private final static boolean DISABLE_TXN_BUFFER = false;
-
-    private final static String TRANSACTION_TREE_NAME = "_txn_";
-
-    private final static long COMMIT_CLAIM_TIMEOUT = 30000;
-
-    private final static int NEUTERED_LONGREC = 254;
+    final static int TRANSACTION_BUFFER_SIZE = 65536;
+    final static int MAXIMUM_STEP = TransactionIndex.VERSION_HANDLE_MULTIPLIER - 1;
 
     private static long _idCounter = 100000000;
 
@@ -308,227 +277,22 @@ public class Transaction {
     private final SessionId _sessionId;
     private final long _id;
     private int _nestedDepth;
-    private int _pendingStoreCount = 0;
-    private int _pendingRemoveCount = 0;
     private boolean _rollbackPending;
     private boolean _commitCompleted;
-    private RollbackException _rollbackException;
-
-    private boolean _recoveryMode = false;
 
     private long _rollbackCount = 0;
     private long _commitCount = 0;
     private int _rollbacksSinceLastCommit = 0;
 
-    private int _pessimisticRetryThreshold = DEFAULT_PESSIMISTIC_RETRY_THRESHOLD;
+    private TransactionStatus _transactionStatus;
+    private long _startTimestamp;
+    private long _commitTimestamp;
 
-    private ArrayList<DeallocationChain> _longRecordDeallocationList = new ArrayList<DeallocationChain>();
+    private final ByteBuffer _buffer = ByteBuffer.allocate(TRANSACTION_BUFFER_SIZE);
 
-    private Exchange _ex1;
+    private long _previousJournalAddress;
 
-    private Exchange _ex2;
-
-    private final Key _rootKey;
-
-    private final InternalHashSet _touchedPagesSet = new InternalHashSet();
-
-    private final List<Integer> _visbilityOrder = new ArrayList<Integer>();
-
-    private long _rollbackDelay;
-
-    // Valid only during the commit() method
-    private AtomicLong _startTimestamp = new AtomicLong(-1);
-
-    // Valid only during the commit() method
-    private AtomicLong _commitTimestamp = new AtomicLong(-1);
-
-    // Valid only during the commit() method
-    private AtomicBoolean _toDisk = new AtomicBoolean();
-
-    private List<CommitListener> _commitListeners = new ArrayList<CommitListener>();
-
-    private TransactionBuffer _txnBuffer = new TransactionBuffer();
-
-    private Map<TransactionalCache, List<Update>> _transactionCacheUpdates = new HashMap<TransactionalCache, List<Update>>();
-
-    private Checkpoint _transactionalCacheCheckpoint;
-
-    private Map<Integer, WeakReference<Tree>> _treeCache = new HashMap<Integer, WeakReference<Tree>>();
-
-    private class TransactionBuffer implements TransactionWriter {
-
-        private ByteBuffer _bb = ByteBuffer.allocate(DEFAULT_TXN_BUFFER_SIZE);
-
-        @Override
-        public boolean writeTransactionStartToJournal(long startTimestamp) throws PersistitIOException {
-            if (DISABLE_TXN_BUFFER || _bb.remaining() < TS.OVERHEAD) {
-                return false;
-            }
-            _persistit.getJournalManager().writeTransactionStartToJournal(_bb, TS.OVERHEAD, startTimestamp);
-            return true;
-
-        }
-
-        @Override
-        public boolean writeTransactionCommitToJournal(long timestamp, long commitTimestamp)
-                throws PersistitIOException {
-            if (DISABLE_TXN_BUFFER || _bb.remaining() < TC.OVERHEAD) {
-                return false;
-            }
-            _persistit.getJournalManager()
-                    .writeTransactionCommitToJournal(_bb, TC.OVERHEAD, timestamp, commitTimestamp);
-            return true;
-
-        }
-
-        @Override
-        public boolean writeStoreRecordToJournal(long timestamp, int treeHandle, Key key, Value value)
-                throws PersistitIOException {
-            final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
-            if (DISABLE_TXN_BUFFER || _bb.remaining() < recordSize) {
-                return false;
-            }
-            _persistit.getJournalManager()
-                    .writeStoreRecordToJournal(_bb, recordSize, timestamp, treeHandle, key, value);
-            return true;
-        }
-
-        @Override
-        public boolean writeDeleteRecordToJournal(long timestamp, int treeHandle, Key key1, Key key2)
-                throws PersistitIOException {
-            final int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize();
-            if (DISABLE_TXN_BUFFER || _bb.remaining() < recordSize) {
-                return false;
-            }
-            _persistit.getJournalManager().writeDeleteRecordToJournal(_bb, recordSize, timestamp, treeHandle, key1,
-                    key2);
-            return true;
-        }
-
-        @Override
-        public boolean writeDeleteTreeToJournal(long timestamp, int treeHandle) throws PersistitIOException {
-            if (DISABLE_TXN_BUFFER || _bb.remaining() < DT.OVERHEAD) {
-                return false;
-            }
-            _persistit.getJournalManager().writeDeleteTreeToJournal(_bb, DT.OVERHEAD, timestamp, treeHandle);
-            return true;
-        }
-
-        @Override
-        public boolean writeCacheUpdatesToJournal(final long timestamp, final long cacheId, final List<Update> updates)
-                throws PersistitIOException {
-            int estimate = CU.OVERHEAD;
-            for (int index = 0; index < updates.size(); index++) {
-                estimate += (1 + updates.get(index).size());
-            }
-            if (DISABLE_TXN_BUFFER || _bb.remaining() < estimate) {
-                return false;
-            }
-            _persistit.getJournalManager().writeCacheUpdatesToJournal(_bb, timestamp, cacheId, updates);
-            return true;
-        }
-
-        void clear() {
-            _bb.clear();
-        }
-
-        void flip() {
-            _bb.flip();
-        }
-
-        int capacity() {
-            return _bb.capacity();
-        }
-
-        void allocate(final int capacity) {
-            _bb = ByteBuffer.allocate(capacity);
-        }
-    }
-
-    /**
-     * Call-back for commit() processing. Methods of this class are called
-     * during execution of the {@link Transaction#commit()} method.
-     * Implementations of this interface must return quickly without blocking
-     * for synchronization of physical I/O.
-     * <p />
-     * The default implementation of this class does nothing.
-     */
-    public static interface CommitListener {
-        /**
-         * Called when a transaction is committed. The implementation may
-         * perform actions consistent with the committed transaction.
-         */
-        public void committed();
-
-        /**
-         * Called when a transaction is rolled back.
-         */
-        public void rolledBack();
-    }
-
-    /**
-     * Implementation of CommitListener that does nothing.
-     * 
-     */
-    public static class DefaultCommitListener implements CommitListener {
-        @Override
-        public void committed() {
-            // do nothing
-        }
-
-        @Override
-        public void rolledBack() {
-            // do nothing
-        }
-    }
-
-    private static class TouchedPage extends InternalHashSet.Entry {
-        final Volume _volume;
-        final long _pageAddr;
-        final long _timestamp;
-
-        private TouchedPage(Buffer buffer) {
-            _volume = buffer.getVolume();
-            _pageAddr = buffer.getPageAddress();
-            _timestamp = buffer.getTimestamp();
-        }
-
-        @Override
-        public int hashCode() {
-            return _volume.hashCode() ^ ((int) _pageAddr);
-        }
-
-        @Override
-        public String toString() {
-            return "Touched(" + _volume.getPath() + ", page " + _pageAddr + ", timestamp=" + _timestamp + ")";
-        }
-    }
-
-    private static class DeallocationChain {
-        Volume _volume;
-        long _leftPage;
-        long _rightPage;
-
-        DeallocationChain(Volume volume, long leftPage, long rightPage) {
-            _volume = volume;
-            _leftPage = leftPage;
-            _rightPage = rightPage;
-        }
-
-        @Override
-        public int hashCode() {
-            return (int) _leftPage ^ (int) _rightPage ^ _volume.hashCode();
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (o == null || !(o instanceof DeallocationChain)) {
-                return false;
-            }
-            DeallocationChain dc = (DeallocationChain) o;
-            return (dc._leftPage == _leftPage && dc._rightPage == _rightPage && dc._volume == _volume);
-        }
-    }
+    private int _step;
 
     /**
      * Creates a new transaction context. Any transaction performed within this
@@ -548,73 +312,18 @@ public class Transaction {
         _persistit = persistit;
         _sessionId = sessionId;
         _id = id;
-        _rollbackDelay = persistit.getLongProperty("rollbackDelay", 10, 0, 100000);
-        _rootKey = new Key(_persistit);
     }
 
     private static synchronized long nextId() {
         return ++_idCounter;
     }
 
-    void setupExchanges() throws PersistitException {
-        if (_ex1 == null) {
-            int saveDepth = _nestedDepth;
-            _nestedDepth = 0;
-            try {
-                _ex1 = _persistit.getExchange(txnVolume(), TRANSACTION_TREE_NAME + _id, true);
-                _ex2 = new Exchange(_ex1);
-                _ex1.ignoreTransactions();
-                _ex2.ignoreTransactions();
-            } finally {
-                _nestedDepth = saveDepth;
-            }
-        }
-    }
-
-    Volume txnVolume() throws PersistitException {
-        final String volumeName = _persistit.getProperty(Persistit.TXN_VOLUME_NAME_PROPERTY);
-        if (volumeName == null) {
-            return  _persistit.createTemporaryVolume();
-        } else {
-            return _persistit.getVolume(volumeName);
-        }
-    }
-    
-    void close() throws PersistitException {
-        final Exchange ex = _ex1;
-        if (ex != null) {
-            if (ex.getVolume().isTemporary()) {
-                ex.getVolume().close();
-            }
-            _ex1 = null;
-            _ex2 = null;
-        }
-    }
-
-    private int handleForTree(Tree tree) throws PersistitException {
-        return _persistit.getJournalManager().handleForTree(tree);
-    }
-
     /**
-     * Given a handle, return the corresponding Tree. For better performance,
-     * this method caches a handle->Tree map privately in this Transaction to
-     * avoid synchronizing on the <code>JournalManager</code>.
+     * Release all resources associated with this transaction context.
      * 
-     * @param handle
-     * @return the corresponding <code>Tree</code>
      * @throws PersistitException
      */
-    private Tree treeForHandle(int handle) throws PersistitException {
-        final Integer key = Integer.valueOf(handle);
-        WeakReference<Tree> ref = _treeCache.get(key);
-        Tree tree = ref == null ? null : ref.get();
-        if (tree == null || !tree.isValid()) {
-            tree = _persistit.getJournalManager().treeForHandle(handle);
-            if (tree != null) {
-                _treeCache.put(key, new WeakReference<Tree>(tree));
-            }
-        }
-        return tree;
+    void close() throws PersistitException {
     }
 
     /**
@@ -625,7 +334,7 @@ public class Transaction {
      */
     public void checkPendingRollback() throws RollbackException {
         if (_rollbackPending) {
-            throw _rollbackException;
+            throw new RollbackException();
         }
     }
 
@@ -682,28 +391,45 @@ public class Transaction {
         if (_commitCompleted) {
             throw new IllegalStateException("Attempt to begin a committed transaction");
         }
-
-        _rollbackPending = false;
-        _rollbackException = null;
-
         if (_nestedDepth == 0) {
             try {
-                setupExchanges();
-                clear();
-                _commitListeners.clear();
-                _transactionCacheUpdates.clear();
-                _startTimestamp.set(_persistit.getTimestampAllocator().updateTimestamp());
-
-            } catch (PersistitException pe) {
-                _persistit.getLogBase().txnBeginException.log(pe, this);
-                throw pe;
+                _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
+            } catch (InterruptedException e) {
+                throw new PersistitInterruptedException(e);
             }
-            if (!_persistit.getTransactionResourceA().claim(_rollbacksSinceLastCommit >= _pessimisticRetryThreshold,
-                    COMMIT_CLAIM_TIMEOUT)) {
-                throw new TimeoutException("Unavailable TransactionResourceA lock");
-            }
+            _rollbackPending = false;
+            _startTimestamp = _transactionStatus.getTs();
+            _commitTimestamp = 0;
+            _step = 0;
+            _buffer.clear();
+            _previousJournalAddress = 0;
+        } else {
+            checkPendingRollback();
         }
         _nestedDepth++;
+    }
+
+    void beginCheckpoint() throws PersistitException {
+        if (_commitCompleted) {
+            throw new IllegalStateException("Attempt to begin a committed transaction");
+        }
+        if (_nestedDepth == 0) {
+            try {
+                _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
+            } catch (InterruptedException e) {
+                throw new PersistitInterruptedException(e);
+            }
+            _rollbackPending = false;
+            _startTimestamp = _transactionStatus.getTs();
+            _commitTimestamp = 0;
+            _step = 0;
+            _buffer.clear();
+            _previousJournalAddress = 0;
+        } else {
+            checkPendingRollback();
+        }
+        _nestedDepth++;
+
     }
 
     /**
@@ -729,26 +455,18 @@ public class Transaction {
         }
         _nestedDepth--;
 
-        // Decide whether this is a rollback or a commit.
-        if (!_commitCompleted || _rollbackPending) {
-            if (_rollbackException == null) {
-                _rollbackException = new RollbackException();
-            }
-            if (!_rollbackPending) {
-                _persistit.getLogBase().txnNotCommitted.log(_rollbackException);
-            }
-            _rollbackPending = true;
-        }
-
-        // Special handling for the outermost scope.
         if (_nestedDepth == 0) {
-            _commitListeners.clear();
-            // First release the pessimistic lock if we claimed it.
+            // If not committed, this is an implicit rollback (with a log
+            // message
+            // if rollback was not called explicitly).
+            //
+            if (!_commitCompleted) {
+                if (!_rollbackPending) {
+                    _persistit.getLogBase().txnNotCommitted.log(new RollbackException());
+                }
+                _rollbackPending = true;
 
-            _persistit.getTransactionResourceA().release();
-            _startTimestamp.set(-1);
-            _commitTimestamp.set(-1);
-            _transactionCacheUpdates.clear();
+            }
             //
             // Perform rollback if needed.
             //
@@ -756,36 +474,28 @@ public class Transaction {
                 _rollbackCount++;
                 _rollbacksSinceLastCommit++;
 
-                try {
-                    rollbackUpdates();
-                    if (_rollbackDelay > 0) {
-                        Thread.sleep(_rollbackDelay); // TODO
-                    }
-                } catch (PersistitException pe) {
-                    _persistit.getLogBase().txnEndException.log(pe, this);
-                } catch (InterruptedException ie) {
-                    // reset for handling at a higher level
-                    Thread.currentThread().interrupt();
+                // TODO - rollback
+
+                if (!_transactionStatus.isNotified()) {
+                    _transactionStatus.abort();
+                    _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                            _persistit.getTimestampAllocator().getCurrentTimestamp());
                 }
             } else {
                 _commitCount++;
                 _rollbacksSinceLastCommit = 0;
             }
+            _transactionStatus = null;
             _rollbackPending = false;
-            _visbilityOrder.clear();
-
-            Debug.$assert0.t(_touchedPagesSet.size() == 0);
-            _touchedPagesSet.clear();
         }
         _commitCompleted = false;
     }
 
     /**
      * <p>
-     * Explicitly rolls back all work done within the scope of this transaction
-     * and throws a RollbackException. If this transaction is not active, then
-     * this method does nothing. No further updates can be applied within the
-     * scope of this transaction.
+     * Explicitly rolls back all work done within the scope of this transaction.
+     * If this transaction is not active, then this method throws an Exception.
+     * No further updates can be applied within the scope of this transaction.
      * </p>
      * <p>
      * If called within the scope of a nested transaction, this method causes
@@ -796,10 +506,8 @@ public class Transaction {
      * @throws IllegalStateException
      *             if there is no transaction scope or the current scope has
      *             already been committed.
-     * @throws RollbackException
-     *             in all other cases
      */
-    public void rollback() throws PersistitException {
+    public void rollback() {
         if (_commitCompleted) {
             throw new IllegalStateException("Already committed");
         }
@@ -809,23 +517,11 @@ public class Transaction {
         }
 
         _rollbackPending = true;
-        if (_rollbackException == null) {
-            _rollbackException = new RollbackException();
-        }
-        try {
-            rollbackUpdates();
-        } catch (PersistitException pe) {
-            _persistit.getLogBase().txnRollbackException.log(pe, this);
-        }
 
-        for (int index = _commitListeners.size(); --index >= 0;) {
-            try {
-                _commitListeners.get(index).rolledBack();
-            } catch (Exception e) {
-                // ignore
-            }
-        }
-        throw _rollbackException;
+        // TODO - rollback
+        _transactionStatus.abort();
+        _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                _persistit.getTimestampAllocator().getCurrentTimestamp());
     }
 
     /**
@@ -901,70 +597,33 @@ public class Transaction {
             throw new IllegalStateException("Already committed");
         }
 
-        try {
-            if (_rollbackPending)
-                throw _rollbackException;
-            if (_nestedDepth == 1) {
-                boolean done = false;
-                done = doCommit(toDisk);
-                if (!done && _rollbackPending) {
-                    rollback();
+        checkPendingRollback();
+        if (_nestedDepth == 1) {
+            for (Delta delta = _transactionStatus.getDelta(); delta != null; delta = delta.getNext()) {
+                writeDeltaToJournal(delta);
+            }
+            _transactionStatus.commit(_persistit.getTimestampAllocator().getCurrentTimestamp());
+            _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+            try {
+                /*
+                 * TODO - figure out what to do if writes fail - I believe we
+                 * will want to mark the transaction status as ABORTED in that
+                 * case, but need to go look hard at TransactionIndex.
+                 */
+                flushTransactionBuffer();
+                if (toDisk) {
+                    _persistit.getJournalManager().force();
                 }
+            } finally {
+                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus, _commitTimestamp);
             }
             _commitCompleted = true;
-        } finally {
-            _rollbackPending = _rollbackPending & (_nestedDepth > 0);
         }
     }
 
     /**
-     * <p>
-     * Commit this transaction. To so do, this method verifies that no data read
-     * within the scope of this transaction has changed, and then atomically
-     * writes all the updates associated with the transaction scope to the
-     * database. This method optionally commits to <a
-     * href="#diskVsMemoryCommit">memory</a> or <a
-     * href="#diskVsMemoryCommit">disk</a>.
-     * </p>
-     * <p>
-     * If executed within the scope of a nested transaction, this method simply
-     * sets a flag indicating that the current transaction level has committed
-     * without modifying any data. The commit for the outermost transaction
-     * scope is responsible for actually committing the changes.
-     * </p>
-     * <p>
-     * Once an application thread has called <code>commit</code>, no subsequent
-     * Persistit database operations are permitted until the corresponding
-     * <code>end</code> method has been called. An attempt to store, fetch or
-     * remove data after <code>commit</code> has been called throws an
-     * <code>IllegalStateException</code>.
-     * </p>
-     * 
-     * @param commitListener
-     *            CommitListener instance whose methods are called when this
-     *            Transaction is committed or rolled back
-     * 
-     * @param toDisk
-     *            <code>true</code> to commit to disk, or <code>false</code> to
-     *            commit to memory.
-     * 
-     * @throws PersistitException
-     * 
-     * @throws RollbackException
-     * 
-     * @throws IllegalStateException
-     *             if no transaction scope is active or this transaction scope
-     *             has already called <code>commit</code>.
-     */
-    public void commit(final CommitListener commitListener, final boolean toDisk) throws PersistitException,
-            RollbackException {
-        _commitListeners.add(commitListener);
-        commit(toDisk);
-    }
-
-    /**
      * Returns the nested level count. When no transaction scope is active this
-     * method returns 0. Within the outermost transaction scope this this method
+     * method returns 0. Within the outermost transaction scope this method
      * returns 1. For nested transactions this method returns a value of 2 or
      * higher.
      * 
@@ -1020,7 +679,7 @@ public class Transaction {
      * <p>
      * If <code>retryCount</code> is greater than zero, this method will make up
      * to <code>retryCount</code> additional of attempts to complete and commit
-     * thetransaction. Once the retry count is exhausted, this method throws a
+     * the transaction. Once the retry count is exhausted, this method throws a
      * <code>RollbackException</code>.
      * </p>
      * 
@@ -1067,9 +726,8 @@ public class Transaction {
                 retryCount--;
                 if (retryDelay > 0) {
                     try {
-                        Thread.sleep(retryDelay);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
+                        Util.sleep(retryDelay);
+                    } catch (PersistitInterruptedException ie) {
                         throw re;
                     }
                 }
@@ -1100,39 +758,25 @@ public class Transaction {
     }
 
     /**
+     * @return the internal start timestamp of this transaction.
+     */
+    long getStartTimestamp() {
+        return _startTimestamp;
+    }
+
+    /**
+     * @return the commit timestamp - is zero during a currently executing
+     *         transaction.
+     */
+    long getCommitTimestamp() {
+        return _commitTimestamp;
+    }
+
+    /**
      * @return the SessionId this Transaction context belongs too.
      */
     public SessionId getSessionId() {
         return _sessionId;
-    }
-
-    /**
-     * @return the temporary volume serving as the backing store for this
-     *         <code>Transaction</code>
-     */
-    public Volume getTransactionTemporaryVolume() {
-        final Exchange exchange = _ex1;
-        return exchange == null ? null : exchange.getVolume();
-    }
-
-    /**
-     * Return the timestamp assigned at the beginning of the commit() process,
-     * or -1 if commit is not in progress.
-     * 
-     * @return transaction start timestamp
-     */
-    public long getStartTimestamp() {
-        return _startTimestamp.get();
-    }
-
-    /**
-     * Return the timestamp assigned at the end of the commit() process, or -1
-     * if commit has not occurred yet.
-     * 
-     * @return transaction commit timestamp
-     */
-    public long getCommitTimestamp() {
-        return _commitTimestamp.get();
     }
 
     /**
@@ -1170,942 +814,148 @@ public class Transaction {
     }
 
     /**
-     * Specify the number of times a transaction will be retried before
-     * switching to pessimistic mode. See <a
-     * href="#_pessimisticMode">pessimistic scheduling mode</a> for futher
-     * information.
-     * 
-     * @param count
-     */
-    public void setPessimisticRetryThreshold(int count) {
-        if (count < 0)
-            throw new IllegalArgumentException("Count must be >= 0");
-        _pessimisticRetryThreshold = count;
-    }
-
-    /**
-     * Returns the threshold count for pessimistic scheduling. See <a
-     * href="#_pessimisticMode">pessimistic scheduling mode</a> for futher
-     * information.
-     * 
-     * @return the count
-     */
-    public int getPessimisticRetryThreshold() {
-        return _pessimisticRetryThreshold;
-    }
-
-    /**
-     * Returns the most recent occurrence of a <code>RollbackException</code>
-     * within this transaction context. This method can be used to detect and
-     * diagnose implicit rollback from the {@link #end} method.
-     * 
-     * 
-     * @return The <code>RollbackException</code>, if <code>end</code> generated
-     *         an implicit rollback due to a missing call to <code>commit</code>
-     *         , or <code>null</code> if the transaction committed and ended
-     *         normally.
-     */
-    public RollbackException getRollbackException() {
-
-        return _rollbackException;
-    }
-
-    public int getTransactionBufferCapacity() {
-        return _txnBuffer.capacity();
-    }
-
-    public void setTransactionBufferCapacity(final int capacity) {
-        if (capacity < MIN_TXN_BUFFER_CAPACITY || capacity > MAX_TXN_BUFFER_CAPACITY) {
-            throw new IllegalArgumentException("Invalid request capacity: " + capacity);
-        }
-        if (capacity != _txnBuffer.capacity()) {
-            _txnBuffer.allocate(capacity);
-        }
-    }
-
-    void touchedPage(Exchange exchange, Buffer buffer) throws PersistitException {
-        int hashCode = buffer.getVolume().hashCode() ^ ((int) buffer.getPageAddress());
-        TouchedPage entry = (TouchedPage) _touchedPagesSet.lookup(hashCode);
-        while (entry != null) {
-            if (entry._volume == buffer.getVolume() && entry._pageAddr == buffer.getPageAddress()) {
-                if (entry._timestamp != buffer.getTimestamp()) {
-                    // can't actually roll back here because the context is
-                    // wrong.
-                    _rollbackPending = true;
-                    if (_rollbackException == null) {
-                        // Capture the stack trace here.
-                        _rollbackException = new RollbackException();
-                    }
-                }
-                //
-                // No need to put a redundant entry
-                //
-                return;
-            }
-            entry = (TouchedPage) entry.getNext();
-        }
-        entry = new TouchedPage(buffer);
-        _touchedPagesSet.put(entry);
-    }
-
-    /**
-     * Attempt to perform the actual work of commitment.
-     * 
-     * @return <code>true</code> if completed. If not completed, it is due
-     *         either to a transient problem, such as failure to claim a volume
-     *         within the timeout, or it is due to a rollback condition. Caller
-     *         should check _rollbackPending flag.
-     * 
-     * @throws PersistitException
-     */
-    private boolean doCommit(final boolean toDisk) throws PersistitException {
-        boolean committed = false;
-        boolean enqueued = false;
-        try {
-            //
-            // Attempt to copy the transaction into the TransactionWriter
-            // buffer.
-            //
-            _txnBuffer.clear();
-            boolean fastMode = writeUpdatesToTransactionWriter(_txnBuffer);
-            if (!fastMode) {
-                _txnBuffer.clear();
-            }
-            _txnBuffer.flip();
-
-            //
-            // Step 1 - Get exclusive commit claim throws PersistitException.
-            // For Version 2.1, we do brain-dead, totally single-threaded
-            // commits.
-            //
-            boolean exclusiveClaim = false;
-
-            try {
-                exclusiveClaim = _persistit.getTransactionResourceB().claim(true, COMMIT_CLAIM_TIMEOUT);
-
-                if (!exclusiveClaim) {
-                    throw new TimeoutException("Unable to commit transaction " + this);
-                }
-
-                //
-                // Step 2
-                // Verify that no touched page has changed. If any have
-                // been changed then we need to roll back. Since
-                // transactionResourveB has been claimed, no other thread
-                // can further modify one of these pages.
-                //
-                TouchedPage tp = null;
-                while ((tp = (TouchedPage) _touchedPagesSet.next(tp)) != null) {
-                    BufferPool pool = tp._volume.getPool();
-                    Buffer buffer = pool.get(tp._volume, tp._pageAddr, false, true);
-                    boolean changed = buffer.getTimestamp() != tp._timestamp;
-                    buffer.release();
-
-                    if (changed) {
-                        _rollbackPending = true;
-                        if (_rollbackException == null) {
-                            _rollbackException = new RollbackException();
-                        }
-                        return false;
-                    }
-                }
-
-                _toDisk.set(toDisk);
-                //
-                // Step 3 - apply the updates to their B-Trees
-                //
-                if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
-                    enqueued = true;
-                    if (fastMode) {
-                        applyUpdatesFast();
-                    } else {
-                        applyUpdates();
-                    }
-                }
-                _commitTimestamp.set(_persistit.getTimestampAllocator().updateTimestamp());
-
-                //
-                // To serialize the TransactionalCache's we run the save()
-                // method of each one within the scope of a transaction that
-                // artificially sets its start and commit timestamps to the
-                // timestamp of the checkpoint itself. This guarantees that this
-                // transaction will get executed first during recovery. This is
-                // valid because the TransactionalCache version being written is
-                // pinned at the checkpoint's timestamp.
-                //
-                if (_transactionalCacheCheckpoint != null) {
-                    _startTimestamp.set(_transactionalCacheCheckpoint.getTimestamp() - 1);
-                    _commitTimestamp.set(_transactionalCacheCheckpoint.getTimestamp());
-                    _transactionalCacheCheckpoint = null;
-                }
-
-                committed = true;
-                for (int index = _commitListeners.size(); --index >= 0;) {
-                    try {
-                        _commitListeners.get(index).committed();
-                    } catch (RuntimeException e) {
-                        _persistit.getLogBase().txnCommitException.log(e, this);
-                    }
-                }
-
-                if (!_transactionCacheUpdates.isEmpty()) {
-                    for (final TransactionalCache tc : _transactionCacheUpdates.keySet()) {
-                        enqueued |= tc.commit(this);
-                    }
-                }
-
-                // all done
-
-            } finally {
-                if (exclusiveClaim) {
-                    _persistit.getTransactionResourceB().release();
-                }
-            }
-            if (enqueued) {
-                writeUpdatesToTransactionWriter(_persistit.getJournalManager());
-            }
-            return committed;
-        } finally {
-            _longRecordDeallocationList.clear();
-            _touchedPagesSet.clear();
-        }
-    }
-
-    private void prepareTxnExchange(Tree tree, Key key, char type) throws PersistitException {
-        setupExchanges();
-        int treeHandle = handleForTree(tree);
-        _ex1.clear().append(treeHandle).append(type);
-        _ex1.getKey().copyTo(_rootKey);
-        int keySize = key.getEncodedSize();
-        byte[] bytes = key.getEncodedBytes();
-        Key ex1Key = _ex1.getKey();
-        byte[] ex1Bytes = ex1Key.getEncodedBytes();
-
-        if (keySize > Key.MAX_KEY_LENGTH - 32 || keySize + _rootKey.getEncodedSize() > Key.MAX_KEY_LENGTH) {
-            throw new InvalidKeyException("Key too long for transaction " + keySize);
-        }
-
-        System.arraycopy(bytes, 0, ex1Bytes, _rootKey.getEncodedSize(), keySize);
-        ex1Key.setEncodedSize(keySize + _rootKey.getEncodedSize());
-        final Integer treeId = Integer.valueOf(treeHandle);
-        if (!_visbilityOrder.contains(treeId)) {
-            _visbilityOrder.add(treeId);
-        }
-    }
-
-    private boolean sameTree() {
-        return _ex1.getKey().compareKeyFragment(_rootKey, 0, _rootKey.getEncodedSize()) == 0;
-    }
-
-    private void shiftOut() {
-        int rsize = _rootKey.getEncodedSize();
-        Key key = _ex1.getKey();
-        byte[] bytes = key.getEncodedBytes();
-        int size = key.getEncodedSize() - rsize;
-        System.arraycopy(bytes, rsize, bytes, 0, size);
-        key.setEncodedSize(size);
-    }
-
-    private void clear() throws PersistitException {
-        _visbilityOrder.clear();
-        if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
-            setupExchanges();
-            _ex1.removeAll();
-            _pendingStoreCount = 0;
-            _pendingRemoveCount = 0;
-        }
-    }
-
-    private void checkState() throws PersistitException {
-        if (_nestedDepth < 1 || _commitCompleted) {
-            throw new IllegalStateException();
-        }
-        if (_rollbackPending)
-            rollback();
-    }
-
-    /**
-     * Tests whether a previously posted, but as yet uncommitted update, affects
-     * the value to be returned by a fetch() operation on an Exchange. If so,
-     * then this method modifies the Exchange's Value according to the
-     * uncommitted update, and returns <code>true</code>. Otherwise, this method
-     * return <code>false</code>.
-     * 
-     * @param exchange
-     *            The <code>Exchange</code> on which a fetch() operation is
-     *            being performed.
-     * 
-     * @param value
-     *            The <code>Value</code> to receive stored state.
-     * 
-     * @return <code>TRUE</code> if the result is determined by a pending but
-     *         uncommitted store operation, <code>FALSE</code> if the result is
-     *         determined by a pending remove operation, or <code>null</code> if
-     *         the pending operations do not influence the result.
-     */
-    Boolean fetch(Exchange exchange, Value value, int minimumBytes) throws PersistitException {
-        checkState();
-
-        if (_pendingRemoveCount == 0 && _pendingStoreCount == 0) {
-            return null;
-        }
-        setupExchanges();
-        Tree tree = exchange.getTree();
-        Key key = exchange.getKey();
-        if (_pendingStoreCount > 0) {
-            //
-            // First see if there is a pending store operation
-            //
-            prepareTxnExchange(tree, key, 'S');
-            _ex1.fetch(minimumBytes);
-            if (_ex1.getValue().isDefined()) {
-                if (minimumBytes > 0) {
-                    Value value1 = _ex1.getValue();
-                    if (value1.getEncodedSize() >= Buffer.LONGREC_PREFIX_OFFSET
-                            && (value1.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
-                        byte[] bytes = value1.getEncodedBytes();
-                        bytes[0] = (byte) Buffer.LONGREC_TYPE;
-                        exchange.fetchFixupForLongRecords(value1, minimumBytes);
-                    }
-                    value1.copyTo(value);
-                }
-                return Boolean.TRUE;
-            }
-        }
-
-        if (_pendingRemoveCount > 0) {
-            //
-            // If not, see if there is a pending remove operation that
-            // covers the fetch key. To do this we look for a remove
-            // operation that covers the key being fetched.
-            //
-            prepareTxnExchange(tree, key, 'R');
-            if (_ex1.traverse(Key.LTEQ, true) && sameTree()) {
-                Key key1 = _ex1.getAuxiliaryKey1();
-                Key key2 = _ex1.getAuxiliaryKey2();
-                shiftOut();
-                _ex1.getKey().copyTo(key1);
-                Value txnValue = _ex1.getValue();
-                txnValue.decodeAntiValue(_ex1);
-                if (key.compareTo(key2) <= 0) {
-                    if (minimumBytes > 0) {
-                        value.clear();
-                    }
-                    return Boolean.FALSE;
-                }
-            }
-        }
-
-        return null;
-    }
-
-/**
-     * Tests whether a candidate key value that exists in the live database is
-     * influenced by pending update operations. There are two cases in which the
-     * pending update influences the result: (a) there is a close key in a
-     * pending store operation, or (b) the candidate key is subject to a pending
-     * remove operation.
-     * 
-     * @param Tree
-     *            The original Tree
-     *@param originalKey The key value at the beginning of
-     *            the {@link Exchange#traverse(com.persistit.Key.Direction, boolean, int)
-     *            method.
-     * @param candidateKey
-     *            The candidate Key value.
-     * @param direction
-     *            Key.LT, Key.LTEQ, Key.GT or Key.GTEQ
-     * @return <code>TRUE</code> if there is a pending store operation that modifies
-     *         the result, <code>FALSE</code> if there is a pending remove operation
-     *         that modifies the result, or <code>null</code> if the pending updates
-     *         do not modify the result.
-     * 
-     * @throws PersistitException
-     */
-    Boolean traverse(Tree tree, Key originalKey, Key candidateKey, Key.Direction direction, boolean deep, int minBytes)
-            throws PersistitException {
-        checkState();
-
-        if (_pendingRemoveCount == 0 && _pendingStoreCount == 0) {
-            return null;
-        }
-
-        setupExchanges();
-        if (_pendingStoreCount > 0) {
-            Key candidateKey2 = _ex1.getKey();
-            //
-            // First see if there is a pending store operation
-            //
-            prepareTxnExchange(tree, originalKey, 'S');
-            if (_ex1.traverse(direction, deep, minBytes) && sameTree()) {
-                shiftOut();
-                int comparison = candidateKey.compareTo(candidateKey2);
-
-                boolean reverse = (direction == Key.LT) || (direction == Key.LTEQ);
-
-                if (reverse && comparison <= 0 || !reverse && comparison >= 0) {
-                    candidateKey2.copyTo(candidateKey);
-                    return Boolean.TRUE;
-                }
-            }
-        }
-
-        if (_pendingRemoveCount > 0) {
-            //
-            // If not, see if there is a pending remove operation that
-            // covers the fetch key. To do this we look for a remove
-            // operation that covers the key being fetched.
-            //
-            prepareTxnExchange(tree, candidateKey, 'R');
-            if (_ex1.traverse(Key.LTEQ, true) && sameTree()) {
-                Key key1 = _ex1.getAuxiliaryKey1();
-                Key key2 = _ex1.getAuxiliaryKey2();
-                shiftOut();
-                _ex1.getKey().copyTo(key1);
-                Value txnValue = _ex1.getValue();
-                txnValue.decodeAntiValue(_ex1);
-                // TODO - skip to end of AntiValue
-                if (candidateKey.compareTo(key2) < 0) {
-                    return Boolean.FALSE;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    void fetchFromLastTraverse(Exchange exchange, int minimumBytes) throws PersistitException {
-        if (_ex1.getValue().isDefined()) {
-            if (minimumBytes > 0) {
-                Value value1 = _ex1.getValue();
-                if (value1.getEncodedSize() >= Buffer.LONGREC_PREFIX_OFFSET
-                        && (value1.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
-                    byte[] bytes = value1.getEncodedBytes();
-                    bytes[0] = (byte) Buffer.LONGREC_TYPE;
-                    exchange.fetchFixupForLongRecords(value1, minimumBytes);
-                }
-                value1.copyTo(exchange.getValue());
-            }
-        }
-    }
-
-    /**
      * Record a store operation.
      * 
      * @param exchange
-     * @param volume
-     * @param tree
      * @param key
      * @param value
      * @throws PersistitException
      */
     void store(Exchange exchange, Key key, Value value) throws PersistitException {
-        checkState();
-
-        Tree tree = exchange.getTree();
-        prepareTxnExchange(tree, key, 'S');
-
-        boolean longRec = value.isLongRecordMode();
-
-        if (longRec) {
-            //
-            // If the value represents a long record, then remember the
-            // information necessary to deallocate the long record change in the
-            // event the transaction gets rolled back.
-            //
-            Volume volume = tree.getVolume();
-            long pageAddr = Buffer.decodeLongRecordDescriptorPointer(value.getEncodedBytes(), 0);
-            //
-            // Synchronously flush all the member pages of the long record to
-            // the journal. This ensures that recovery will find them. These
-            // pages aren't likely to change soon anyway, so flushing them
-            // immediately does not impact performance.
-            //
-            exchange.writeLongRecordPagesToJournal();
-
-            _longRecordDeallocationList.add(new DeallocationChain(volume, pageAddr, 0));
-
-            value.getEncodedBytes()[0] = (byte) NEUTERED_LONGREC;
-
-        }
-        _ex1.storeInternal(_ex1.getKey(), value, 0, false, false);
-        _pendingStoreCount++;
-    }
-
-    boolean removeTree(Exchange exchange) throws PersistitException {
-        final boolean removed = exchange.hasChildren();
-        prepareTxnExchange(exchange.getTree(), exchange.getKey(), 'D');
-        _ex1.storeInternal(_ex1.getKey(), exchange.getValue(), 0, false, false);
-        _pendingRemoveCount++;
-        return removed;
-    }
-
-    boolean remove(Exchange exchange, Key key1, Key key2, boolean fetchFirst) throws PersistitException {
-        checkState();
-        //
-        // Remove any applicable store operations
-        //
-        setupExchanges();
-        Key spareKey1 = _ex1.getAuxiliaryKey1();
-        Key spareKey2 = _ex1.getAuxiliaryKey2();
-        Tree tree = exchange.getTree();
-        //
-        // First remove any posted but uncommitted store operations from the
-        // log.
-        //
-        prepareTxnExchange(tree, key1, 'S');
-        _ex1.getKey().copyTo(spareKey1);
-        prepareTxnExchange(tree, key2, 'S');
-        _ex1.getKey().copyTo(spareKey2);
-
-        boolean result1 = _ex1.removeKeyRangeInternal(spareKey1, spareKey2, fetchFirst);
-
-        if (result1 && fetchFirst) {
-            _ex1.getAuxiliaryValue().copyTo(exchange.getAuxiliaryValue());
-        }
-        //
-        // Determine whether any records will be removed by this operation.
-        //
-        _ex2.setTree(tree);
-        key1.copyTo(_ex2.getKey());
-
-        boolean result2 = _ex2.traverse(Key.GTEQ, true);
-        if (result2 && _ex2.getKey().compareTo(key2) >= 0) {
-            result2 = false;
-        }
-        //
-        // No need to post a Remove entry in the log if there are known to be
-        // no committed records to remove.
-        //
-        if (result2) {
-            // This logic coalesces previous remove operations when possible.
-            // This simplifies the work necessary to perform a correct
-            // traversal across the uncommitted updates.
-            //
-            Value value = _ex1.getValue();
-            if (_pendingRemoveCount > 0) {
-                // If the left edge of this key removal range overlaps a
-                // previously posted remove operation, then reset the left edge
-                // of this range to the overlapping one.
-                //
-                prepareTxnExchange(tree, key1, 'R');
-                if (_ex1.traverse(Key.LT, true) && sameTree()) {
-                    shiftOut();
-                    _ex1.getKey().copyTo(spareKey1);
-                    value.decodeAntiValue(_ex1);
-                    if (spareKey2.compareTo(key1) >= 0) {
-                        spareKey1.copyTo(key1);
-                    }
-                }
-
-                // If the right edge of this key removal range overlaps a
-                // previously posted remove operation, then reset the right edge
-                // of this range to the overlapping one.
-                //
-                prepareTxnExchange(tree, key2, 'R');
-                if (_ex1.traverse(Key.LT, true) && sameTree()) {
-                    shiftOut();
-                    _ex1.getKey().copyTo(spareKey1);
-                    value.decodeAntiValue(_ex1);
-                    if (spareKey2.compareTo(key2) >= 0) {
-                        spareKey2.copyTo(key2);
-                    }
-                }
-                //
-                // Remove any other remove operations that are spanned by this
-                // one.
-                //
-                prepareTxnExchange(tree, key1, 'R');
-                _ex1.getKey().copyTo(spareKey1);
-
-                prepareTxnExchange(tree, key2, 'R');
-                _ex1.getKey().copyTo(spareKey2);
-
-                _ex1.removeKeyRangeInternal(spareKey1, spareKey2, false);
-            }
-
-            AntiValue.putAntiValue(value, key1, key2);
-            //
-            // Save the Remove operation as an AntiValue in the transaction
-            // tree.
-            //
-
-            prepareTxnExchange(tree, key1, 'R');
-            _ex1.storeInternal(_ex1.getKey(), value, 0, false, false);
-            _pendingRemoveCount++;
-        }
-        //
-        // result1 indicates whether uncommitted records were deleted.
-        // result2 indicates whether committed records will be deleted.
-        //
-        return result1 || result2;
-    }
-
-    boolean writeUpdatesToTransactionWriterFast(TransactionWriter tw) throws PersistitException {
-
-        final ByteBuffer bb = _txnBuffer._bb;
-
-        bb.mark();
-        final long startTimestamp = _startTimestamp.get();
-        final long commitTimestamp = _commitTimestamp.get();
-
-        while (bb.hasRemaining()) {
-            final int recordSize = getLength(bb);
-            final int type = getType(bb);
-
-            switch (type) {
-
-            case TS.TYPE:
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                break;
-
-            case TC.TYPE:
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                TC.putCommitTimestamp(bb, commitTimestamp);
-                break;
-
-            case SR.TYPE: {
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                break;
-            }
-
-            case DR.TYPE: {
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                break;
-            }
-
-            case DT.TYPE:
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                break;
-
-            case CU.TYPE:
-                JournalRecord.putTimestamp(bb, startTimestamp);
-                break;
-
-            default:
-                break;
-            }
-
-            bb.position(bb.position() + recordSize);
-        }
-        bb.reset();
-
-        _persistit.getJournalManager().writeTransactionBufferToJournal(bb, startTimestamp, commitTimestamp);
-        return true;
-
-    }
-
-    boolean writeUpdatesToTransactionWriter(TransactionWriter tw) throws PersistitException {
-
-        if (tw != _txnBuffer && _txnBuffer._bb.hasRemaining()) {
-            return writeUpdatesToTransactionWriterFast(tw);
-        }
-
-        setupExchanges();
-
-        _ex1.clear();
-        Value txnValue = _ex1.getValue();
-
-        if (!tw.writeTransactionStartToJournal(_startTimestamp.get())) {
-            return false;
-        }
-
-        for (Integer treeId : _visbilityOrder) {
-            _ex1.clear().append(treeId.intValue());
-            while (_ex1.traverse(Key.GT, true)) {
-                Key key1 = _ex1.getKey();
-                key1.reset();
-                int treeHandle = key1.decodeInt();
-                if (treeHandle != treeId.intValue()) {
-                    break;
-                }
-                char type = key1.decodeChar();
-                if (type != 'R' && type != 'S' && type != 'D')
-                    continue;
-
-                int offset = key1.getIndex();
-                int size = key1.getEncodedSize() - offset;
-
-                Key key2 = _ex2.getKey();
-                System.arraycopy(key1.getEncodedBytes(), offset, key2.getEncodedBytes(), 0, size);
-                key2.setEncodedSize(size);
-
-                if (type == 'R') {
-                    key2.copyTo(_ex2.getAuxiliaryKey1());
-                    txnValue.decodeAntiValue(_ex2);
-
-                    if (!tw.writeDeleteRecordToJournal(_startTimestamp.get(), treeHandle, _ex2.getAuxiliaryKey1(), _ex2
-                            .getAuxiliaryKey2())) {
-                        return false;
-                    }
-                } else if (type == 'S') {
-                    if (txnValue.isDefined() && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
-                            && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
-                        txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
-                    }
-                    if (!tw.writeStoreRecordToJournal(_startTimestamp.get(), treeHandle, key2, txnValue)) {
-                        return false;
-                    }
-                } else if (type == 'D') {
-                    if (!tw.writeDeleteTreeToJournal(_startTimestamp.get(), treeHandle)) {
-                        return false;
-                    }
-                }
-            }
-        }
-        if (!_transactionCacheUpdates.isEmpty()) {
-            for (final Map.Entry<TransactionalCache, List<Update>> entry : _transactionCacheUpdates.entrySet()) {
-                if (_transactionalCacheCheckpoint == null && entry.getValue().isEmpty()) {
-                    continue;
-                }
-                if (!tw.writeCacheUpdatesToJournal(_startTimestamp.get(), entry.getKey().cacheId(), entry.getValue())) {
-                    return false;
-                }
-            }
-        }
-        if (!tw.writeTransactionCommitToJournal(_startTimestamp.get(), _commitTimestamp.get())) {
-            return false;
-        }
-        return true;
-    }
-
-    private void applyUpdatesFast() throws PersistitException {
-        setupExchanges();
-        final Set<Tree> removedTrees = new HashSet<Tree>();
-        final ByteBuffer bb = _txnBuffer._bb;
-        bb.mark();
-
-        while (bb.hasRemaining()) {
-            final int recordSize = getLength(bb);
-            final int type = getType(bb);
-
-            switch (type) {
-
-            case TS.TYPE:
-                break;
-
-            case TC.TYPE:
-                break;
-
-            case SR.TYPE: {
-                final int keySize = SR.getKeySize(bb);
-                final int treeHandle = SR.getTreeHandle(bb);
-                _ex2.setTree(treeForHandle(treeHandle));
-                final Key key = _ex2.getKey();
-                final Value value = _ex2.getValue();
-                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD, key.getEncodedBytes(), 0, keySize);
-                key.setEncodedSize(keySize);
-                final int valueSize = recordSize - SR.OVERHEAD - keySize;
-                value.ensureFit(valueSize);
-                System.arraycopy(bb.array(), bb.position() + SR.OVERHEAD + keySize, value.getEncodedBytes(), 0,
-                        valueSize);
-                value.setEncodedSize(valueSize);
-                _ex2.storeInternal(key, value, 0, false, false);
-                removedTrees.remove(_ex2.getTree());
-                break;
-            }
-
-            case DR.TYPE: {
-                final int key1Size = DR.getKey1Size(bb);
-                final int treeHandle = DR.getTreeHandle(bb);
-                _ex2.setTree(treeForHandle(treeHandle));
-                if (removedTrees.contains(_ex2.getTree())) {
-                    break;
-                }
-                final Key key1 = _ex2.getAuxiliaryKey1();
-                final Key key2 = _ex2.getAuxiliaryKey2();
-                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD, key1.getEncodedBytes(), 0, key1Size);
-                key1.setEncodedSize(key1Size);
-                final int key2Size = recordSize - DR.OVERHEAD - key1Size;
-                System.arraycopy(bb.array(), bb.position() + DR.OVERHEAD + key1Size, key2.getEncodedBytes(), 0,
-                        key2Size);
-                key2.setEncodedSize(key2Size);
-                _ex2.removeKeyRangeInternal(_ex2.getAuxiliaryKey1(), _ex2.getAuxiliaryKey2(), false);
-                break;
-            }
-
-            case DT.TYPE:
-                final int treeHandle = DT.getTreeHandle(bb);
-                final Tree tree = treeForHandle(treeHandle);
-                removedTrees.add(tree);
-                break;
-
-            case CU.TYPE:
-                break;
-
-            default:
-                break;
-            }
-
-            bb.position(bb.position() + recordSize);
-        }
-        bb.reset();
-        removeTrees(removedTrees);
-    }
-
-    private void applyUpdates() throws PersistitException {
-        setupExchanges();
-        Value txnValue = _ex1.getValue();
-
-        final Set<Tree> removedTrees = new HashSet<Tree>();
-
-        for (Integer treeId : _visbilityOrder) {
-            _ex1.clear().append(treeId.intValue());
-            while (_ex1.traverse(Key.GT, true)) {
-                Key key1 = _ex1.getKey();
-                key1.reset();
-                int treeHandle = key1.decodeInt();
-                if (treeHandle != treeId.intValue()) {
-                    break;
-                }
-                char type = key1.decodeChar();
-                if (type != 'R' && type != 'S' && type != 'D')
-                    continue;
-
-                _ex2.setTree(treeForHandle(treeHandle));
-                int offset = key1.getIndex();
-                int size = key1.getEncodedSize() - offset;
-
-                Key key2 = _ex2.getKey();
-                System.arraycopy(key1.getEncodedBytes(), offset, key2.getEncodedBytes(), 0, size);
-                key2.setEncodedSize(size);
-
-                if (type == 'R') {
-                    key2.copyTo(_ex2.getAuxiliaryKey1());
-                    txnValue.decodeAntiValue(_ex2);
-
-                    _ex2.removeKeyRangeInternal(_ex2.getAuxiliaryKey1(), _ex2.getAuxiliaryKey2(), false);
-                } else if (type == 'S') {
-                    if (txnValue.isDefined() && txnValue.getEncodedSize() >= Buffer.LONGREC_SIZE
-                            && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
-                        txnValue.getEncodedBytes()[0] = (byte) Buffer.LONGREC_TYPE;
-                    }
-                    _ex2.storeInternal(key2, txnValue, 0, false, false);
-                    removedTrees.remove(_ex2.getTree());
-                } else if (type == 'D') {
-                    removedTrees.add(_ex2.getTree());
-                }
-            }
-        }
-        removeTrees(removedTrees);
-    }
-
-    private void removeTrees(final Set<Tree> removedTrees) throws PersistitException {
-        for (final Iterator<WeakReference<Tree>> iterator = _treeCache.values().iterator(); iterator.hasNext();) {
-            final WeakReference<Tree> ref = iterator.next();
-            final Tree tree = ref.get();
-            if (tree != null && removedTrees.contains(tree)) {
-                iterator.remove();
-            }
-        }
-        for (final Tree tree : removedTrees) {
-            tree.getVolume().getStructure().removeTree(tree);
-        }
-    }
-
-    void rollbackUpdates() throws PersistitException {
-        setupExchanges();
-        _touchedPagesSet.clear();
-        harvestLongRecords();
-
-        if (_pendingStoreCount > 0 || _pendingRemoveCount > 0) {
-            //
-            // Remove the update list.
-            //
-        } else if (!_recoveryMode) {
-            return;
-        }
-
-        //
-        // Deallocate all long record chains.
-        //
-        if (_longRecordDeallocationList.size() > 0) {
-            for (int index = _longRecordDeallocationList.size(); --index >= 0;) {
-                DeallocationChain dc = _longRecordDeallocationList.get(index);
-
-                if (Debug.ENABLED) {
-                    Volume volume = dc._volume;
-                    long pageAddr = dc._leftPage;
-                    Buffer buffer = volume.getPool().get(volume, pageAddr, false, true);
-                    Debug.$assert0.t(buffer.isLongRecordPage());
-                    buffer.releaseTouched();
-                }
-
-                dc._volume.getStructure().deallocateGarbageChain(dc._leftPage, dc._rightPage);
-
-                _longRecordDeallocationList.remove(index);
-            }
-        }
-    }
-
-    private void harvestLongRecords() throws PersistitException {
-        int currentTreeHandle = -1;
-        Tree currentTree = null;
-        Value txnValue = _ex1.getValue();
-        _ex1.clear().append('S');
-        while (_ex1.traverse(Key.GT, true)) {
-            Key key1 = _ex1.getKey();
-            key1.reset();
-            if (key1.decodeType() != Character.class || key1.decodeChar() != 'S') {
-                break;
-            }
-
-            if (key1.decodeType() != Integer.class || key1.decodeInt() != _id) {
-                break;
-            }
-            int treeHandle = key1.decodeInt();
-            if (treeHandle != currentTreeHandle || currentTree == null) {
-                currentTree = treeForHandle(treeHandle);
-                currentTreeHandle = treeHandle;
-            }
-            if (txnValue.getEncodedSize() >= Buffer.LONGREC_PREFIX_OFFSET
-                    && (txnValue.getEncodedBytes()[0] & 0xFF) == NEUTERED_LONGREC) {
-                byte[] bytes = txnValue.getEncodedBytes();
-                bytes[0] = (byte) Buffer.LONGREC_TYPE;
-                Volume volume = currentTree.getVolume();
-                long pageAddress = Buffer.decodeLongRecordDescriptorPointer(bytes, 0);
-
-                Debug.$assert0.t(pageAddress > 0 && pageAddress < Buffer.MAX_VALID_PAGE_ADDR);
-
-                if (Debug.ENABLED) {
-                    Buffer buffer = volume.getPool().get(volume, pageAddress, false, true);
-                    Debug.$assert0.t(buffer.isLongRecordPage());
-                    buffer.release();
-                }
-
-                _longRecordDeallocationList.add(new DeallocationChain(volume, pageAddress, 0));
-            }
+        if (_nestedDepth > 0) {
+            checkPendingRollback();
+            final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
+            writeStoreRecordToJournal(treeHandle, key, value);
         }
     }
 
     /**
-     * Indicates whether this Transaction must be made durable to disk before
-     * the commit() method returns. This value is valid only during commit
-     * processing and is used by the JournalFlusher.
+     * Record a remove operation.
      * 
-     * @return
+     * @param exchange
+     * @param key1
+     * @param key2
+     * @throws PersistitException
      */
-    boolean isToDisk() {
-        return _toDisk.get();
+    void remove(Exchange exchange, Key key1, Key key2) throws PersistitException {
+        if (_nestedDepth > 0) {
+            checkPendingRollback();
+            final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
+            writeDeleteRecordToJournal(treeHandle, key1, key2);
+        }
     }
 
     /**
-     * @return The current timestamp value.
+     * Record a tree delete operation
+     * 
+     * @param exchange
+     * @throws PersistitException
      */
-    public long getTimestamp() {
-        return _persistit.getCurrentTimestamp();
-    }
-
-    void setTransactionalCacheCheckpoint(final Checkpoint checkpoint) {
-        _transactionalCacheCheckpoint = checkpoint;
-    }
-
-    List<Update> updateList(final TransactionalCache tc) {
-        List<Update> list = _transactionCacheUpdates.get(tc);
-        if (list == null) {
-            list = new ArrayList<Update>();
-            _transactionCacheUpdates.put(tc, list);
+    void removeTree(Exchange exchange) throws PersistitException {
+        if (_nestedDepth > 0) {
+            checkPendingRollback();
+            final int treeHandle = _persistit.getJournalManager().handleForTree(exchange.getTree());
+            writeDeleteTreeToJournal(treeHandle);
         }
-        return list;
     }
+
+    private void prepare(final int recordSize) throws PersistitIOException {
+        if (recordSize > _buffer.remaining()) {
+            flushTransactionBuffer();
+        }
+        if (recordSize > _buffer.remaining()) {
+            throw new IllegalStateException("Record size " + recordSize + " is too long for Transaction buffer");
+        }
+    }
+
+    void flushTransactionBuffer() throws PersistitIOException {
+        if (_buffer.position() > 0) {
+            _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
+                    _startTimestamp, _commitTimestamp, _previousJournalAddress);
+        }
+    }
+
+    void writeStoreRecordToJournal(final int treeHandle, final Key key, final Value value) throws PersistitIOException {
+        final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
+        prepare(recordSize);
+        SR.putLength(_buffer, recordSize);
+        SR.putType(_buffer);
+        SR.putTreeHandle(_buffer, treeHandle);
+        SR.putKeySize(_buffer, (short) key.getEncodedSize());
+        _buffer.position(_buffer.position() + SR.OVERHEAD);
+        _buffer.put(key.getEncodedBytes(), 0, key.getEncodedSize());
+        _buffer.put(value.getEncodedBytes(), 0, value.getEncodedSize());
+    }
+
+    void writeDeleteRecordToJournal(final int treeHandle, final Key key1, final Key key2) throws PersistitIOException {
+        int elisionCount = key2.firstUniqueByteIndex(key1);
+        int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
+        prepare(recordSize);
+
+        DR.putLength(_buffer, recordSize);
+        DR.putType(_buffer);
+        DR.putTreeHandle(_buffer, treeHandle);
+        DR.putKey1Size(_buffer, key1.getEncodedSize());
+        DR.putKey2Elision(_buffer, elisionCount);
+        _buffer.position(_buffer.position() + DR.OVERHEAD);
+        _buffer.put(key1.getEncodedBytes(), 0, key1.getEncodedSize());
+        _buffer.put(key2.getEncodedBytes(), elisionCount, key2.getEncodedSize() - elisionCount);
+    }
+
+    void writeDeleteTreeToJournal(final int treeHandle) throws PersistitIOException {
+        prepare(DT.OVERHEAD);
+        JournalRecord.putLength(_buffer, DT.OVERHEAD);
+        DT.putType(_buffer);
+        DT.putTreeHandle(_buffer, treeHandle);
+        _buffer.position(_buffer.position() + DT.OVERHEAD);
+    }
+
+    void writeDeltaToJournal(final Delta delta) throws PersistitIOException {
+        final int treeHandle = _persistit.getJournalManager().handleForTree(delta.getAccumulator().getTree());
+        if (delta.getValue() == 1) {
+            prepare(D0.OVERHEAD);
+            JournalRecord.putLength(_buffer, D0.OVERHEAD);
+            D0.putType(_buffer);
+            D0.putTreeHandle(_buffer, treeHandle);
+            D0.putAccumulatorTypeOrdinal(_buffer, delta.getAccumulator().getType().ordinal());
+            D0.putIndex(_buffer, delta.getAccumulator().getIndex());
+            _buffer.position(_buffer.position() + D0.OVERHEAD);
+        } else {
+            prepare(D1.OVERHEAD);
+            JournalRecord.putLength(_buffer, D1.OVERHEAD);
+            D1.putType(_buffer);
+            D1.putTreeHandle(_buffer, treeHandle);
+            D1.putIndex(_buffer, delta.getAccumulator().getIndex());
+            D1.putAccumulatorTypeOrdinal(_buffer, delta.getAccumulator().getType().ordinal());
+            D1.putValue(_buffer, delta.getValue());
+            _buffer.position(_buffer.position() + D1.OVERHEAD);
+        }
+    }
+
+    TransactionStatus getTransactionStatus() {
+        return _transactionStatus;
+    }
+
+    public int getCurrentStep() {
+        return _step;
+    }
+
+    public void incrementStep() {
+        checkPendingRollback();
+        if (_step < MAXIMUM_STEP) {
+            _step++;
+        } else {
+            throw new IllegalStateException(this + " is already at step " + MAXIMUM_STEP + " and cannot be incremented");
+        }
+    }
+
+    /**
+     * For unit tests only
+     * 
+     * @return the buffer used to accumulate update records for this transaction
+     */
+    ByteBuffer getTransactionBuffer() {
+        return _buffer;
+    }
+
 }

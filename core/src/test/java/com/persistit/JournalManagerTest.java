@@ -23,9 +23,9 @@ import java.util.Set;
 
 import org.junit.Test;
 
+import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.RecoveryManager.RecoveryListener;
-import com.persistit.TimestampAllocator.Checkpoint;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
@@ -43,6 +43,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
     public void testJournalRecords() throws Exception {
         store1();
         _persistit.flush();
+        final Transaction txn = _persistit.getTransaction();
+
         final Volume volume = _persistit.getVolume(_volumeName);
         volume.setHandle(0);
 
@@ -60,23 +62,23 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             buffer.releaseTouched();
         }
 
-        final Checkpoint checkpoint1 = _persistit.getTimestampAllocator().forceCheckpoint();
+        final Checkpoint checkpoint1 = _persistit.getCheckpointManager().createCheckpoint();
         jman.writeCheckpointToJournal(checkpoint1);
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
         assertTrue(exchange.next(true));
         final long[] timestamps = new long[100];
+
         for (int i = 0; i < 100; i++) {
             assertTrue(exchange.next(true));
             final int treeHandle = jman.handleForTree(exchange.getTree());
             timestamps[i] = _persistit.getTimestampAllocator().updateTimestamp();
-            jman.writeTransactionStartToJournal(timestamps[i]);
-            jman.writeStoreRecordToJournal(timestamps[i], treeHandle, exchange.getKey(), exchange.getValue());
+
+            txn.writeStoreRecordToJournal(treeHandle, exchange.getKey(), exchange.getValue());
             if (i % 50 == 0) {
                 jman.rollover();
             }
-            if (i % 4 == 1) {
-                jman.writeTransactionCommitToJournal(timestamps[i], timestamps[i] + 1);
-            }
+            jman.writeTransactionToJournal(txn.getTransactionBuffer(), timestamps[i], i % 4 == 1 ? timestamps[i] + 1
+                    : 0, 0);
         }
         jman.rollover();
         exchange.clear().append(Key.BEFORE);
@@ -89,19 +91,19 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             assertTrue(exchange.next(true));
             final int treeHandle = jman.handleForTree(exchange.getTree());
             timestamps[i] = _persistit.getTimestampAllocator().updateTimestamp();
-            jman.writeTransactionStartToJournal(timestamps[i]);
-            jman.writeDeleteRecordToJournal(timestamps[i], treeHandle, exchange.getKey(), exchange.getKey());
+            txn.writeDeleteRecordToJournal(treeHandle, exchange.getKey(), exchange.getKey());
             if (i == 66) {
                 jman.rollover();
             }
             if (i == 50) {
-                checkpoint2 = _persistit.getTimestampAllocator().forceCheckpoint();
+                checkpoint2 = _persistit.getCheckpointManager().createCheckpoint();
                 jman.writeCheckpointToJournal(checkpoint2);
                 noPagesAfterThis = jman.getCurrentAddress();
                 commitCount = 0;
             }
+            jman.writeTransactionToJournal(txn.getTransactionBuffer(), timestamps[i], i % 4 == 3 ? timestamps[i] + 1
+                    : 0, 0);
             if (i % 4 == 3) {
-                jman.writeTransactionCommitToJournal(timestamps[i], timestamps[i] + 1);
                 commitCount++;
             }
         }
@@ -167,7 +169,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             }
 
             @Override
-            public void startTransaction(long address, long timestamp) throws PersistitException {
+            public void startTransaction(long address, long startTimestamp, long commitTimestamp)
+                    throws PersistitException {
             }
 
             @Override
@@ -178,8 +181,13 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             public void endRecovery(long address, long timestamp) throws PersistitException {
             }
 
+            @Override
+            public void delta(long address, long timestamp, Tree tree, int index, int accumulatorTypeOrdinal, long value)
+                    throws PersistitException {
+            }
+
         };
-        rman.applyAllCommittedTransactions(actor);
+        rman.applyAllCommittedTransactions(actor, rman.getDefaultRollbackListener());
         assertEquals(commitCount, recoveryTimestamps.size());
 
     }
@@ -202,7 +210,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             jman.writePageToJournal(buffer);
             buffer.releaseTouched();
         }
-        final Checkpoint checkpoint1 = _persistit.getTimestampAllocator().forceCheckpoint();
+        final Checkpoint checkpoint1 = _persistit.getCheckpointManager().createCheckpoint();
         jman.writeCheckpointToJournal(checkpoint1);
         _persistit.checkpoint();
         final Properties saveProperties = _persistit.getProperties();
@@ -217,6 +225,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
 
     @Test
     public void testRollover768048() throws Exception {
+        final Transaction txn = _persistit.getTransaction();
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", true);
         final JournalManager jman = new JournalManager(_persistit);
         final String path = UnitTestProperties.DATA_PATH + "/JournalManagerTest_journal_";
@@ -232,7 +241,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         long timestamp = 0;
         long addressBeforeRollover = -1;
         long addressAfterRollover = -1;
+
         while (jman.getCurrentAddress() < 300 * 1000 * 1000) {
+            timestamp = _persistit.getTimestampAllocator().updateTimestamp();
             long remaining = jman.getBlockSize() - (jman.getCurrentAddress() % jman.getBlockSize()) - 1;
             if (remaining == JournalRecord.JE.OVERHEAD) {
                 addressBeforeRollover = jman.getCurrentAddress();
@@ -243,7 +254,9 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             } else {
                 exchange.getValue().put(kilo);
             }
-            jman.writeStoreRecordToJournal(++timestamp, 12345, exchange.getKey(), exchange.getValue());
+
+            txn.writeStoreRecordToJournal(12345, exchange.getKey(), exchange.getValue());
+            jman.writeTransactionToJournal(txn.getTransactionBuffer(), timestamp, timestamp + 1, 0);
             if (remaining == JournalRecord.JE.OVERHEAD) {
                 addressAfterRollover = jman.getCurrentAddress();
                 assertTrue(addressAfterRollover - addressBeforeRollover < 2000);
