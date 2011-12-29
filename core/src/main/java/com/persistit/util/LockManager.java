@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.persistit.Buffer;
 
 public class LockManager {
-    final static int MAX_PAGE_ADDRESS = 100;
+    final static int MAX_INDEX = 100;
 
     final Map<Thread, Holder[]> _map = new ConcurrentHashMap<Thread, Holder[]>();
 
@@ -30,13 +30,13 @@ public class LockManager {
     }
 
     public void registerClaim(final Buffer buffer, final boolean writer) {
-        if (buffer.getPageAddress() < MAX_PAGE_ADDRESS) {
+        if (buffer.getIndex() < MAX_INDEX) {
             Thread t = Thread.currentThread();
-            int p = (int) buffer.getPageAddress();
+            int p = (int) buffer.getIndex();
             Holder[] holders = _map.get(t);
             if (holders == null) {
-                holders = new Holder[MAX_PAGE_ADDRESS];
-                for (int q = 0; q < MAX_PAGE_ADDRESS; q++) {
+                holders = new Holder[MAX_INDEX];
+                for (int q = 0; q < MAX_INDEX; q++) {
                     holders[q] = new Holder();
                 }
                 _map.put(t, holders);
@@ -49,9 +49,9 @@ public class LockManager {
     }
 
     public void unregisterClaim(final Buffer buffer) {
-        if (buffer.getPageAddress() < MAX_PAGE_ADDRESS) {
+        if (buffer.getIndex() < MAX_INDEX) {
             Thread t = Thread.currentThread();
-            int p = (int) buffer.getPageAddress();
+            int p = (int) buffer.getIndex();
             Holder[] holders = _map.get(t);
             Debug.$assert1.t(holders != null);
             Holder h = holders[p];
@@ -62,9 +62,9 @@ public class LockManager {
     }
 
     public void registerUpgrade(final Buffer buffer) {
-        if (buffer.getPageAddress() < MAX_PAGE_ADDRESS) {
+        if (buffer.getIndex() < MAX_INDEX) {
             Thread t = Thread.currentThread();
-            int p = (int) buffer.getPageAddress();
+            int p = (int) buffer.getIndex();
             Holder[] holders = _map.get(t);
             Debug.$assert1.t(holders != null);
             Holder h = holders[p];
@@ -74,9 +74,9 @@ public class LockManager {
     }
 
     public void registerDowngrade(final Buffer buffer) {
-        if (buffer.getPageAddress() < MAX_PAGE_ADDRESS) {
+        if (buffer.getIndex() < MAX_INDEX) {
             Thread t = Thread.currentThread();
-            int p = (int) buffer.getPageAddress();
+            int p = (int) buffer.getIndex();
             Holder[] holders = _map.get(t);
             Debug.$assert1.t(holders != null);
             Holder h = holders[p];
@@ -88,7 +88,7 @@ public class LockManager {
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();
-        for (int p = 0; p < MAX_PAGE_ADDRESS; p++) {
+        for (int p = 0; p < MAX_INDEX; p++) {
             boolean added = false;
             for (final Map.Entry<Thread, Holder[]> entry : _map.entrySet()) {
                 Thread t = entry.getKey();
