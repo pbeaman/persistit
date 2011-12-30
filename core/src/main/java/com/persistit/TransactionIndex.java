@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.Accumulator.Delta;
@@ -134,6 +135,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
      */
     private volatile ActiveTransactionCache _atCache;
 
+    private AtomicLong _deadlockCounter = new AtomicLong();
     /**
      * The system-wide timestamp allocator
      */
@@ -827,6 +829,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
                         return TIMED_OUT;
                     }
                     if (isDeadlocked(source)) {
+                        _deadlockCounter.incrementAndGet();
                         return UNCOMMITTED;
                     }
                 }
@@ -844,11 +847,9 @@ public class TransactionIndex implements TransactionIndexMXBean {
             if (s == null) {
                 return false;
             } else if (s == source) {
-                System.out.println("deadlock detected on " + source);
                 return true;
             }
         }
-        System.out.println("cycle length > " + CYCLE_LIMIT + " detected on " + source);
         return true;
     }
 

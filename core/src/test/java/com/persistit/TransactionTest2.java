@@ -13,7 +13,7 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.persistit.unit;
+package com.persistit;
 
 import java.io.PrintStream;
 import java.util.Random;
@@ -26,6 +26,7 @@ import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
+import com.persistit.unit.PersistitUnitTestCase;
 
 /**
  * Demonstrates the use of Persisit Transactions. This demo runs multiple
@@ -93,64 +94,57 @@ public class TransactionTest2 extends PersistitUnitTestCase {
     // Temporarily ignored for Persistit 2.1
     @Ignore
     public void test1() throws Exception {
-        return;
         //
-        // //
-        // // An Exchange for the Tree containing account "balances".
-        // //
-        // final Exchange accountEx =
-        // _persistit.getExchange("persistit", "account", true);
-        // accountEx.removeAll();
-        // //
-        // // Get the starting "balance", that is, the sum of the amounts in
-        // // each account.
-        // //
-        // System.out.println("Computing balance");
-        // final int startingBalance = balance(accountEx);
-        // System.out.println("Starting balance is " + startingBalance);
-        // //
-        // // Create the threads
-        // //
-        // final Thread[] threadArray = new Thread[_threads];
-        // for (int index = 0; index < _threads; index++) {
-        // threadArray[index] = new Thread(new Runnable() {
-        // public void run() {
-        // runIt();
-        // }
-        // }, "TransactionThread_" + index);
+        // An Exchange for the Tree containing account "balances".
         //
-        // }
-        // //
-        // // Start them all and measure the time until the last thread ends
-        // //
-        // long time = System.currentTimeMillis();
-        // System.out.println("Starting transaction threads");
+        final Exchange accountEx = _persistit.getExchange("persistit", "account", true);
+        accountEx.removeAll();
         //
-        // for (int index = 0; index < _threads; index++) {
-        // threadArray[index].start();
-        // }
+        // Get the starting "balance", that is, the sum of the amounts in
+        // each account.
         //
-        // System.out.println("Waiting for threads to end");
-        // for (int index = 0; index < _threads; index++) {
-        // threadArray[index].join();
-        // }
-        // //
-        // // All done
-        // //
-        // time = System.currentTimeMillis() - time;
-        // System.out.println("All threads ended at " + time + " ms");
-        // System.out.println("Completed transactions: "
-        // + _completedTransactionCount);
-        // System.out.println("Failed transactions: " +
-        // _failedTransactionCount);
-        // System.out.println("Retried transactions: " +
-        // _retriedTransactionCount);
+        System.out.println("Computing balance");
+        final int startingBalance = balance(accountEx);
+        System.out.println("Starting balance is " + startingBalance);
         //
-        // final int endingBalance = balance(accountEx);
-        // System.out.print("Ending balance is " + endingBalance + " which ");
-        // System.out.println(endingBalance == startingBalance ? "AGREES"
-        // : "DISAGREES");
-        // assertEquals(startingBalance, endingBalance);
+        // Create the threads
+        //
+        final Thread[] threadArray = new Thread[_threads];
+        for (int index = 0; index < _threads; index++) {
+            threadArray[index] = new Thread(new Runnable() {
+                public void run() {
+                    runIt();
+                }
+            }, "TransactionThread_" + index);
+
+        }
+        //
+        // Start them all and measure the time until the last thread ends
+        //
+        long time = System.currentTimeMillis();
+        System.out.println("Starting transaction threads");
+
+        for (int index = 0; index < _threads; index++) {
+            threadArray[index].start();
+        }
+
+        System.out.println("Waiting for threads to end");
+        for (int index = 0; index < _threads; index++) {
+            threadArray[index].join();
+        }
+        //
+        // All done
+        //
+        time = System.currentTimeMillis() - time;
+        System.out.println("All threads ended at " + time + " ms");
+        System.out.println("Completed transactions: " + _completedTransactionCount);
+        System.out.println("Failed transactions: " + _failedTransactionCount);
+        System.out.println("Retried transactions: " + _retriedTransactionCount);
+
+        final int endingBalance = balance(accountEx);
+        System.out.print("Ending balance is " + endingBalance + " which ");
+        System.out.println(endingBalance == startingBalance ? "AGREES" : "DISAGREES");
+        assertEquals(startingBalance, endingBalance);
     }
 
     public void runIt() {
@@ -164,8 +158,8 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 // if (accountNo2 == accountNo1) accountNo2++;
                 final int accountNo2 = random.nextInt(_accounts);
 
-                // int delta = random.nextInt(10000);
-                final int delta = 1;
+                int delta = random.nextInt(10000);
+//                final int delta = 1;
 
                 transfer(accountEx, accountNo1, accountNo2, delta);
                 synchronized (LOCK) {
@@ -207,11 +201,14 @@ public class TransactionTest2 extends PersistitUnitTestCase {
                 ex.getValue().put(balance1 - delta);
                 ex.store();
 
+                assertEquals(1, txn.getTransactionStatus().getMvvCount());
+
                 ex.clear().append(accountNo2).fetch();
                 final int balance2 = ex.getValue().isDefined() ? ex.getValue().getInt() : 0;
                 ex.getValue().put(balance2 + delta);
                 ex.store();
 
+                assertEquals(accountNo1 == accountNo2 ? 1 : 2, txn.getTransactionStatus().getMvvCount());
                 //
                 // Commit the transaction
                 //

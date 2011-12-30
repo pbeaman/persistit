@@ -82,11 +82,11 @@ public class Stress8txn extends StressBase {
      * overall sum of every account must always be 0. Operations are:
      * <ol>
      * <li>"transfer" (add/subtract) an amount from a C account to another C
-     * account within the same B.</ki>
+     * account within the same B.</li>
      * <li>"transfer" (add/subtract) an amount from a C account to a C account
      * in a different B account, resulting in changes to B and possibly A
      * account totals.</li>
-     * <li>Consistency check - determining that the subaccounts total to the
+     * <li>Consistency check - determining that the sub-accounts total to the
      * containing account total.</li>
      * </ol>
      * </p>
@@ -147,9 +147,7 @@ public class Stress8txn extends StressBase {
                     Debug.$assert1.t(passes <= 90);
                     if (op._result != null) {
                         _result = op._result;
-                        // if (Debug.ENABLED) {
                         Debug.$assert1.t(false);
-                        // }
                         forceStop();
                     }
                 } catch (final Exception pe) {
@@ -179,15 +177,15 @@ public class Stress8txn extends StressBase {
             return 0;
         }
         if (r < 800) {
-            return 1;
+            return 1 /*TODO 1*/;
         }
         if (r < 900) {
-            return 2;
+            return  0 /*TODO 2*/;
         }
         if (r < 950) {
             return 3;
         }
-        return 4;
+        return 3 /*TODO 4*/;
     }
 
     private abstract class Operation implements TransactionRunnable {
@@ -277,6 +275,7 @@ public class Stress8txn extends StressBase {
             final int totalC = accountTotal(_exs);
             if (valueB != totalC) {
                 _result = new TestResult(false, "totalC=" + totalC + " valueB=" + valueB + " at " + _exs);
+                Debug.$assert1.t(false);
             }
         }
     }
@@ -293,6 +292,7 @@ public class Stress8txn extends StressBase {
             final int totalB = accountTotal(_exs);
             if (valueA != totalB) {
                 _result = new TestResult(false, "totalB=" + totalB + " valueA=" + valueA + " at " + _exs);
+                Debug.$assert1.t(false);
             }
         }
     }
@@ -308,6 +308,7 @@ public class Stress8txn extends StressBase {
             final int totalA = accountTotal(_exs);
             if (totalA != 0) {
                 _result = new TestResult(false, "totalA=" + totalA + " at " + _exs);
+                Debug.$assert1.t(false);
             }
         }
     }
@@ -316,7 +317,7 @@ public class Stress8txn extends StressBase {
         int total = 0;
         ex.append(Key.BEFORE);
         while (ex.next()) {
-            long value = getAccountValue(ex);
+            int value = getAccountValue(ex);
             total += value;
         }
         ex.cut();
@@ -348,18 +349,21 @@ public class Stress8txn extends StressBase {
                 }
                 if (totalC != valueB) {
                     _result = new TestResult(false, "totalC=" + totalC + " valueB=" + valueB + " at " + exb);
+                    Debug.$assert1.t(false);
                     forceStop();
                     return false;
                 }
             }
             if (totalB != valueA) {
                 _result = new TestResult(false, "totalB=" + totalB + " valueA=" + valueA + " at " + exa);
+                Debug.$assert1.t(false);
                 forceStop();
                 return false;
             }
         }
         if (totalA != 0) {
             _result = new TestResult(false, "totalA=" + totalA + " at " + exa);
+            Debug.$assert1.t(false);
             forceStop();
             return false;
         }
@@ -388,7 +392,7 @@ public class Stress8txn extends StressBase {
     }
 
     private void putAccountValue(final Exchange ex, final int value, final boolean string) {
-        if ((value > 0) && (value < 100000) && ((random(0, 100) == 0) || string)) {
+        if ((value > 0) && (value < 100 /*TODO 000*/) && ((random(0, 100) == 0) || string)) {
             _sb.setLength(0);
             int i = 0;
             for (i = 100; i < value; i += 100) {

@@ -1014,8 +1014,7 @@ public class Exchange {
         int foundAt = findKey(buffer, key, lc);
 
         if (buffer.isBeforeLeftEdge(foundAt) || buffer.isAfterRightEdge(foundAt)) {
-            // TODO - should this be touched?
-            buffer.releaseTouched();
+            buffer.release();
             return searchTree(key, 0, writer);
         }
         return foundAt;
@@ -1433,7 +1432,15 @@ public class Exchange {
                              */
                             byte[] spareBytes = _spareValue.getEncodedBytes();
                             int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
-                            spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false);
+                            int prunedSpareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false);
+                            if (prunedSpareSize != spareSize) {
+                                Debug.$assert0.t(prunedSpareSize < spareSize);
+                                spareSize = prunedSpareSize;
+                                valueToStore.setEncodedSize(prunedSpareSize);
+                                _rawValueWriter.init(valueToStore);
+                                boolean success = putLevel(lc, _key, _rawValueWriter, buffer, foundAt, false);
+                                Debug.$assert0.t(success);
+                            }
 
                             TransactionStatus tStatus = _transaction.getTransactionStatus();
 
@@ -1475,13 +1482,8 @@ public class Exchange {
 
                     Debug.$assert0.t(valueToStore.getEncodedSize() <= maxSimpleValueSize);
                     _rawValueWriter.init(valueToStore);
+
                     splitRequired = putLevel(lc, key, _rawValueWriter, buffer, foundAt, treeClaimAcquired);
-                    if (splitRequired && !didPrune && buffer.isDataPage()) {
-                        didPrune = true;
-                        if (buffer.pruneMvvValues(_tree, _spareKey1)) {
-                            continue;
-                        }
-                    }
 
                     Debug.$assert0.t((buffer.getStatus() & SharedResource.WRITER_MASK) != 0
                             && (buffer.getStatus() & SharedResource.CLAIMED_MASK) != 0);
@@ -1492,6 +1494,12 @@ public class Exchange {
                     // repeat this after acquiring a tree claim.
                     //
                     if (splitRequired && !treeClaimAcquired) {
+                        if (!didPrune && buffer.isDataPage()) {
+                            didPrune = true;
+                            if (buffer.pruneMvvValues(_tree, _spareKey1)) {
+                                continue;
+                            }
+                        }
                         //
                         // TODO - is it worth it to try an instantaneous claim
                         // and retry?
@@ -1573,7 +1581,7 @@ public class Exchange {
                     }
                     try {
                         long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
-                                _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME); // TODO
+                                _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME); // TODO - timeout
                         if (depends != 0 && depends != TransactionStatus.ABORTED) {
                             // version is from concurrent txn that already
                             // committed

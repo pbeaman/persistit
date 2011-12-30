@@ -13,12 +13,13 @@ prop journalpath=$datapath$/persistit_journal
 prop logfile=$logpath$/persistit_$timestamp$.log
 prop rmiport=8081
 
-delete $datapath$/persistit $datapath$/persistit_journal*
+delete $datapath$/persistit
+delete $datapath$/persistit_journal*
 
 
 init
 
-icheck persistit
+#icheck persistit
 
 multithread
 test com.persistit.stress.Stress8txn repeat=10 count=25000 size=10000 seed=1

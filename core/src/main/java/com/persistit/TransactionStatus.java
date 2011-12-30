@@ -278,6 +278,7 @@ public class TransactionStatus {
      * @return the updated count
      */
     int decrementMvvCount() {
+        assert _tc == ABORTED : "can only decrement MVVs for an aborted transaction";
         int count = _mvvCount.decrementAndGet();
         assert count >= 0;
         if (count == 0) {
