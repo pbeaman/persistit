@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import java.nio.channels.FileChannel;
+
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 
@@ -53,4 +55,7 @@ public class TestShim {
         t.close();
     }
     
+    public static FileChannel getVolumeChannel(Volume volume) throws PersistitException {
+        return volume.getStorage().getChannel();
+    }
 }

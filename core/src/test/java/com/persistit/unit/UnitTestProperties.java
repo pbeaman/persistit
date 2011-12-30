@@ -39,7 +39,7 @@ public class UnitTestProperties {
                 + "pageSize:16384,initialPages:100,extensionPages:100," + "maximumPages:25000");
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
-        p.setProperty("tvdirectory", "${datapath}");
+        p.setProperty("tmpvoldir", "${datapath}");
         p.setProperty("rmiport", System.getProperty("rmiport", "8081"));
         p.setProperty("jmx", "true");
         return p;
@@ -60,7 +60,7 @@ public class UnitTestProperties {
                 + "pageSize:16384,initialPages:100,extensionPages:100," + "maximumPages:100000,alias:_txn");
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
-        p.setProperty("tvdirectory", "${datapath}");
+        p.setProperty("tmpvoldir", "${datapath}");
         p.setProperty("rmiport", System.getProperty("rmiport", "8081"));
         return p;
     }
@@ -76,7 +76,7 @@ public class UnitTestProperties {
                 + "maximumPages:100000,alias:persistit");
         p.setProperty("journalpath", "${datapath}/persistit_alt_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
-        p.setProperty("tvdirectory", "${datapath}");
+        p.setProperty("tmpvoldir", "${datapath}");
         p.setProperty("rmiport", System.getProperty("rmiport", "8081"));
         return p;
     }
@@ -92,7 +92,7 @@ public class UnitTestProperties {
                 + "pageSize:16384,initialPages:100,extensionPages:100," + "maximumPages:25000");
         p.setProperty("journalpath", "${datapath}/persistit_journal");
         p.setProperty("logfile", "${datapath}/persistit_${timestamp}.log");
-        p.setProperty("tvdirectory", "${datapath}");
+        p.setProperty("tmpvoldir", "${datapath}");
         p.setProperty("rmiport", System.getProperty("rmiport", "8081"));
         p.setProperty("jmx", "true");
         return p;
