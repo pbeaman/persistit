@@ -257,18 +257,22 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     private final static Stack<int[]> REPACK_BUFFER_STACK = new Stack<int[]>();
 
     public final static int MAX_KEY_RATIO = 16;
-    
+
+    final static boolean ENABLE_LOCK_MANAGER = false;
+
     abstract static class VerifyVisitor {
 
         protected void visitPage(long timestamp, Volume volume, long page, int type, int bufferSize, int keyBlockStart,
                 int keyBlockEnd, int alloc, int available, long rightSibling) throws PersistitException {
         }
 
-        protected void visitIndexRecord(Key key, int foundAt, int tail, int kLength, long pointer) throws PersistitException {
+        protected void visitIndexRecord(Key key, int foundAt, int tail, int kLength, long pointer)
+                throws PersistitException {
 
         }
 
-        protected void visitDataRecord(Key key, int foundAt, int tail, int klength, int offset, int length, byte[] bytes) throws PersistitException {
+        protected void visitDataRecord(Key key, int foundAt, int tail, int klength, int offset, int length, byte[] bytes)
+                throws PersistitException {
         }
     }
 
@@ -518,15 +522,50 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         bumpGeneration();
     }
 
-    /**
-     * Release a writer claim on a buffer. This method also relinquishes the
-     * reservation this buffer may have had if it is clean.
-     */
+    @Override
+    boolean claim(boolean writer) throws PersistitInterruptedException {
+        return claim(writer, DEFAULT_MAX_WAIT_TIME);
+    }
+
+    @Override
+    boolean claim(boolean writer, long timeout) throws PersistitInterruptedException {
+        if (super.claim(writer, timeout)) {
+            if (!isDirty()) {
+                _timestamp = _persistit.getCurrentTimestamp();
+            }
+            if (ENABLE_LOCK_MANAGER) {
+                _pool._lockManager.registerClaim(this, writer);
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     void release() {
         if (Debug.ENABLED && isDirty() && (isDataPage() || isIndexPage())) {
             assertVerify();
         }
+        if (ENABLE_LOCK_MANAGER) {
+            _pool._lockManager.unregisterClaim(this);
+        }
         super.release();
+    }
+
+    @Override
+    boolean upgradeClaim() {
+        boolean result = super.upgradeClaim();
+        if (ENABLE_LOCK_MANAGER) {
+            _pool._lockManager.registerUpgrade(this);
+        }
+        return result;
+    }
+
+    @Override
+    void releaseWriterClaim() {
+        if (ENABLE_LOCK_MANAGER) {
+            _pool._lockManager.registerDowngrade(this);
+        }
     }
 
     void releaseTouched() {

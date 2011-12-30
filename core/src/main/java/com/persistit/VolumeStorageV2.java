@@ -413,7 +413,7 @@ class VolumeStorageV2 extends VolumeStorage {
 
     void claimHeadBuffer() throws PersistitException {
         if (!_headBuffer.claim(true)) {
-            throw new InUseException(this + " head buffer " + _headBuffer + " is unavailable");
+            throw new InUseException("Unable to acquire claim on " + this);
         }
     }
 
@@ -422,10 +422,12 @@ class VolumeStorageV2 extends VolumeStorage {
     }
 
     void readPage(Buffer buffer) throws PersistitIOException, InvalidPageAddressException, VolumeClosedException,
-            PersistitInterruptedException {
+            PersistitInterruptedException, InUseException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
-        claim(false);
+        if (!claim(false)) {
+            throw new InUseException("Unable to acquire claim on " + this);
+        }
         try {
             final long page = buffer.getPageAddress();
             if (page < 0 || page >= _nextAvailablePage) {
@@ -462,10 +464,12 @@ class VolumeStorageV2 extends VolumeStorage {
     }
 
     void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
-            ReadOnlyVolumeException, VolumeClosedException, PersistitInterruptedException {
+            ReadOnlyVolumeException, VolumeClosedException, PersistitInterruptedException, InUseException {
         // non-exclusive claim here intended to conflict with exclusive claim in
         // close and truncate
-        claim(false);
+        if (!claim(false)) {
+            throw new InUseException("Unable to acquire claim on " + this);
+        }
         try {
             _persistit.getJournalManager().writePageToJournal(buffer);
         } finally {
@@ -495,20 +499,24 @@ class VolumeStorageV2 extends VolumeStorage {
     }
 
     long allocNewPage() throws PersistitException {
-        claim(true);
+        if (!claim(true)) {
+            throw new InUseException(toString() + " is in use");
+        }
+        long page = -1;
         try {
             for (;;) {
                 if (_nextAvailablePage < _extendedPageCount) {
-                    long page = _nextAvailablePage++;
+                    page = _nextAvailablePage++;
                     _volume.getStatistics().setNextAvailablePage(page);
-                    flush();
-                    return page;
+                    break;
                 }
                 extend();
             }
         } finally {
             release();
         }
+        flush();
+        return page;
     }
 
     void flush() throws PersistitException {
@@ -534,6 +542,7 @@ class VolumeStorageV2 extends VolumeStorage {
     void extend(final long pageAddr) throws PersistitException {
         if (pageAddr >= _extendedPageCount) {
             extend();
+            flush();
         }
     }
 
@@ -598,8 +607,6 @@ class VolumeStorageV2 extends VolumeStorage {
         // Do not extend past maximum pages
         long pageCount = Math.min(_extendedPageCount + extensionPages, maximumPages);
         resize(pageCount);
-        flush();
-
     }
 
     private void resize(long pageCount) throws PersistitException {

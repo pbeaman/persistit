@@ -18,8 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
 import com.persistit.exception.TruncateVolumeException;
 import com.persistit.exception.VolumeAlreadyExistsException;
@@ -142,7 +142,9 @@ public class Volume {
             // volume is being closed.
             //
             final VolumeStorage storage = getStorage();
-            storage.claim(true);
+            if (!storage.claim(true)) {
+                throw new InUseException("Unable to acquire claim on " + this);
+            }
             try {
                 //
                 // BufferPool#invalidate may fail and return false if other

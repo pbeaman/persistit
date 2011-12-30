@@ -19,6 +19,8 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.Exchange;
@@ -74,7 +76,7 @@ public class StressRecovery extends StressBase {
             "verify|String:|Path name of ticket list to verify",
             "latency|long:0:0:60000|Maximum acceptable fault latency" };
 
-    private final static AtomicLong ticketSequence = new AtomicLong();
+    private final static LFSRTicketSequence ticketSequence = new LFSRTicketSequence();
 
     private final ArrayList<TransactionType> registry = new ArrayList<TransactionType>();
 
@@ -85,7 +87,21 @@ public class StressRecovery extends StressBase {
     long _maxLatency;
     BufferedReader _verifyReader;
 
-    interface TransactionType {
+    static class LFSRTicketSequence {
+        AtomicLong _bits = new AtomicLong(1);
+
+        long incrementAndGet() {
+            for (;;) {
+                long current = _bits.get();
+                long next = (current >>> 1) ^ (-(current & 1) & 0xD800000000000000L);
+                if (_bits.compareAndSet(current, next)) {
+                    return next;
+                }
+            }
+        }
+    }
+
+    public interface TransactionType {
         /**
          * Given a ticketId, perform a transaction which can later be verified.
          * If this method returns without throwing an Exception, then the
@@ -106,13 +122,6 @@ public class StressRecovery extends StressBase {
         void verifyTransaction(final long ticketId) throws Exception;
     }
 
-    private static class IntentionalException extends Exception {
-        /**
-         * 
-         */
-        private static final long serialVersionUID = 1L;
-        // intended to be ignored
-    }
 
     @Override
     public String shortDescription() {
@@ -151,74 +160,90 @@ public class StressRecovery extends StressBase {
 
     @Override
     public void executeTest() throws IOException {
+        if (_verifyMode) {
+            verifyTicketStream();
+        } else {
+            executeTicketStream();
+        }
+    }
+
+    /**
+     * Perform first part of test. This method generates tickets and executes
+     * the associated transactions. Runs "forever" because it is intended to be
+     * interrupted by a shutdown or crash.
+     */
+    private void executeTicketStream() {
         final long zero = System.nanoTime();
+        for (int _count = 1;; _count++) {
+            final long ticketId = ticketSequence.incrementAndGet();
+            final TransactionType tt = registry.get((int) (ticketId % registry.size()));
+            final long start = System.nanoTime();
+            try {
+                tt.performTransaction(ticketId);
+                final long now = System.nanoTime();
+                emit(ticketId, start - zero, now - start);
+            } catch (Exception e) {
+                emit(ticketId, start - zero, -1);
+                printStackTrace(e);
+            }
+        }
+    }
+
+    /**
+     * Verify that all (or almost all) transactions in the ticket stream were
+     * applied to the database. The "almost" case is when transactions were not
+     * hard-committed during the first phase. In this case verification passes
+     * if some transactions near the end of the ticket stream were not
+     * recovered. "Near" is determined by elapsed system time, and is intended
+     * to be no more than a few hundred milliseconds. The value is specified by
+     * the <code>latency</code> value specified in command-line parameters.
+     */
+    private void verifyTicketStream() {
         long firstFault = Long.MAX_VALUE;
         long last = Long.MIN_VALUE;
-        if (_verifyMode) {
-            int faults = 0;
-            for (int _count = 1;; _count++) {
-                String line = "~not read~";
-                long ticketId = -1;
-                long start = -1;
-                long elapsed = -1;
-                try {
-                    line = _verifyReader.readLine();
-                    if (line == null) {
-                        break;
-                    }
-                    if (line.isEmpty() || !Character.isDigit(line.charAt(0))) {
-                        continue;
-                    }
-                    final String[] s = line.split(",");
-                    if (s.length != 3) {
-                        continue;
-                    }
-                    ticketId = Long.parseLong(s[0]);
-                    start = Long.parseLong(s[1]);
-                    elapsed = Long.parseLong(s[2]);
-                    last = Math.max(last, start + elapsed);
-                } catch (Exception e) {
-                    fail(e + " while reading line " + _count + " of " + _verifyPath + ": " + line);
+        int faults = 0;
+        for (int _count = 1;; _count++) {
+            String line = "~not read~";
+            long ticketId = -1;
+            long start = -1;
+            long elapsed = -1;
+            try {
+                line = _verifyReader.readLine();
+                if (line == null) {
+                    break;
                 }
-                if (elapsed >= 0) {
-                    try {
-                        TransactionType tt = registry.get((int) (ticketId % registry.size()));
-                        tt.verifyTransaction(ticketId);
-                    } catch (Exception e) {
-                        firstFault = Math.min(firstFault, start + elapsed);
-                        faults++;
-                    }
+                if (line.isEmpty() || !Character.isDigit(line.charAt(0))) {
+                    continue;
+                }
+                final String[] s = line.split(",");
+                if (s.length != 3) {
+                    continue;
+                }
+                ticketId = Long.parseLong(s[0]);
+                start = Long.parseLong(s[1]);
+                elapsed = Long.parseLong(s[2]);
+                last = Math.max(last, start + elapsed);
+            } catch (Exception e) {
+                fail(e + " while reading line " + _count + " of " + _verifyPath + ": " + line);
+            }
+            if (elapsed >= 0) {
+                try {
+                    TransactionType tt = registry.get((int) (ticketId % registry.size()));
+                    tt.verifyTransaction(ticketId);
+                } catch (Exception e) {
+                    firstFault = Math.min(firstFault, start + elapsed);
+                    faults++;
                 }
             }
+        }
 
-            if (faults > 0) {
-                if (last - firstFault < _maxLatency) {
-                    printf("There were %,d faults. Last one occurred %,dms before crash - \n"
-                            + "acceptable because acceptable latency setting is %,dms.", faults,
-                            (last - firstFault) / 1000000l, _maxLatency / 1000000l);
-                } else {
-                    fail("Verification encountered " + faults + " faults");
-                }
-            }
-        } else {
-            //
-            // forever since this test is intended to be interrupted by
-            // a shutdown or crash.
-            //
-            for (int _count = 1;; _count++) {
-                final long ticketId = ticketSequence.incrementAndGet();
-                final TransactionType tt = registry.get((int) (ticketId % registry.size()));
-                final long start = System.nanoTime();
-                try {
-                    tt.performTransaction(ticketId);
-                    final long now = System.nanoTime();
-                    emit(ticketId, start - zero, now - start);
-                } catch (IntentionalException e) {
-                    emit(ticketId, start - zero, -1);
-                } catch (Exception e) {
-                    emit(ticketId, start - zero, -1);
-                    printStackTrace(e);
-                }
+        if (faults > 0) {
+            if (last - firstFault < _maxLatency) {
+                printf("There were %,d faults. Last one occurred %,dms before crash - \n"
+                        + "acceptable because acceptable latency setting is %,dms.", faults,
+                        (last - firstFault) / 1000000l, _maxLatency / 1000000l);
+            } else {
+                fail("Verification encountered " + faults + " faults");
             }
         }
     }
@@ -237,6 +262,7 @@ public class StressRecovery extends StressBase {
     }
 
     class SimpleTransactionType implements TransactionType {
+        private static final int SCALE = 10000;
 
         @Override
         public void performTransaction(long ticketId) throws Exception {
@@ -245,7 +271,7 @@ public class StressRecovery extends StressBase {
                 txn.begin();
                 try {
                     _exs.getValue().putString("ticket " + ticketId + " value");
-                    _exs.clear().append(ticketId % 1000).append(ticketId / 1000);
+                    _exs.clear().append(ticketId % SCALE).append(ticketId / SCALE);
                     _exs.store();
                     txn.commit(false);
                     break;
@@ -259,7 +285,7 @@ public class StressRecovery extends StressBase {
 
         @Override
         public void verifyTransaction(long ticketId) throws Exception {
-            _exs.clear().append(ticketId % 1000).append(ticketId / 1000);
+            _exs.clear().append(ticketId % SCALE).append(ticketId / SCALE);
             _exs.fetch();
             check(ticketId, _exs, "ticket " + ticketId + " value");
         }

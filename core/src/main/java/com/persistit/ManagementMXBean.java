@@ -95,6 +95,13 @@ public interface ManagementMXBean {
     public long getRollbackCount() throws RemoteException;
 
     /**
+     * @param max Maximum number of transactions to report on.
+     * @return Report on the <code>max</code> longest-running transactions.
+     * @throws RemoteException
+     */
+    public String transactionReport(int max) throws RemoteException;
+
+    /**
      * Indicate whether Persistit will suspend its shutdown activities on
      * invocation of {@link com.persistit.Persistit#close}. This flag is
      * intended for use by management tools that need to keep Persistit open

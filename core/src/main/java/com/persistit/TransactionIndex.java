@@ -36,7 +36,7 @@ import com.persistit.exception.TimeoutException;
  * 
  * @author peter
  */
-public class TransactionIndex {
+public class TransactionIndex implements TransactionIndexMXBean {
 
     /**
      * Thread name of the polling task
@@ -167,14 +167,14 @@ public class TransactionIndex {
      * <p>
      * Cached copy of currently active transactions. Instances of this class
      * support the {@link TransactionIndex#hasConcurrentTransaction(long, long)}
-     * method. We think in general it is expensive to look at transaction status
-     * directly while pruning due to the need to lock each
-     * TransactionIndexBucket to read its lists. Instead of scanning all of
-     * these on each pruning operation we periodically compute an array of ts
-     * values for transactions that are currently running. These are assembled
-     * into a sorted array in this object. There are two instances of this class
-     * in the TransactionIndex, one used for concurrent pruning and the other
-     * available to recompute a more recent array of transactions.
+     * method. In general it is expensive to look at transaction status directly
+     * while pruning due to the need to lock each TransactionIndexBucket to read
+     * its lists. Instead of scanning all of these on each pruning operation we
+     * periodically compute an array of ts values for transactions that are
+     * currently running. These are assembled into a sorted array in this
+     * object. There are two instances of this class in the TransactionIndex,
+     * one used for concurrent pruning and the other available to recompute a
+     * more recent array of transactions.
      * </p>
      * <p>
      * Any thread may call recompute on the ActiveTransactionCache that is not
@@ -606,44 +606,32 @@ public class TransactionIndex {
         return _atCache.hasConcurrentTransaction(ts1, ts2);
     }
 
-    /**
-     * Timestamp known to be less than or equal to the start timestamp of any
-     * currently executing transaction. This value is computed by
-     * {@link #updateActiveTransactionCache()} and is therefore may be less the
-     * timestamp of any currently executing transaction at the instant this
-     * value is returned. However, it is guaranteed that no running transaction
-     * has a lower start timestamp.
+    /*
+     * (non-Javadoc)
      * 
-     * @return Lower bound on start timestamps of currently active transactions.
+     * @see com.persistit.TransactionIndexMXBean#getActiveTransactionFloor()
      */
+    @Override
     public long getActiveTransactionFloor() {
         return _atCache._floor;
     }
 
-    /**
-     * Timestamp recorded at the start of the last invocation of
-     * {@link #updateActiveTransactionCache()}. The
-     * {@link #hasConcurrentTransaction(long, long)} method will indicate that
-     * any transaction newer than that ceiling is currently active even if that
-     * transaction subsequently committed or aborted.
+    /*
+     * (non-Javadoc)
      * 
-     * @return Upper bound on timestamps for which
-     *         {@link #hasConcurrentTransaction(long, long)} returns accurate
-     *         information.
+     * @see com.persistit.TransactionIndexMXBean#getActiveTransactionCeiling()
      */
+    @Override
     public long getActiveTransactionCeiling() {
         return _atCache._ceiling;
     }
 
-    /**
-     * Count of active transactions measured when
-     * {@link #updateActiveTransactionCache()} was last called. The count may
-     * have changed to due new transactions starting or existing transactions
-     * committing since that invocation, and therefore the value returned by
-     * this method is an estimate.
+    /*
+     * (non-Javadoc)
      * 
-     * @return the count
+     * @see com.persistit.TransactionIndexMXBean#getActiveTransactionCount()
      */
+    @Override
     public long getActiveTransactionCount() {
         return _atCache._count;
     }
@@ -930,14 +918,13 @@ public class TransactionIndex {
         }
     }
 
-    /**
-     * Refresh the ActiveTransactionCache. This method walks the hashTable to
-     * update the non-current ActiveTransactionCache instance and then makes it
-     * current. This method will block until it can acquire an exclusive lock on
-     * _atCacheLock. Therefore there can never be more than one thread
-     * performing this method at a time.
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.persistit.TransactionIndexMXBean#updateActiveTransactionCache()
      */
-    void updateActiveTransactionCache() {
+    @Override
+    public void updateActiveTransactionCache() {
         _atCacheLock.lock();
         try {
             ActiveTransactionCache alternate = _atCache == _atCache1 ? _atCache2 : _atCache1;
@@ -948,14 +935,13 @@ public class TransactionIndex {
         }
     }
 
-    /**
-     * Invoke the {@link TransactionIndexBucket#cleanup()} method on each bucket
-     * to remove all obsolete long-running and aborted
-     * <code>TransactionStatus</code> instances. This is useful to generate a
-     * canonical state for unit tests. Cleanup logic is normally called during
-     * the {@link TransactionIndexBucket#reduce()} process.
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.persistit.TransactionIndexMXBean#cleanup()
      */
-    void cleanup() {
+    @Override
+    public void cleanup() {
         updateActiveTransactionCache();
         for (final TransactionIndexBucket bucket : _hashTable) {
             bucket.lock();
@@ -1057,44 +1043,126 @@ public class TransactionIndex {
         }
     }
 
-    int getCurrentCount() {
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.persistit.TransactionIndexMXBean#getCurrentCount()
+     */
+    @Override
+    public int getCurrentCount() {
         int currentCount = 0;
         for (final TransactionIndexBucket bucket : _hashTable) {
-            currentCount += bucket.getCurrentCount();
+            bucket.lock();
+            try {
+                currentCount += bucket.getCurrentCount();
+            } finally {
+                bucket.unlock();
+            }
         }
         return currentCount;
     }
 
-    int getLongRunningCount() {
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.persistit.TransactionIndexMXBean#getLongRunningCount()
+     */
+    @Override
+    public int getLongRunningCount() {
         int longRunningCount = 0;
         for (final TransactionIndexBucket bucket : _hashTable) {
-            longRunningCount += bucket.getLongRunningCount();
+            bucket.lock();
+            try {
+                longRunningCount += bucket.getLongRunningCount();
+            } finally {
+                bucket.unlock();
+            }
         }
         return longRunningCount;
     }
 
-    int getAbortedCount() {
-        int aortedCount = 0;
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.persistit.TransactionIndexMXBean#getAbortedCount()
+     */
+    @Override
+    public int getAbortedCount() {
+        int abortedCount = 0;
         for (final TransactionIndexBucket bucket : _hashTable) {
-            aortedCount += bucket.getAbortedCount();
+            bucket.lock();
+            try {
+                abortedCount += bucket.getAbortedCount();
+            } finally {
+                bucket.unlock();
+            }
         }
-        return aortedCount;
+        return abortedCount;
     }
 
-    int getFreeCount() {
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.persistit.TransactionIndexMXBean#getFreeCount()
+     */
+    @Override
+    public int getFreeCount() {
         int freeCount = 0;
         for (final TransactionIndexBucket bucket : _hashTable) {
-            freeCount += bucket.getFreeCount();
+            bucket.lock();
+            try {
+                freeCount += bucket.getFreeCount();
+            } finally {
+                bucket.unlock();
+            }
         }
         return freeCount;
     }
 
-    int getDroppedCount() {
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.persistit.TransactionIndexMXBean#getDroppedCount()
+     */
+    @Override
+    public int getDroppedCount() {
         int droppedCount = 0;
         for (final TransactionIndexBucket bucket : _hashTable) {
-            droppedCount += bucket.getDroppedCount();
+            bucket.lock();
+            try {
+                droppedCount += bucket.getDroppedCount();
+            } finally {
+                bucket.unlock();
+            }
         }
         return droppedCount;
+    }
+
+    /**
+     * Return the start timestamps of the oldest <code>max</code> transactions
+     * currently running.
+     * 
+     * @param max
+     * @return
+     */
+    long[] oldestTransactions(final int max) {
+        long[] array = new long[Math.max(max, INITIAL_ACTIVE_TRANSACTIONS_SIZE)];
+        int count = 0;
+        for (int retry = 0; retry < 10; retry++) {
+            ActiveTransactionCache atCache = getActiveTransactionCache();
+            count = Math.min(max, atCache._count);
+            System.arraycopy(atCache._tsArray, 0, array, 0, count);
+            if (getActiveTransactionCache() == atCache) {
+                break;
+            }
+            count = -1;
+        }
+        if (count == -1) {
+            return null;
+        }
+        long[] result = new long[count];
+        System.arraycopy(array, 0, result, 0, count);
+        return result;
     }
 
     @Override

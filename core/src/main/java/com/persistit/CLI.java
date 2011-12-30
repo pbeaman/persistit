@@ -1092,38 +1092,6 @@ public class CLI {
         return list;
     }
 
-    // TODO - we REALLY need to refactor Volume!
-    //
-    static class VolumeInfo {
-        int _bufferSize;
-        long _id;
-        long _readCounter;
-        long _writeCounter;
-        long _highestPageUsed;
-        long _pageCount;
-        long _extensionPages;
-        long _maximumPages;
-        long _firstAvailablePage;
-        long _directoryRootPage;
-        long _garbageRoot;
-        long _initialPages;
-
-        VolumeInfo(final byte[] bytes) {
-            _bufferSize = Util.getInt(bytes, 20);
-            _id = Util.getLong(bytes, 32);
-            _readCounter = Util.getLong(bytes, 40);
-            _writeCounter = Util.getLong(bytes, 48);
-            _highestPageUsed = Util.getLong(bytes, 104);
-            _pageCount = Util.getLong(bytes, 112);
-            _extensionPages = Util.getLong(bytes, 120);
-            _maximumPages = Util.getLong(bytes, 128);
-            _firstAvailablePage = Util.getLong(bytes, 136);
-            _directoryRootPage = Util.getLong(bytes, 144);
-            _garbageRoot = Util.getLong(bytes, 152);
-            _initialPages = Util.getLong(bytes, 192);
-        }
-    }
-
     static KeyFilter toKeyFilter(final String keyFilterString) {
         if (keyFilterString == null || keyFilterString.isEmpty()) {
             return new KeyFilter();

@@ -875,6 +875,7 @@ public interface Management extends Remote, ManagementMXBean {
         int dirtyPageCount;
         int readerClaimedPageCount;
         int writerClaimedPageCount;
+        long earliestDirtyTimestamp;
 
         public BufferPoolInfo() {
 
@@ -882,11 +883,11 @@ public interface Management extends Remote, ManagementMXBean {
 
         @ConstructorProperties({ "bufferSize", "bufferCount", "missCount", "hitCount", "newCount", "evictCount",
                 "writeCount", "forcedWriteCount", "forcedCheckpointWriteCount", "validPageCount", "dirtyPageCount",
-                "readerClaimedPageCount", "writerClaimedPageCount" })
+                "readerClaimedPageCount", "writerClaimedPageCount", "earliestDirtyTimestamp" })
         public BufferPoolInfo(int bufferSize, int bufferCount, long missCount, long hitCount, long newCount,
                 long writeCount, long evictCount, long forcedWriteCount, long forcedCheckpointWriteCount,
                 long readCounter, int validPageCount, int dirtyPageCount, int readerClaimedPageCount,
-                int writerClaimedPageCount) {
+                int writerClaimedPageCount, long earliestDirtyTimestamp) {
             super();
             this.bufferSize = bufferSize;
             this.bufferCount = bufferCount;
@@ -901,6 +902,7 @@ public interface Management extends Remote, ManagementMXBean {
             this.dirtyPageCount = dirtyPageCount;
             this.readerClaimedPageCount = readerClaimedPageCount;
             this.writerClaimedPageCount = writerClaimedPageCount;
+            this.earliestDirtyTimestamp = earliestDirtyTimestamp;
         }
 
         /**
@@ -1046,6 +1048,14 @@ public interface Management extends Remote, ManagementMXBean {
         public int getWriterClaimedPageCount() {
             return writerClaimedPageCount;
         }
+
+        /**
+         * @return Earliest timestamp of any dirty page in this
+         *         <code>BufferPool</code>
+         */
+        public long getEarliestDirtyTimestamp() {
+            return earliestDirtyTimestamp;
+        }
     }
 
     /**
@@ -1093,8 +1103,8 @@ public interface Management extends Remote, ManagementMXBean {
                 "availableBytes", "alloc", "slack", "mvvCount", "mvvSize", "keyBlockStart", "keyBlockEnd" })
         public BufferInfo(int poolIndex, int type, String typeName, int status, String statusName,
                 String writerThreadName, long pageAddress, long rightSiblingAddress, String volumeName, long volumeId,
-                long timestamp, int bufferSize, int availableBytes, int alloc, int slack, int mvvCount, int mvvSize, int keyBlockStart,
-                int keyBlockEnd) {
+                long timestamp, int bufferSize, int availableBytes, int alloc, int slack, int mvvCount, int mvvSize,
+                int keyBlockStart, int keyBlockEnd) {
             super();
             this.poolIndex = poolIndex;
             this.type = type;
@@ -1280,8 +1290,8 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         /**
-         * @return the timestamp at which the page occupying this buffer
-         * was last changed.
+         * @return the timestamp at which the page occupying this buffer was
+         *         last changed.
          */
         public long getTimestamp() {
             return timestamp;
@@ -1296,7 +1306,7 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * @return the number of unused bytes available to hold additional
-         * key/value pairs.
+         *         key/value pairs.
          */
         public int getAvailableBytes() {
             return availableBytes;
@@ -1304,7 +1314,7 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * @return he offset within the <code>Buffer</code> used internally in
-         * allocating space for key/value pairs.
+         *         allocating space for key/value pairs.
          */
         public int getAlloc() {
             return alloc;
@@ -1312,22 +1322,23 @@ public interface Management extends Remote, ManagementMXBean {
 
         /**
          * @return a size used internally in allocating space for key/value
-         * pairs.
+         *         pairs.
          */
         public int getSlack() {
             return slack;
         }
-        
+
         /**
-         * @return the approximate count of key/value pairs containing multi-version values.
+         * @return the approximate count of key/value pairs containing
+         *         multi-version values.
          */
         public int getMvvCount() {
             return mvvCount;
         }
-        
+
         /**
-         * @return the approximate number of bytes consumed by multi-version values which are 
-         * no longer visible to current transactions.
+         * @return the approximate number of bytes consumed by multi-version
+         *         values which are no longer visible to current transactions.
          */
         public int getMvvSize() {
             return mvvSize;
@@ -1727,7 +1738,6 @@ public interface Management extends Remote, ManagementMXBean {
         long _mvvCounter;
         long _mvvOverhead;
 
-
         TreeInfo(Tree tree) {
             super();
             name = tree.getName();
@@ -1747,8 +1757,8 @@ public interface Management extends Remote, ManagementMXBean {
         }
 
         @ConstructorProperties({ "name", "index", "rootPageAddress", "depth", "volumePathName", "status",
-                "writerThreadName", "fetchCounter", "traverseCounter", "storeCounter",
-                "removeCounter", "mvvCounter", "mvvOverhead" })
+                "writerThreadName", "fetchCounter", "traverseCounter", "storeCounter", "removeCounter", "mvvCounter",
+                "mvvOverhead" })
         public TreeInfo(String name, long rootPageAddress, int depth, String volumePathName, String status,
                 String writerThreadName, long fetchCounter, long traverseCounter, long storeCounter,
                 long removeCounter, long mvvCounter, long mvvOverhead) {
@@ -1765,7 +1775,7 @@ public interface Management extends Remote, ManagementMXBean {
             this._removeCounter = removeCounter;
             this._mvvCounter = mvvCounter;
             this._mvvOverhead = mvvOverhead;
-            
+
         }
 
         /**
@@ -1803,7 +1813,7 @@ public interface Management extends Remote, ManagementMXBean {
         public String getVolumePathName() {
             return volumePathName;
         }
-        
+
         /**
          * @return the count of {@link Exchange#fetch} operations, including
          *         {@link Exchange#fetchAndStore} and
@@ -1837,11 +1847,10 @@ public interface Management extends Remote, ManagementMXBean {
         public long getRemoveCounter() {
             return _removeCounter;
         }
-        
 
         /**
-         * @return Count of records in this <code>Tree</code> having multi-version
-         *         values.
+         * @return Count of records in this <code>Tree</code> having
+         *         multi-version values.
          */
         public long getMvvCounter() {
             return _mvvCounter;
@@ -2593,6 +2602,9 @@ public interface Management extends Remote, ManagementMXBean {
     }
 
     public static class TransactionInfo extends AcquisitionTimeBase {
+
+        private static final long serialVersionUID = -8355613679126582750L;
+
         long commitCount;
         long rollbackCount;
         long rollbackSinceCommitCount;
