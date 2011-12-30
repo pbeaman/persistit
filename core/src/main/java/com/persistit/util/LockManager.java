@@ -19,6 +19,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.persistit.Buffer;
 
+/**
+ * Tracks use of {@link Buffer} by thread. Normally this code is unused and
+ * should eventually be removed. Here now for debugging purposes when needed.
+ * 
+ * @author peter
+ * 
+ */
 public class LockManager {
     final static int MAX_INDEX = 10;
 
@@ -107,7 +114,7 @@ public class LockManager {
         }
         return sb.toString();
     }
-    
+
     public void verify() {
         Thread t = Thread.currentThread();
         Holder[] holders = _map.get(t);

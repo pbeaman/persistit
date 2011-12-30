@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import static com.persistit.Buffer.ENABLE_LOCK_MANAGER;
 import static com.persistit.Buffer.EXACT_MASK;
 import static com.persistit.Buffer.HEADER_SIZE;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
@@ -454,8 +455,9 @@ public class Exchange {
         _splitPolicy = _persistit.getDefaultSplitPolicy();
         _joinPolicy = _persistit.getDefaultJoinPolicy();
         _treeHolder.verifyReleased();
-        _pool._lockManager.verify();
-
+        if (ENABLE_LOCK_MANAGER) {
+            _pool._lockManager.verify();
+        }
     }
 
     void initCache() {
@@ -1261,7 +1263,6 @@ public class Exchange {
         options |= (!_ignoreTransactions && _transaction.isActive()) ? StoreOptions.MVCC : 0;
         storeInternal(key, value, 0, options);
         _treeHolder.verifyReleased();
-//        _pool._lockManager.verify();
 
         return this;
     }
@@ -1573,12 +1574,13 @@ public class Exchange {
                     try {
                         long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
                                 _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME); // TODO
-                    if (depends != 0 && depends != TransactionStatus.ABORTED) {
-                        // version is from concurrent txn that already committed
-                        // or timed out waiting to see. Either
-                        // way, must abort.
-                        throw new RollbackException();
-                    }
+                        if (depends != 0 && depends != TransactionStatus.ABORTED) {
+                            // version is from concurrent txn that already
+                            // committed
+                            // or timed out waiting to see. Either
+                            // way, must abort.
+                            throw new RollbackException();
+                        }
                     } catch (InterruptedException ie) {
                         throw new PersistitInterruptedException(ie);
                     }
@@ -1844,7 +1846,9 @@ public class Exchange {
      */
     public boolean traverse(Direction direction, boolean deep) throws PersistitException {
         boolean result = traverse(direction, deep, Integer.MAX_VALUE);
-        _pool._lockManager.verify();
+        if (ENABLE_LOCK_MANAGER) {
+            _pool._lockManager.verify();
+        }
         return result;
     }
 
@@ -2644,7 +2648,6 @@ public class Exchange {
                 buffer.releaseTouched();
             }
             _treeHolder.verifyReleased();
-//            _pool._lockManager.verify();
 
         }
     }
@@ -2812,7 +2815,9 @@ public class Exchange {
 
         final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, fetchFirst);
         _treeHolder.verifyReleased();
-        _pool._lockManager.verify();
+        if (ENABLE_LOCK_MANAGER) {
+            _pool._lockManager.verify();
+        }
         return result;
     }
 
@@ -2858,8 +2863,9 @@ public class Exchange {
 
         final boolean result = removeKeyRangeInternal(_spareKey3, _spareKey4, false);
         _treeHolder.verifyReleased();
-        _pool._lockManager.verify();
-
+        if (ENABLE_LOCK_MANAGER) {
+            _pool._lockManager.verify();
+        }
         return result;
     }
 

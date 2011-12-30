@@ -258,6 +258,8 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
     public final static int MAX_KEY_RATIO = 16;
 
+    final static boolean ENABLE_LOCK_MANAGER = false;
+
     abstract static class VerifyVisitor {
 
         protected void visitPage(long timestamp, Volume volume, long page, int type, int bufferSize, int keyBlockStart,
@@ -531,7 +533,9 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             if (!isDirty()) {
                 _timestamp = _persistit.getCurrentTimestamp();
             }
-            _pool._lockManager.registerClaim(this, writer);
+            if (ENABLE_LOCK_MANAGER) {
+                _pool._lockManager.registerClaim(this, writer);
+            }
             return true;
         } else {
             return false;
@@ -542,28 +546,32 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         if (Debug.ENABLED && isDirty() && (isDataPage() || isIndexPage())) {
             assertVerify();
         }
-        _pool._lockManager.unregisterClaim(this);
+        if (ENABLE_LOCK_MANAGER) {
+            _pool._lockManager.unregisterClaim(this);
+        }
         super.release();
     }
-    
+
     @Override
     boolean upgradeClaim() {
         boolean result = super.upgradeClaim();
-        _pool._lockManager.registerUpgrade(this);
+        if (ENABLE_LOCK_MANAGER) {
+            _pool._lockManager.registerUpgrade(this);
+        }
         return result;
     }
-    
+
     @Override
     void releaseWriterClaim() {
-        _pool._lockManager.registerDowngrade(this);
+        if (ENABLE_LOCK_MANAGER) {
+            _pool._lockManager.registerDowngrade(this);
+        }
     }
 
     void releaseTouched() {
         setTouched();
         release();
     }
-    
-    
 
     /**
      * Zero out all bytes in this buffer.
