@@ -395,9 +395,8 @@ public class KeyFilter {
             for (int level = 0;; level++) {
                 int previous = index;
                 index = key.nextElementIndex(previous);
-                if (index < 0) {
+                if (index < 0)
                     break;
-                }
                 byte[] bytes = new byte[index - previous];
                 System.arraycopy(key.getEncodedBytes(), previous, bytes, 0, bytes.length);
                 _terms[level] = new SimpleTerm(bytes);

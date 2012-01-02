@@ -2264,13 +2264,12 @@ public class Exchange {
             final boolean matched;
             if(keyFilter.getIsKeySubsetFilter()) {
                 matched = traverse(direction, true, minBytes, keyFilter.getMinimumDepth());
-            }
-            else {
+            } else {
                 matched = traverse(direction, true, minBytes);
             }
             totalVisited += _keysVisitedDuringTraverse;
+            _keysVisitedDuringTraverse = totalVisited;
             if (!matched) {
-                _keysVisitedDuringTraverse = totalVisited;
                 return false;
             }
             if (keyFilter.selected(_key)) {
@@ -2730,8 +2729,7 @@ public class Exchange {
     public boolean hasChildren() throws PersistitException {
         _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
-        final int minDepth =_key.getDepth() + 1;
-        boolean result = traverse(GT, true, 0, minDepth);
+        boolean result = traverse(GT, true, 0, _key.getDepth() + 1);
         if (result && _key.getEncodedSize() < size || _spareKey2.compareKeyFragment(_key, 0, size) != 0) {
             result = false;
         }
