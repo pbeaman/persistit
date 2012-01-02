@@ -693,12 +693,25 @@ public class MVCCBasicTest extends MVCCTestBase {
             // Can stop when we hit first sibling (depth < traverse minDepth)
             ex1.clear().append("a");
             assertEquals("'a' hasChildren after remove", false, ex1.hasChildren());
-            assertEquals("keys traversed for 'a' hasChildren post-remove", TOTAL_DEPTH_2, ex1.getKeysVisitedDuringTraverse());
+            assertEquals("keys traversed for 'a' hasChildren post-remove", TOTAL_DEPTH_2 + 1, ex1.getKeysVisitedDuringTraverse());
 
             // Should be able to stop when first (depth < traverse minDepth)
             ex1.clear().append("a").append(TOTAL_DEPTH_2);
             assertEquals("'a,1' hasChildren after remove", false, ex1.hasChildren());
             assertEquals("keys traversed for 'a' hasChildren post-remove", 1, ex1.getKeysVisitedDuringTraverse());
+
+            // Same optimization test, by way of specially known KeyFilter
+            ex1.clear().append("a");
+            final KeyFilter filter1 = new KeyFilter(ex1.getKey(), ex1.getKey().getDepth() + 1, Integer.MAX_VALUE);
+            assertEquals("traverse w/filter1 found key post-remove", false, ex1.traverse(Key.GT, filter1, Integer.MAX_VALUE));
+            assertEquals("keys traversed with filter1 post-remove", TOTAL_DEPTH_2 + 1, ex1.getKeysVisitedDuringTraverse());
+
+            // If not using the 'special' KeyFilter, we can't exit traverse early
+            final KeyFilter filter2 = new KeyFilter(new KeyFilter.Term[]{KeyFilter.simpleTerm("a")}, 2, Integer.MAX_VALUE);
+            assertEquals("traverse w/filter2 found key post-remove", false, ex1.traverse(Key.GT, filter2, Integer.MAX_VALUE));
+            // All depth1 and depth2 in range ('a','j')
+            final int expectedKeys = (TOTAL_DEPTH_1 - 1) * TOTAL_DEPTH_2 + TOTAL_DEPTH_1 - 1;
+            assertEquals("keys traversed with filter2 post-remove", expectedKeys, ex1.getKeysVisitedDuringTraverse());
 
             trx1.commit();
         }

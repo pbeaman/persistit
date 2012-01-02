@@ -310,6 +310,14 @@ public class KeyFilter {
     private int _maxDepth = Integer.MAX_VALUE;
 
     /**
+     * Flag for filters that are guaranteed to be a subset of key range. For
+     * example, as created by {@link #KeyFilter(Key, int, int)}. Allows
+     * optimized traversal.
+     */
+    private boolean _isKeySubsetFilter = false;
+
+
+    /**
      * Constructs an empty <code>KeyFilter</code>. This <code>KeyFilter</code>
      * implicitly selects all key values.
      */
@@ -383,11 +391,13 @@ public class KeyFilter {
             size = key.getEncodedSize();
         }
         if (key != null && size != 0) {
+            _isKeySubsetFilter = true;
             for (int level = 0;; level++) {
                 int previous = index;
                 index = key.nextElementIndex(previous);
-                if (index < 0)
+                if (index < 0) {
                     break;
+                }
                 byte[] bytes = new byte[index - previous];
                 System.arraycopy(key.getEncodedBytes(), previous, bytes, 0, bytes.length);
                 _terms[level] = new SimpleTerm(bytes);
@@ -1714,5 +1724,9 @@ public class KeyFilter {
             sb.append(Util.hexDump(bytes, 0, bytes.length));
             sb.append(")");
         }
+    }
+
+    boolean getIsKeySubsetFilter() {
+        return _isKeySubsetFilter;
     }
 }
