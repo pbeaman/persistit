@@ -19,16 +19,19 @@ import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.Accumulator.Delta;
 import com.persistit.exception.RetryException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.util.Debug;
 
 /**
  * Keep track of concurrent transactions and those that committed or aborted
@@ -134,6 +137,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
      */
     private volatile ActiveTransactionCache _atCache;
 
+    private AtomicLong _deadlockCounter = new AtomicLong();
     /**
      * The system-wide timestamp allocator
      */
@@ -407,7 +411,17 @@ public class TransactionIndex implements TransactionIndexMXBean {
             } else {
                 return UNCOMMITTED;
             }
+        } else {
+            /*
+             * If the version's start timestamp is greater than current
+             * transaction's timestamp, then it cannot have committed in time to
+             * be visible.
+             */
+            if (tsv > ts) {
+                return UNCOMMITTED;
+            }
         }
+
         final int hashIndex = hashIndex(tsv);
         final TransactionIndexBucket bucket = _hashTable[hashIndex];
         /*
@@ -466,7 +480,9 @@ public class TransactionIndex implements TransactionIndexMXBean {
                 if (tc == ABORTED) {
                     return tc;
                 }
-
+                /*
+                 * Waiting for status to resolve. To do this, lock, unlock and then retry.
+                 */
                 if (status.wwLock(SHORT_TIMEOUT)) {
                     tc = status.getTc();
                     status.wwUnlock();
@@ -509,6 +525,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
 
     private TransactionStatus registerTransaction(final boolean forCheckpoint) throws TimeoutException,
             InterruptedException {
+        Debug.suspend();
         final TransactionStatus status;
         final TransactionIndexBucket bucket;
         synchronized (this) {
@@ -719,7 +736,11 @@ public class TransactionIndex implements TransactionIndexMXBean {
      * then this method returns 0 meaning that the write-write dependency has
      * been cleared and this transaction may proceed.</li>
      * <li>If the target is identified by the <code>versionHandle</code> is the
-     * same as the current transaction, then this method returns 0.
+     * same as the current transaction, then this method returns 0.</li>
+     * <li>If the target already depends on this transaction, then a dependency
+     * cycle causing a deadlock is detected and this method returns
+     * {@link TransactionStatus#UNCOMMITTED} to indicate that the target
+     * transaction is concurrent and this transaction should abort.</li>
      * </ul>
      * If the target is concurrent but has neither committed nor aborted, then
      * this method waits up to <code>timeout</code> milliseconds for the
@@ -791,8 +812,15 @@ public class TransactionIndex implements TransactionIndexMXBean {
          * aborting.
          */
         do {
-            source.setDepends(target);
             try {
+                /*
+                 * Link to target transaction, then test for deadlock. Abort immediately
+                 */
+                source.setDepends(target);
+                if (isDeadlocked(source)) {
+                    _deadlockCounter.incrementAndGet();
+                    return UNCOMMITTED;
+                }
                 if (target.wwLock(Math.min(timeout, SHORT_TIMEOUT))) {
                     try {
                         if (target.getTs() != tsv) {
@@ -827,6 +855,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
                         return TIMED_OUT;
                     }
                     if (isDeadlocked(source)) {
+                        _deadlockCounter.incrementAndGet();
                         return UNCOMMITTED;
                     }
                 }
@@ -841,14 +870,12 @@ public class TransactionIndex implements TransactionIndexMXBean {
         TransactionStatus s = source;
         for (int count = 0; count < CYCLE_LIMIT; count++) {
             s = s.getDepends();
-            if (s == null) {
+            if (s == null || s.getTc() == ABORTED) {
                 return false;
             } else if (s == source) {
-                System.out.println("deadlock detected on " + source);
                 return true;
             }
         }
-        System.out.println("cycle length > " + CYCLE_LIMIT + " detected on " + source);
         return true;
     }
 
@@ -925,6 +952,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
      */
     @Override
     public void updateActiveTransactionCache() {
+        Debug.suspend();
         _atCacheLock.lock();
         try {
             ActiveTransactionCache alternate = _atCache == _atCache1 ? _atCache2 : _atCache1;

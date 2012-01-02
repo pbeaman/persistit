@@ -22,7 +22,10 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
 
     volatile int _counter = 0;
     volatile int _last = 0;
-    CleanupManager _cm;
+    
+    private CleanupManager cm() {
+        return _persistit.getCleanupManager();
+    }
     
     private class CleanupMockAction implements CleanupAction {
         final int _sequence;
@@ -60,36 +63,32 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
         
     }
     
-    public void setUp() throws Exception {
-        super.setUp();
-        _cm = _persistit.getCleanupManager();
-    }
-    
+  
     
     public void testCleanupHappens() throws Exception {
         for (int i = 1; i <= 500; i++) {
-            _cm.offer(new CleanupMockAction(i));
+            cm().offer(new CleanupMockAction(i));
         }
-        _cm.setPollInterval(100);
-        for (int i = 0; i < 10 && _cm.getEnqueuedCount() > 0; i++) {
+        cm().setPollInterval(100);
+        for (int i = 0; i < 10 && cm().getEnqueuedCount() > 0; i++) {
             Thread.sleep(1000);
         }
         assertEquals(500, _counter);
-        assertEquals(1, _cm.getErrorCount());
-        assertEquals(499, _cm.getPerformedCount());
+        assertEquals(1, cm().getErrorCount());
+        assertEquals(499, cm().getPerformedCount());
     }
     
     public void testOverflow() throws Exception {
         for (int i = 1; i <= CleanupManager.DEFAULT_QUEUE_SIZE * 2; i++) {
-            _cm.offer(new CleanupMockAction(i));
+            cm().offer(new CleanupMockAction(i));
         }
         
-        assertTrue(_cm.getAcceptedCount() > 0);
-        assertTrue(_cm.getRefusedCount()> 0);
-        final String s = _cm.toString();
+        assertTrue(cm().getAcceptedCount() > 0);
+        assertTrue(cm().getRefusedCount()> 0);
+        final String s = cm().toString();
         assertTrue(s.contains("CleanupMockAction("));
-        _cm.clear();
-        assertEquals(0, _cm.getEnqueuedCount());
+        cm().clear();
+        assertEquals(0, cm().getEnqueuedCount());
         
     }
 }

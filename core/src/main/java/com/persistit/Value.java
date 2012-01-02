@@ -44,6 +44,7 @@ import com.persistit.exception.ConversionException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.MalformedValueException;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -1317,7 +1318,20 @@ public final class Value {
                         if(!first) {
                             sb.append(", ");
                         }
-                        sb.append(version);
+                        sb.append(String.format("%,d", TransactionIndex.vh2ts(version)));
+                        int step = TransactionIndex.vh2step(version);
+                        if (step > 0) {
+                            sb.append(String.format("#%02d", step));
+                        }
+                        
+                        // TODO remove after debugging
+                        try {
+                        long tc = _persistit.getTransactionIndex().commitStatus(version, Long.MAX_VALUE, 0);
+                            sb.append("<" + TransactionStatus.tcString(tc) + ">");
+                        } catch (Exception e) {
+                            sb.append("<" + e + ">");
+                        }
+                        
                         sb.append(':');
                         if(valueLength == 0) {
                             sb.append(UNDEFINED);
