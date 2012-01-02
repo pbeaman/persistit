@@ -192,6 +192,7 @@ public class Exchange {
                     long ts = _status != null ? _status.getTs() : READ_COMMITTED_TS;
                     long status = _ti.commitStatus(version, ts, _step);
                     if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status > _maxVersion) {
+                        assert status <= ts; 
                         _offset = offset;
                         _maxVersion = status;
                     }
@@ -1435,11 +1436,11 @@ public class Exchange {
                             int prunedSpareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false);
                             if (prunedSpareSize != spareSize) {
                                 Debug.$assert0.t(prunedSpareSize < spareSize);
-                                spareSize = prunedSpareSize;
                                 valueToStore.setEncodedSize(prunedSpareSize);
                                 _rawValueWriter.init(valueToStore);
-                                boolean success = putLevel(lc, _key, _rawValueWriter, buffer, foundAt, false);
-                                Debug.$assert0.t(success);
+                                boolean needSplit = putLevel(lc, _key, _rawValueWriter, buffer, foundAt, false);
+                                Debug.$assert0.t(!needSplit);
+                                spareSize = prunedSpareSize;
                             }
 
                             TransactionStatus tStatus = _transaction.getTransactionStatus();

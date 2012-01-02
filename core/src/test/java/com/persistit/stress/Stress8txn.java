@@ -120,12 +120,13 @@ public class Stress8txn extends StressBase {
         }
 
         final Transaction txn = _exs.getTransaction();
-        final Operation[] ops = new Operation[5];
+        final Operation[] ops = new Operation[6];
         ops[0] = new Operation0();
         ops[1] = new Operation1();
         ops[2] = new Operation2();
         ops[3] = new Operation3();
         ops[4] = new Operation4();
+        ops[5] = new Operation5();
 
         for (_repeat = 0; (_repeat < _repeatTotal) && !isStopped(); _repeat++) {
             verboseln();
@@ -177,15 +178,18 @@ public class Stress8txn extends StressBase {
             return 0;
         }
         if (r < 800) {
-            return 1 /*TODO 1*/;
+            return 1;
         }
         if (r < 900) {
-            return  0 /*TODO 2*/;
+            return  2;
         }
         if (r < 950) {
             return 3;
         }
-        return 3 /*TODO 4*/;
+        if (r < 990) {
+            return 4;
+        }
+        return 5;
     }
 
     private abstract class Operation implements TransactionRunnable {
@@ -313,6 +317,17 @@ public class Stress8txn extends StressBase {
         }
     }
 
+
+    private class Operation5 extends Operation {
+        /**
+         * Perform consistency check across an A account
+         */
+        @Override
+        public void runTransaction() throws PersistitException {
+            totalConsistencyCheck();
+        }
+    }
+
     private int accountTotal(final Exchange ex) throws PersistitException {
         int total = 0;
         ex.append(Key.BEFORE);
@@ -330,24 +345,58 @@ public class Stress8txn extends StressBase {
         final Exchange exb = new Exchange(_exs);
         final Exchange exc = new Exchange(_exs);
 
+        int countA = 0;
         exa.clear().append("stress8txn").append(Key.BEFORE);
         while (exa.next()) {
+            countA++;
+            exa.fetch();
             final int valueA = getAccountValue(exa);
+            final int valueAA = getAccountValue(exa);
+            Debug.$assert1.t(valueA == valueAA);
             totalA += valueA;
             int totalB = 0;
             exa.getKey().copyTo(exb.getKey());
             exb.append(Key.BEFORE);
+            int countB = 0;
             while (exb.next()) {
+                countB++;
+                exb.fetch();
                 final int valueB = getAccountValue(exb);
+                final int valueBB = getAccountValue(exb);
+                Debug.$assert1.t(valueB == valueBB);
+
                 totalB += valueB;
                 int totalC = 0;
                 exb.getKey().copyTo(exc.getKey());
                 exc.append(Key.BEFORE);
+                int countC = 0;
                 while (exc.next()) {
+                    countC++;
+                    Key key1 = new Key(exc.getKey());
                     final int valueC = getAccountValue(exc);
+                    exc.fetch();
+                    Key key2 = new Key(exc.getKey());
+                    
+                    final int valueCC = getAccountValue(exc);
+
+                    Debug.$assert1.t(valueC == valueCC);
                     totalC += valueC;
                 }
                 if (totalC != valueB) {
+                    int totalC1 = 0;
+                    int countC1 = 0;
+                    while (exc.next()) {
+                        countC1++;
+                        Key key1 = new Key(exc.getKey());
+                        final int valueC1 = getAccountValue(exc);
+                        exc.fetch();
+                        Key key2 = new Key(exc.getKey());
+                        
+                        final int valueCC1 = getAccountValue(exc);
+
+                        Debug.$assert1.t(valueC1 == valueCC1);
+                        totalC1 += valueC1;
+                    }
                     _result = new TestResult(false, "totalC=" + totalC + " valueB=" + valueB + " at " + exb);
                     Debug.$assert1.t(false);
                     forceStop();
@@ -392,7 +441,7 @@ public class Stress8txn extends StressBase {
     }
 
     private void putAccountValue(final Exchange ex, final int value, final boolean string) {
-        if ((value > 0) && (value < 100 /*TODO 000*/) && ((random(0, 100) == 0) || string)) {
+        if ((value > 0) && (value < 1000) && ((random(0, 100) == 0) || string)) {
             _sb.setLength(0);
             int i = 0;
             for (i = 100; i < value; i += 100) {

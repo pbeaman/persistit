@@ -128,6 +128,19 @@ public class TransactionStatus {
     TransactionStatus(final TransactionIndexBucket bucket) {
         _bucket = bucket;
     }
+    
+    /**
+     * Constructs a partial copy. Used only in diagnostic code.
+     * @param status
+     */
+    TransactionStatus(final TransactionStatus status) {
+        this._bucket = status._bucket;
+        this._mvvCount = status._mvvCount;
+        this._notified = status._notified;
+        this._ta = status._ta;
+        this._tc = status._tc;
+        this._ts = status._ts;
+    }
 
     /**
      * @return The next TransactionStatus on linked list, or <code>null</code>
@@ -220,7 +233,7 @@ public class TransactionStatus {
         }
         _tc = ABORTED;
     }
-
+    
     void complete(final long timestamp) {
         if (_tc > 0 || -_tc > timestamp) {
             throw new IllegalStateException("Transaction not ready to complete: " + this);

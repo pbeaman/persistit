@@ -357,6 +357,7 @@ public class MVV {
              */
             return length;
         }
+
         boolean primordial = convertToPrimordial;
         int marked = 0;
         try {
@@ -369,6 +370,7 @@ public class MVV {
              */
             int lastVersionIndex = -1;
             long lastVersionHandle = Long.MIN_VALUE;
+            long lastVersionTc = UNCOMMITTED;
             long uncommittedTransactionTs = 0;
             /*
              * First pass - mark all the versions to keep. Keep every
@@ -401,13 +403,14 @@ public class MVV {
                         primordial = false;
                     } else {
                         if (lastVersionIndex != -1
-                                && ti.hasConcurrentTransaction(vh2ts(lastVersionHandle), vh2ts(versionHandle))) {
+                                && ti.hasConcurrentTransaction(lastVersionTc, tc)) {
                             mark(bytes, lastVersionIndex);
                             marked++;
                             primordial = false;
                         }
                         lastVersionIndex = from;
                         lastVersionHandle = versionHandle;
+                        lastVersionTc = tc;
                     }
                 } else if (tc == ABORTED) {
                     ti.decrementMvvCount(versionHandle);
@@ -420,7 +423,7 @@ public class MVV {
             if (lastVersionIndex != -1) {
                 mark(bytes, lastVersionIndex);
                 marked++;
-                if (ti.hasConcurrentTransaction(0, vh2ts(lastVersionHandle))) {
+                if (ti.hasConcurrentTransaction(0, lastVersionTc)) {
                     primordial = false;
                 }
             }

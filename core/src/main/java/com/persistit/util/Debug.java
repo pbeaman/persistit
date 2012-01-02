@@ -134,16 +134,18 @@ public class Debug {
      * @return <i>true</i>
      */
     public static boolean suspend() {
-        // Never suspend the AWT thread when. The AWT thread is now
-        // a daemon thread when running the diagnostic GUI utility.
-        //
-        long time = -1;
-        while (isSuspended() && !Thread.currentThread().isDaemon()) {
-            if (time < 0)
-                time = elapsedTime();
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ie) {
+        if (ENABLED) {
+            // Never suspend the AWT thread when. The AWT thread is now
+            // a daemon thread when running the diagnostic GUI utility.
+            //
+            long time = -1;
+            while (isSuspended() && !Thread.currentThread().isDaemon()) {
+                if (time < 0)
+                    time = elapsedTime();
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                }
             }
         }
         return true;
