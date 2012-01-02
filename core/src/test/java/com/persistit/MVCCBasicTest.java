@@ -646,4 +646,64 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.end();
         }
     }
+
+    public void testKeysVisitedDuringTraverse() throws PersistitException {
+        final int TOTAL_DEPTH_1 = 10;
+        final int TOTAL_DEPTH_2 = 5;
+
+        trx1.begin();
+        try {
+            int curKey = 0;
+            for(int d1 = 0; d1 < TOTAL_DEPTH_1; ++d1) {
+                String s = String.valueOf((char)('a' + d1));
+                ex1.clear().append(s);
+                ex1.getValue().clear().put(s.toUpperCase());
+                ex1.store();
+                for(int d2 = 1; d2 <= TOTAL_DEPTH_2; ++d2) {
+                    ex1.setDepth(1);
+                    ex1.append(d2);
+                    ex1.getValue().clear().put(++curKey);
+                    ex1.store();
+                }
+            }
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+
+        trx1.begin();
+        try {
+            ex1.clear().append("a");
+            assertEquals("'a' hasChildren", true, ex1.hasChildren());
+            assertEquals("keys traversed for 'a' hasChildren", 1, ex1.getKeysVisitedDuringTraverse());
+
+            ex1.clear().append("a").append(TOTAL_DEPTH_2);
+            assertEquals("'a,1' hasChildren", false, ex1.hasChildren());
+            assertEquals("keys traversed for 'a' hasChildren", 1, ex1.getKeysVisitedDuringTraverse());
+
+            // Remove everything between A and J
+            final Key removeBegin = new Key(_persistit);
+            removeBegin.append("a").nudgeDeeper();
+            final Key removeEnd = new Key(_persistit);
+            removeEnd.append("j");
+
+            ex1.removeKeyRange(removeBegin, removeEnd);
+
+            // Can stop when we hit first sibling (depth < traverse minDepth)
+            ex1.clear().append("a");
+            assertEquals("'a' hasChildren after remove", false, ex1.hasChildren());
+            assertEquals("keys traversed for 'a' hasChildren post-remove", TOTAL_DEPTH_2, ex1.getKeysVisitedDuringTraverse());
+
+            // Should be able to stop when first (depth < traverse minDepth)
+            ex1.clear().append("a").append(TOTAL_DEPTH_2);
+            assertEquals("'a,1' hasChildren after remove", false, ex1.hasChildren());
+            assertEquals("keys traversed for 'a' hasChildren post-remove", 1, ex1.getKeysVisitedDuringTraverse());
+
+            trx1.commit();
+        }
+        finally {
+            trx1.end();
+        }
+    }
 }
