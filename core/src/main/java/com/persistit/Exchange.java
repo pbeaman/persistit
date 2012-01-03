@@ -271,6 +271,7 @@ public class Exchange {
     private boolean _ignoreTransactions;
     private boolean _ignoreMVCCFetch;
     private boolean _storeCausedSplit;
+    private int _keysVisitedDuringTraverse;
 
     private Object _appCache;
 
@@ -972,6 +973,15 @@ public class Exchange {
      */
     boolean getStoreCausedSplit() {
         return _storeCausedSplit;
+    }
+
+    /**
+     * Internal value that is a counter of the total loops of the inner loop of
+     * {@link #traverse(com.persistit.Key.Direction, boolean, int, int, int)}.
+     * @return {@link #_keysVisitedDuringTraverse}
+     */
+    int getKeysVisitedDuringTraverse() {
+        return _keysVisitedDuringTraverse;
     }
 
     /**
@@ -1920,6 +1930,16 @@ public class Exchange {
      */
     public boolean traverse(final Direction direction, final boolean deep, final int minimumBytes)
             throws PersistitException {
+        return traverse(direction, deep, minimumBytes, 0);
+    }
+
+    /**
+     * See {@link #traverse(com.persistit.Key.Direction, boolean, int)} for full description
+     * @param minKeyDepth
+     *            Inclusive lower bound of the acceptable key depth <i>regardless of MVCC visibility</i>.
+     */
+    private boolean traverse(final Direction direction, final boolean deep, final int minimumBytes, final int minKeyDepth)
+            throws PersistitException {
         _persistit.checkClosed();
 
         final Key spareKey = _spareKey1;
@@ -1956,8 +1976,10 @@ public class Exchange {
 
             int foundAt = 0;
             boolean nudgeForMVCC = false;
+            _keysVisitedDuringTraverse = 0;
 
             for (;;) {
+                ++_keysVisitedDuringTraverse;
                 LevelCache lc = _levelCache[0];
                 boolean matches = false;
                 //
@@ -1979,6 +2001,7 @@ public class Exchange {
                     buffer.releaseTouched();
                     buffer = null;
                 }
+
                 //
                 // If the operations above failed to get the key, then
                 // look it up with search.
@@ -2051,10 +2074,17 @@ public class Exchange {
                     }
                 }
 
+                //
+                // Earliest point we can check for the quick exit. Internal
+                // optimization (ignores visibility) that takes advantage of
+                // physical key traversal for logical key semantics.
+                //
+                final boolean stopDueToKeyDepth = (minKeyDepth != 0) && (_key.getDepth() < minKeyDepth);
+
                 // Original search loop end, MVCC must also inspect value before
                 // finishing
 
-                if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge()) {
+                if (reverse && _key.isLeftEdge() || !reverse && _key.isRightEdge() || stopDueToKeyDepth) {
                     // None
                 } else {
                     if (deep) {
@@ -2220,6 +2250,7 @@ public class Exchange {
             }
         }
 
+        int totalVisited = 0;
         for (;;) {
             if (!keyFilter.next(_key, direction)) {
                 _key.setEncodedSize(0);
@@ -2230,7 +2261,15 @@ public class Exchange {
                 }
                 return false;
             }
-            if (!traverse(direction, true, minBytes)) {
+            final boolean matched;
+            if(keyFilter.getIsKeySubsetFilter()) {
+                matched = traverse(direction, true, minBytes, keyFilter.getMinimumDepth());
+            } else {
+                matched = traverse(direction, true, minBytes);
+            }
+            totalVisited += _keysVisitedDuringTraverse;
+            _keysVisitedDuringTraverse = totalVisited;
+            if (!matched) {
                 return false;
             }
             if (keyFilter.selected(_key)) {
@@ -2690,7 +2729,7 @@ public class Exchange {
     public boolean hasChildren() throws PersistitException {
         _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
-        boolean result = traverse(GT, true, 0);
+        boolean result = traverse(GT, true, 0, _key.getDepth() + 1);
         if (result && _key.getEncodedSize() < size || _spareKey2.compareKeyFragment(_key, 0, size) != 0) {
             result = false;
         }
