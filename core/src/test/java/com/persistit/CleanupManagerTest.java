@@ -14,7 +14,6 @@
  */
 package com.persistit;
 
-import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 
 import com.persistit.CleanupManager.CleanupAction;
