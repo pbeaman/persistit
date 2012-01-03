@@ -29,8 +29,9 @@ public class ClassIndexTest extends PersistitUnitTestCase {
     final Map<Integer, ClassInfo> map = new HashMap<Integer, ClassInfo>();
     
     @Override
-    public void tearDown() {
+    public void tearDown() throws Exception {
         map.clear();
+        super.tearDown();
     }
     
     @Test
