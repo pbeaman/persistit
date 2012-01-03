@@ -90,6 +90,7 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
     @Override
     public void tearDown() throws Exception {
         _volumes = null;
+        _ichecks = null;
         super.tearDown();
     }
 

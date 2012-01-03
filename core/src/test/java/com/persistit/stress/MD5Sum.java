@@ -35,8 +35,6 @@ public class MD5Sum extends AbstractTestRunnerItem {
     int _splay;
     String _opflags;
 
-    Exchange _ex;
-
     private MessageDigest md;
 
     private String progress = "Not started";

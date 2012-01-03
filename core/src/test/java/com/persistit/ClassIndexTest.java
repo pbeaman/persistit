@@ -25,8 +25,14 @@ import com.persistit.unit.PersistitUnitTestCase;
 public class ClassIndexTest extends PersistitUnitTestCase {
 
     private int _maxHandle = 0;
+    
     final Map<Integer, ClassInfo> map = new HashMap<Integer, ClassInfo>();
-
+    
+    @Override
+    public void tearDown() {
+        map.clear();
+    }
+    
     @Test
     public void testOneClassInfo() throws Exception {
         final ClassIndex cx = _persistit.getClassIndex();

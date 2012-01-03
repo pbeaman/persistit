@@ -41,15 +41,15 @@ public abstract class PersistitUnitTestCase extends TestCase {
 
     @Override
     public void tearDown() throws Exception {
-        _persistit.close(false);
         final WeakReference<Persistit> ref = new WeakReference<Persistit>(_persistit);
+        _persistit.close(false);
         _persistit = null;
-        for (int count = 0; count < 10 && ref.get() != null; count++) {
+        for (int count = 0; count < 100 && ref.get() != null; count++) {
             System.gc();
             Thread.sleep(100);
         }
         if (ref.get() != null) {
-            System.out.println("Persistit has a leftover strong referenced");
+            System.out.println("Persistit has a leftover strong reference");
         }
     }
 
