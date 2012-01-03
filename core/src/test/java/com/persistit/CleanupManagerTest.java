@@ -14,6 +14,9 @@
  */
 package com.persistit;
 
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
+
 import com.persistit.CleanupManager.CleanupAction;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -22,22 +25,22 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
 
     volatile int _counter = 0;
     volatile int _last = 0;
-    
+
     private CleanupManager cm() {
         return _persistit.getCleanupManager();
     }
-    
+
     private class CleanupMockAction implements CleanupAction {
         final int _sequence;
-        
+
         CleanupMockAction(int sequence) {
             _sequence = sequence;
         }
-        
+
         @Override
         public int compareTo(CleanupAction action) {
-            return _sequence - ((CleanupMockAction)action)._sequence;
-            
+            return _sequence - ((CleanupMockAction) action)._sequence;
+
         }
 
         @Override
@@ -49,22 +52,20 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
                 throw new ExpectedException();
             }
         }
-        
+
         @Override
         public String toString() {
             return "CleanupMockAction(" + _sequence + ")";
         }
-        
+
     }
 
     private static class ExpectedException extends PersistitException {
 
         private static final long serialVersionUID = 1L;
-        
+
     }
-    
-  
-    
+
     public void testCleanupHappens() throws Exception {
         for (int i = 1; i <= 500; i++) {
             cm().offer(new CleanupMockAction(i));
@@ -77,18 +78,28 @@ public class CleanupManagerTest extends PersistitUnitTestCase {
         assertEquals(1, cm().getErrorCount());
         assertEquals(499, cm().getPerformedCount());
     }
-    
+
     public void testOverflow() throws Exception {
         for (int i = 1; i <= CleanupManager.DEFAULT_QUEUE_SIZE * 2; i++) {
             cm().offer(new CleanupMockAction(i));
         }
-        
+
         assertTrue(cm().getAcceptedCount() > 0);
-        assertTrue(cm().getRefusedCount()> 0);
+        assertTrue(cm().getRefusedCount() > 0);
         final String s = cm().toString();
         assertTrue(s.contains("CleanupMockAction("));
         cm().clear();
         assertEquals(0, cm().getEnqueuedCount());
-        
+    }
+
+    public void testMemoryReleasedOnCrash() throws Exception {
+        final WeakReference<Persistit> ref = new WeakReference<Persistit>(_persistit);
+        CleanupManager cm = cm();
+        cm.offer(new CleanupMockAction(1));
+        _persistit.crash();
+        _persistit = new Persistit();
+        cm = null;
+        System.gc();
+        assertNull(ref.get());
     }
 }

@@ -580,7 +580,6 @@ public class Persistit {
                 _logBase.allocateBuffers.log(byCount, bufferSize);
                 BufferPool pool = new BufferPool(byCount, bufferSize, this);
                 _bufferPoolTable.put(new Integer(bufferSize), pool);
-                registerBufferPoolMXBean(bufferSize);
             }
             bufferSize <<= 1;
         }
@@ -697,6 +696,11 @@ public class Persistit {
             registerMBean(_transactionIndex, TransactionIndexMXBean.MXBEAN_NAME);
             registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
             registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
+            for (int size = Buffer.MIN_BUFFER_SIZE; size <= Buffer.MAX_BUFFER_SIZE; size *= 2) {
+                if (_bufferPoolTable.get(size) != null) {
+                    registerBufferPoolMXBean(size);
+                }
+            }
         } catch (Exception exception) {
             _logBase.mbeanException.log(exception);
         }
@@ -726,6 +730,12 @@ public class Persistit {
             unregisterMBean(CleanupManagerMXBean.MXBEAN_NAME);
             unregisterMBean(IOMeterMXBean.MXBEAN_NAME);
             unregisterMBean(ManagementMXBean.MXBEAN_NAME);
+            for (int size = Buffer.MIN_BUFFER_SIZE; size <= Buffer.MAX_BUFFER_SIZE; size *= 2) {
+                if (_bufferPoolTable.get(size) != null) {
+                    unregisterBufferPoolMXBean(size);
+                }
+            }
+
         } catch (InstanceNotFoundException exception) {
             // ignore
         } catch (Exception exception) {
@@ -1754,8 +1764,8 @@ public class Persistit {
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
-            unregisterBufferPoolMXBean(pool.getBufferSize());
         }
+ 
         _journalManager.close();
         _transactionIndex.close();
 
@@ -1821,6 +1831,7 @@ public class Persistit {
         _volumes.clear();
         _bufferPoolTable.clear();
         _exchangePoolMap.clear();
+        _cleanupManager.clear();
         Set<Transaction> transactions;
         synchronized (_transactionSessionMap) {
             transactions = new HashSet<Transaction>(_transactionSessionMap.values());
@@ -1834,8 +1845,8 @@ public class Persistit {
             }
         }
 
+        unregisterMXBeans();
         if (_management != null) {
-            unregisterMXBeans();
             _management.unregister();
             _management = null;
         }
@@ -2008,7 +2019,7 @@ public class Persistit {
         }
     }
 
-/**
+    /**
      * Copy the {@link Transaction} context objects belonging to threads that
      * are currently alive to the supplied List. This method is used by
      * JOURNAL_FLUSHER to look for transactions that need to be written to the
