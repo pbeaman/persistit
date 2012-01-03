@@ -94,7 +94,7 @@ public class TestResult {
     @Override
     public String toString() {
         if (_passed) {
-            return "PASSED";
+            return "PASSED: " + _message;
         } else {
             if (_results != null) {
                 return "Multithreaded test FAILED";

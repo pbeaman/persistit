@@ -20,7 +20,7 @@ logpath $logpath$/result_$timestamp$.log
 prop buffer.memory.16384=64M,1T,256M,0.7
 prop volume.1=$datapath$/persistit,create,pageSize:16384,initialSize:100M,extensionSize:100M,maximumSize:100G,alias:persistit
 prop journalpath=$datapath$/persistit_journal
-prop logfile=$logpath$/persistit_$timestamp$.log
+prop logfile=$datapath$/persistit_$timestamp$.log
 prop rmiport=8081
 prop appendonly=true
 

@@ -580,6 +580,7 @@ public class Persistit {
                 _logBase.allocateBuffers.log(byCount, bufferSize);
                 BufferPool pool = new BufferPool(byCount, bufferSize, this);
                 _bufferPoolTable.put(new Integer(bufferSize), pool);
+                registerBufferPoolMXBean(bufferSize);
             }
             bufferSize <<= 1;
         }
@@ -696,11 +697,6 @@ public class Persistit {
             registerMBean(_transactionIndex, TransactionIndexMXBean.MXBEAN_NAME);
             registerMBean(_journalManager, JournalManagerMXBean.MXBEAN_NAME);
             registerMBean(_recoveryManager, RecoveryManagerMXBean.MXBEAN_NAME);
-            for (int size = Buffer.MIN_BUFFER_SIZE; size <= Buffer.MAX_BUFFER_SIZE; size *= 2) {
-                if (_bufferPoolTable.get(size) != null) {
-                    registerBufferPoolMXBean(size);
-                }
-            }
         } catch (Exception exception) {
             _logBase.mbeanException.log(exception);
         }
