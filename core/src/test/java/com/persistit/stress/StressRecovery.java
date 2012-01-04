@@ -152,7 +152,7 @@ public class StressRecovery extends StressBase {
         } catch (final Exception ex) {
             handleThrowable(ex);
         }
-//        registry.add(new SimpleTransactionType());
+        // registry.add(new SimpleTransactionType());
         registry.add(new IndexSimulationTransactionType());
     }
 
@@ -237,14 +237,16 @@ public class StressRecovery extends StressBase {
 
         if (faults > 0) {
             if (last - firstFault < _maxLatency) {
-                String msg = String.format(
-               "There were %,d faults. Last one occurred %,dms before crash - \n"
-                        + "acceptable because acceptable latency setting is %,dms.", faults,
-                        (last - firstFault) / 1000000l, _maxLatency / 1000000l);
+                String msg = String.format("There were %,d faults. Last one occurred %,dms before crash: "
+                        + "PASS because acceptable latency setting is %,dms.", faults, (last - firstFault) / 1000000l,
+                        _maxLatency / 1000000l);
                 println(msg);
                 _result = new TestResult(true, msg);
             } else {
-                _result = new TestResult(false, "Verification encountered " + faults + " faults");
+                _result = new TestResult(false, String.format(
+                        "There were %,d faults. Last one occurred %,dms before crash: "
+                                + "FAIL because acceptable latency setting is %,dms.", faults,
+                        (last - firstFault) / 1000000l, _maxLatency / 1000000l));
             }
         }
     }
