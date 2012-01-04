@@ -1,6 +1,28 @@
 #!/bin/bash
+#
+# Copyright (C) 2011 Akiban Technologies Inc.
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License, version 3,
+# as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see http://www.gnu.org/licenses.
+#
+#-----------------------------
+# This is a working template for a simple script to perform crash
+# recovery testing in Persistit.  This script should be run from the
+# root directory of the Persistit project. As configured, this
+# script runs the recovery_1.plan stress test for 60 seconds, 
+# kills the JVM and then runs the recovery_2.plan to verify
+# consistency.
+#-----------------------------
 
-sleep_time=10
+sleep_time=60
 datapath="/tmp/persistit_test_data"
 scriptpath="core/src/test/resources/tscripts"
 jvm_options="-Xmx2G -Xrunjdwp:transport=dt_socket,address=8000,suspend=n,server=y"
