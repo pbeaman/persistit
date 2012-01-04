@@ -1,4 +1,4 @@
-logpath $logpath$/result_$timestamp$.log
+logpath $datapath$/result_$timestamp$.log
 
 
 // Runs the StressRecovery test to perform transactions

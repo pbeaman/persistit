@@ -1825,9 +1825,9 @@ public class Persistit {
     private void releaseAllResources() {
         _accumulators.clear();
         _volumes.clear();
-        _bufferPoolTable.clear();
         _exchangePoolMap.clear();
         _cleanupManager.clear();
+        
         Set<Transaction> transactions;
         synchronized (_transactionSessionMap) {
             transactions = new HashSet<Transaction>(_transactionSessionMap.values());
@@ -1842,10 +1842,14 @@ public class Persistit {
         }
 
         unregisterMXBeans();
+        _bufferPoolTable.clear();
+
         if (_management != null) {
             _management.unregister();
             _management = null;
         }
+ 
+        
         try {
             _logBase.end.log(System.currentTimeMillis());
             _logger.close();

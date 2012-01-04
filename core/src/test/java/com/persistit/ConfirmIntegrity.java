@@ -70,7 +70,7 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
 
     @Override
     public void setUp() throws Exception {
-        super.setUp();
+        super.setUp(false);
         if (_args.length == 0) {
             _args = new String[] { "persistit" };
         }
@@ -132,8 +132,7 @@ public class ConfirmIntegrity extends AbstractTestRunnerItem {
             _result = new TestResult(false, ex);
             println(ex.toString());
         }
-        println();
-        print("done");
+        println("done");
     }
 
     @Override
