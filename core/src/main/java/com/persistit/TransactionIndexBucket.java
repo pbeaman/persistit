@@ -524,6 +524,7 @@ public class TransactionIndexBucket {
             if (committed) {
                 delta.getAccumulator().aggregate(_hashIndex, delta);
                 delta.getAccumulator().checkpointNeeded();
+                delta.setAccumulator(null);
             }
         }
     }
