@@ -748,6 +748,11 @@ public class MVCCBasicTest extends MVCCTestBase {
             assertEquals("'10,10' hasChildren", false, ex1.hasChildren());
             assertEquals("keys traversed for '10,10' hasChildren", 1, ex1.getKeysVisitedDuringTraverse());
 
+            ex1.clear().append(10);
+            final KeyFilter filter1 = new KeyFilter(ex1.getKey(), ex1.getKey().getDepth() + 1, Integer.MAX_VALUE);
+            assertEquals("traverse w/filter found key", true, ex1.traverse(Key.GT, filter1, Integer.MAX_VALUE));
+            assertEquals("keys traversed w/filter", 1, ex1.getKeysVisitedDuringTraverse());
+
             // Remove everything between 10,10 and 40,40
             final Key removeBegin = new Key(_persistit);
             removeBegin.append(10).append(10);
@@ -763,6 +768,11 @@ public class MVCCBasicTest extends MVCCTestBase {
             ex1.clear().append(10).append(10);
             assertEquals("'10,10' hasChildren", false, ex1.hasChildren());
             assertEquals("keys traversed for '10,10' hasChildren post-remove", 1, ex1.getKeysVisitedDuringTraverse());
+
+            ex1.clear().append(10);
+            final KeyFilter filter2 = new KeyFilter(ex1.getKey(), ex1.getKey().getDepth() + 1, Integer.MAX_VALUE);
+            assertEquals("traverse filter found key post-remove", false, ex1.traverse(Key.GT, filter2, Integer.MAX_VALUE));
+            assertEquals("keys traversed w/filter post-remove", 2, ex1.getKeysVisitedDuringTraverse());
 
             trx1.commit();
         } finally {
