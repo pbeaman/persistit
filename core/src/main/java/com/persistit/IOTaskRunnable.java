@@ -104,7 +104,10 @@ abstract class IOTaskRunnable implements Runnable {
     // Use only for tests.
     protected void crash() {
         final Thread thread = _thread;
-        if (thread != null && thread.isAlive()) {
+        for (int count = 0;  (thread != null && thread.isAlive()); count++) {
+            if (count > 0) {
+                _persistit.getLogBase().crashRetry.log(count, _thread.getName());
+            }
             thread.stop();
             try {
                 thread.join(THREAD_DEATH_WAIT_INTERVAL);

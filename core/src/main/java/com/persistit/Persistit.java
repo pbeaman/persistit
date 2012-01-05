@@ -726,6 +726,12 @@ public class Persistit {
             unregisterMBean(CleanupManagerMXBean.MXBEAN_NAME);
             unregisterMBean(IOMeterMXBean.MXBEAN_NAME);
             unregisterMBean(ManagementMXBean.MXBEAN_NAME);
+            for (int size = Buffer.MIN_BUFFER_SIZE; size <= Buffer.MAX_BUFFER_SIZE; size *= 2) {
+                if (_bufferPoolTable.get(size) != null) {
+                    unregisterBufferPoolMXBean(size);
+                }
+            }
+
         } catch (InstanceNotFoundException exception) {
             // ignore
         } catch (Exception exception) {
@@ -1754,8 +1760,8 @@ public class Persistit {
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
-            unregisterBufferPoolMXBean(pool.getBufferSize());
         }
+ 
         _journalManager.close();
         _transactionIndex.close();
 
@@ -1819,8 +1825,9 @@ public class Persistit {
     private void releaseAllResources() {
         _accumulators.clear();
         _volumes.clear();
-        _bufferPoolTable.clear();
         _exchangePoolMap.clear();
+        _cleanupManager.clear();
+        
         Set<Transaction> transactions;
         synchronized (_transactionSessionMap) {
             transactions = new HashSet<Transaction>(_transactionSessionMap.values());
@@ -1834,11 +1841,15 @@ public class Persistit {
             }
         }
 
+        unregisterMXBeans();
+        _bufferPoolTable.clear();
+
         if (_management != null) {
-            unregisterMXBeans();
             _management.unregister();
             _management = null;
         }
+ 
+        
         try {
             _logBase.end.log(System.currentTimeMillis());
             _logger.close();
@@ -2008,7 +2019,7 @@ public class Persistit {
         }
     }
 
-/**
+    /**
      * Copy the {@link Transaction} context objects belonging to threads that
      * are currently alive to the supplied List. This method is used by
      * JOURNAL_FLUSHER to look for transactions that need to be written to the

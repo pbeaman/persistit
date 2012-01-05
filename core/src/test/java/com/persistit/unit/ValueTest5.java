@@ -59,6 +59,7 @@ public class ValueTest5 extends PersistitUnitTestCase {
     @Override
     public void tearDown() throws Exception {
         _persistit.releaseExchange(_exchange);
+        _exchange = null;
         super.tearDown();
     }
 

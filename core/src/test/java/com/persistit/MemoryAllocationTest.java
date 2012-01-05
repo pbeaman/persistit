@@ -60,6 +60,7 @@ public class MemoryAllocationTest extends TestCase {
         final MemoryUsage mu = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
         long used = mu.getUsed();
         System.out.printf("Initially available=%,d Used=%,d", available, used);
+        persistit.close();
     }
 
 }

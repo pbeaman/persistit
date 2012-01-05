@@ -44,6 +44,7 @@ public class TemporaryVolumeTest1 extends PersistitUnitTestCase {
     @Override
     public void tearDown() throws Exception {
         _volume.close();
+        _volume = null;
         super.tearDown();
     }
 

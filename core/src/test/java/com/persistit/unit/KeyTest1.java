@@ -29,8 +29,6 @@ import com.persistit.util.Util;
 
 public class KeyTest1 extends PersistitUnitTestCase {
 
-    private final Key _key1 = new Key(_persistit);
-    private final Key _key2 = new Key(_persistit);
     private long lv1;
     private long lv2;
     private float fv1;
@@ -59,21 +57,24 @@ public class KeyTest1 extends PersistitUnitTestCase {
         System.out.print("test1 ");
         for (int index = 0; index < TEST_LONGS.length; index++) {
             lv1 = TEST_LONGS[index];
-            _key1.clear();
+            final Key key1 = new Key(_persistit);
+            final Key key2 = new Key(_persistit);
 
-            _key1.append(lv1);
-            _key1.indexTo(0);
-            lv2 = _key1.decodeLong();
+            key1.clear();
 
-            debugAssert(lv1 == lv2);
+            key1.append(lv1);
+            key1.indexTo(0);
+            lv2 = key1.decodeLong();
+
+            assertEquals(lv1, lv2);
 
             lv1 = -lv1;
 
-            _key1.to(lv1);
-            _key1.reset();
-            lv2 = _key1.decodeLong();
+            key1.to(lv1);
+            key1.reset();
+            lv2 = key1.decodeLong();
 
-            debugAssert(lv1 == lv2);
+            assertEquals(lv1, lv2);
 
             Assert.assertNull(t1a(lv1));
             Assert.assertNull(t1a(-lv1));
@@ -82,44 +83,45 @@ public class KeyTest1 extends PersistitUnitTestCase {
     }
 
     private String t1a(final long lv) {
+        final Key key1 = new Key(_persistit);
 
-        _key1.clear().append((byte) lv);
-        if (_key1.indexTo(0).decodeByte() != (byte) lv) {
+        key1.clear().append((byte) lv);
+        if (key1.indexTo(0).decodeByte() != (byte) lv) {
             return "byte " + (byte) lv;
         }
-        if (!(new Byte((byte) lv)).equals(_key1.indexTo(0).decode())) {
+        if (!(new Byte((byte) lv)).equals(key1.indexTo(0).decode())) {
             return "Byte " + (byte) lv;
         }
 
-        _key1.clear().append((short) lv);
-        if (_key1.indexTo(0).decodeShort() != (short) lv) {
+        key1.clear().append((short) lv);
+        if (key1.indexTo(0).decodeShort() != (short) lv) {
             return "short " + (short) lv;
         }
-        if (!(new Short((short) lv)).equals(_key1.indexTo(0).decode())) {
+        if (!(new Short((short) lv)).equals(key1.indexTo(0).decode())) {
             return "Short " + (short) lv;
         }
 
-        _key1.clear().append((char) lv);
-        if (_key1.indexTo(0).decodeChar() != (char) lv) {
+        key1.clear().append((char) lv);
+        if (key1.indexTo(0).decodeChar() != (char) lv) {
             return "char " + (char) lv;
         }
-        if (!(new Character((char) lv)).equals(_key1.indexTo(0).decode())) {
+        if (!(new Character((char) lv)).equals(key1.indexTo(0).decode())) {
             return "Character " + (char) lv;
         }
 
-        _key1.clear().append((int) lv);
-        if (_key1.indexTo(0).decodeInt() != (int) lv) {
+        key1.clear().append((int) lv);
+        if (key1.indexTo(0).decodeInt() != (int) lv) {
             return "int " + (int) lv;
         }
-        if (!(new Integer((int) lv)).equals(_key1.indexTo(0).decode())) {
+        if (!(new Integer((int) lv)).equals(key1.indexTo(0).decode())) {
             return "Integer " + (int) lv;
         }
 
-        _key1.clear().append(lv);
-        if (_key1.indexTo(0).decodeLong() != lv) {
+        key1.clear().append(lv);
+        if (key1.indexTo(0).decodeLong() != lv) {
             return "long " + lv;
         }
-        if (!(new Long(lv)).equals(_key1.indexTo(0).decode())) {
+        if (!(new Long(lv)).equals(key1.indexTo(0).decode())) {
             return "Long " + lv;
         }
 
@@ -129,6 +131,9 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     @Test
     public void test2() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+
         System.out.print("test2 ");
         for (int i1 = 0; i1 < TEST_LONGS.length; i1++) {
             for (int i2 = 0; i2 < TEST_LONGS.length; i2++) {
@@ -141,16 +146,16 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     if ((s & 2) != 0) {
                         lv2 = -lv2;
                     }
-                    _key1.clear();
-                    _key1.append(lv1);
-                    _key2.clear();
-                    _key2.append(lv2);
-                    final int compare = _key1.compareTo(_key2);
+                    key1.clear();
+                    key1.append(lv1);
+                    key2.clear();
+                    key2.append(lv2);
+                    final int compare = key1.compareTo(key2);
 
                     final boolean result = ((compare == 0) && (lv1 == lv2)) || ((compare > 0) && (lv1 > lv2))
                             || ((compare < 0) && (lv1 < lv2));
 
-                    debugAssert(result);
+                    assertTrue(result);
                 }
             }
         }
@@ -159,30 +164,36 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     @Test
     public void test3() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+
         System.out.print("test3 ");
         for (int index = 0; index < TEST_FLOATS.length; index++) {
             fv1 = TEST_FLOATS[index];
-            _key1.clear();
+            key1.clear();
 
-            _key1.append(fv1);
-            _key1.indexTo(0);
-            fv2 = _key1.decodeFloat();
+            key1.append(fv1);
+            key1.indexTo(0);
+            fv2 = key1.decodeFloat();
 
-            debugAssertFloat(floatEquals(fv1, fv2));
+            assertTrue(floatEquals(fv1, fv2));
 
             fv1 = -fv1;
 
-            _key1.to(fv1);
-            _key1.indexTo(0);
-            fv2 = _key1.decodeFloat();
+            key1.to(fv1);
+            key1.indexTo(0);
+            fv2 = key1.decodeFloat();
 
-            debugAssertFloat(floatEquals(fv1, fv2));
+            assertTrue(floatEquals(fv1, fv2));
         }
         System.out.println("- done");
     }
 
     @Test
     public void test4() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+
         System.out.print("test4 ");
         for (int i1 = 0; i1 < TEST_FLOATS.length; i1++) {
             for (int i2 = 0; i2 < TEST_FLOATS.length; i2++) {
@@ -195,11 +206,11 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     if ((s & 2) != 0) {
                         fv2 = -fv2;
                     }
-                    _key1.clear();
-                    _key1.append(fv1);
-                    _key2.clear();
-                    _key2.append(fv2);
-                    final int compare = _key1.compareTo(_key2);
+                    key1.clear();
+                    key1.append(fv1);
+                    key2.clear();
+                    key2.append(fv2);
+                    final int compare = key1.compareTo(key2);
 
                     // Can't use static Float.compare on JDK 1.3.1
                     final Float f1 = new Float(fv1);
@@ -208,7 +219,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     final boolean result = ((compare == 0) && (f1.compareTo(f2) == 0))
                             || ((compare > 0) && (f1.compareTo(f2) > 0)) || ((compare < 0) && (f1.compareTo(f2) < 0));
 
-                    debugAssertFloat(result);
+                    assertTrue(result);
                 }
             }
         }
@@ -227,30 +238,36 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     @Test
     public void test5() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+
         System.out.print("test5 ");
         for (int index = 0; index < TEST_DOUBLES.length; index++) {
             dv1 = TEST_DOUBLES[index];
-            _key1.clear();
+            key1.clear();
 
-            _key1.append(dv1);
-            _key1.reset();
-            dv2 = _key1.decodeDouble();
+            key1.append(dv1);
+            key1.reset();
+            dv2 = key1.decodeDouble();
 
-            debugAssertDouble(doubleEquals(dv1, dv2));
+            assertTrue(doubleEquals(dv1, dv2));
 
             dv1 = -dv1;
 
-            _key1.to(dv1);
-            _key1.reset();
-            dv2 = _key1.decodeDouble();
+            key1.to(dv1);
+            key1.reset();
+            dv2 = key1.decodeDouble();
 
-            debugAssertDouble(doubleEquals(dv1, dv2));
+            assertTrue(doubleEquals(dv1, dv2));
         }
         System.out.println("- done");
     }
 
     @Test
     public void test6() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+
         System.out.print("test6 ");
         for (int i1 = 0; i1 < TEST_DOUBLES.length; i1++) {
             for (int i2 = 0; i2 < TEST_DOUBLES.length; i2++) {
@@ -263,11 +280,11 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     if ((s & 2) != 0) {
                         dv2 = -dv2;
                     }
-                    _key1.clear();
-                    _key1.append(dv1);
-                    _key2.clear();
-                    _key2.append(dv2);
-                    final int compare = _key1.compareTo(_key2);
+                    key1.clear();
+                    key1.append(dv1);
+                    key2.clear();
+                    key2.append(dv2);
+                    final int compare = key1.compareTo(key2);
 
                     // Can't use static Double.compare on JDK1.3.1
                     final Double d1 = new Double(dv1);
@@ -276,7 +293,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                     final boolean result = ((compare == 0) && (d1.compareTo(d2) == 0))
                             || ((compare > 0) && (d1.compareTo(d2) > 0)) || ((compare < 0) && (d1.compareTo(d2) < 0));
 
-                    debugAssertDouble(result);
+                    assertTrue(result);
                 }
             }
         }
@@ -289,83 +306,86 @@ public class KeyTest1 extends PersistitUnitTestCase {
      */
     @Test
     public void test7() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+
         System.out.print("test7 ");
 
-        _key1.to(Key.BEFORE);
-        _key2.to(null);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to(Key.BEFORE);
+        key2.to(null);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to(null);
-        _key2.to(false);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to(null);
+        key2.to(false);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to(false);
-        _key2.to(true);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to(false);
+        key2.to(true);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to(true);
-        _key2.to((byte) 0);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to(true);
+        key2.to((byte) 0);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to((byte) 0);
-        _key2.to((byte) -1);
-        assertTrue(_key2.compareTo(_key1) < 0);
+        key1.to((byte) 0);
+        key2.to((byte) -1);
+        assertTrue(key2.compareTo(key1) < 0);
 
-        _key1.to((byte) 1);
-        _key2.to((byte) -1);
-        assertTrue(_key2.compareTo(_key1) < 0);
+        key1.to((byte) 1);
+        key2.to((byte) -1);
+        assertTrue(key2.compareTo(key1) < 0);
 
-        _key1.to((byte) 1);
-        _key2.clear().append(new Byte((byte) 1));
-        assertTrue(_key2.compareTo(_key1) == 0);
+        key1.to((byte) 1);
+        key2.clear().append(new Byte((byte) 1));
+        assertTrue(key2.compareTo(key1) == 0);
 
-        _key1.to(new Byte((byte) 1));
-        _key2.to((short) 1);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to(new Byte((byte) 1));
+        key2.to((short) 1);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to((short) 1);
-        _key2.to((char) 1);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to((short) 1);
+        key2.to((char) 1);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to((char) 1);
-        _key2.to(1);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to((char) 1);
+        key2.to(1);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to((int) 1);
-        _key2.to((long) 1);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to((int) 1);
+        key2.to((long) 1);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to((long) 1);
-        _key2.to((float) 1.0);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to((long) 1);
+        key2.to((float) 1.0);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to((float) 1.0);
-        _key2.to((double) 1.0);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to((float) 1.0);
+        key2.to((double) 1.0);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to((double) 1.0);
-        _key2.to(new byte[10]);
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to((double) 1.0);
+        key2.to(new byte[10]);
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to(new byte[10]);
-        _key2.to(new byte[] { -1, -1 });
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to(new byte[10]);
+        key2.to(new byte[] { -1, -1 });
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to(new byte[] { -1, -1 });
-        _key2.to("x");
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to(new byte[] { -1, -1 });
+        key2.to("x");
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to("x");
-        _key2.to("y");
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to("x");
+        key2.to("y");
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to("y");
-        _key2.to("\u0199y");
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to("y");
+        key2.to("\u0199y");
+        assertTrue(key2.compareTo(key1) > 0);
 
-        _key1.to("\u0199y");
-        _key2.to("\u0200y");
-        assertTrue(_key2.compareTo(_key1) > 0);
+        key1.to("\u0199y");
+        key2.to("\u0200y");
+        assertTrue(key2.compareTo(key1) > 0);
 
         System.out.println("- done");
     }
@@ -377,6 +397,9 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     @Test
     public void test8() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+
         System.out.print("test8 ");
         final int start = Integer.MIN_VALUE;
         final int end = Integer.MAX_VALUE - INCREMENT;
@@ -384,8 +407,8 @@ public class KeyTest1 extends PersistitUnitTestCase {
             if ((u % 100000000) == 0) {
                 System.out.print(" " + u);
             }
-            _key1.clear().append(u);
-            final int v = _key1.reset().decodeInt();
+            key1.clear().append(u);
+            final int v = key1.reset().decodeInt();
             if (u != v) {
                 assertEquals(u, v);
             }
@@ -396,6 +419,9 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     @Test
     public void test9() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+
         System.out.print("test9 ");
 
         final int start = 0;
@@ -412,8 +438,8 @@ public class KeyTest1 extends PersistitUnitTestCase {
                 System.out.println("at u=" + u + " k=" + k);
                 break;
             }
-            _key1.to(k);
-            int v = _key1.reset().decodeInt();
+            key1.to(k);
+            int v = key1.reset().decodeInt();
             if (k != -v) {
                 assertEquals(k, v);
             }
@@ -424,27 +450,30 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     @Test
     public void test10() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+
         System.out.print("test10 ");
 
         for (int index = 0; index < TEST_LONGS.length; index++) {
             lv1 = TEST_LONGS[index];
-            _key1.clear();
+            key1.clear();
 
             BigInteger biv1 = BigInteger.valueOf(lv1);
 
-            _key1.append(biv1);
-            _key1.indexTo(0);
+            key1.append(biv1);
+            key1.indexTo(0);
 
-            BigInteger biv2 = _key1.decodeBigInteger();
+            BigInteger biv2 = key1.decodeBigInteger();
 
             assertEquals(biv1, biv2);
 
             lv1 = -lv1;
             biv1 = BigInteger.valueOf(lv1);
 
-            _key1.to(biv1);
-            _key1.indexTo(0);
-            biv2 = _key1.decodeBigInteger();
+            key1.to(biv1);
+            key1.indexTo(0);
+            biv2 = key1.decodeBigInteger();
 
             assertEquals(biv1, biv2);
 
@@ -457,6 +486,9 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     @Test
     public void test11() {
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+
         System.out.print("test11 ");
         for (int i1 = 0; i1 < TEST_LONGS.length; i1++) {
             for (int i2 = 0; i2 < TEST_LONGS.length; i2++) {
@@ -472,16 +504,16 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
                     final BigInteger biv1 = BigInteger.valueOf(lv1);
                     final BigInteger biv2 = BigInteger.valueOf(lv2);
-                    _key1.clear();
-                    _key1.append(biv1);
-                    _key2.clear();
-                    _key2.append(biv2);
-                    final int compare = _key1.compareTo(_key2);
+                    key1.clear();
+                    key1.append(biv1);
+                    key2.clear();
+                    key2.append(biv2);
+                    final int compare = key1.compareTo(key2);
 
                     final boolean result = ((compare == 0) && (lv1 == lv2)) || ((compare > 0) && (lv1 > lv2))
                             || ((compare < 0) && (lv1 < lv2));
 
-                    debugAssert(result);
+                    assertTrue(result);
                 }
             }
         }
@@ -501,7 +533,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
             final BigInteger bi1 = new BigInteger(sb.toString());
             key.clear().append(bi1);
             final BigInteger bi2 = (BigInteger) key.reset().decode();
-            debugAssert(bi2.compareTo(bi1) == 0);
+            assertTrue(bi2.compareTo(bi1) == 0);
         }
 
         sb.setLength(0);
@@ -511,7 +543,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
             final BigInteger bi1 = new BigInteger(sb.toString());
             key.clear().append(bi1);
             final BigInteger bi2 = (BigInteger) key.reset().decode();
-            debugAssert(bi2.compareTo(bi1) == 0);
+            assertTrue(bi2.compareTo(bi1) == 0);
         }
         System.out.println("- done");
     }
@@ -528,7 +560,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
             final BigDecimal bi1 = new BigDecimal(sb.toString());
             key.clear().append(bi1);
             final BigDecimal bi2 = (BigDecimal) key.reset().decode();
-            debugAssert(bi2.compareTo(bi1) == 0);
+            assertTrue(bi2.compareTo(bi1) == 0);
         }
 
         for (int a = 0; a < 50; a++) {
@@ -546,7 +578,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                 final BigDecimal bi1 = new BigDecimal(sb.toString());
                 key.clear().append(bi1);
                 final BigDecimal bi2 = (BigDecimal) key.reset().decode();
-                debugAssert(bi2.compareTo(bi1) == 0);
+                assertTrue(bi2.compareTo(bi1) == 0);
             }
         }
 
@@ -565,7 +597,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                 final BigDecimal bi1 = new BigDecimal(sb.toString());
                 key.clear().append(bi1);
                 final BigDecimal bi2 = (BigDecimal) key.reset().decode();
-                debugAssert(bi2.compareTo(bi1) == 0);
+                assertTrue(bi2.compareTo(bi1) == 0);
             }
         }
 
@@ -584,7 +616,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
                 final BigDecimal bi1 = new BigDecimal(sb.toString());
                 key.clear().append(bi1);
                 final BigDecimal bi2 = (BigDecimal) key.reset().decode();
-                debugAssert(bi2.compareTo(bi1) == 0);
+                assertTrue(bi2.compareTo(bi1) == 0);
             }
         }
 
@@ -593,56 +625,64 @@ public class KeyTest1 extends PersistitUnitTestCase {
 
     @Test
     public void test14() {
-        _key1.clear().append("a").append("b").append(1).append(2);
-        _key2.clear().append("a").append("b").append(2).append(1);
-        assertEquals(7, _key1.firstUniqueByteIndex(_key2));
-        assertEquals(2, _key1.firstUniqueSegmentDepth(_key2));
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+        key1.clear().append("a").append("b").append(1).append(2);
+        key2.clear().append("a").append("b").append(2).append(1);
+        assertEquals(7, key1.firstUniqueByteIndex(key2));
+        assertEquals(2, key1.firstUniqueSegmentDepth(key2));
     }
 
     /*
      * Test the equals methods in Key and KeyState
      */
     public void testKeyEquality() {
-        _key1.clear().to(5);
-        _key2.clear().to(5);
-        assertEquals(_key1, _key2);
-        KeyState ks = new KeyState(_key2);
-        assertEquals(_key1, ks);
-        assertEquals(_key2, ks);
-        _key1.clear().to("PADRAIG");
-        _key2.clear().to("PADRAIG");
-        assertEquals(_key1, _key2);
-        ks = new KeyState(_key2);
-        assertEquals(ks, _key2);
-        assertEquals(ks, _key1);
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+        key1.clear().to(5);
+        key2.clear().to(5);
+        assertEquals(key1, key2);
+        KeyState ks = new KeyState(key2);
+        assertEquals(key1, ks);
+        assertEquals(key2, ks);
+        key1.clear().to("PADRAIG");
+        key2.clear().to("PADRAIG");
+        assertEquals(key1, key2);
+        ks = new KeyState(key2);
+        assertEquals(ks, key2);
+        assertEquals(ks, key1);
     }
 
     public void testIndexTo() {
-        _key1.clear().append("a").append("b").append("c").append("d");
-        assertEquals("a", _key1.indexTo(0).decodeString());
-        assertEquals("b", _key1.indexTo(1).decodeString());
-        assertEquals("c", _key1.indexTo(2).decodeString());
-        assertEquals("d", _key1.indexTo(3).decodeString());
-        assertEquals("d", _key1.indexTo(-1).decodeString());
-        assertEquals("c", _key1.indexTo(-2).decodeString());
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+        key1.clear().append("a").append("b").append("c").append("d");
+        assertEquals("a", key1.indexTo(0).decodeString());
+        assertEquals("b", key1.indexTo(1).decodeString());
+        assertEquals("c", key1.indexTo(2).decodeString());
+        assertEquals("d", key1.indexTo(3).decodeString());
+        assertEquals("d", key1.indexTo(-1).decodeString());
+        assertEquals("c", key1.indexTo(-2).decodeString());
 
     }
 
     @Test
     public void testIsNull() {
-        _key1.clear().append(null);
-        assertTrue("seg0 is null: " + _key1, _key1.indexTo(0).isNull());
-        _key1.clear().append(1);
-        assertFalse("seg0 is not null: " + _key1, _key1.indexTo(0).isNull());
-        _key1.clear().append(5L).append(null);
-        assertTrue("seg1 is null: " + _key1, _key1.indexTo(1).isNull());
-        _key1.clear().append("abc");
-        assertFalse("seg0 is not null:" + _key1, _key1.indexTo(0).isNull());
-        _key1.clear().append(BigInteger.valueOf(42)).append(null);
-        assertTrue("seg1 is null: " + _key1, _key1.indexTo(1).isNull());
+        final Key key1 = new Key(_persistit);
+        final Key key2 = new Key(_persistit);
+        key1.clear().append(null);
+        assertTrue("seg0 is null: " + key1, key1.indexTo(0).isNull());
+        key1.clear().append(1);
+        assertFalse("seg0 is not null: " + key1, key1.indexTo(0).isNull());
+        key1.clear().append(5L).append(null);
+        assertTrue("seg1 is null: " + key1, key1.indexTo(1).isNull());
+        key1.clear().append("abc");
+        assertFalse("seg0 is not null:" + key1, key1.indexTo(0).isNull());
+        key1.clear().append(BigInteger.valueOf(42)).append(null);
+        assertTrue("seg1 is null: " + key1, key1.indexTo(1).isNull());
 
         try {
-            _key1.clear().reset().isNull();
+            key1.clear().reset().isNull();
             Assert.fail("Expected MissingKeySegmentException!");
         } catch (MissingKeySegmentException e) {
             // expected
@@ -680,40 +720,7 @@ public class KeyTest1 extends PersistitUnitTestCase {
         test14();
     }
 
-    public void debugAssert(boolean condition) {
-        if (!condition) {
-            System.out.println();
-            System.out.println(" lv1=" + lv1 + " lv2=" + lv2);
-            System.out.println(" key1=" + Util.hexDump(_key1.getEncodedBytes(), 0, _key1.getEncodedSize()));
-            System.out.println(" key2=" + Util.hexDump(_key2.getEncodedBytes(), 0, _key2.getEncodedSize()));
-            System.out.println("Assertion failure breakpoint");
-        }
-        Assert.assertTrue(condition);
-    }
 
-    public void debugAssertFloat(boolean condition) {
-        if (!condition) {
-            System.out.println();
-            System.out.println(" fv1=" + fv1 + " (" + floatBits(fv1) + ")" + " fv2=" + fv2 + " (" + floatBits(fv2)
-                    + ")");
-            System.out.println(" key1=" + Util.hexDump(_key1.getEncodedBytes(), 0, _key1.getEncodedSize()));
-            System.out.println(" key2=" + Util.hexDump(_key2.getEncodedBytes(), 0, _key2.getEncodedSize()));
-            System.out.println("Assertion failure breakpoint");
-        }
-        Assert.assertTrue(condition);
-    }
-
-    public void debugAssertDouble(boolean condition) {
-        if (!condition) {
-            System.out.println();
-            System.out.println(" dv1=" + dv1 + " (" + doubleBits(dv1) + ")" + " dv2=" + dv2 + " (" + doubleBits(dv2)
-                    + ")");
-            System.out.println(" key1=" + Util.hexDump(_key1.getEncodedBytes(), 0, _key1.getEncodedSize()));
-            System.out.println(" key2=" + Util.hexDump(_key2.getEncodedBytes(), 0, _key2.getEncodedSize()));
-            System.out.println("Assertion failure breakpoint");
-        }
-        Assert.assertTrue(condition);
-    }
 
     private String floatBits(final float v) {
         final int bits = Float.floatToIntBits(v);
