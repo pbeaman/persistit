@@ -211,12 +211,12 @@ public class Persistit {
      * Property name for specifying default temporary volume directory
      */
     public final static String TEMPORARY_VOLUME_DIR_NAME = "tmpvoldir";
-    
+
     /**
      * Property name for specifying upper bound on temporary volume size
      */
     public final static String TEMPORARY_VOLUME_MAX_SIZE = "tmpvolmaxsize";
-    
+
     /**
      * Property name for specifying a transaction volume
      */
@@ -318,6 +318,8 @@ public class Persistit {
 
     private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
 
+    private final static int ACCUMULATOR_CHECKPOINT_THRESHOLD = 256;
+
     private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
 
@@ -386,7 +388,7 @@ public class Persistit {
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
     private JoinPolicy _defaultJoinPolicy = DEFAULT_JOIN_POLICY;
-
+    
     /**
      * <p>
      * Initialize Persistit using properties supplied by the default properties
@@ -1612,8 +1614,9 @@ public class Persistit {
     }
 
     /**
-     * Reports status of the <code>max</code> longest-running transactions, in order
-     * from oldest to youngest.
+     * Reports status of the <code>max</code> longest-running transactions, in
+     * order from oldest to youngest.
+     * 
      * @param max
      * @return
      */
@@ -2533,8 +2536,23 @@ public class Persistit {
         _suspendUpdates.set(suspended);
     }
 
-    synchronized void addAccumulator(final Accumulator accumulator) {
-        _accumulators.add(accumulator.getAccumulatorRef());
+    void addAccumulator(final Accumulator accumulator) throws PersistitException {
+        int checkpointCount = 0;
+        synchronized (_accumulators) {
+            _accumulators.add(accumulator.getAccumulatorRef());
+            for (AccumulatorRef ref : _accumulators) {
+                if (ref._checkpointRef != null) {
+                    checkpointCount++;
+                }
+            }
+        }
+        if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
+            try {
+                _checkpointManager.createCheckpoint();
+            } catch (PersistitException e) {
+                _logBase.exception.log(e);
+            }
+        }
     }
 
     synchronized List<Accumulator> getCheckpointAccumulators() {
