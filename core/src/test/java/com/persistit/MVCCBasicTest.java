@@ -719,4 +719,54 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.end();
         }
     }
+
+    /*
+     * Make sure traverse() exits as soon as possible even when the keys are
+     * not parent/child segments but the search key is just truncated.
+     */
+    public void testKeysVisitedDuringTraverseUniformDepth() throws PersistitException {
+        final int KEY_COUNT = 50;
+
+        trx1.begin();
+        try {
+            for (int i = 1; i <= KEY_COUNT; ++i) {
+                ex1.clear().append(i).append(i);
+                ex1.store();
+            }
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+
+        trx1.begin();
+        try {
+            ex1.clear().append(10);
+            assertEquals("'10' hasChildren", true, ex1.hasChildren());
+            assertEquals("keys traversed for '10' hasChildren", 1, ex1.getKeysVisitedDuringTraverse());
+
+            ex1.clear().append(10).append(10);
+            assertEquals("'10,10' hasChildren", false, ex1.hasChildren());
+            assertEquals("keys traversed for '10,10' hasChildren", 1, ex1.getKeysVisitedDuringTraverse());
+
+            // Remove everything between 10,10 and 40,40
+            final Key removeBegin = new Key(_persistit);
+            removeBegin.append(10).append(10);
+            final Key removeEnd = new Key(_persistit);
+            removeEnd.append(40).append(40);
+
+            ex1.removeKeyRange(removeBegin, removeEnd);
+
+            ex1.clear().append(10);
+            assertEquals("'10' hasChildren post-remove", false, ex1.hasChildren());
+            assertEquals("keys traversed for '10' hasChildren post-remove", 2, ex1.getKeysVisitedDuringTraverse());
+
+            ex1.clear().append(10).append(10);
+            assertEquals("'10,10' hasChildren", false, ex1.hasChildren());
+            assertEquals("keys traversed for '10,10' hasChildren post-remove", 1, ex1.getKeysVisitedDuringTraverse());
+
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
 }
