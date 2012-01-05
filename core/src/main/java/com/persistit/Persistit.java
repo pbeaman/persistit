@@ -388,7 +388,7 @@ public class Persistit {
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
     private JoinPolicy _defaultJoinPolicy = DEFAULT_JOIN_POLICY;
-    
+
     /**
      * <p>
      * Initialize Persistit using properties supplied by the default properties
@@ -2537,20 +2537,29 @@ public class Persistit {
     }
 
     void addAccumulator(final Accumulator accumulator) throws PersistitException {
-        int checkpointCount = 0;
         synchronized (_accumulators) {
             _accumulators.add(accumulator.getAccumulatorRef());
+            /*
+             * Count the checkpoint references. When the count is a multiple
+             * of ACCUMULATOR_CHECKPOINT_THRESHOLD, then call create a
+             * checkpoint which will write a checkpoint transaction and
+             * remove the checkpoint references. The threshold value is
+             * chosen to be large enough prevent creating too many checkpoints,
+             * but small enough that the number of excess Accumulators is
+             * kept to a reasonable number.
+             */
+            int checkpointCount = 0;
             for (AccumulatorRef ref : _accumulators) {
                 if (ref._checkpointRef != null) {
                     checkpointCount++;
                 }
             }
-        }
-        if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
-            try {
-                _checkpointManager.createCheckpoint();
-            } catch (PersistitException e) {
-                _logBase.exception.log(e);
+            if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
+                try {
+                    _checkpointManager.createCheckpoint();
+                } catch (PersistitException e) {
+                    _logBase.exception.log(e);
+                }
             }
         }
     }
