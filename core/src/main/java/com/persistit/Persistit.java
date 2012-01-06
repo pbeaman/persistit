@@ -307,7 +307,7 @@ public class Persistit {
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
 
-    private final static int TRANSACTION_INDEX_SIZE = 4096;
+    private final static int TRANSACTION_INDEX_SIZE = 32;
 
     final static long SHORT_DELAY = 500;
 
@@ -473,9 +473,9 @@ public class Persistit {
             initializeVolumes();
             startJournal();
             startBufferPools();
+            finishRecovery();
             startCheckpointManager();
             startTransactionIndexPollTask();
-            finishRecovery();
             flush();
             _checkpointManager.checkpoint();
             startCleanupManager();

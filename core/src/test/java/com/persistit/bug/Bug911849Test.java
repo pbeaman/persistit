@@ -71,7 +71,7 @@ public class Bug911849Test extends PersistitUnitTestCase {
     public void testOverlappingCheckpointTransactions() throws Exception {
         final Properties props = _persistit.getProperties();
         for (int i = 0; i < 10; i++) {
-            accumulateRows(100000);
+            accumulateRows(10000);
             _persistit.getJournalManager().force();
             _persistit.crash();
             _persistit = new Persistit();
@@ -96,7 +96,10 @@ public class Bug911849Test extends PersistitUnitTestCase {
                         ROW_COUNT_ACCUMULATOR_INDEX);
                 rowCount.update(1, txn);
                 txn.commit();
-                counter.addAndGet(1);
+                counter.incrementAndGet();
+                if ((count % 10) == 0) {
+                    Thread.sleep(1);
+                }
             } catch (RollbackException re) {
                 retryCount++;
                 assertTrue(retryCount < 5);
