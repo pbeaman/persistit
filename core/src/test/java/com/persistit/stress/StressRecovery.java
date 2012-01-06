@@ -19,13 +19,12 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.Exchange;
 import com.persistit.Transaction;
 import com.persistit.exception.RollbackException;
+import com.persistit.test.TestResult;
 import com.persistit.util.ArgParser;
 
 /**
@@ -95,7 +94,7 @@ public class StressRecovery extends StressBase {
                 long current = _bits.get();
                 long next = (current >>> 1) ^ (-(current & 1) & 0xD800000000000000L);
                 if (_bits.compareAndSet(current, next)) {
-                    return next;
+                    return next & Long.MAX_VALUE;
                 }
             }
         }
@@ -121,7 +120,6 @@ public class StressRecovery extends StressBase {
          */
         void verifyTransaction(final long ticketId) throws Exception;
     }
-
 
     @Override
     public String shortDescription() {
@@ -239,11 +237,16 @@ public class StressRecovery extends StressBase {
 
         if (faults > 0) {
             if (last - firstFault < _maxLatency) {
-                printf("There were %,d faults. Last one occurred %,dms before crash - \n"
-                        + "acceptable because acceptable latency setting is %,dms.", faults,
-                        (last - firstFault) / 1000000l, _maxLatency / 1000000l);
+                String msg = String.format("There were %,d faults. Last one occurred %,dms before crash: "
+                        + "PASS because acceptable latency setting is %,dms.", faults, (last - firstFault) / 1000000l,
+                        _maxLatency / 1000000l);
+                println(msg);
+                _result = new TestResult(true, msg);
             } else {
-                fail("Verification encountered " + faults + " faults");
+                _result = new TestResult(false, String.format(
+                        "There were %,d faults. Last one occurred %,dms before crash: "
+                                + "FAIL because acceptable latency setting is %,dms.", faults,
+                        (last - firstFault) / 1000000l, _maxLatency / 1000000l));
             }
         }
     }
@@ -311,24 +314,24 @@ public class StressRecovery extends StressBase {
                     long t = ticketId;
                     _exs.clear();
                     while (t != 0) {
-                        _exs.getKey().append(FRAGMENTS[(int) (t) % FRAGMENTS.length]);
+                        _exs.getKey().append(FRAGMENTS[(int) (t % FRAGMENTS.length)]);
                         t /= FRAGMENTS.length;
                     }
                     _exs.store();
 
                     _exs.getValue().putString("$$$");
                     _exs.clear().append(1);
-                    t = ticketId * 11;
+                    t = ticketId / 11;
                     while (t != 0) {
-                        _exs.getKey().append(FRAGMENTS[(int) (t) % FRAGMENTS.length]);
+                        _exs.getKey().append(FRAGMENTS[(int) (t % FRAGMENTS.length)]);
                         t /= FRAGMENTS.length;
                     }
                     _exs.store();
 
                     _exs.clear().append(2);
-                    t = ticketId * 13;
+                    t = ticketId / 13;
                     while (t != 0) {
-                        _exs.getKey().append(FRAGMENTS[(int) (t) % FRAGMENTS.length]);
+                        _exs.getKey().append(FRAGMENTS[(int) (t % FRAGMENTS.length)]);
                         t /= FRAGMENTS.length;
                     }
                     _exs.store();
@@ -349,25 +352,25 @@ public class StressRecovery extends StressBase {
             long t = ticketId;
             _exs.clear();
             while (t != 0) {
-                _exs.getKey().append(FRAGMENTS[(int) (t) % FRAGMENTS.length]);
+                _exs.getKey().append(FRAGMENTS[(int) (t % FRAGMENTS.length)]);
                 t /= FRAGMENTS.length;
             }
             _exs.fetch();
             check(ticketId, _exs, String.format("%,15d", ticketId));
 
             _exs.clear().append(1);
-            t = ticketId * 11;
+            t = ticketId / 11;
             while (t != 0) {
-                _exs.getKey().append(FRAGMENTS[(int) (t) % FRAGMENTS.length]);
+                _exs.getKey().append(FRAGMENTS[(int) (t % FRAGMENTS.length)]);
                 t /= FRAGMENTS.length;
             }
             _exs.fetch();
             check(ticketId, _exs, "$$$");
 
             _exs.clear().append(2);
-            t = ticketId * 13;
+            t = ticketId / 13;
             while (t != 0) {
-                _exs.getKey().append(FRAGMENTS[(int) (t) % FRAGMENTS.length]);
+                _exs.getKey().append(FRAGMENTS[(int) (t % FRAGMENTS.length)]);
                 t /= FRAGMENTS.length;
             }
             _exs.fetch();
@@ -385,7 +388,6 @@ public class StressRecovery extends StressBase {
         if (!s.startsWith(expected)) {
             throw new RuntimeException("Ticket " + ticketId + " incorrect value at " + ex.getKey());
         }
-
     }
 
     public static void main(final String[] args) {

@@ -28,39 +28,38 @@ import com.persistit.encoding.KeyCoder;
 import com.persistit.encoding.KeyRenderer;
 import com.persistit.encoding.KeyStringCoder;
 import com.persistit.exception.ConversionException;
-import com.persistit.util.Util;
 
 public class KeyCoderTest1 extends PersistitUnitTestCase {
 
-    Key _key1;
-    Key _key2;
 
     @Test
     public void test1() {
         System.out.print("test1 ");
         final KeyStringCoder coder = new TestStringCoder();
-        _key1 = new Key(_persistit);
-        _key2 = new Key(_persistit);
-        _key1.setKeyStringCoder(coder);
-        _key2.setKeyStringCoder(coder);
+        Key key1;
+        Key key2;
+        key1 = new Key(_persistit);
+        key2 = new Key(_persistit);
+        key1.setKeyStringCoder(coder);
+        key2.setKeyStringCoder(coder);
 
         final String a1 = "Abcde";
         final String b1 = "abCDE";
         final String c1 = "Bcde";
 
-        _key1.clear().append(a1);
-        _key2.clear().append(b1);
+        key1.clear().append(a1);
+        key2.clear().append(b1);
 
-        final String a2 = _key1.indexTo(0).decodeString();
-        final String b2 = _key2.indexTo(0).decodeString();
+        final String a2 = key1.indexTo(0).decodeString();
+        final String b2 = key2.indexTo(0).decodeString();
 
         assertEquals(a1, a2);
         assertEquals(b1, b2);
-        assertTrue(_key1.compareTo(_key2) < 0);
+        assertTrue(key1.compareTo(key2) < 0);
 
-        _key1.clear().append(c1);
-        final String c2 = (String) _key1.indexTo(0).decode();
-        assertTrue(_key1.compareTo(_key2) > 0);
+        key1.clear().append(c1);
+        final String c2 = (String) key1.indexTo(0).decode();
+        assertTrue(key1.compareTo(key2) > 0);
         assertEquals(c1, c2);
 
         System.out.println("- done");
@@ -71,22 +70,25 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
         System.out.print("test2 ");
         final KeyCoder coder = new TestKeyRenderer();
         _persistit.getCoderManager().registerKeyCoder(URL.class, coder);
-        _key1 = new Key(_persistit);
+        Key key1;
+        Key key2;
+
+        key1 = new Key(_persistit);
         final URL url1 = new URL("http://w/z");
         final URL url2 = new URL("http://w:8080/z?userid=pb");
-        _key1.clear();
-        _key1.append("a");
-        _key1.append(url1);
-        _key1.append("b");
-        _key1.append(url2);
-        _key1.append("c");
+        key1.clear();
+        key1.append("a");
+        key1.append(url1);
+        key1.append("b");
+        key1.append(url2);
+        key1.append("c");
 
-        _key1.reset();
-        final String a = _key1.decodeString();
-        final Object obj1 = _key1.decode();
-        final String b = _key1.decodeString();
-        final Object obj2 = _key1.decode();
-        final String c = _key1.decodeString();
+        key1.reset();
+        final String a = key1.decodeString();
+        final Object obj1 = key1.decode();
+        final String b = key1.decodeString();
+        final Object obj2 = key1.decode();
+        final String c = key1.decodeString();
 
         assertEquals("a", a);
         assertEquals("b", b);
@@ -95,17 +97,17 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
         assertEquals(url2.toString(), obj2.toString());
 
         final StringBuilder sb = new StringBuilder();
-        _key1.indexTo(1);
-        _key1.decode(sb);
+        key1.indexTo(1);
+        key1.decode(sb);
         assertEquals(url1.toString(), sb.toString());
 
         sb.setLength(0);
-        _key1.indexTo(3);
-        _key1.decode(sb);
+        key1.indexTo(3);
+        key1.decode(sb);
         assertEquals(url2.toString(), sb.toString());
 
-        _key1.reset();
-        final String toString = _key1.toString();
+        key1.reset();
+        final String toString = key1.toString();
         assertEquals(toString, "{\"a\",(java.net.URL){\"http\",\"w\",-1,\"/z\"},\"b\","
                 + "(java.net.URL){\"http\",\"w\",8080,\"/z?userid=pb\"},\"c\"}");
         System.out.println("- done");
@@ -122,20 +124,7 @@ public class KeyCoderTest1 extends PersistitUnitTestCase {
     }
 
     public void debugAssert(boolean condition) {
-        if (!condition) {
-            System.out.println();
-            System.out.println(" key1=" + Util.hexDump(_key1.getEncodedBytes(), 0, _key1.getEncodedSize()));
-            System.out.println(" key2=" + Util.hexDump(_key2.getEncodedBytes(), 0, _key2.getEncodedSize()));
-            System.out.println("Assertion failure breakpoint");
-        }
         Assert.assertTrue(condition);
-    }
-
-    private void debug(boolean condition) {
-        if (!condition) {
-            return;
-        }
-        return; // <-- breakpoint here
     }
 
     public static class TestKeyRenderer implements KeyRenderer {

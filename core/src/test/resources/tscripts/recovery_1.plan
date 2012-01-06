@@ -1,4 +1,4 @@
-logpath $logpath$/result_$timestamp$.log
+logpath $datapath$/result_$timestamp$.log
 
 
 // Runs the StressRecovery test to perform transactions
@@ -11,7 +11,7 @@ logpath $logpath$/result_$timestamp$.log
 // 
 //    java -cp ${PERSISTIT_JAR} com.persistit.test.TestRunner 
 //              script=recovery_1.plan datapath=/tmp/persistit_test_data -e
-//              > /tmp/persistit_test_data/recovery.log
+//              > /tmp/persistit_test/recovery.log
 //
 // The -e flag causes TestRunner to exit with a non-zero status on failure.
 // Cat the output to /tmp/persistit_test_data/recovery.log because that's where

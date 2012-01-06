@@ -23,7 +23,9 @@ import java.io.EOFException;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,7 +53,8 @@ class IOMeter implements IOMeterMXBean {
     private final static long RECENT = 3 * SECOND;
     private final static long KILO = 1024;
 
-    private static final String DUMP_FORMAT = "time=%,12d op=%2s vol=%4s page=%,16d addr=%,16d size=%,8d index=%,7d";
+    private final static String DUMP_FORMAT = "time=%,12d op=%2s vol=%4s page=%,16d addr=%,16d size=%,8d index=%,7d";
+    private final static int DUMP_RECORD_LENGTH = 37;
 
     private final static int DEFAULT_QUIESCENT_IO_THRESHOLD = 100000;
     private final static long DEFAULT_COPY_PAGE_SLEEP_INTERVAL = 10000;
@@ -253,7 +256,7 @@ class IOMeter implements IOMeterMXBean {
                 try {
                     os.write((byte) type);
                     os.writeLong(System.currentTimeMillis());
-                    os.writeInt(volume == null ? 0 : volume.hashCode());
+                    os.writeInt(volume == null ? 0 : volume.getHandle());
                     os.writeLong(pageAddress);
                     os.writeInt(size);
                     os.writeLong(journalAddress);
@@ -265,19 +268,35 @@ class IOMeter implements IOMeterMXBean {
         }
     }
 
-    private void dump(final DataInputStream is, int count) throws IOException {
+    private static class Event {
+        long _time;
+        int _count;
+        int _op;
+
+        Event(long time, int count, int op) {
+            _time = time;
+            _count = count;
+            _op = op;
+        }
+
+        private String describe(final long time, final int count) {
+            final String opName = _op >= 0 && _op < OPERATIONS.length ? OPERATIONS[_op] : "??";
+            return String.format("%s %,10dms %,8d events ago", opName, time - _time, count - _count);
+        }
+    }
+
+    private void dump(final DataInputStream is, int count, boolean analyzePages) throws IOException {
         long start = 0;
-        final Map<Integer, Integer> volMap = new HashMap<Integer, Integer>();
-        int counter = 0;
+        Map<Long, List<Event>> events = new HashMap<Long, List<Event>>();
         for (int index = 0; index < count; index++) {
             try {
-                final int type = is.read();
-                if (type == -1) {
+                final int op = is.read();
+                if (op == -1) {
                     break;
                 }
-                final String opName = type >= 0 && type < OPERATIONS.length ? OPERATIONS[type] : "??";
+                final String opName = op >= 0 && op < OPERATIONS.length ? OPERATIONS[op] : "??";
                 final long time = is.readLong();
-                final int volumeHash = is.readInt();
+                final int volumeHandle = is.readInt();
                 final long pageAddress = is.readLong();
                 final int size = is.readInt();
                 final long journalAddress = is.readLong();
@@ -285,13 +304,28 @@ class IOMeter implements IOMeterMXBean {
                 if (start == 0) {
                     start = time;
                 }
-                Integer volumeId = volMap.get(volumeHash);
-                if (volumeId == null) {
-                    volumeId = Integer.valueOf(++counter);
-                    volMap.put(volumeHash, volumeId);
+                System.out.printf(DUMP_FORMAT, time - start, opName, volumeHandle, pageAddress, journalAddress, size,
+                        bufferIndex);
+
+                if (analyzePages
+                        && (op == WRITE_PAGE_TO_JOURNAL || op == READ_PAGE_FROM_JOURNAL || op == READ_PAGE_FROM_VOLUME
+                                || op == COPY_PAGE_TO_VOLUME || op == EVICT_PAGE_FROM_POOL)) {
+                    long handle = (volumeHandle << 48) + pageAddress;
+                    List<Event> list = events.get(handle);
+                    if (list == null) {
+                        list = new ArrayList<Event>(2);
+                        events.put(handle, list);
+                    }
+                    for (Event e : list) {
+                        System.out.printf("  %-35s", e.describe(time, index));
+                    }
+                    while (list.size() >= 2) {
+                        list.remove(0);
+                    }
+                    list.add(new Event(time, index, op));
                 }
-                System.out.println(String.format(DUMP_FORMAT, time - start, opName, volumeId, pageAddress,
-                        journalAddress, size, bufferIndex));
+
+                System.out.println();
 
             } catch (EOFException e) {
                 break;
@@ -450,7 +484,8 @@ class IOMeter implements IOMeterMXBean {
      */
     public static void main(final String[] args) throws Exception {
         final ArgParser ap = new ArgParser("com.persistit.IOMeter", args, new String[] { "file||log file name",
-                "skip|long:0:0:1000000000000|event skip count", "count|long:0:0:2000000000|event count nlimit" });
+                "skip|long:0:0:1000000000000|event skip count", "count|long:0:0:2000000000|event count nlimit",
+                "_flag|a|Analyze page pattern" });
         final String fileName = ap.getStringValue("file");
         final long skip = ap.getLongValue("skip");
         final int count = ap.getIntValue("count");
@@ -459,8 +494,8 @@ class IOMeter implements IOMeterMXBean {
         } else {
             IOMeter ioMeter = new IOMeter();
             final DataInputStream is = new DataInputStream(new BufferedInputStream(new FileInputStream(fileName)));
-            is.skip(skip * 37);
-            ioMeter.dump(is, count == 0 ? Integer.MAX_VALUE : count);
+            is.skip(skip * DUMP_RECORD_LENGTH);
+            ioMeter.dump(is, count == 0 ? Integer.MAX_VALUE : count, ap.isFlag('a'));
             is.close();
         }
     }

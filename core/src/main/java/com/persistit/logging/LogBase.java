@@ -199,6 +199,9 @@ public class LogBase {
     @Message("WARNING|%s while performing cleanup action %s")
     public final LogItem cleanupException = PersistitLogMessage.empty();
 
+    @Message ("WARNING|Crash retried %,d times on %s")
+    public final LogItem crashRetry = PersistitLogMessage.empty();
+    
     public void configure(final PersistitLogger logger) {
         for (final Field field : this.getClass().getDeclaredFields()) {
             final Message annotation = field.getAnnotation(Message.class);

@@ -51,8 +51,4 @@ public class CorruptVolumeTest extends PersistitUnitTestCase {
 
     }
 
-    @Override
-    public void runAllTests() throws Exception {
-    }
-
 }

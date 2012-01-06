@@ -175,9 +175,10 @@ public abstract class AbstractTestRunnerItem {
                 + " - elapsed=" + (_finishTime - _startTime) + " - "
                 + (_result == null ? "PASSED" : _result.toString()));
         verboseln();
-        if ((_result != null) && !_result._passed) {
-            TestRunner.logMessage("Failed test unit=" + getUnitName() + " test=" + getTestName() + " " + getName());
-            _result.logFailure();
+        if (_result != null) {
+            if (!_result._passed) {
+                _result.logFailure();
+            }
         }
         _finished = true;
     }

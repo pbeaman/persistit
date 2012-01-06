@@ -211,12 +211,12 @@ public class Persistit {
      * Property name for specifying default temporary volume directory
      */
     public final static String TEMPORARY_VOLUME_DIR_NAME = "tmpvoldir";
-    
+
     /**
      * Property name for specifying upper bound on temporary volume size
      */
     public final static String TEMPORARY_VOLUME_MAX_SIZE = "tmpvolmaxsize";
-    
+
     /**
      * Property name for specifying a transaction volume
      */
@@ -317,6 +317,8 @@ public class Persistit {
     private final static long TERA = GIGA * KILO;
 
     private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
+
+    private final static int ACCUMULATOR_CHECKPOINT_THRESHOLD = 256;
 
     private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
@@ -726,6 +728,12 @@ public class Persistit {
             unregisterMBean(CleanupManagerMXBean.MXBEAN_NAME);
             unregisterMBean(IOMeterMXBean.MXBEAN_NAME);
             unregisterMBean(ManagementMXBean.MXBEAN_NAME);
+            for (int size = Buffer.MIN_BUFFER_SIZE; size <= Buffer.MAX_BUFFER_SIZE; size *= 2) {
+                if (_bufferPoolTable.get(size) != null) {
+                    unregisterBufferPoolMXBean(size);
+                }
+            }
+
         } catch (InstanceNotFoundException exception) {
             // ignore
         } catch (Exception exception) {
@@ -1612,8 +1620,9 @@ public class Persistit {
     }
 
     /**
-     * Reports status of the <code>max</code> longest-running transactions, in order
-     * from oldest to youngest.
+     * Reports status of the <code>max</code> longest-running transactions, in
+     * order from oldest to youngest.
+     * 
      * @param max
      * @return
      */
@@ -1754,8 +1763,8 @@ public class Persistit {
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
-            unregisterBufferPoolMXBean(pool.getBufferSize());
         }
+ 
         _journalManager.close();
         _transactionIndex.close();
 
@@ -1819,8 +1828,9 @@ public class Persistit {
     private void releaseAllResources() {
         _accumulators.clear();
         _volumes.clear();
-        _bufferPoolTable.clear();
         _exchangePoolMap.clear();
+        _cleanupManager.clear();
+        
         Set<Transaction> transactions;
         synchronized (_transactionSessionMap) {
             transactions = new HashSet<Transaction>(_transactionSessionMap.values());
@@ -1834,11 +1844,15 @@ public class Persistit {
             }
         }
 
+        unregisterMXBeans();
+        _bufferPoolTable.clear();
+
         if (_management != null) {
-            unregisterMXBeans();
             _management.unregister();
             _management = null;
         }
+ 
+        
         try {
             _logBase.end.log(System.currentTimeMillis());
             _logger.close();
@@ -2008,7 +2022,7 @@ public class Persistit {
         }
     }
 
-/**
+    /**
      * Copy the {@link Transaction} context objects belonging to threads that
      * are currently alive to the supplied List. This method is used by
      * JOURNAL_FLUSHER to look for transactions that need to be written to the
@@ -2533,8 +2547,32 @@ public class Persistit {
         _suspendUpdates.set(suspended);
     }
 
-    synchronized void addAccumulator(final Accumulator accumulator) {
-        _accumulators.add(accumulator.getAccumulatorRef());
+    void addAccumulator(final Accumulator accumulator) throws PersistitException {
+        synchronized (_accumulators) {
+            _accumulators.add(accumulator.getAccumulatorRef());
+            /*
+             * Count the checkpoint references. When the count is a multiple
+             * of ACCUMULATOR_CHECKPOINT_THRESHOLD, then call create a
+             * checkpoint which will write a checkpoint transaction and
+             * remove the checkpoint references. The threshold value is
+             * chosen to be large enough prevent creating too many checkpoints,
+             * but small enough that the number of excess Accumulators is
+             * kept to a reasonable number.
+             */
+            int checkpointCount = 0;
+            for (AccumulatorRef ref : _accumulators) {
+                if (ref._checkpointRef != null) {
+                    checkpointCount++;
+                }
+            }
+            if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
+                try {
+                    _checkpointManager.createCheckpoint();
+                } catch (PersistitException e) {
+                    _logBase.exception.log(e);
+                }
+            }
+        }
     }
 
     synchronized List<Accumulator> getCheckpointAccumulators() {
