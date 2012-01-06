@@ -2949,10 +2949,6 @@ public class Exchange {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
         }
 
-        if (fetchFirst) {
-            throw new IllegalArgumentException("fetchFirst not compatible with MVCC");
-        }
-
         // Record the delete operation on the journal
         _persistit.checkClosed();
 
