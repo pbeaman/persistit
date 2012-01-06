@@ -45,7 +45,7 @@ class CheckpointManager extends IOTaskRunnable {
             _timestamp = timestamp;
             _systemTime = systemTime;
         }
-        
+
         Checkpoint(final long timestamp, final long systemTime, final boolean completed) {
             this(timestamp, systemTime);
             _completed = completed;
@@ -69,7 +69,8 @@ class CheckpointManager extends IOTaskRunnable {
 
         @Override
         public String toString() {
-            return String.format("Checkpoint %,d%s @ %s", _timestamp, isCompleted() ? "c" : "u", SDF.format(new Date(_systemTime)));
+            return String.format("Checkpoint %,d%s @ %s", _timestamp, isCompleted() ? "c" : "u", SDF.format(new Date(
+                    _systemTime)));
         }
 
         @Override
@@ -88,6 +89,8 @@ class CheckpointManager extends IOTaskRunnable {
     private final static long DEFAULT_CHECKPOINT_INTERVAL = 120000000000L;
 
     private final static Checkpoint UNAVALABLE_CHECKPOINT = new Checkpoint(0, 0);
+
+    private final SessionId _checkpointTxnSessionId = new SessionId();
 
     private volatile long _checkpointInterval = DEFAULT_CHECKPOINT_INTERVAL;
 
@@ -185,29 +188,31 @@ class CheckpointManager extends IOTaskRunnable {
          * Checkpoint timestamp is the start timestamp of this transaction.
          * Therefore the Accumulator snapshot values represent the aggregation
          * of all transactions that committed before the checkpoint timestamp.
-         * May not be run in a nested Transaction.
          */
-        Transaction txn = _persistit.getTransaction();
-        if (txn.isActive()) {
-            throw new IllegalStateException("Checkpoint may not be created inside a transaction");
-        }
-
-        _lastCheckpointNanos = System.nanoTime();
-        _currentCheckpoint = UNAVALABLE_CHECKPOINT;
-
-        txn.beginCheckpoint();
+        final SessionId saveSessionId = _persistit.getSessionId();
         try {
-            List<Accumulator> accumulators = _persistit.getCheckpointAccumulators();
-            _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp(), accumulators);
-            Accumulator.saveAccumulatorCheckpointValues(accumulators);
-            txn.commit(true);
-            _currentCheckpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
-            _persistit.getLogBase().checkpointProposed.log(_currentCheckpoint);
-            return _currentCheckpoint;
-        } catch (InterruptedException ie) {
-            throw new PersistitInterruptedException(ie);
+            _persistit.setSessionId(_checkpointTxnSessionId);
+            Transaction txn = _persistit.getTransaction();
+
+            _lastCheckpointNanos = System.nanoTime();
+            _currentCheckpoint = UNAVALABLE_CHECKPOINT;
+
+            txn.beginCheckpoint();
+            try {
+                List<Accumulator> accumulators = _persistit.getCheckpointAccumulators();
+                _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp(), accumulators);
+                Accumulator.saveAccumulatorCheckpointValues(accumulators);
+                txn.commit(true);
+                _currentCheckpoint = new Checkpoint(txn.getStartTimestamp(), System.currentTimeMillis());
+                _persistit.getLogBase().checkpointProposed.log(_currentCheckpoint);
+                return _currentCheckpoint;
+            } catch (InterruptedException ie) {
+                throw new PersistitInterruptedException(ie);
+            } finally {
+                txn.end();
+            }
         } finally {
-            txn.end();
+            _persistit.setSessionId(saveSessionId);
         }
     }
 

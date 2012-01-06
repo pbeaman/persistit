@@ -211,12 +211,12 @@ public class Persistit {
      * Property name for specifying default temporary volume directory
      */
     public final static String TEMPORARY_VOLUME_DIR_NAME = "tmpvoldir";
-    
+
     /**
      * Property name for specifying upper bound on temporary volume size
      */
     public final static String TEMPORARY_VOLUME_MAX_SIZE = "tmpvolmaxsize";
-    
+
     /**
      * Property name for specifying a transaction volume
      */
@@ -317,6 +317,8 @@ public class Persistit {
     private final static long TERA = GIGA * KILO;
 
     private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
+
+    private final static int ACCUMULATOR_CHECKPOINT_THRESHOLD = 256;
 
     private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
@@ -1618,8 +1620,9 @@ public class Persistit {
     }
 
     /**
-     * Reports status of the <code>max</code> longest-running transactions, in order
-     * from oldest to youngest.
+     * Reports status of the <code>max</code> longest-running transactions, in
+     * order from oldest to youngest.
+     * 
      * @param max
      * @return
      */
@@ -2544,8 +2547,32 @@ public class Persistit {
         _suspendUpdates.set(suspended);
     }
 
-    synchronized void addAccumulator(final Accumulator accumulator) {
-        _accumulators.add(accumulator.getAccumulatorRef());
+    void addAccumulator(final Accumulator accumulator) throws PersistitException {
+        synchronized (_accumulators) {
+            _accumulators.add(accumulator.getAccumulatorRef());
+            /*
+             * Count the checkpoint references. When the count is a multiple
+             * of ACCUMULATOR_CHECKPOINT_THRESHOLD, then call create a
+             * checkpoint which will write a checkpoint transaction and
+             * remove the checkpoint references. The threshold value is
+             * chosen to be large enough prevent creating too many checkpoints,
+             * but small enough that the number of excess Accumulators is
+             * kept to a reasonable number.
+             */
+            int checkpointCount = 0;
+            for (AccumulatorRef ref : _accumulators) {
+                if (ref._checkpointRef != null) {
+                    checkpointCount++;
+                }
+            }
+            if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
+                try {
+                    _checkpointManager.createCheckpoint();
+                } catch (PersistitException e) {
+                    _logBase.exception.log(e);
+                }
+            }
+        }
     }
 
     synchronized List<Accumulator> getCheckpointAccumulators() {
