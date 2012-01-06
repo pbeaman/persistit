@@ -2265,7 +2265,6 @@ public class Exchange {
 
         int totalVisited = 0;
         for (;;) {
-            final int matchUpToIndex = _key.getEncodedSize();
             if (!keyFilter.next(_key, direction)) {
                 _key.setEncodedSize(0);
                 if (direction == LT || direction == LTEQ) {
@@ -2275,12 +2274,10 @@ public class Exchange {
                 }
                 return false;
             }
-            final boolean matched;
-            if(keyFilter.getIsKeySubsetFilter()) {
-                matched = traverse(direction, true, minBytes, keyFilter.getMinimumDepth(), matchUpToIndex);
-            } else {
-                matched = traverse(direction, true, minBytes);
+            if(keyFilter.isKeyPrefixFilter()) {
+                return traverse(direction, true, minBytes, keyFilter.getMinimumDepth(), keyFilter.getKeyPrefixByteCount());
             }
+            final boolean matched = traverse(direction, true, minBytes);
             totalVisited += _keysVisitedDuringTraverse;
             _keysVisitedDuringTraverse = totalVisited;
             if (!matched) {
@@ -2950,6 +2947,10 @@ public class Exchange {
 
         if (_ignoreTransactions || !_transaction.isActive()) {
             return raw_removeKeyRangeInternal(key1, key2, fetchFirst, false);
+        }
+
+        if (fetchFirst) {
+            throw new IllegalArgumentException("fetchFirst not compatible with MVCC");
         }
 
         // Record the delete operation on the journal
