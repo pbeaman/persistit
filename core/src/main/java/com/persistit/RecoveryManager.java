@@ -1336,6 +1336,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             item.setLastRecordAddress(address);
         }
         item.setCommitTimestamp(commitTimestamp);
+        _persistit.getTimestampAllocator().updateTimestamp(commitTimestamp);
+
     }
 
     // ---------------------------- Phase 3 ------------------------------------
@@ -1451,8 +1453,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             recordSize = TX.getLength(_readBuffer);
             applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp, listener);
         }
-        _persistit.getTimestampAllocator().updateTimestamp(commitTimestamp);
-        listener.endRecovery(address, startTimestamp);
+        listener.endTransaction(address, startTimestamp);
 
     }
 

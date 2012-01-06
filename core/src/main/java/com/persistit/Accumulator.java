@@ -503,7 +503,12 @@ public abstract class Accumulator {
         return _baseValue;
     }
 
-    long getLiveValue() {
+    /**
+     * Non-transactional view aggregating all updates applied to this Accumlator,
+     * whether committed or not.
+     * @return the live value
+     */
+    public long getLiveValue() {
         return _liveValue.get();
     }
 
