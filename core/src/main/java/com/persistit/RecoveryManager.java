@@ -1336,12 +1336,14 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             item.setLastRecordAddress(address);
         }
         item.setCommitTimestamp(commitTimestamp);
+        _persistit.getTimestampAllocator().updateTimestamp(commitTimestamp);
+
     }
 
     // ---------------------------- Phase 3 ------------------------------------
 
     public void applyAllCommittedTransactions(final RecoveryListener commitListener,
-            final RecoveryListener rollbackListener) {
+            final RecoveryListener rollbackListener) throws TestException {
 
         if (_recoveryDisabledForTestMode) {
             return;
@@ -1386,7 +1388,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             } catch (TestException te) {
                 // Exception thrown by a unit test to interrupt recovery
                 _persistit.getLogBase().recoveryException.log(te, item);
-                break;
+               throw te;
             } catch (Exception pe) {
                 _persistit.getLogBase().recoveryException.log(pe, item);
                 _errorCount++;
@@ -1451,8 +1453,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             recordSize = TX.getLength(_readBuffer);
             applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp, listener);
         }
-        _persistit.getTimestampAllocator().updateTimestamp(commitTimestamp);
-        listener.endRecovery(address, startTimestamp);
+        listener.endTransaction(address, startTimestamp);
 
     }
 

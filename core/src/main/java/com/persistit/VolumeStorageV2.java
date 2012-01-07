@@ -298,34 +298,42 @@ class VolumeStorageV2 extends VolumeStorage {
      * @throws PersistitException
      */
     void close() throws PersistitException {
-        synchronized (this) {
+        /*
+         * Exclusive claim here intended to conflict with readPage and writePage
+         */
+        if (!claim(true)) {
+            throw new InUseException("Unable to acquire claim on " + this);
+        }
+        try {
             if (_closed) {
                 return;
             }
             _closed = true;
-        }
-        _headBuffer = null;
-        PersistitException pe = null;
-        try {
-            final FileLock lock = _fileLock;
-            _fileLock = null;
-            if (lock != null) {
-                lock.release();
+            _headBuffer = null;
+            PersistitException pe = null;
+            try {
+                final FileLock lock = _fileLock;
+                _fileLock = null;
+                if (lock != null) {
+                    lock.release();
+                }
+            } catch (Exception e) {
+                _persistit.getLogBase().exception.log(e);
+                pe = new PersistitException(e);
             }
-        } catch (Exception e) {
-            _persistit.getLogBase().exception.log(e);
-            pe = new PersistitException(e);
-        }
-        try {
-            closeChannel();
-        } catch (Exception e) {
-            _persistit.getLogBase().exception.log(e);
-            // has priority over Exception thrown by
-            // releasing file lock.
-            pe = new PersistitException(e);
-        }
-        if (pe != null) {
-            throw pe;
+            try {
+                closeChannel();
+            } catch (Exception e) {
+                _persistit.getLogBase().exception.log(e);
+                // has priority over Exception thrown by
+                // releasing file lock.
+                pe = new PersistitException(e);
+            }
+            if (pe != null) {
+                throw pe;
+            }
+        } finally {
+            release();
         }
     }
 
@@ -465,8 +473,10 @@ class VolumeStorageV2 extends VolumeStorage {
 
     void writePage(final Buffer buffer) throws PersistitIOException, InvalidPageAddressException,
             ReadOnlyVolumeException, VolumeClosedException, PersistitInterruptedException, InUseException {
-        // non-exclusive claim here intended to conflict with exclusive claim in
-        // close and truncate
+        /*
+         * Non-exclusive claim here intended to conflict with exclusive claim in
+         * close and truncate
+         */
         if (!claim(false)) {
             throw new InUseException("Unable to acquire claim on " + this);
         }
@@ -499,10 +509,8 @@ class VolumeStorageV2 extends VolumeStorage {
     }
 
     long allocNewPage() throws PersistitException {
-        if (!claim(true)) {
-            throw new InUseException(toString() + " is in use");
-        }
         long page = -1;
+        claimHeadBuffer();
         try {
             for (;;) {
                 if (_nextAvailablePage < _extendedPageCount) {
@@ -512,10 +520,10 @@ class VolumeStorageV2 extends VolumeStorage {
                 }
                 extend();
             }
+            flushMetaData();
         } finally {
-            release();
+            releaseHeadBuffer();
         }
-        flush();
         return page;
     }
 

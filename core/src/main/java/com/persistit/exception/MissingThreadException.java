@@ -16,8 +16,7 @@
 package com.persistit.exception;
 
 /**
- * The superclass for all checked Persistit&trade; Exceptions. This class can
- * also serve as a wrapper for other Exception types.
+ * Thrown by tests that intentionally stop background threads.
  * 
  * @version 1.0
  */
