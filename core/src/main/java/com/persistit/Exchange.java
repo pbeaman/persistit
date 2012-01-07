@@ -1930,16 +1930,22 @@ public class Exchange {
      */
     public boolean traverse(final Direction direction, final boolean deep, final int minimumBytes)
             throws PersistitException {
-        return traverse(direction, deep, minimumBytes, 0);
+        return traverse(direction, deep, minimumBytes, 0, 0);
     }
 
     /**
      * See {@link #traverse(com.persistit.Key.Direction, boolean, int)} for full description
      * @param minKeyDepth
-     *            Inclusive lower bound of the acceptable key depth <i>regardless of MVCC visibility</i>.
+     *            Minimum valid key depth. If a key is found with a depth
+     *            less than this value, <i>regardless of MVCC visibility</i>,
+     *            <code>false</code> is immediately returned.
+     * @param matchUpToIndex
+     *            Length of minimum matching key fragment. If a key is found
+     *            that does not match this many bytes, <i>regardless of MVCC
+     *            visibility</i>, <code>false</code> is immediately returned.
      */
-    private boolean traverse(final Direction direction, final boolean deep, final int minimumBytes, final int minKeyDepth)
-            throws PersistitException {
+    private boolean traverse(final Direction direction, final boolean deep, final int minimumBytes, 
+                             final int minKeyDepth, final int matchUpToIndex) throws PersistitException {
         _persistit.checkClosed();
 
         final Key spareKey = _spareKey1;
@@ -2079,7 +2085,14 @@ public class Exchange {
                 // optimization (ignores visibility) that takes advantage of
                 // physical key traversal for logical key semantics.
                 //
-                final boolean stopDueToKeyDepth = (minKeyDepth != 0) && (_key.getDepth() < minKeyDepth);
+                final boolean stopDueToKeyDepth;
+                if (minKeyDepth > 0 && _key.getDepth() < minKeyDepth) {
+                    stopDueToKeyDepth = true;
+                } else if (matchUpToIndex > 0) {
+                    stopDueToKeyDepth = spareKey.compareKeyFragment(_key, 0, matchUpToIndex) != 0;
+                } else {
+                    stopDueToKeyDepth = false;
+                }
 
                 // Original search loop end, MVCC must also inspect value before
                 // finishing
@@ -2261,12 +2274,10 @@ public class Exchange {
                 }
                 return false;
             }
-            final boolean matched;
-            if(keyFilter.getIsKeySubsetFilter()) {
-                matched = traverse(direction, true, minBytes, keyFilter.getMinimumDepth());
-            } else {
-                matched = traverse(direction, true, minBytes);
+            if(keyFilter.isKeyPrefixFilter()) {
+                return traverse(direction, true, minBytes, keyFilter.getMinimumDepth(), keyFilter.getKeyPrefixByteCount());
             }
+            final boolean matched = traverse(direction, true, minBytes);
             totalVisited += _keysVisitedDuringTraverse;
             _keysVisitedDuringTraverse = totalVisited;
             if (!matched) {
@@ -2729,10 +2740,7 @@ public class Exchange {
     public boolean hasChildren() throws PersistitException {
         _key.copyTo(_spareKey2);
         final int size = _key.getEncodedSize();
-        boolean result = traverse(GT, true, 0, _key.getDepth() + 1);
-        if (result && _key.getEncodedSize() < size || _spareKey2.compareKeyFragment(_key, 0, size) != 0) {
-            result = false;
-        }
+        boolean result = traverse(GT, true, 0, _key.getDepth() + 1, size);
         _spareKey2.copyTo(_key);
         return result;
     }

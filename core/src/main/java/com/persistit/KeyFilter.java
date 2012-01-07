@@ -314,7 +314,8 @@ public class KeyFilter {
      * example, as created by {@link #KeyFilter(Key, int, int)}. Allows
      * optimized traversal.
      */
-    private boolean _isKeySubsetFilter = false;
+    private int _keyPrefixByteCount = 0;
+    private boolean _isKeyPrefixFilter = false;
 
 
     /**
@@ -391,12 +392,14 @@ public class KeyFilter {
             size = key.getEncodedSize();
         }
         if (key != null && size != 0) {
-            _isKeySubsetFilter = true;
+            _isKeyPrefixFilter = true;
             for (int level = 0;; level++) {
                 int previous = index;
                 index = key.nextElementIndex(previous);
                 if (index < 0)
                     break;
+                if (level <= minDepth)
+                    _keyPrefixByteCount += (index - previous);
                 byte[] bytes = new byte[index - previous];
                 System.arraycopy(key.getEncodedBytes(), previous, bytes, 0, bytes.length);
                 _terms[level] = new SimpleTerm(bytes);
@@ -1725,7 +1728,11 @@ public class KeyFilter {
         }
     }
 
-    boolean getIsKeySubsetFilter() {
-        return _isKeySubsetFilter;
+    boolean isKeyPrefixFilter() {
+        return _isKeyPrefixFilter;
+    }
+    
+    int getKeyPrefixByteCount() {
+        return _keyPrefixByteCount;
     }
 }

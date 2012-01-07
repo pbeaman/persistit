@@ -307,7 +307,7 @@ public class Persistit {
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
 
-    private final static int TRANSACTION_INDEX_SIZE = 4096;
+    private final static int TRANSACTION_INDEX_SIZE = 512;
 
     final static long SHORT_DELAY = 500;
 
