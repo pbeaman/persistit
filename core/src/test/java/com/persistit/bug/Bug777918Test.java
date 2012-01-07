@@ -23,9 +23,9 @@ import com.persistit.Exchange;
 import com.persistit.Persistit;
 import com.persistit.RecoveryManager.DefaultRecoveryListener;
 import com.persistit.TestShim;
+import com.persistit.exception.MissingThreadException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.TestException;
-import com.persistit.exception.MissingThreadException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
 import com.persistit.util.Util;
@@ -198,7 +198,6 @@ public class Bug777918Test extends PersistitUnitTestCase {
 
         _persistit.flush();
         _persistit.crash();
-
         _persistit = new Persistit();
         _persistit.getRecoveryManager().setDefaultCommitListener(new TestCrashingRecoveryListener());
 
@@ -209,6 +208,8 @@ public class Bug777918Test extends PersistitUnitTestCase {
         try {
         _persistit.initialize(properties);
         } catch (MissingThreadException e) {
+            // expected
+        } catch (TestException e) {
             // expected
         }
 

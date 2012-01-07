@@ -59,6 +59,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.PropertiesNotFoundException;
+import com.persistit.exception.TestException;
 import com.persistit.exception.VolumeAlreadyExistsException;
 import com.persistit.exception.VolumeNotFoundException;
 import com.persistit.logging.DefaultPersistitLogger;
@@ -211,12 +212,12 @@ public class Persistit {
      * Property name for specifying default temporary volume directory
      */
     public final static String TEMPORARY_VOLUME_DIR_NAME = "tmpvoldir";
-    
+
     /**
      * Property name for specifying upper bound on temporary volume size
      */
     public final static String TEMPORARY_VOLUME_MAX_SIZE = "tmpvolmaxsize";
-    
+
     /**
      * Property name for specifying a transaction volume
      */
@@ -443,7 +444,6 @@ public class Persistit {
      * rather than reading them from a file. If Persistit has already been
      * initialized, this method does nothing. This method is threadsafe; if
      * multiple threads concurrently attempt to invoke this method, one of the
-     * 
      * threads will actually perform the initialization and the other threads
      * will do nothing.
      * </p>
@@ -477,9 +477,7 @@ public class Persistit {
             startCheckpointManager();
             startTransactionIndexPollTask();
             flush();
-            _checkpointManager.checkpoint();
             startCleanupManager();
-
             _initialized.set(true);
             done = true;
         } finally {
@@ -670,7 +668,7 @@ public class Persistit {
         _journalManager.startJournal();
     }
 
-    void finishRecovery() throws PersistitException {
+    void finishRecovery() throws PersistitException, TestException {
         _recoveryManager.applyAllCommittedTransactions(_recoveryManager.getDefaultCommitListener(), _recoveryManager
                 .getDefaultRollbackListener());
         _recoveryManager.close();
@@ -1618,8 +1616,9 @@ public class Persistit {
     }
 
     /**
-     * Reports status of the <code>max</code> longest-running transactions, in order
-     * from oldest to youngest.
+     * Reports status of the <code>max</code> longest-running transactions, in
+     * order from oldest to youngest.
+     * 
      * @param max
      * @return
      */
@@ -1761,7 +1760,7 @@ public class Persistit {
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
         }
- 
+
         _journalManager.close();
         _transactionIndex.close();
 
@@ -1784,6 +1783,8 @@ public class Persistit {
     /**
      * Abruptly stop (using {@link Thread#stop()}) the writer and collector
      * processes. This method should be used only by tests.
+     * 
+     * @throws CrashException
      */
     public void crash() {
         final JournalManager journalManager = _journalManager;
@@ -1823,11 +1824,12 @@ public class Persistit {
     }
 
     private void releaseAllResources() {
+
         _accumulators.clear();
         _volumes.clear();
         _exchangePoolMap.clear();
         _cleanupManager.clear();
-        
+
         Set<Transaction> transactions;
         synchronized (_transactionSessionMap) {
             transactions = new HashSet<Transaction>(_transactionSessionMap.values());
@@ -1842,14 +1844,14 @@ public class Persistit {
         }
 
         unregisterMXBeans();
+
         _bufferPoolTable.clear();
 
         if (_management != null) {
             _management.unregister();
             _management = null;
         }
- 
-        
+
         try {
             _logBase.end.log(System.currentTimeMillis());
             _logger.close();
@@ -2019,7 +2021,7 @@ public class Persistit {
         }
     }
 
-    /**
+/**
      * Copy the {@link Transaction} context objects belonging to threads that
      * are currently alive to the supplied List. This method is used by
      * JOURNAL_FLUSHER to look for transactions that need to be written to the

@@ -1343,7 +1343,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     // ---------------------------- Phase 3 ------------------------------------
 
     public void applyAllCommittedTransactions(final RecoveryListener commitListener,
-            final RecoveryListener rollbackListener) {
+            final RecoveryListener rollbackListener) throws TestException {
 
         if (_recoveryDisabledForTestMode) {
             return;
@@ -1388,7 +1388,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             } catch (TestException te) {
                 // Exception thrown by a unit test to interrupt recovery
                 _persistit.getLogBase().recoveryException.log(te, item);
-                break;
+               throw te;
             } catch (Exception pe) {
                 _persistit.getLogBase().recoveryException.log(pe, item);
                 _errorCount++;
