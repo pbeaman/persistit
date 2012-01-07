@@ -308,7 +308,7 @@ public class Persistit {
      */
     public final static int MAX_POOLED_EXCHANGES = 10000;
 
-    private final static int TRANSACTION_INDEX_SIZE = 32;
+    private final static int TRANSACTION_INDEX_SIZE = 512;
 
     final static long SHORT_DELAY = 500;
 
@@ -318,6 +318,8 @@ public class Persistit {
     private final static long TERA = GIGA * KILO;
 
     private final static long CLOSE_LOG_INTERVAL = 30000000000L; // 30 sec
+
+    private final static int ACCUMULATOR_CHECKPOINT_THRESHOLD = 256;
 
     private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
@@ -2546,8 +2548,32 @@ public class Persistit {
         _suspendUpdates.set(suspended);
     }
 
-    synchronized void addAccumulator(final Accumulator accumulator) {
-        _accumulators.add(accumulator.getAccumulatorRef());
+    void addAccumulator(final Accumulator accumulator) throws PersistitException {
+        synchronized (_accumulators) {
+            _accumulators.add(accumulator.getAccumulatorRef());
+            /*
+             * Count the checkpoint references. When the count is a multiple
+             * of ACCUMULATOR_CHECKPOINT_THRESHOLD, then call create a
+             * checkpoint which will write a checkpoint transaction and
+             * remove the checkpoint references. The threshold value is
+             * chosen to be large enough prevent creating too many checkpoints,
+             * but small enough that the number of excess Accumulators is
+             * kept to a reasonable number.
+             */
+            int checkpointCount = 0;
+            for (AccumulatorRef ref : _accumulators) {
+                if (ref._checkpointRef != null) {
+                    checkpointCount++;
+                }
+            }
+            if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
+                try {
+                    _checkpointManager.createCheckpoint();
+                } catch (PersistitException e) {
+                    _logBase.exception.log(e);
+                }
+            }
+        }
     }
 
     synchronized List<Accumulator> getCheckpointAccumulators() {
