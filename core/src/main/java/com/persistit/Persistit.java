@@ -479,6 +479,7 @@ public class Persistit {
             startCheckpointManager();
             startTransactionIndexPollTask();
             flush();
+            _checkpointManager.checkpoint();
             startCleanupManager();
             _initialized.set(true);
             done = true;
