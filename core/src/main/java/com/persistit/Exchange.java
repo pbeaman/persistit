@@ -1585,9 +1585,6 @@ public class Exchange {
                     }
 
                 } catch (WWRetryException re) {
-                    newLongRecordPointer = 0;
-                    newLongRecordPointerMVV = 0;
-                    oldLongRecordPointer = 0;
                     if (buffer != null) {
                         buffer.releaseTouched();
                         buffer = null;
@@ -1606,9 +1603,6 @@ public class Exchange {
                         throw new PersistitInterruptedException(ie);
                     }
                 } catch (RetryException re) {
-                    newLongRecordPointer = 0;
-                    newLongRecordPointerMVV = 0;
-                    oldLongRecordPointer = 0;
                     if (buffer != null) {
                         buffer.releaseTouched();
                         buffer = null;
