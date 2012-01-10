@@ -33,7 +33,7 @@ public class MVCCBasicTest extends MVCCTestBase {
             assertFalse("differing start timestamps", trx1.getStartTimestamp() == trx2.getStartTimestamp());
             trx1.commit();
             trx2.commit();
-        } finally {
+        } finally {Make 
             trx1.end();
             trx2.end();
         }
@@ -794,10 +794,13 @@ public class MVCCBasicTest extends MVCCTestBase {
         try {
             assertEquals("fetch from new trx after commit", VALUE1, fetch(ex1, KEY1));
             assertEquals("key was removed first time", true, remove(ex1, KEY1));
+
             assertEquals("key is defined after remove", false, ex1.clear().append(KEY1).isValueDefined());
-            assertEquals("value is defined after remove", false, ex1.getValue().isDefined());
-            assertEquals("key was removed second time", true, remove(ex1, KEY1));
             ex1.clear().append(KEY1).fetch();
+            assertEquals("value is defined after remove", false, ex1.getValue().isDefined());
+
+            assertEquals("key was removed second time", false, remove(ex1, KEY1));
+
             trx1.commit();
         } finally {
             trx1.end();
@@ -807,7 +810,9 @@ public class MVCCBasicTest extends MVCCTestBase {
         try {
             assertEquals("key is defined from new trx after remove", false, ex1.clear().append(KEY1).isValueDefined());
             assertEquals("value is defined from new trx after remove", false, ex1.getValue().isDefined());
+
             assertEquals("key was removed from new trx", false, remove(ex1, KEY1));
+
             trx1.commit();
         } finally {
             trx1.end();
