@@ -1430,7 +1430,7 @@ public class Exchange {
                         if (newLongRecordPointerMVV != 0) {
                             _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
                             newLongRecordPointerMVV = 0;
-                            _spareValue.setLongRecordMode(false);
+                            _spareValue.changeLongRecordMode(false);
                         }
                         if (doAnyFetch) {
                             buffer.fetch(foundAt, _spareValue);
