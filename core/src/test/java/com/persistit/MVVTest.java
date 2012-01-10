@@ -530,6 +530,15 @@ public class MVVTest {
         }
     }
 
+    @Test(expected=IllegalArgumentException.class)
+    public void tryValueTooLong() {
+        final long VERSION = 10;
+        final int LENGTH = MVV.MAX_LENGTH_MASK + 1;
+        final byte[] target = new byte[LENGTH + 100];
+        final byte[] source = new byte[LENGTH];
+        MVV.storeVersion(target, 0, 0, target.length, VERSION, source, 0, source.length);
+    }
+
 
     //
     // Test helper methods

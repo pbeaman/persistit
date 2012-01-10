@@ -21,6 +21,7 @@ import static com.persistit.Buffer.HEADER_SIZE;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
 import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
 import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
+import static com.persistit.Buffer.LONGREC_PREFIX_SIZE_OFFSET;
 import static com.persistit.Buffer.LONGREC_SIZE;
 import static com.persistit.Buffer.LONGREC_TYPE;
 import static com.persistit.Buffer.MAX_VALID_PAGE_ADDR;
@@ -45,6 +46,7 @@ import com.persistit.ValueHelper.MVVValueWriter;
 import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
+import com.persistit.exception.PersistitClosedException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
@@ -1370,6 +1372,12 @@ public class Exchange {
                     Debug.suspend();
                 }
 
+                if (newLongRecordPointerMVV != 0) {
+                    _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
+                    newLongRecordPointerMVV = 0;
+                    _spareValue.changeLongRecordMode(false);
+                }
+
                 if (treeClaimRequired && !treeClaimAcquired) {
                     if (!_treeHolder.claim(treeWriterClaimRequired)) {
                         Debug.$assert0.t(false);
@@ -1432,14 +1440,17 @@ public class Exchange {
                         if (keyExisted) {
                             oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
                         }
-                        if (newLongRecordPointerMVV != 0) {
-                            _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
-                            newLongRecordPointerMVV = 0;
-                            _spareValue.setLongRecordMode(false);
-                        }
                         if (doAnyFetch) {
                             buffer.fetch(foundAt, _spareValue);
-                            fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                            /*
+                             * No reason to un-long-ify if we aren't in MVCC
+                             * or it isn't an MVV. Would result in a LONG
+                             * MVV otherwise. Better to to just let the MVV
+                             * contain long record values.
+                             */
+                            if (!doMVCC || isLongMVV(_spareValue)) {
+                                fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                            }
                         }
                         if (doMVCC) {
                             valueToStore = _spareValue;
@@ -1529,15 +1540,6 @@ public class Exchange {
                         treeClaimRequired = true;
                         buffer.releaseTouched();
                         buffer = null;
-                        //
-                        // Must come back through and fetch buffer again. Could
-                        // reuse these reserved pages(?) but not their contents.
-                        //
-                        if (newLongRecordPointerMVV != 0) {
-                            _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
-                            newLongRecordPointerMVV = 0;
-                            _spareValue.changeLongRecordMode(false);
-                        }
                         continue;
                     }
                     //
@@ -1594,9 +1596,6 @@ public class Exchange {
                     }
 
                 } catch (WWRetryException re) {
-                    newLongRecordPointer = 0;
-                    newLongRecordPointerMVV = 0;
-                    oldLongRecordPointer = 0;
                     if (buffer != null) {
                         buffer.releaseTouched();
                         buffer = null;
@@ -1615,9 +1614,6 @@ public class Exchange {
                         throw new PersistitInterruptedException(ie);
                     }
                 } catch (RetryException re) {
-                    newLongRecordPointer = 0;
-                    newLongRecordPointerMVV = 0;
-                    oldLongRecordPointer = 0;
                     if (buffer != null) {
                         buffer.releaseTouched();
                         buffer = null;
@@ -2612,18 +2608,23 @@ public class Exchange {
     }
 
     /**
+     * Convenience method that calls {@link Buffer#fetch(int, Value)} before
+     * then calling {@link #mvccFetch(Value, int)}. See the latter for
+     * details.
+     */
+    private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
+        buffer.fetch(foundAt, value);
+        return mvccFetch(value, minimumBytes);
+    }
+
+    /**
      * Fetch a single version of a value from a <code>Buffer</code> that is
      * assumed, but not required, to be an MVV. The correct version is
      * determined by the current transactions start timestamp. If no transaction
      * is active, the highest committed version is returned.
      * 
-     * @param buffer
-     *            The <code>Buffer</code> where the value is stored in.
      * @param value
      *            The <code>Value</code> into which the value should be fetched.
-     * @param foundAt
-     *            The full foundAt value where the key was located. As returned
-     *            by, for example, {@link Buffer#findKey(Key)}.
      * @param minimumBytes
      *            The minimum number of bytes to copy into <code>value</code>.
      *            Note this only affects the final contents, not the amount of
@@ -2633,9 +2634,7 @@ public class Exchange {
      * @throws PersistitException
      *             for any internal error
      */
-    private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
-        buffer.fetch(foundAt, value);
-
+    private boolean mvccFetch(Value value, int minimumBytes) throws PersistitException {
         if (_ignoreMVCCFetch) {
             fetchFixupForLongRecords(value, minimumBytes);
             return true;
@@ -2661,7 +2660,8 @@ public class Exchange {
         if (_mvvVisitor.foundVersion()) {
             int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _mvvVisitor.getOffset(), valueBytes);
             value.setEncodedSize(finalSize);
-            fetchFixupForLongRecords(value, Integer.MAX_VALUE);
+            // Need at least enough to determine if it is an AntiValue
+            fetchFixupForLongRecords(value, Math.max(minimumBytes, 1));
             if (value.isDefined() && value.isAntiValue()) {
                 value.clear();
                 return false;
@@ -2709,24 +2709,35 @@ public class Exchange {
     public Exchange fetch(Value value, int minimumBytes) throws PersistitException {
         _persistit.checkClosed();
         _key.testValidForStoreAndFetch(_volume.getPageSize());
-        if (minimumBytes < 0)
+        if (minimumBytes < 0) {
             minimumBytes = 0;
+        }
+        fetchInternal(value);
+        mvccFetch(value, minimumBytes);
+        return this;
+    }
 
+    /**
+     * Looks the current key, {@link #_key}, up in the tree and fetches the
+     * value from the page. The value is left as found. Specifically, that
+     * means it can be a <b>user value, LONG_RECORD, or MVV</b>.
+     * @param value The value as found on the page.
+     * @throws PersistitException As thrown from {@link #search(Key, boolean)}
+     */
+    private void fetchInternal(Value value) throws PersistitException {
         Buffer buffer = null;
         try {
             int foundAt = search(_key, false);
             LevelCache lc = _levelCache[0];
             buffer = lc._buffer;
-            mvccFetch(buffer, value, foundAt, minimumBytes);
+            buffer.fetch(foundAt, value);
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
-            return this;
         } finally {
             if (buffer != null) {
                 buffer.releaseTouched();
             }
             _treeHolder.verifyReleased();
-
         }
     }
 
@@ -2734,6 +2745,12 @@ public class Exchange {
         return value.isDefined() && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE;
     }
 
+    boolean isLongMVV(Value value) {
+        return value.isDefined() &&
+               (value.getEncodedSize() > LONGREC_PREFIX_SIZE_OFFSET) &&
+               (value.getEncodedBytes()[LONGREC_PREFIX_OFFSET] == MVV.TYPE_MVV_BYTE);
+    }
+    
     void fetchFixupForLongRecords(Value value, int minimumBytes) throws PersistitException {
         if (isLongRecord(value)) {
             //
@@ -3972,4 +3989,17 @@ public class Exchange {
         return sb.toString();
     }
 
+    /**
+     * Intended to be a test method. Fetches the current _key and determines
+     * if stored value is a LONG_RECORD. No other state, including the fetched
+     * value, can be gotten from this method.
+     * @return <code>true</code> if the value is a LONG_RECORD
+     * @throws PersistitException Any error during fetch
+     */
+    boolean isValueLongRecord() throws PersistitException {
+        fetchInternal(_spareValue);
+        final boolean wasLong = isLongRecord(_spareValue);
+        _spareValue.clear();
+        return wasLong;
+    }
 }
