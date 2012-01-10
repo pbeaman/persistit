@@ -315,6 +315,10 @@ public class TransactionIndex implements TransactionIndexMXBean {
     static long ts2vh(final long ts) {
         return ts * VERSION_HANDLE_MULTIPLIER;
     }
+    
+    static long tss2vh(final long timestamp, final int step) {
+        return ts2vh(timestamp) + step;
+    }
 
     static int vh2step(final long versionHandle) {
         return (int) (versionHandle % VERSION_HANDLE_MULTIPLIER);
