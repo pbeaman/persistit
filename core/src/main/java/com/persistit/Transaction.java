@@ -959,6 +959,20 @@ public class Transaction {
     }
 
     /**
+     * Set the current step index. Must be in the range [0, {@link #MAXIMUM_STEP}).
+     * <p>Also see {@link #incrementStep()} for step semantics.</p>
+     * @param step New step index value.
+     * @return Previous step value.
+     */
+    public int setStep(int step) {
+        checkPendingRollback();
+        checkStepRange(step);
+        int previous = _step;
+        _step = step;
+        return previous;
+    }
+
+    /**
      * Increment this transaction's current step index. Once the step is
      * non-zero, values written by updates within this transaction are visible
      * (within this transaction) only of they were written with earlier step
@@ -972,13 +986,18 @@ public class Transaction {
      * @throws IllegalStateException
      *             if this method is called 100 times or more within the scope
      *             of one transaction.
+     * @return The previous value of the step.
      */
-    public void incrementStep() {
-        checkPendingRollback();
-        if (_step < MAXIMUM_STEP) {
-            _step++;
-        } else {
-            throw new IllegalStateException(this + " is already at step " + MAXIMUM_STEP + " and cannot be incremented");
+    public int incrementStep() {
+        return setStep(_step + 1);
+    }
+
+    private void checkStepRange(int newStep) {
+        if (newStep < 0) {
+            throw new IllegalStateException(this + " cannot have a step of " + newStep + ", less than 0");
+        }
+        if (newStep >= MAXIMUM_STEP) {
+            throw new IllegalStateException(this + " cannot have a step of " + newStep + ", greater than maximum " + MAXIMUM_STEP);
         }
     }
 

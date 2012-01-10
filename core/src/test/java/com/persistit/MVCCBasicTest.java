@@ -18,6 +18,7 @@ package com.persistit;
 import com.persistit.exception.PersistitException;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 public class MVCCBasicTest extends MVCCTestBase {
@@ -774,6 +775,109 @@ public class MVCCBasicTest extends MVCCTestBase {
             assertEquals("traverse filter found key post-remove", false, ex1.traverse(Key.GT, filter2, Integer.MAX_VALUE));
             assertEquals("keys traversed w/filter post-remove", 2, ex1.getKeysVisitedDuringTraverse());
 
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
+    
+    public void testRedundantRemoveReturnValue() throws PersistitException {
+        trx1.begin();
+        try {
+            store(ex1, KEY1,  VALUE1);
+            assertEquals("fetch after store", VALUE1, fetch(ex1, KEY1));
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+        
+        trx1.begin();
+        try {
+            assertEquals("fetch from new trx after commit", VALUE1, fetch(ex1, KEY1));
+            assertEquals("key was removed first time", true, remove(ex1, KEY1));
+
+            assertEquals("key is defined after remove", false, ex1.clear().append(KEY1).isValueDefined());
+            ex1.clear().append(KEY1).fetch();
+            assertEquals("value is defined after remove", false, ex1.getValue().isDefined());
+
+            assertEquals("key was removed second time", false, remove(ex1, KEY1));
+
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+
+        trx1.begin();
+        try {
+            assertEquals("key is defined from new trx after remove", false, ex1.clear().append(KEY1).isValueDefined());
+            assertEquals("value is defined from new trx after remove", false, ex1.getValue().isDefined());
+
+            assertEquals("key was removed from new trx", false, remove(ex1, KEY1));
+
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
+
+    public void testSimpleTransactionStepUsage() throws Exception {
+        final int KEY_COUNT = 20;
+        final List<KVPair> baseList = kvList();
+        final List<KVPair> secondList = kvList();
+        
+        for (int i = 0; i < KEY_COUNT; ++i) {
+            int value = i * 10;
+            baseList.add(new KVPair(i, null, value));
+            secondList.add(new KVPair(i + KEY_COUNT, null, value + 1));
+        }
+
+        // Store originals
+        trx1.begin();
+        try {
+            storeAll(ex1, baseList);
+            trx1.commit();
+        } finally {
+            trx1.end();   
+        }
+        
+        // Traverse and update at the same time, toggling step back and forth
+        // This emulates the server usage by the operators
+        final List<KVPair> traversedList = kvList();
+        trx1.begin();
+        Exchange storeEx = null;
+        try {
+            Iterator<KVPair> insertIt = secondList.iterator();
+            _persistit.setSessionId(trx1.getSessionId());
+            storeEx = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, false);
+
+            ex1.clear().append(Key.BEFORE);
+            while (ex1.next()) {
+                traversedList.add(new KVPair(ex1.getKey().decodeInt(), null, ex1.getValue().getInt()));
+
+                if (insertIt.hasNext()) {
+                    int prevStep = trx1.incrementStep();
+                    KVPair pair = insertIt.next();
+                    store(storeEx, pair.k1, pair.v);
+                    trx1.setStep(prevStep);
+                }
+            }
+            
+            assertEquals("only traversed original keys", baseList, traversedList);
+
+            trx1.commit();
+        } finally {
+            if (storeEx != null) {
+                _persistit.releaseExchange(storeEx);
+            }
+            trx1.end();
+        }
+
+
+        trx1.begin();
+        try {
+            final List<KVPair> combined = combine(baseList, secondList);
+            final List<KVPair> traversed = traverseAllFoward(ex1, true);
+            assertEquals("traversed all after commit", combined, traversed);
             trx1.commit();
         } finally {
             trx1.end();
