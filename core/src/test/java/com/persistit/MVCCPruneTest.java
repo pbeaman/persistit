@@ -305,12 +305,24 @@ public class MVCCPruneTest extends MVCCTestBase {
 
         trx1.begin();
         try {
-            store(ex1, KEY, "abcd");
+            store(ex1, KEY, VALUE);
             assertEquals("stored long mvv", false, ex1.isValueLongRecord());
             trx1.commit();
         } finally {
             trx1.end();
         }
+        
+        trx1.begin();
+        try {
+            store(ex1, KEY, LONG_STR);
+            assertEquals("stored long mvv", false, ex1.isValueLongRecord());
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+
+        prune(ex1, KEY);
+        assertEquals("value is long after pruning", true, ex1.isValueLongRecord());
     }
 
     //

@@ -21,6 +21,7 @@ import static com.persistit.Buffer.HEADER_SIZE;
 import static com.persistit.Buffer.KEYBLOCK_LENGTH;
 import static com.persistit.Buffer.LONGREC_PREFIX_OFFSET;
 import static com.persistit.Buffer.LONGREC_PREFIX_SIZE;
+import static com.persistit.Buffer.LONGREC_PREFIX_SIZE_OFFSET;
 import static com.persistit.Buffer.LONGREC_SIZE;
 import static com.persistit.Buffer.LONGREC_TYPE;
 import static com.persistit.Buffer.MAX_VALID_PAGE_ADDR;
@@ -1433,7 +1434,14 @@ public class Exchange {
                         }
                         if (doAnyFetch) {
                             buffer.fetch(foundAt, _spareValue);
-                            fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                            /*
+                             * No reason to un-long-ify if it isn't an MVV as it
+                             * would needlessly result in a LONG MVV. Better to
+                             * to just let the MVV contain long record values.
+                             */
+                            if (isLongMVV(_spareValue)) {
+                                fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                            }
                         }
                         if (doMVCC) {
                             valueToStore = _spareValue;
@@ -2731,6 +2739,12 @@ public class Exchange {
         return value.isDefined() && (value.getEncodedBytes()[0] & 0xFF) == LONGREC_TYPE;
     }
 
+    boolean isLongMVV(Value value) {
+        return value.isDefined() &&
+               (value.getEncodedSize() > LONGREC_PREFIX_SIZE_OFFSET) &&
+               (value.getEncodedBytes()[LONGREC_PREFIX_OFFSET] == MVV.TYPE_MVV_BYTE);
+    }
+    
     void fetchFixupForLongRecords(Value value, int minimumBytes) throws PersistitException {
         if (isLongRecord(value)) {
             //
