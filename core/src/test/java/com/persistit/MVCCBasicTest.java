@@ -33,7 +33,7 @@ public class MVCCBasicTest extends MVCCTestBase {
             assertFalse("differing start timestamps", trx1.getStartTimestamp() == trx2.getStartTimestamp());
             trx1.commit();
             trx2.commit();
-        } finally {Make 
+        } finally {
             trx1.end();
             trx2.end();
         }
@@ -813,6 +813,78 @@ public class MVCCBasicTest extends MVCCTestBase {
 
             assertEquals("key was removed from new trx", false, remove(ex1, KEY1));
 
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
+
+    public void testSimpleTransactionStepUsage() throws Exception {
+        final int KEY_COUNT = 20;
+
+        final List<KVPair> baseKeys = kvList();
+        final List<KVPair> updatedList = kvList();
+        
+        for (int i = 0; i < KEY_COUNT; ++i) {
+            baseKeys.add(new KVPair(i, null, i*10));
+        }
+        
+        for (int i = 0; i < KEY_COUNT; ++i) {
+            updatedList.add(new KVPair(i + KEY_COUNT, null, i*10 + 1));
+        }
+
+        // Store originals
+        trx1.begin();
+        try {
+            storeAll(ex1, baseKeys);
+            trx1.commit();
+        } finally {
+            trx1.end();   
+        }
+        
+        // Traverse and update at the same time, toggling step back and forth
+        // This emulates the server usage by the operators
+        final List<KVPair> traversedList = kvList();
+        trx1.begin();
+        Exchange storeEx = null;
+        try {
+            final int TRAVERSE_STEP = 1;
+            final int STORE_STEP = 2;
+
+            int curKVPair = 0;
+            storeEx = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, false);
+
+            ex1.clear().append(Key.BEFORE);
+            for (;;) {
+                //trx1.setCurrentStep(TRAVERSE_STEP);
+                if (!ex1.next()) {
+                    break;
+                }
+
+                traversedList.add(new KVPair(ex1.getKey(), null, ex1.getValue()));
+
+                //trx1.setCurrentStep(STORE_STEP);
+                if (curKVPair < updatedList.size()) {
+                    KVPair pair = updatedList.get(curKVPair++);
+                    store(storeEx, pair.k1, pair.v);
+                }
+            }
+            
+            assertEquals("only traversed original keys", baseKeys, traversedList);
+
+            trx1.commit();
+        } finally {
+            if (storeEx != null) {
+                _persistit.releaseExchange(storeEx);
+            }
+            trx1.end();
+        }
+
+
+        trx1.begin();
+        try {
+            final List<KVPair> traversed = traverseAllFoward(ex1, true);
+            assertEquals("traversed only updated keys after commit", updatedList, traversed);
             trx1.commit();
         } finally {
             trx1.end();
