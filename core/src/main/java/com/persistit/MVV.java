@@ -39,6 +39,9 @@ public class MVV {
     final static int PRIMORDIAL_VALUE_VERSION = 0;
     final static int UNDEFINED_VALUE_LENGTH = 0;
 
+    final static int MAX_LENGTH_MASK = 0x7FFF;
+    final static int MARKED_LENGTH_MASK = 0x8000;
+
     private final static int LENGTH_TYPE_MVV = 1; // byte
     private final static int LENGTH_VERSION = 8; // long
     private final static int LENGTH_VALUE_LENGTH = 2; // short
@@ -54,7 +57,7 @@ public class MVV {
     }
 
     static int getLength(final byte[] bytes, final int offset) {
-        return Util.getChar(bytes, offset + LENGTH_VERSION) & 0x7FFF;
+        return Util.getChar(bytes, offset + LENGTH_VERSION) & MAX_LENGTH_MASK;
     }
 
     static void putLength(final byte[] bytes, final int offset, final int length) {
@@ -62,15 +65,15 @@ public class MVV {
     }
 
     static boolean isMarked(final byte[] bytes, final int offset) {
-        return (Util.getChar(bytes, offset + LENGTH_VERSION) & 0x8000) != 0;
+        return (Util.getChar(bytes, offset + LENGTH_VERSION) & MARKED_LENGTH_MASK) != 0;
     }
 
     static void mark(final byte[] bytes, final int offset) {
-        Util.putChar(bytes, offset + LENGTH_VERSION, Util.getChar(bytes, offset + LENGTH_VERSION) | 0x8000);
+        Util.putChar(bytes, offset + LENGTH_VERSION, Util.getChar(bytes, offset + LENGTH_VERSION) | MARKED_LENGTH_MASK);
     }
 
     static void unmark(final byte[] bytes, final int offset) {
-        Util.putChar(bytes, offset + LENGTH_VERSION, Util.getChar(bytes, offset + LENGTH_VERSION) & 0x7FFF);
+        Util.putChar(bytes, offset + LENGTH_VERSION, Util.getChar(bytes, offset + LENGTH_VERSION) & MAX_LENGTH_MASK);
     }
 
     /**
@@ -134,8 +137,8 @@ public class MVV {
         } else {
             int offset = targetOffset + 1;
             while (offset < targetLength) {
-                final long version = Util.getLong(target, offset);
-                final int valueLength = Util.getShort(target, offset + LENGTH_VERSION);
+                final long version = getVersion(target, offset);
+                final int valueLength = getLength(target, offset);
                 offset += LENGTH_PER_VERSION + valueLength;
                 if (version == newVersion) {
                     return targetLength - valueLength + newVersionLength;
@@ -220,6 +223,9 @@ public class MVV {
         if (source == target) {
             throw new IllegalArgumentException("Source and target arrays must be different");
         }
+        if (sourceLength > MAX_LENGTH_MASK) {
+            throw new IllegalArgumentException("Source length greater than max: " + sourceLength + " > " + MAX_LENGTH_MASK);
+        }
         /*
          * Value did not previously exist. Result will be an MVV with one
          * version.
@@ -238,8 +244,9 @@ public class MVV {
             assertCapacity(targetLimit, targetOffset + sourceLength + overheadLength(2));
             // Promote to MVV, original state is undefined
             target[to++] = TYPE_MVV_BYTE;
-            to += writeVersionHandle(target, to, PRIMORDIAL_VALUE_VERSION);
-            to += writeValueLength(target, to, UNDEFINED_VALUE_LENGTH);
+            putVersion(target, to, PRIMORDIAL_VALUE_VERSION);
+            putLength(target, to, UNDEFINED_VALUE_LENGTH);
+            to += LENGTH_PER_VERSION;
         }
 
         /*
@@ -251,9 +258,9 @@ public class MVV {
             // Promote to MVV, shift existing down for header
             System.arraycopy(target, to, target, to + LENGTH_TYPE_MVV + LENGTH_PER_VERSION, targetLength);
             target[to++] = TYPE_MVV_BYTE;
-            to += writeVersionHandle(target, to, PRIMORDIAL_VALUE_VERSION);
-            to += writeValueLength(target, to, targetLength);
-            to += targetLength;
+            putVersion(target, to, PRIMORDIAL_VALUE_VERSION);
+            putLength(target, to, targetLength);
+            to += LENGTH_PER_VERSION + targetLength;
         }
 
         /*
@@ -301,8 +308,9 @@ public class MVV {
         }
         assertCapacity(targetLimit, to + LENGTH_PER_VERSION + sourceLength);
         // Append new value
-        to += writeVersionHandle(target, to, versionHandle);
-        to += writeValueLength(target, to, sourceLength);
+        putVersion(target, to, versionHandle);
+        putLength(target, to, sourceLength);
+        to += LENGTH_PER_VERSION;
         System.arraycopy(source, sourceOffset, target, to, sourceLength);
         to += sourceLength;
 
@@ -638,40 +646,6 @@ public class MVV {
             System.arraycopy(source, offset, target, 0, length);
         }
         return length;
-    }
-
-    /**
-     * Internal helper. Write a version handle into the given byte array at the
-     * specified offset.
-     * 
-     * @param target
-     *            Destination array
-     * @param offset
-     *            Position in target to write
-     * @param versionHandle
-     *            Version to write
-     * @return Byte count consumed in target
-     */
-    private static int writeVersionHandle(byte[] target, int offset, long versionHandle) {
-        Util.putLong(target, offset, versionHandle);
-        return LENGTH_VERSION;
-    }
-
-    /**
-     * Internal helper. Write a value length given byte array at the specified
-     * offset.
-     * 
-     * @param target
-     *            Destination array
-     * @param offset
-     *            Position in target to write
-     * @param length
-     *            Length to write
-     * @return Byte count consumed in target
-     */
-    private static int writeValueLength(byte[] target, int offset, int length) {
-        Util.putShort(target, offset, length);
-        return LENGTH_VALUE_LENGTH;
     }
 
     /**

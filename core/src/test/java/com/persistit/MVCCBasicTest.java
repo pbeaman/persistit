@@ -16,6 +16,7 @@
 package com.persistit;
 
 import com.persistit.exception.PersistitException;
+import com.sun.jdi.ShortType;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -878,6 +879,28 @@ public class MVCCBasicTest extends MVCCTestBase {
             final List<KVPair> combined = combine(baseList, secondList);
             final List<KVPair> traversed = traverseAllFoward(ex1, true);
             assertEquals("traversed all after commit", combined, traversed);
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
+
+    public void testStoreReallyLongRecord() throws PersistitException {
+        // Enough that if the length portion of the MVV is signed we fail
+        final String LONG_STR = createString(Short.MAX_VALUE + 2);
+        
+        trx1.begin();
+        try {
+            store(ex1, KEY1, LONG_STR);
+            assertEquals("fetched value", LONG_STR, fetch(ex1, KEY1));
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+
+        trx1.begin();
+        try {
+            assertEquals("fetched committed value", LONG_STR, fetch(ex1, KEY1));
             trx1.commit();
         } finally {
             trx1.end();
