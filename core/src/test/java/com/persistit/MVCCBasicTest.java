@@ -16,7 +16,6 @@
 package com.persistit;
 
 import com.persistit.exception.PersistitException;
-import com.sun.jdi.ShortType;
 
 import java.util.Collections;
 import java.util.Iterator;
