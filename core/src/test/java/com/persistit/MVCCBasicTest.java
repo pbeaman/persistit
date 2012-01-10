@@ -18,6 +18,7 @@ package com.persistit;
 import com.persistit.exception.PersistitException;
 
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 public class MVCCBasicTest extends MVCCTestBase {
@@ -821,22 +822,19 @@ public class MVCCBasicTest extends MVCCTestBase {
 
     public void testSimpleTransactionStepUsage() throws Exception {
         final int KEY_COUNT = 20;
-
-        final List<KVPair> baseKeys = kvList();
-        final List<KVPair> updatedList = kvList();
+        final List<KVPair> baseList = kvList();
+        final List<KVPair> secondList = kvList();
         
         for (int i = 0; i < KEY_COUNT; ++i) {
-            baseKeys.add(new KVPair(i, null, i*10));
-        }
-        
-        for (int i = 0; i < KEY_COUNT; ++i) {
-            updatedList.add(new KVPair(i + KEY_COUNT, null, i*10 + 1));
+            int value = i * 10;
+            baseList.add(new KVPair(i, null, value));
+            secondList.add(new KVPair(i + KEY_COUNT, null, value + 1));
         }
 
         // Store originals
         trx1.begin();
         try {
-            storeAll(ex1, baseKeys);
+            storeAll(ex1, baseList);
             trx1.commit();
         } finally {
             trx1.end();   
@@ -848,29 +846,23 @@ public class MVCCBasicTest extends MVCCTestBase {
         trx1.begin();
         Exchange storeEx = null;
         try {
-            final int TRAVERSE_STEP = 1;
-            final int STORE_STEP = 2;
-
-            int curKVPair = 0;
+            Iterator<KVPair> insertIt = secondList.iterator();
+            _persistit.setSessionId(trx1.getSessionId());
             storeEx = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, false);
 
             ex1.clear().append(Key.BEFORE);
-            for (;;) {
-                //trx1.setCurrentStep(TRAVERSE_STEP);
-                if (!ex1.next()) {
-                    break;
-                }
+            while (ex1.next()) {
+                traversedList.add(new KVPair(ex1.getKey().decodeInt(), null, ex1.getValue().getInt()));
 
-                traversedList.add(new KVPair(ex1.getKey(), null, ex1.getValue()));
-
-                //trx1.setCurrentStep(STORE_STEP);
-                if (curKVPair < updatedList.size()) {
-                    KVPair pair = updatedList.get(curKVPair++);
+                if (insertIt.hasNext()) {
+                    int prevStep = trx1.incrementStep();
+                    KVPair pair = insertIt.next();
                     store(storeEx, pair.k1, pair.v);
+                    trx1.setStep(prevStep);
                 }
             }
             
-            assertEquals("only traversed original keys", baseKeys, traversedList);
+            assertEquals("only traversed original keys", baseList, traversedList);
 
             trx1.commit();
         } finally {
@@ -883,8 +875,9 @@ public class MVCCBasicTest extends MVCCTestBase {
 
         trx1.begin();
         try {
+            final List<KVPair> combined = combine(baseList, secondList);
             final List<KVPair> traversed = traverseAllFoward(ex1, true);
-            assertEquals("traversed only updated keys after commit", updatedList, traversed);
+            assertEquals("traversed all after commit", combined, traversed);
             trx1.commit();
         } finally {
             trx1.end();

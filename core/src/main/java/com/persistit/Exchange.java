@@ -1460,7 +1460,8 @@ public class Exchange {
                                 spareSize = prunedSpareSize;
                             }
 
-                            TransactionStatus tStatus = _transaction.getTransactionStatus();
+                            final TransactionStatus tStatus = _transaction.getTransactionStatus();
+                            final int tStep = _transaction.getCurrentStep();
 
                             if ((options & StoreOptions.ONLY_IF_VISIBLE) != 0) {
                                 /*
@@ -1468,7 +1469,7 @@ public class Exchange {
                                  * current TI would still require calls to both
                                  * commitStatus() and wwDependency()
                                  */
-                                _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.FETCH);
+                                _mvvVisitor.initInternal(tStatus, tStep, MvvVisitor.Usage.FETCH);
                                 MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
                                 final int offset = _mvvVisitor.getOffset();
                                 if (!_mvvVisitor.foundVersion() ||
@@ -1480,14 +1481,14 @@ public class Exchange {
                             }
 
                             // Visit all versions for ww detection
-                            _mvvVisitor.initInternal(tStatus, 0, MvvVisitor.Usage.STORE);
+                            _mvvVisitor.initInternal(tStatus, tStep, MvvVisitor.Usage.STORE);
                             MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
 
                             int mvvSize = MVV.estimateRequiredLength(spareBytes, spareSize, valueSize);
                             _spareValue.ensureFit(mvvSize);
                             spareBytes = _spareValue.getEncodedBytes();
 
-                            long versionHandle = TransactionIndex.ts2vh(_transaction.getStartTimestamp());
+                            long versionHandle = TransactionIndex.tss2vh(_transaction.getStartTimestamp(), tStep);
                             int storedLength = MVV.storeVersion(spareBytes, 0, spareSize, spareBytes.length,
                                     versionHandle, value.getEncodedBytes(), 0, valueSize);
 
@@ -2642,8 +2643,16 @@ public class Exchange {
             fetchFixupForLongRecords(value, Integer.MAX_VALUE);
         }
 
-        TransactionStatus status = _transaction.isActive() ? _transaction.getTransactionStatus() : null;
-        _mvvVisitor.initInternal(status, 0, MvvVisitor.Usage.FETCH);
+        final TransactionStatus status;
+        final int step;
+        if (_transaction.isActive()) {
+            status = _transaction.getTransactionStatus();
+            step = _transaction.getCurrentStep();
+        } else {
+            status = null;
+            step = 0;
+        }
+        _mvvVisitor.initInternal(status, step, MvvVisitor.Usage.FETCH);
 
         int valueSize = value.getEncodedSize();
         byte[] valueBytes = value.getEncodedBytes();
