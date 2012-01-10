@@ -779,4 +779,38 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.end();
         }
     }
+    
+    public void testRedundantRemoveReturnValue() throws PersistitException {
+        trx1.begin();
+        try {
+            store(ex1, KEY1,  VALUE1);
+            assertEquals("fetch after store", VALUE1, fetch(ex1, KEY1));
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+        
+        trx1.begin();
+        try {
+            assertEquals("fetch from new trx after commit", VALUE1, fetch(ex1, KEY1));
+            assertEquals("key was removed first time", true, remove(ex1, KEY1));
+            assertEquals("key is defined after remove", false, ex1.clear().append(KEY1).isValueDefined());
+            assertEquals("value is defined after remove", false, ex1.getValue().isDefined());
+            assertEquals("key was removed second time", true, remove(ex1, KEY1));
+            ex1.clear().append(KEY1).fetch();
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+
+        trx1.begin();
+        try {
+            assertEquals("key is defined from new trx after remove", false, ex1.clear().append(KEY1).isValueDefined());
+            assertEquals("value is defined from new trx after remove", false, ex1.getValue().isDefined());
+            assertEquals("key was removed from new trx", false, remove(ex1, KEY1));
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
 }
