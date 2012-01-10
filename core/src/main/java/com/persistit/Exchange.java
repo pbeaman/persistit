@@ -1514,6 +1514,15 @@ public class Exchange {
                     // repeat this after acquiring a tree claim.
                     //
                     if (splitRequired && !treeClaimAcquired) {
+                        //
+                        // Must come back through and fetch buffer again. Could
+                        // reuse these reserved pages(?) but not their contents.
+                        //
+                        if (newLongRecordPointerMVV != 0) {
+                            _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
+                            newLongRecordPointerMVV = 0;
+                            _spareValue.changeLongRecordMode(false);
+                        }
                         if (!didPrune && buffer.isDataPage()) {
                             didPrune = true;
                             if (buffer.pruneMvvValues(_tree, _spareKey1)) {
@@ -1527,15 +1536,6 @@ public class Exchange {
                         treeClaimRequired = true;
                         buffer.releaseTouched();
                         buffer = null;
-                        //
-                        // Must come back through and fetch buffer again. Could
-                        // reuse these reserved pages(?) but not their contents.
-                        //
-                        if (newLongRecordPointerMVV != 0) {
-                            _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
-                            newLongRecordPointerMVV = 0;
-                            _spareValue.changeLongRecordMode(false);
-                        }
                         continue;
                     }
                     //
