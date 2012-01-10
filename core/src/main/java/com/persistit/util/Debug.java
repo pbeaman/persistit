@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class Debug {
 
-    public final static boolean ENABLED = false;
+    public final static boolean ENABLED = true;
 
     public final static boolean VERIFY_PAGES = false;
 

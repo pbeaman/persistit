@@ -1436,11 +1436,12 @@ public class Exchange {
                         if (doAnyFetch) {
                             buffer.fetch(foundAt, _spareValue);
                             /*
-                             * No reason to un-long-ify if it isn't an MVV as it
-                             * would needlessly result in a LONG MVV. Better to
-                             * to just let the MVV contain long record values.
+                             * No reason to un-long-ify if we aren't in MVCC
+                             * or it isn't an MVV. Would result in a LONG
+                             * MVV otherwise. Better to to just let the MVV
+                             * contain long record values.
                              */
-                            if (isLongMVV(_spareValue)) {
+                            if (!doMVCC || isLongMVV(_spareValue)) {
                                 fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
                             }
                         }
