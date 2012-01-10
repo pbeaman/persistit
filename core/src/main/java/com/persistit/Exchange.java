@@ -1365,6 +1365,12 @@ public class Exchange {
                     Debug.suspend();
                 }
 
+                if (newLongRecordPointerMVV != 0) {
+                    _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
+                    newLongRecordPointerMVV = 0;
+                    _spareValue.changeLongRecordMode(false);
+                }
+
                 if (treeClaimRequired && !treeClaimAcquired) {
                     if (!_treeHolder.claim(treeWriterClaimRequired)) {
                         Debug.$assert0.t(false);
@@ -1426,11 +1432,6 @@ public class Exchange {
                         keyExisted = (foundAt & EXACT_MASK) != 0;
                         if (keyExisted) {
                             oldLongRecordPointer = buffer.fetchLongRecordPointer(foundAt);
-                        }
-                        if (newLongRecordPointerMVV != 0) {
-                            _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
-                            newLongRecordPointerMVV = 0;
-                            _spareValue.changeLongRecordMode(false);
                         }
                         if (doAnyFetch) {
                             buffer.fetch(foundAt, _spareValue);
@@ -1514,15 +1515,6 @@ public class Exchange {
                     // repeat this after acquiring a tree claim.
                     //
                     if (splitRequired && !treeClaimAcquired) {
-                        //
-                        // Must come back through and fetch buffer again. Could
-                        // reuse these reserved pages(?) but not their contents.
-                        //
-                        if (newLongRecordPointerMVV != 0) {
-                            _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
-                            newLongRecordPointerMVV = 0;
-                            _spareValue.changeLongRecordMode(false);
-                        }
                         if (!didPrune && buffer.isDataPage()) {
                             didPrune = true;
                             if (buffer.pruneMvvValues(_tree, _spareKey1)) {
