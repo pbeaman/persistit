@@ -298,6 +298,21 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("stored versions post-prune", 1, storedVersionCount(ex2, KEY));
     }
 
+    public void testStoreToPrimordialLongRecord() throws PersistitException {
+        final String LONG_STR = createString(ex1.getVolume().getPageSize());
+        storePrimordial(ex1, KEY, LONG_STR);
+        assertEquals("stored long record", true, ex1.isValueLongRecord());
+
+        trx1.begin();
+        try {
+            store(ex1, KEY, "abcd");
+            assertEquals("stored long mvv", false, ex1.isValueLongRecord());
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
+
     //
     // Test helper methods
     //
