@@ -944,6 +944,31 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    public void testUnorderedStepStoreAndFetch() throws PersistitException {
+        final int STEP_COUNT = 10;
+        final int stepOrder[] = { 8, 7, 9, 4, 6, 2, 0, 1, 3, 5 };
+        assertEquals("step order array size", STEP_COUNT, stepOrder.length);
+        
+        trx1.begin();
+        try {
+            for (int step : stepOrder) {
+                trx1.setStep(step);
+                store(ex1, KEY1, step);
+            }
+            
+            for (int i = 0; i < STEP_COUNT; ++i) {
+                trx1.setStep(i);
+                final int expected = (i == 0) ? 0 : i - 1;
+                fetch(ex1, KEY1, false);
+                assertEquals("fetched value from step " + i, expected, ex1.getValue().getInt());
+            }
+            
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
+
     public void testStoreReallyLongRecord() throws PersistitException {
         // Enough that if the length portion of the MVV is signed we fail
         final String LONG_STR = createString(Short.MAX_VALUE + 2);
@@ -965,7 +990,7 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.end();
         }
     }
-    
+
     //
     // Test Helpers
     //
