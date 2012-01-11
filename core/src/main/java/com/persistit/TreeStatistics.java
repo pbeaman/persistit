@@ -28,7 +28,7 @@ import com.persistit.util.Util;
  * 
  * @author peter
  */
-class TreeStatistics {
+public class TreeStatistics {
     final static int MAX_SERIALIZED_SIZE = 54;
 
     private final AtomicLong _fetchCounter = new AtomicLong();
