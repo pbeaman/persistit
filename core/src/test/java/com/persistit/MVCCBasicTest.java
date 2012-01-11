@@ -883,6 +883,66 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.end();
         }
     }
+    
+    public void testTransactionStepTraverseBeforeCommit() throws Exception {
+        final int KEY_COUNT = 10;
+        final List<KVPair> originalList = kvList();
+        final List<KVPair> updatedList = kvList();
+        
+        for(int i = 0; i < KEY_COUNT; ++i) {
+            originalList.add(new KVPair(i, null, i*10));
+            updatedList.add(new KVPair(i + KEY_COUNT, null, i*10 + 1));
+        }
+
+        Exchange storeEx = null;
+        trx1.begin();
+        try {
+            storeEx = createExchange(trx1);
+
+            trx1.setStep(0);
+            storeAll(ex1, originalList);
+
+            final List<KVPair> traversedStep0 = kvList();
+            final Iterator<KVPair> updatedIt = updatedList.iterator();
+
+            ex1.clear().append(Key.BEFORE);
+            while (ex1.next()) {
+                traversedStep0.add(new KVPair(ex1.getKey().decodeInt(), null, ex1.getValue().getInt()));
+
+                if (updatedIt.hasNext()) {
+                    int prevStep = trx1.incrementStep();
+                    ex1.remove();
+                    KVPair pair = updatedIt.next();
+                    store(storeEx,  pair.k1, pair.v);
+                    trx1.setStep(prevStep);
+                }
+            }
+
+            trx1.setStep(1);
+            final List<KVPair> traversedStep1 = traverseAllFoward(ex1, true);
+
+            trx1.setStep(2);
+            final List<KVPair> traversedStep2 = traverseAllFoward(ex1, true);
+            
+            assertEquals("traversed only originals from step 0", originalList, traversedStep0);
+            assertEquals("traversed only originals from step 1", originalList, traversedStep1);
+            assertEquals("traversed only updated from step 2", updatedList, traversedStep2);
+
+            trx1.commit();
+        } finally {
+            releaseExchange(storeEx);
+            trx1.end();
+        }
+
+        trx1.begin();
+        try {
+            final List<KVPair> traversed = traverseAllFoward(ex1, true);
+            assertEquals("traversed only updated after commit", updatedList, traversed);
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
 
     public void testStoreReallyLongRecord() throws PersistitException {
         // Enough that if the length portion of the MVV is signed we fail
@@ -903,6 +963,21 @@ public class MVCCBasicTest extends MVCCTestBase {
             trx1.commit();
         } finally {
             trx1.end();
+        }
+    }
+    
+    //
+    // Test Helpers
+    //
+    
+    private Exchange createExchange(Transaction txn) throws PersistitException {
+        _persistit.setSessionId(txn.getSessionId());
+        return _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
+    }
+    
+    private void releaseExchange(Exchange ex) {
+        if (ex != null) {
+            _persistit.releaseExchange(ex);
         }
     }
 }
