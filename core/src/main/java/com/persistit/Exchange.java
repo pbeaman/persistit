@@ -199,8 +199,8 @@ public class Exchange {
                 case FETCH:
                     long ts = _status != null ? _status.getTs() : READ_COMMITTED_TS;
                     long status = _ti.commitStatus(version, ts, _step);
-                    if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status > _maxVersion) {
-                        assert status <= ts; 
+                    if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status >= _maxVersion) {
+                        assert status <= ts;
                         _offset = offset;
                         _length = valueLength;
                         _maxVersion = status;
