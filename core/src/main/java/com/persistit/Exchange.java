@@ -46,7 +46,6 @@ import com.persistit.ValueHelper.MVVValueWriter;
 import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.exception.CorruptVolumeException;
 import com.persistit.exception.InUseException;
-import com.persistit.exception.PersistitClosedException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.ReadOnlyVolumeException;
@@ -147,9 +146,10 @@ public class Exchange {
         private TransactionIndex _ti;
         private TransactionStatus _status;
         private int _step;
-        private int _offset;
-        private int _length;
-        private long _maxVersion;
+        private int _foundOffset;
+        private int _foundLength;
+        private long _foundVersion;
+        private int _foundStep;
         private Usage _usage;
 
         private MvvVisitor(TransactionIndex ti) {
@@ -174,22 +174,23 @@ public class Exchange {
         }
 
         public int getOffset() {
-            return _offset;
+            return _foundOffset;
         }
         
         public int getLength() {
-            return _length;
+            return _foundLength;
         }
 
         public boolean foundVersion() {
-            return _maxVersion != MVV.VERSION_NOT_FOUND;
+            return _foundVersion != MVV.VERSION_NOT_FOUND;
         }
 
         @Override
         public void init() {
-            _maxVersion = MVV.VERSION_NOT_FOUND;
-            _offset = -1;
-            _length = -1;
+            _foundVersion = MVV.VERSION_NOT_FOUND;
+            _foundOffset = -1;
+            _foundLength = -1;
+            _foundStep = 0;
         }
 
         @Override
@@ -199,11 +200,15 @@ public class Exchange {
                 case FETCH:
                     long ts = _status != null ? _status.getTs() : READ_COMMITTED_TS;
                     long status = _ti.commitStatus(version, ts, _step);
-                    if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status >= _maxVersion) {
+                    if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status >= _foundVersion) {
                         assert status <= ts;
-                        _offset = offset;
-                        _length = valueLength;
-                        _maxVersion = status;
+                        int step = TransactionIndex.vh2step(version);
+                        if (step >= _foundStep) {
+                            _foundOffset = offset;
+                            _foundLength = valueLength;
+                            _foundVersion = status;
+                            _foundStep = step;
+                        }
                     }
                     break;
 
@@ -218,8 +223,8 @@ public class Exchange {
                         // way, must abort.
                         throw new RollbackException();
                     }
-                    if (version > _maxVersion) {
-                        _maxVersion = version;
+                    if (version > _foundVersion) {
+                        _foundVersion = version;
                     }
                     break;
                 }
