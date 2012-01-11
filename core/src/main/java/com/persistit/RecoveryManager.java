@@ -761,8 +761,17 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     //
                     rejectedPrimordialFile = candidate;
                     savedException = je;
+                    
                     _keystoneAddress = -1;
                     _keystoneFile = null;
+                    _recoveredTransactionMap.clear();
+                    _pageMap.clear();
+                    _branchMap.clear();
+                    _treeToHandleMap.clear();
+                    _volumeToHandleMap.clear();
+                    _handleToTreeMap.clear();
+                    _handleToVolumeMap.clear();
+                    
                 } else {
                     throw savedException;
                 }
