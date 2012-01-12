@@ -38,6 +38,23 @@ public class TreeSelectorTest {
     }
 
     @Test
+    public void volumeOnlySelector() throws Exception {
+        TreeSelector ts = TreeSelector.parseSelector("akiban_data*", false, '\\');
+        assertTrue(ts.isVolumeNameSelected("akiban_data.v01"));
+        assertFalse(ts.isVolumeNameSelected("mystuff"));
+        assertTrue(ts.isTreeNameSelected("akiban_data.v01", "anindex"));
+        assertTrue(ts.isTreeNameSelected("akiban_data.v01", "_directory"));
+    }
+
+    @Test
+    public void toxicCharactersSelector() throws Exception {
+        TreeSelector ts = TreeSelector.parseSelector("*:customer$$group(something...*)[a-z]$$$$27", false, '\\');
+        assertTrue(ts.isTreeNameSelected("akiban_data.v01", "customer$$group(something...)[a-z]$$$$27"));
+        assertTrue(ts.isTreeNameSelected("akiban_data.v01", "customer$$group(something...xyz)[a-z]$$$$27"));
+        assertFalse(ts.isTreeNameSelected("akiban_data.v01", "customer$$group(something...)m$$$$27"));
+    }
+
+    @Test
     public void simpleSelectorWithKeyFilter() throws Exception {
         TreeSelector ts = TreeSelector.parseSelector("*data:*index{1:2}", false, '\\');
         assertTrue(ts.isVolumeNameSelected("mydata"));
