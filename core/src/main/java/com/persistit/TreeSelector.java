@@ -57,6 +57,7 @@ public class TreeSelector {
     private final static char RBRACE = '}';
     private final static char NUL = (char) 0;
     private final static String CAN_BE_QUOTED = "*?,";
+    private final static String REGEX_QUOTE = "^$*+?()[].";
 
     /**
      * Constraints on volume name, tree name and/or key.
@@ -114,6 +115,9 @@ public class TreeSelector {
                         sb.append(".*");
                     } else if (c == WILD_ONE && !regex) {
                         sb.append(".");
+                    } else if (!regex && REGEX_QUOTE.indexOf(c) != -1) {
+                        sb.append('\\');
+                        sb.append(c);
                     } else if (c == COLON || c == COMMA || c == NUL) {
                         s._vpattern = Pattern.compile(sb.toString());
                         sb.setLength(0);
@@ -133,6 +137,9 @@ public class TreeSelector {
                         sb.append(".*");
                     } else if (c == WILD_ONE && !regex) {
                         sb.append(".");
+                    } else if (!regex && REGEX_QUOTE.indexOf(c) != -1) {
+                        sb.append('\\');
+                        sb.append(c);
                     } else if (c == LBRACE || c == COMMA || c == NUL) {
                         s._tpattern = Pattern.compile(sb.toString());
                         sb.setLength(0);
