@@ -1897,16 +1897,12 @@ public class Persistit {
     }
     
     void flushTransactions(final long checkpointTimestamp) throws PersistitException {
-        final List<Transaction> concurrentTransactions = new ArrayList<Transaction>();
+        final List<Transaction> transactions;
         synchronized (_transactionSessionMap) {
-            for (final Transaction transaction : _transactionSessionMap.values()) {
-                if (transaction.isConcurrent(checkpointTimestamp)) {
-                    concurrentTransactions.add(transaction);
-                }
-            }
+            transactions = new ArrayList<Transaction>(_transactionSessionMap.values());
         }
         
-        for (final Transaction transaction: concurrentTransactions) {
+        for (final Transaction transaction: transactions) {
             transaction.flushOnCheckpoint(checkpointTimestamp);
         }
     }

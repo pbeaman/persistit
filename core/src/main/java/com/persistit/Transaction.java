@@ -883,10 +883,6 @@ public class Transaction {
         }
     }
     
-    synchronized boolean isConcurrent(final long timestamp) {
-        return _startTimestamp > 0 && _startTimestamp < timestamp && _commitTimestamp == 0;
-    }
-    
     synchronized void flushTransactionBuffer() throws PersistitIOException {
         if (_buffer.position() > 0) {
             _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
