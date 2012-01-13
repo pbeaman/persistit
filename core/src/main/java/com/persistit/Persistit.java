@@ -1895,6 +1895,21 @@ public class Persistit {
             pool.flush(timestamp);
         }
     }
+    
+    void flushTransactions(final long checkpointTimestamp) throws PersistitException {
+        final List<Transaction> concurrentTransactions = new ArrayList<Transaction>();
+        synchronized (_transactionSessionMap) {
+            for (final Transaction transaction : _transactionSessionMap.values()) {
+                if (transaction.isConcurrent(checkpointTimestamp)) {
+                    concurrentTransactions.add(transaction);
+                }
+            }
+        }
+        
+        for (final Transaction transaction: concurrentTransactions) {
+            transaction.flushOnCheckpoint(checkpointTimestamp);
+        }
+    }
 
     void waitForIOTaskStop(final IOTaskRunnable task) {
         if (_beginCloseTime == 0) {

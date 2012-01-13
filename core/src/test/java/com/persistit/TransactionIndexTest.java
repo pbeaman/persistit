@@ -224,4 +224,35 @@ public class TransactionIndexTest extends TestCase {
         t.join();
         return result.get() > 0;
     }
+    
+    /**
+     * Bug 914474 is an isolation failure in Stress8txn when run with 10 threads.
+     * Hypothesis is that a TransactionStatus for a committed transaction is
+     * still needed in the TransactionIndex to enforce wwDependency detection, but
+     * has been freed.  This test asserts that a TransactionStatus is retained until
+     * there are no other active transactions that started earlier (as opposed to the
+     * erroneous proposition that it can be freed if no other transaction is
+     * concurrent).
+     * 
+     * @throws Exception
+     */
+    public void testBug914474() throws Exception {
+        final TransactionIndex ti = new TransactionIndex(_tsa, 1);
+
+        TransactionStatus ts1 = ti.registerTransaction();
+        
+        TransactionStatus ts2 = ti.registerTransaction();
+        ts2.commit(_tsa.updateTimestamp());
+        ti.notifyCompleted(ts2, _tsa.getCurrentTimestamp());
+        /*
+         * Cause ts2 to be "obsolete"
+         */
+        for (int i = 0; i < 100; i++) {
+            TransactionStatus ts3 = ti.registerTransaction();
+            ts3.commit(_tsa.updateTimestamp());
+            ti.notifyCompleted(ts3, _tsa.getCurrentTimestamp());
+        }
+        ti.cleanup();
+        assertTrue( ti.wwDependency(TransactionIndex.ts2vh(ts2.getTs()), ts1, 0) != 0);
+    }
 }

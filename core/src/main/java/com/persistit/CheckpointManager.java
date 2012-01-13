@@ -199,6 +199,7 @@ class CheckpointManager extends IOTaskRunnable {
 
             txn.beginCheckpoint();
             try {
+                _persistit.flushTransactions(txn.getStartTimestamp());
                 List<Accumulator> accumulators = _persistit.getCheckpointAccumulators();
                 _persistit.getTransactionIndex().checkpointAccumulatorSnapshots(txn.getStartTimestamp(), accumulators);
                 Accumulator.saveAccumulatorCheckpointValues(accumulators);
@@ -224,9 +225,10 @@ class CheckpointManager extends IOTaskRunnable {
     void pollFlushCheckpoint() {
         Checkpoint checkpoint = _currentCheckpoint;
         if (!checkpoint.isCompleted()) {
-            long earliestDirtyTimestamp = Math.min(_persistit.earliestLiveTransaction(), _persistit
-                    .earliestDirtyTimestamp());
-            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
+            final long earliestLiveTransaction = _persistit.earliestLiveTransaction();
+            final long earliestDirtyTimestamp = _persistit.earliestDirtyTimestamp();
+            long earliest = Math.min(earliestDirtyTimestamp, earliestLiveTransaction);
+            if (checkpoint.getTimestamp() <= earliest) {
                 try {
                     _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
                 } catch (PersistitIOException e) {

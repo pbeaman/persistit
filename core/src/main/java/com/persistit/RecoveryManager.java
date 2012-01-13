@@ -1458,8 +1458,9 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
         for (Long continuation : chainedAddress) {
             address = continuation.longValue();
-            read(address, Transaction.TRANSACTION_BUFFER_SIZE);
+            read(address, TX.OVERHEAD);
             recordSize = TX.getLength(_readBuffer);
+            read(address, recordSize);
             applyTransactionUpdates(_readBuffer, address, recordSize, startTimestamp, commitTimestamp, listener);
         }
         listener.endTransaction(address, startTimestamp);
