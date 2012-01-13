@@ -1378,7 +1378,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         
         if (!sorted.isEmpty()) {
             TransactionMapItem last = sorted.last();
-            assert last.getCommitTimestamp() < _persistit.getTimestampAllocator().getCurrentTimestamp();
+            assert last.getCommitTimestamp() <= _persistit.getTimestampAllocator().getCurrentTimestamp();
         }
         
         for (final TransactionMapItem item : sorted) {
