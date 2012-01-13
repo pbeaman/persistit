@@ -30,7 +30,7 @@ class TimestampAllocator {
      */
     private final AtomicLong _timestamp = new AtomicLong();
 
-    private volatile long _checkpointTimestamp = 120000000000L;
+    private volatile long _checkpointTimestamp;
 
     public long updateTimestamp() {
         return _timestamp.incrementAndGet();

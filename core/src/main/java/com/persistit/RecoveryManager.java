@@ -1130,6 +1130,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                         + (count - remaining + 1) + " at " + addressToString(address, startTimestamp));
 
             }
+            _persistit.getTimestampAllocator().updateTimestamp(commitTimestamp);
             index++;
         }
     }
@@ -1374,6 +1375,12 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         final SortedSet<TransactionMapItem> sorted = new TreeSet<TransactionMapItem>(_recoveredTransactionMap.values());
+        
+        if (!sorted.isEmpty()) {
+            TransactionMapItem last = sorted.last();
+            assert last.getCommitTimestamp() < _persistit.getTimestampAllocator().getCurrentTimestamp();
+        }
+        
         for (final TransactionMapItem item : sorted) {
             RecoveryListener listener = item.isCommitted() ? commitListener : rollbackListener;
             try {
