@@ -417,7 +417,7 @@ public class MVV {
                             primordial = false;
                         }
                         assert versionHandle > lastVersionHandle;
-                        assert tc > lastVersionTc;
+                        assert tc > lastVersionTc || lastVersionTc == UNCOMMITTED;
                         lastVersionIndex = from;
                         lastVersionHandle = versionHandle;
                         lastVersionTc = tc;

@@ -16,10 +16,10 @@
 package com.persistit.exception;
 
 /**
- * Thrown if the prewrite journal file is corrupt. Generally it will be
- * necessary to delete the prewrite journal file to resolve this. In so doing,
- * critical information needed to recover the state of one or more
- * {@link com.persistit.Volume}s may be lost.
+ * Thrown if the journal files are corrupt. Generally it will be necessary to
+ * delete the journal to resolve this. In so doing, critical information needed
+ * to recover the state of one or more {@link com.persistit.Volume}s may be
+ * lost.
  * 
  * @version 1.0
  */

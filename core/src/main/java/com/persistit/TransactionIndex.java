@@ -979,7 +979,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
         for (final TransactionIndexBucket bucket : _hashTable) {
             bucket.lock();
             try {
-                bucket.cleanup(getActiveTransactionFloor());
+                bucket.reduce();
             } finally {
                 bucket.unlock();
             }

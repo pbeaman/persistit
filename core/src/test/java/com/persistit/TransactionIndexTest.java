@@ -86,8 +86,8 @@ public class TransactionIndexTest extends TestCase {
         ti.updateActiveTransactionCache();
 
         ti.notifyCompleted(ts4, -ts4.getTc() + 1);
-        assertEquals(0, ti.getCurrentCount());
-        assertEquals(3, ti.getFreeCount());
+        assertEquals(1, ti.getCurrentCount());
+        assertEquals(2, ti.getFreeCount());
         assertEquals(1, ti.getAbortedCount());
         ts3.decrementMvvCount();
 
