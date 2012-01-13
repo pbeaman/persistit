@@ -58,4 +58,8 @@ public class TestShim {
     public static FileChannel getVolumeChannel(Volume volume) throws PersistitException {
         return volume.getStorage().getChannel();
     }
+    
+    public static void ignoreMVCC(final boolean doIgnore, final Exchange ex) {
+        ex.ignoreMVCCFetch(doIgnore);
+    }
 }

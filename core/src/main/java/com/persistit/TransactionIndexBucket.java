@@ -18,7 +18,6 @@ package com.persistit;
 import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
-import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.Accumulator.Delta;
@@ -513,8 +512,7 @@ public class TransactionIndexBucket {
     }
 
     private boolean isObsolete(final TransactionStatus status) {
-        return status.getDelta() != null ? status.getTc() < _activeTransactionFloor : !_transactionIndex
-                .hasConcurrentTransaction(status.getTs(), status.getTc());
+        return status.getTc() < _activeTransactionFloor;
     }
 
     private void aggregate(final TransactionStatus status, boolean committed) {

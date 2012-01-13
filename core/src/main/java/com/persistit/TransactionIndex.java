@@ -19,7 +19,6 @@ import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.TIMED_OUT;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -308,19 +307,19 @@ public class TransactionIndex implements TransactionIndexMXBean {
         }
     }
 
-    static long vh2ts(final long versionHandle) {
+    public static long vh2ts(final long versionHandle) {
         return versionHandle / VERSION_HANDLE_MULTIPLIER;
     }
 
-    static long ts2vh(final long ts) {
+    public static long ts2vh(final long ts) {
         return ts * VERSION_HANDLE_MULTIPLIER;
     }
-    
-    static long tss2vh(final long timestamp, final int step) {
+
+    public static long tss2vh(final long timestamp, final int step) {
         return ts2vh(timestamp) + step;
     }
 
-    static int vh2step(final long versionHandle) {
+    public static int vh2step(final long versionHandle) {
         return (int) (versionHandle % VERSION_HANDLE_MULTIPLIER);
     }
 
@@ -485,7 +484,8 @@ public class TransactionIndex implements TransactionIndexMXBean {
                     return tc;
                 }
                 /*
-                 * Waiting for status to resolve. To do this, lock, unlock and then retry.
+                 * Waiting for status to resolve. To do this, lock, unlock and
+                 * then retry.
                  */
                 if (status.wwLock(SHORT_TIMEOUT)) {
                     tc = status.getTc();
@@ -818,7 +818,8 @@ public class TransactionIndex implements TransactionIndexMXBean {
         do {
             try {
                 /*
-                 * Link to target transaction, then test for deadlock. Abort immediately
+                 * Link to target transaction, then test for deadlock. Abort
+                 * immediately
                  */
                 source.setDepends(target);
                 if (isDeadlocked(source)) {
@@ -978,7 +979,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
         for (final TransactionIndexBucket bucket : _hashTable) {
             bucket.lock();
             try {
-                bucket.cleanup(getActiveTransactionFloor());
+                bucket.reduce();
             } finally {
                 bucket.unlock();
             }

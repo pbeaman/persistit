@@ -15,10 +15,19 @@
 
 package com.persistit.stress;
 
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
 import com.persistit.Exchange;
 import com.persistit.Key;
+import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.TransactionRunnable;
+import com.persistit.Value.Version;
 import com.persistit.exception.PersistitException;
 import com.persistit.test.TestResult;
 import com.persistit.util.ArgParser;
@@ -54,6 +63,8 @@ public class Stress8txn extends StressBase {
     static boolean _consistencyCheckDone;
     int _size;
     int _seed;
+    
+    int _mvvReports;
 
     @Override
     public void setUp() throws Exception {
@@ -279,6 +290,7 @@ public class Stress8txn extends StressBase {
             final int totalC = accountTotal(_exs);
             if (valueB != totalC) {
                 _result = new TestResult(false, "totalC=" + totalC + " valueB=" + valueB + " at " + _exs);
+                inconsistent(_result);
                 Debug.$assert1.t(false);
             }
         }
@@ -296,6 +308,7 @@ public class Stress8txn extends StressBase {
             final int totalB = accountTotal(_exs);
             if (valueA != totalB) {
                 _result = new TestResult(false, "totalB=" + totalB + " valueA=" + valueA + " at " + _exs);
+                inconsistent(_result);
                 Debug.$assert1.t(false);
             }
         }
@@ -312,6 +325,7 @@ public class Stress8txn extends StressBase {
             final int totalA = accountTotal(_exs);
             if (totalA != 0) {
                 _result = new TestResult(false, "totalA=" + totalA + " at " + _exs);
+                inconsistent(_result);
                 Debug.$assert1.t(false);
             }
         }
@@ -325,6 +339,9 @@ public class Stress8txn extends StressBase {
         @Override
         public void runTransaction() throws PersistitException {
             totalConsistencyCheck();
+            if ((_mvvReports++ % 1000) == 0) {
+                inconsistent(new TestResult(true, "Consistency check passed"));
+            }
         }
     }
 
@@ -398,6 +415,7 @@ public class Stress8txn extends StressBase {
                         totalC1 += valueC1;
                     }
                     _result = new TestResult(false, "totalC=" + totalC + " valueB=" + valueB + " at " + exb);
+                    inconsistent(_result);
                     Debug.$assert1.t(false);
                     forceStop();
                     return false;
@@ -405,6 +423,7 @@ public class Stress8txn extends StressBase {
             }
             if (totalB != valueA) {
                 _result = new TestResult(false, "totalB=" + totalB + " valueA=" + valueA + " at " + exa);
+                inconsistent(_result);
                 Debug.$assert1.t(false);
                 forceStop();
                 return false;
@@ -412,6 +431,7 @@ public class Stress8txn extends StressBase {
         }
         if (totalA != 0) {
             _result = new TestResult(false, "totalA=" + totalA + " at " + exa);
+            inconsistent(_result);
             Debug.$assert1.t(false);
             forceStop();
             return false;
@@ -469,4 +489,71 @@ public class Stress8txn extends StressBase {
         new Stress8txn().runStandalone(args);
     }
 
+    void inconsistent(TestResult result) {
+        String fileName = "/tmp/out_" + Thread.currentThread().getName();
+        try {
+            PrintWriter pw = new PrintWriter(new FileWriter(fileName));
+            pw.println(result);
+            pw.println();
+            pw.println(mvvReport());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    String mvvReport() throws PersistitException {
+        StringBuilder sb = new StringBuilder();
+        Map<Long, List<String>> byTc = new TreeMap<Long, List<String>>();
+        Map<Long, List<String>> byTs = new TreeMap<Long, List<String>>();
+        TestShim.ignoreMVCC(true, _exs);
+        _exs.clear();
+        while (_exs.next(true)) {
+            Key key = _exs.getKey();
+            List<Version> versions =  _exs.getValue().unpackMvvVersions();
+            for (final Version v : versions) {
+                List<String> list1 = byTc.get(v.getCommitTimestamp());
+                if (list1 == null) {
+                    list1 = new ArrayList<String>();
+                    byTc.put(v.getCommitTimestamp(), list1);
+                }
+                list1.add(key.toString() + ": " + describe(v));
+                
+                List<String> list2 = byTs.get(v.getCommitTimestamp());
+                if (list2 == null) {
+                    list2 = new ArrayList<String>();
+                    byTs.put(v.getCommitTimestamp(), list2);
+                }
+                list2.add(key.toString() + ": " + describe(v));
+            }
+        }
+        mvvReportMap(byTc, "byTC", sb);
+        mvvReportMap(byTs, "byTS", sb);
+        TestShim.ignoreMVCC(false, _exs);
+        return sb.toString();
+    }
+    
+    private String describe(Version v) {
+        if (v.getValue().isDefined() && v.getValue().getType() == String.class) {
+            return v.toString().split("\\:")[0] + ":" + v.getValue().getString().length() + "$";
+        } else {
+            return v.toString();
+        }
+    }
+    
+    private void mvvReportMap(Map<Long, List<String>> map, String title, StringBuilder sb) {
+        sb.append(String.format("%s\n\n", title));
+        for (final Map.Entry<Long, List<String>> entry : map.entrySet()) {
+            sb.append(String.format("%,15d ", entry.getKey()));
+            boolean first = true;
+            for (String s: entry.getValue()) {
+                if (!first) {
+                    sb.append(String.format("%16s", ""));
+                } else {
+                    first = false;
+                }
+                sb.append(String.format("%s\n", s));
+            }
+        }
+        sb.append(String.format("\n\n"));
+    }
 }

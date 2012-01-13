@@ -33,6 +33,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 
 import com.persistit.encoding.CoderContext;
 import com.persistit.encoding.CoderManager;
@@ -44,7 +45,6 @@ import com.persistit.exception.ConversionException;
 import com.persistit.exception.InvalidKeyException;
 import com.persistit.exception.MalformedValueException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -488,7 +488,7 @@ public final class Value {
             null, null,
 
             null, // 48
-            null, Object.class, // 50 Reference to previously encoded Object,
+            AntiValue.class, Object.class, // 50 Reference to previously encoded Object,
             null, null, null, null, null, null, null, null, null, Serializable.class, // 60
             Serializable.class, // 61
 
@@ -5075,5 +5075,97 @@ public final class Value {
         public String toString() {
             return "@" + Integer.toString(_start);
         }
+    }
+    
+    public static class Version {
+        private final long _versionHandle;
+        private final long _commitTimestamp;
+        private final Value _value;
+        
+        private Version(long versionHandle, long commitTimestamp, Value value) {
+            _versionHandle = versionHandle;
+            _commitTimestamp = commitTimestamp;
+            _value = value;
+        }
+        
+        /**
+         * @return the versionHandle
+         */
+        public long getVersionHandle() {
+            return _versionHandle;
+        }
+        /**
+         * @return the commitTimestamp
+         */
+        public long getCommitTimestamp() {
+            return _commitTimestamp;
+        }
+        /**
+         * @return the value
+         */
+        public Value getValue() {
+            return _value;
+        }
+        
+        public long getStartTimestamp() {
+            return TransactionIndex.vh2ts(_versionHandle);
+        }
+        
+        public int getStep() {
+            return TransactionIndex.vh2step(_versionHandle);
+        }
+        
+        public String toString() {
+            try {
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("%,d", getStartTimestamp()));
+            if (getStep() > 0) {
+                sb.append(String.format("#%02d", getStep()));
+            }
+            sb.append("<" + TransactionStatus.tcString(_commitTimestamp) + ">");
+            sb.append(":");
+            sb.append(_value);
+            return sb.toString();
+            } catch (Exception e) {
+                e.printStackTrace();
+                return e.toString();
+            }
+        }
+    }
+    
+    /**
+     * Construct a list of {@link Version} objects, each denote one of the
+     * multi-value versions currently held in this Value object.
+     * @return the list of <code>Version<code>s
+     * @throws PersistitException
+     */
+    public List<Version> unpackMvvVersions() throws PersistitException {
+        final List<Version> versions = new ArrayList<Version>();
+        MVV.VersionVisitor visitor = new MVV.VersionVisitor() {
+
+            @Override
+            public void sawVersion(long version, int valueOffset, int valueLength) {
+                long tc = -1;
+            
+                try {
+                    tc = _persistit.getTransactionIndex().commitStatus(version, TransactionStatus.UNCOMMITTED, 0);
+                } catch (Exception e) {
+                    tc = -1;
+                }
+                Value value = new Value(_persistit);
+                value.ensureFit(valueLength);
+                System.arraycopy(_bytes, valueOffset, value.getEncodedBytes(), 0, valueLength);
+                value.setEncodedSize(valueLength);
+                value.trim();
+                versions.add(new Version(version, tc, value));
+            }
+            
+            @Override
+            public void init() throws PersistitException {
+                
+            }
+        };
+        MVV.visitAllVersions(visitor, getEncodedBytes(), 0, getEncodedSize());
+        return versions;
     }
 }
