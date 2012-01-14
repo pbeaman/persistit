@@ -676,7 +676,6 @@ public class Persistit {
                 .getDefaultRollbackListener());
         _recoveryManager.close();
         flush();
-        checkpoint();
         _logBase.recoveryDone.log(_journalManager.getPageMapSize(), _recoveryManager.getAppliedTransactionCount(),
                 _recoveryManager.getErrorCount());
     }
