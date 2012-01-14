@@ -172,7 +172,7 @@ public class Stress8txn extends StressBase {
         try {
             _exs.clear().append("stress8txn");
             while (_exs.next(true)) {
-                if ((_exs.getValue().getType() == String.class) && (getAccountValue(_exs) > 8000)) {
+                if ((_exs.getValue().isType(String.class)) && (getAccountValue(_exs) > 8000)) {
                     // System.out.println("len=" + getAccountValue(_exs) +
                     // " Key=" + _exs.getKey().toString());
                 }
@@ -444,7 +444,7 @@ public class Stress8txn extends StressBase {
             return 0;
         }
         try {
-            if (ex.getValue().getType() == String.class) {
+            if (ex.getValue().isType(String.class)) {
                 ex.getValue().getString(_sb);
                 return _sb.length();
             } else {
@@ -533,7 +533,7 @@ public class Stress8txn extends StressBase {
     }
     
     private String describe(Version v) {
-        if (v.getValue().isDefined() && v.getValue().getType() == String.class) {
+        if (v.getValue().isDefined() && v.getValue().isType(String.class)) {
             return v.toString().split("\\:")[0] + ":" + v.getValue().getString().length() + "$";
         } else {
             return v.toString();

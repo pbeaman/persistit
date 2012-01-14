@@ -1595,6 +1595,21 @@ public final class Value {
             _depth = saveDepth;
         }
     }
+    
+    public boolean isType(final Class clazz) {
+        final int classHandle = getTypeHandle();
+        if (classHandle == TYPE_MVV || classHandle == CLASS_ANTIVALUE) {
+            return false;
+        }
+        if (classHandle > 0 && classHandle < CLASSES.length) {
+            return CLASSES[classHandle] == clazz;
+        }
+        try {
+            return getType() == clazz;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     private Class arrayClass(Class componentClass, int dimensions) {
         Class[] arraysByDimension = (Class[]) _arrayTypeCache.get(componentClass);
