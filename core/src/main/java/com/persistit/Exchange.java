@@ -144,6 +144,7 @@ public class Exchange {
         private final static long READ_COMMITTED_TS = TransactionStatus.UNCOMMITTED - 1;
 
         private TransactionIndex _ti;
+        private Exchange _exchange;
         private TransactionStatus _status;
         private int _step;
         private int _foundOffset;
@@ -152,8 +153,9 @@ public class Exchange {
         private int _foundStep;
         private Usage _usage;
 
-        private MvvVisitor(TransactionIndex ti) {
+        private MvvVisitor(TransactionIndex ti, final Exchange exchange) {
             _ti = ti;
+            _exchange = exchange;
         }
 
         /**
@@ -221,6 +223,7 @@ public class Exchange {
                         // version is from concurrent txn that already committed
                         // or timed out waiting to see. Either
                         // way, must abort.
+                        _exchange.getTransaction().rollback();
                         throw new RollbackException();
                     }
                     if (version > _foundVersion) {
@@ -304,7 +307,7 @@ public class Exchange {
         _spareKey4 = new Key(_persistit);
         _value = new Value(_persistit);
         _spareValue = new Value(_persistit);
-        _mvvVisitor = new MvvVisitor(_persistit.getTransactionIndex());
+        _mvvVisitor = new MvvVisitor(_persistit.getTransactionIndex(), this);
     }
 
     /**
@@ -1610,6 +1613,7 @@ public class Exchange {
                             // committed
                             // or timed out waiting to see. Either
                             // way, must abort.
+                            _transaction.rollback();
                             throw new RollbackException();
                         }
                     } catch (InterruptedException ie) {
