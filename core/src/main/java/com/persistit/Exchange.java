@@ -1321,12 +1321,11 @@ public class Exchange {
         final boolean doMVCC = (options & StoreOptions.MVCC) > 0;
         final boolean doAnyFetch = (options & StoreOptions.FETCH) > 0 || doMVCC;
 
-        Debug.$assert0.t(!doAnyFetch || value != _spareValue); // spare used for
-                                                               // fetch
+        // spare used for fetch
+        Debug.$assert0.t(!doAnyFetch || value != _spareValue);
         
-        //!!key == _spareKey2 from raw_removeKeyInternal!! Debug.$assert0.t(key != _spareKey1 && key != _spareKey2); // spares used
-                                                                  // for new
-                                                                  // splits/levels
+        // spares used for new splits/levels
+        Debug.$assert0.t(key != _spareKey1);
 
         _storeCausedSplit = false;
         boolean treeClaimRequired = false;
@@ -1595,11 +1594,6 @@ public class Exchange {
                         // into the next higher index level.
                         //
                         level++;
-                        //
-                        // Just inserted index level, should not have had long
-                        // MVV
-                        //
-                        /*!!triggered!!*/ Debug.$assert0.t(newLongRecordPointerMVV == 0);
                         continue;
                     }
 
