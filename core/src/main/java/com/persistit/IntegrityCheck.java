@@ -875,8 +875,6 @@ public class IntegrityCheck extends Task {
             // _edgeBuffers array in the normal case.
             //
             buffer = null;
-
-            Debug.$assert0.t(!_edgeBuffers[level].isAvailable(true));
         } finally {
             if (buffer != null) {
                 _edgeBuffers[level] = null;
@@ -966,7 +964,6 @@ public class IntegrityCheck extends Task {
         Buffer startingBuffer = _edgeBuffers[level];
         if (startingBuffer == null)
             return null;
-        Debug.$assert0.t(!startingBuffer.isAvailable(true));
         Buffer buffer = startingBuffer;
         if (buffer.getPageAddress() == toPage) {
             addFault("Overlapping page", toPage, level, 0);
@@ -1019,7 +1016,6 @@ public class IntegrityCheck extends Task {
             if (startingBuffer != buffer) {
                 startingBuffer.release();
             }
-            Debug.$assert0.t(!buffer.isAvailable(true));
 
             return buffer;
         } finally {

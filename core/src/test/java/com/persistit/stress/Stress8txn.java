@@ -506,9 +506,9 @@ public class Stress8txn extends StressBase {
         Map<Long, List<String>> byTc = new TreeMap<Long, List<String>>();
         Map<Long, List<String>> byTs = new TreeMap<Long, List<String>>();
         TestShim.ignoreMVCC(true, _exs);
-        _exs.clear();
-        while (_exs.next(true)) {
-            Key key = _exs.getKey();
+        Key key = _exs.getKey();
+        _exs.clear().append("stress8txn");
+        while (_exs.next(true) && key.getDepth() > 1 && key.reset().decodeString().equals("stress8xtn")) {
             List<Version> versions =  _exs.getValue().unpackMvvVersions();
             for (final Version v : versions) {
                 List<String> list1 = byTc.get(v.getCommitTimestamp());

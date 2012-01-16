@@ -144,6 +144,7 @@ public class Exchange {
         private final static long READ_COMMITTED_TS = TransactionStatus.UNCOMMITTED - 1;
 
         private TransactionIndex _ti;
+        private Exchange _exchange;
         private TransactionStatus _status;
         private int _step;
         private int _foundOffset;
@@ -152,8 +153,9 @@ public class Exchange {
         private int _foundStep;
         private Usage _usage;
 
-        private MvvVisitor(TransactionIndex ti) {
+        private MvvVisitor(TransactionIndex ti, final Exchange exchange) {
             _ti = ti;
+            _exchange = exchange;
         }
 
         /**
@@ -221,6 +223,7 @@ public class Exchange {
                         // version is from concurrent txn that already committed
                         // or timed out waiting to see. Either
                         // way, must abort.
+                        _exchange.getTransaction().rollback();
                         throw new RollbackException();
                     }
                     if (version > _foundVersion) {
@@ -304,7 +307,7 @@ public class Exchange {
         _spareKey4 = new Key(_persistit);
         _value = new Value(_persistit);
         _spareValue = new Value(_persistit);
-        _mvvVisitor = new MvvVisitor(_persistit.getTransactionIndex());
+        _mvvVisitor = new MvvVisitor(_persistit.getTransactionIndex(), this);
     }
 
     /**
@@ -1321,11 +1324,11 @@ public class Exchange {
         final boolean doMVCC = (options & StoreOptions.MVCC) > 0;
         final boolean doAnyFetch = (options & StoreOptions.FETCH) > 0 || doMVCC;
 
-        Debug.$assert0.t(!doAnyFetch || value != _spareValue); // spare used for
-                                                               // fetch
-        Debug.$assert0.t(key != _spareKey1 && key != _spareKey2); // spares used
-                                                                  // for new
-                                                                  // splits/levels
+        // spare used for fetch
+        Debug.$assert0.t(!doAnyFetch || value != _spareValue);
+        
+        // spares used for new splits/levels
+        Debug.$assert0.t(key != _spareKey1);
 
         _storeCausedSplit = false;
         boolean treeClaimRequired = false;
@@ -1346,6 +1349,7 @@ public class Exchange {
         // there is a long record being replaced.
         //
         long oldLongRecordPointer = 0;
+        long oldLongRecordPointerMVV = 0;
         //
         // The LONG_RECORD pointer for a new long record value, if the
         // the new value is long.
@@ -1377,7 +1381,7 @@ public class Exchange {
                     Debug.suspend();
                 }
 
-                if (newLongRecordPointerMVV != 0) {
+                if (!committed && newLongRecordPointerMVV != 0) {
                     _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
                     newLongRecordPointerMVV = 0;
                     _spareValue.changeLongRecordMode(false);
@@ -1448,13 +1452,23 @@ public class Exchange {
                         if (doAnyFetch) {
                             buffer.fetch(foundAt, _spareValue);
                             /*
-                             * No reason to un-long-ify if we aren't in MVCC
-                             * or it isn't an MVV. Would result in a LONG
-                             * MVV otherwise. Better to to just let the MVV
-                             * contain long record values.
+                             * If we aren't in MVCC we have to un-long-ify as
+                             * fetch was requested. Otherwise only do it if it
+                             * is a long MVV so as to not-needlessly create one.
                              */
-                            if (!doMVCC || isLongMVV(_spareValue)) {
+                            if (!doMVCC) {
                                 fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                            } else if (oldLongRecordPointer != 0) {
+                                if (isLongMVV(_spareValue)) {
+                                    oldLongRecordPointerMVV = oldLongRecordPointer;
+                                    fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                                }
+                                /*
+                                 * If it was a long MVV we saved it into the
+                                 * variable above. Otherwise it is a primordial
+                                 * value that we can't get rid of.
+                                 */
+                                oldLongRecordPointer = 0;
                             }
                         }
                         if (doMVCC) {
@@ -1472,7 +1486,11 @@ public class Exchange {
                                 valueToStore.setEncodedSize(prunedSpareSize);
                                 _rawValueWriter.init(valueToStore);
                                 boolean needSplit = putLevel(lc, _key, _rawValueWriter, buffer, foundAt, false);
-                                Debug.$assert0.t(!needSplit);
+                                /*
+                                 * needSplit could be true here if the current
+                                 * value in the page is a LONG_RECORD and there
+                                 * isn't enough room for a short record.
+                                 */
                                 spareSize = prunedSpareSize;
                             }
 
@@ -1592,11 +1610,6 @@ public class Exchange {
                         // into the next higher index level.
                         //
                         level++;
-                        //
-                        // Just inserted index level, should not have had long
-                        // MVV
-                        //
-                        Debug.$assert0.t(newLongRecordPointerMVV == 0);
                         continue;
                     }
 
@@ -1613,6 +1626,7 @@ public class Exchange {
                             // committed
                             // or timed out waiting to see. Either
                             // way, must abort.
+                            _transaction.rollback();
                             throw new RollbackException();
                         }
                     } catch (InterruptedException ie) {
@@ -1666,8 +1680,13 @@ public class Exchange {
                 if (newLongRecordPointerMVV != 0) {
                     _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
                 }
-            } else if (oldLongRecordPointer != newLongRecordPointer && oldLongRecordPointer != 0) {
-                _volume.getStructure().deallocateGarbageChain(oldLongRecordPointer, 0);
+            } else {
+                if (oldLongRecordPointer != newLongRecordPointer && oldLongRecordPointer != 0) {
+                    _volume.getStructure().deallocateGarbageChain(oldLongRecordPointer, 0);
+                }
+                if (oldLongRecordPointerMVV != 0) {
+                    _volume.getStructure().deallocateGarbageChain(oldLongRecordPointerMVV, 0);
+                }
             }
         }
         _volume.getStatistics().bumpStoreCounter();
@@ -2752,6 +2771,7 @@ public class Exchange {
 
     boolean isLongMVV(Value value) {
         return value.isDefined() &&
+               isLongRecord(value) &&
                (value.getEncodedSize() > LONGREC_PREFIX_SIZE_OFFSET) &&
                (value.getEncodedBytes()[LONGREC_PREFIX_OFFSET] == MVV.TYPE_MVV_BYTE);
     }

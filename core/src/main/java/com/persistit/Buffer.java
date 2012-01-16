@@ -1150,6 +1150,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         if ((foundAt & EXACT_MASK) == 0) {
             value.clear();
         } else {
+            Debug.$assert0.t(foundAt > 0 && ( foundAt & P_MASK) < _keyBlockEnd);
             int kbData = getInt(foundAt & P_MASK);
             int tail = decodeKeyBlockTail(kbData);
             int tbData = getInt(tail);
