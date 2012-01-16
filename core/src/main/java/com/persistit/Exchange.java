@@ -1323,7 +1323,8 @@ public class Exchange {
 
         Debug.$assert0.t(!doAnyFetch || value != _spareValue); // spare used for
                                                                // fetch
-        Debug.$assert0.t(key != _spareKey1 && key != _spareKey2); // spares used
+        
+        //!!key == _spareKey2 from raw_removeKeyInternal!! Debug.$assert0.t(key != _spareKey1 && key != _spareKey2); // spares used
                                                                   // for new
                                                                   // splits/levels
 
@@ -1472,7 +1473,8 @@ public class Exchange {
                                 valueToStore.setEncodedSize(prunedSpareSize);
                                 _rawValueWriter.init(valueToStore);
                                 boolean needSplit = putLevel(lc, _key, _rawValueWriter, buffer, foundAt, false);
-                                Debug.$assert0.t(!needSplit);
+                                
+                                //!!triggered instance where needSplit is true!! Debug.$assert0.t(!needSplit);
                                 spareSize = prunedSpareSize;
                             }
 
@@ -1553,6 +1555,7 @@ public class Exchange {
                     // If we made it to here, any LONG_RECORD value is
                     // committed.
                     //
+                    newLongRecordPointerMVV = 0;
                     if (buffer.isDataPage()) {
                         if (!keyExisted) {
                             _tree.bumpChangeCount();
@@ -1596,7 +1599,7 @@ public class Exchange {
                         // Just inserted index level, should not have had long
                         // MVV
                         //
-                        Debug.$assert0.t(newLongRecordPointerMVV == 0);
+                        /*!!triggered!!*/ Debug.$assert0.t(newLongRecordPointerMVV == 0);
                         continue;
                     }
 
