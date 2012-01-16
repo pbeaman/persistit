@@ -325,6 +325,37 @@ public class MVCCPruneTest extends MVCCTestBase {
         assertEquals("value is long after pruning", true, ex1.isValueLongRecord());
     }
 
+    /*
+    * Bug that could be triggered by having a primordial long record and then
+    * storing a short record (also, long mvv and storing a new short). The
+    * original long record chain would be incorrectly freed.
+    */
+    public void testOverZealousLongRecordChainDeletion() throws PersistitException {
+        final String longStr = createString(ex1.getVolume().getPageSize());
+        storePrimordial(ex1, KEY, longStr);
+        
+        trx1.begin();
+        try {
+            assertEquals("primordial long value fetch from trx1", longStr, fetch(ex1, KEY));
+
+            trx2.begin();
+            try {
+                store(ex2, KEY, VALUE_TRX2);
+                assertEquals("short value fetch from trx2", VALUE_TRX2, fetch(ex2, KEY));
+
+                assertEquals("old long value version fetch from trx1", longStr, fetch(ex1, KEY));
+                
+                trx2.commit();
+            } finally {
+                trx2.end();
+            }
+            
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
+
     //
     // Test helper methods
     //
