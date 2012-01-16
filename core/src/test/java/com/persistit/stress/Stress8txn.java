@@ -461,7 +461,7 @@ public class Stress8txn extends StressBase {
     }
 
     private void putAccountValue(final Exchange ex, final int value, final boolean string) {
-        if ((value > 0) && (value < 1000) && ((random(0, 100) == 0) || string)) {
+        if ((value > 0) && (value < 25000) && ((random(0, 100) == 0) || string)) {
             _sb.setLength(0);
             int i = 0;
             for (i = 100; i < value; i += 100) {
