@@ -1349,6 +1349,7 @@ public class Exchange {
         // there is a long record being replaced.
         //
         long oldLongRecordPointer = 0;
+        long oldLongRecordPointerMVV = 0;
         //
         // The LONG_RECORD pointer for a new long record value, if the
         // the new value is long.
@@ -1380,7 +1381,7 @@ public class Exchange {
                     Debug.suspend();
                 }
 
-                if (newLongRecordPointerMVV != 0) {
+                if (!committed && newLongRecordPointerMVV != 0) {
                     _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
                     newLongRecordPointerMVV = 0;
                     _spareValue.changeLongRecordMode(false);
@@ -1451,13 +1452,23 @@ public class Exchange {
                         if (doAnyFetch) {
                             buffer.fetch(foundAt, _spareValue);
                             /*
-                             * No reason to un-long-ify if we aren't in MVCC
-                             * or it isn't an MVV. Would result in a LONG
-                             * MVV otherwise. Better to to just let the MVV
-                             * contain long record values.
+                             * If we aren't in MVCC we have to un-long-ify as
+                             * fetch was requested. Otherwise only do it if it
+                             * is a long MVV so as to not-needlessly create one.
                              */
-                            if (!doMVCC || isLongMVV(_spareValue)) {
+                            if (!doMVCC) {
                                 fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                            } else if (oldLongRecordPointer != 0) {
+                                if (isLongMVV(_spareValue)) {
+                                    oldLongRecordPointerMVV = oldLongRecordPointer;
+                                    fetchFixupForLongRecords(_spareValue, Integer.MAX_VALUE);
+                                }
+                                /*
+                                 * If it was a long MVV we saved it into the
+                                 * variable above. Otherwise it is a primordial
+                                 * value that we can't get rid of.
+                                 */
+                                oldLongRecordPointer = 0;
                             }
                         }
                         if (doMVCC) {
@@ -1475,8 +1486,11 @@ public class Exchange {
                                 valueToStore.setEncodedSize(prunedSpareSize);
                                 _rawValueWriter.init(valueToStore);
                                 boolean needSplit = putLevel(lc, _key, _rawValueWriter, buffer, foundAt, false);
-                                
-                                //!!triggered instance where needSplit is true!! Debug.$assert0.t(!needSplit);
+                                /*
+                                 * needSplit could be true here if the current
+                                 * value in the page is a LONG_RECORD and there
+                                 * isn't enough room for a short record.
+                                 */
                                 spareSize = prunedSpareSize;
                             }
 
@@ -1557,7 +1571,6 @@ public class Exchange {
                     // If we made it to here, any LONG_RECORD value is
                     // committed.
                     //
-                    newLongRecordPointerMVV = 0;
                     if (buffer.isDataPage()) {
                         if (!keyExisted) {
                             _tree.bumpChangeCount();
@@ -1667,8 +1680,13 @@ public class Exchange {
                 if (newLongRecordPointerMVV != 0) {
                     _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
                 }
-            } else if (oldLongRecordPointer != newLongRecordPointer && oldLongRecordPointer != 0) {
-                _volume.getStructure().deallocateGarbageChain(oldLongRecordPointer, 0);
+            } else {
+                if (oldLongRecordPointer != newLongRecordPointer && oldLongRecordPointer != 0) {
+                    _volume.getStructure().deallocateGarbageChain(oldLongRecordPointer, 0);
+                }
+                if (oldLongRecordPointerMVV != 0) {
+                    _volume.getStructure().deallocateGarbageChain(oldLongRecordPointerMVV, 0);
+                }
             }
         }
         _volume.getStatistics().bumpStoreCounter();
@@ -2753,6 +2771,7 @@ public class Exchange {
 
     boolean isLongMVV(Value value) {
         return value.isDefined() &&
+               isLongRecord(value) &&
                (value.getEncodedSize() > LONGREC_PREFIX_SIZE_OFFSET) &&
                (value.getEncodedBytes()[LONGREC_PREFIX_OFFSET] == MVV.TYPE_MVV_BYTE);
     }
