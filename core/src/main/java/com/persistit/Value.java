@@ -803,7 +803,7 @@ public final class Value {
      * @throws ArrayIndexOutOfBoundsException
      */
     public void copyFromEncodedBytes(byte[] dest, int from, int to, int length) {
-        Util.arraycopy(_bytes, from, dest, to, length);
+        System.arraycopy(_bytes, from, dest, to, length);
     }
 
     /**
@@ -835,7 +835,7 @@ public final class Value {
     public void putEncodedBytes(byte[] from, int offset, int length) {
         ensureFit(length);
         if (length > 0) {
-            Util.arraycopy(from, offset, _bytes, 0, length);
+            System.arraycopy(from, offset, _bytes, 0, length);
         }
         setEncodedSize(length);
     }
@@ -3694,7 +3694,7 @@ public final class Value {
         int index = _size;
         _bytes[index++] = CLASS_ARRAY;
         _bytes[index++] = TYPE_BYTE;
-        Util.arraycopy(array, offset, _bytes, index, length);
+        System.arraycopy(array, offset, _bytes, index, length);
         _size = index + length;
         endVariableSizeItem(length + 2);
     }
@@ -4575,7 +4575,7 @@ public final class Value {
 
         public void write(byte[] bytes, int offset, int size) {
             _value.ensureFit(size);
-            Util.arraycopy(bytes, offset, _value._bytes, _value._size, size);
+            System.arraycopy(bytes, offset, _value._bytes, _value._size, size);
             _value._size += size;
         }
 
@@ -4811,7 +4811,7 @@ public final class Value {
                     if (size <= 0) {
                         size = -1;
                     } else {
-                        Util.arraycopy(value._bytes, value._next, bytes, offset, size);
+                        System.arraycopy(value._bytes, value._next, bytes, offset, size);
 
                         value._next += size;
                     }
@@ -4924,7 +4924,7 @@ public final class Value {
 
                 public void write(byte[] bytes, int offset, int size) {
                     value.ensureFit(size);
-                    Util.arraycopy(bytes, offset, value._bytes, value._size, size);
+                    System.arraycopy(bytes, offset, value._bytes, value._size, size);
                     value._size += size;
                 }
             });

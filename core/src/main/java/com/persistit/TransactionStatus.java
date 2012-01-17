@@ -235,7 +235,7 @@ public class TransactionStatus {
     }
     
     void complete(final long timestamp) {
-        if (_tc > 0 || -_tc > timestamp) {
+        if (_tc > 0 || -_tc > timestamp && timestamp != ABORTED) {
             throw new IllegalStateException("Transaction not ready to complete: " + this);
         }
         if (_tc < 0 && _tc != ABORTED) {

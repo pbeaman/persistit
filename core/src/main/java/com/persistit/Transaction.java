@@ -278,6 +278,7 @@ public class Transaction {
     private final long _id;
     private int _nestedDepth;
     private boolean _rollbackPending;
+    private boolean _rollbackCompleted;
     private boolean _commitCompleted;
 
     private long _rollbackCount = 0;
@@ -400,6 +401,7 @@ public class Transaction {
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
+            _rollbackCompleted = false;
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
@@ -423,6 +425,7 @@ public class Transaction {
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
+            _rollbackCompleted = false;
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
@@ -456,33 +459,18 @@ public class Transaction {
         if (_nestedDepth < 1) {
             throw new IllegalStateException("No transaction scope: begin() not called");
         }
-        _nestedDepth--;
 
-        if (_nestedDepth == 0) {
+        if (_nestedDepth == 1) {
+            //
             // If not committed, this is an implicit rollback (with a log
-            // message
-            // if rollback was not called explicitly).
+            // message if rollback was not called explicitly).
             //
             if (!_commitCompleted) {
                 if (!_rollbackPending) {
                     _persistit.getLogBase().txnNotCommitted.log(new RollbackException());
                 }
-                _rollbackPending = true;
-
-            }
-            //
-            // Perform rollback if needed.
-            //
-            if (_rollbackPending) {
-                _rollbackCount++;
-                _rollbacksSinceLastCommit++;
-
-                // TODO - rollback
-
-                if (!_transactionStatus.isNotified()) {
-                    _transactionStatus.abort();
-                    _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
-                            _persistit.getTimestampAllocator().getCurrentTimestamp());
+                if (!_rollbackCompleted) {
+                    rollback();
                 }
             } else {
                 _commitCount++;
@@ -492,6 +480,8 @@ public class Transaction {
             _rollbackPending = false;
             _threadName = null;
         }
+
+        _nestedDepth--;
         _commitCompleted = false;
     }
 
@@ -522,9 +512,16 @@ public class Transaction {
 
         _rollbackPending = true;
 
-        _transactionStatus.abort();
-        _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
-                _persistit.getTimestampAllocator().getCurrentTimestamp());
+        if (_nestedDepth == 1) {
+            _rollbackCount++;
+            _rollbacksSinceLastCommit++;
+
+            _transactionStatus.abort();
+            _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                    _persistit.getTimestampAllocator().getCurrentTimestamp());
+
+            _rollbackCompleted = true;
+        }
     }
 
     /**
@@ -607,6 +604,7 @@ public class Transaction {
             }
             _transactionStatus.commit(_persistit.getTimestampAllocator().getCurrentTimestamp());
             _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+            boolean committed = false;
             try {
                 /*
                  * TODO - figure out what to do if writes fail - I believe we
@@ -619,10 +617,13 @@ public class Transaction {
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
+                committed = true;
             } finally {
-                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus, _commitTimestamp);
+                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                        committed ? _commitTimestamp : TransactionStatus.ABORTED);
+                _commitCompleted = committed;
+                _rollbackCompleted = !committed;
             }
-            _commitCompleted = true;
         }
     }
 
@@ -882,7 +883,7 @@ public class Transaction {
             throw new IllegalStateException("Record size " + recordSize + " is too long for Transaction buffer");
         }
     }
-    
+
     synchronized void flushTransactionBuffer() throws PersistitIOException {
         if (_buffer.position() > 0) {
             _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
@@ -899,7 +900,8 @@ public class Transaction {
         }
     }
 
-    synchronized void writeStoreRecordToJournal(final int treeHandle, final Key key, final Value value) throws PersistitIOException {
+    synchronized void writeStoreRecordToJournal(final int treeHandle, final Key key, final Value value)
+            throws PersistitIOException {
         final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
         prepare(recordSize);
         SR.putLength(_buffer, recordSize);
@@ -911,7 +913,8 @@ public class Transaction {
         _buffer.put(value.getEncodedBytes(), 0, value.getEncodedSize());
     }
 
-    synchronized void writeDeleteRecordToJournal(final int treeHandle, final Key key1, final Key key2) throws PersistitIOException {
+    synchronized void writeDeleteRecordToJournal(final int treeHandle, final Key key1, final Key key2)
+            throws PersistitIOException {
         int elisionCount = key2.firstUniqueByteIndex(key1);
         int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
         prepare(recordSize);
@@ -970,9 +973,14 @@ public class Transaction {
     }
 
     /**
-     * Set the current step index. Must be in the range [0, {@link #MAXIMUM_STEP}).
-     * <p>Also see {@link #incrementStep()} for step semantics.</p>
-     * @param step New step index value.
+     * Set the current step index. Must be in the range [0,
+     * {@link #MAXIMUM_STEP}).
+     * <p>
+     * Also see {@link #incrementStep()} for step semantics.
+     * </p>
+     * 
+     * @param step
+     *            New step index value.
      * @return Previous step value.
      */
     public int setStep(int step) {
@@ -1008,7 +1016,8 @@ public class Transaction {
             throw new IllegalStateException(this + " cannot have a step of " + newStep + ", less than 0");
         }
         if (newStep >= MAXIMUM_STEP) {
-            throw new IllegalStateException(this + " cannot have a step of " + newStep + ", greater than maximum " + MAXIMUM_STEP);
+            throw new IllegalStateException(this + " cannot have a step of " + newStep + ", greater than maximum "
+                    + MAXIMUM_STEP);
         }
     }
 
