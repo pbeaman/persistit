@@ -32,7 +32,8 @@ import com.persistit.util.Util;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit},
+ * {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <code>commit</code> is performed. At that
  * point, all the updates are written atomically - that is, completely or not at
@@ -581,7 +582,10 @@ public class Transaction {
      *            <code>true</code> to commit to disk, or <code>false</code> to
      *            commit to memory.
      * 
-     * @throws PersistitException
+     * @throws PersistitIOException
+     *             if the transaction could not be written to the journal due to
+     *             an IOException. This exception also causes the transaction to
+     *             be rolled back.
      * 
      * @throws RollbackException
      * 
@@ -589,7 +593,7 @@ public class Transaction {
      *             if no transaction scope is active or this transaction scope
      *             has already called <code>commit</code>.
      */
-    public void commit(boolean toDisk) throws PersistitException, RollbackException {
+    public void commit(boolean toDisk) throws PersistitIOException, RollbackException {
 
         if (_nestedDepth < 1) {
             throw new IllegalStateException("No transaction scope: begin() not called");
