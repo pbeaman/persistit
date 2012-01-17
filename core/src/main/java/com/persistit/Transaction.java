@@ -521,10 +521,10 @@ public class Transaction {
         }
 
         _rollbackPending = true;
-        // Will be done by end()
-//        _transactionStatus.abort();
-//        _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
-//                _persistit.getTimestampAllocator().getCurrentTimestamp());
+
+        _transactionStatus.abort();
+        _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                _persistit.getTimestampAllocator().getCurrentTimestamp());
     }
 
     /**
