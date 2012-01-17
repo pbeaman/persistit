@@ -223,7 +223,7 @@ public class Exchange {
                         // version is from concurrent txn that already committed
                         // or timed out waiting to see. Either
                         // way, must abort.
-                        _exchange.getTransaction().rollback();
+//                        _exchange.getTransaction().rollback();
                         throw new RollbackException();
                     }
                     if (version > _foundVersion) {
@@ -1626,7 +1626,7 @@ public class Exchange {
                             // committed
                             // or timed out waiting to see. Either
                             // way, must abort.
-                            _transaction.rollback();
+//                            _transaction.rollback();
                             throw new RollbackException();
                         }
                     } catch (InterruptedException ie) {
