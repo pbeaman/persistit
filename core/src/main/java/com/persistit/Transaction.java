@@ -32,8 +32,7 @@ import com.persistit.util.Util;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit},
- * {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <code>commit</code> is performed. At that
  * point, all the updates are written atomically - that is, completely or not at
@@ -323,11 +322,19 @@ public class Transaction {
     }
 
     /**
-     * Release all resources associated with this transaction context.
+     * Release all resources associated with this transaction context. Abort the
+     * transaction if it was abandoned due to thread death.
      * 
      * @throws PersistitException
      */
     void close() throws PersistitException {
+        if (_nestedDepth > 0 && !_commitCompleted && !_rollbackCompleted) {
+            final TransactionStatus ts = _transactionStatus;
+            if (ts != null && ts.getTs() == _startTimestamp && !_commitCompleted && !_rollbackCompleted) {
+                rollback();
+                _persistit.getLogBase().txnAbandoned.log(this);
+            }
+        }
     }
 
     /**
@@ -393,7 +400,7 @@ public class Transaction {
      */
     public void begin() throws PersistitException {
         if (_commitCompleted) {
-            throw new IllegalStateException("Attempt to begin a committed transaction");
+            throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
             try {
@@ -417,7 +424,7 @@ public class Transaction {
 
     void beginCheckpoint() throws PersistitException {
         if (_commitCompleted) {
-            throw new IllegalStateException("Attempt to begin a committed transaction");
+            throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
             try {
@@ -458,7 +465,7 @@ public class Transaction {
     public void end() {
 
         if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called");
+            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
         }
 
         if (_nestedDepth == 1) {
@@ -468,7 +475,7 @@ public class Transaction {
             //
             if (!_commitCompleted) {
                 if (!_rollbackPending) {
-                    _persistit.getLogBase().txnNotCommitted.log(new RollbackException());
+                    _persistit.getLogBase().txnNotCommitted.log(this);
                 }
                 if (!_rollbackCompleted) {
                     rollback();
@@ -503,17 +510,18 @@ public class Transaction {
      *             already been committed.
      */
     public void rollback() {
-        if (_commitCompleted) {
-            throw new IllegalStateException("Already committed");
-        }
 
         if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called");
+            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
+        }
+
+        if (_commitCompleted) {
+            throw new IllegalStateException("Already committed " + this);
         }
 
         _rollbackPending = true;
 
-        if (_nestedDepth == 1) {
+        if (_nestedDepth == 1 & !_rollbackCompleted) {
             _rollbackCount++;
             _rollbacksSinceLastCommit++;
 
@@ -596,13 +604,16 @@ public class Transaction {
     public void commit(boolean toDisk) throws PersistitIOException, RollbackException {
 
         if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called");
+            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
         } else if (_commitCompleted) {
-            throw new IllegalStateException("Already committed");
+            throw new IllegalStateException("Already committed " + this);
         }
 
         checkPendingRollback();
         if (_nestedDepth == 1) {
+            if (_rollbackCompleted) {
+                throw new IllegalStateException("Already rolled back " + this);
+            }
             for (Delta delta = _transactionStatus.getDelta(); delta != null; delta = delta.getNext()) {
                 writeDeltaToJournal(delta);
             }
@@ -884,7 +895,8 @@ public class Transaction {
             flushTransactionBuffer();
         }
         if (recordSize > _buffer.remaining()) {
-            throw new IllegalStateException("Record size " + recordSize + " is too long for Transaction buffer");
+            throw new IllegalStateException("Record size " + recordSize + " is too long for Transaction buffer in "
+                    + this);
         }
     }
 
@@ -964,7 +976,12 @@ public class Transaction {
     }
 
     TransactionStatus getTransactionStatus() {
-        return _transactionStatus;
+        final TransactionStatus ts = _transactionStatus;
+        if (_nestedDepth > 0 && ts != null && ts.getTs() == _startTimestamp) {
+            return ts;
+        } else {
+            throw new IllegalArgumentException("Transaction not in scope " + this);
+        }
     }
 
     /**

@@ -109,6 +109,9 @@ public class LogBase {
     @Message("INFO|Transaction neither committed nor rolled back %s")
     public final LogItem txnNotCommitted = PersistitLogMessage.empty();
 
+    @Message("WARN|Transaction abandoned %s")
+    public final LogItem txnAbandoned = PersistitLogMessage.empty();
+    
     @Message("INFO|Starting AdminUI")
     public final LogItem startAdminUI = PersistitLogMessage.empty();
 
