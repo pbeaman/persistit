@@ -421,31 +421,6 @@ public class Util {
         return result;
     }
 
-    /**
-     * Invokes System.arraycopy after checking array arguments for equality.
-     * This is a workaround for an egregious bug in IBM AIX JRE 1.3.1, 1.4.0 and
-     * 1.4.2. With this bug, the code
-     * 
-     * System.arraycopy(bytes, fromOffset, value.getBytes(), toOffset, length);
-     * 
-     * corrupts the bytes array when value.getBytes() == bytes and fromOffset >
-     * toOffset. Our fix is to check for equality and to use the same handle for
-     * both array references when they are indeed identical.
-     * 
-     * @param from
-     * @param fromOffset
-     * @param to
-     * @param toOffset
-     * @param length
-     */
-    public static void arraycopy(byte[] from, int fromOffset, byte[] to, int toOffset, int length) {
-        if (from == to) {
-            System.arraycopy(from, fromOffset, from, toOffset, length);
-        } else {
-            System.arraycopy(from, fromOffset, to, toOffset, length);
-        }
-    }
-
     public static String replaceFileSuffix(String name, String suffix) {
         //
         // If suffix is a full path, return it.

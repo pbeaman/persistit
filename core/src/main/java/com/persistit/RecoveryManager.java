@@ -1614,7 +1614,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         int offset = 0; // offset of next segment in the value
         int remainingSize = size;
 
-        Util.arraycopy(rawBytes, Buffer.LONGREC_PREFIX_OFFSET, value.getEncodedBytes(), offset,
+        System.arraycopy(rawBytes, Buffer.LONGREC_PREFIX_OFFSET, value.getEncodedBytes(), offset,
                 Buffer.LONGREC_PREFIX_SIZE);
 
         offset += Buffer.LONGREC_PREFIX_SIZE;

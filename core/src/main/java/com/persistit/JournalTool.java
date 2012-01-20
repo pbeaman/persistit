@@ -957,8 +957,8 @@ public class JournalTool {
                 final long startTimestamp = TM.getEntryStartTimestamp(_readBuffer, index);
                 final long commitTimestamp = TM.getEntryCommitTimestamp(_readBuffer, index);
                 final long journalAddress = TM.getEntryJournalAddress(_readBuffer, index);
-                final boolean isCommitted = commitTimestamp != startTimestamp;
-                appendf("--  start %,12d  commit %,12d  @%,18d %s", commitTimestamp, startTimestamp, journalAddress,
+                final boolean isCommitted = commitTimestamp != 0;
+                appendf("--  start %,12d  commit %,12d  @%,18d %s", startTimestamp, commitTimestamp, journalAddress,
                         isCommitted ? "committed" : "uncommitted");
                 end();
                 sb.setLength(0);

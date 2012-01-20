@@ -278,6 +278,7 @@ public class Transaction {
     private final long _id;
     private int _nestedDepth;
     private boolean _rollbackPending;
+    private boolean _rollbackCompleted;
     private boolean _commitCompleted;
 
     private long _rollbackCount = 0;
@@ -321,11 +322,19 @@ public class Transaction {
     }
 
     /**
-     * Release all resources associated with this transaction context.
+     * Release all resources associated with this transaction context. Abort the
+     * transaction if it was abandoned due to thread death.
      * 
      * @throws PersistitException
      */
     void close() throws PersistitException {
+        if (_nestedDepth > 0 && !_commitCompleted && !_rollbackCompleted) {
+            final TransactionStatus ts = _transactionStatus;
+            if (ts != null && ts.getTs() == _startTimestamp && !_commitCompleted && !_rollbackCompleted) {
+                rollback();
+                _persistit.getLogBase().txnAbandoned.log(this);
+            }
+        }
     }
 
     /**
@@ -391,7 +400,7 @@ public class Transaction {
      */
     public void begin() throws PersistitException {
         if (_commitCompleted) {
-            throw new IllegalStateException("Attempt to begin a committed transaction");
+            throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
             try {
@@ -400,6 +409,7 @@ public class Transaction {
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
+            _rollbackCompleted = false;
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
@@ -414,7 +424,7 @@ public class Transaction {
 
     void beginCheckpoint() throws PersistitException {
         if (_commitCompleted) {
-            throw new IllegalStateException("Attempt to begin a committed transaction");
+            throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
             try {
@@ -423,6 +433,7 @@ public class Transaction {
                 throw new PersistitInterruptedException(e);
             }
             _rollbackPending = false;
+            _rollbackCompleted = false;
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
@@ -454,35 +465,20 @@ public class Transaction {
     public void end() {
 
         if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called");
+            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
         }
-        _nestedDepth--;
 
-        if (_nestedDepth == 0) {
+        if (_nestedDepth == 1) {
+            //
             // If not committed, this is an implicit rollback (with a log
-            // message
-            // if rollback was not called explicitly).
+            // message if rollback was not called explicitly).
             //
             if (!_commitCompleted) {
                 if (!_rollbackPending) {
-                    _persistit.getLogBase().txnNotCommitted.log(new RollbackException());
+                    _persistit.getLogBase().txnNotCommitted.log(this);
                 }
-                _rollbackPending = true;
-
-            }
-            //
-            // Perform rollback if needed.
-            //
-            if (_rollbackPending) {
-                _rollbackCount++;
-                _rollbacksSinceLastCommit++;
-
-                // TODO - rollback
-
-                if (!_transactionStatus.isNotified()) {
-                    _transactionStatus.abort();
-                    _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
-                            _persistit.getTimestampAllocator().getCurrentTimestamp());
+                if (!_rollbackCompleted) {
+                    rollback();
                 }
             } else {
                 _commitCount++;
@@ -492,6 +488,8 @@ public class Transaction {
             _rollbackPending = false;
             _threadName = null;
         }
+
+        _nestedDepth--;
         _commitCompleted = false;
     }
 
@@ -512,19 +510,27 @@ public class Transaction {
      *             already been committed.
      */
     public void rollback() {
-        if (_commitCompleted) {
-            throw new IllegalStateException("Already committed");
-        }
 
         if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called");
+            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
+        }
+
+        if (_commitCompleted) {
+            throw new IllegalStateException("Already committed " + this);
         }
 
         _rollbackPending = true;
 
-        _transactionStatus.abort();
-        _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
-                _persistit.getTimestampAllocator().getCurrentTimestamp());
+        if (_nestedDepth == 1 & !_rollbackCompleted) {
+            _rollbackCount++;
+            _rollbacksSinceLastCommit++;
+
+            _transactionStatus.abort();
+            _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                    _persistit.getTimestampAllocator().getCurrentTimestamp());
+
+            _rollbackCompleted = true;
+        }
     }
 
     /**
@@ -584,7 +590,10 @@ public class Transaction {
      *            <code>true</code> to commit to disk, or <code>false</code> to
      *            commit to memory.
      * 
-     * @throws PersistitException
+     * @throws PersistitIOException
+     *             if the transaction could not be written to the journal due to
+     *             an IOException. This exception also causes the transaction to
+     *             be rolled back.
      * 
      * @throws RollbackException
      * 
@@ -592,21 +601,25 @@ public class Transaction {
      *             if no transaction scope is active or this transaction scope
      *             has already called <code>commit</code>.
      */
-    public void commit(boolean toDisk) throws PersistitException, RollbackException {
+    public void commit(boolean toDisk) throws PersistitIOException, RollbackException {
 
         if (_nestedDepth < 1) {
-            throw new IllegalStateException("No transaction scope: begin() not called");
+            throw new IllegalStateException("No transaction scope: begin() not called in " + this);
         } else if (_commitCompleted) {
-            throw new IllegalStateException("Already committed");
+            throw new IllegalStateException("Already committed " + this);
         }
 
         checkPendingRollback();
         if (_nestedDepth == 1) {
+            if (_rollbackCompleted) {
+                throw new IllegalStateException("Already rolled back " + this);
+            }
             for (Delta delta = _transactionStatus.getDelta(); delta != null; delta = delta.getNext()) {
                 writeDeltaToJournal(delta);
             }
             _transactionStatus.commit(_persistit.getTimestampAllocator().getCurrentTimestamp());
             _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+            boolean committed = false;
             try {
                 /*
                  * TODO - figure out what to do if writes fail - I believe we
@@ -619,10 +632,13 @@ public class Transaction {
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
+                committed = true;
             } finally {
-                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus, _commitTimestamp);
+                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                        committed ? _commitTimestamp : TransactionStatus.ABORTED);
+                _commitCompleted = committed;
+                _rollbackCompleted = !committed;
             }
-            _commitCompleted = true;
         }
     }
 
@@ -879,10 +895,11 @@ public class Transaction {
             flushTransactionBuffer();
         }
         if (recordSize > _buffer.remaining()) {
-            throw new IllegalStateException("Record size " + recordSize + " is too long for Transaction buffer");
+            throw new IllegalStateException("Record size " + recordSize + " is too long for Transaction buffer in "
+                    + this);
         }
     }
-    
+
     synchronized void flushTransactionBuffer() throws PersistitIOException {
         if (_buffer.position() > 0) {
             _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
@@ -899,7 +916,8 @@ public class Transaction {
         }
     }
 
-    synchronized void writeStoreRecordToJournal(final int treeHandle, final Key key, final Value value) throws PersistitIOException {
+    synchronized void writeStoreRecordToJournal(final int treeHandle, final Key key, final Value value)
+            throws PersistitIOException {
         final int recordSize = SR.OVERHEAD + key.getEncodedSize() + value.getEncodedSize();
         prepare(recordSize);
         SR.putLength(_buffer, recordSize);
@@ -911,7 +929,8 @@ public class Transaction {
         _buffer.put(value.getEncodedBytes(), 0, value.getEncodedSize());
     }
 
-    synchronized void writeDeleteRecordToJournal(final int treeHandle, final Key key1, final Key key2) throws PersistitIOException {
+    synchronized void writeDeleteRecordToJournal(final int treeHandle, final Key key1, final Key key2)
+            throws PersistitIOException {
         int elisionCount = key2.firstUniqueByteIndex(key1);
         int recordSize = DR.OVERHEAD + key1.getEncodedSize() + key2.getEncodedSize() - elisionCount;
         prepare(recordSize);
@@ -957,7 +976,12 @@ public class Transaction {
     }
 
     TransactionStatus getTransactionStatus() {
-        return _transactionStatus;
+        final TransactionStatus ts = _transactionStatus;
+        if (_nestedDepth > 0 && ts != null && ts.getTs() == _startTimestamp) {
+            return ts;
+        } else {
+            throw new IllegalArgumentException("Transaction not in scope " + this);
+        }
     }
 
     /**
@@ -970,9 +994,14 @@ public class Transaction {
     }
 
     /**
-     * Set the current step index. Must be in the range [0, {@link #MAXIMUM_STEP}).
-     * <p>Also see {@link #incrementStep()} for step semantics.</p>
-     * @param step New step index value.
+     * Set the current step index. Must be in the range [0,
+     * {@link #MAXIMUM_STEP}).
+     * <p>
+     * Also see {@link #incrementStep()} for step semantics.
+     * </p>
+     * 
+     * @param step
+     *            New step index value.
      * @return Previous step value.
      */
     public int setStep(int step) {
@@ -1008,7 +1037,8 @@ public class Transaction {
             throw new IllegalStateException(this + " cannot have a step of " + newStep + ", less than 0");
         }
         if (newStep >= MAXIMUM_STEP) {
-            throw new IllegalStateException(this + " cannot have a step of " + newStep + ", greater than maximum " + MAXIMUM_STEP);
+            throw new IllegalStateException(this + " cannot have a step of " + newStep + ", greater than maximum "
+                    + MAXIMUM_STEP);
         }
     }
 
