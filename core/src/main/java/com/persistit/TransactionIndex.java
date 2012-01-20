@@ -365,7 +365,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
      * the "step" number encoded in the supplied <code>versionHandle</code>
      * (stepv) and the supplied <code>step</code>parameter:
      * <ul>
-     * <li>If stepv &eq; 0 or stepv &lt; step then return tsv as the "commit"
+     * <li>If stepv &lt;= step then return tsv as the "commit"
      * timestamp. (Note that the transaction has not actually committed, but for
      * the purpose of reading values during the execution of the transaction it
      * is as if that transaction's own updates are present.)</li>
@@ -403,13 +403,13 @@ public class TransactionIndex implements TransactionIndexMXBean {
         if (tsv == ts) {
             /*
              * The update was created by this transaction. Policy is that if the
-             * version was written by an earlier step or by step 0, return a
+             * version was written by an earlier or equal to step, return a
              * valid commit timestamp (even though that version has not yet been
              * committed). Otherwise return UNCOMITTED to prevent it from being
              * read.
              */
             int stepv = vh2step(versionHandle);
-            if (stepv == 0 || stepv < step) {
+            if (stepv <= step) {
                 return tsv;
             } else {
                 return UNCOMMITTED;
