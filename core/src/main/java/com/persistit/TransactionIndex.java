@@ -495,6 +495,18 @@ public class TransactionIndex implements TransactionIndexMXBean {
         }
         return commitTimestamp;
     }
+    
+    /**
+     * Helper method gets commit status for a transaction having the given start timestamp
+     * with respect to all time.
+     * @param ts
+     * @return
+     * @throws TimeoutException
+     * @throws InterruptedException
+     */
+    public long commitStatus(final long ts) throws TimeoutException, InterruptedException {
+        return commitStatus(ts2vh(ts), UNCOMMITTED, 0);
+    }
 
     /**
      * Atomically assign a start timestamp and register a transaction within the

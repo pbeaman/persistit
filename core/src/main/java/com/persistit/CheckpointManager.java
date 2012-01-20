@@ -225,10 +225,8 @@ class CheckpointManager extends IOTaskRunnable {
     void pollFlushCheckpoint() {
         Checkpoint checkpoint = _currentCheckpoint;
         if (!checkpoint.isCompleted()) {
-            final long earliestLiveTransaction = _persistit.earliestLiveTransaction();
             final long earliestDirtyTimestamp = _persistit.earliestDirtyTimestamp();
-            long earliest = Math.min(earliestDirtyTimestamp, earliestLiveTransaction);
-            if (checkpoint.getTimestamp() <= earliest) {
+            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
                 try {
                     _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
                 } catch (PersistitIOException e) {
