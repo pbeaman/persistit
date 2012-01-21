@@ -45,6 +45,7 @@ import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
@@ -760,7 +761,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     synchronized void writeTransactionMap() throws PersistitIOException {
-        pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp());
+//        pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp());
         int count = _liveTransactionMap.size();
         final int recordSize = TM.OVERHEAD + TM.ENTRY_SIZE * count;
         prepareWriteBuffer(recordSize);
@@ -820,7 +821,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         _lastValidCheckpointBaseAddress = _baseAddress;
     }
 
-    void writePageToJournal(final Buffer buffer) throws PersistitIOException {
+    void writePageToJournal(final Buffer buffer) throws PersistitIOException, PersistitInterruptedException {
 
         final Volume volume;
         final int recordSize;
@@ -871,7 +872,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
             final PageNode pageNode = new PageNode(handle, buffer.getPageAddress(), address, buffer.getTimestamp());
             PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
-            if (oldPageNode != null && oldPageNode.getTimestamp() > _lastValidCheckpoint.getTimestamp()) {
+            long checkpoint = _persistit.getCheckpointManager().getCheckpointTimestamp();
+            if (oldPageNode != null && oldPageNode.getTimestamp() > checkpoint && checkpoint > 0) {
                 oldPageNode = oldPageNode.getPrevious();
             }
             pageNode.setPrevious(oldPageNode);

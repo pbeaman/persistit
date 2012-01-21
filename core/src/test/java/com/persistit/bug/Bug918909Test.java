@@ -59,7 +59,7 @@ public class Bug918909Test extends PersistitUnitTestCase {
             txn.begin();
             for (int i = 1; i <= 10; i++) {
                 ex.getValue().put(RED_FOX);
-                if (i == 5) {
+                if (i == 1) {
                     _persistit.flush();
                     _persistit.checkpoint();
                 }
@@ -74,11 +74,20 @@ public class Bug918909Test extends PersistitUnitTestCase {
         for (int i = 0; i < 10; i++) {
             _persistit = new Persistit();
             _persistit.initialize(properties);
+            final Exchange ex = _persistit.getExchange("persistit", "Bug918909Test", true);
+            final Transaction txn = ex.getTransaction();
+            txn.begin();
+            ex.clear().append(1).fetch();
+            assertFalse(ex.getValue().isDefined());
+            assertFalse(ex.isValueDefined());
+            txn.commit();
+            txn.end();
             _persistit.close();
         }
 
         _persistit = new Persistit();
         _persistit.initialize(properties);
+        _persistit.checkpoint();
         _persistit.copyBackPages();
         assertTrue(_persistit.getJournalManager().getBaseAddress() > 10L * _persistit.getJournalManager()
                 .getBlockSize());

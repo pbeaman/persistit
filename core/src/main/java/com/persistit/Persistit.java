@@ -1502,8 +1502,9 @@ public class Persistit {
 
     /**
      * @return The most recently proposed Checkpoint.
+     * @throws PersistitInterruptedException 
      */
-    public Checkpoint getCurrentCheckpoint() {
+    public Checkpoint getCurrentCheckpoint() throws PersistitInterruptedException {
         return _checkpointManager.getCurrentCheckpoint();
     }
 
