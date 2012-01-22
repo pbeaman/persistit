@@ -316,13 +316,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         @Override
         public void startTransaction(long address, long startTimestamp, final long commitTimestamp)
                 throws PersistitException {
-            if (startTimestamp < _lastValidCheckpoint.getTimestamp()) {
-                try {
-                    _persistit.getTransactionIndex().injectAbortedTransaction(startTimestamp);
-                } catch (InterruptedException ie) {
-                    throw new PersistitInterruptedException(ie);
-                }
-            }
+            // Default: do nothing
         }
 
         @Override
@@ -1269,7 +1263,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
     }
 
-    public void buildRecoveryPlan() throws PersistitIOException {
+    public void buildRecoveryPlan() throws PersistitIOException, PersistitInterruptedException {
         try {
             //
             // Find the keystone (last) journal file and validate it.
@@ -1295,6 +1289,14 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     _committedTransactionCount++;
                 } else {
                     _uncommittedTransactionCount++;
+                    if (item.getStartTimestamp() < _lastValidCheckpoint.getTimestamp()) {
+                        try {
+                            _persistit.getTransactionIndex().injectAbortedTransaction(item.getStartTimestamp());
+                        } catch (InterruptedException ie) {
+                            throw new PersistitInterruptedException(ie);
+                        }
+                    }
+
                 }
             }
             _persistit.getLogBase().recoveryPlan.log(_pageMap.size(), _committedTransactionCount,

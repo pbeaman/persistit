@@ -45,6 +45,8 @@ import com.persistit.JournalRecord.TX;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -759,6 +761,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     synchronized void writeTransactionMap() throws PersistitIOException {
+//        pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp());
         int count = _liveTransactionMap.size();
         final int recordSize = TM.OVERHEAD + TM.ENTRY_SIZE * count;
         prepareWriteBuffer(recordSize);
@@ -818,7 +821,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         _lastValidCheckpointBaseAddress = _baseAddress;
     }
 
-    void writePageToJournal(final Buffer buffer) throws PersistitIOException {
+    void writePageToJournal(final Buffer buffer) throws PersistitIOException, PersistitInterruptedException {
 
         final Volume volume;
         final int recordSize;
@@ -868,7 +871,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _currentAddress += recordSize - PA.OVERHEAD;
 
             final PageNode pageNode = new PageNode(handle, buffer.getPageAddress(), address, buffer.getTimestamp());
-            final PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
+            PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
+            long checkpoint = _persistit.getCheckpointManager().getCheckpointTimestamp();
+            if (oldPageNode != null && oldPageNode.getTimestamp() > checkpoint && checkpoint > 0) {
+                oldPageNode = oldPageNode.getPrevious();
+            }
             pageNode.setPrevious(oldPageNode);
             _writePageCount++;
         }
@@ -1351,26 +1358,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         // be retained for recovery. For transactions containing LONG_RECORD
         // pages, those pages may be written to the journal with timestamps
         // earlier than the commitTimestamp of the transaction. The are
-        // guaranteed to be written with timestamp valuess later than the
+        // guaranteed to be written with timestamp values later than the
         // transaction's startTimestamp. Therefore we can't cull PageMap entries
         // later than this recoveryTimestamp because the pages they refer to may
         // be needed for recovery.
         //
         long recoveryTimestamp = checkpoint.getTimestamp();
-
-        //
-        // Remove any committed transactions that committed before the
-        // checkpoint. No need to keep a record of such a transaction since it's
-        // updates are now fully written to the journal in modified page images.
-        //
-        for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator.hasNext();) {
-            final TransactionMapItem ts = iterator.next();
-            if (ts.isCommitted() && ts.getCommitTimestamp() < checkpoint.getTimestamp()) {
-                iterator.remove();
-            } else if (ts.getStartTimestamp() < recoveryTimestamp) {
-                recoveryTimestamp = ts.getStartTimestamp();
-            }
-        }
+        long earliest = pruneObsoleteTransactions(recoveryTimestamp);
+        recoveryTimestamp = Math.min(recoveryTimestamp, earliest);
         //
         // Remove all but the most recent PageNode version before the
         // checkpoint.
@@ -1397,6 +1392,51 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
         
         checkpoint.completed();
+    }
+    
+    /**
+     * Remove obsolete TransactionMapItem instances from the live transaction map.
+     * An instance is obsolete if it refers to a transaction that committed earlier than
+     * that last valid checkpoint (because all of the effects of that transaction
+     * are now check-pointed into the B-Trees themselves) or if it is from an
+     * aborted transaction that has no remaining MVV values.
+     * @param timestamp
+     * @return
+     */
+    private long pruneObsoleteTransactions(final long timestamp) {
+        long earliest = Long.MAX_VALUE;
+        //
+        // Remove any committed transactions that committed before the
+        // checkpoint. No need to keep a record of such a transaction since it's
+        // updates are now fully written to the journal in modified page images.
+        //
+        for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator.hasNext();) {
+            final TransactionMapItem ts = iterator.next();
+            if (ts.isCommitted()) {
+                if (ts.getCommitTimestamp() < timestamp) {
+                    iterator.remove();
+                } else if (ts.getStartTimestamp() < earliest) {
+                    earliest = ts.getStartTimestamp();
+                }
+            } else {
+                final long tc;
+                try {
+                    tc = _persistit.getTransactionIndex().commitStatus(ts.getStartTimestamp());
+                } catch (TimeoutException e) {
+                    // ignore - leave aborted TransactionMapItem until the next pass
+                    continue;
+                } catch (InterruptedException e) {
+                    // ignore - leave aborted TransactionMapItem until the next pass
+                    continue;
+                }
+                if (tc > 0 && tc != TransactionStatus.UNCOMMITTED) {
+                    // if the TransactionStatus still had a non-negative MVV count,
+                    // the status would be ABORTED.
+                    iterator.remove();
+                }
+            }
+        }
+        return earliest;
     }
 
     static class TreeDescriptor {

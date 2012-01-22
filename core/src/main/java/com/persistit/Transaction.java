@@ -32,7 +32,8 @@ import com.persistit.util.Util;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit},
+ * {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <code>commit</code> is performed. At that
  * point, all the updates are written atomically - that is, completely or not at
@@ -909,7 +910,7 @@ public class Transaction {
     }
 
     synchronized void flushOnCheckpoint(final long timestamp) throws PersistitIOException {
-        if (_startTimestamp > 0 && _startTimestamp < timestamp && _commitTimestamp == 0) {
+        if (_startTimestamp > 0 && _startTimestamp < timestamp && _commitTimestamp == 0 && _buffer.position() > 0) {
             _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, _commitTimestamp, _previousJournalAddress);
             _buffer.clear();

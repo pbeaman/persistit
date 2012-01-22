@@ -187,7 +187,7 @@ public class LogBase {
     @Message("INFO|Waited %,d seconds for IO operations to finish")
     public final LogItem waitForClose = PersistitLogMessage.empty();
 
-    @Message("WARNING|Checkpoint %s written to journal before dirty page %d")
+    @Message("ERROR|Checkpoint %s written to journal before dirty page %d")
     public final LogItem lateWrite = PersistitLogMessage.empty();
 
     @Message("WARNING|%s has %,d stranded pages")
