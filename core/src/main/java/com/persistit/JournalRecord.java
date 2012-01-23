@@ -401,7 +401,15 @@ import com.persistit.util.Util;
  */
 class JournalRecord {
 
+    /**
+     * Minimum length of first-level record
+     */
     final static int OVERHEAD = 16;
+    
+    /**
+     * Minimum length of a sub-record inside of a TX
+     */
+    final static int SUB_RECORD_OVERHEAD = 12;
 
     private final static Charset UTF8 = Charset.forName("UTF-8");
 

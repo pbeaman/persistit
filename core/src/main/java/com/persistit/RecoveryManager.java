@@ -20,6 +20,7 @@ import static com.persistit.JournalRecord.getLength;
 import static com.persistit.JournalRecord.getTimestamp;
 import static com.persistit.JournalRecord.getType;
 import static com.persistit.JournalRecord.isValidType;
+import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.util.Util.println;
 
 import java.io.File;
@@ -156,6 +157,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     //
     private final Map<Long, TransactionMapItem> _recoveredTransactionMap = new HashMap<Long, TransactionMapItem>();
 
+    private final Map<Long, TransactionMapItem> _abortedTransactionMap = new HashMap<Long, TransactionMapItem>();
+
     private final Map<PageNode, PageNode> _pageMap = new HashMap<PageNode, PageNode>();
 
     private final Map<PageNode, PageNode> _branchMap = new HashMap<PageNode, PageNode>();
@@ -288,13 +291,13 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     public class DefaultRollbackListener implements RecoveryListener {
         @Override
         public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
-            // TODO
+            exchange.prune();
         }
 
         @Override
         public void removeKeyRange(final long address, final long timestamp, Exchange exchange, final Key from,
                 final Key to) throws PersistitException {
-            // TODO
+            exchange.prune(from, to);
         }
 
         @Override
@@ -321,7 +324,13 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
 
         @Override
         public void endTransaction(long address, long timestamp) throws PersistitException {
-            // Default: do nothing
+            final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
+            assert ts != null : "Missing TransactionStatus for timestamp " + timestamp;
+            // Having pruned all pages involved in this transaction, now declare
+            // it has no MVVs left. This will allow the cleanup process to
+            // remove it entirely.
+            ts.setMvvCount(0);
+            _persistit.getJournalManager().writeTransactionToJournal(ByteBuffer.allocate(0), timestamp, ABORTED, 0);
         }
 
         @Override
@@ -755,7 +764,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     //
                     rejectedPrimordialFile = candidate;
                     savedException = je;
-                    
+
                     _keystoneAddress = -1;
                     _keystoneFile = null;
                     _recoveredTransactionMap.clear();
@@ -765,7 +774,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     _volumeToHandleMap.clear();
                     _handleToTreeMap.clear();
                     _handleToVolumeMap.clear();
-                    
+
                 } else {
                     throw savedException;
                 }
@@ -1172,6 +1181,11 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             final TransactionMapItem ts = entry.getValue();
             if (ts.isCommitted() && ts.getCommitTimestamp() < timestamp) {
                 iterator.remove();
+            } else {
+                if (_abortedTransactionMap.get(ts.getStartTimestamp()) != null) {
+                    iterator.remove();
+                    _abortedTransactionMap.remove(ts.getStartTimestamp());
+                }
             }
         }
 
@@ -1321,48 +1335,60 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final Long key = Long.valueOf(startTimestamp);
         final long commitTimestamp = TX.getCommitTimestamp(_readBuffer);
         final long backchainAddress = TX.getBackchainAddress(_readBuffer);
-        TransactionMapItem item = _recoveredTransactionMap.get(key);
 
-        if (item == null) {
-            if (backchainAddress != 0) {
-                throw new CorruptJournalException("Missing transaction record at with timestamp(" + key
-                        + "): previous/current=" + backchainAddress + "/" + addressToString(address, startTimestamp));
-            }
-            item = new TransactionMapItem(startTimestamp, address);
-            _recoveredTransactionMap.put(key, item);
-
-        } else {
-            if (backchainAddress == 0) {
-                throw new CorruptJournalException("Duplicate transactions with same timestamp(" + key
+        if (commitTimestamp == ABORTED) {
+            TransactionMapItem item = _abortedTransactionMap.get(key);
+            if (item == null) {
+                item = new TransactionMapItem(startTimestamp, address);
+                item.setCommitTimestamp(ABORTED);
+                _abortedTransactionMap.put(key, item);
+            } else {
+                throw new CorruptJournalException("Duplicate transaction abort records with same timestamp(" + key
                         + "): previous/current=" + item.getStartAddress() + "/"
                         + addressToString(address, startTimestamp));
             }
-            if (item.isCommitted()) {
-                throw new CorruptJournalException("Redundant Transaction Commit Record for " + item + " at "
-                        + addressToString(address, startTimestamp));
+        } else {
+            TransactionMapItem item = _recoveredTransactionMap.get(key);
+            if (item == null) {
+                if (backchainAddress != 0) {
+                    throw new CorruptJournalException("Missing transaction record at with timestamp(" + key
+                            + "): previous/current=" + backchainAddress + "/"
+                            + addressToString(address, startTimestamp));
+                }
+                item = new TransactionMapItem(startTimestamp, address);
+                _recoveredTransactionMap.put(key, item);
+
+            } else {
+                if (backchainAddress == 0) {
+                    throw new CorruptJournalException("Duplicate transactions with same timestamp(" + key
+                            + "): previous/current=" + item.getStartAddress() + "/"
+                            + addressToString(address, startTimestamp));
+                }
+                if (item.isCommitted()) {
+                    throw new CorruptJournalException("Redundant Transaction Commit Record for " + item + " at "
+                            + addressToString(address, startTimestamp));
+                }
+                if (backchainAddress != item.getLastRecordAddress()) {
+                    throw new CorruptJournalException("Broken backchain at " + addressToString(address)
+                            + " does not match previous record " + item);
+                }
+                item.setLastRecordAddress(address);
             }
-            if (backchainAddress != item.getLastRecordAddress()) {
-                throw new CorruptJournalException("Broken backchain at " + addressToString(address)
-                        + " does not match previous record " + item);
-            }
-            item.setLastRecordAddress(address);
+            item.setCommitTimestamp(commitTimestamp);
+            _persistit.getTimestampAllocator().updateTimestamp(commitTimestamp);
         }
-        item.setCommitTimestamp(commitTimestamp);
-        _persistit.getTimestampAllocator().updateTimestamp(commitTimestamp);
 
     }
 
     // ---------------------------- Phase 3 ------------------------------------
 
-    public void applyAllCommittedTransactions(final RecoveryListener commitListener,
+    public void applyAllRecoveredTransactions(final RecoveryListener commitListener,
             final RecoveryListener rollbackListener) throws TestException {
 
         if (_recoveryDisabledForTestMode) {
             return;
         }
-
-        TransactionMapItem previous = null;
-        RecoveryListener previousListener = null;
+        boolean started = false;
         /*
          * If there is a checkpoint Transaction record, reset its commit
          * timestamp to the checkpoint timestamp to ensure it gets applied
@@ -1377,17 +1403,18 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         final SortedSet<TransactionMapItem> sorted = new TreeSet<TransactionMapItem>(_recoveredTransactionMap.values());
-        
+
         if (!sorted.isEmpty()) {
             TransactionMapItem last = sorted.last();
             assert last.getCommitTimestamp() <= _persistit.getTimestampAllocator().getCurrentTimestamp();
         }
-        
+
         for (final TransactionMapItem item : sorted) {
             RecoveryListener listener = item.isCommitted() ? commitListener : rollbackListener;
             try {
-                if (previous == null) {
+                if (!started) {
                     commitListener.startRecovery(item.getStartAddress(), item.getCommitTimestamp());
+                    started = true;
                 }
 
                 applyTransaction(item, listener);
@@ -1401,22 +1428,12 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     _persistit.getLogBase().recoveryProgress.log(_appliedTransactionCount, _abortedTransactionCount,
                             _recoveredTransactionMap.size() - _appliedTransactionCount - _abortedTransactionCount);
                 }
-                previous = item;
-                previousListener = listener;
             } catch (TestException te) {
                 // Exception thrown by a unit test to interrupt recovery
                 _persistit.getLogBase().recoveryException.log(te, item);
-               throw te;
+                throw te;
             } catch (Exception pe) {
                 _persistit.getLogBase().recoveryException.log(pe, item);
-                _errorCount++;
-            }
-        }
-        if (previous != null) {
-            try {
-                previousListener.endTransaction(previous.getStartAddress(), previous.getCommitTimestamp());
-            } catch (Exception pe) {
-                _persistit.getLogBase().recoveryException.log(pe, previous);
                 _errorCount++;
             }
         }

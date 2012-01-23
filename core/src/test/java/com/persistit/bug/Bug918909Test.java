@@ -20,6 +20,7 @@ import java.util.Properties;
 import org.junit.Test;
 
 import com.persistit.Exchange;
+import com.persistit.Key;
 import com.persistit.Persistit;
 import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -51,19 +52,55 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 public class Bug918909Test extends PersistitUnitTestCase {
 
+    private final int RESTART_ITERATIONS = 5;
+    private final int SMALL_RECORD_COUNT = 10;
+    private final int LARGE_RECORD_COUNT = 1000;
+
     @Test
-    public void testAbortedTransactionDoesntBlockCleanup() throws Exception {
+    public void testSmallAbortedEmptyTransaction() throws Exception {
+        doTest(1, SMALL_RECORD_COUNT);
+    }
+
+    @Test
+    public void testSmallAbortedInsertTransaction() throws Exception {
+        doTest(SMALL_RECORD_COUNT / 2, SMALL_RECORD_COUNT);
+    }
+
+    @Test
+    public void testSmallAbortedStoreDeleteTransaction() throws Exception {
+        doTest(SMALL_RECORD_COUNT, SMALL_RECORD_COUNT);
+    }
+
+    @Test
+    public void testLargeAbortedEmptyTransaction() throws Exception {
+        doTest(1, LARGE_RECORD_COUNT);
+    }
+
+    @Test
+    public void testLargeAbortedInsertTransaction() throws Exception {
+        doTest(LARGE_RECORD_COUNT / 2, LARGE_RECORD_COUNT);
+    }
+
+    @Test
+    public void testLargeAbortedStoreDeleteTransaction() throws Exception {
+        doTest(LARGE_RECORD_COUNT, LARGE_RECORD_COUNT);
+    }
+
+    private void doTest(final int when, final int records) throws Exception {
         {
             final Exchange ex = _persistit.getExchange("persistit", "Bug918909Test", true);
             final Transaction txn = ex.getTransaction();
             txn.begin();
-            for (int i = 1; i <= 10; i++) {
+            for (int i = 1; i <= records; i++) {
                 ex.getValue().put(RED_FOX);
-                if (i == 1) {
+                if (i == when) {
                     _persistit.flush();
                     _persistit.checkpoint();
                 }
                 ex.clear().append(i).store();
+            }
+            if (when == records) {
+                ex.removeAll();
             }
             txn.rollback();
             txn.end();
@@ -71,15 +108,19 @@ public class Bug918909Test extends PersistitUnitTestCase {
         final Properties properties = _persistit.getProperties();
         _persistit.crash();
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < RESTART_ITERATIONS; i++) {
             _persistit = new Persistit();
             _persistit.initialize(properties);
             final Exchange ex = _persistit.getExchange("persistit", "Bug918909Test", true);
             final Transaction txn = ex.getTransaction();
             txn.begin();
-            ex.clear().append(1).fetch();
-            assertFalse(ex.getValue().isDefined());
-            assertFalse(ex.isValueDefined());
+            for (int j = 1; j <= records; j++) {
+                ex.clear().append(1).fetch();
+                assertFalse(ex.getValue().isDefined());
+                assertFalse(ex.isValueDefined());
+            }
+            assertFalse(ex.to(Key.BEFORE).next());
+            assertFalse(ex.to(Key.AFTER).previous());
             txn.commit();
             txn.end();
             _persistit.close();
@@ -89,7 +130,7 @@ public class Bug918909Test extends PersistitUnitTestCase {
         _persistit.initialize(properties);
         _persistit.checkpoint();
         _persistit.copyBackPages();
-        assertTrue(_persistit.getJournalManager().getBaseAddress() > 10L * _persistit.getJournalManager()
-                .getBlockSize());
+        assertTrue(_persistit.getJournalManager().getBaseAddress() > RESTART_ITERATIONS
+                * _persistit.getJournalManager().getBlockSize());
     }
 }

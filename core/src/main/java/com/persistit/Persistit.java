@@ -672,7 +672,7 @@ public class Persistit {
     }
 
     void finishRecovery() throws PersistitException, TestException {
-        _recoveryManager.applyAllCommittedTransactions(_recoveryManager.getDefaultCommitListener(), _recoveryManager
+        _recoveryManager.applyAllRecoveredTransactions(_recoveryManager.getDefaultCommitListener(), _recoveryManager
                 .getDefaultRollbackListener());
         _recoveryManager.close();
         flush();

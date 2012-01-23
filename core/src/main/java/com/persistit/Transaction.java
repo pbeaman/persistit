@@ -627,9 +627,7 @@ public class Transaction {
                  * will want to mark the transaction status as ABORTED in that
                  * case, but need to go look hard at TransactionIndex.
                  */
-                if (_buffer.position() != 0) {
-                    flushTransactionBuffer();
-                }
+                flushTransactionBuffer();
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
@@ -902,7 +900,7 @@ public class Transaction {
     }
 
     synchronized void flushTransactionBuffer() throws PersistitIOException {
-        if (_buffer.position() > 0) {
+        if (_buffer.position() > 0 || _previousJournalAddress != 0) {
             _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, _commitTimestamp, _previousJournalAddress);
             _buffer.clear();
