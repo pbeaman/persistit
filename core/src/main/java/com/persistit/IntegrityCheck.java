@@ -22,10 +22,8 @@ import com.persistit.Buffer.VerifyVisitor;
 import com.persistit.CLI.Arg;
 import com.persistit.CLI.Cmd;
 import com.persistit.CleanupManager.CleanupIndexHole;
-import com.persistit.CleanupManager.CleanupPruneAction;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.PersistitException;
-import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -38,7 +36,7 @@ import com.persistit.util.Util;
  * </p>
  * <p>
  * An application creates an <code>IntegrityCheck</code>, invokes its
- * {@link #checkVolume} or {@link #checkTree} method to peform the integrity
+ * {@link #checkVolume} or {@link #checkTree} method to perform the integrity
  * check, and then reviews the <code>Fault</code>s available through the
  * {@link #getFaults} method.
  * </p>
@@ -55,6 +53,7 @@ public class IntegrityCheck extends Task {
     final static int MAX_FAULTS = 200;
     final static int MAX_HOLES_TO_FIX = 1000;
     final static int MAX_WALK_RIGHT = 1000;
+    final static int MAX_PRUNING_ERRORS = 50;
 
     private Volume _currentVolume;
     private Tree _currentTree;
@@ -81,6 +80,9 @@ public class IntegrityCheck extends Task {
     private Value _value = new Value((Persistit) null);
     private MVVVisitor _versionVisitor = new MVVVisitor();
 
+    // Used in pruning
+    private Key _pruningKey = new Key((Persistit) null);
+
     private static class Counters {
 
         private long _indexPageCount = 0;
@@ -94,6 +96,8 @@ public class IntegrityCheck extends Task {
         private long _mvvCount = 0;
         private long _mvvOverhead = 0;
         private long _mvvAntiValues = 0;
+        private long _pruningErrorCount = 0;
+        private long _prunedPageCount = 0;
 
         Counters() {
 
@@ -108,9 +112,11 @@ public class IntegrityCheck extends Task {
             _longRecordBytesInUse = counters._longRecordBytesInUse;
             _indexHoleCount = counters._indexHoleCount;
             _mvvPageCount = counters._mvvPageCount;
-            _mvvCount = counters._mvvCount - _mvvCount;
-            _mvvOverhead = counters._mvvOverhead - _mvvOverhead;
-            _mvvAntiValues = counters._mvvAntiValues - _mvvAntiValues;
+            _mvvCount = counters._mvvCount;
+            _mvvOverhead = counters._mvvOverhead;
+            _mvvAntiValues = counters._mvvAntiValues;
+            _pruningErrorCount = counters._pruningErrorCount;
+            _prunedPageCount = counters._prunedPageCount;
         }
 
         void difference(final Counters counters) {
@@ -125,15 +131,17 @@ public class IntegrityCheck extends Task {
             _mvvCount = counters._mvvCount - _mvvCount;
             _mvvOverhead = counters._mvvOverhead - _mvvOverhead;
             _mvvAntiValues = counters._mvvAntiValues - _mvvAntiValues;
+            _pruningErrorCount = counters._pruningErrorCount - _pruningErrorCount;
+            _prunedPageCount = counters._prunedPageCount - _prunedPageCount;
         }
 
         @Override
         public String toString() {
             return String.format("Index pages/bytes: %,d / %,d Data pages/bytes: %,d / %,d"
                     + " LongRec pages/bytes: %,d / %,d  MVV pages/records/bytes/antivalues: "
-                    + "%,d / %,d / %,d / %,d  Holes %,d", _indexPageCount, _indexBytesInUse, _dataPageCount,
+                    + "%,d / %,d / %,d / %,d  Holes %,d Pruned %,d", _indexPageCount, _indexBytesInUse, _dataPageCount,
                     _dataBytesInUse, _longRecordPageCount, _longRecordBytesInUse, _mvvPageCount, _mvvCount,
-                    _mvvOverhead, _mvvAntiValues, _indexHoleCount);
+                    _mvvOverhead, _mvvAntiValues, _indexHoleCount, _prunedPageCount);
         }
 
     }
@@ -478,6 +486,20 @@ public class IntegrityCheck extends Task {
      */
     public long getIndexHoleCount() {
         return _counters._indexHoleCount;
+    }
+
+    /**
+     * @return Count of pages having MVV values that were pruned
+     */
+    public long getPrunedPagesCount() {
+        return _counters._prunedPageCount;
+    }
+
+    /**
+     * @return Count of errors encountered while pruning pages
+     */
+    public long getPruningErrorCount() {
+        return _counters._pruningErrorCount;
     }
 
     /**
@@ -1042,8 +1064,14 @@ public class IntegrityCheck extends Task {
             }
             if (_counters._mvvCount > mvvCount) {
                 _counters._mvvPageCount++;
-                if (_prune) {
-                    _persistit.getCleanupManager().offer(new CleanupPruneAction(tree.getHandle(), page));
+                if (_prune && !_currentVolume.isReadOnly()
+                        && _counters._pruningErrorCount < MAX_PRUNING_ERRORS) {
+                    try {
+                        buffer.pruneMvvValues(tree, _pruningKey);
+                        _counters._prunedPageCount++;
+                    } catch (PersistitException e) {
+                        _counters._pruningErrorCount++;
+                    }
                 }
             }
         }
@@ -1112,7 +1140,7 @@ public class IntegrityCheck extends Task {
         poll();
         BufferPool pool = _currentVolume.getPool();
         try {
-            Buffer buffer = pool.get(_currentVolume, page, false, true);
+            Buffer buffer = pool.get(_currentVolume, page, isPruneEnabled() && !_currentVolume.isReadOnly(), true);
             return buffer;
         } catch (PersistitException de) {
             throw de;

@@ -17,7 +17,7 @@ package com.persistit;
 
 import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.TIMED_OUT;
-import static com.persistit.TransactionStatus.UNCOMMITTED;
+import static com.persistit.TransactionStatus.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -360,6 +360,8 @@ public class TransactionIndex implements TransactionIndexMXBean {
      * <code>versionHandle</code>. The result depends on the status of the
      * transaction T identified by the <code>versionHandle</code> as follows:
      * <ul>
+     * <li>If T's start timestamp is primordial (0), return
+     * {@link TransactionStatus#PRIMORDIAL}.</li>
      * <li>If T is the same transaction as this one (the transaction identified
      * by <code>ts</code>) then the result depends on the relationship between
      * the "step" number encoded in the supplied <code>versionHandle</code>
@@ -400,6 +402,9 @@ public class TransactionIndex implements TransactionIndexMXBean {
     long commitStatus(final long versionHandle, final long ts, final int step) throws InterruptedException,
             TimeoutException {
         final long tsv = vh2ts(versionHandle);
+        if (tsv == PRIMORDIAL) {
+            return PRIMORDIAL;
+        }
         if (tsv == ts) {
             /*
              * The update was created by this transaction. Policy is that if the
@@ -494,18 +499,6 @@ public class TransactionIndex implements TransactionIndexMXBean {
             }
         }
         return commitTimestamp;
-    }
-    
-    /**
-     * Helper method gets commit status for a transaction having the given start timestamp
-     * with respect to all time.
-     * @param ts
-     * @return
-     * @throws TimeoutException
-     * @throws InterruptedException
-     */
-    public long commitStatus(final long ts) throws TimeoutException, InterruptedException {
-        return commitStatus(ts2vh(ts), UNCOMMITTED, 0);
     }
 
     /**
