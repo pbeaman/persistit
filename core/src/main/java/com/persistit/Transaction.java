@@ -337,6 +337,7 @@ public class Transaction {
             }
         }
         flushTransactionBuffer();
+        _previousJournalAddress = 0;
     }
 
     /**

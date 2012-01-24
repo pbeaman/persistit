@@ -308,7 +308,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         @Override
         public void delta(final long address, final long timestamp, final Tree tree, final int index,
                 final int accumulatorType, final long value) throws PersistitException {
-            // TODO
+            // Nothing to to undo.
         }
 
         @Override
@@ -326,7 +326,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         public void endTransaction(long address, long timestamp) throws PersistitException {
             final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
             assert ts != null : "Missing TransactionStatus for timestamp " + timestamp;
-            // Having pruned all pages involved in this transaction, now declare
+            // Having pruned all pages involved in this transaction, now
+            // declare
             // it has no MVVs left. This will allow the cleanup process to
             // remove it entirely.
             ts.setMvvCount(0);
@@ -1298,19 +1299,24 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             //
             // Count committed and uncommitted transactions.
             //
-            for (final TransactionMapItem item : _recoveredTransactionMap.values()) {
+            for (final Iterator<TransactionMapItem> iterator = _recoveredTransactionMap.values().iterator(); iterator
+                    .hasNext();) {
+                TransactionMapItem item = iterator.next();
                 if (item.isCommitted()) {
                     _committedTransactionCount++;
-                } else {
+                } else if (item.getStartTimestamp() < _lastValidCheckpoint.getTimestamp()) {
                     _uncommittedTransactionCount++;
-                    if (item.getStartTimestamp() < _lastValidCheckpoint.getTimestamp()) {
-                        try {
-                            _persistit.getTransactionIndex().injectAbortedTransaction(item.getStartTimestamp());
-                        } catch (InterruptedException ie) {
-                            throw new PersistitInterruptedException(ie);
-                        }
+                    try {
+                        _persistit.getTransactionIndex().injectAbortedTransaction(item.getStartTimestamp());
+                    } catch (InterruptedException ie) {
+                        throw new PersistitInterruptedException(ie);
                     }
-
+                } else {
+                    /*
+                     * An uncommitted transaction that started after the last
+                     * valid checkpoint is of no interest.
+                     */
+                    iterator.remove();
                 }
             }
             _persistit.getLogBase().recoveryPlan.log(_pageMap.size(), _committedTransactionCount,
