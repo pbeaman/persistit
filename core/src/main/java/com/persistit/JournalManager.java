@@ -873,11 +873,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
             final PageNode pageNode = new PageNode(handle, buffer.getPageAddress(), address, buffer.getTimestamp());
             PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
-            long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
-            if (oldPageNode != null && oldPageNode.getTimestamp() > checkpointTimestamp
-                    && buffer.getTimestamp() > checkpointTimestamp) {
-                oldPageNode = oldPageNode.getPrevious();
-            }
+//          Held back -- proposed in another branch
+//            long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
+//            if (oldPageNode != null && oldPageNode.getTimestamp() > checkpointTimestamp
+//                    && buffer.getTimestamp() > checkpointTimestamp) {
+//                oldPageNode = oldPageNode.getPrevious();
+//            }
             pageNode.setPrevious(oldPageNode);
             _writePageCount++;
         }
@@ -1678,7 +1679,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                         : 0;
             } else {
                 return ts.isCommitted() ? -1 : ts.getStartTimestamp() < _startTimestamp ? 1
-                        : ts.getStartTimestamp() > _commitTimestamp ? -1 : 0;
+                        : ts.getStartTimestamp() > _startTimestamp ? -1 : 0;
             }
         }
 
