@@ -333,10 +333,10 @@ public class Transaction {
             final TransactionStatus ts = _transactionStatus;
             if (ts != null && ts.getTs() == _startTimestamp && !_commitCompleted && !_rollbackCompleted) {
                 rollback();
-                flushTransactionBuffer();
                 _persistit.getLogBase().txnAbandoned.log(this);
             }
         }
+        flushTransactionBuffer();
     }
 
     /**
@@ -632,6 +632,7 @@ public class Transaction {
                  * case, but need to go look hard at TransactionIndex.
                  */
                 flushTransactionBuffer();
+                _previousJournalAddress = 0;
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
