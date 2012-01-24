@@ -139,7 +139,7 @@ public class IntegrityCheck extends Task {
         public String toString() {
             return String.format("Index pages/bytes: %,d / %,d Data pages/bytes: %,d / %,d"
                     + " LongRec pages/bytes: %,d / %,d  MVV pages/records/bytes/antivalues: "
-                    + "%,d / %,d / %,d / %,d  Holes %,d Pruned %,d", _indexPageCount, _indexBytesInUse, _dataPageCount,
+                    + "%,d / %,d / %,d / %,d  Holes %,d Pages pruned %,d", _indexPageCount, _indexBytesInUse, _dataPageCount,
                     _dataBytesInUse, _longRecordPageCount, _longRecordBytesInUse, _mvvPageCount, _mvvCount,
                     _mvvOverhead, _mvvAntiValues, _indexHoleCount, _prunedPageCount);
         }
