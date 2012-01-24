@@ -3562,7 +3562,7 @@ public class Exchange {
             search(key, true);
             buffer = _levelCache[0]._buffer;
             if (buffer != null) {
-                return buffer.pruneMvvValues(null, _spareKey1);
+                return buffer.pruneMvvValues(_tree, _spareKey1);
             } else {
                 return false;
             }
@@ -3582,7 +3582,7 @@ public class Exchange {
 
             while (buffer != null) {
                 checkPageType(buffer, Buffer.PAGE_TYPE_DATA, false);
-                pruned |= buffer.pruneMvvValues(null, _spareKey1);
+                pruned |= buffer.pruneMvvValues(_tree, _spareKey1);
                 final int foundAt = buffer.findKey(key2);
                 if (!buffer.isAfterRightEdge(foundAt)) {
                     break;
