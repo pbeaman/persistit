@@ -484,8 +484,7 @@ public class TransactionIndexBucket {
         previous = null;
         for (TransactionStatus status = _longRunning; status != null;) {
             TransactionStatus next = status.getNext();
-            if (status.isNotified() && isCommitted(status)
-                    && isObsolete(status)) {
+            if (status.isNotified() && isCommitted(status) && isObsolete(status)) {
                 aggregate(status, true);
                 if (previous == null) {
                     _longRunning = next;
@@ -506,7 +505,33 @@ public class TransactionIndexBucket {
             status = next;
         }
     }
+
+    int resetMVVCounts(final long timestamp) {
+        int count = 0;
+        for (TransactionStatus status = _current; status != null;) {
+            if (status.getTc() == ABORTED && status.getTs() < timestamp && status.getMvvCount() > 0) {
+                status.setMvvCount(0);
+                count++;
+
+            }
+            status = status.getNext();
+        }
+        for (TransactionStatus status = _aborted; status != null;) {
+            assert status.getTc() == ABORTED;
+            if (status.getTs() < timestamp && status.getMvvCount() > 0) {
+                status.setMvvCount(0);
+                count++;
+
+            }
+            status = status.getNext();
+        }
+        return count;
+    }
     
+    boolean isEmpty() {
+        return _abortedCount + _currentCount + _longRunningCount == 0;
+    }
+
     private boolean isCommitted(final TransactionStatus status) {
         return status.getTc() > 0 && status.getTc() != UNCOMMITTED && status.isNotified();
     }

@@ -218,7 +218,7 @@ public class IntegrityCheck extends Task {
             _persistit.setUpdateSuspended(true);
             needsToDrain = true;
         }
-
+        long startTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
         try {
             ArrayList<Volume> volumes = new ArrayList<Volume>();
             long _totalPages = 0;
@@ -262,6 +262,10 @@ public class IntegrityCheck extends Task {
             }
             _currentVolume = null;
             _currentTree = null;
+            if (isPruneEnabled() && _treeSelector.isSelectAll() && _faults.isEmpty() && _counters._mvvPageCount == _counters._prunedPageCount && _counters._pruningErrorCount == 0) {
+                int count = _persistit.getTransactionIndex().resetMVVCounts(startTimestamp);
+                postMessage(String.format("%,d aborted transactions were cleared by pruning", count), LOG_NORMAL);
+            }
             postMessage(toString(), LOG_NORMAL);
         } catch (PersistitException e) {
             postMessage(e.toString(), LOG_NORMAL);
