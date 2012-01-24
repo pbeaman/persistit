@@ -872,8 +872,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
             final PageNode pageNode = new PageNode(handle, buffer.getPageAddress(), address, buffer.getTimestamp());
             PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
-            long checkpoint = _persistit.getCheckpointManager().getCheckpointTimestamp();
-            if (oldPageNode != null && oldPageNode.getTimestamp() > checkpoint && checkpoint > 0) {
+            long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
+            if (oldPageNode != null && oldPageNode.getTimestamp() > checkpointTimestamp
+                    && buffer.getTimestamp() > checkpointTimestamp) {
                 oldPageNode = oldPageNode.getPrevious();
             }
             pageNode.setPrevious(oldPageNode);
