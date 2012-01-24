@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import static com.persistit.TransactionStatus.ABORTED;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -46,7 +48,6 @@ import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
-import com.persistit.exception.TimeoutException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -761,7 +762,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     synchronized void writeTransactionMap() throws PersistitIOException {
-//        pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp());
+        pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp());
         int count = _liveTransactionMap.size();
         final int recordSize = TM.OVERHEAD + TM.ENTRY_SIZE * count;
         prepareWriteBuffer(recordSize);
@@ -843,12 +844,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 leftSize = buffer.getBufferSize();
                 rightSize = 0;
             }
-            
+
             recordSize = PA.OVERHEAD + leftSize + rightSize;
 
             prepareWriteBuffer(recordSize);
             Debug.$assert1.t(_writeBuffer.remaining() >= recordSize);
-            
+
             final long address = _currentAddress;
             final int position = _writeBuffer.position();
 
@@ -872,10 +873,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
             final PageNode pageNode = new PageNode(handle, buffer.getPageAddress(), address, buffer.getTimestamp());
             PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
-            long checkpoint = _persistit.getCheckpointManager().getCheckpointTimestamp();
-            if (oldPageNode != null && oldPageNode.getTimestamp() > checkpoint && checkpoint > 0) {
-                oldPageNode = oldPageNode.getPrevious();
-            }
+//          Held back -- proposed in another branch
+//            long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
+//            if (oldPageNode != null && oldPageNode.getTimestamp() > checkpointTimestamp
+//                    && buffer.getTimestamp() > checkpointTimestamp) {
+//                oldPageNode = oldPageNode.getPrevious();
+//            }
             pageNode.setPrevious(oldPageNode);
             _writePageCount++;
         }
@@ -963,25 +966,27 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             buffer.clear();
         }
         _currentAddress += recordSize - TX.OVERHEAD;
-        final long key = Long.valueOf(startTimestamp);
-        TransactionMapItem item = _liveTransactionMap.get(key);
-        if (item == null) {
-            if (backchainAddress != 0) {
-                throw new IllegalStateException("Missing back-chained transaction for start timestamp "
-                        + startTimestamp);
+        if (commitTimestamp != ABORTED) {
+            final long key = Long.valueOf(startTimestamp);
+            TransactionMapItem item = _liveTransactionMap.get(key);
+            if (item == null) {
+                if (backchainAddress != 0) {
+                    throw new IllegalStateException("Missing back-chained transaction for start timestamp "
+                            + startTimestamp);
+                }
+                item = new TransactionMapItem(startTimestamp, address);
+                _liveTransactionMap.put(startTimestamp, item);
+            } else {
+                if (backchainAddress == 0) {
+                    throw new IllegalStateException("Duplicate transaction " + item);
+                }
+                if (item.isCommitted()) {
+                    throw new IllegalStateException("Transaction already committed " + item);
+                }
+                item.setLastRecordAddress(address);
             }
-            item = new TransactionMapItem(startTimestamp, address);
-            _liveTransactionMap.put(startTimestamp, item);
-        } else {
-            if (backchainAddress == 0) {
-                throw new IllegalStateException("Duplicate transaction " + item);
-            }
-            if (item.isCommitted()) {
-                throw new IllegalStateException("Transaction already committed " + item);
-            }
-            item.setLastRecordAddress(address);
+            item.setCommitTimestamp(commitTimestamp);
         }
-        item.setCommitTimestamp(commitTimestamp);
         return address;
     }
 
@@ -1390,16 +1395,17 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 iterator.remove();
             }
         }
-        
+
         checkpoint.completed();
     }
-    
+
     /**
-     * Remove obsolete TransactionMapItem instances from the live transaction map.
-     * An instance is obsolete if it refers to a transaction that committed earlier than
-     * that last valid checkpoint (because all of the effects of that transaction
-     * are now check-pointed into the B-Trees themselves) or if it is from an
-     * aborted transaction that has no remaining MVV values.
+     * Remove obsolete TransactionMapItem instances from the live transaction
+     * map. An instance is obsolete if it refers to a transaction that committed
+     * earlier than that last valid checkpoint (because all of the effects of
+     * that transaction are now check-pointed into the B-Trees themselves) or if
+     * it is from an aborted transaction that has no remaining MVV values.
+     * 
      * @param timestamp
      * @return
      */
@@ -1419,19 +1425,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     earliest = ts.getStartTimestamp();
                 }
             } else {
-                final long tc;
-                try {
-                    tc = _persistit.getTransactionIndex().commitStatus(ts.getStartTimestamp());
-                } catch (TimeoutException e) {
-                    // ignore - leave aborted TransactionMapItem until the next pass
-                    continue;
-                } catch (InterruptedException e) {
-                    // ignore - leave aborted TransactionMapItem until the next pass
-                    continue;
-                }
-                if (tc > 0 && tc != TransactionStatus.UNCOMMITTED) {
-                    // if the TransactionStatus still had a non-negative MVV count,
-                    // the status would be ABORTED.
+                final TransactionStatus status;
+                status = _persistit.getTransactionIndex().getStatus(ts.getStartTimestamp());
+                if (status == null || status.getMvvCount() == 0) {
                     iterator.remove();
                 }
             }
@@ -1668,7 +1664,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
 
         boolean isCommitted() {
-            return _commitTimestamp != 0;
+            return _commitTimestamp > 0;
         }
 
         @Override
@@ -1678,7 +1674,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
         @Override
         public int compareTo(TransactionMapItem ts) {
-            return ts.getCommitTimestamp() < _commitTimestamp ? 1 : ts.getCommitTimestamp() > _commitTimestamp ? -1 : 0;
+            if (isCommitted()) {
+                return ts.getCommitTimestamp() < _commitTimestamp ? 1 : ts.getCommitTimestamp() > _commitTimestamp ? -1
+                        : 0;
+            } else {
+                return ts.isCommitted() ? -1 : ts.getStartTimestamp() < _startTimestamp ? 1
+                        : ts.getStartTimestamp() > _startTimestamp ? -1 : 0;
+            }
         }
 
     }

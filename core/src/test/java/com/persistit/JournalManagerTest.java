@@ -187,7 +187,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             }
 
         };
-        rman.applyAllCommittedTransactions(actor, rman.getDefaultRollbackListener());
+        rman.applyAllRecoveredTransactions(actor, rman.getDefaultRollbackListener());
         assertEquals(commitCount, recoveryTimestamps.size());
 
     }

@@ -25,7 +25,7 @@ import com.persistit.unit.PersistitUnitTestCase;
 public class IntegrityCheckTest extends PersistitUnitTestCase {
 
     private final static int SIZE = 1000;
-    
+
     private String _volumeName = "persistit";
 
     @Test
@@ -104,7 +104,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         assertEquals(0, icheck.getFaults().length);
         long holeCount = icheck.getIndexHoleCount();
         assertTrue(holeCount > 0);
-        
+
         assertEquals(0, cm.getAcceptedCount());
         assertEquals(0, cm.getPerformedCount());
 
@@ -114,10 +114,10 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         assertEquals(holeCount, cm.getAcceptedCount());
         waitForCleanupManager(cm);
         assertEquals(cm.getPerformedCount(), holeCount);
-        
+
         icheck = icheck();
         icheck.checkTree(ex.getTree());
-        
+
         assertEquals(0, icheck.getFaults().length);
         assertEquals(0, icheck.getIndexHoleCount());
     }
@@ -126,18 +126,22 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
     public void testPrune() throws Exception {
         final Exchange ex = _persistit.getExchange(_volumeName, "mvv", true);
         final CleanupManager cm = _persistit.getCleanupManager();
-
         transactionalStore(ex);
+        _persistit.getTransactionIndex().updateActiveTransactionCache();
 
-        waitForCleanupManager(cm);
-        long accepted = cm.getAcceptedCount();
         IntegrityCheck icheck = icheck();
+        icheck.checkTree(ex.getTree());
+        assertTrue(icheck.getMvvCount() > 0);
+        assertEquals(0, icheck.getPrunedPagesCount());
+
+        icheck = icheck();
         icheck.setPruneEnabled(true);
         icheck.checkTree(ex.getTree());
         assertTrue(icheck.getMvvCount() > 0);
-        assertTrue(cm.getAcceptedCount() > accepted);
-        
+        assertTrue(icheck.getPrunedPagesCount() > 0);
+
         waitForCleanupManager(cm);
+
         icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertEquals(0, icheck.getMvvCount());
@@ -160,12 +164,12 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
     }
 
     private void waitForCleanupManager(final CleanupManager cm) throws InterruptedException {
-        for (int wait = 0; wait < 60 &&cm.getEnqueuedCount() > 0; wait++) {
+        for (int wait = 0; wait < 60 && cm.getEnqueuedCount() > 0; wait++) {
             Thread.sleep(1000);
         }
         assertEquals(0, cm.getEnqueuedCount());
     }
-    
+
     private void transactionalStore(final Exchange ex) throws PersistitException {
         final Transaction txn = ex.getTransaction();
         txn.begin();

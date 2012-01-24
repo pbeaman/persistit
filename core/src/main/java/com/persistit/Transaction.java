@@ -336,6 +336,8 @@ public class Transaction {
                 _persistit.getLogBase().txnAbandoned.log(this);
             }
         }
+        flushTransactionBuffer();
+        _previousJournalAddress = 0;
     }
 
     /**
@@ -404,6 +406,7 @@ public class Transaction {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
+            flushTransactionBuffer();
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
             } catch (InterruptedException e) {
@@ -414,7 +417,6 @@ public class Transaction {
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
-            _buffer.clear();
             _previousJournalAddress = 0;
             _threadName = Thread.currentThread().getName();
         } else {
@@ -428,6 +430,7 @@ public class Transaction {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
+            flushTransactionBuffer();
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
             } catch (InterruptedException e) {
@@ -459,6 +462,7 @@ public class Transaction {
      * Updates are committed only if the <code>commit</code> method completes
      * successfully.
      * </p>
+     * @throws PersistitIOException 
      * 
      * @throws IllegalStateException
      *             if there is no current transaction scope.
@@ -505,6 +509,7 @@ public class Transaction {
      * all enclosing transactions to roll back. This ensures that the outermost
      * transaction will not commit if any inner transaction has rolled back.
      * </p>
+     * @throws PersistitIOException 
      * 
      * @throws IllegalStateException
      *             if there is no transaction scope or the current scope has
@@ -522,7 +527,7 @@ public class Transaction {
 
         _rollbackPending = true;
 
-        if (_nestedDepth == 1 & !_rollbackCompleted) {
+        if (!_rollbackCompleted) {
             _rollbackCount++;
             _rollbacksSinceLastCommit++;
 
@@ -627,9 +632,8 @@ public class Transaction {
                  * will want to mark the transaction status as ABORTED in that
                  * case, but need to go look hard at TransactionIndex.
                  */
-                if (_buffer.position() != 0) {
-                    flushTransactionBuffer();
-                }
+                flushTransactionBuffer();
+                _previousJournalAddress = 0;
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
@@ -902,7 +906,7 @@ public class Transaction {
     }
 
     synchronized void flushTransactionBuffer() throws PersistitIOException {
-        if (_buffer.position() > 0) {
+        if (_buffer.position() > 0 || _previousJournalAddress != 0) {
             _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, _commitTimestamp, _previousJournalAddress);
             _buffer.clear();

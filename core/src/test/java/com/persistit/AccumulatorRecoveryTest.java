@@ -157,7 +157,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             }
 
         };
-        plan.applyAllCommittedTransactions(commitListener, plan.getDefaultRollbackListener());
+        plan.applyAllRecoveredTransactions(commitListener, plan.getDefaultRollbackListener());
         assertEquals(15, recoveryTimestamps.size());
         assertEquals(expectedRowCount.get(), recoveredRowCount.get());
     }

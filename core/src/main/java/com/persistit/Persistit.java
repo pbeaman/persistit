@@ -672,7 +672,7 @@ public class Persistit {
     }
 
     void finishRecovery() throws PersistitException, TestException {
-        _recoveryManager.applyAllCommittedTransactions(_recoveryManager.getDefaultCommitListener(), _recoveryManager
+        _recoveryManager.applyAllRecoveredTransactions(_recoveryManager.getDefaultCommitListener(), _recoveryManager
                 .getDefaultRollbackListener());
         _recoveryManager.close();
         flush();
@@ -1763,6 +1763,24 @@ public class Persistit {
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
         }
+        
+        /*
+         * Close (and abort) all remaining transactions.
+         */
+        Set<Transaction> transactions;
+        synchronized (_transactionSessionMap) {
+            transactions = new HashSet<Transaction>(_transactionSessionMap.values());
+            _transactionSessionMap.clear();
+        }
+        for (final Transaction txn : transactions) {
+            try {
+                txn.close();
+            } catch (PersistitException e) {
+                _logBase.exception.log(e);
+            }
+        } 
+
+
 
         _journalManager.close();
         _transactionIndex.close();
@@ -1782,7 +1800,7 @@ public class Persistit {
 
         releaseAllResources();
     }
-
+    
     /**
      * Abruptly stop (using {@link Thread#stop()}) the writer and collector
      * processes. This method should be used only by tests.
@@ -1832,19 +1850,7 @@ public class Persistit {
         _volumes.clear();
         _exchangePoolMap.clear();
         _cleanupManager.clear();
-
-        Set<Transaction> transactions;
-        synchronized (_transactionSessionMap) {
-            transactions = new HashSet<Transaction>(_transactionSessionMap.values());
-            _transactionSessionMap.clear();
-        }
-        for (final Transaction txn : transactions) {
-            try {
-                txn.close();
-            } catch (PersistitException e) {
-                _logBase.exception.log(e);
-            }
-        }
+        _transactionSessionMap.clear();
 
         unregisterMXBeans();
 
