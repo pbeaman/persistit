@@ -47,6 +47,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
 
         final Volume volume = _persistit.getVolume(_volumeName);
         volume.setHandle(0);
+        volume.getTree("JournalManagerTest1", false).setHandle(0);
 
         final JournalManager jman = new JournalManager(_persistit);
         final String path = UnitTestProperties.DATA_PATH + "/JournalManagerTest_journal_";
