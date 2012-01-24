@@ -77,7 +77,7 @@ public class Stress2txn extends StressBase {
     }
 
     @Override
-    public void executeTest() {
+    public void executeTest() throws Exception {
         final Value value1 = _exs.getValue();
         final Value value2 = new Value(getPersistit());
         final Transaction txn = getPersistit().getTransaction();

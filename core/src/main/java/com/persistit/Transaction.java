@@ -333,6 +333,7 @@ public class Transaction {
             final TransactionStatus ts = _transactionStatus;
             if (ts != null && ts.getTs() == _startTimestamp && !_commitCompleted && !_rollbackCompleted) {
                 rollback();
+                flushTransactionBuffer();
                 _persistit.getLogBase().txnAbandoned.log(this);
             }
         }
@@ -404,6 +405,7 @@ public class Transaction {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
+            flushTransactionBuffer();
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
             } catch (InterruptedException e) {
@@ -414,7 +416,6 @@ public class Transaction {
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
-            _buffer.clear();
             _previousJournalAddress = 0;
             _threadName = Thread.currentThread().getName();
         } else {
@@ -428,6 +429,7 @@ public class Transaction {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
+            flushTransactionBuffer();
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
             } catch (InterruptedException e) {
@@ -459,6 +461,7 @@ public class Transaction {
      * Updates are committed only if the <code>commit</code> method completes
      * successfully.
      * </p>
+     * @throws PersistitIOException 
      * 
      * @throws IllegalStateException
      *             if there is no current transaction scope.
@@ -505,6 +508,7 @@ public class Transaction {
      * all enclosing transactions to roll back. This ensures that the outermost
      * transaction will not commit if any inner transaction has rolled back.
      * </p>
+     * @throws PersistitIOException 
      * 
      * @throws IllegalStateException
      *             if there is no transaction scope or the current scope has
@@ -522,7 +526,7 @@ public class Transaction {
 
         _rollbackPending = true;
 
-        if (_nestedDepth == 1 & !_rollbackCompleted) {
+        if (!_rollbackCompleted) {
             _rollbackCount++;
             _rollbacksSinceLastCommit++;
 

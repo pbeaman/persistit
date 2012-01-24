@@ -1663,7 +1663,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
 
         boolean isCommitted() {
-            return _commitTimestamp != 0;
+            return _commitTimestamp > 0;
         }
 
         @Override
@@ -1673,7 +1673,13 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
         @Override
         public int compareTo(TransactionMapItem ts) {
-            return ts.getCommitTimestamp() < _commitTimestamp ? 1 : ts.getCommitTimestamp() > _commitTimestamp ? -1 : 0;
+            if (isCommitted()) {
+                return ts.getCommitTimestamp() < _commitTimestamp ? 1 : ts.getCommitTimestamp() > _commitTimestamp ? -1
+                        : 0;
+            } else {
+                return ts.isCommitted() ? -1 : ts.getStartTimestamp() < _startTimestamp ? 1
+                        : ts.getStartTimestamp() > _commitTimestamp ? -1 : 0;
+            }
         }
 
     }
