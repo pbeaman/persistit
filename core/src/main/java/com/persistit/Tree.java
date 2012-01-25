@@ -274,12 +274,17 @@ public class Tree extends SharedResource {
      *             if the handle has already been set
      */
     int setHandle(final int handle) {
-        if (handle == 0) {
-            _handle.set(0);
-        } if (!_handle.compareAndSet(0, handle)) {
+        if (!_handle.compareAndSet(0, handle)) {
             throw new IllegalStateException("Tree handle already set");
         }
         return handle;
+    }
+
+    /**
+     * Resets the handle to zero. Intended for use only by tests.
+     */
+    void resetHandle() {
+        _handle.set(0);
     }
 
 }
