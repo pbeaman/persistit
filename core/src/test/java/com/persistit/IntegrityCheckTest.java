@@ -191,7 +191,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         }
         assertTrue(_persistit.getTransactionIndex().getAbortedCount() > 0);
         
-        IntegrityCheck icheck = (IntegrityCheck)IntegrityCheck.icheck("*", false, false, false, true, true);
+        IntegrityCheck icheck = (IntegrityCheck)IntegrityCheck.icheck("*", false, false, false, false, true, true);
         icheck.setPersistit(_persistit);
         icheck.setMessageWriter(new PrintWriter(System.out));
 

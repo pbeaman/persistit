@@ -72,6 +72,7 @@ public class IntegrityCheck extends Task {
     private boolean _suspendUpdates;
     private boolean _fixHoles;
     private boolean _prune;
+    private boolean _pruneAndClear;
 
     private ArrayList<Fault> _faults = new ArrayList<Fault>();
     private ArrayList<CleanupIndexHole> _holes = new ArrayList<CleanupIndexHole>();
@@ -139,9 +140,9 @@ public class IntegrityCheck extends Task {
         public String toString() {
             return String.format("Index pages/bytes: %,d / %,d Data pages/bytes: %,d / %,d"
                     + " LongRec pages/bytes: %,d / %,d  MVV pages/records/bytes/antivalues: "
-                    + "%,d / %,d / %,d / %,d  Holes %,d Pages pruned %,d", _indexPageCount, _indexBytesInUse, _dataPageCount,
-                    _dataBytesInUse, _longRecordPageCount, _longRecordBytesInUse, _mvvPageCount, _mvvCount,
-                    _mvvOverhead, _mvvAntiValues, _indexHoleCount, _prunedPageCount);
+                    + "%,d / %,d / %,d / %,d  Holes %,d Pages pruned %,d", _indexPageCount, _indexBytesInUse,
+                    _dataPageCount, _dataBytesInUse, _longRecordPageCount, _longRecordBytesInUse, _mvvPageCount,
+                    _mvvCount, _mvvOverhead, _mvvAntiValues, _indexHoleCount, _prunedPageCount);
         }
 
     }
@@ -189,11 +190,13 @@ public class IntegrityCheck extends Task {
             @Arg("_flag|r|Use regex expression") boolean regex,
             @Arg("_flag|u|Don't freeze updates (Default is to freeze updates)") boolean dontSuspendUpdates,
             @Arg("_flag|h|Fix index holes") boolean fixHoles, @Arg("_flag|p|Prune MVV values") boolean prune,
+            @Arg("_flag|P|Prune MVV values and clear TransactionIndex") boolean pruneAndClear,
             @Arg("_flag|v|Verbose results") boolean verbose) throws Exception {
         final IntegrityCheck task = new IntegrityCheck();
         task._treeSelector = TreeSelector.parseSelector(treeSelectorString, regex, '\\');
         task._fixHoles = fixHoles;
-        task._prune = prune;
+        task._prune = prune | pruneAndClear;
+        task._pruneAndClear = pruneAndClear;
         task._suspendUpdates = !dontSuspendUpdates;
         task.setMessageLogVerbosity(verbose ? LOG_VERBOSE : LOG_NORMAL);
         return task;
@@ -212,6 +215,10 @@ public class IntegrityCheck extends Task {
 
     @Override
     protected void runTask() {
+        if (_pruneAndClear && !_treeSelector.isSelectAll()) {
+            postMessage("The pruneAndClear (-P) flag requires all trees (trees=*) to be selected", LOG_NORMAL);
+            return;
+        }
         boolean freeze = !_persistit.isUpdateSuspended() && (_suspendUpdates);
         boolean needsToDrain = false;
         if (freeze) {
@@ -262,9 +269,14 @@ public class IntegrityCheck extends Task {
             }
             _currentVolume = null;
             _currentTree = null;
-            if (isPruneEnabled() && _treeSelector.isSelectAll() && _faults.isEmpty() && _counters._mvvPageCount == _counters._prunedPageCount && _counters._pruningErrorCount == 0) {
-                int count = _persistit.getTransactionIndex().resetMVVCounts(startTimestamp);
-                postMessage(String.format("%,d aborted transactions were cleared by pruning", count), LOG_NORMAL);
+            if (_pruneAndClear) {
+                if (_faults.isEmpty() && _counters._mvvPageCount == _counters._prunedPageCount
+                        && _counters._pruningErrorCount == 0) {
+                    int count = _persistit.getTransactionIndex().resetMVVCounts(startTimestamp);
+                    postMessage(String.format("%,d aborted transactions were cleared by pruning", count), LOG_NORMAL);
+                } else {
+                    postMessage("PruneAndClear failed to remove all aborted MMVs", LOG_NORMAL);
+                }
             }
             postMessage(toString(), LOG_NORMAL);
         } catch (PersistitException e) {
@@ -1068,8 +1080,7 @@ public class IntegrityCheck extends Task {
             }
             if (_counters._mvvCount > mvvCount) {
                 _counters._mvvPageCount++;
-                if (_prune && !_currentVolume.isReadOnly()
-                        && _counters._pruningErrorCount < MAX_PRUNING_ERRORS) {
+                if (_prune && !_currentVolume.isReadOnly() && _counters._pruningErrorCount < MAX_PRUNING_ERRORS) {
                     try {
                         buffer.pruneMvvValues(tree, _pruningKey);
                         _counters._prunedPageCount++;
