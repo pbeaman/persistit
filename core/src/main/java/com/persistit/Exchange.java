@@ -178,7 +178,7 @@ public class Exchange {
         public int getOffset() {
             return _foundOffset;
         }
-        
+
         public int getLength() {
             return _foundLength;
         }
@@ -995,6 +995,7 @@ public class Exchange {
     /**
      * Internal value that is a counter of the total loops of the inner loop of
      * {@link #traverse(com.persistit.Key.Direction, boolean, int, int, int)}.
+     * 
      * @return {@link #_keysVisitedDuringTraverse}
      */
     int getKeysVisitedDuringTraverse() {
@@ -1326,7 +1327,7 @@ public class Exchange {
 
         // spare used for fetch
         Debug.$assert0.t(!doAnyFetch || value != _spareValue);
-        
+
         // spares used for new splits/levels
         Debug.$assert0.t(key != _spareKey1);
 
@@ -1480,7 +1481,8 @@ public class Exchange {
                              */
                             byte[] spareBytes = _spareValue.getEncodedBytes();
                             int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
-                            int prunedSpareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(), false);
+                            int prunedSpareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(),
+                                    false);
                             if (prunedSpareSize != spareSize) {
                                 Debug.$assert0.t(prunedSpareSize < spareSize);
                                 valueToStore.setEncodedSize(prunedSpareSize);
@@ -1506,8 +1508,8 @@ public class Exchange {
                                 _mvvVisitor.initInternal(tStatus, tStep, MvvVisitor.Usage.FETCH);
                                 MVV.visitAllVersions(_mvvVisitor, spareBytes, 0, spareSize);
                                 final int offset = _mvvVisitor.getOffset();
-                                if (!_mvvVisitor.foundVersion() ||
-                                    (_mvvVisitor.getLength() > 0 && spareBytes[offset] == MVV.TYPE_ANTIVALUE)) {
+                                if (!_mvvVisitor.foundVersion()
+                                        || (_mvvVisitor.getLength() > 0 && spareBytes[offset] == MVV.TYPE_ANTIVALUE)) {
                                     // Completely done, nothing to store
                                     keyExisted = false;
                                     break;
@@ -1620,7 +1622,9 @@ public class Exchange {
                     }
                     try {
                         long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
-                                _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME); // TODO - timeout
+                                _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME); // TODO
+                                                                                                            // -
+                                                                                                            // timeout
                         if (depends != 0 && depends != TransactionStatus.ABORTED) {
                             // version is from concurrent txn that already
                             // committed
@@ -1965,18 +1969,20 @@ public class Exchange {
     }
 
     /**
-     * See {@link #traverse(com.persistit.Key.Direction, boolean, int)} for full description
+     * See {@link #traverse(com.persistit.Key.Direction, boolean, int)} for full
+     * description
+     * 
      * @param minKeyDepth
-     *            Minimum valid key depth. If a key is found with a depth
-     *            less than this value, <i>regardless of MVCC visibility</i>,
+     *            Minimum valid key depth. If a key is found with a depth less
+     *            than this value, <i>regardless of MVCC visibility</i>,
      *            <code>false</code> is immediately returned.
      * @param matchUpToIndex
      *            Length of minimum matching key fragment. If a key is found
      *            that does not match this many bytes, <i>regardless of MVCC
      *            visibility</i>, <code>false</code> is immediately returned.
      */
-    private boolean traverse(final Direction direction, final boolean deep, final int minimumBytes, 
-                             final int minKeyDepth, final int matchUpToIndex) throws PersistitException {
+    private boolean traverse(final Direction direction, final boolean deep, final int minimumBytes,
+            final int minKeyDepth, final int matchUpToIndex) throws PersistitException {
         _persistit.checkClosed();
 
         final Key spareKey = _spareKey1;
@@ -2305,8 +2311,9 @@ public class Exchange {
                 }
                 return false;
             }
-            if(keyFilter.isKeyPrefixFilter()) {
-                return traverse(direction, true, minBytes, keyFilter.getMinimumDepth(), keyFilter.getKeyPrefixByteCount());
+            if (keyFilter.isKeyPrefixFilter()) {
+                return traverse(direction, true, minBytes, keyFilter.getMinimumDepth(), keyFilter
+                        .getKeyPrefixByteCount());
             }
             final boolean matched = traverse(direction, true, minBytes);
             totalVisited += _keysVisitedDuringTraverse;
@@ -2633,8 +2640,7 @@ public class Exchange {
 
     /**
      * Convenience method that calls {@link Buffer#fetch(int, Value)} before
-     * then calling {@link #mvccFetch(Value, int)}. See the latter for
-     * details.
+     * then calling {@link #mvccFetch(Value, int)}. See the latter for details.
      */
     private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
         buffer.fetch(foundAt, value);
@@ -2743,10 +2749,13 @@ public class Exchange {
 
     /**
      * Looks the current key, {@link #_key}, up in the tree and fetches the
-     * value from the page. The value is left as found. Specifically, that
-     * means it can be a <b>user value, LONG_RECORD, or MVV</b>.
-     * @param value The value as found on the page.
-     * @throws PersistitException As thrown from {@link #search(Key, boolean)}
+     * value from the page. The value is left as found. Specifically, that means
+     * it can be a <b>user value, LONG_RECORD, or MVV</b>.
+     * 
+     * @param value
+     *            The value as found on the page.
+     * @throws PersistitException
+     *             As thrown from {@link #search(Key, boolean)}
      */
     private void fetchInternal(Value value) throws PersistitException {
         Buffer buffer = null;
@@ -2770,12 +2779,10 @@ public class Exchange {
     }
 
     boolean isLongMVV(Value value) {
-        return value.isDefined() &&
-               isLongRecord(value) &&
-               (value.getEncodedSize() > LONGREC_PREFIX_SIZE_OFFSET) &&
-               (value.getEncodedBytes()[LONGREC_PREFIX_OFFSET] == MVV.TYPE_MVV_BYTE);
+        return value.isDefined() && isLongRecord(value) && (value.getEncodedSize() > LONGREC_PREFIX_SIZE_OFFSET)
+                && (value.getEncodedBytes()[LONGREC_PREFIX_OFFSET] == MVV.TYPE_MVV_BYTE);
     }
-    
+
     void fetchFixupForLongRecords(Value value, int minimumBytes) throws PersistitException {
         if (isLongRecord(value)) {
             //
@@ -3555,7 +3562,7 @@ public class Exchange {
             search(key, true);
             buffer = _levelCache[0]._buffer;
             if (buffer != null) {
-                return buffer.pruneMvvValues(null, _spareKey1);
+                return buffer.pruneMvvValues(_tree, _spareKey1);
             } else {
                 return false;
             }
@@ -3564,6 +3571,37 @@ public class Exchange {
                 buffer.release();
             }
         }
+    }
+
+    boolean prune(final Key key1, final Key key2) throws PersistitException {
+        Buffer buffer = null;
+        boolean pruned = false;
+        try {
+            search(key1, true);
+            buffer = _levelCache[0]._buffer;
+
+            while (buffer != null) {
+                checkPageType(buffer, Buffer.PAGE_TYPE_DATA, false);
+                pruned |= buffer.pruneMvvValues(_tree, _spareKey1);
+                final int foundAt = buffer.findKey(key2);
+                if (!buffer.isAfterRightEdge(foundAt)) {
+                    break;
+                }
+                Buffer oldBuffer = buffer;
+                final long rightPageAddress = buffer.getRightSibling();
+                if (rightPageAddress == 0) {
+                    break;
+                }
+                buffer = _pool.get(_volume, buffer.getRightSibling(), true, true);
+                oldBuffer.release();
+            }
+            
+        } finally {
+            if (buffer != null) {
+                buffer.release();
+            }
+        }
+        return pruned;
     }
 
     boolean prune(final long page) throws PersistitException {
@@ -4015,11 +4053,13 @@ public class Exchange {
     }
 
     /**
-     * Intended to be a test method. Fetches the current _key and determines
-     * if stored value is a LONG_RECORD. No other state, including the fetched
+     * Intended to be a test method. Fetches the current _key and determines if
+     * stored value is a LONG_RECORD. No other state, including the fetched
      * value, can be gotten from this method.
+     * 
      * @return <code>true</code> if the value is a LONG_RECORD
-     * @throws PersistitException Any error during fetch
+     * @throws PersistitException
+     *             Any error during fetch
      */
     boolean isValueLongRecord() throws PersistitException {
         fetchInternal(_spareValue);

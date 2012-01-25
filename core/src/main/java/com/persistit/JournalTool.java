@@ -16,6 +16,7 @@
 package com.persistit;
 
 import static com.persistit.JournalRecord.OVERHEAD;
+import static com.persistit.JournalRecord.SUB_RECORD_OVERHEAD;
 import static com.persistit.JournalRecord.getLength;
 import static com.persistit.JournalRecord.getTimestamp;
 import static com.persistit.JournalRecord.getType;
@@ -429,7 +430,7 @@ public class JournalTool {
     }
 
     long processOneRecord(final long from, final long timestamp, final int recordSize, final int type) throws Exception {
-        if (recordSize >= _blockSize || recordSize < OVERHEAD) {
+        if (recordSize >= _blockSize || recordSize < SUB_RECORD_OVERHEAD) {
             throw new CorruptJournalException("Bad JournalRecord length " + recordSize + " at position "
                     + addressToString(from, timestamp));
         }
