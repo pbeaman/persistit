@@ -30,7 +30,7 @@ import org.junit.Test;
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TreeDescriptor;
-import com.persistit.RecoveryManager.RecoveryListener;
+import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
@@ -103,7 +103,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertEquals(15, plan.getCommittedCount());
         plan.setRecoveryDisabledForTestMode(false);
         final Set<Long> recoveryTimestamps = new HashSet<Long>();
-        final RecoveryListener actor = new RecoveryListener() {
+        final TransactionPlayerListener actor = new TransactionPlayerListener() {
 
             @Override
             public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {

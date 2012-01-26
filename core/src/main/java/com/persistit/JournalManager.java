@@ -44,6 +44,7 @@ import com.persistit.JournalRecord.PA;
 import com.persistit.JournalRecord.PM;
 import com.persistit.JournalRecord.TM;
 import com.persistit.JournalRecord.TX;
+import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -110,6 +111,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private AtomicBoolean _appendOnly = new AtomicBoolean();
 
     private String _journalFilePath;
+
+    private TransactionPlayer _player = new TransactionPlayer(new JournalTransactionPlayerSupport());
+
+    private TransactionPlayerListener _listener = new ProactiveRollbackListener();
 
     /**
      * Address of first available byte in the journal. This is usually the
@@ -408,7 +413,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         if (volume.getHandle() != 0) {
             return volume.getHandle();
         }
-        synchronized(this) {
+        synchronized (this) {
             if (volume.getHandle() != 0) {
                 return volume.getHandle();
             }
@@ -878,12 +883,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
             final PageNode pageNode = new PageNode(handle, buffer.getPageAddress(), address, buffer.getTimestamp());
             PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
-//          Held back -- proposed in another branch
-//            long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
-//            if (oldPageNode != null && oldPageNode.getTimestamp() > checkpointTimestamp
-//                    && buffer.getTimestamp() > checkpointTimestamp) {
-//                oldPageNode = oldPageNode.getPrevious();
-//            }
+            // Held back -- proposed in another branch
+            // long checkpointTimestamp =
+            // _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
+            // if (oldPageNode != null && oldPageNode.getTimestamp() >
+            // checkpointTimestamp
+            // && buffer.getTimestamp() > checkpointTimestamp) {
+            // oldPageNode = oldPageNode.getPrevious();
+            // }
             pageNode.setPrevious(oldPageNode);
             _writePageCount++;
         }
@@ -1416,25 +1423,38 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      */
     private long pruneObsoleteTransactions(final long timestamp) {
         long earliest = Long.MAX_VALUE;
+        List<TransactionMapItem> toPrune = new ArrayList<TransactionMapItem>();
         //
         // Remove any committed transactions that committed before the
         // checkpoint. No need to keep a record of such a transaction since it's
         // updates are now fully written to the journal in modified page images.
         //
-        for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator.hasNext();) {
-            final TransactionMapItem ts = iterator.next();
-            if (ts.isCommitted()) {
-                if (ts.getCommitTimestamp() < timestamp) {
-                    iterator.remove();
-                } else if (ts.getStartTimestamp() < earliest) {
-                    earliest = ts.getStartTimestamp();
+        synchronized (this) {
+            for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator
+                    .hasNext();) {
+                final TransactionMapItem ts = iterator.next();
+                if (ts.isCommitted()) {
+                    if (ts.getCommitTimestamp() < timestamp) {
+                        iterator.remove();
+                    } else if (ts.getStartTimestamp() < earliest) {
+                        earliest = ts.getStartTimestamp();
+                    }
+                } else {
+                    final TransactionStatus status;
+                    status = _persistit.getTransactionIndex().getStatus(ts.getStartTimestamp());
+                    if (status == null || status.getMvvCount() == 0) {
+                        iterator.remove();
+                    } else {
+                        toPrune.add(ts);
+                    }
                 }
-            } else {
-                final TransactionStatus status;
-                status = _persistit.getTransactionIndex().getStatus(ts.getStartTimestamp());
-                if (status == null || status.getMvvCount() == 0) {
-                    iterator.remove();
-                }
+            }
+        }
+        for (final TransactionMapItem item : toPrune) {
+            try {
+                _player.applyTransaction(item, _listener);
+            } catch (PersistitException e) {
+                _persistit.getLogBase().pruneException.log(e, item);
             }
         }
         return earliest;
@@ -1710,6 +1730,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             if (!_appendOnly.get()) {
                 _copying.set(true);
                 try {
+                    pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp());
                     selectForCopy(_copyList);
                     if (!_copyList.isEmpty()) {
                         readForCopy(_copyList, _bb);
@@ -2057,6 +2078,92 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
         if (deleted) {
             _deleteBoundaryAddress = deleteBoundary;
+        }
+    }
+
+    private class JournalTransactionPlayerSupport implements TransactionPlayerSupport {
+
+        final ByteBuffer _readBuffer = ByteBuffer.allocate(Transaction.TRANSACTION_BUFFER_SIZE);
+
+        @Override
+        public void read(long address, int size) throws PersistitIOException {
+            _readBuffer.clear().limit(size);
+            readFully(_readBuffer, address);
+        }
+
+        @Override
+        public ByteBuffer getReadBuffer() {
+            return _readBuffer;
+        }
+
+        @Override
+        public void convertToLongRecord(Value value, int treeHandle, long address, long commitTimestamp)
+                throws PersistitException {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public Persistit getPersistit() {
+            return _persistit;
+        }
+
+        @Override
+        public TreeDescriptor handleToTreeDescriptor(int treeHandle) {
+            return _handleToTreeMap.get(treeHandle);
+        }
+
+        @Override
+        public Volume handleToVolume(int volumeHandle) {
+            return _handleToVolumeMap.get(volumeHandle);
+        }
+
+    }
+
+    class ProactiveRollbackListener implements TransactionPlayerListener {
+
+        @Override
+        public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
+            exchange.prune();
+        }
+
+        @Override
+        public void removeKeyRange(final long address, final long timestamp, Exchange exchange, final Key from,
+                final Key to) throws PersistitException {
+            exchange.prune(from, to);
+        }
+
+        @Override
+        public void removeTree(final long address, final long timestamp, Exchange exchange) throws PersistitException {
+            // TODO
+        }
+
+        @Override
+        public void delta(final long address, final long timestamp, final Tree tree, final int index,
+                final int accumulatorType, final long value) throws PersistitException {
+            // Nothing to to undo.
+        }
+
+        @Override
+        public void startRecovery(long address, long timestamp) throws PersistitException {
+            // Default: do nothing
+        }
+
+        @Override
+        public void startTransaction(long address, long startTimestamp, final long commitTimestamp)
+                throws PersistitException {
+            // Default: do nothing
+        }
+
+        @Override
+        public void endTransaction(long address, long timestamp) throws PersistitException {
+            final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
+            assert ts != null : "Missing TransactionStatus for timestamp " + timestamp;
+            assert ts.getMvvCount() == 0 : "Pruning all updates left remaining mvv count in " + ts;
+        }
+
+        @Override
+        public void endRecovery(long address, long timestamp) throws PersistitException {
+            // Default: do nothing
         }
     }
 
