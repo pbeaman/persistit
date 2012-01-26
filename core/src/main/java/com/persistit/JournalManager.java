@@ -404,19 +404,24 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         return Math.min(urgency, URGENT);
     }
 
-    public synchronized int handleForVolume(final Volume volume) throws PersistitIOException {
+    public int handleForVolume(final Volume volume) throws PersistitIOException {
         if (volume.getHandle() != 0) {
             return volume.getHandle();
         }
-        Integer handle = _volumeToHandleMap.get(volume);
-        if (handle == null) {
-            handle = Integer.valueOf(++_handleCounter);
-            Debug.$assert0.t(!_handleToVolumeMap.containsKey(handle));
-            writeVolumeHandleToJournal(volume, handle.intValue());
-            _volumeToHandleMap.put(volume, handle);
-            _handleToVolumeMap.put(handle, volume);
+        synchronized(this) {
+            if (volume.getHandle() != 0) {
+                return volume.getHandle();
+            }
+            Integer handle = _volumeToHandleMap.get(volume);
+            if (handle == null) {
+                handle = Integer.valueOf(++_handleCounter);
+                Debug.$assert0.t(!_handleToVolumeMap.containsKey(handle));
+                writeVolumeHandleToJournal(volume, handle.intValue());
+                _volumeToHandleMap.put(volume, handle);
+                _handleToVolumeMap.put(handle, volume);
+            }
+            return volume.setHandle(handle.intValue());
         }
-        return handle.intValue();
     }
 
     synchronized int handleForTree(final TreeDescriptor td) throws PersistitIOException {

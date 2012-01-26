@@ -46,7 +46,8 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         final Transaction txn = _persistit.getTransaction();
 
         final Volume volume = _persistit.getVolume(_volumeName);
-        volume.setHandle(0);
+        volume.resetHandle();
+        volume.getTree("JournalManagerTest1", false).resetHandle();
 
         final JournalManager jman = new JournalManager(_persistit);
         final String path = UnitTestProperties.DATA_PATH + "/JournalManagerTest_journal_";
@@ -126,7 +127,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             buffer.releaseTouched();
         }
         jman.close();
-        volume.setHandle(0);
+        volume.resetHandle();
 
         RecoveryManager rman = new RecoveryManager(_persistit);
         rman.init(path);
@@ -197,7 +198,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         store1();
         _persistit.flush();
         final Volume volume = _persistit.getVolume(_volumeName);
-        volume.setHandle(0);
+        volume.resetHandle();
         final JournalManager jman = new JournalManager(_persistit);
         final String path = UnitTestProperties.DATA_PATH + "/JournalManagerTest_journal_";
         jman.init(null, path, 100 * 1000 * 1000);

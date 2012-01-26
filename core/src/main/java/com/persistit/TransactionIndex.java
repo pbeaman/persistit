@@ -992,6 +992,27 @@ public class TransactionIndex implements TransactionIndexMXBean {
     }
 
     /**
+     * Clear the MVV count for all aborted TransactionStatus instances that
+     * started before the specified timestamp. This method may be called by a
+     * utility program such as IntegrityCheck that has verified the
+     * non-existence of relevant MVV values across the entire database.
+     * 
+     * @return Count of TransationStatus instances affected
+     */
+    int resetMVVCounts(final long timestamp) {
+        int count = 0;
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            bucket.lock();
+            try {
+                count += bucket.resetMVVCounts(timestamp);
+            } finally {
+                bucket.unlock();
+            }
+        }
+        return count;
+    }
+
+    /**
      * Compute and return the snapshot value of an Accumulator
      * 
      * @throws InterruptedException
@@ -1208,7 +1229,9 @@ public class TransactionIndex implements TransactionIndexMXBean {
         final StringBuilder sb = new StringBuilder();
         for (int index = 0; index < _hashTable.length; index++) {
             final TransactionIndexBucket bucket = _hashTable[index];
-            sb.append(String.format("%5d: %s\n", index, bucket));
+            if (!bucket.isEmpty()) {
+                sb.append(String.format("%5d: %s\n", index, bucket));
+            }
         }
         return sb.toString();
     }

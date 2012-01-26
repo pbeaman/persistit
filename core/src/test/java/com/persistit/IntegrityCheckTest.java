@@ -16,6 +16,7 @@
 package com.persistit;
 
 import java.io.PrintWriter;
+import java.util.Properties;
 
 import org.junit.Test;
 
@@ -145,6 +146,59 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         icheck = icheck();
         icheck.checkTree(ex.getTree());
         assertEquals(0, icheck.getMvvCount());
+    }
+
+    @Test
+    public void testPruneRemovesAbortedTransactionStatus() throws Exception {
+
+        final CleanupManager cm = _persistit.getCleanupManager();
+
+        for (int i = 0; i < 10; i++) {
+            final Exchange ex = _persistit.getExchange(_volumeName, "mvv" + i, true);
+            Transaction txn = ex.getTransaction();
+            txn.begin();
+            try {
+                transactionalStore(ex);
+                if ((i % 2) == 0) {
+                    txn.rollback();
+                } else {
+                    txn.commit();
+                }
+                if (i == 5) {
+                    _persistit.checkpoint();
+                }
+            } finally {
+                txn.end();
+            }
+        }
+        _persistit.crash();
+        final Properties properties = _persistit.getProperties();
+        _persistit = new Persistit();
+        _persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
+        _persistit.initialize(properties);
+        
+        for (int i = 0; i < 10; i++) {
+            final Exchange ex = _persistit.getExchange(_volumeName, "mvv" + i, true).append(Key.BEFORE);
+            int count = 0;
+            while (ex.next()) {
+                count++;
+            }
+            if ((i % 2) == 1 && i <= 5) {
+                assertEquals(SIZE / 2, count);
+            } else {
+                assertEquals(0, count);
+            }
+        }
+        assertTrue(_persistit.getTransactionIndex().getAbortedCount() > 0);
+        
+        IntegrityCheck icheck = (IntegrityCheck)IntegrityCheck.icheck("*", false, false, false, false, true, true);
+        icheck.setPersistit(_persistit);
+        icheck.setMessageWriter(new PrintWriter(System.out));
+
+        icheck.runTask();
+        assertTrue(icheck.getPrunedPagesCount() > 0);
+        _persistit.getTransactionIndex().cleanup();
+        assertEquals(0, _persistit.getTransactionIndex().getAbortedCount());
     }
 
     private String key(final int i) {

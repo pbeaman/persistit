@@ -165,6 +165,7 @@ class VolumeStructure {
         ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(name);
         Value value = ex.fetch().getValue();
         tree = new Tree(_persistit, _volume, name);
+        _persistit.getJournalManager().handleForTree(tree);
         if (value.isDefined()) {
             value.get(tree);
             loadTreeStatistics(tree);

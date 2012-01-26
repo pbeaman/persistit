@@ -29,6 +29,16 @@ import com.persistit.TreeSelector;
 public class TreeSelectorTest {
 
     @Test
+    public void allSelector() throws Exception {
+        TreeSelector ts = TreeSelector.parseSelector("*", false, '\\');
+        assertTrue(ts.isVolumeNameSelected("mydata"));
+        assertTrue(ts.isVolumeNameSelected("mystuff"));
+        assertTrue(ts.isTreeNameSelected("mydata", "anindex"));
+        assertTrue(ts.isTreeNameSelected("mydata", "anxedni"));
+    }
+
+
+    @Test
     public void simpleSelector() throws Exception {
         TreeSelector ts = TreeSelector.parseSelector("*data:*index", false, '\\');
         assertTrue(ts.isVolumeNameSelected("mydata"));
@@ -99,7 +109,9 @@ public class TreeSelectorTest {
     @Test
     public void emptyCase() throws Exception {
         TreeSelector ts = TreeSelector.parseSelector("", false, '\\');
-        assertTrue(ts.isEmpty());
+        assertTrue(ts.isSelectAll());
+        ts = TreeSelector.parseSelector("*", false, '\\');
+        assertTrue(ts.isSelectAll());
     }
 
 }
