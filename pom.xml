@@ -37,13 +37,18 @@
                     <aggregate>true</aggregate>
                     <strictCheck>true</strictCheck>
                     <excludes>
+                        <!-- Non-distributed benchmark code -->
+                        <exclude>bench/**</exclude>
+                        <!-- Docs -->
                         <exclude>doc/**</exclude>
-                        <exclude>src/test/resources/**</exclude>
+                        <exclude>core/src/main/resources/**</exclude>
+                        <exclude>core/src/test/resources/**</exclude>
+                        <!-- IDE files -->
                         <exclude>.idea/**</exclude>
                         <exclude>.settings/**</exclude>
                         <exclude>.project</exclude>
                         <exclude>.classpath</exclude>
-                        <exclude>bench/**</exclude>
+                        <exclude>.bzrignore</exclude>
                     </excludes>
                     <properties>
                         <year>2011</year>
