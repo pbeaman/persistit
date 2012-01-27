@@ -324,14 +324,18 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             txn.rollback();
             txn.end();
         }
-        
-        assertEquals(0, volume.getStructure().getGarbageRoot());
-        assertEquals(0, countKeys(true));
-        assertEquals(5, countKeys(false));
         _persistit.getJournalManager().pruneObsoleteTransactions(Long.MAX_VALUE, true);
         assertEquals(0, countKeys(false));
-        
-        assertTrue(volume.getStructure().getGarbageRoot() != 0);
+        IntegrityCheck icheck = new IntegrityCheck(_persistit);
+        icheck.checkVolume(volume);
+        long totalPages =volume.getStorage().getNextAvailablePage();
+        long dataPages = icheck.getDataPageCount();
+        long indexPages = icheck.getIndexPageCount();
+        long longPages = icheck.getLongRecordPageCount();
+        long garbagePages = icheck.getGarbagePageCount();
+        assertEquals(totalPages, dataPages + indexPages + longPages + garbagePages);
+        assertEquals(0, longPages);
+        assertTrue(garbagePages > 0);
     }
     
     private int countKeys(final boolean mvcc) throws PersistitException {

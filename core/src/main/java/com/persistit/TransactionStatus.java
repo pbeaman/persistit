@@ -371,6 +371,16 @@ public class TransactionStatus {
         return String.format("<ts=%,d tc=%s mvv=%,d>", _ts, tcString(_tc), _mvvCount.get());
     }
 
+    static String versionString(final long version) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%,d", TransactionIndex.vh2ts(version)));
+        int step = TransactionIndex.vh2step(version);
+        if (step > 0) {
+            sb.append(String.format("#%02d", step));
+        }
+        return sb.toString();
+    }
+    
     static String tcString(final long ts) {
         if (ts == ABORTED) {
             return "ABORTED";

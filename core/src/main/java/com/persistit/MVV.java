@@ -15,11 +15,13 @@
 
 package com.persistit;
 
+import static com.persistit.Buffer.LONGREC_PAGE_OFFSET;
+import static com.persistit.Buffer.LONGREC_SIZE;
+import static com.persistit.Buffer.LONGREC_TYPE;
 import static com.persistit.TransactionIndex.vh2ts;
-import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
-import static com.persistit.Buffer.*;
+import java.util.List;
 
 import com.persistit.exception.CorruptValueException;
 import com.persistit.exception.PersistitException;
@@ -28,6 +30,33 @@ import com.persistit.exception.TimeoutException;
 import com.persistit.util.Util;
 
 public class MVV {
+
+    static class PrunedVersion {
+        private final long _version;
+        private final long _longRecordPage;
+
+        private PrunedVersion(long version, long longRecordPage) {
+            _version = version;
+            _longRecordPage = longRecordPage;
+        }
+
+        public long getVersionHandle() {
+            return _version;
+        }
+
+        public long getTs() {
+            return vh2ts(_version);
+        }
+
+        public long getLongRecordPage() {
+            return _longRecordPage;
+        }
+        
+        @Override
+        public String toString() {
+            return "PrunedVersion(" + TransactionStatus.versionString(_version) + "," + _longRecordPage + ")";
+        }
+    }
 
     final static int TYPE_MVV = 0xFE;
     final static int TYPE_ANTIVALUE = Value.CLASS_ANTIVALUE;
@@ -363,7 +392,7 @@ public class MVV {
      *             if the MVV value is corrupt
      */
     static int prune(final byte[] bytes, final int offset, final int length, final TransactionIndex ti,
-            boolean convertToPrimordial, final Volume volume) throws PersistitException {
+            boolean convertToPrimordial, List<PrunedVersion> prunedVersionList) throws PersistitException {
         if (!isArrayMVV(bytes, offset, length)) {
             /*
              * Not an MVV
@@ -427,8 +456,6 @@ public class MVV {
                         lastVersionHandle = versionHandle;
                         lastVersionTc = tc;
                     }
-                } else if (tc == ABORTED) {
-                    ti.decrementMvvCount(versionHandle);
                 }
                 from += vlength + LENGTH_PER_VERSION;
                 if (from > offset + length) {
@@ -444,20 +471,20 @@ public class MVV {
             }
 
             /*
-             * Second pass - deallocate any long record chains from versions
-             * being pruned.
+             * Second pass - collect information from versions being pruned.
              */
             from = offset + 1;
             to = from;
-            newLength = length;
-            while (from < offset + newLength) {
+            while (from < offset + length) {
                 final int vlength = getLength(bytes, from);
-                if (vlength == LONGREC_SIZE && !isMarked(bytes, from)
-                        && (bytes[from + LENGTH_PER_VERSION] & 0xFF) == LONGREC_TYPE) {
-                    final long longRecordPage = Util.getLong(bytes, from + LENGTH_PER_VERSION + LONGREC_PAGE_OFFSET);
-                    if (longRecordPage > 0) {
-                        volume.getStructure().deallocateGarbageChain(longRecordPage, 0);
+                if (!isMarked(bytes, from)) {
+                    long version = getVersion(bytes, from);
+                    long longRecordPage = 0;
+                    if (vlength == LONGREC_SIZE && (bytes[from + LENGTH_PER_VERSION] & 0xFF) == LONGREC_TYPE) {
+                        longRecordPage = Util.getLong(bytes, from + LENGTH_PER_VERSION + LONGREC_PAGE_OFFSET);
                     }
+                    PrunedVersion pv = new PrunedVersion(version, longRecordPage);
+                    prunedVersionList.add(pv);
                 }
                 from += vlength + LENGTH_PER_VERSION;
             }

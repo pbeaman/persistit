@@ -22,14 +22,18 @@ import static com.persistit.VolumeHeader.getId;
 import static com.persistit.VolumeHeader.getNextAvailablePage;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 import java.util.Set;
 import java.util.Stack;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.persistit.CleanupManager.CleanupAntiValue;
 import com.persistit.Exchange.Sequence;
 import com.persistit.JournalRecord.IV;
 import com.persistit.JournalRecord.PA;
+import com.persistit.MVV.PrunedVersion;
 import com.persistit.Management.RecordInfo;
 import com.persistit.exception.InUseException;
 import com.persistit.exception.InvalidPageAddressException;
@@ -368,6 +372,8 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      */
     private Buffer _next = null;
 
+    private AtomicLong _lastPruningActionEnqueuedTime = new AtomicLong();
+
     /**
      * Construct a new buffer.
      * 
@@ -420,7 +426,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         _alloc = _bufferSize;
         _slack = 0;
         _mvvCount = 0;
-        // _generation = 0;
+        _lastPruningActionEnqueuedTime.set(0);
         bumpGeneration();
     }
 
@@ -1150,7 +1156,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         if ((foundAt & EXACT_MASK) == 0) {
             value.clear();
         } else {
-            Debug.$assert0.t(foundAt > 0 && ( foundAt & P_MASK) < _keyBlockEnd);
+            Debug.$assert0.t(foundAt > 0 && (foundAt & P_MASK) < _keyBlockEnd);
             int kbData = getInt(foundAt & P_MASK);
             int tail = decodeKeyBlockTail(kbData);
             int tbData = getInt(tail);
@@ -3400,6 +3406,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         }
         if (isDataPage() && _mvvCount != 0) {
             _mvvCount = 0;
+            List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
             for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
                 final int kbData = getInt(p);
                 final int tail = decodeKeyBlockTail(kbData);
@@ -3411,7 +3418,8 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 if (oldSize > 0) {
                     int valueByte = _bytes[tail + _tailHeaderSize + klength] & 0xFF;
                     if (valueByte == MVV.TYPE_MVV) {
-                        final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true, _vol);
+                        final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true,
+                                prunedVersions);
                         if (newSize != oldSize) {
                             if (timestamp == -1) {
                                 timestamp = _persistit.getTimestampAllocator().updateTimestamp();
@@ -3463,13 +3471,26 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                     }
                 }
             }
+            if (changed) {
+                assert timestamp != -1 : "Timestamp writePageOnCheckpoint not called";
+                setDirtyAtTimestamp(timestamp);
+            }
+            for (final PrunedVersion pv : prunedVersions) {
+                final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(pv.getTs());
+                if (ts != null && ts.getTc() == TransactionStatus.ABORTED) {
+                    ts.decrementMvvCount();
+                }
+                if (pv.getLongRecordPage() != 0) {
+                    try {
+                        _vol.getStructure().deallocateGarbageChain(pv.getLongRecordPage(), 0);
+                    } catch (PersistitException e) {
+                        _persistit.getLogBase().pruneException.log(e, ts);
+                    }
+                }
+            }
         }
         if (Debug.ENABLED && changed) {
             assertVerify();
-        }
-        if (changed) {
-            assert timestamp != -1 : "Timestamp writePageOnCheckpoint not called";
-            setDirtyAtTimestamp(timestamp);
         }
         return changed;
     }
@@ -3798,7 +3819,20 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             info.writerThreadName = null;
         }
         info.updateAcquisitonTime();
+    }
 
+    void enqueuePruningAction(final int treeHandle) {
+        if (_mvvCount > 0) {
+            long delay = _persistit.getCleanupManager().getMinimumPruningDelay();
+            if (delay > 0) {
+                long last = _lastPruningActionEnqueuedTime.get();
+                long now = System.currentTimeMillis();
+                if (now - last > delay && _lastPruningActionEnqueuedTime.compareAndSet(last, now)) {
+                    _persistit.getCleanupManager().offer(
+                            new CleanupManager.CleanupPruneAction(treeHandle, getPageAddress()));
+                }
+            }
+        }
     }
 
     /**

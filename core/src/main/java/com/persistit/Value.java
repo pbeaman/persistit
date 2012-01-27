@@ -1318,13 +1318,7 @@ public final class Value {
                         if(!first) {
                             sb.append(", ");
                         }
-                        sb.append(String.format("%,d", TransactionIndex.vh2ts(version)));
-                        int step = TransactionIndex.vh2step(version);
-                        if (step > 0) {
-                            sb.append(String.format("#%02d", step));
-                        }
-                        
-                        // TODO remove after debugging
+                        sb.append(TransactionStatus.versionString(version));
                         try {
                         long tc = _persistit.getTransactionIndex().commitStatus(version, Long.MAX_VALUE, 0);
                             sb.append("<" + TransactionStatus.tcString(tc) + ">");

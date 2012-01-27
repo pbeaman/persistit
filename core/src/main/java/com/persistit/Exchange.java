@@ -41,7 +41,11 @@ import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.persistit.Key.Direction;
+import com.persistit.MVV.PrunedVersion;
 import com.persistit.ValueHelper.MVVValueWriter;
 import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.exception.CorruptVolumeException;
@@ -182,7 +186,7 @@ public class Exchange {
         public int getLength() {
             return _foundLength;
         }
-
+        
         public boolean foundVersion() {
             return _foundVersion != MVV.VERSION_NOT_FOUND;
         }
@@ -1398,6 +1402,7 @@ public class Exchange {
                 }
 
                 checkLevelCache();
+                List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
 
                 try {
                     if (level >= _cacheDepth) {
@@ -1481,20 +1486,9 @@ public class Exchange {
                              */
                             byte[] spareBytes = _spareValue.getEncodedBytes();
                             int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
-                            int prunedSpareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(),
-                                    false, _volume);
-                            if (prunedSpareSize != spareSize) {
-                                Debug.$assert0.t(prunedSpareSize < spareSize);
-                                valueToStore.setEncodedSize(prunedSpareSize);
-                                _rawValueWriter.init(valueToStore);
-                                boolean needSplit = putLevel(lc, _key, _rawValueWriter, buffer, foundAt, false);
-                                /*
-                                 * needSplit could be true here if the current
-                                 * value in the page is a LONG_RECORD and there
-                                 * isn't enough room for a short record.
-                                 */
-                                spareSize = prunedSpareSize;
-                            }
+                            spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(),
+                                    false, prunedVersions);
+
 
                             final TransactionStatus tStatus = _transaction.getTransactionStatus();
                             final int tStep = _transaction.getCurrentStep();
@@ -1581,6 +1575,7 @@ public class Exchange {
                         if (incrementMVVCount) {
                             _transaction.getTransactionStatus().incrementMvvCount();
                         }
+                        deallocatePrunedVersions(prunedVersions);
                     }
 
                     buffer.releaseTouched();
@@ -1702,6 +1697,23 @@ public class Exchange {
         return keyExisted;
     }
 
+    private void deallocatePrunedVersions(List<PrunedVersion> prunedVersions) {
+        for (final PrunedVersion pv : prunedVersions) {
+            final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(pv.getTs());
+            if (ts != null && ts.getTc() == TransactionStatus.ABORTED) {
+                ts.decrementMvvCount();
+            }
+            if (pv.getLongRecordPage() != 0) {
+                try {
+                    _volume.getStructure().deallocateGarbageChain(pv.getLongRecordPage(), 0);
+                } catch (PersistitException e) {
+                    _persistit.getLogBase().pruneException.log(e, ts);
+                }
+            }
+        }
+        prunedVersions.clear();
+    }
+    
     private long timestamp() {
         return _persistit.getTimestampAllocator().updateTimestamp();
     }
@@ -2644,6 +2656,9 @@ public class Exchange {
      */
     private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
         buffer.fetch(foundAt, value);
+        if (MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
+            buffer.enqueuePruningAction(_tree.getHandle());
+        }
         return mvccFetch(value, minimumBytes);
     }
 
