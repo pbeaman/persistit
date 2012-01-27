@@ -85,7 +85,8 @@ public class TransactionPlayer {
             startTimestamp = TX.getTimestamp(_support.getReadBuffer());
             commitTimestamp = TX.getCommitTimestamp(_support.getReadBuffer());
             backchainAddress = TX.getBackchainAddress(_support.getReadBuffer());
-            if (recordSize < TX.OVERHEAD || recordSize > Transaction.TRANSACTION_BUFFER_SIZE + TX.OVERHEAD || type != TX.TYPE) {
+            if (recordSize < TX.OVERHEAD || recordSize > Transaction.TRANSACTION_BUFFER_SIZE + TX.OVERHEAD
+                    || type != TX.TYPE) {
                 throw new CorruptJournalException("Transaction record at " + addressToString(address)
                         + " has invalid length " + recordSize + " or type " + type);
             }
@@ -112,7 +113,8 @@ public class TransactionPlayer {
             address = continuation.longValue();
             _support.read(address, TX.OVERHEAD);
             recordSize = TX.getLength(_support.getReadBuffer());
-            if (recordSize < TX.OVERHEAD || recordSize > Transaction.TRANSACTION_BUFFER_SIZE + TX.OVERHEAD || type != TX.TYPE) {
+            if (recordSize < TX.OVERHEAD || recordSize > Transaction.TRANSACTION_BUFFER_SIZE + TX.OVERHEAD
+                    || type != TX.TYPE) {
                 throw new CorruptJournalException("Transaction record at " + addressToString(address)
                         + " has invalid length " + recordSize + " or type " + type);
             }

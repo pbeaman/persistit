@@ -1441,20 +1441,26 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         synchronized (this) {
             for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator
                     .hasNext();) {
-                final TransactionMapItem ts = iterator.next();
-                if (ts.isCommitted()) {
-                    if (ts.getCommitTimestamp() < timestamp) {
+                final TransactionMapItem item = iterator.next();
+                if (item.isCommitted()) {
+                    if (item.getCommitTimestamp() < timestamp) {
                         iterator.remove();
-                    } else if (ts.getStartTimestamp() < earliest) {
-                        earliest = ts.getStartTimestamp();
+                    } else if (item.getStartTimestamp() < earliest) {
+                        earliest = item.getStartTimestamp();
                     }
-                } else if (ts.isAborted()) {
+                } else {
                     final TransactionStatus status;
-                    status = _persistit.getTransactionIndex().getStatus(ts.getStartTimestamp());
-                    if (status == null || status.getMvvCount() == 0) {
+                    status = _persistit.getTransactionIndex().getStatus(item.getStartTimestamp());
+                    if (status == null || status.getTs() != item.getStartTimestamp()) {
                         iterator.remove();
-                    } else if (rollbackPruningEnabled) {
-                        toPrune.add(ts);
+                    } else if (status.getTc() == ABORTED) {
+                        if (status.getMvvCount() == 0) {
+                            iterator.remove();
+                        } else {
+                            if (rollbackPruningEnabled) {
+                                toPrune.add(item);
+                            } 
+                        }
                     }
                 }
             }

@@ -29,12 +29,13 @@ import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.PersistitException;
 import com.persistit.unit.PersistitUnitTestCase;
 import com.persistit.unit.UnitTestProperties;
+import com.persistit.util.Util;
 
 public class JournalManagerTest extends PersistitUnitTestCase {
 
     /*
      * This class needs to be in com.persistit rather than com.persistit.unit
-     * because it uses some package- private methods in Persistit.
+     * because it uses some package-private methods in Persistit.
      */
 
     private String _volumeName = "persistit";
@@ -265,12 +266,74 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         }
     }
 
+    @Test
+    public void testRollback() throws Exception {
+        // Allow test to control when pruning will happen
+        _persistit.getJournalManager().setRollbackPruningEnabled(false);
+        final Transaction txn = _persistit.getTransaction();
+        for (int i = 0; i < 10; i++) {
+            txn.begin();
+            store1();
+            txn.rollback();
+            txn.end();
+        }
+        assertEquals(50000, countKeys(false));
+        assertEquals(0, countKeys(true));
+        _persistit.getJournalManager().pruneObsoleteTransactions(Long.MAX_VALUE, true);
+        assertTrue(countKeys(false) < 50000);
+        CleanupManager cm = _persistit.getCleanupManager();
+        assertTrue(cm.getAcceptedCount() > 0);
+        while (cm.getEnqueuedCount() > 0) {
+            Util.sleep(100);
+        }
+        assertEquals(0, countKeys(false));
+    }
+    
+    @Test
+    public void testRollbackEventually() throws Exception {
+
+        final Transaction txn = _persistit.getTransaction();
+        for (int i = 0; i < 10; i++) {
+            txn.begin();
+            store1();
+            txn.rollback();
+            txn.end();
+        }
+        
+        long start = System.currentTimeMillis();
+        long elapsed = 0;
+        while (countKeys(false) > 0) {
+            Util.sleep(1000);
+            elapsed = System.currentTimeMillis() - start;
+            if (elapsed > 60000) {
+                break;
+            }
+        }
+        assertTrue(elapsed < 60000);
+    }
+    
+    private int countKeys(final boolean mvcc) throws PersistitException {
+        final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
+        exchange.ignoreMVCCFetch(!mvcc);
+        int count1 = 0, count2 = 0;
+        exchange.clear().append(Key.BEFORE);
+        while (exchange.next()) {
+            count1++;
+        }
+        exchange.clear().append(Key.AFTER);
+        while (exchange.previous()) {
+            count2++;
+        }
+        assertEquals(count1, count2);
+        return count1;
+    }
+
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", true);
         exchange.removeAll();
         final StringBuilder sb = new StringBuilder();
 
-        for (int i = 1; i < 50000; i++) {
+        for (int i = 1; i <= 50000; i++) {
             sb.setLength(0);
             sb.append((char) (i / 20 + 64));
             sb.append((char) (i % 20 + 64));
