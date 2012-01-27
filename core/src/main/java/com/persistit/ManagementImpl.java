@@ -1220,7 +1220,7 @@ class ManagementImpl implements Management {
     }
 
     void unregister() {
-        if (_registered && _persistit.isInitialized()) {
+        if (_registered) {
             try {
                 ManagementImpl impl = (ManagementImpl) _persistit.getManagement();
 
