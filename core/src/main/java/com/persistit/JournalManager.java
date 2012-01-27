@@ -169,7 +169,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private TransactionPlayer _player = new TransactionPlayer(new JournalTransactionPlayerSupport());
 
     private TransactionPlayerListener _listener = new ProactiveRollbackListener();
-    
+
     private AtomicBoolean _rollbackPruning = new AtomicBoolean(true);
 
     /**
@@ -784,7 +784,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     synchronized void writeTransactionMap() throws PersistitIOException {
-        pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp());
+        pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
         int count = _liveTransactionMap.size();
         final int recordSize = TM.OVERHEAD + TM.ENTRY_SIZE * count;
         prepareWriteBuffer(recordSize);
@@ -1390,7 +1390,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         // be needed for recovery.
         //
         long recoveryTimestamp = checkpoint.getTimestamp();
-        long earliest = pruneObsoleteTransactions(recoveryTimestamp);
+        long earliest = pruneObsoleteTransactions(recoveryTimestamp, isRollbackPruningEnabled());
         recoveryTimestamp = Math.min(recoveryTimestamp, earliest);
         //
         // Remove all but the most recent PageNode version before the
@@ -1430,7 +1430,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @param timestamp
      * @return
      */
-    private long pruneObsoleteTransactions(final long timestamp) {
+    long pruneObsoleteTransactions(final long timestamp, boolean rollbackPruningEnabled) {
         long earliest = Long.MAX_VALUE;
         List<TransactionMapItem> toPrune = new ArrayList<TransactionMapItem>();
         //
@@ -1448,12 +1448,12 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     } else if (ts.getStartTimestamp() < earliest) {
                         earliest = ts.getStartTimestamp();
                     }
-                } else {
+                } else if (ts.isAborted()) {
                     final TransactionStatus status;
                     status = _persistit.getTransactionIndex().getStatus(ts.getStartTimestamp());
                     if (status == null || status.getMvvCount() == 0) {
                         iterator.remove();
-                    } else if (isRollbackPruningEnabled()) {
+                    } else if (rollbackPruningEnabled) {
                         toPrune.add(ts);
                     }
                 }
@@ -1701,6 +1701,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             return _commitTimestamp > 0;
         }
 
+        boolean isAborted() {
+            return _commitTimestamp == ABORTED;
+        }
+
         @Override
         public String toString() {
             return String.format("TStatus %,d{%,d}%s", _startAddress, _commitTimestamp, isCommitted() ? "c" : "u");
@@ -1739,7 +1743,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             if (!_appendOnly.get()) {
                 _copying.set(true);
                 try {
-                    pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp());
+                    pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
                     selectForCopy(_copyList);
                     if (!_copyList.isEmpty()) {
                         readForCopy(_copyList, _bb);
@@ -2092,7 +2096,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private class JournalTransactionPlayerSupport implements TransactionPlayerSupport {
 
-        final ByteBuffer _readBuffer = ByteBuffer.allocate(Transaction.TRANSACTION_BUFFER_SIZE);
+        final ByteBuffer _readBuffer = ByteBuffer.allocate(Transaction.TRANSACTION_BUFFER_SIZE
+                + JournalRecord.TX.OVERHEAD);
 
         @Override
         public void read(long address, int size) throws PersistitIOException {
@@ -2108,7 +2113,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         @Override
         public void convertToLongRecord(Value value, int treeHandle, long address, long commitTimestamp)
                 throws PersistitException {
-            throw new UnsupportedOperationException();
+            // Do nothing - long record value does not need to be recovered for
+            // pruning
         }
 
         @Override
@@ -2167,7 +2173,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         public void endTransaction(long address, long timestamp) throws PersistitException {
             final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
             assert ts != null : "Missing TransactionStatus for timestamp " + timestamp;
-            assert ts.getMvvCount() == 0 : "Pruning all updates left remaining mvv count in " + ts;
+            assert ts.getMvvCount() == 0 || !_persistit.isInitialized() : "Pruning all updates left remaining mvv count in "
+                    + ts;
         }
 
         @Override

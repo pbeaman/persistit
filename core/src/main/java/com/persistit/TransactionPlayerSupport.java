@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2011 Akiban Technologies Inc.
+ * Copyright (C) 2012 Akiban Technologies Inc.
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
  * as published by the Free Software Foundation.
@@ -23,9 +23,14 @@ import com.persistit.exception.PersistitIOException;
 
 interface TransactionPlayerSupport {
     Persistit getPersistit();
+
     TreeDescriptor handleToTreeDescriptor(int treeHandle);
+
     Volume handleToVolume(int volumeHandle);
+
     void read(long address, int size) throws PersistitIOException;
+
     ByteBuffer getReadBuffer();
+
     void convertToLongRecord(Value value, int treeHandle, long address, long commitTimestamp) throws PersistitException;
 }

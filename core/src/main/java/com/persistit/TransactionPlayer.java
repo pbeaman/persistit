@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2011 Akiban Technologies Inc.
+ * Copyright (C) 2012 Akiban Technologies Inc.
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License, version 3,
  * as published by the Free Software Foundation.
@@ -85,7 +85,7 @@ public class TransactionPlayer {
             startTimestamp = TX.getTimestamp(_support.getReadBuffer());
             commitTimestamp = TX.getCommitTimestamp(_support.getReadBuffer());
             backchainAddress = TX.getBackchainAddress(_support.getReadBuffer());
-            if (recordSize < TX.OVERHEAD || recordSize > Transaction.TRANSACTION_BUFFER_SIZE || type != TX.TYPE) {
+            if (recordSize < TX.OVERHEAD || recordSize > Transaction.TRANSACTION_BUFFER_SIZE + TX.OVERHEAD || type != TX.TYPE) {
                 throw new CorruptJournalException("Transaction record at " + addressToString(address)
                         + " has invalid length " + recordSize + " or type " + type);
             }
@@ -112,6 +112,10 @@ public class TransactionPlayer {
             address = continuation.longValue();
             _support.read(address, TX.OVERHEAD);
             recordSize = TX.getLength(_support.getReadBuffer());
+            if (recordSize < TX.OVERHEAD || recordSize > Transaction.TRANSACTION_BUFFER_SIZE + TX.OVERHEAD || type != TX.TYPE) {
+                throw new CorruptJournalException("Transaction record at " + addressToString(address)
+                        + " has invalid length " + recordSize + " or type " + type);
+            }
             _support.read(address, recordSize);
             applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp, commitTimestamp,
                     listener);
