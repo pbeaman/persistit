@@ -1482,7 +1482,7 @@ public class Exchange {
                             byte[] spareBytes = _spareValue.getEncodedBytes();
                             int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
                             int prunedSpareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(),
-                                    false);
+                                    false, _volume);
                             if (prunedSpareSize != spareSize) {
                                 Debug.$assert0.t(prunedSpareSize < spareSize);
                                 valueToStore.setEncodedSize(prunedSpareSize);
@@ -3595,7 +3595,7 @@ public class Exchange {
                 buffer = _pool.get(_volume, buffer.getRightSibling(), true, true);
                 oldBuffer.release();
             }
-            
+
         } finally {
             if (buffer != null) {
                 buffer.release();

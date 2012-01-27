@@ -3411,7 +3411,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 if (oldSize > 0) {
                     int valueByte = _bytes[tail + _tailHeaderSize + klength] & 0xFF;
                     if (valueByte == MVV.TYPE_MVV) {
-                        final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true);
+                        final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true, _vol);
                         if (newSize != oldSize) {
                             if (timestamp == -1) {
                                 timestamp = _persistit.getTimestampAllocator().updateTimestamp();

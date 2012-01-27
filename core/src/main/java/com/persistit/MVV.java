@@ -19,6 +19,8 @@ import static com.persistit.TransactionIndex.vh2ts;
 import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
 
+import static com.persistit.Buffer.*;
+
 import com.persistit.exception.CorruptValueException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
@@ -224,7 +226,8 @@ public class MVV {
             throw new IllegalArgumentException("Source and target arrays must be different");
         }
         if (sourceLength > MAX_LENGTH_MASK) {
-            throw new IllegalArgumentException("Source length greater than max: " + sourceLength + " > " + MAX_LENGTH_MASK);
+            throw new IllegalArgumentException("Source length greater than max: " + sourceLength + " > "
+                    + MAX_LENGTH_MASK);
         }
         /*
          * Value did not previously exist. Result will be an MVV with one
@@ -334,8 +337,10 @@ public class MVV {
      * This method removes any version previously added by an aborted
      * transaction. It also decrements the MVV count of the affected
      * transaction, indicating that it is not necessary to perform proactive
-     * cleanup to discard that the associated TransactionStatus. Therefore it is
+     * cleanup to discard that the associated TransactionStatus, and it also
+     * deallocates any long-record chains for pruned values. Therefore it is
      * mandatory for the caller to write the pruned MVV back into the B-Tree.
+     * Failure to due so causes data corruption.
      * 
      * @param bytes
      *            the byte array
@@ -358,7 +363,7 @@ public class MVV {
      *             if the MVV value is corrupt
      */
     static int prune(final byte[] bytes, final int offset, final int length, final TransactionIndex ti,
-            boolean convertToPrimordial) throws PersistitInterruptedException, TimeoutException, CorruptValueException {
+            boolean convertToPrimordial, final Volume volume) throws PersistitException {
         if (!isArrayMVV(bytes, offset, length)) {
             /*
              * Not an MVV
@@ -371,6 +376,7 @@ public class MVV {
         try {
             int from = offset + 1;
             int to = from;
+            int newLength;
             /*
              * Used to keep track of the latest version discovered in the
              * traversal. These variables identify a version that should be kept
@@ -410,8 +416,7 @@ public class MVV {
                         }
                         primordial = false;
                     } else {
-                        if (lastVersionIndex != -1
-                                && ti.hasConcurrentTransaction(lastVersionTc, tc)) {
+                        if (lastVersionIndex != -1 && ti.hasConcurrentTransaction(lastVersionTc, tc)) {
                             mark(bytes, lastVersionIndex);
                             marked++;
                             primordial = false;
@@ -437,8 +442,28 @@ public class MVV {
                     primordial = false;
                 }
             }
+
             /*
-             * Second pass - remove any unmarked versions and unmark any marked
+             * Second pass - deallocate any long record chains from versions
+             * being pruned.
+             */
+            from = offset + 1;
+            to = from;
+            newLength = length;
+            while (from < offset + newLength) {
+                final int vlength = getLength(bytes, from);
+                if (vlength == LONGREC_SIZE && !isMarked(bytes, from)
+                        && (bytes[from + LENGTH_PER_VERSION] & 0xFF) == LONGREC_TYPE) {
+                    final long longRecordPage = Util.getLong(bytes, from + LENGTH_PER_VERSION + LONGREC_PAGE_OFFSET);
+                    if (longRecordPage > 0) {
+                        volume.getStructure().deallocateGarbageChain(longRecordPage, 0);
+                    }
+                }
+                from += vlength + LENGTH_PER_VERSION;
+            }
+
+            /*
+             * Third pass - remove any unmarked versions and unmark any marked
              * versions.
              */
             if (primordial && marked <= 1) {
@@ -471,7 +496,7 @@ public class MVV {
                  */
                 from = offset + 1;
                 to = from;
-                int newLength = length;
+                newLength = length;
                 while (from < offset + newLength) {
                     final int vlength = getLength(bytes, from);
                     if (isMarked(bytes, from)) {

@@ -312,6 +312,28 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertTrue(elapsed < 60000);
     }
     
+    @Test
+    public void testRollbackLongRecords() throws Exception {
+        // Allow test to control when pruning will happen
+        _persistit.getJournalManager().setRollbackPruningEnabled(false);
+        final Volume volume = _persistit.getVolume(_volumeName);
+        final Transaction txn = _persistit.getTransaction();
+        for (int i = 0; i < 10; i++) {
+            txn.begin();
+            store2();
+            txn.rollback();
+            txn.end();
+        }
+        
+        assertEquals(0, volume.getStructure().getGarbageRoot());
+        assertEquals(0, countKeys(true));
+        assertEquals(5, countKeys(false));
+        _persistit.getJournalManager().pruneObsoleteTransactions(Long.MAX_VALUE, true);
+        assertEquals(0, countKeys(false));
+        
+        assertTrue(volume.getStructure().getGarbageRoot() != 0);
+    }
+    
     private int countKeys(final boolean mvcc) throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", false);
         exchange.ignoreMVCCFetch(!mvcc);
@@ -327,6 +349,7 @@ public class JournalManagerTest extends PersistitUnitTestCase {
         assertEquals(count1, count2);
         return count1;
     }
+    
 
     private void store1() throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", true);
@@ -340,6 +363,19 @@ public class JournalManagerTest extends PersistitUnitTestCase {
             exchange.clear().append(sb);
             exchange.getValue().put("Record #" + i);
             exchange.store();
+        }
+    }
+
+    private void store2() throws PersistitException {
+        final Exchange exchange = _persistit.getExchange(_volumeName, "JournalManagerTest1", true);
+        exchange.removeAll();
+        final StringBuilder sb = new StringBuilder();
+        while (sb.length() < 50000) {
+            sb.append(RED_FOX);
+        }
+        exchange.getValue().put(sb);
+        for (int i = 1; i <= 5; i++) {
+            exchange.to(i).store();
         }
     }
 
