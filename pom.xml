@@ -7,8 +7,10 @@
     <name>akiban-persistit</name>
     <version>3.0.3-SNAPSHOT</version>
     <properties>
-        <!-- this is the default version number, hudson job sets this to the official number -->
+        <!-- this is the default version number, Jenkins job sets this to the official number -->
         <BZR_REVISION></BZR_REVISION>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
     <distributionManagement>
         <snapshotRepository>
@@ -34,6 +36,7 @@
                 <artifactId>maven-license-plugin</artifactId>
                 <version>1.10.b1</version>
                 <configuration>
+                    <!-- Note plugin WARNs header wasn't specified but still works as desired (multi-module bug?) -->
                     <header>LICENSE.txt</header>
                     <headerSections>
                         <headerSection>
