@@ -33,11 +33,11 @@ public class PersistitException extends Exception {
         super(msg);
     }
 
-    public PersistitException(Exception exception) {
-        super(exception);
+    public PersistitException(Throwable t) {
+        super(t);
     }
 
-    public PersistitException(String msg, Exception exception) {
-        super(msg, exception);
+    public PersistitException(String msg, Throwable t) {
+        super(msg, t);
     }
 }

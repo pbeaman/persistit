@@ -45,6 +45,12 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     private String journalSize = "10000000";
     private String _volumeName = "persistit";
+    
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
+        _persistit.getJournalManager().setRollbackPruningEnabled(false);
+    }
 
     @Override
     protected Properties getProperties(final boolean cleanup) {

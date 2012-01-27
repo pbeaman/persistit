@@ -24,8 +24,6 @@ package com.persistit.exception;
 public class TransactionFailedException extends PersistitException {
     private static final long serialVersionUID = 4333338222080863109L;
 
-    Throwable _cause;
-
     public TransactionFailedException() {
         super();
     }
@@ -35,16 +33,7 @@ public class TransactionFailedException extends PersistitException {
     }
 
     public TransactionFailedException(Throwable t) {
-        _cause = t;
-    }
-
-    /**
-     * Provides an implementation for JDK1.3 and below. This simply overrides
-     * the JDK1.4 implementation of this method.
-     */
-    @Override
-    public Throwable getCause() {
-        return _cause;
+        super(t);
     }
 
 }

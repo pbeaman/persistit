@@ -112,10 +112,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private String _journalFilePath;
 
-    private TransactionPlayer _player = new TransactionPlayer(new JournalTransactionPlayerSupport());
-
-    private TransactionPlayerListener _listener = new ProactiveRollbackListener();
-
     /**
      * Address of first available byte in the journal. This is usually the
      * address of the next record to be written, but if that next record
@@ -170,9 +166,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private long _logRepeatInterval = DEFAULT_LOG_REPEAT_INTERVAL;
 
-    public JournalManager(final Persistit persistit) {
-        _persistit = persistit;
-    }
+    private TransactionPlayer _player = new TransactionPlayer(new JournalTransactionPlayerSupport());
+
+    private TransactionPlayerListener _listener = new ProactiveRollbackListener();
+    
+    private AtomicBoolean _rollbackPruning = new AtomicBoolean(true);
 
     /**
      * <p>
@@ -346,6 +344,15 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     @Override
+    public void setRollbackPruningEnabled(boolean rollbackPruning) {
+        _rollbackPruning.set(rollbackPruning);
+    }
+
+    public JournalManager(final Persistit persistit) {
+        _persistit = persistit;
+    }
+
+    @Override
     public boolean isClosed() {
         return _closed.get();
     }
@@ -353,6 +360,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     @Override
     public boolean isCopying() {
         return _copying.get();
+    }
+
+    @Override
+    public boolean isRollbackPruningEnabled() {
+        return _rollbackPruning.get();
     }
 
     @Override
@@ -883,14 +895,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
             final PageNode pageNode = new PageNode(handle, buffer.getPageAddress(), address, buffer.getTimestamp());
             PageNode oldPageNode = _pageMap.put(pageNode, pageNode);
-            // Held back -- proposed in another branch
-            // long checkpointTimestamp =
-            // _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
-            // if (oldPageNode != null && oldPageNode.getTimestamp() >
-            // checkpointTimestamp
-            // && buffer.getTimestamp() > checkpointTimestamp) {
-            // oldPageNode = oldPageNode.getPrevious();
-            // }
+            long checkpointTimestamp = _persistit.getTimestampAllocator().getProposedCheckpointTimestamp();
+            if (oldPageNode != null && oldPageNode.getTimestamp() > checkpointTimestamp
+                    && buffer.getTimestamp() > checkpointTimestamp) {
+                oldPageNode = oldPageNode.getPrevious();
+            }
             pageNode.setPrevious(oldPageNode);
             _writePageCount++;
         }
@@ -1444,7 +1453,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     status = _persistit.getTransactionIndex().getStatus(ts.getStartTimestamp());
                     if (status == null || status.getMvvCount() == 0) {
                         iterator.remove();
-                    } else {
+                    } else if (isRollbackPruningEnabled()) {
                         toPrune.add(ts);
                     }
                 }

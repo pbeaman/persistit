@@ -25,8 +25,6 @@ package com.persistit.exception;
 public class ConversionException extends RuntimeException {
     private static final long serialVersionUID = -5255687227174752145L;
 
-    private Exception _exception;
-
     public ConversionException() {
         super();
     }
@@ -35,22 +33,12 @@ public class ConversionException extends RuntimeException {
         super(msg);
     }
 
-    public ConversionException(Exception exception) {
-        super();
-        _exception = exception;
+    public ConversionException(Throwable t) {
+        super(t);
     }
 
-    public ConversionException(String msg, Exception exception) {
-        super(msg);
-        _exception = exception;
+    public ConversionException(String msg, Throwable t) {
+        super(msg, t);
     }
 
-    /**
-     * Provides an implementation for JDK1.3 and below. This simply overrides
-     * the JDK1.4 implementation of this method.
-     */
-    @Override
-    public Throwable getCause() {
-        return _exception;
-    }
 }
