@@ -20,6 +20,26 @@ import com.persistit.unit.PersistitUnitTestCase;
 
 import java.nio.ByteBuffer;
 
+/**
+ * Attempt to cover all cases from the pseudo graph below and ensure that
+ * the TransactionIndex and JournalManger#_liveTransactionMap are in the
+ * desired state after completing the sequence.
+ *
+ *
+ *                     +--> abort -> (done)
+ *                     |
+ *          +-----+    +--> commit -> (done)
+ *  (in) -->| seq |--->|
+ *          +-----+    +-> restart -> (done)
+ *                     |
+ *                     +-> checkpoint -> (out)
+ *
+ *
+ *        (seq)        (seq)            (seq)
+ *          |            |                |
+ *  begin --+--> write --+--> writeMany --+--> write --> (seq)
+ *
+ */
 public class TransactionLifetimeTest extends PersistitUnitTestCase {
     private static final String VOLUME_NAME = "persistit";
     private static final String TREE_NAME = "transaction_lifetime_test";
