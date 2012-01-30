@@ -23,9 +23,9 @@ import java.nio.ByteBuffer;
 
 /**
  * Attempt to cover all cases from the pseudo graph below and ensure that
- * the TransactionIndex and JournalManger#_liveTransactionMap are in the
- * desired state after completing the sequence.
- *
+ * the TransactionIndex, JournalManger#_liveTransactionMap, and any k/v
+ * stored are in the proper state after each step.
+ * <pre>
  *
  *                     +--> abort -> (done)
  *                     |
@@ -40,6 +40,10 @@ import java.nio.ByteBuffer;
  *          |            |                |
  *  begin --+--> write --+--> writeMany --+--> write --> (seq)
  *
+ * </pre>
+ *
+ * Note that tests including a RESTART assume that any aborted transaction
+ * was fully pruned and removed from the running state.
  */
 public class TransactionLifetimeTest extends PersistitUnitTestCase {
     private static final String VOLUME_NAME = "persistit";
@@ -207,7 +211,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
     private static final Node RESTART      = new Node("RESTART");
     
 
-    private static int storeFillTxnBuffer(Exchange ex, int writeCount) throws PersistitException {
+    private static int storeMoreThanTxnBuffer(Exchange ex, int writeCount) throws PersistitException {
         ByteBuffer txnBuffer = ex.getTransaction().getTransactionBuffer();
         for (;;) {
             final int prevPos = txnBuffer.position();
@@ -236,7 +240,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         try {
             for (int i = 0; i < writeCount; ++i) {
                 final String expectedKey = KEY_PREFIX + i;
-                boolean isDefined = ex.clear().append(expectedKey).isValueDefined();
+                final boolean isDefined = ex.clear().append(expectedKey).isValueDefined();
                 assertEquals(expectedKey + " exists after test", shouldExist, isDefined);
             }
         } finally {
@@ -300,7 +304,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
                     ++writeCount;
                 }
                 else if (curNode == WRITE_MANY) {
-                    writeCount = storeFillTxnBuffer(ex, writeCount);
+                    writeCount = storeMoreThanTxnBuffer(ex, writeCount);
                     currentInLiveMap = true;
                 }
                 else if (curNode == CHECKPOINT) {
