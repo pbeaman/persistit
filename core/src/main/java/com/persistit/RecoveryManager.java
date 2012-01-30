@@ -1466,7 +1466,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             startTimestamp = TX.getTimestamp(_readBuffer);
             commitTimestamp = TX.getCommitTimestamp(_readBuffer);
             backchainAddress = TX.getBackchainAddress(_readBuffer);
-            if (recordSize < TX.OVERHEAD || recordSize > Transaction.TRANSACTION_BUFFER_SIZE || type != TX.TYPE) {
+            // recordSize *includes* overhead, see JournalManager#writeTransactionBuffer
+            if (recordSize < TX.OVERHEAD || recordSize > (TX.OVERHEAD + Transaction.TRANSACTION_BUFFER_SIZE) || type != TX.TYPE) {
                 throw new CorruptJournalException("Transaction record at " + addressToString(address)
                         + " has invalid length " + recordSize + " or type " + type);
             }
