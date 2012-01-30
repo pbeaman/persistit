@@ -5,7 +5,7 @@
     <artifactId>akiban-persistit</artifactId>
     <packaging>pom</packaging>
     <name>akiban-persistit</name>
-    <version>3.0.2-SNAPSHOT</version>
+    <version>3.0.3-SNAPSHOT</version>
     <properties>
         <!-- this is the default version number, Jenkins job sets this to the official number -->
         <BZR_REVISION></BZR_REVISION>
