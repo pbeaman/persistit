@@ -3344,6 +3344,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                     if (visitor != null) {
                         visitor.visitDataRecord(key, p, tail, klength, offset, length, getBytes());
                     }
+                    Debug.$assert1.t(MVV.verify(_bytes, offset, length));
                 }
 
                 if (_pool != null && getKeyCount() > _pool.getMaxKeys()) {
@@ -3397,12 +3398,25 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
     }
 
+    /**
+     * For each MVV record in a data page, attempt to prune it to remove
+     * obsolete versions. Note that also this process modifies the content of
+     * the buffer, the bufer remains logically identical. Therefore it is not
+     * necessary if the Buffer is already dirty to call
+     * {@link #writePageOnCheckpoint(long)}; in other words, the results of
+     * pruning the page can be saved with the preceding checkpoint even though a
+     * new checkpoint has been proposed.
+     * 
+     * @param tree
+     * @param spareKey
+     * @return
+     * @throws PersistitException
+     */
     boolean pruneMvvValues(final Tree tree, final Key spareKey) throws PersistitException {
         boolean changed = false;
         boolean bumped = false;
-        long timestamp = -1;
         if (!isMine()) {
-            throw new IllegalStateException("Exclusive claim required");
+            throw new IllegalStateException("Exclusive claim required " + this);
         }
         if (isDataPage() && _mvvCount != 0) {
             _mvvCount = 0;
@@ -3415,16 +3429,13 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 final int oldTailSize = decodeTailBlockSize(tbData);
                 final int offset = tail + _tailHeaderSize + klength;
                 final int oldSize = oldTailSize - klength - _tailHeaderSize;
+
                 if (oldSize > 0) {
-                    int valueByte = _bytes[tail + _tailHeaderSize + klength] & 0xFF;
+                    int valueByte = _bytes[offset] & 0xFF;
                     if (valueByte == MVV.TYPE_MVV) {
                         final int newSize = MVV.prune(_bytes, offset, oldSize, _persistit.getTransactionIndex(), true,
                                 prunedVersions);
                         if (newSize != oldSize) {
-                            if (timestamp == -1) {
-                                timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                                writePageOnCheckpoint(timestamp);
-                            }
                             changed = true;
                             int newTailSize = klength + newSize + _tailHeaderSize;
                             int oldNext = (tail + oldTailSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
@@ -3432,19 +3443,21 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                             if (newNext < oldNext) {
                                 // Free the remainder of the old tail block
                                 deallocTail(newNext, oldNext - newNext);
+                            } else {
+                                Debug.$assert0.t(newNext == oldNext);
                             }
                             // Rewrite the tail block header
                             putInt(tail, encodeTailBlock(newTailSize, klength));
-                            valueByte = _bytes[tail + _tailHeaderSize + klength] & 0xFF;
+                            valueByte = newSize > 0 ? _bytes[offset] & 0xFF : -1;
+                            if (Debug.ENABLED) {
+                                MVV.verify(_bytes, offset, newSize);
+                            }
                         }
-                        if (MVV.isArrayMVV(_bytes, offset, oldSize)) {
+                        if (MVV.isArrayMVV(_bytes, offset, newSize)) {
                             _mvvCount++;
                         }
-                    } else if (oldSize == LONGREC_SIZE && valueByte == LONGREC_TYPE
-                            && (_bytes[tail + _tailHeaderSize + klength + LONGREC_PREFIX_OFFSET] == LONGREC_TYPE)) {
-                        // TODO : enqueue background pruner - but for which
-                        // tree?
                     }
+
                     if (valueByte == MVV.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
                             // TODO : enqueue background pruner
@@ -3455,10 +3468,6 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                         } else if (p == _keyBlockEnd - KEYBLOCK_LENGTH) {
                             Debug.$assert1.t(false);
                         } else {
-                            if (timestamp == -1) {
-                                timestamp = _persistit.getTimestampAllocator().updateTimestamp();
-                                writePageOnCheckpoint(timestamp);
-                            }
                             if (removeKeys(p | EXACT_MASK, p | EXACT_MASK, spareKey)) {
                                 p -= KEYBLOCK_LENGTH;
                                 changed = true;
@@ -3472,8 +3481,9 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 }
             }
             if (changed) {
-                assert timestamp != -1 : "Timestamp writePageOnCheckpoint not called";
-                setDirtyAtTimestamp(timestamp);
+                if (!isDirty()) {
+                    setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
+                }
             }
             for (final PrunedVersion pv : prunedVersions) {
                 final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(pv.getTs());
@@ -3489,6 +3499,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 }
             }
         }
+
         if (Debug.ENABLED && changed) {
             assertVerify();
         }

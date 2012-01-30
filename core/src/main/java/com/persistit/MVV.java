@@ -27,6 +27,7 @@ import com.persistit.exception.CorruptValueException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 public class MVV {
@@ -51,7 +52,7 @@ public class MVV {
         public long getLongRecordPage() {
             return _longRecordPage;
         }
-        
+
         @Override
         public String toString() {
             return "PrunedVersion(" + TransactionStatus.versionString(_version) + "," + _longRecordPage + ")";
@@ -303,6 +304,7 @@ public class MVV {
          * simply replaced.
          */
         else {
+            Debug.$assert0.t(verify(target, targetOffset, targetLength));
             /*
              * Search for the matching version.
              */
@@ -345,6 +347,7 @@ public class MVV {
         to += LENGTH_PER_VERSION;
         System.arraycopy(source, sourceOffset, target, to, sourceLength);
         to += sourceLength;
+        Debug.$assert0.t(verify(target, targetOffset, to - targetOffset));
 
         return (to - targetOffset) | existedMask;
     }
@@ -355,7 +358,7 @@ public class MVV {
      * supplied byte array, starting offset and length. The result is that a
      * pruned version of the same MVV is written to the same byte array and
      * offset, and the length of the modified version is returned. Pruning never
-     * lengths an MVV and therefore the returned length is guaranteed to be less
+     * lengthens an MVV and therefore the returned length is guaranteed to be less
      * than or equal the the initial length.
      * </p>
      * <p>
@@ -363,13 +366,12 @@ public class MVV {
      * Exceptions is thrown.
      * </p>
      * <p>
-     * This method removes any version previously added by an aborted
-     * transaction. It also decrements the MVV count of the affected
-     * transaction, indicating that it is not necessary to perform proactive
-     * cleanup to discard that the associated TransactionStatus, and it also
-     * deallocates any long-record chains for pruned values. Therefore it is
-     * mandatory for the caller to write the pruned MVV back into the B-Tree.
-     * Failure to due so causes data corruption.
+     * This method adds {@link PrunedVersion} instances to the supplied list.
+     * PrunedVersion contains the versionHandle and if present, the long
+     * record pointer of a version that was removed by pruning. The caller
+     * should decrement the MVV count and decrement the long record chain
+     * for each added PrunedVersion at a time where this can safely be done.
+     * </p>
      * 
      * @param bytes
      *            the byte array
@@ -400,6 +402,8 @@ public class MVV {
             return length;
         }
 
+        Debug.$assert0.t(verify(bytes, offset, length));
+        
         boolean primordial = convertToPrimordial;
         int marked = 0;
         try {
@@ -423,6 +427,8 @@ public class MVV {
              */
             while (from < offset + length) {
                 final int vlength = getLength(bytes, from);
+                Debug.$assert0.t(vlength + from + LENGTH_PER_VERSION <= offset + length);
+
                 final long versionHandle = getVersion(bytes, from);
                 final long tc = ti.commitStatus(versionHandle, UNCOMMITTED, 0);
                 if (tc >= 0) {
@@ -451,7 +457,8 @@ public class MVV {
                             primordial = false;
                         }
                         assert versionHandle > lastVersionHandle;
-                        assert tc > lastVersionTc || lastVersionTc == UNCOMMITTED;
+                        // Note: tc == lastVersionTc when there are multiple steps
+                        assert tc >= lastVersionTc || lastVersionTc == UNCOMMITTED;
                         lastVersionIndex = from;
                         lastVersionHandle = versionHandle;
                         lastVersionTc = tc;
@@ -474,9 +481,9 @@ public class MVV {
              * Second pass - collect information from versions being pruned.
              */
             from = offset + 1;
-            to = from;
             while (from < offset + length) {
                 final int vlength = getLength(bytes, from);
+                Debug.$assert0.t(vlength + from + LENGTH_PER_VERSION <= offset + length);
                 if (!isMarked(bytes, from)) {
                     long version = getVersion(bytes, from);
                     long longRecordPage = 0;
@@ -502,9 +509,11 @@ public class MVV {
                     from = offset + 1;
                     while (from < offset + length) {
                         int vlength = getLength(bytes, from);
+                        Debug.$assert0.t(vlength + from + LENGTH_PER_VERSION <= offset + length);
                         if (isMarked(bytes, from)) {
                             System.arraycopy(bytes, from + LENGTH_PER_VERSION, bytes, offset, vlength);
                             marked--;
+                            Debug.$assert0.t(bytes[offset] != TYPE_MVV_BYTE);
                             return vlength;
                         }
                         from += vlength + LENGTH_PER_VERSION;
@@ -526,6 +535,8 @@ public class MVV {
                 newLength = length;
                 while (from < offset + newLength) {
                     final int vlength = getLength(bytes, from);
+                    Debug.$assert0.t(vlength + from + LENGTH_PER_VERSION <= offset + length);
+
                     if (isMarked(bytes, from)) {
                         unmark(bytes, from);
                         marked--;
@@ -539,6 +550,7 @@ public class MVV {
                         from += vlength + LENGTH_PER_VERSION;
                     }
                 }
+                Debug.$assert0.t(verify(bytes, offset, to - offset));
                 return to - offset;
             }
         } catch (InterruptedException ie) {
@@ -552,6 +564,7 @@ public class MVV {
                 int index = offset + 1;
                 while (index < length) {
                     int vlength = getLength(bytes, index);
+                    Debug.$assert0.t(vlength + index + LENGTH_PER_VERSION <= offset + length);
                     unmark(bytes, index);
                     index += vlength + LENGTH_PER_VERSION;
                     if (vlength <= 0) {
@@ -560,7 +573,27 @@ public class MVV {
                 }
             }
         }
+        
     }
+
+    static boolean verify(final byte[] bytes, final int offset, final int length) {
+        if (!isArrayMVV(bytes, offset, length)) {
+            /*
+             * Not an MVV
+             */
+            return true;
+        }
+        int from = offset + 1;
+        while (from < offset + length) {
+            final int vlength = getLength(bytes, from);
+            if (vlength < 0 || from + vlength + LENGTH_PER_VERSION > offset + length) {
+                return false;
+            }
+            from += vlength + LENGTH_PER_VERSION;
+        }
+        return true;
+    }
+
 
     /**
      * Search for a known version within a MVV array. If the version is found

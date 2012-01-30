@@ -110,7 +110,7 @@ class TimestampAllocator {
         return _timestamp.get();
     }
 
-    public long getProposedCheckpointTimestamp() throws PersistitInterruptedException {
+    long getProposedCheckpointTimestamp() throws PersistitInterruptedException {
         long timestamp;
         /*
          * Spin until stable. This value must not be observed until set.

@@ -113,15 +113,17 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         return _cleanupActionQueue.size();
     }
 
+    @Override
     public long getMinimumPruningDelay() {
         return _minimumPruningDelay.get();
     }
     
+    @Override
     public void setMinimumPruningDelay(final long delay) {
         _minimumPruningDelay.set(delay);
     }
 
-
+    @Override
     public void poll() throws Exception {
         final List<CleanupAction> workList = new ArrayList<CleanupAction>(WORKLIST_LENGTH);
         synchronized (this) {
@@ -150,6 +152,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         }
     }
 
+    @Override
     public synchronized void clear() {
         _cleanupActionQueue.clear();
     }
