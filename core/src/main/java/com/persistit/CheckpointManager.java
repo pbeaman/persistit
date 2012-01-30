@@ -142,6 +142,10 @@ class CheckpointManager extends IOTaskRunnable {
         return _checkpointInterval;
     }
 
+    void setCheckpointInterval(long interval) {
+        _checkpointInterval = interval;
+    }
+
     Checkpoint checkpoint() throws PersistitException {
         Checkpoint checkpoint = createCheckpoint();
         _persistit.flushBuffers(checkpoint.getTimestamp());
