@@ -17,7 +17,7 @@ package com.persistit;
 
 import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.TIMED_OUT;
-import static com.persistit.TransactionStatus.UNCOMMITTED;
+import static com.persistit.TransactionStatus.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -360,6 +360,8 @@ public class TransactionIndex implements TransactionIndexMXBean {
      * <code>versionHandle</code>. The result depends on the status of the
      * transaction T identified by the <code>versionHandle</code> as follows:
      * <ul>
+     * <li>If T's start timestamp is primordial (0), return
+     * {@link TransactionStatus#PRIMORDIAL}.</li>
      * <li>If T is the same transaction as this one (the transaction identified
      * by <code>ts</code>) then the result depends on the relationship between
      * the "step" number encoded in the supplied <code>versionHandle</code>
@@ -400,6 +402,9 @@ public class TransactionIndex implements TransactionIndexMXBean {
     long commitStatus(final long versionHandle, final long ts, final int step) throws InterruptedException,
             TimeoutException {
         final long tsv = vh2ts(versionHandle);
+        if (tsv == PRIMORDIAL) {
+            return PRIMORDIAL;
+        }
         if (tsv == ts) {
             /*
              * The update was created by this transaction. Policy is that if the
@@ -494,18 +499,6 @@ public class TransactionIndex implements TransactionIndexMXBean {
             }
         }
         return commitTimestamp;
-    }
-    
-    /**
-     * Helper method gets commit status for a transaction having the given start timestamp
-     * with respect to all time.
-     * @param ts
-     * @return
-     * @throws TimeoutException
-     * @throws InterruptedException
-     */
-    public long commitStatus(final long ts) throws TimeoutException, InterruptedException {
-        return commitStatus(ts2vh(ts), UNCOMMITTED, 0);
     }
 
     /**
@@ -999,6 +992,27 @@ public class TransactionIndex implements TransactionIndexMXBean {
     }
 
     /**
+     * Clear the MVV count for all aborted TransactionStatus instances that
+     * started before the specified timestamp. This method may be called by a
+     * utility program such as IntegrityCheck that has verified the
+     * non-existence of relevant MVV values across the entire database.
+     * 
+     * @return Count of TransationStatus instances affected
+     */
+    int resetMVVCounts(final long timestamp) {
+        int count = 0;
+        for (final TransactionIndexBucket bucket : _hashTable) {
+            bucket.lock();
+            try {
+                count += bucket.resetMVVCounts(timestamp);
+            } finally {
+                bucket.unlock();
+            }
+        }
+        return count;
+    }
+
+    /**
      * Compute and return the snapshot value of an Accumulator
      * 
      * @throws InterruptedException
@@ -1215,7 +1229,9 @@ public class TransactionIndex implements TransactionIndexMXBean {
         final StringBuilder sb = new StringBuilder();
         for (int index = 0; index < _hashTable.length; index++) {
             final TransactionIndexBucket bucket = _hashTable[index];
-            sb.append(String.format("%5d: %s\n", index, bucket));
+            if (!bucket.isEmpty()) {
+                sb.append(String.format("%5d: %s\n", index, bucket));
+            }
         }
         return sb.toString();
     }

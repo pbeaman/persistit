@@ -33,8 +33,7 @@ public class CorruptVolumeException extends PersistitException {
 
     public CorruptVolumeException(String msg) {
         super(msg);
-        if (Debug.ENABLED)
-            Debug.$assert1.t(false);
+        Debug.$assert0.t(false);
     }
 
 }

@@ -280,4 +280,11 @@ public class Tree extends SharedResource {
         return handle;
     }
 
+    /**
+     * Resets the handle to zero. Intended for use only by tests.
+     */
+    void resetHandle() {
+        _handle.set(0);
+    }
+
 }

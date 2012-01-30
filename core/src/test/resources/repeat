@@ -1,0 +1,9 @@
+#!/bin/bash
+count=$1
+command=$2
+for ((loop = 1; loop <= count; loop++))
+do
+  echo "Loop #$loop"
+  $command $loop
+done
+

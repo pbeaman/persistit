@@ -125,17 +125,7 @@ class CheckpointManager extends IOTaskRunnable {
     }
 
     public Checkpoint getCurrentCheckpoint() throws PersistitInterruptedException {
-        while (true) {
-            final Checkpoint checkpoint = _currentCheckpoint;
-            if (checkpoint !=UNAVALABLE_CHECKPOINT) {
-                return checkpoint;
-            }
-            Util.spinSleep();
-        }
-    }
-    
-    long getCheckpointTimestamp() {
-        return _currentCheckpoint.getTimestamp();
+        return _currentCheckpoint;
     }
 
     long getCheckpointInterval() {
@@ -209,7 +199,6 @@ class CheckpointManager extends IOTaskRunnable {
             Transaction txn = _persistit.getTransaction();
 
             _lastCheckpointNanos = System.nanoTime();
-            _currentCheckpoint = UNAVALABLE_CHECKPOINT;
 
             txn.beginCheckpoint();
             try {

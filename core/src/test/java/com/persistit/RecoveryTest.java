@@ -145,7 +145,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
 
         };
-        plan.applyAllCommittedTransactions(actor, plan.getDefaultRollbackListener());
+        plan.applyAllRecoveredTransactions(actor, plan.getDefaultRollbackListener());
         assertEquals(15, recoveryTimestamps.size());
     }
 
@@ -165,7 +165,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit.initialize(saveProperties);
         assertTrue(rman.getCommittedCount() > 0);
         rman.setRecoveryDisabledForTestMode(false);
-        rman.applyAllCommittedTransactions(rman.getDefaultCommitListener(), rman.getDefaultRollbackListener());
+        rman.applyAllRecoveredTransactions(rman.getDefaultCommitListener(), rman.getDefaultRollbackListener());
         fetch3();
     }
 
