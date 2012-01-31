@@ -3485,19 +3485,8 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                     setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
                 }
             }
-            for (final PrunedVersion pv : prunedVersions) {
-                final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(pv.getTs());
-                if (ts != null && ts.getTc() == TransactionStatus.ABORTED) {
-                    ts.decrementMvvCount();
-                }
-                if (pv.getLongRecordPage() != 0) {
-                    try {
-                        _vol.getStructure().deallocateGarbageChain(pv.getLongRecordPage(), 0);
-                    } catch (PersistitException e) {
-                        _persistit.getLogBase().pruneException.log(e, ts);
-                    }
-                }
-            }
+            
+            Buffer.deallocatePrunedVersions(_persistit, _vol, prunedVersions);
         }
 
         if (Debug.ENABLED && changed) {
@@ -4051,6 +4040,23 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             }
             tail += tbSize;
         }
+    }
+
+    static void deallocatePrunedVersions(Persistit persistit, Volume volume, List<PrunedVersion> prunedVersions) {
+        for (final PrunedVersion pv : prunedVersions) {
+            final TransactionStatus ts = persistit.getTransactionIndex().getStatus(pv.getTs());
+            if (ts != null && ts.getTc() == TransactionStatus.ABORTED) {
+                ts.decrementMvvCount();
+            }
+            if (pv.getLongRecordPage() != 0) {
+                try {
+                    volume.getStructure().deallocateGarbageChain(pv.getLongRecordPage(), 0);
+                } catch (PersistitException e) {
+                    persistit.getLogBase().pruneException.log(e, ts);
+                }
+            }
+        }
+        prunedVersions.clear();
     }
 
 }

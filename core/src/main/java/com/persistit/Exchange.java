@@ -1575,7 +1575,7 @@ public class Exchange {
                         if (incrementMVVCount) {
                             _transaction.getTransactionStatus().incrementMvvCount();
                         }
-                        deallocatePrunedVersions(prunedVersions);
+                        Buffer.deallocatePrunedVersions(_persistit, _volume, prunedVersions);
                     }
 
                     buffer.releaseTouched();
@@ -1695,23 +1695,6 @@ public class Exchange {
             _tree.getStatistics().bumpFetchCounter();
         }
         return keyExisted;
-    }
-
-    private void deallocatePrunedVersions(List<PrunedVersion> prunedVersions) {
-        for (final PrunedVersion pv : prunedVersions) {
-            final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(pv.getTs());
-            if (ts != null && ts.getTc() == TransactionStatus.ABORTED) {
-                ts.decrementMvvCount();
-            }
-            if (pv.getLongRecordPage() != 0) {
-                try {
-                    _volume.getStructure().deallocateGarbageChain(pv.getLongRecordPage(), 0);
-                } catch (PersistitException e) {
-                    _persistit.getLogBase().pruneException.log(e, ts);
-                }
-            }
-        }
-        prunedVersions.clear();
     }
     
     private long timestamp() {
