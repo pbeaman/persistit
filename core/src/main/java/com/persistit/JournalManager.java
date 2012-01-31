@@ -1052,6 +1052,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         return address % _blockSize;
     }
 
+    void stopCopier() {
+        _copier.setShouldStop(true);
+        _persistit.waitForIOTaskStop(_copier);
+    }
+
     public void close() throws PersistitIOException {
 
         synchronized (this) {
@@ -1731,6 +1736,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private class JournalCopier extends IOTaskRunnable {
 
+        private volatile boolean _shouldStop = false;
         private final ByteBuffer _bb = ByteBuffer.allocate(DEFAULT_COPY_BUFFER_SIZE);
         private List<PageNode> _copyList = new ArrayList<PageNode>(_copiesPerCycle);
         int _lastCyclePagesWritten;
@@ -1770,7 +1776,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
         @Override
         protected boolean shouldStop() {
-            return _closed.get();
+            return _closed.get() || _shouldStop;
         }
 
         @Override
@@ -1803,6 +1809,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             }
 
             return super.getPollInterval() / divisor;
+        }
+
+        void setShouldStop(boolean shouldStop) {
+            _shouldStop = shouldStop;
         }
     }
 

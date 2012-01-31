@@ -1737,6 +1737,13 @@ public class Persistit {
             }
         }
 
+        /*
+         * The copier is responsible for background pruning of aborted
+         * transactions. Halt it so Transaction#close() can be called
+         * without being concerned about its state changing.
+         */
+        _journalManager.stopCopier();
+
         getTransaction().close();
         cleanup();
 
