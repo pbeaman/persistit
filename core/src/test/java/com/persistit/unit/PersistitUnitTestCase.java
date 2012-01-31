@@ -19,6 +19,7 @@ import java.lang.ref.WeakReference;
 import java.util.Map;
 import java.util.Properties;
 
+import com.persistit.exception.PersistitException;
 import junit.framework.TestCase;
 
 import com.persistit.Persistit;
@@ -88,5 +89,13 @@ public abstract class PersistitUnitTestCase extends TestCase {
             }
         }
         return alive;
+    }
+
+    protected void safeCrashAndRestoreProperties() throws PersistitException {
+        Properties properties = _persistit.getProperties();
+        _persistit.flush();
+        _persistit.crash();
+        _persistit = new Persistit();
+        _persistit.initialize(properties);
     }
 }
