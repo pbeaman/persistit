@@ -2225,4 +2225,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     void unitTestClearTransactionMap() {
         _liveTransactionMap.clear();
     }
+
+    synchronized boolean unitTestTxnExistsInLiveMap(Long startTimestamp) {
+        return _liveTransactionMap.containsKey(startTimestamp);
+    }
 }
