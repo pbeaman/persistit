@@ -41,7 +41,11 @@ import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.persistit.Key.Direction;
+import com.persistit.MVV.PrunedVersion;
 import com.persistit.ValueHelper.MVVValueWriter;
 import com.persistit.ValueHelper.RawValueWriter;
 import com.persistit.exception.CorruptVolumeException;
@@ -182,7 +186,7 @@ public class Exchange {
         public int getLength() {
             return _foundLength;
         }
-
+        
         public boolean foundVersion() {
             return _foundVersion != MVV.VERSION_NOT_FOUND;
         }
@@ -1398,6 +1402,7 @@ public class Exchange {
                 }
 
                 checkLevelCache();
+                List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
 
                 try {
                     if (level >= _cacheDepth) {
@@ -1481,20 +1486,9 @@ public class Exchange {
                              */
                             byte[] spareBytes = _spareValue.getEncodedBytes();
                             int spareSize = keyExisted ? _spareValue.getEncodedSize() : -1;
-                            int prunedSpareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(),
-                                    false);
-                            if (prunedSpareSize != spareSize) {
-                                Debug.$assert0.t(prunedSpareSize < spareSize);
-                                valueToStore.setEncodedSize(prunedSpareSize);
-                                _rawValueWriter.init(valueToStore);
-                                boolean needSplit = putLevel(lc, _key, _rawValueWriter, buffer, foundAt, false);
-                                /*
-                                 * needSplit could be true here if the current
-                                 * value in the page is a LONG_RECORD and there
-                                 * isn't enough room for a short record.
-                                 */
-                                spareSize = prunedSpareSize;
-                            }
+                            spareSize = MVV.prune(spareBytes, 0, spareSize, _persistit.getTransactionIndex(),
+                                    false, prunedVersions);
+
 
                             final TransactionStatus tStatus = _transaction.getTransactionStatus();
                             final int tStep = _transaction.getCurrentStep();
@@ -1581,6 +1575,7 @@ public class Exchange {
                         if (incrementMVVCount) {
                             _transaction.getTransactionStatus().incrementMvvCount();
                         }
+                        Buffer.deallocatePrunedVersions(_persistit, _volume, prunedVersions);
                     }
 
                     buffer.releaseTouched();
@@ -1701,7 +1696,7 @@ public class Exchange {
         }
         return keyExisted;
     }
-
+    
     private long timestamp() {
         return _persistit.getTimestampAllocator().updateTimestamp();
     }
@@ -2644,6 +2639,9 @@ public class Exchange {
      */
     private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
         buffer.fetch(foundAt, value);
+        if (MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
+            buffer.enqueuePruningAction(_tree.getHandle());
+        }
         return mvccFetch(value, minimumBytes);
     }
 
@@ -2843,6 +2841,7 @@ public class Exchange {
      * @throws PersistitException
      */
     public void removeTree() throws PersistitException {
+        
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
@@ -2853,7 +2852,11 @@ public class Exchange {
         clear();
 
         _value.clear();
+        /*
+         * Remove from directory tree.
+         */
         _volume.getStructure().removeTree(_tree);
+
         initCache();
     }
 
@@ -3558,6 +3561,7 @@ public class Exchange {
 
     boolean prune(final Key key) throws PersistitException {
         Buffer buffer = null;
+        Debug.$assert1.t(_tree.isValid());
         try {
             search(key, true);
             buffer = _levelCache[0]._buffer;
@@ -3576,6 +3580,8 @@ public class Exchange {
     boolean prune(final Key key1, final Key key2) throws PersistitException {
         Buffer buffer = null;
         boolean pruned = false;
+        
+        Debug.$assert1.t(_tree.isValid());
         try {
             search(key1, true);
             buffer = _levelCache[0]._buffer;
@@ -3595,7 +3601,7 @@ public class Exchange {
                 buffer = _pool.get(_volume, buffer.getRightSibling(), true, true);
                 oldBuffer.release();
             }
-            
+
         } finally {
             if (buffer != null) {
                 buffer.release();

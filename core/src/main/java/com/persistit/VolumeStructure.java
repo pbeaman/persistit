@@ -131,7 +131,7 @@ class VolumeStructure {
     }
 
     /**
-     * Looks up by name and returns a <code>NewTree</code> within this
+     * Look up by name and returns a <code>Tree</code> within this
      * <code>Volume</code>. If no such tree exists, this method either creates a
      * new tree or returns null depending on whether the
      * <code>createIfNecessary</code> parameter is <code>true</code>.

@@ -99,6 +99,7 @@ public class IntegrityCheck extends Task {
         private long _mvvAntiValues = 0;
         private long _pruningErrorCount = 0;
         private long _prunedPageCount = 0;
+        private long _garbagePageCount = 0;
 
         Counters() {
 
@@ -118,6 +119,7 @@ public class IntegrityCheck extends Task {
             _mvvAntiValues = counters._mvvAntiValues;
             _pruningErrorCount = counters._pruningErrorCount;
             _prunedPageCount = counters._prunedPageCount;
+            _garbagePageCount = counters._garbagePageCount;
         }
 
         void difference(final Counters counters) {
@@ -134,6 +136,7 @@ public class IntegrityCheck extends Task {
             _mvvAntiValues = counters._mvvAntiValues - _mvvAntiValues;
             _pruningErrorCount = counters._pruningErrorCount - _pruningErrorCount;
             _prunedPageCount = counters._prunedPageCount - _prunedPageCount;
+            _garbagePageCount = counters._garbagePageCount - _garbagePageCount;
         }
 
         @Override
@@ -516,6 +519,13 @@ public class IntegrityCheck extends Task {
      */
     public long getPruningErrorCount() {
         return _counters._pruningErrorCount;
+    }
+
+    /**
+     * @return Count of garbage pages encountered while checking volumes.
+     */
+    public long getGarbagePageCount() {
+        return _counters._garbagePageCount;
     }
 
     /**
@@ -950,6 +960,7 @@ public class IntegrityCheck extends Task {
             return;
         }
 
+        _counters._garbagePageCount++;
         int next = garbageBuffer.getAlloc();
         int size = garbageBuffer.getBufferSize();
         int count = (size - next) / Buffer.GARBAGE_BLOCK_SIZE;
@@ -980,6 +991,7 @@ public class IntegrityCheck extends Task {
             if (!buffer.isDataPage() && !buffer.isIndexPage() && !buffer.isLongRecordPage()) {
                 addFault("Page of type " + buffer.getPageTypeName() + " found on garbage page", page, 3, 0);
             }
+            _counters._garbagePageCount++;
             _pagesVisited++;
             page = buffer.getRightSibling();
             buffer.release();

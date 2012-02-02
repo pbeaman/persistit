@@ -175,6 +175,7 @@ public class IntegrityCheckTest extends PersistitUnitTestCase {
         final Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
+        _persistit.getJournalManager().setRollbackPruningEnabled(false);
         _persistit.initialize(properties);
         
         for (int i = 0; i < 10; i++) {

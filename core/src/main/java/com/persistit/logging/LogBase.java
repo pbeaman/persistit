@@ -202,6 +202,9 @@ public class LogBase {
     @Message("WARNING|%s while performing cleanup action %s")
     public final LogItem cleanupException = PersistitLogMessage.empty();
 
+    @Message("WARNING|%s while pruning transaction record %s")
+    public final LogItem pruneException = PersistitLogMessage.empty();
+
     @Message ("WARNING|Crash retried %,d times on %s")
     public final LogItem crashRetry = PersistitLogMessage.empty();
     

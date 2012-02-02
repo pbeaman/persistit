@@ -55,6 +55,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
         final long FIVE_MIN_NANOS = 1000000000L * 60 * 5;
         _persistit.getCheckpointManager().setCheckpointInterval(FIVE_MIN_NANOS);
         super.setUp();
+        _persistit.getJournalManager().setRollbackPruningEnabled(false);
     }
 
     public void testBeginAbort() throws PersistitException {
@@ -318,6 +319,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
                     currentInTxnIndex = false;
                     currentInLiveMap = false;
                     safeCrashAndRestoreProperties();
+                    _persistit.getJournalManager().setRollbackPruningEnabled(false);
                 }
                 else {
                     fail("Unknown test node: " + curNode);

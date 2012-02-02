@@ -44,6 +44,7 @@ import com.persistit.JournalRecord.PA;
 import com.persistit.JournalRecord.PM;
 import com.persistit.JournalRecord.TM;
 import com.persistit.JournalRecord.TX;
+import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -165,9 +166,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private long _logRepeatInterval = DEFAULT_LOG_REPEAT_INTERVAL;
 
-    public JournalManager(final Persistit persistit) {
-        _persistit = persistit;
-    }
+    private TransactionPlayer _player = new TransactionPlayer(new JournalTransactionPlayerSupport());
+
+    private TransactionPlayerListener _listener = new ProactiveRollbackListener();
+
+    private AtomicBoolean _rollbackPruning = new AtomicBoolean(true);
 
     /**
      * <p>
@@ -341,6 +344,15 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     @Override
+    public void setRollbackPruningEnabled(boolean rollbackPruning) {
+        _rollbackPruning.set(rollbackPruning);
+    }
+
+    public JournalManager(final Persistit persistit) {
+        _persistit = persistit;
+    }
+
+    @Override
     public boolean isClosed() {
         return _closed.get();
     }
@@ -348,6 +360,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     @Override
     public boolean isCopying() {
         return _copying.get();
+    }
+
+    @Override
+    public boolean isRollbackPruningEnabled() {
+        return _rollbackPruning.get();
     }
 
     @Override
@@ -408,7 +425,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         if (volume.getHandle() != 0) {
             return volume.getHandle();
         }
-        synchronized(this) {
+        synchronized (this) {
             if (volume.getHandle() != 0) {
                 return volume.getHandle();
             }
@@ -767,7 +784,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     synchronized void writeTransactionMap() throws PersistitIOException {
-        pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp());
+        pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
         int count = _liveTransactionMap.size();
         final int recordSize = TM.OVERHEAD + TM.ENTRY_SIZE * count;
         prepareWriteBuffer(recordSize);
@@ -1033,6 +1050,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     long addressToOffset(final long address) {
         return address % _blockSize;
+    }
+
+    void stopCopier() {
+        _copier.setShouldStop(true);
+        _persistit.waitForIOTaskStop(_copier);
     }
 
     public void close() throws PersistitIOException {
@@ -1373,7 +1395,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         // be needed for recovery.
         //
         long recoveryTimestamp = checkpoint.getTimestamp();
-        long earliest = pruneObsoleteTransactions(recoveryTimestamp);
+        long earliest = pruneObsoleteTransactions(recoveryTimestamp, isRollbackPruningEnabled());
         recoveryTimestamp = Math.min(recoveryTimestamp, earliest);
         //
         // Remove all but the most recent PageNode version before the
@@ -1413,27 +1435,46 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @param timestamp
      * @return
      */
-    private long pruneObsoleteTransactions(final long timestamp) {
+    long pruneObsoleteTransactions(final long timestamp, boolean rollbackPruningEnabled) {
         long earliest = Long.MAX_VALUE;
+        List<TransactionMapItem> toPrune = new ArrayList<TransactionMapItem>();
         //
         // Remove any committed transactions that committed before the
         // checkpoint. No need to keep a record of such a transaction since it's
         // updates are now fully written to the journal in modified page images.
         //
-        for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator.hasNext();) {
-            final TransactionMapItem ts = iterator.next();
-            if (ts.isCommitted()) {
-                if (ts.getCommitTimestamp() < timestamp) {
-                    iterator.remove();
-                } else if (ts.getStartTimestamp() < earliest) {
-                    earliest = ts.getStartTimestamp();
+        synchronized (this) {
+            for (final Iterator<TransactionMapItem> iterator = _liveTransactionMap.values().iterator(); iterator
+                    .hasNext();) {
+                final TransactionMapItem item = iterator.next();
+                if (item.isCommitted()) {
+                    if (item.getCommitTimestamp() < timestamp) {
+                        iterator.remove();
+                    } else if (item.getStartTimestamp() < earliest) {
+                        earliest = item.getStartTimestamp();
+                    }
+                } else {
+                    final TransactionStatus status;
+                    status = _persistit.getTransactionIndex().getStatus(item.getStartTimestamp());
+                    if (status == null || status.getTs() != item.getStartTimestamp()) {
+                        iterator.remove();
+                    } else if (status.getTc() == ABORTED) {
+                        if (status.getMvvCount() == 0) {
+                            iterator.remove();
+                        } else {
+                            if (rollbackPruningEnabled) {
+                                toPrune.add(item);
+                            } 
+                        }
+                    }
                 }
-            } else {
-                final TransactionStatus status;
-                status = _persistit.getTransactionIndex().getStatus(ts.getStartTimestamp());
-                if (status == null || status.getMvvCount() == 0) {
-                    iterator.remove();
-                }
+            }
+        }
+        for (final TransactionMapItem item : toPrune) {
+            try {
+                _player.applyTransaction(item, _listener);
+            } catch (PersistitException e) {
+                _persistit.getLogBase().pruneException.log(e, item);
             }
         }
         return earliest;
@@ -1671,6 +1712,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             return _commitTimestamp > 0;
         }
 
+        boolean isAborted() {
+            return _commitTimestamp == ABORTED;
+        }
+
         @Override
         public String toString() {
             return String.format("TStatus %,d{%,d}%s", _startAddress, _commitTimestamp, isCommitted() ? "c" : "u");
@@ -1691,6 +1736,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private class JournalCopier extends IOTaskRunnable {
 
+        private volatile boolean _shouldStop = false;
         private final ByteBuffer _bb = ByteBuffer.allocate(DEFAULT_COPY_BUFFER_SIZE);
         private List<PageNode> _copyList = new ArrayList<PageNode>(_copiesPerCycle);
         int _lastCyclePagesWritten;
@@ -1709,6 +1755,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             if (!_appendOnly.get()) {
                 _copying.set(true);
                 try {
+                    pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
                     selectForCopy(_copyList);
                     if (!_copyList.isEmpty()) {
                         readForCopy(_copyList, _bb);
@@ -1729,7 +1776,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
         @Override
         protected boolean shouldStop() {
-            return _closed.get();
+            return _closed.get() || _shouldStop;
         }
 
         @Override
@@ -1762,6 +1809,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             }
 
             return super.getPollInterval() / divisor;
+        }
+
+        void setShouldStop(boolean shouldStop) {
+            _shouldStop = shouldStop;
         }
     }
 
@@ -2056,6 +2107,95 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
         if (deleted) {
             _deleteBoundaryAddress = deleteBoundary;
+        }
+    }
+
+    private class JournalTransactionPlayerSupport implements TransactionPlayerSupport {
+
+        final ByteBuffer _readBuffer = ByteBuffer.allocate(Transaction.TRANSACTION_BUFFER_SIZE
+                + JournalRecord.TX.OVERHEAD);
+
+        @Override
+        public void read(long address, int size) throws PersistitIOException {
+            _readBuffer.clear().limit(size);
+            readFully(_readBuffer, address);
+        }
+
+        @Override
+        public ByteBuffer getReadBuffer() {
+            return _readBuffer;
+        }
+
+        @Override
+        public void convertToLongRecord(Value value, int treeHandle, long address, long commitTimestamp)
+                throws PersistitException {
+            // Do nothing - long record value does not need to be recovered for
+            // pruning
+        }
+
+        @Override
+        public Persistit getPersistit() {
+            return _persistit;
+        }
+
+        @Override
+        public TreeDescriptor handleToTreeDescriptor(int treeHandle) {
+            return _handleToTreeMap.get(treeHandle);
+        }
+
+        @Override
+        public Volume handleToVolume(int volumeHandle) {
+            return _handleToVolumeMap.get(volumeHandle);
+        }
+
+    }
+
+    class ProactiveRollbackListener implements TransactionPlayerListener {
+
+        @Override
+        public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
+            exchange.prune();
+        }
+
+        @Override
+        public void removeKeyRange(final long address, final long timestamp, Exchange exchange, final Key from,
+                final Key to) throws PersistitException {
+            exchange.prune(from, to);
+        }
+
+        @Override
+        public void removeTree(final long address, final long timestamp, Exchange exchange) throws PersistitException {
+            // TODO
+        }
+
+        @Override
+        public void delta(final long address, final long timestamp, final Tree tree, final int index,
+                final int accumulatorType, final long value) throws PersistitException {
+            // Nothing to to undo.
+        }
+
+        @Override
+        public void startRecovery(long address, long timestamp) throws PersistitException {
+            // Default: do nothing
+        }
+
+        @Override
+        public void startTransaction(long address, long startTimestamp, final long commitTimestamp)
+                throws PersistitException {
+            // Default: do nothing
+        }
+
+        @Override
+        public void endTransaction(long address, long timestamp) throws PersistitException {
+            final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
+            assert ts != null : "Missing TransactionStatus for timestamp " + timestamp;
+            assert ts.getMvvCount() == 0 || !_persistit.isInitialized() : "Pruning all updates left remaining mvv count in "
+                    + ts;
+        }
+
+        @Override
+        public void endRecovery(long address, long timestamp) throws PersistitException {
+            // Default: do nothing
         }
     }
 
