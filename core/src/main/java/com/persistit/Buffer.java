@@ -3401,7 +3401,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     /**
      * For each MVV record in a data page, attempt to prune it to remove
      * obsolete versions. Note that also this process modifies the content of
-     * the buffer, the bufer remains logically identical. Therefore it is not
+     * the buffer, the buffer remains logically identical. Therefore it is not
      * necessary if the Buffer is already dirty to call
      * {@link #writePageOnCheckpoint(long)}; in other words, the results of
      * pruning the page can be saved with the preceding checkpoint even though a

@@ -2841,17 +2841,29 @@ public class Exchange {
      * @throws PersistitException
      */
     public void removeTree() throws PersistitException {
+        
         _persistit.checkClosed();
         _persistit.checkSuspended();
 
         if (!_ignoreTransactions) {
+            /*
+             * TODO: Temporary hack - required to prune all MVVs
+             */
+            removeAll();
+            /*
+             * Record the operation on the journal.
+             */
             _transaction.removeTree(this);
         }
 
         clear();
 
         _value.clear();
+        /*
+         * Remove from directory tree.
+         */
         _volume.getStructure().removeTree(_tree);
+
         initCache();
     }
 
@@ -3556,6 +3568,7 @@ public class Exchange {
 
     boolean prune(final Key key) throws PersistitException {
         Buffer buffer = null;
+        Debug.$assert1.t(_tree.isValid());
         try {
             search(key, true);
             buffer = _levelCache[0]._buffer;
@@ -3574,6 +3587,8 @@ public class Exchange {
     boolean prune(final Key key1, final Key key2) throws PersistitException {
         Buffer buffer = null;
         boolean pruned = false;
+        
+        Debug.$assert1.t(_tree.isValid());
         try {
             search(key1, true);
             buffer = _levelCache[0]._buffer;
