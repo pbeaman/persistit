@@ -2846,13 +2846,6 @@ public class Exchange {
         _persistit.checkSuspended();
 
         if (!_ignoreTransactions) {
-            /*
-             * TODO: Temporary hack - required to prune all MVVs
-             */
-            removeAll();
-            /*
-             * Record the operation on the journal.
-             */
             _transaction.removeTree(this);
         }
 
