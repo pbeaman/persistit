@@ -1395,7 +1395,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         // be needed for recovery.
         //
         long recoveryTimestamp = checkpoint.getTimestamp();
-        long earliest = pruneObsoleteTransactions(recoveryTimestamp, isRollbackPruningEnabled());
+        long earliest = pruneObsoleteTransactions(recoveryTimestamp, false);
         recoveryTimestamp = Math.min(recoveryTimestamp, earliest);
         //
         // Remove all but the most recent PageNode version before the
@@ -1752,10 +1752,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         @Override
         public void runTask() throws Exception {
 
+            pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
+
             if (!_appendOnly.get()) {
                 _copying.set(true);
                 try {
-                    pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
                     selectForCopy(_copyList);
                     if (!_copyList.isEmpty()) {
                         readForCopy(_copyList, _bb);
