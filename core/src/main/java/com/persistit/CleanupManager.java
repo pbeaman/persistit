@@ -37,6 +37,8 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     final static int DEFAULT_QUEUE_SIZE = 10000;
 
     final static int WORKLIST_LENGTH = 100;
+    
+    private final static long DEFAULT_MINIMUM_PRUNING_DELAY = 1000;
 
     final Queue<CleanupAction> _cleanupActionQueue = new ArrayBlockingQueue<CleanupAction>(DEFAULT_QUEUE_SIZE);
 
@@ -49,6 +51,9 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
     private AtomicLong _performed = new AtomicLong();
 
     private AtomicLong _errors = new AtomicLong();
+    
+    private AtomicLong _minimumPruningDelay = new AtomicLong(DEFAULT_MINIMUM_PRUNING_DELAY);
+
 
     CleanupManager(final Persistit persistit) {
         super(persistit);
@@ -83,26 +88,42 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         return accepted;
     }
 
+    @Override
     public long getAcceptedCount() {
         return _accepted.get();
     }
 
+    @Override
     public long getRefusedCount() {
         return _refused.get();
     }
 
+    @Override
     public long getPerformedCount() {
         return _performed.get();
     }
 
+    @Override
     public long getErrorCount() {
         return _errors.get();
     }
 
+    @Override
     public long getEnqueuedCount() {
         return _cleanupActionQueue.size();
     }
 
+    @Override
+    public long getMinimumPruningDelay() {
+        return _minimumPruningDelay.get();
+    }
+    
+    @Override
+    public void setMinimumPruningDelay(final long delay) {
+        _minimumPruningDelay.set(delay);
+    }
+
+    @Override
     public void poll() throws Exception {
         final List<CleanupAction> workList = new ArrayList<CleanupAction>(WORKLIST_LENGTH);
         synchronized (this) {
@@ -131,6 +152,7 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
         }
     }
 
+    @Override
     public synchronized void clear() {
         _cleanupActionQueue.clear();
     }
@@ -169,6 +191,11 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
             } else {
                 return -1;
             }
+        }
+        
+        @Override
+        public String toString() {
+            return getClass().getName() + "[" + _treeHandle + "]" + _page;
         }
     }
 

@@ -15,17 +15,49 @@
 
 package com.persistit;
 
+import static com.persistit.Buffer.LONGREC_PAGE_OFFSET;
+import static com.persistit.Buffer.LONGREC_SIZE;
+import static com.persistit.Buffer.LONGREC_TYPE;
 import static com.persistit.TransactionIndex.vh2ts;
-import static com.persistit.TransactionStatus.ABORTED;
 import static com.persistit.TransactionStatus.UNCOMMITTED;
+
+import java.util.List;
 
 import com.persistit.exception.CorruptValueException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.TimeoutException;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 public class MVV {
+
+    static class PrunedVersion {
+        private final long _version;
+        private final long _longRecordPage;
+
+        private PrunedVersion(long version, long longRecordPage) {
+            _version = version;
+            _longRecordPage = longRecordPage;
+        }
+
+        public long getVersionHandle() {
+            return _version;
+        }
+
+        public long getTs() {
+            return vh2ts(_version);
+        }
+
+        public long getLongRecordPage() {
+            return _longRecordPage;
+        }
+
+        @Override
+        public String toString() {
+            return "PrunedVersion(" + TransactionStatus.versionString(_version) + "," + _longRecordPage + ")";
+        }
+    }
 
     final static int TYPE_MVV = 0xFE;
     final static int TYPE_ANTIVALUE = Value.CLASS_ANTIVALUE;
@@ -224,7 +256,8 @@ public class MVV {
             throw new IllegalArgumentException("Source and target arrays must be different");
         }
         if (sourceLength > MAX_LENGTH_MASK) {
-            throw new IllegalArgumentException("Source length greater than max: " + sourceLength + " > " + MAX_LENGTH_MASK);
+            throw new IllegalArgumentException("Source length greater than max: " + sourceLength + " > "
+                    + MAX_LENGTH_MASK);
         }
         /*
          * Value did not previously exist. Result will be an MVV with one
@@ -271,6 +304,7 @@ public class MVV {
          * simply replaced.
          */
         else {
+            Debug.$assert0.t(verify(target, targetOffset, targetLength));
             /*
              * Search for the matching version.
              */
@@ -313,6 +347,7 @@ public class MVV {
         to += LENGTH_PER_VERSION;
         System.arraycopy(source, sourceOffset, target, to, sourceLength);
         to += sourceLength;
+        Debug.$assert0.t(verify(target, targetOffset, to - targetOffset));
 
         return (to - targetOffset) | existedMask;
     }
@@ -323,7 +358,7 @@ public class MVV {
      * supplied byte array, starting offset and length. The result is that a
      * pruned version of the same MVV is written to the same byte array and
      * offset, and the length of the modified version is returned. Pruning never
-     * lengths an MVV and therefore the returned length is guaranteed to be less
+     * lengthens an MVV and therefore the returned length is guaranteed to be less
      * than or equal the the initial length.
      * </p>
      * <p>
@@ -331,11 +366,12 @@ public class MVV {
      * Exceptions is thrown.
      * </p>
      * <p>
-     * This method removes any version previously added by an aborted
-     * transaction. It also decrements the MVV count of the affected
-     * transaction, indicating that it is not necessary to perform proactive
-     * cleanup to discard that the associated TransactionStatus. Therefore it is
-     * mandatory for the caller to write the pruned MVV back into the B-Tree.
+     * This method adds {@link PrunedVersion} instances to the supplied list.
+     * PrunedVersion contains the versionHandle and if present, the long
+     * record pointer of a version that was removed by pruning. The caller
+     * should decrement the MVV count and decrement the long record chain
+     * for each added PrunedVersion at a time where this can safely be done.
+     * </p>
      * 
      * @param bytes
      *            the byte array
@@ -358,7 +394,7 @@ public class MVV {
      *             if the MVV value is corrupt
      */
     static int prune(final byte[] bytes, final int offset, final int length, final TransactionIndex ti,
-            boolean convertToPrimordial) throws PersistitInterruptedException, TimeoutException, CorruptValueException {
+            boolean convertToPrimordial, List<PrunedVersion> prunedVersionList) throws PersistitException {
         if (!isArrayMVV(bytes, offset, length)) {
             /*
              * Not an MVV
@@ -366,11 +402,14 @@ public class MVV {
             return length;
         }
 
+        Debug.$assert0.t(verify(bytes, offset, length));
+        
         boolean primordial = convertToPrimordial;
         int marked = 0;
         try {
             int from = offset + 1;
             int to = from;
+            int newLength;
             /*
              * Used to keep track of the latest version discovered in the
              * traversal. These variables identify a version that should be kept
@@ -388,6 +427,8 @@ public class MVV {
              */
             while (from < offset + length) {
                 final int vlength = getLength(bytes, from);
+                Debug.$assert0.t(vlength + from + LENGTH_PER_VERSION <= offset + length);
+
                 final long versionHandle = getVersion(bytes, from);
                 final long tc = ti.commitStatus(versionHandle, UNCOMMITTED, 0);
                 if (tc >= 0) {
@@ -410,20 +451,18 @@ public class MVV {
                         }
                         primordial = false;
                     } else {
-                        if (lastVersionIndex != -1
-                                && ti.hasConcurrentTransaction(lastVersionTc, tc)) {
+                        if (lastVersionIndex != -1 && ti.hasConcurrentTransaction(lastVersionTc, tc)) {
                             mark(bytes, lastVersionIndex);
                             marked++;
                             primordial = false;
                         }
                         assert versionHandle > lastVersionHandle;
-                        assert tc > lastVersionTc || lastVersionTc == UNCOMMITTED;
+                        // Note: tc == lastVersionTc when there are multiple steps
+                        assert tc >= lastVersionTc || lastVersionTc == UNCOMMITTED;
                         lastVersionIndex = from;
                         lastVersionHandle = versionHandle;
                         lastVersionTc = tc;
                     }
-                } else if (tc == ABORTED) {
-                    ti.decrementMvvCount(versionHandle);
                 }
                 from += vlength + LENGTH_PER_VERSION;
                 if (from > offset + length) {
@@ -437,8 +476,28 @@ public class MVV {
                     primordial = false;
                 }
             }
+
             /*
-             * Second pass - remove any unmarked versions and unmark any marked
+             * Second pass - collect information from versions being pruned.
+             */
+            from = offset + 1;
+            while (from < offset + length) {
+                final int vlength = getLength(bytes, from);
+                Debug.$assert0.t(vlength + from + LENGTH_PER_VERSION <= offset + length);
+                if (!isMarked(bytes, from)) {
+                    long version = getVersion(bytes, from);
+                    long longRecordPage = 0;
+                    if (vlength == LONGREC_SIZE && (bytes[from + LENGTH_PER_VERSION] & 0xFF) == LONGREC_TYPE) {
+                        longRecordPage = Util.getLong(bytes, from + LENGTH_PER_VERSION + LONGREC_PAGE_OFFSET);
+                    }
+                    PrunedVersion pv = new PrunedVersion(version, longRecordPage);
+                    prunedVersionList.add(pv);
+                }
+                from += vlength + LENGTH_PER_VERSION;
+            }
+
+            /*
+             * Third pass - remove any unmarked versions and unmark any marked
              * versions.
              */
             if (primordial && marked <= 1) {
@@ -450,9 +509,11 @@ public class MVV {
                     from = offset + 1;
                     while (from < offset + length) {
                         int vlength = getLength(bytes, from);
+                        Debug.$assert0.t(vlength + from + LENGTH_PER_VERSION <= offset + length);
                         if (isMarked(bytes, from)) {
                             System.arraycopy(bytes, from + LENGTH_PER_VERSION, bytes, offset, vlength);
                             marked--;
+                            Debug.$assert0.t(bytes[offset] != TYPE_MVV_BYTE);
                             return vlength;
                         }
                         from += vlength + LENGTH_PER_VERSION;
@@ -471,9 +532,11 @@ public class MVV {
                  */
                 from = offset + 1;
                 to = from;
-                int newLength = length;
+                newLength = length;
                 while (from < offset + newLength) {
                     final int vlength = getLength(bytes, from);
+                    Debug.$assert0.t(vlength + from + LENGTH_PER_VERSION <= offset + length);
+
                     if (isMarked(bytes, from)) {
                         unmark(bytes, from);
                         marked--;
@@ -487,6 +550,7 @@ public class MVV {
                         from += vlength + LENGTH_PER_VERSION;
                     }
                 }
+                Debug.$assert0.t(verify(bytes, offset, to - offset));
                 return to - offset;
             }
         } catch (InterruptedException ie) {
@@ -500,6 +564,7 @@ public class MVV {
                 int index = offset + 1;
                 while (index < length) {
                     int vlength = getLength(bytes, index);
+                    Debug.$assert0.t(vlength + index + LENGTH_PER_VERSION <= offset + length);
                     unmark(bytes, index);
                     index += vlength + LENGTH_PER_VERSION;
                     if (vlength <= 0) {
@@ -508,7 +573,27 @@ public class MVV {
                 }
             }
         }
+        
     }
+
+    static boolean verify(final byte[] bytes, final int offset, final int length) {
+        if (!isArrayMVV(bytes, offset, length)) {
+            /*
+             * Not an MVV
+             */
+            return true;
+        }
+        int from = offset + 1;
+        while (from < offset + length) {
+            final int vlength = getLength(bytes, from);
+            if (vlength < 0 || from + vlength + LENGTH_PER_VERSION > offset + length) {
+                return false;
+            }
+            from += vlength + LENGTH_PER_VERSION;
+        }
+        return true;
+    }
+
 
     /**
      * Search for a known version within a MVV array. If the version is found

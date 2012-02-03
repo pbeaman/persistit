@@ -1504,7 +1504,7 @@ public class Persistit {
 
     /**
      * @return The most recently proposed Checkpoint.
-     * @throws PersistitInterruptedException 
+     * @throws PersistitInterruptedException
      */
     public Checkpoint getCurrentCheckpoint() throws PersistitInterruptedException {
         return _checkpointManager.getCurrentCheckpoint();
@@ -1739,6 +1739,13 @@ public class Persistit {
             }
         }
 
+        /*
+         * The copier is responsible for background pruning of aborted
+         * transactions. Halt it so Transaction#close() can be called
+         * without being concerned about its state changing.
+         */
+        _journalManager.stopCopier();
+
         getTransaction().close();
         cleanup();
 
@@ -1765,7 +1772,7 @@ public class Persistit {
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
         }
-        
+
         /*
          * Close (and abort) all remaining transactions.
          */
@@ -1801,7 +1808,7 @@ public class Persistit {
 
         releaseAllResources();
     }
-    
+
     /**
      * Abruptly stop (using {@link Thread#stop()}) the writer and collector
      * processes. This method should be used only by tests.
@@ -1904,14 +1911,14 @@ public class Persistit {
             pool.flush(timestamp);
         }
     }
-    
+
     void flushTransactions(final long checkpointTimestamp) throws PersistitException {
         final List<Transaction> transactions;
         synchronized (_transactionSessionMap) {
             transactions = new ArrayList<Transaction>(_transactionSessionMap.values());
         }
-        
-        for (final Transaction transaction: transactions) {
+
+        for (final Transaction transaction : transactions) {
             transaction.flushOnCheckpoint(checkpointTimestamp);
         }
     }
@@ -2177,7 +2184,7 @@ public class Persistit {
     TransactionIndex getTransactionIndex() {
         return _transactionIndex;
     }
-
+    
     /**
      * Replaces the current logger implementation.
      * 
@@ -2570,46 +2577,48 @@ public class Persistit {
     }
 
     void addAccumulator(final Accumulator accumulator) throws PersistitException {
+        int checkpointCount = 0;
         synchronized (_accumulators) {
             _accumulators.add(accumulator.getAccumulatorRef());
             /*
-             * Count the checkpoint references. When the count is a multiple
-             * of ACCUMULATOR_CHECKPOINT_THRESHOLD, then call create a
-             * checkpoint which will write a checkpoint transaction and
-             * remove the checkpoint references. The threshold value is
-             * chosen to be large enough prevent creating too many checkpoints,
-             * but small enough that the number of excess Accumulators is
-             * kept to a reasonable number.
+             * Count the checkpoint references. When the count is a multiple of
+             * ACCUMULATOR_CHECKPOINT_THRESHOLD, then call create a checkpoint
+             * which will write a checkpoint transaction and remove the
+             * checkpoint references. The threshold value is chosen to be large
+             * enough prevent creating too many checkpoints, but small enough
+             * that the number of excess Accumulators is kept to a reasonable
+             * number.
              */
-            int checkpointCount = 0;
             for (AccumulatorRef ref : _accumulators) {
                 if (ref._checkpointRef != null) {
                     checkpointCount++;
                 }
             }
-            if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
-                try {
-                    _checkpointManager.createCheckpoint();
-                } catch (PersistitException e) {
-                    _logBase.exception.log(e);
-                }
+        }
+        if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
+            try {
+                _checkpointManager.createCheckpoint();
+            } catch (PersistitException e) {
+                _logBase.exception.log(e);
             }
         }
     }
 
-    synchronized List<Accumulator> getCheckpointAccumulators() {
+    List<Accumulator> getCheckpointAccumulators() {
         final List<Accumulator> result = new ArrayList<Accumulator>();
-        for (final Iterator<AccumulatorRef> refIterator = _accumulators.iterator(); refIterator.hasNext();) {
-            final AccumulatorRef ref = refIterator.next();
-            if (!ref.isLive()) {
-                refIterator.remove();
+        synchronized (_accumulators) {
+            for (final Iterator<AccumulatorRef> refIterator = _accumulators.iterator(); refIterator.hasNext();) {
+                final AccumulatorRef ref = refIterator.next();
+                if (!ref.isLive()) {
+                    refIterator.remove();
+                }
+                final Accumulator acc = ref.takeCheckpointRef();
+                if (acc != null) {
+                    result.add(acc);
+                }
             }
-            final Accumulator acc = ref.takeCheckpointRef();
-            if (acc != null) {
-                result.add(acc);
-            }
+            Collections.sort(result, Accumulator.SORT_COMPARATOR);
         }
-        Collections.sort(result, Accumulator.SORT_COMPARATOR);
         return result;
     }
     
@@ -2708,4 +2717,5 @@ public class Persistit {
             }
         }
     }
+
 }

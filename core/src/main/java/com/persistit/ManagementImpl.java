@@ -367,7 +367,7 @@ class ManagementImpl implements Management {
     public String transactionReport(int max) {
         return _persistit.transactionReport(max);
     }
-    
+
     @Override
     public LogicalRecord[] getLogicalRecordArray(String volumeName, String treeName, String keyFilterString,
             KeyState fromKey, Key.Direction direction, int maxCount, int maxValueBytes, boolean decodeStrings)
@@ -410,8 +410,7 @@ class ManagementImpl implements Management {
             }
         } catch (Exception e) {
             throw new WrappedRemoteException(e);
-        }
-        finally {
+        } finally {
             exchange.ignoreMVCCFetch(false);
         }
         if (count < maxCount) {

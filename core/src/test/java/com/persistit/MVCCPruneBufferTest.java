@@ -21,12 +21,12 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
     public void testPrunePrimordialAntiValues() throws PersistitException {
         trx1.begin();
-        
+
         ex1.getValue().put(RED_FOX);
         for (int i = 0; i < 5000; i++) {
             ex1.to(i).store();
         }
-        for (int i = 2; i < 5000; i+= 2) {
+        for (int i = 2; i < 5000; i += 2) {
             ex1.to(i).remove();
         }
         ex1.to(2500);
@@ -40,12 +40,12 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         assertEquals(keys, buffer1.getKeyCount());
         assertTrue(buffer1.getMvvCount() > 0);
         assertEquals(available, buffer1.getAvailableSize());
-        
+
         trx1.commit();
         trx1.end();
-        
+
         _persistit.getTransactionIndex().updateActiveTransactionCache();
-        
+
         buffer1.pruneMvvValues(null, ex1.getAuxiliaryKey1());
         assertEquals(0, _persistit.getCleanupManager().getAcceptedCount());
         assertTrue("Pruning should have removed primordial Anti-values", keys > buffer1.getKeyCount());
@@ -55,7 +55,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
 
     public void testPruneCleanup() throws Exception {
         trx1.begin();
-        
+
         ex1.getValue().put(RED_FOX);
         for (int i = 0; i < 5000; i++) {
             ex1.to(i).store();
@@ -72,10 +72,10 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
         assertEquals(keys, buffer1.getKeyCount());
         assertTrue(buffer1.getMvvCount() > 0);
         assertEquals(available, buffer1.getAvailableSize());
-        
+
         trx1.commit();
         trx1.end();
-        
+
         _persistit.getTransactionIndex().updateActiveTransactionCache();
         ex1.ignoreMVCCFetch(true);
         int antiValueCount1 = 0;
@@ -84,7 +84,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
             antiValueCount1++;
         }
         assertTrue(antiValueCount1 > 0);
-        
+
         /*
          * Prune without enqueuing edge key AntiValues
          */
@@ -97,16 +97,16 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
                 buffer.release();
             }
         }
-        
+
         int antiValueCount2 = 0;
         ex1.to(Key.BEFORE);
         while (ex1.next()) {
             antiValueCount2++;
         }
-        
+
         assertTrue(antiValueCount2 > 0);
         assertTrue(antiValueCount2 < antiValueCount1);
-        
+
         /*
          * Prune with enqueuing edge key AntiValues
          */
@@ -118,18 +118,91 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
                 buffer.release();
             }
         }
-        
+
         assertTrue(_persistit.getCleanupManager().getAcceptedCount() > 0);
-        _persistit.getCleanupManager().poll();
-        
-        assertEquals(_persistit.getCleanupManager().getAcceptedCount(), _persistit.getCleanupManager().getPerformedCount());
+        int cycles = 0;
+        while (cycles++ < 5
+                && _persistit.getCleanupManager().getAcceptedCount() > _persistit.getCleanupManager()
+                        .getPerformedCount()) {
+            _persistit.getCleanupManager().poll();
+        }
+
+        assertTrue(cycles < 5);
 
         int antiValueCount3 = 0;
         ex1.to(Key.BEFORE);
         while (ex1.next()) {
             antiValueCount3++;
         }
-        
+
         assertEquals(0, antiValueCount3);
+    }
+
+    public void testComplexPruning() throws Exception {
+        final Thread[] threads = new Thread[1000];
+        for (int cycle = 0; cycle < threads.length; cycle++) {
+            Thread.sleep(50);
+            final int myCycle = cycle;
+            threads[cycle] = new Thread(new Runnable() {
+                public void run() {
+                    Transaction txn = _persistit.getTransaction();
+                    try {
+                        txn.begin();
+                        switch(myCycle % 3) {
+                        case 0:
+                            storeNewVersion(myCycle);
+                            break;
+                        case 1:
+                            removeKeys(myCycle);
+                            break;
+                        case 2:
+                            countKeys();
+                            break;
+                        }
+                        if ((myCycle % 7) < 3) {
+                            txn.rollback();
+                        } else {
+                            txn.commit();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    } finally {
+                        txn.end();
+                    }
+                }
+            });
+            threads[cycle].start();
+            
+        }
+        for (int cycle = 0; cycle < threads.length; cycle++) {
+            threads[cycle].join();
+        }
+    }
+
+    private void storeNewVersion(final int cycle) throws Exception {
+        final Exchange exchange = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
+        exchange.getValue().put(String.format("%s%04d", RED_FOX, cycle));
+        for (int i = 1; i <= 100; i++) {
+            exchange.to(i).store();
+        }
+    }
+    
+    private void removeKeys(final int cycle) throws Exception {
+        final Exchange exchange = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
+        for (int i = (cycle % 2) + 1; i <= 100; i+=2) {
+            exchange.to(i).remove();
+        }
+        
+    }
+
+    private int countKeys() throws Exception {
+        Thread.sleep(2000);
+        final Exchange exchange = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
+        exchange.clear().append(Key.BEFORE);
+        int count = 0;
+        while (exchange.next()) {
+            count++;
+        }
+        return count;
     }
 }

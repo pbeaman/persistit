@@ -336,8 +336,15 @@ public class Transaction {
                 _persistit.getLogBase().txnAbandoned.log(this);
             }
         }
-        flushTransactionBuffer();
-        _previousJournalAddress = 0;
+        /*
+         * The background rollback cleanup should be stopped before
+         * calling this method so the following check is deterministic.
+         */
+        TransactionStatus status = _persistit.getTransactionIndex().getStatus(_startTimestamp);
+        if (status != null && status.getMvvCount() > 0) {
+            flushTransactionBuffer();
+            _previousJournalAddress = 0;
+        }
     }
 
     /**
