@@ -125,6 +125,9 @@ class CleanupManager extends IOTaskRunnable implements CleanupManagerMXBean {
 
     @Override
     public void poll() throws Exception {
+        _persistit.getIOMeter().poll();
+        _persistit.cleanup();
+
         final List<CleanupAction> workList = new ArrayList<CleanupAction>(WORKLIST_LENGTH);
         synchronized (this) {
             while (workList.size() < WORKLIST_LENGTH) {

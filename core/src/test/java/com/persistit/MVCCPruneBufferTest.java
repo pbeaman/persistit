@@ -16,6 +16,7 @@
 package com.persistit;
 
 import com.persistit.exception.PersistitException;
+import com.persistit.util.Util;
 
 public class MVCCPruneBufferTest extends MVCCTestBase {
 
@@ -139,7 +140,8 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
     }
 
     public void testComplexPruning() throws Exception {
-        final Thread[] threads = new Thread[1000];
+        _persistit.getCheckpointManager().setCheckpointInterval(5000);
+        final Thread[] threads = new Thread[500];
         for (int cycle = 0; cycle < threads.length; cycle++) {
             Thread.sleep(50);
             final int myCycle = cycle;
@@ -148,7 +150,7 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
                     Transaction txn = _persistit.getTransaction();
                     try {
                         txn.begin();
-                        switch(myCycle % 3) {
+                        switch (myCycle % 3) {
                         case 0:
                             storeNewVersion(myCycle);
                             break;
@@ -172,27 +174,59 @@ public class MVCCPruneBufferTest extends MVCCTestBase {
                 }
             });
             threads[cycle].start();
-            
+
         }
         for (int cycle = 0; cycle < threads.length; cycle++) {
             threads[cycle].join();
         }
     }
 
+    public void testDeadlock() throws Exception {
+        final JournalManager jman = _persistit.getJournalManager();
+        final Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int cycle = 0; cycle < 200; cycle++) {
+                    if ((cycle % 10) == 0) {
+                        System.out.println("cycle " + cycle);
+                    }
+                    Transaction txn = _persistit.getTransaction();
+                    try {
+                        txn.begin();
+                        storeNewVersion(cycle);
+                        Util.sleep(10);
+                        txn.rollback();
+                        System.gc();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    } finally {
+                        txn.end();
+                    }
+                }
+            }
+        });
+        thread.start();
+        while (thread.isAlive()) {
+            _persistit.checkpoint();
+            Util.sleep(100);
+        }
+    }
+
     private void storeNewVersion(final int cycle) throws Exception {
-        final Exchange exchange = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
+        final Exchange exchange = _persistit.getExchange(TEST_VOLUME_NAME, String.format("%s%04d", TEST_TREE_NAME,
+                cycle), true);
         exchange.getValue().put(String.format("%s%04d", RED_FOX, cycle));
         for (int i = 1; i <= 100; i++) {
             exchange.to(i).store();
         }
     }
-    
+
     private void removeKeys(final int cycle) throws Exception {
         final Exchange exchange = _persistit.getExchange(TEST_VOLUME_NAME, TEST_TREE_NAME, true);
-        for (int i = (cycle % 2) + 1; i <= 100; i+=2) {
+        for (int i = (cycle % 2) + 1; i <= 100; i += 2) {
             exchange.to(i).remove();
         }
-        
+
     }
 
     private int countKeys() throws Exception {
