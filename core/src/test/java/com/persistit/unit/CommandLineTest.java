@@ -34,7 +34,7 @@ public class CommandLineTest extends PersistitUnitTestCase {
         assertNotNull(CLI.parseTask(_persistit, "backup file=somefile -a -y -z"));
         assertNotNull(CLI.parseTask(_persistit, "save trees=persistit file=somefile"));
         assertNotNull(CLI.parseTask(_persistit, "load trees=persistit:*{1:2} file=somefile -t -n"));
-        assertNull(CLI.parseTask(_persistit, "open datapath=somefile"));
+        assertNotNull(CLI.parseTask(_persistit, "open datapath=somefile"));
         try {
             CLI.parseTask(_persistit, "backup file=somefile -s -y -z wrong=parameter");
             fail();
@@ -79,7 +79,7 @@ public class CommandLineTest extends PersistitUnitTestCase {
 
         final String datapath = _persistit.getProperty("datapath");
         final String rmiport = _persistit.getProperty("rmiport");
-        final StringReader stringReader = new StringReader(String.format("open datapath=%s rmiport=%s\nicheck -v\n", datapath, rmiport));
+        final StringReader stringReader = new StringReader(String.format("help\nopen datapath=%s rmiport=%s\nicheck -v\n", datapath, rmiport));
         final BufferedReader reader = new BufferedReader(stringReader);
         final StringWriter stringWriter = new StringWriter();
         final PrintWriter writer = new PrintWriter(stringWriter);

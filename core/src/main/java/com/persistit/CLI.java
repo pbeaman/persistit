@@ -60,61 +60,81 @@ import com.persistit.util.ArgParser;
 import com.persistit.util.Util;
 
 /**
- * Handle commands delivered interactively as command strings.  For example,
- * the following loads a Persistit database located in directory /var/lib/data,
+ * <p>
+ * Handle commands delivered interactively as command strings. For example, the 
+ * following loads a Persistit database located in directory /var/lib/data, 
  * selects a volume named xyz, and displays page 42 of that volume:
+ * 
  * <code><pre>
  * load datapath=/var/lib/data
  * select volume=xyz
  * view page=42
  * </pre></code>
- * <p />
- * Command lines can be entered interactively from stdin and stdout. Alternatively,
+ * </p>
+ * <p>
+ * CLI operates in one of two modes: "live" and "standalone".
+ * </p><p>
+ * In live mode you use one of several access methods to invoke commands to be processed within
+ * an actively running server process that has initialized Persistit. Access methods include
+ * the AdminUI utility, the Persistit management MBean, a simple network server that can receive 
+ * command lines from an external tool, or via an application program using the {@link Management} interface.
+ * </p>
+ * <p>
+ * In stand-alone mode you specify through the <code>open</code> command a path on which to find Persistit database
+ * files; the open command creates a read-only version Persistit instance capable of
+ * performing read-only operations such as <code>save</code>, <code>backup</code>
+ * or <code>icheck</code> on the data found in those files. 
+ * </p>
+ * <p>
  * CLI can set up an extremely simple network server that works with telnet or curl.
  * The advantage is that you can then issue commands interactively
  * from a simple network client using the full facilities of the shell, including
  * piping the output to tools such as grep and more.
- * <p />
- * To run the CLI, simple execute
+ * </p>
+ * <p>
+ * To run the CLI in standalone mode, simply execute
  * <code><pre>
- * java -cp persisit.jar com.persistit.CLI
+ * java -cp persisit.jar com.persistit.Persistit port=nnnn
  * </pre></code>
- * where persistit.jar contains the Persistit library. If you want to use the network
- * version, add the argument port=NNNN to specify a port on which CLI will listen for
- * commands. (Use a port number larger than 1024 to avoid permissions problems.)
- * <p />
- * Commands are defined below in methods annotated with @Cmd having parameters annotated with @Arg.
- * The format of the argument annotation is specified in {@link ArgParser). Enter the command
- * 'help' to see a readable list of commands and their arguments.
- * <p />
+ * or
+ * <code><pre>
+ * java -cp persisit.jar com.persistit.Persistit script=pathname
+ * </pre></code>
+ * where persistit.jar contains the Persistit library. The first option specifies a port on which CLI will listen for
+ * commands. (Use a port number larger than 1024 to avoid permissions problems.) 
  * The following client script works with the network server facility:
  * <code><pre>
  *   #!/bin/sh
  *   echo "$*" | curl telnet://localhost:9999
  * </pre></code>
- * (The echo pipeline trick does not seem to work with telnet but does work with curl.) 
- * You can then enter command such as this at the shell:
+ * With it you can then enter command such as this at the shell:
  * 
  * <code><pre>
  * pcli init datapath=/var/lib/data
  * pcli select volume=xyz
  * pcli view page=42
- * </code></pre>
- * 
- * Note that the network server closes the client socket on each request, so a new connection
- * is formed each time you invoke curl or telnet.
- * 
- * 
+ * </pre></code>
+ * </p>
+ * <p>
+ * (Note that the network server closes the client socket on each request, so a new connection
+ * is formed each time you invoke curl or telnet.)
+ * The second option executes commands from a text file in batch mode.
+ * </p>
+ * <p>
+ * Commands are defined below in methods annotated with @Cmd having parameters annotated with @Arg.
+ * The format of the argument annotation is specified in {@link ArgParser). Enter the command
+ * 'help' to see a readable list of commands and their arguments.
+ * </p>
  * 
  * @author peter
- *
  */
+
 public class CLI {
     private final static int BUFFER_SIZE = 1024 * 1024;
     /*
      * "Huge" block size for pseudo-journal created by dump command.
      */
-    private final static long HUGE_BLOCK_SIZE = 100L * 1000L * 1000L * 1000L;
+    private final static long HUGE_BLOCK_SIZE = 1000L * 1000L * 1000L * 1000L;
     private final static char DEFAULT_COMMAND_DELIMITER = ' ';
     private final static char DEFAULT_QUOTE = '\\';
 
@@ -313,7 +333,7 @@ public class CLI {
         if (command == null) {
             return null;
         }
-        Task task = command.createTask(new ArgParser(commandName, pieces.toArray(new String[pieces.size()]),
+        Task task = command.createTask(persistit, new ArgParser(commandName, pieces.toArray(new String[pieces.size()]),
                 command.argTemplate));
         if (task != null) {
             task.setPersistit(persistit);
@@ -327,6 +347,23 @@ public class CLI {
         PrintWriter writer();
 
         void close() throws IOException;
+    }
+
+    private class NullReader implements LineReader {
+        @Override
+        public String readLine() throws IOException {
+            return null;
+        }
+
+        @Override
+        public PrintWriter writer() {
+            return _writer;
+        }
+
+        @Override
+        public void close() throws IOException {
+        }
+
     }
 
     /**
@@ -436,10 +473,11 @@ public class CLI {
             }
         }
 
-        private Task createTask(final ArgParser ap) throws Exception {
+        private Task createTask(final Persistit persistit, final ArgParser ap) throws Exception {
             if (Task.class.isAssignableFrom(method.getReturnType())) {
+                CLI cli = persistit.getSessionCLI();
                 final Object[] args = invocationArgs(ap);
-                Task task = (Task) method.invoke(null, args);
+                Task task = (Task) method.invoke(cli, args);
                 return task;
             } else {
                 return null;
@@ -492,6 +530,12 @@ public class CLI {
     private final boolean _live;
     private int _commandCount;
     private String _lastStatus;
+
+    public CLI(final Persistit persistit) {
+        _persistit = persistit;
+        _live = persistit != null;
+        _lineReader = new NullReader();
+    }
 
     public CLI(final Persistit persistit, final int port) throws IOException {
         _lineReader = new NetworkReader(port);
@@ -586,435 +630,594 @@ public class CLI {
     }
 
     @Cmd("open")
-    String open(@Arg("datapath|string|Data path") String datapath,
-            @Arg("journalpath|string|Journal path") String journalpath,
-            @Arg("volumepath|string|Volume file") String volumepath,
-            @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport,
-            @Arg("_flag|y|Recover committed transactions") boolean y) throws Exception {
-        close(false);
+    Task open(final @Arg("datapath|string|Data path") String datapath,
+            final @Arg("journalpath|string|Journal path") String journalpath,
+            final @Arg("volumepath|string|Volume file") String volumepath,
+            final @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport,
+            final @Arg("_flag|y|Recover committed transactions") boolean recover) throws Exception {
+        return new Task() {
 
-        String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath : journalpath));
-        List<VolumeSpecification> volumeSpecifications = volumeSpecifications(filesOnPath(volumepath.isEmpty() ? datapath
-                : volumepath));
-        Set<Integer> bufferSizes = new HashSet<Integer>();
-        for (final VolumeSpecification vs : volumeSpecifications) {
-            bufferSizes.add(vs.getPageSize());
-        }
-        final Properties properties = new Properties();
-        long bpoolMemory = availableMemory() / 2;
-        for (final Integer size : bufferSizes) {
-            int alloc = (int) (size * 1.25);
-            final int count = (int) ((bpoolMemory / bufferSizes.size()) / alloc);
-            properties.put(Persistit.BUFFERS_PROPERTY_NAME + size, Integer.toString(count));
-        }
-        int index = 0;
-        for (final VolumeSpecification vs : volumeSpecifications) {
-            String value = vs.toString();
-            if (!y) {
-                value += ",readOnly";
-            }
-            properties.put(Persistit.VOLUME_PROPERTY_PREFIX + (++index), value);
-        }
-        if (jpath != null) {
-            properties.put(Persistit.JOURNAL_PATH_PROPERTY_NAME, jpath);
-        }
-        properties.put(Persistit.APPEND_ONLY_PROPERTY, "true");
+            @Override
+            public void runTask() throws Exception {
+                close(false);
 
-        if (rmiport > 0) {
-            properties.put(Persistit.RMI_REGISTRY_PORT, Integer.toString(rmiport));
-        }
-        properties.put(Persistit.JMX_PARAMS, "true");
-
-        final Persistit persistit = new Persistit();
-        if (!y) {
-            persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
-        }
-        persistit.initialize(properties);
-
-        /**
-         * Following is a hack to figure ought whether there is a classIndex in
-         * exactly one volume, and if so, make is the system volume. There
-         * should be an API in the Persistit class itself to do this, but
-         * currently there isn't one.
-         */
-        Volume sysvol = null;
-        for (final Volume volume : persistit.getVolumes()) {
-            if (volume.getTree(ClassIndex.CLASS_INDEX_TREE_NAME, false) != null) {
-                if (sysvol == null) {
-                    sysvol = volume;
-                } else {
-                    sysvol = null;
-                    break;
+                String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath : journalpath));
+                List<VolumeSpecification> volumeSpecifications = volumeSpecifications(filesOnPath(volumepath.isEmpty() ? datapath
+                        : volumepath));
+                Set<Integer> bufferSizes = new HashSet<Integer>();
+                for (final VolumeSpecification vs : volumeSpecifications) {
+                    bufferSizes.add(vs.getPageSize());
                 }
-            }
-        }
-        if (sysvol != null) {
-            properties.put(Persistit.SYSTEM_VOLUME_PROPERTY, sysvol.getName());
-        }
+                final Properties properties = new Properties();
+                long bpoolMemory = availableMemory() / 2;
+                for (final Integer size : bufferSizes) {
+                    int alloc = (int) (size * 1.25);
+                    final int count = (int) ((bpoolMemory / bufferSizes.size()) / alloc);
+                    properties.put(Persistit.BUFFERS_PROPERTY_NAME + size, Integer.toString(count));
+                }
+                int index = 0;
+                for (final VolumeSpecification vs : volumeSpecifications) {
+                    String value = vs.toString();
+                    if (!recover) {
+                        value += ",readOnly";
+                    }
+                    properties.put(Persistit.VOLUME_PROPERTY_PREFIX + (++index), value);
+                }
+                if (jpath != null) {
+                    properties.put(Persistit.JOURNAL_PATH_PROPERTY_NAME, jpath);
+                }
+                properties.put(Persistit.APPEND_ONLY_PROPERTY, "true");
 
-        _persistit = persistit;
-        return "Last valid checkpoint=" + persistit.getRecoveryManager().getLastValidCheckpoint().toString();
+                if (rmiport > 0) {
+                    properties.put(Persistit.RMI_REGISTRY_PORT, Integer.toString(rmiport));
+                }
+                properties.put(Persistit.JMX_PARAMS, "true");
+
+                final Persistit persistit = new Persistit();
+                if (!recover) {
+                    persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
+                }
+                persistit.initialize(properties);
+
+                /**
+                 * Following is a hack to figure ought whether there is a
+                 * classIndex in exactly one volume, and if so, make is the
+                 * system volume. There should be an API in the Persistit class
+                 * itself to do this, but currently there isn't one.
+                 */
+                Volume sysvol = null;
+                for (final Volume volume : persistit.getVolumes()) {
+                    if (volume.getTree(ClassIndex.CLASS_INDEX_TREE_NAME, false) != null) {
+                        if (sysvol == null) {
+                            sysvol = volume;
+                        } else {
+                            sysvol = null;
+                            break;
+                        }
+                    }
+                }
+                if (sysvol != null) {
+                    properties.put(Persistit.SYSTEM_VOLUME_PROPERTY, sysvol.getName());
+                }
+
+                CLI.this._persistit = persistit;
+                postMessage("Last valid checkpoint="
+                        + persistit.getRecoveryManager().getLastValidCheckpoint().toString(), LOG_NORMAL);
+                return;
+            }
+
+            @Override
+            public String getStatus() {
+                return "";
+            }
+        };
     }
 
     @Cmd("list")
-    String list(@Arg("volume|string|Volume name") String vstring, @Arg("tree|string|Tree name") String tstring,
-            @Arg("_flag|r|Regular expression") boolean r) throws Exception {
-        if (_persistit == null) {
-            return "Persistit not loaded";
-        }
-        final Pattern vpattern = toRegEx(vstring, !r);
-        final Pattern tpattern = toRegEx(vstring, !r);
-        final StringBuilder sb = new StringBuilder();
-        for (final Volume volume : _persistit.getVolumes()) {
-            if (vpattern.matcher(volume.getName()).matches()) {
-                sb.append(volume);
-                sb.append(Util.NEW_LINE);
-                for (final String treeName : volume.getTreeNames()) {
+    Task list(final @Arg("volume|string|Volume name") String vstring,
+            final @Arg("tree|string|Tree name") String tstring, final @Arg("_flag|r|Regular expression") boolean r)
+            throws Exception {
+        return new Task() {
+
+            @Override
+            public void runTask() throws Exception {
+                if (_persistit == null) {
+                    postMessage("Persistit not loaded", LOG_NORMAL);
+                    return;
+                }
+                final Pattern vpattern = toRegEx(vstring, !r);
+                final Pattern tpattern = toRegEx(vstring, !r);
+                final StringBuilder sb = new StringBuilder();
+                for (final Volume volume : _persistit.getVolumes()) {
+                    if (vpattern.matcher(volume.getName()).matches()) {
+                        sb.append(volume);
+                        sb.append(Util.NEW_LINE);
+                        for (final String treeName : volume.getTreeNames()) {
+                            if (tpattern.matcher(treeName).matches()) {
+                                final Tree tree = volume.getTree(treeName, false);
+                                sb.append("   ");
+                                sb.append(tree);
+                                sb.append(Util.NEW_LINE);
+                            }
+                        }
+                    }
+                }
+                postMessage(sb.toString(), LOG_NORMAL);
+                return;
+            }
+
+            @Override
+            public String getStatus() {
+                return "";
+            }
+        };
+    }
+
+    @Cmd("journal")
+    Task journal(final @Arg("path|string:|Journal file name") String path,
+            final @Arg("start|long:0:0:10000000000000|Start journal address") long start,
+            final @Arg("end|long:1000000000000000000:0:1000000000000000000|End journal address") long end,
+            final @Arg("types|String:*|Selected record types, for example, \"PA,PM,CP\"") String types,
+            final @Arg("pages|String:*|Selected pages, for example, \"0,1,200-299,33333-\"") String pages,
+            final @Arg("timestamps|String:*|Selected timestamps, for example, \"132466-132499\"") String timestamps,
+            final @Arg("maxkey|int:42:4:10000|Maximum displayed key length") int maxkey,
+            final @Arg("maxvalue|int:42:4:100000|Maximum displayed value length") int maxvalue,
+            final @Arg("_flag|v|Verbose dump - includes PageMap and TransactionMap details") boolean v)
+            throws Exception {
+        return new Task() {
+
+            @Override
+            public void runTask() throws Exception {
+                final JournalTool jt = new JournalTool(_persistit);
+                jt.init(path, start, end, types, pages, timestamps, maxkey, maxvalue, v);
+                jt.setWriter(new PrintWriter(System.out));
+                jt.scan();
+            }
+
+            @Override
+            public String getStatus() {
+                return "";
+            }
+        };
+    }
+
+    @Cmd("source")
+    Task source(final @Arg("file|string|Read commands from file") String fileName) throws Exception {
+        return new Task() {
+
+            @Override
+            public void runTask() throws Exception {
+                if (!fileName.isEmpty()) {
+                    final FileReader in = new FileReader(fileName);
+                    _sourceStack.push(new BufferedReader(new BufferedReader(in)));
+                    postMessage(String.format("Source is %s", fileName), LOG_NORMAL);
+                    return;
+                } else {
+                    _sourceStack.clear();
+                    postMessage("Source is console", LOG_NORMAL);
+                    return;
+                }
+            }
+
+            @Override
+            public String getStatus() {
+                return "";
+            }
+        };
+
+    }
+
+    @Cmd("close")
+    Task close(final @Arg("_flag|f|Flush modifications to disk") boolean flush) throws Exception {
+        return new Task() {
+
+            @Override
+            public void runTask() throws Exception {
+                if (_persistit != null) {
+                    try {
+                        if (_live) {
+                            postMessage("Detaching from live Persistit instance without closing it", LOG_NORMAL);
+                            return;
+                        } else {
+                            _persistit.shutdownGUI();
+                            _persistit.close(flush);
+                        }
+                    } catch (Exception e) {
+                        postMessage(e.toString(), LOG_NORMAL);
+                        return;
+                    } finally {
+                        CLI.this._persistit = null;
+                        _currentVolume = null;
+                        _currentTree = null;
+                    }
+                }
+                postMessage("ok", LOG_NORMAL);
+                return;
+            }
+
+            @Override
+            public String getStatus() {
+                return "";
+            }
+        };
+    }
+
+    @Cmd("adminui")
+    Task adminui(final @Arg("_flag|g|Start") boolean g, final @Arg("_flag|x|Stop") boolean x) throws Exception {
+        return new Task() {
+
+            @Override
+            public void runTask() throws Exception {
+
+                if (_persistit == null) {
+                    postMessage("Persistit not loaded", LOG_NORMAL);
+                    return;
+                }
+                if (g) {
+                    _persistit.setupGUI(false);
+                    postMessage("Started AdminUI", LOG_NORMAL);
+                    return;
+                }
+                if (x) {
+                    _persistit.shutdownGUI();
+                    postMessage("Stopped AdminUI", LOG_NORMAL);
+                    return;
+                }
+                postMessage("No action specified", LOG_NORMAL);
+                return;
+            }
+
+            @Override
+            public String getStatus() {
+                return "";
+            }
+        };
+    }
+
+    @Cmd("select")
+    Task select(final @Arg("volume|string|Volume name") String vstring,
+            final @Arg("tree|string|Tree name") String tstring, final @Arg("_flag|r|Regular expression") boolean r)
+            throws Exception {
+
+        return new Task() {
+
+            @Override
+            public void runTask() throws Exception {
+
+                if (_persistit == null) {
+                    postMessage("Persistit not loaded", LOG_NORMAL);
+                    return;
+                }
+
+                final StringBuilder sb = new StringBuilder();
+
+                Volume selectedVolume = null;
+                Tree selectedTree = null;
+
+                boolean tooMany = false;
+
+                final Pattern vpattern = toRegEx(vstring, !r);
+                final Pattern tpattern = toRegEx(tstring, !r);
+                for (final Volume volume : _persistit.getVolumes()) {
+                    if (vpattern.matcher(volume.getName()).matches()) {
+                        if (selectedVolume == null) {
+                            selectedVolume = volume;
+                        } else if (!tooMany) {
+                            tooMany = true;
+                            sb.append("Multiple volumes - select one");
+                            sb.append(Util.NEW_LINE);
+                            sb.append(selectedVolume);
+                            sb.append(Util.NEW_LINE);
+                        }
+                        sb.append(volume);
+                        sb.append(Util.NEW_LINE);
+                    }
+                }
+                if (tooMany) {
+                    postMessage(sb.toString(), LOG_NORMAL);
+                    return;
+                }
+                if (selectedVolume != null) {
+                    _currentVolume = selectedVolume;
+                }
+                if (_currentVolume == null) {
+                    postMessage("No volume selected", LOG_NORMAL);
+                    return;
+                }
+                sb.setLength(0);
+                for (final String treeName : _currentVolume.getTreeNames()) {
                     if (tpattern.matcher(treeName).matches()) {
-                        final Tree tree = volume.getTree(treeName, false);
-                        sb.append("   ");
+                        final Tree tree = _currentVolume.getTree(treeName, false);
+                        if (selectedTree == null) {
+                            selectedTree = tree;
+                        } else if (!tooMany) {
+                            tooMany = true;
+                            sb.append("Multiple trees - select one");
+                            sb.append(Util.NEW_LINE);
+                            sb.append(selectedTree);
+                            sb.append(Util.NEW_LINE);
+                        }
                         sb.append(tree);
                         sb.append(Util.NEW_LINE);
                     }
                 }
-            }
-        }
-        return sb.toString();
-    }
-
-    @Cmd("journal")
-    String journal(@Arg("path|string:|Journal file name") String path,
-            @Arg("start|long:0:0:10000000000000|Start journal address") long start,
-            @Arg("end|long:1000000000000000000:0:1000000000000000000|End journal address") long end,
-            @Arg("types|String:*|Selected record types, for example, \"PA,PM,CP\"") String types,
-            @Arg("pages|String:*|Selected pages, for example, \"0,1,200-299,33333-\"") String pages,
-            @Arg("timestamps|String:*|Selected timestamps, for example, \"132466-132499\"") String timestamps,
-            @Arg("maxkey|int:42:4:10000|Maximum displayed key length") int maxkey,
-            @Arg("maxvalue|int:42:4:100000|Maximum displayed value length") int maxvalue,
-            @Arg("_flag|v|Verbose dump - includes PageMap and TransactionMap details") boolean v) throws Exception {
-        final JournalTool jt = new JournalTool(_persistit);
-        jt.init(path, start, end, types, pages, timestamps, maxkey, maxvalue, v);
-        jt.setWriter(_writer);
-        jt.scan();
-        return null;
-    }
-
-    @Cmd("source")
-    String source(@Arg("file|string|Read commands from file") String fileName) throws Exception {
-        if (!fileName.isEmpty()) {
-            final FileReader in = new FileReader(fileName);
-            _sourceStack.push(new BufferedReader(new BufferedReader(in)));
-            return String.format("Source is %s", fileName);
-        } else {
-            _sourceStack.clear();
-            return "Source is console";
-        }
-    }
-
-    @Cmd("close")
-    String close(@Arg("_flag|f|Flush modifications to disk") boolean flush) throws Exception {
-        if (_persistit != null) {
-            try {
-                if (_live) {
-                    return "Detaching from live Persistit instance without closing it";
+                if (tooMany) {
+                    postMessage(sb.toString(), LOG_NORMAL);
+                    return;
+                }
+                if (selectedTree != null) {
+                    _currentTree = selectedTree;
+                }
+                if (_currentTree == null) {
+                    postMessage(String.format("Volume %s selected", _currentVolume), LOG_NORMAL);
+                    return;
                 } else {
-                    _persistit.shutdownGUI();
-                    _persistit.close(flush);
+                    postMessage(String.format("Volume %s tree %s selected", _currentVolume, _currentTree), LOG_NORMAL);
+                    return;
                 }
-            } catch (Exception e) {
-                return e.toString();
-            } finally {
-                _persistit = null;
-                _currentVolume = null;
-                _currentTree = null;
             }
-        }
-        return "ok";
-    }
 
-    @Cmd("adminui")
-    String adminui(@Arg("_flag|g|Start") boolean g, @Arg("_flag|x|Stop") boolean x) throws Exception {
-        if (_persistit == null) {
-            return "Persistit not loaded";
-        }
-        if (g) {
-            _persistit.setupGUI(false);
-            return "Started AdminUI";
-        }
-        if (x) {
-            _persistit.shutdownGUI();
-            return "Stopped AdminUI";
-        }
-        return "No action specified";
-    }
-
-    @Cmd("select")
-    String select(@Arg("volume|string|Volume name") String vstring, @Arg("tree|string|Tree name") String tstring,
-            @Arg("_flag|r|Regular expression") boolean r) throws Exception {
-        if (_persistit == null) {
-            return "Persistit not loaded";
-        }
-
-        final StringBuilder sb = new StringBuilder();
-
-        Volume selectedVolume = null;
-        Tree selectedTree = null;
-
-        boolean tooMany = false;
-
-        final Pattern vpattern = toRegEx(vstring, !r);
-        final Pattern tpattern = toRegEx(tstring, !r);
-        for (final Volume volume : _persistit.getVolumes()) {
-            if (vpattern.matcher(volume.getName()).matches()) {
-                if (selectedVolume == null) {
-                    selectedVolume = volume;
-                } else if (!tooMany) {
-                    tooMany = true;
-                    sb.append("Multiple volumes - select one");
-                    sb.append(Util.NEW_LINE);
-                    sb.append(selectedVolume);
-                    sb.append(Util.NEW_LINE);
-                }
-                sb.append(volume);
-                sb.append(Util.NEW_LINE);
+            @Override
+            public String getStatus() {
+                return "";
             }
-        }
-        if (tooMany) {
-            return sb.toString();
-        }
-        if (selectedVolume != null) {
-            _currentVolume = selectedVolume;
-        }
-        if (_currentVolume == null) {
-            return "No volume selected";
-        }
-        sb.setLength(0);
-        for (final String treeName : _currentVolume.getTreeNames()) {
-            if (tpattern.matcher(treeName).matches()) {
-                final Tree tree = _currentVolume.getTree(treeName, false);
-                if (selectedTree == null) {
-                    selectedTree = tree;
-                } else if (!tooMany) {
-                    tooMany = true;
-                    sb.append("Multiple trees - select one");
-                    sb.append(Util.NEW_LINE);
-                    sb.append(selectedTree);
-                    sb.append(Util.NEW_LINE);
-                }
-                sb.append(tree);
-                sb.append(Util.NEW_LINE);
-            }
-        }
-        if (tooMany) {
-            return sb.toString();
-        }
-        if (selectedTree != null) {
-            _currentTree = selectedTree;
-        }
-        if (_currentTree == null) {
-            return String.format("Volume %s selected", _currentVolume);
-        } else {
-            return String.format("Volume %s tree %s selected", _currentVolume, _currentTree);
-        }
+        };
     }
 
     @Cmd("path")
-    String path(@Arg("key|string|Key") String keyString) throws Exception {
+    Task path(final @Arg("key|string|Key") String keyString) throws Exception {
 
-        if (_persistit == null) {
-            return "Persistit not loaded";
-        }
+        return new Task() {
 
-        if (_currentVolume == null || _currentTree == null) {
-            return "Tree not selected";
-        }
-        final Exchange exchange = new Exchange(_currentTree);
-        if (!keyString.isEmpty()) {
-            new KeyParser(keyString).parseKey(exchange.getKey());
-        }
-        StringBuilder sb = new StringBuilder();
-        int depth = _currentTree.getDepth();
-        for (int level = depth; --level >= 0;) {
-            Buffer copy = exchange.fetchBufferCopy(level);
-            if (sb.length() > 0) {
-                sb.append(Util.NEW_LINE);
+            @Override
+            public void runTask() throws Exception {
+                if (_persistit == null) {
+                    postMessage("Persistit not loaded", LOG_NORMAL);
+                    return;
+                }
+
+                if (_currentVolume == null || _currentTree == null) {
+                    postMessage("Tree not selected", LOG_NORMAL);
+                    return;
+                }
+                final Exchange exchange = new Exchange(_currentTree);
+                if (!keyString.isEmpty()) {
+                    new KeyParser(keyString).parseKey(exchange.getKey());
+                }
+                StringBuilder sb = new StringBuilder();
+                int depth = _currentTree.getDepth();
+                for (int level = depth; --level >= 0;) {
+                    Buffer copy = exchange.fetchBufferCopy(level);
+                    if (sb.length() > 0) {
+                        sb.append(Util.NEW_LINE);
+                    }
+                    sb.append(copy);
+                }
+                postMessage(sb.toString(), LOG_NORMAL);
+                return;
             }
-            sb.append(copy);
-        }
-        return sb.toString();
+
+            @Override
+            public String getStatus() {
+                return "";
+            }
+
+        };
     }
 
     @Cmd("view")
-    String view(@Arg("page|long:-1:-1:99999999999999999|Page address") long pageAddress,
-            @Arg("jaddr|long:-1:-1:99999999999999999|Journal address of a PA page record") long journalAddress,
-            @Arg("index|int:-1:-1:999999999|Buffer pool index") int index,
-            @Arg("pageSize|int:16384:1024:16384|Buffer pool index") int pageSize,
-            @Arg("level|int:0:0:30|Tree level") int level, @Arg("key|string|Key") String keyString,
-            @Arg("find|long:-1:0:99999999999999999|Optional page pointer to find") long findPointer,
-            @Arg("_flag|a|All lines") boolean allLines, @Arg("_flag|s|Summary only") boolean summary) throws Exception {
+    Task view(final @Arg("page|long:-1:-1:99999999999999999|Page address") long pageAddress,
+            final @Arg("jaddr|long:-1:-1:99999999999999999|Journal address of a PA page record") long journalAddress,
+            final @Arg("index|int:-1:-1:999999999|Buffer pool index") int index,
+            final @Arg("pageSize|int:16384:1024:16384|Buffer pool index") int pageSize,
+            final @Arg("level|int:0:0:30|Tree level") int level, final @Arg("key|string|Key") String keyString,
+            final @Arg("find|long:-1:0:99999999999999999|Optional page pointer to find") long findPointer,
+            final @Arg("_flag|a|All lines") boolean allLines, final @Arg("_flag|s|Summary only") boolean summary)
+            throws Exception {
 
-        if (_persistit == null) {
-            return "Persistit not loaded";
-        }
+        return new Task() {
 
-        final Buffer buffer;
-        int specified = 0;
-        if (pageAddress >= 0) {
-            specified++;
-        }
-        if (journalAddress >= 0) {
-            specified++;
-        }
-        if (index >= 0) {
-            specified++;
-        }
-        if (!keyString.isEmpty()) {
-            specified++;
-        }
-        if (specified != 1) {
-            return "Specify one of key=<key>, page=<page address> or journal=<journal address>";
-        }
-        if (index >= 0) {
-            BufferPool pool = _persistit.getBufferPool(pageSize);
-            buffer = pool.getBufferCopy(index);
-        } else if (journalAddress >= 0) {
-            buffer = _persistit.getJournalManager().readPageBuffer(journalAddress);
-            if (buffer == null) {
-                return String.format("Journal address %,d is not a valid PA record", journalAddress);
-            }
-            buffer.setValid();
-        } else if (pageAddress >= 0) {
-            if (_currentVolume == null) {
-                return "Select a volume";
-            }
-            buffer = _currentVolume.getPool().getBufferCopy(_currentVolume, pageAddress);
-        } else {
-            if (_currentTree == null) {
-                return "Select a tree";
-            }
-            final Exchange exchange = new Exchange(_currentTree);
+            @Override
+            public void runTask() throws Exception {
+                if (_persistit == null) {
+                    postMessage("Persistit not loaded", LOG_NORMAL);
+                    return;
+                }
 
-            if (!keyString.isEmpty()) {
-                new KeyParser(keyString).parseKey(exchange.getKey());
-            }
-            buffer = exchange.fetchBufferCopy(level);
-        }
-        if (summary) {
-            return buffer.toString();
-        }
-        String detail = buffer.toStringDetail(findPointer);
-        if (allLines) {
-            return detail;
-        } else {
-            int p = -1;
-            for (int i = 0; i < 20; i++) {
-                p = detail.indexOf('\n', p + 1);
-                if (p == -1) {
-                    return detail;
+                final Buffer buffer;
+                int specified = 0;
+                if (pageAddress >= 0) {
+                    specified++;
+                }
+                if (journalAddress >= 0) {
+                    specified++;
+                }
+                if (index >= 0) {
+                    specified++;
+                }
+                if (!keyString.isEmpty()) {
+                    specified++;
+                }
+                if (specified != 1) {
+                    postMessage("Specify one of key=<key>, page=<page address> or journal=<journal address>",
+                            LOG_NORMAL);
+                    return;
+                }
+                if (index >= 0) {
+                    BufferPool pool = _persistit.getBufferPool(pageSize);
+                    buffer = pool.getBufferCopy(index);
+                } else if (journalAddress >= 0) {
+                    buffer = _persistit.getJournalManager().readPageBuffer(journalAddress);
+                    if (buffer == null) {
+                        postMessage(String.format("Journal address %,d is not a valid PA record", journalAddress),
+                                LOG_NORMAL);
+                        return;
+                    }
+                    buffer.setValid();
+                } else if (pageAddress >= 0) {
+                    if (_currentVolume == null) {
+                        postMessage("Select a volume", LOG_NORMAL);
+                        return;
+                    }
+                    buffer = _currentVolume.getPool().getBufferCopy(_currentVolume, pageAddress);
+                } else {
+                    if (_currentTree == null) {
+                        postMessage("Select a tree", LOG_NORMAL);
+                        return;
+                    }
+                    final Exchange exchange = new Exchange(_currentTree);
+
+                    if (!keyString.isEmpty()) {
+                        new KeyParser(keyString).parseKey(exchange.getKey());
+                    }
+                    buffer = exchange.fetchBufferCopy(level);
+                }
+                if (summary) {
+                    postMessage(buffer.toString(), LOG_NORMAL);
+                    return;
+                }
+                String detail = buffer.toStringDetail(findPointer);
+                if (allLines) {
+                    postMessage(detail, LOG_NORMAL);
+                    return;
+                } else {
+                    int p = -1;
+                    for (int i = 0; i < 20; i++) {
+                        p = detail.indexOf('\n', p + 1);
+                        if (p == -1) {
+                            p = detail.length();
+                            break;
+                        }
+                    }
+                    postMessage(detail.substring(0, p), LOG_NORMAL);
+                    return;
                 }
             }
-            return detail.substring(0, p);
-        }
 
+            public String getStatus() {
+                return "";
+            }
+        };
     }
 
     @Cmd("dump")
-    String dump(@Arg("file|string|Name of file to receive output") String file, @Arg("_flag|s|Secure") boolean secure,
-            @Arg("_flag|o|Overwrite file") boolean ovewrite, @Arg("_flag|v|Verbose") boolean verbose) throws Exception {
-        final File target = new File(file);
-        if (target.exists() && !ovewrite) {
-            throw new IOException(file + " already exists");
-        }
+    Task dump(final @Arg("file|string|Name of file to receive output") String file,
+            final @Arg("_flag|s|Secure") boolean secure, final @Arg("_flag|o|Overwrite file") boolean ovewrite,
+            final @Arg("_flag|v|Verbose") boolean verbose) throws Exception {
 
-        final ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(target),
-                BUFFER_SIZE));
-        final String basePath = "PersistitDump_" + new SimpleDateFormat("yyyyMMddHHmm").format(new Date());
-        final long baseTime = System.currentTimeMillis();
+        return new Task() {
+            public void runTask() throws Exception {
+                final File target = new File(file);
+                if (target.exists() && !ovewrite) {
+                    throw new IOException(file + " already exists");
+                }
 
-        zos.setLevel(ZipEntry.DEFLATED);
-        ZipEntry ze = new ZipEntry(JournalManager.generationToFile(basePath, 0).getPath());
-        ze.setSize(Integer.MAX_VALUE);
-        ze.setTime(baseTime);
-        zos.putNextEntry(ze);
+                final ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(target),
+                        BUFFER_SIZE));
+                final String basePath = "PersistitDump_" + new SimpleDateFormat("yyyyMMddHHmm").format(new Date());
+                final long baseTime = System.currentTimeMillis();
 
-        final DataOutputStream stream = new DataOutputStream(zos);
+                zos.setLevel(ZipEntry.DEFLATED);
+                ZipEntry ze = new ZipEntry(JournalManager.generationToFile(basePath, 0).getPath());
+                ze.setSize(Integer.MAX_VALUE);
+                ze.setTime(baseTime);
+                zos.putNextEntry(ze);
 
-        final ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
-        {
-            JH.putType(bb);
-            JH.putTimestamp(bb, 0);
-            JH.putVersion(bb, JournalManagerMXBean.VERSION);
-            JH.putBlockSize(bb, HUGE_BLOCK_SIZE);
-            JH.putBaseJournalAddress(bb, 0);
-            JH.putCurrentJournalAddress(bb, 0);
-            JH.putJournalCreatedTime(bb, 0);
-            JH.putFileCreatedTime(bb, 0);
-            JH.putPath(bb, basePath);
-            bb.position(JH.getLength(bb));
-        }
+                final DataOutputStream stream = new DataOutputStream(zos);
 
-        final List<BufferPool> pools = new ArrayList<BufferPool>(_persistit.getBufferPoolHashMap().values());
-        for (final BufferPool pool : pools) {
-            pool.dump(stream, bb, secure, verbose);
-        }
+                final ByteBuffer bb = ByteBuffer.allocate(BUFFER_SIZE);
+                {
+                    JH.putType(bb);
+                    JH.putTimestamp(bb, 0);
+                    JH.putVersion(bb, JournalManagerMXBean.VERSION);
+                    JH.putBlockSize(bb, HUGE_BLOCK_SIZE);
+                    JH.putBaseJournalAddress(bb, 0);
+                    JH.putCurrentJournalAddress(bb, 0);
+                    JH.putJournalCreatedTime(bb, 0);
+                    JH.putFileCreatedTime(bb, 0);
+                    JH.putPath(bb, basePath);
+                    bb.position(JH.getLength(bb));
+                }
 
-        {
-            CP.putLength(bb, CP.OVERHEAD);
-            CP.putType(bb);
-            CP.putTimestamp(bb, _persistit.getTimestampAllocator().getCurrentTimestamp() + 1);
-            CP.putSystemTimeMillis(bb, baseTime);
-            CP.putBaseAddress(bb, 0);
-            bb.position(CP.OVERHEAD);
-        }
+                final List<BufferPool> pools = new ArrayList<BufferPool>(_persistit.getBufferPoolHashMap().values());
+                for (final BufferPool pool : pools) {
+                    pool.dump(stream, bb, secure, verbose);
+                }
 
-        bb.flip();
-        stream.write(bb.array(), 0, bb.limit());
-        stream.flush();
-        zos.closeEntry();
-        bb.clear();
+                {
+                    CP.putLength(bb, CP.OVERHEAD);
+                    CP.putType(bb);
+                    CP.putTimestamp(bb, _persistit.getTimestampAllocator().getCurrentTimestamp() + 1);
+                    CP.putSystemTimeMillis(bb, baseTime);
+                    CP.putBaseAddress(bb, 0);
+                    bb.position(CP.OVERHEAD);
+                }
 
-        PrintWriter writer = new PrintWriter(zos);
-        ze = new ZipEntry(basePath + ".txt");
-        ze.setSize(Integer.MAX_VALUE);
-        ze.setTime(baseTime);
-        zos.putNextEntry(ze);
-        List<Volume> volumes = _persistit.getVolumes();
+                bb.flip();
+                stream.write(bb.array(), 0, bb.limit());
+                stream.flush();
+                zos.closeEntry();
+                bb.clear();
 
-        writer.printf("@volumes=%d\n", volumes.size());
-        for (final Volume volume : volumes) {
-            writer.printf("%s\n", volume.toString());
-            final List<Tree> trees = volume.getStructure().referencedTrees();
-            writer.printf("@trees=%d\n", trees.size());
-            for (final Tree tree : trees) {
-                writer.printf("%s\n", tree.toString());
+                PrintWriter writer = new PrintWriter(zos);
+                ze = new ZipEntry(basePath + ".txt");
+                ze.setSize(Integer.MAX_VALUE);
+                ze.setTime(baseTime);
+                zos.putNextEntry(ze);
+                List<Volume> volumes = _persistit.getVolumes();
+
+                writer.printf("@volumes=%d\n", volumes.size());
+                for (final Volume volume : volumes) {
+                    writer.printf("%s\n", volume.toString());
+                    final List<Tree> trees = volume.getStructure().referencedTrees();
+                    writer.printf("@trees=%d\n", trees.size());
+                    for (final Tree tree : trees) {
+                        writer.printf("%s\n", tree.toString());
+                    }
+                }
+                writer.printf("@bufferPools=%d\n", pools.size());
+                for (final BufferPool pool : pools) {
+                    writer.printf("%s\n", pool.toString());
+                    writer.printf("@buffers=%d\n", pool.getBufferCount());
+                    for (int i = 0; i < pool.getBufferCount(); i++) {
+                        writer.printf("%s\n", pool.toString(i, false));
+                    }
+                }
+                writer.flush();
+                zos.closeEntry();
+                stream.close();
             }
-        }
-        writer.printf("@bufferPools=%d\n", pools.size());
-        for (final BufferPool pool : pools) {
-            writer.printf("%s\n", pool.toString());
-            writer.printf("@buffers=%d\n", pool.getBufferCount());
-            for (int i = 0; i < pool.getBufferCount(); i++) {
-                writer.printf("%s\n", pool.toString(i, false));
+
+            @Override
+            public String getStatus() {
+                return "";
             }
-        }
-        writer.flush();
-        zos.closeEntry();
-        stream.close();
-        return "done";
+
+        };
     }
 
     @Cmd("help")
-    String help() throws Exception {
-        final StringBuilder sb = new StringBuilder();
-        for (final Command command : COMMANDS.values()) {
-            sb.append(Util.NEW_LINE);
-            sb.append(command.toString());
-        }
-        return sb.toString();
+    Task help() throws Exception {
+        return new Task() {
+
+            @Override
+            public void runTask() {
+                for (final Command command : COMMANDS.values()) {
+                    postMessage(command.toString(), LOG_NORMAL);
+                    postMessage("", LOG_NORMAL);
+                }
+            }
+
+            @Override
+            public String getStatus() {
+                return "done";
+            }
+
+        };
     }
 
     @Cmd("cliserver")
-    static Task cliserver(@Arg("port|int:9999:1024:99999999") final int port) throws Exception {
+    static Task cliserver(final @Arg("port|int:9999:1024:99999999") int port) throws Exception {
         Task task = new Task() {
             CLI _cli;
 
@@ -1040,7 +1243,7 @@ public class CLI {
         return task;
     }
 
-    private String journalPath(List<String> files) {
+    private static String journalPath(List<String> files) {
         String journalPath = null;
         for (final String file : files) {
             Matcher matcher = JournalManager.PATH_PATTERN.matcher(file);
@@ -1056,7 +1259,7 @@ public class CLI {
         return journalPath;
     }
 
-    private List<VolumeSpecification> volumeSpecifications(List<String> files) {
+    private static List<VolumeSpecification> volumeSpecifications(List<String> files) {
         final List<VolumeSpecification> list = new ArrayList<VolumeSpecification>();
         for (final String path : files) {
             if (JournalManager.PATH_PATTERN.matcher(path).matches()) {
@@ -1074,7 +1277,7 @@ public class CLI {
         return list;
     }
 
-    private List<String> filesOnPath(final String path) {
+    private static List<String> filesOnPath(final String path) {
         final List<String> list = new ArrayList<String>();
 
         File dir = new File(path);
@@ -1123,5 +1326,4 @@ public class CLI {
             return Pattern.compile(pattern);
         }
     }
-
 }

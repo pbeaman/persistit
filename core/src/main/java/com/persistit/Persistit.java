@@ -361,7 +361,7 @@ public class Persistit {
     };
 
     private final Map<SessionId, Transaction> _transactionSessionMap = new HashMap<SessionId, Transaction>();
-
+    
     private ManagementImpl _management;
 
     private final RecoveryManager _recoveryManager = new RecoveryManager(this);
@@ -385,6 +385,8 @@ public class Persistit {
     private long _defaultTimeout;
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
+    
+    private final WeakHashMap<SessionId, CLI> _cliSessionMap = new WeakHashMap<SessionId, CLI>();
 
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
@@ -1780,10 +1782,9 @@ public class Persistit {
             }
         } 
 
-
-
         _journalManager.close();
-        _transactionIndex.close();
+        IOTaskRunnable task = _transactionIndex.close();
+        waitForIOTaskStop(task);
 
         for (final Volume volume : volumes) {
             volume.close();
@@ -1851,6 +1852,8 @@ public class Persistit {
         _exchangePoolMap.clear();
         _cleanupManager.clear();
         _transactionSessionMap.clear();
+        _cliSessionMap.clear();
+        _sessionIdThreadLocal = null;
 
         unregisterMXBeans();
 
@@ -2608,6 +2611,15 @@ public class Persistit {
         }
         Collections.sort(result, Accumulator.SORT_COMPARATOR);
         return result;
+    }
+    
+    synchronized CLI getSessionCLI() {
+        CLI cli = _cliSessionMap.get(getSessionId());
+        if (cli == null) {
+            cli = new CLI(this);
+            _cliSessionMap.put(getSessionId(), cli);
+        }
+        return cli;
     }
 
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",
