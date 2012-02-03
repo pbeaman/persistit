@@ -2621,6 +2621,10 @@ public class Persistit {
         }
         return cli;
     }
+    
+    synchronized void clearSessionCLI() {
+        _cliSessionMap.remove(getSessionId());
+    }
 
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",
             "_flag|i|Perform IntegrityCheck on all volumes", "_flag|w|Wait until AdminUI exists",

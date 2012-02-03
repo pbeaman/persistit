@@ -816,6 +816,7 @@ public class CLI {
                 if (_persistit != null) {
                     try {
                         if (_live) {
+                            _persistit.clearSessionCLI();
                             postMessage("Detaching from live Persistit instance without closing it", LOG_NORMAL);
                             return;
                         } else {
