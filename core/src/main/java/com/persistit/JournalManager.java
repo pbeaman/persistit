@@ -784,7 +784,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     synchronized void writeTransactionMap() throws PersistitIOException {
-        pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
         int count = _liveTransactionMap.size();
         final int recordSize = TM.OVERHEAD + TM.ENTRY_SIZE * count;
         prepareWriteBuffer(recordSize);
@@ -1464,7 +1463,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                         } else {
                             if (rollbackPruningEnabled) {
                                 toPrune.add(item);
-                            } 
+                            }
                         }
                     }
                 }
@@ -2189,9 +2188,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         @Override
         public void endTransaction(long address, long timestamp) throws PersistitException {
             final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
-            assert ts != null : "Missing TransactionStatus for timestamp " + timestamp;
-            assert ts.getMvvCount() == 0 || !_persistit.isInitialized() : "Pruning all updates left remaining mvv count in "
-                    + ts;
+            /*
+             * Can be null because the MVV count became zero and
+             * TransactionIndex already removed it.
+             */
+            if (ts != null) {
+                assert ts.getMvvCount() == 0 || !_persistit.isInitialized() : "Pruning all updates left remaining mvv count in "
+                        + ts;
+            }
         }
 
         @Override
