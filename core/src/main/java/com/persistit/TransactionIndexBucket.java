@@ -474,11 +474,7 @@ public class TransactionIndexBucket {
                     previous.setNext(next);
                 }
                 _longRunningCount--;
-                if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
-                    free(status);
-                } else {
-                    _droppedCount++;
-                }
+                free(status);
             } else {
                 previous = status;
             }
