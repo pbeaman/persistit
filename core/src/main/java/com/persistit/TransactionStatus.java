@@ -352,9 +352,7 @@ public class TransactionStatus {
      * Initialize this <code>TransactionStatus</code> instance for a new
      * transaction.
      * 
-     * @param ts
-     * @throws InterruptedException
-     * @throws TimeoutException
+     * @param ts Start time of this status.
      */
     void initialize(final long ts) {
         _ts = ts;
@@ -364,6 +362,20 @@ public class TransactionStatus {
         _delta = null;
         _mvvCount.set(0);
         _notified = false;
+    }
+
+    /**
+     * Initialize this <code>TransactionStatus</code> instance for an
+     * artificial transaction known to be aborted. The initial state
+     * is aborted, infinite MVV count, and notified.
+     *
+     * @param ts Start time of this status.
+     */
+    void initializeAsAborted(final long ts) {
+        initialize(ts);
+        abort();
+        setMvvCount(Integer.MAX_VALUE);
+        _notified = true;
     }
 
     @Override

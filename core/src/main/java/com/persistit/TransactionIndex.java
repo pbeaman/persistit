@@ -935,9 +935,7 @@ public class TransactionIndex implements TransactionIndexMXBean {
             bucket.lock();
             try {
                 status = bucket.allocateTransactionStatus();
-                status.initialize(ts);
-                status.abort();
-                status.setMvvCount(Integer.MAX_VALUE);
+                status.initializeAsAborted(ts);
                 bucket.addAborted(status);
             } finally {
                 bucket.unlock();
