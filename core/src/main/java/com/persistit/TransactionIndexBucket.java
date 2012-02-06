@@ -21,6 +21,7 @@ import static com.persistit.TransactionStatus.UNCOMMITTED;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.persistit.Accumulator.Delta;
+import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RetryException;
 
 /**
@@ -174,6 +175,16 @@ public class TransactionIndexBucket {
         assert _lock.isHeldByCurrentThread();
         TransactionStatus status = _free;
         if (status != null) {
+            try {
+                if (!status.wwLock(0)) {
+                    assert false : "Free status has a wwLock";
+                } else {
+                    status.wwUnlock();
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+
             _free = status.getNext();
             _freeCount--;
             status.setNext(null);
@@ -527,7 +538,7 @@ public class TransactionIndexBucket {
         }
         return count;
     }
-    
+
     boolean isEmpty() {
         return _abortedCount + _currentCount + _longRunningCount == 0;
     }
