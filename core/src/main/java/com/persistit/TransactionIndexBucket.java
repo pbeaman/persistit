@@ -174,6 +174,7 @@ public class TransactionIndexBucket {
         assert _lock.isHeldByCurrentThread();
         TransactionStatus status = _free;
         if (status != null) {
+            assert !status.isLocked();
             _free = status.getNext();
             _freeCount--;
             status.setNext(null);

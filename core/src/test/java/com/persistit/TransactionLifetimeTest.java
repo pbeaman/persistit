@@ -75,7 +75,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
     }
 
     public void testBeginWriteAbort() throws PersistitException {
-        doTest(true, false, WRITE, ABORT);
+        doTest(true, true, WRITE, ABORT);
     }
 
     public void testBeginWriteCommit() throws PersistitException {
@@ -83,7 +83,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
     }
 
     public void testBeginCheckpointWriteAbort() throws PersistitException {
-        doTest(true, false, CHECKPOINT, WRITE, ABORT);
+        doTest(true, true, CHECKPOINT, WRITE, ABORT);
     }
 
     public void testBeginCheckpointWriteCommit() throws PersistitException {
@@ -287,6 +287,7 @@ public class TransactionLifetimeTest extends PersistitUnitTestCase {
                     txn.rollback();
                     aborted = true;
                     currentInTxnIndex = (writeCount > 0);
+                    currentInLiveMap = (writeCount > 0);
                     fullWriteCount += writeCount;
                     writeCount = 0;
                 }

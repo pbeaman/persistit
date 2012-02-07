@@ -243,6 +243,10 @@ public class TransactionStatus {
         }
         _notified = true;
     }
+    
+    boolean isLocked() {
+        return _wwLock.isLocked();
+    }
 
     Delta getDelta() {
         return _delta;

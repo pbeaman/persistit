@@ -74,4 +74,12 @@ public class TestShim {
     public static void prune(final Exchange ex) throws PersistitException {
         ex.prune();
     }
+    
+    public static void flushTransactionBuffer(final Transaction txn) throws PersistitException {
+        txn.flushTransactionBuffer();
+    }
+    
+    public static void setMinimumPruningDelay(final Persistit persistit, final long delay) {
+        persistit.getCleanupManager().setMinimumPruningDelay(delay);
+    }
 }
