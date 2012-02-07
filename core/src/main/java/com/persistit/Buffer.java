@@ -1899,6 +1899,11 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         if (Debug.ENABLED) {
             assertVerify();
         }
+        
+        if (_mvvCount > 0) {
+            rightSibling._mvvCount = Integer.MAX_VALUE;
+        }
+
 
         // First we calculate how large the virtual page containing the
         // modified or inserted key/value pair would be.
@@ -2317,7 +2322,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
         Debug.$assert0.t(KEY_BLOCK_START + KEYBLOCK_LENGTH < _keyBlockEnd);
         Debug.$assert0.t(KEY_BLOCK_START + KEYBLOCK_LENGTH < rightSibling._keyBlockEnd);
-
+        
         // Indicate that both buffers have changed.
         bumpGeneration();
         rightSibling.bumpGeneration();
@@ -2375,7 +2380,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             assertVerify();
             buffer.assertVerify();
         }
-
+        final boolean hasMVV = (_mvvCount > 0) || (buffer.getMvvCount() > 0);
         //
         // Initialize indexKey to contain the first key of the right
         // page.
@@ -2476,6 +2481,9 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             //
             long rightSibling = buffer.getRightSibling();
             setRightSibling(rightSibling);
+            if (hasMVV) {
+                _mvvCount = Integer.MAX_VALUE;
+            }
             invalidateFastIndex();
             result = false;
         }
@@ -2647,6 +2655,10 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
             invalidateFastIndex();
             buffer.invalidateFastIndex();
 
+            if (hasMVV) {
+                _mvvCount = Integer.MAX_VALUE;
+                buffer._mvvCount = Integer.MAX_VALUE;
+            }
             result = true;
         }
 
@@ -2682,8 +2694,6 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         if (!_fastIndex.isValid()) {
             _fastIndex.recompute();
         }
-        // TODO - rename and get rid of argument. This means this FastIndex has
-        // been "touched"
         _fastIndex.setTouched();
         return _fastIndex;
     }
@@ -3460,7 +3470,6 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
                     if (valueByte == MVV.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
-                            // TODO : enqueue background pruner
                             if (tree != null) {
                                 _persistit.getCleanupManager().offer(
                                         new CleanupAntiValue(tree.getHandle(), getPageAddress()));
@@ -3485,7 +3494,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                     setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
                 }
             }
-            
+
             Buffer.deallocatePrunedVersions(_persistit, _vol, prunedVersions);
         }
 

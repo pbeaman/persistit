@@ -337,8 +337,8 @@ public class Transaction {
             }
         }
         /*
-         * The background rollback cleanup should be stopped before
-         * calling this method so the following check is deterministic.
+         * The background rollback cleanup should be stopped before calling this
+         * method so the following check is deterministic.
          */
         TransactionStatus status = _persistit.getTransactionIndex().getStatus(_startTimestamp);
         if (status != null && status.getMvvCount() > 0) {
@@ -469,7 +469,8 @@ public class Transaction {
      * Updates are committed only if the <code>commit</code> method completes
      * successfully.
      * </p>
-     * @throws PersistitIOException 
+     * 
+     * @throws PersistitIOException
      * 
      * @throws IllegalStateException
      *             if there is no current transaction scope.
@@ -490,7 +491,11 @@ public class Transaction {
                     _persistit.getLogBase().txnNotCommitted.log(this);
                 }
                 if (!_rollbackCompleted) {
-                    rollback();
+                    try {
+                        rollback();
+                    } catch (PersistitIOException e) {
+                        _persistit.getLogBase().exception.log(e);
+                    }
                 }
             } else {
                 _commitCount++;
@@ -516,13 +521,14 @@ public class Transaction {
      * all enclosing transactions to roll back. This ensures that the outermost
      * transaction will not commit if any inner transaction has rolled back.
      * </p>
-     * @throws PersistitIOException 
+     * 
+     * @throws PersistitIOException
      * 
      * @throws IllegalStateException
      *             if there is no transaction scope or the current scope has
      *             already been committed.
      */
-    public void rollback() {
+    public void rollback() throws PersistitIOException {
 
         if (_nestedDepth < 1) {
             throw new IllegalStateException("No transaction scope: begin() not called in " + this);
@@ -537,12 +543,19 @@ public class Transaction {
         if (!_rollbackCompleted) {
             _rollbackCount++;
             _rollbacksSinceLastCommit++;
-
             _transactionStatus.abort();
-            _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
-                    _persistit.getTimestampAllocator().getCurrentTimestamp());
-
-            _rollbackCompleted = true;
+            try {
+                /*
+                 * Necessary to enable rollback pruning
+                 */
+                flushTransactionBuffer();
+                _previousJournalAddress = 0;
+            } finally {
+                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                        _persistit.getTimestampAllocator().getCurrentTimestamp());
+                _rollbackCompleted = true;
+                
+            }
         }
     }
 
