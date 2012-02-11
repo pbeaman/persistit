@@ -1130,6 +1130,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @throws PersistitIOException
      */
     synchronized long flush() throws PersistitIOException {
+        _persistit.checkFatal();
         final long address = _writeBufferAddress;
         if (address != Long.MAX_VALUE && _writeBuffer != null) {
             try {
@@ -1207,6 +1208,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @throws PersistitIOException
      */
     private boolean prepareWriteBuffer(final int size) throws PersistitIOException {
+        _persistit.checkFatal();
         boolean newJournalFile = false;
         if (_currentAddress % _blockSize == 0) {
             flush();

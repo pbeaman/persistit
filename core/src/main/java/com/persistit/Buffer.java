@@ -511,6 +511,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     void writePage() throws PersistitException {
+        _persistit.checkFatal();
         final Volume volume = getVolume();
         if (volume != null) {
             clearSlack();
@@ -1532,7 +1533,9 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                 repack();
                 setKeyBlockEnd(getKeyBlockEnd() + KEYBLOCK_LENGTH);
                 newTail = allocTail(newTailSize);
-                Debug.$assert0.t(newTail != -1);
+                if (newTail == -1) {
+                    _persistit.fatal("Insufficient space to insert record in " + this + " at =" + p, null);
+                }
             }
 
             // Shift the subsequent key blocks
@@ -1670,6 +1673,10 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                 // Guaranteed to succeed because of the test on willFit() above
                 //
                 newTail = allocTail(newTailSize);
+                if (newTail == -1) {
+                    _persistit
+                            .fatal("Insufficient space to replace records in " + this + " at =" + p, null);
+                }
             }
             putInt(p, encodeKeyBlockTail(kbData, newTail));
         }
@@ -1814,10 +1821,10 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                         freeNextTailBlock = true;
                     }
                     if (newNextTail == -1) {
-                        throw new IllegalStateException("Can't wedge enough space in " + this + " foundAt1=" + foundAt1
+                        _persistit.fatal("Can't wedge enough space in " + this + " foundAt1=" + foundAt1
                                 + " foundAt2=" + foundAt2 + " spareKey=" + spareKey + " nextTailBlockSize="
                                 + nextTailBlockSize + " newNextTailBlockSize=" + newNextTailBlockSize + " ebc=" + ebc
-                                + " ebcNext=" + ebcNext);
+                                + " ebcNext=" + ebcNext, null);
                     }
                 }
                 //
@@ -2297,7 +2304,10 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                 edgeTail = allocTail(edgeTailBlockSize);
             }
 
-            Debug.$assert0.t(edgeTail != -1);
+            if (edgeTail == -1) {
+                _persistit
+                        .fatal("Insufficient space for edgeTail records in " + this + " at =" + splitAtPosition, null);
+            }
             putInt(edgeTail, encodeTailBlock(edgeTailBlockSize, edgeKeyLength));
 
             System.arraycopy(indexKeyBytes, depth + 1, _bytes, edgeTail + _tailHeaderSize, edgeKeyLength);
@@ -2371,18 +2381,18 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
 
     /**
      * <p>
-     * Join or rebalances two pages as part of a deletion operation. This
-     * buffer contains the left edge of the deletion. All the keys at or above
-     * foundAt1 are to be removed. The supplied <code>Buffer</code> contains the
-     * key at the right edge of the deletion. All keys up to, but not including
+     * Join or rebalance two pages as part of a deletion operation. This buffer
+     * contains the left edge of the deletion. All the keys at or above foundAt1
+     * are to be removed. The supplied <code>Buffer</code> contains the key at
+     * the right edge of the deletion. All keys up to, but not including
      * foundAt2 are to be removed from it. Comments and variable names use the
      * words "left" and "right" to refer to this Buffer and the supplied Buffer,
      * respectively.
      * </p>
      * <p>
      * This method attempts to combine all the remaining keys and data into one
-     * page. If they will not fit, then it rebalances the keys and values
-     * across the two pages. As a side effect, it copies the first key of the
+     * page. If they will not fit, then it rebalances the keys and values across
+     * the two pages. As a side effect, it copies the first key of the
      * rebalanced right page into the supplied <code>indexKey</code>. The caller
      * will then reinsert that key value into index pages above this one.
      * </p>
@@ -2434,8 +2444,8 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
 
         if (Debug.ENABLED) {
             spareKey.clear();
-             assertVerify();
-             buffer.assertVerify();
+            assertVerify();
+            buffer.assertVerify();
         }
 
         final boolean hasMVV = (_mvvCount > 0) || (buffer.getMvvCount() > 0);
@@ -2637,9 +2647,9 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
         buffer.bumpGeneration();
 
         if (Debug.ENABLED) {
-             assertVerify();
+            assertVerify();
             if (result) {
-                 buffer.assertVerify();
+                buffer.assertVerify();
             }
         }
         return result;
@@ -2931,7 +2941,8 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                     newTail = wedgeTail(tail, delta);
 
                     if (newTail == -1) {
-                        throw new IllegalStateException("Can't wedge enough space");
+                        _persistit
+                        .fatal("Insufficient space for reduceEbc records in " + this + " at =" + p, null);
                     }
                 }
                 wedged = true;
@@ -3005,7 +3016,10 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                 newTail = allocTail(newSize);
             }
 
-            Debug.$assert0.t(newTail != -1);
+            if (newTail == -1) {
+                _persistit
+                        .fatal("Insufficient space to move records in " + this + "from " + buffer + " at =" + p, null);
+            }
 
             System.arraycopy(buffer._bytes, tail + 4, _bytes, newTail + 4, newSize - 4);
 
