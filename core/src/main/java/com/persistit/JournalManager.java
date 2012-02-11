@@ -49,6 +49,7 @@ import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.exception.RebalanceException;
 import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
@@ -2160,7 +2161,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         @Override
         public void removeKeyRange(final long address, final long timestamp, Exchange exchange, final Key from,
                 final Key to) throws PersistitException {
-            exchange.prune(from, to);
+            try {
+                exchange.prune(from, to);
+            } catch (RebalanceException e) {
+                // ignore
+            }
         }
 
         @Override
@@ -2193,8 +2198,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
              * TransactionIndex already removed it.
              */
             if (ts != null) {
-                assert ts.getMvvCount() == 0 || !_persistit.isInitialized() : "Pruning all updates left remaining mvv count in "
-                        + ts;
+                if (ts.getMvvCount() > 0 && _persistit.isInitialized()) {
+                    _persistit.getLogBase().pruningIncomplete.log(ts, TransactionPlayer.addressToString(address, timestamp));
+                }
             }
         }
 
