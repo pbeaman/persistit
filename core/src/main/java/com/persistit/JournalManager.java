@@ -44,6 +44,7 @@ import com.persistit.JournalRecord.PA;
 import com.persistit.JournalRecord.PM;
 import com.persistit.JournalRecord.TM;
 import com.persistit.JournalRecord.TX;
+import com.persistit.Persistit.FatalErrorException;
 import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.CorruptJournalException;
 import com.persistit.exception.PersistitException;
@@ -1839,9 +1840,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             try {
                 try {
                     force();
-
                 } catch (Exception e) {
-                    if (e instanceof InterruptedException) {
+                    if (e instanceof InterruptedException || e instanceof FatalErrorException) {
                         _closed.set(true);
                     }
                     if (_lastException == null || !e.getClass().equals(_lastException.getClass())

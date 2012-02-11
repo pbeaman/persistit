@@ -29,7 +29,11 @@ public class FatalErrorExceptionTest extends PersistitUnitTestCase {
         ex.getValue().put(RED_FOX);
         ex.to(1).store();
         ex.fetch();
-        _persistit.fatal("Test", new NullPointerException("Test"));
+        try {
+            _persistit.fatal("Test", new NullPointerException("Test"));
+        } catch (FatalErrorException e) {
+            // expected
+        }
         try {
             ex.store();
             fail("Expected FatalErrorException");
@@ -42,6 +46,7 @@ public class FatalErrorExceptionTest extends PersistitUnitTestCase {
         } catch (FatalErrorException e) {
             // expected
         }
+        _persistit.crash();
     }
 
 }
