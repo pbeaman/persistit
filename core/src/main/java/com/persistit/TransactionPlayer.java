@@ -238,11 +238,11 @@ public class TransactionPlayer {
         return appliedUpdates;
     }
 
-    public String addressToString(final long address) {
+    public static String addressToString(final long address) {
         return String.format("JournalAddress %,d", address);
     }
 
-    public String addressToString(final long address, final long timestamp) {
+    public static String addressToString(final long address, final long timestamp) {
         return String.format("JournalAddress %,d{%,d}", address, timestamp);
     }
 
