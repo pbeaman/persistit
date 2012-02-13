@@ -198,7 +198,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         // prevent journal cleanup.
         txn.begin();
         store0();
-        txn.flushTransactionBuffer();
+        txn.flushTransactionBuffer(true);
         txn.rollback();
         txn.end();
 
