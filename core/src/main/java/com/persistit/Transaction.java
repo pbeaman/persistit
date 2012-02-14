@@ -445,7 +445,6 @@ public class Transaction {
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
-            _buffer.clear();
         } else {
             checkPendingRollback();
         }
