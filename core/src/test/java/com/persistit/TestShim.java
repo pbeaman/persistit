@@ -82,4 +82,8 @@ public class TestShim {
     public static void setMinimumPruningDelay(final Persistit persistit, final long delay) {
         persistit.getCleanupManager().setMinimumPruningDelay(delay);
     }
+    
+    public static SessionId newSessionId() {
+        return new SessionId();
+    }
 }
