@@ -605,7 +605,6 @@ public class TransactionIndex implements TransactionIndexMXBean {
         } finally {
             bucket.unlock();
         }
-        status.wwUnlock();
     }
 
     /**
