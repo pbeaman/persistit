@@ -4,12 +4,12 @@
 	<parent>
 		<groupId>com.akiban</groupId>
 		<artifactId>akiban-persistit</artifactId>
-		<version>3.0.4-SNAPSHOT</version>
+		<version>3.0.5-SNAPSHOT</version>
 	</parent>
 	<artifactId>akiban-persistit-core</artifactId>
 	<packaging>jar</packaging>
 	<name>akiban-persistit-core</name>
-	<version>3.0.4-SNAPSHOT</version>
+	<version>3.0.5-SNAPSHOT</version>
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
