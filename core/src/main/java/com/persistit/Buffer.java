@@ -781,6 +781,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     void setAlloc(final int alloc) {
+        Debug.$assert0.t(alloc >= 0 && alloc <= _bufferSize);
         _alloc = alloc;
     }
 

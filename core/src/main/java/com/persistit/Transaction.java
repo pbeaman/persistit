@@ -341,8 +341,7 @@ public class Transaction {
          */
         TransactionStatus status = _persistit.getTransactionIndex().getStatus(_startTimestamp);
         if (status != null && status.getMvvCount() > 0) {
-            flushTransactionBuffer();
-            _previousJournalAddress = 0;
+            flushTransactionBuffer(false);
         }
     }
 
@@ -412,7 +411,7 @@ public class Transaction {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
-            flushTransactionBuffer();
+            flushTransactionBuffer(false);
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
             } catch (InterruptedException e) {
@@ -423,7 +422,6 @@ public class Transaction {
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
-            _previousJournalAddress = 0;
             _threadName = Thread.currentThread().getName();
         } else {
             checkPendingRollback();
@@ -436,7 +434,7 @@ public class Transaction {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
-            flushTransactionBuffer();
+            flushTransactionBuffer(false);
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
             } catch (InterruptedException e) {
@@ -447,8 +445,6 @@ public class Transaction {
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
-            _buffer.clear();
-            _previousJournalAddress = 0;
         } else {
             checkPendingRollback();
         }
@@ -543,8 +539,7 @@ public class Transaction {
                 /*
                  * Necessary to enable rollback pruning
                  */
-                flushTransactionBuffer();
-                _previousJournalAddress = 0;
+                flushTransactionBuffer(false);
             } catch (PersistitIOException e) {
                 _persistit.getLogBase().exception.log(e);
             } finally {
@@ -649,8 +644,7 @@ public class Transaction {
                  * will want to mark the transaction status as ABORTED in that
                  * case, but need to go look hard at TransactionIndex.
                  */
-                flushTransactionBuffer();
-                _previousJournalAddress = 0;
+                flushTransactionBuffer(false);
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
@@ -914,7 +908,7 @@ public class Transaction {
 
     synchronized private void prepare(final int recordSize) throws PersistitIOException {
         if (recordSize > _buffer.remaining()) {
-            flushTransactionBuffer();
+            flushTransactionBuffer(true);
         }
         if (recordSize > _buffer.remaining()) {
             throw new IllegalStateException("Record size " + recordSize + " is too long for Transaction buffer in "
@@ -922,11 +916,16 @@ public class Transaction {
         }
     }
 
-    synchronized void flushTransactionBuffer() throws PersistitIOException {
+    synchronized void flushTransactionBuffer(final boolean chain) throws PersistitIOException {
         if (_buffer.position() > 0 || _previousJournalAddress != 0) {
-            _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
+            long previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, _commitTimestamp, _previousJournalAddress);
             _buffer.clear();
+            if (chain) {
+                _previousJournalAddress = previousJournalAddress;
+            } else {
+                _previousJournalAddress = 0;
+            }
         }
     }
 

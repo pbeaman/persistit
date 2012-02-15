@@ -75,11 +75,15 @@ public class TestShim {
         ex.prune();
     }
     
-    public static void flushTransactionBuffer(final Transaction txn) throws PersistitException {
-        txn.flushTransactionBuffer();
+    public static void flushTransactionBuffer(final Transaction txn, final boolean chain) throws PersistitException {
+        txn.flushTransactionBuffer(chain);
     }
     
     public static void setMinimumPruningDelay(final Persistit persistit, final long delay) {
         persistit.getCleanupManager().setMinimumPruningDelay(delay);
+    }
+    
+    public static SessionId newSessionId() {
+        return new SessionId();
     }
 }
