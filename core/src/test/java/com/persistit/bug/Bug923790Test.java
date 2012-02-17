@@ -15,8 +15,6 @@
 
 package com.persistit.bug;
 
-import org.junit.Test;
-
 import com.persistit.Exchange;
 import com.persistit.TestShim;
 import com.persistit.Transaction;

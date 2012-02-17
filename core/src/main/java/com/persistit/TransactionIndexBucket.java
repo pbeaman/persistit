@@ -174,6 +174,7 @@ public class TransactionIndexBucket {
         assert _lock.isHeldByCurrentThread();
         TransactionStatus status = _free;
         if (status != null) {
+            assert !status.isLocked();
             _free = status.getNext();
             _freeCount--;
             status.setNext(null);
@@ -255,6 +256,7 @@ public class TransactionIndexBucket {
             for (TransactionStatus s = getCurrent(); s != null; s = s.getNext()) {
                 if (s == status) {
                     s.complete(timestamp);
+                    status.wwUnlock();
                     if (s.getTs() == getFloor() || hasFloorMoved()) {
                         reduce();
                     }
@@ -268,17 +270,12 @@ public class TransactionIndexBucket {
                     final TransactionStatus next = s.getNext();
                     assert s.getTc() != UNCOMMITTED;
                     s.complete(timestamp);
+                    status.wwUnlock();
                     boolean moved = false;
                     if (s.getTc() < _activeTransactionFloor) {
                         if (s.getTc() > 0) {
                             aggregate(s, true);
-                            if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
-                                s.setNext(_free);
-                                _free = s;
-                                _freeCount++;
-                            } else {
-                                _droppedCount++;
-                            }
+                            free(s);
                             moved = true;
                         } else if (s.getTc() == ABORTED) {
                             aggregate(s, false);
@@ -334,7 +331,7 @@ public class TransactionIndexBucket {
                 /*
                  * Is this TransactionStatus aborted and notified?
                  */
-                final boolean aborted = status.getTc() == ABORTED && status.isNotified();
+                final boolean aborted = isAborted(status);
                 final boolean committed = isCommitted(status);
 
                 if (status.getTs() == _floor) {
@@ -356,13 +353,7 @@ public class TransactionIndexBucket {
                         /*
                          * committed
                          */
-                        if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
-                            status.setNext(_free);
-                            _free = status;
-                            _freeCount++;
-                        } else {
-                            _droppedCount++;
-                        }
+                        free(status);
                         moved = true;
                     } else if (aborted) {
                         aggregate(status, false);
@@ -457,7 +448,7 @@ public class TransactionIndexBucket {
         for (TransactionStatus status = _aborted; status != null;) {
             TransactionStatus next = status.getNext();
             assert status.getTc() == ABORTED;
-            if (status.getMvvCount() == 0 && status.getTa() < activeTransactionFloor) {
+            if (status.getMvvCount() == 0 && status.getTa() < activeTransactionFloor && status.isNotified()) {
                 aggregate(status, false);
                 if (previous == null) {
                     _aborted = next;
@@ -465,13 +456,7 @@ public class TransactionIndexBucket {
                     previous.setNext(next);
                 }
                 _abortedCount--;
-                if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
-                    status.setNext(_free);
-                    _free = status;
-                    _freeCount++;
-                } else {
-                    _droppedCount++;
-                }
+                free(status);
             } else {
                 previous = status;
             }
@@ -492,13 +477,7 @@ public class TransactionIndexBucket {
                     previous.setNext(next);
                 }
                 _longRunningCount--;
-                if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
-                    status.setNext(_free);
-                    _free = status;
-                    _freeCount++;
-                } else {
-                    _droppedCount++;
-                }
+                free(status);
             } else {
                 previous = status;
             }
@@ -527,9 +506,13 @@ public class TransactionIndexBucket {
         }
         return count;
     }
-    
+
     boolean isEmpty() {
         return _abortedCount + _currentCount + _longRunningCount == 0;
+    }
+
+    private boolean isAborted(final TransactionStatus status) {
+        return status.getTc() == ABORTED && status.isNotified();
     }
 
     private boolean isCommitted(final TransactionStatus status) {
@@ -628,6 +611,18 @@ public class TransactionIndexBucket {
                 }
                 throw RetryException.SINGLE;
             }
+        }
+    }
+
+    private void free(final TransactionStatus status) {
+        assert _lock.isHeldByCurrentThread();
+        assert !status.isLocked();
+        if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
+            status.setNext(_free);
+            _free = status;
+            _freeCount++;
+        } else {
+            _droppedCount++;
         }
     }
 

@@ -605,7 +605,6 @@ public class TransactionIndex implements TransactionIndexMXBean {
         } finally {
             bucket.unlock();
         }
-        status.wwUnlock();
     }
 
     /**
@@ -935,23 +934,11 @@ public class TransactionIndex implements TransactionIndexMXBean {
             bucket.lock();
             try {
                 status = bucket.allocateTransactionStatus();
-                status.initialize(ts);
-                status.abort();
-                status.setMvvCount(Integer.MAX_VALUE);
+                status.initializeAsAborted(ts);
                 bucket.addAborted(status);
             } finally {
                 bucket.unlock();
             }
-        }
-
-        /*
-         * The TransactionStatus is locked for the entire duration of the
-         * running transaction. The following call should always succeed
-         * immediately; a TimeoutException here signifies a software failure or
-         * a thread terminated by {@link Thread#stop()} somewhere else.
-         */
-        if (!status.wwLock(VERY_LONG_TIMEOUT)) {
-            throw new IllegalStateException("wwLock was unavailable on newly allocated TransactionStatus");
         }
     }
 

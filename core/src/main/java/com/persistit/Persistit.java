@@ -324,6 +324,18 @@ public class Persistit {
     private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
 
+    private final static int MAX_FATAL_ERROR_MESSAGES = 10;
+
+    public static class FatalErrorException extends RuntimeException {
+
+        final String _threadName = Thread.currentThread().getName();
+        final long _systemTime = System.currentTimeMillis();
+
+        private FatalErrorException(String msg, Throwable cause) {
+            super(msg, cause);
+        }
+    }
+
     private final long _availableHeap = availableHeap();
 
     private PersistitLogger _logger;
@@ -338,6 +350,7 @@ public class Persistit {
 
     private AtomicBoolean _initialized = new AtomicBoolean();
     private AtomicBoolean _closed = new AtomicBoolean();
+    private AtomicBoolean _fatal = new AtomicBoolean();
 
     private long _beginCloseTime;
     private long _nextCloseTime;
@@ -391,6 +404,8 @@ public class Persistit {
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
     private JoinPolicy _defaultJoinPolicy = DEFAULT_JOIN_POLICY;
+
+    private List<FatalErrorException> _fatalErrors = new ArrayList<FatalErrorException>();
 
     /**
      * <p>
@@ -1552,6 +1567,14 @@ public class Persistit {
     }
 
     /**
+     * @return whether a fatal error has occurred
+     */
+    public boolean isFatal() {
+        return _fatal.get();
+    }
+    
+
+    /**
      * Looks up a volume by name.
      * 
      * @param name
@@ -1741,8 +1764,8 @@ public class Persistit {
 
         /*
          * The copier is responsible for background pruning of aborted
-         * transactions. Halt it so Transaction#close() can be called
-         * without being concerned about its state changing.
+         * transactions. Halt it so Transaction#close() can be called without
+         * being concerned about its state changing.
          */
         _journalManager.stopCopier();
 
@@ -1852,6 +1875,28 @@ public class Persistit {
         shutdownGUI();
     }
 
+    /**
+     * Record the cause of a fatal Persistit error, such as imminent data
+     * corruption, and set Persistit to the closed and fatal state. We expect this
+     * method never to be called except by tests.
+     * 
+     * @param msg
+     *            Explanatory message
+     * @param cause
+     *            Throwable cause of condition
+     */
+    void fatal(final String msg, final Throwable cause) {
+        _fatal.set(true);
+        _closed.set(true);
+        final FatalErrorException exception = new FatalErrorException(msg, cause);
+        synchronized (_fatalErrors) {
+            if (_fatalErrors.size() < MAX_FATAL_ERROR_MESSAGES) {
+                _fatalErrors.add(exception);
+            }
+        }
+        throw exception;
+    }
+
     private void releaseAllResources() {
 
         _accumulators.clear();
@@ -1861,6 +1906,7 @@ public class Persistit {
         _transactionSessionMap.clear();
         _cliSessionMap.clear();
         _sessionIdThreadLocal = null;
+        _fatalErrors.clear();
 
         unregisterMXBeans();
 
@@ -1968,6 +2014,7 @@ public class Persistit {
 
     void checkClosed() throws PersistitClosedException, PersistitInterruptedException {
         if (isClosed()) {
+            checkFatal();
             throw new PersistitClosedException();
         }
         if (Thread.currentThread().isInterrupted()) {
@@ -1975,6 +2022,12 @@ public class Persistit {
         }
     }
 
+    void checkFatal() throws FatalErrorException {
+        if (isFatal()) {
+            throw _fatalErrors.get(0);
+        }
+    }
+    
     /**
      * Waits until updates are no longer suspended. The
      * {@link #setUpdateSuspended} method controls whether update operations are
@@ -2184,7 +2237,7 @@ public class Persistit {
     TransactionIndex getTransactionIndex() {
         return _transactionIndex;
     }
-    
+
     /**
      * Replaces the current logger implementation.
      * 

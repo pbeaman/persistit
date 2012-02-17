@@ -72,7 +72,7 @@ import com.persistit.util.Util;
  * @version 1.0
  */
 
-public final class Buffer extends SharedResource implements Comparable<Buffer> {
+public class Buffer extends SharedResource implements Comparable<Buffer> {
 
     /**
      * Architectural lower bound on buffer size
@@ -415,6 +415,20 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         System.arraycopy(original._bytes, 0, _bytes, 0, _bytes.length);
     }
 
+    Buffer(Persistit persistit, Volume vol, long page, byte[] bytes) throws InvalidPageStructureException,
+            PersistitInterruptedException {
+        this(bytes.length, -1, persistit.getBufferPool(bytes.length), persistit);
+        System.arraycopy(bytes, 0, _bytes, 0, bytes.length);
+        _vol = vol;
+        _page = page;
+        claim(true);
+        try {
+            load();
+        } finally {
+            release();
+        }
+    }
+
     /**
      * Initializes the buffer so that it contains no keys or data.
      */
@@ -497,6 +511,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     void writePage() throws PersistitException {
+        _persistit.checkFatal();
         final Volume volume = getVolume();
         if (volume != null) {
             clearSlack();
@@ -763,6 +778,11 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         Debug.$assert0.t(index >= KEY_BLOCK_START && index <= (_pool.getMaxKeys() * KEYBLOCK_LENGTH) + KEY_BLOCK_START
                 || (!isDataPage() && !isIndexPage() || !isValid()));
         _keyBlockEnd = index;
+    }
+
+    void setAlloc(final int alloc) {
+        Debug.$assert0.t(alloc >= 0 && alloc <= _bufferSize);
+        _alloc = alloc;
     }
 
     void setNext(final Buffer buffer) {
@@ -1152,6 +1172,24 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         return -1;
     }
 
+    void keyAt(final int foundAt, final Key key) {
+        Debug.$assert0.t(foundAt > 0 && foundAt < _keyBlockEnd);
+        if (isDataPage() || isIndexPage()) {
+            for (int p = KEY_BLOCK_START; p <= foundAt; p += KEYBLOCK_LENGTH) {
+                int kbData = getInt(p);
+                int tail = decodeKeyBlockTail(kbData);
+                int ebc = decodeKeyBlockEbc(kbData);
+                int db = decodeKeyBlockDb(kbData);
+                int tbData = getInt(tail);
+                int klength = decodeTailBlockKLength(tbData);
+                byte[] keyBytes = key.getEncodedBytes();
+                keyBytes[ebc] = (byte) db;
+                System.arraycopy(_bytes, tail + _tailHeaderSize, keyBytes, ebc + 1, klength);
+                key.setEncodedSize(ebc + klength + 1);
+            }
+        }
+    }
+
     Value fetch(int foundAt, Value value) {
         if ((foundAt & EXACT_MASK) == 0) {
             value.clear();
@@ -1496,7 +1534,9 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 repack();
                 setKeyBlockEnd(getKeyBlockEnd() + KEYBLOCK_LENGTH);
                 newTail = allocTail(newTailSize);
-                Debug.$assert0.t(newTail != -1);
+                if (newTail == -1) {
+                    _persistit.fatal("Insufficient space to insert record in " + this + " at =" + p, null);
+                }
             }
 
             // Shift the subsequent key blocks
@@ -1634,6 +1674,10 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 // Guaranteed to succeed because of the test on willFit() above
                 //
                 newTail = allocTail(newTailSize);
+                if (newTail == -1) {
+                    _persistit
+                            .fatal("Insufficient space to replace records in " + this + " at =" + p, null);
+                }
             }
             putInt(p, encodeKeyBlockTail(kbData, newTail));
         }
@@ -1778,10 +1822,10 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                         freeNextTailBlock = true;
                     }
                     if (newNextTail == -1) {
-                        throw new IllegalStateException("Can't wedge enough space in " + this + " foundAt1=" + foundAt1
+                        _persistit.fatal("Can't wedge enough space in " + this + " foundAt1=" + foundAt1
                                 + " foundAt2=" + foundAt2 + " spareKey=" + spareKey + " nextTailBlockSize="
                                 + nextTailBlockSize + " newNextTailBlockSize=" + newNextTailBlockSize + " ebc=" + ebc
-                                + " ebcNext=" + ebcNext);
+                                + " ebcNext=" + ebcNext, null);
                     }
                 }
                 //
@@ -1898,6 +1942,10 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         Debug.$assert0.t(rightSibling._alloc == rightSibling._bufferSize);
         if (Debug.ENABLED) {
             assertVerify();
+        }
+
+        if (_mvvCount > 0) {
+            rightSibling._mvvCount = Integer.MAX_VALUE;
         }
 
         // First we calculate how large the virtual page containing the
@@ -2257,7 +2305,10 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 edgeTail = allocTail(edgeTailBlockSize);
             }
 
-            Debug.$assert0.t(edgeTail != -1);
+            if (edgeTail == -1) {
+                _persistit
+                        .fatal("Insufficient space for edgeTail records in " + this + " at =" + splitAtPosition, null);
+            }
             putInt(edgeTail, encodeTailBlock(edgeTailBlockSize, edgeKeyLength));
 
             System.arraycopy(indexKeyBytes, depth + 1, _bytes, edgeTail + _tailHeaderSize, edgeKeyLength);
@@ -2330,17 +2381,39 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
     }
 
     /**
-     * Joins or rebalances two pages as part of a deletion operation. This
-     * buffer contains the left edge of the deletion. All the keys at or above
-     * foundAt1 are to be removed. The supplied buffer parameter contains the
-     * key at the right edge of the deletion. All keys up to, but not including
-     * foundAt2 are to be removed.
+     * <p>
+     * Join or rebalance two pages as part of a deletion operation. This buffer
+     * contains the left edge of the deletion. All the keys at or above foundAt1
+     * are to be removed. The supplied <code>Buffer</code> contains the key at
+     * the right edge of the deletion. All keys up to, but not including
+     * foundAt2 are to be removed from it. Comments and variable names use the
+     * words "left" and "right" to refer to this Buffer and the supplied Buffer,
+     * respectively.
+     * </p>
      * <p>
      * This method attempts to combine all the remaining keys and data into one
-     * page. If they will not fit, then it reallocates the keys and values
-     * across the two pages. As a side effect, it copies the first key of the
-     * rebalanced right page into the supplied spareKey. The caller will then
-     * reinsert that key value into index pages above this one.
+     * page. If they will not fit, then it rebalances the keys and values across
+     * the two pages. As a side effect, it copies the first key of the
+     * rebalanced right page into the supplied <code>indexKey</code>. The caller
+     * will then reinsert that key value into index pages above this one.
+     * </p>
+     * <p>
+     * In an extremely rare case the deletion of a key from a pair of pages
+     * results in a state where the two pages cannot be rebalanced at all. For
+     * this to happen the following must hold:
+     * <ul>
+     * <li>Let K1 and K2 be the initial key of the right page and the key at
+     * foundAt2, respectively.</li>
+     * <li>K2 is longer than K1.</li>
+     * <li>There is no feasible way to arrange records on the two pages without
+     * placing K2 at the left edge of the rebalanced right page.</li>
+     * <li>The left page has insufficient free space after removing the former
+     * right-edge key K1 to hold K2.</li>
+     * </ul>
+     * In this case this method leaves both buffers unchanged and throws a
+     * <code>RebalanceException</code>. Calling code should catch and handle
+     * this exception by, for example, splitting one of the pages.
+     * </p>
      * 
      * @param buffer
      *            The buffer containing the right edge key
@@ -2348,323 +2421,456 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      *            Offset of the first key block to remove
      * @param foundAt2
      *            Offset of the first key block in buffer to keep
-     * @param indexKey
-     *            A Key into which the new right page's first key is copied in
-     *            the event this method results in a rebalance operation.
      * @param spareKey
      *            A spare Key used internally for intermediate results
      * @param policy
      *            The JoinPolicy that allocates records between the two pages.
-     * @return <i>true</i> if the result is a rebalanced pair of pages.
-     * @throws PersistitException
+     * @return <i>true</i> if the result is a rebalanced pair of pages or
+     *         <i>false</i> if the two pages were joined into a single page.
+     * @throws RebalanceException
+     *             in the rare case where no rearrangement of the records is
+     *             possible.
      */
-
     final boolean join(Buffer buffer, int foundAt1, int foundAt2, Key indexKey, Key spareKey, JoinPolicy policy)
-            throws PersistitException {
+            throws RebalanceException {
         foundAt1 &= P_MASK;
         foundAt2 &= P_MASK;
 
         if (buffer == this || foundAt1 <= KEY_BLOCK_START || foundAt1 >= _keyBlockEnd || foundAt2 <= KEY_BLOCK_START
-                || foundAt2 >= buffer._keyBlockEnd /*- KEYBLOCK_LENGTH */) {
+                || foundAt2 >= buffer._keyBlockEnd) {
             Debug.$assert0.t(false);
             throw new IllegalArgumentException("foundAt1=" + foundAt1 + " foundAt2=" + foundAt2 + " _keyBlockEnd="
                     + _keyBlockEnd + " buffer._keyBlockEnd=" + buffer._keyBlockEnd);
         }
 
         if (Debug.ENABLED) {
+            spareKey.clear();
             assertVerify();
             buffer.assertVerify();
         }
 
+        final boolean hasMVV = (_mvvCount > 0) || (buffer.getMvvCount() > 0);
         //
-        // Initialize indexKey to contain the first key of the right
+        // Working variables
+        //
+        int kbData; // content of a key block
+        int tbData; // content of a tail block header
+        int tail; // offset within page of a tail block
+
+        final byte[] spareKeyBytes = spareKey.getEncodedBytes();
+        final byte[] indexKeyBytes = indexKey.getEncodedBytes();
+        //
+        // Initialize spareKey to contain the first key of the right
         // page.
         //
-        int newEbc = Integer.MAX_VALUE;
-        byte[] indexKeyBytes = indexKey.getEncodedBytes();
-        int kbData = buffer.getInt(KEY_BLOCK_START);
-        indexKeyBytes[0] = (byte) decodeKeyBlockDb(kbData);
-        int tail = decodeKeyBlockTail(kbData);
-        int tbData = buffer.getInt(tail);
-        int klength = decodeTailBlockKLength(tbData);
-        System.arraycopy(buffer._bytes, tail + _tailHeaderSize, indexKeyBytes, 1, klength);
-        //
-        // Start by assuming all the records will fit into one page. Compute
-        // the ebc of the first key after the deletion range. This will be
-        // the minimum ebc of all the deleted keys, except that the first
-        // key of the second page is ignored (because it is a duplicate of
-        // the right edge key of the left page.)
-        //
-        // At the same time we run these loops we can deallocate the associated
-        // tail blocks. That will allow us to measure the available space.
-        //
-        for (int index = foundAt1; index < _keyBlockEnd; index += KEYBLOCK_LENGTH) {
-            kbData = getInt(index);
-            int ebc = decodeKeyBlockEbc(kbData);
-            if (ebc < newEbc)
-                newEbc = ebc;
-            tail = decodeKeyBlockTail(kbData);
-            tbData = getInt(tail);
-            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-            deallocTail(tail, size);
-        }
-        for (int index = KEY_BLOCK_START; index < foundAt2; index += KEYBLOCK_LENGTH) {
-            kbData = buffer.getInt(index);
-            int ebc = decodeKeyBlockEbc(kbData);
-            if (ebc < newEbc && index > KEY_BLOCK_START)
-                newEbc = ebc;
-            tail = decodeKeyBlockTail(kbData);
-            tbData = buffer.getInt(tail);
-            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
-            buffer.deallocTail(tail, size);
-        }
-        Debug.$assert0.t(newEbc < Integer.MAX_VALUE);
-        //
-        // We clear the about-to-be deleted key blocks so that repack()
-        // operations don't damage just-freed tail blocks.
-        //
-        clearBytes(foundAt1, _keyBlockEnd);
-        buffer.clearBytes(KEY_BLOCK_START, foundAt2);
+        buffer.keyAt(foundAt2, spareKey);
 
+        long measureLeft = joinMeasure(foundAt1, _keyBlockEnd);
+        long measureRight = buffer.joinMeasure(KEY_BLOCK_START, foundAt2);
         kbData = buffer.getInt(foundAt2);
         int oldEbc = decodeKeyBlockEbc(kbData);
-        //
-        // This is the amount by which the tailblock for the first record
-        // after the deletion range would need to increase in if the record
-        // were placed immediately after the last record before the deletion
-        // range.
-        //
-        // Now we actually modify the key at foundAt2 to have additional unique
-        // bytes (i.e., we reduce its ebc). Once we've done that, we can think
-        // of the collection of records in the left and right pages as a
-        // continuous virtual page.
-        //
-        if (newEbc < oldEbc) {
-            buffer.reduceEbc(foundAt2, newEbc, indexKeyBytes);
-        } else {
-            newEbc = oldEbc;
-        }
+        int newEbc = Math.min(oldEbc, Math.min((int) (measureLeft >>> 32), (int) (measureRight >>> 32)));
+        tail = decodeKeyBlockTail(kbData);
+        tbData = buffer.getInt(tail);
 
-        // Compute the size of the page that would result from combining the
-        // two pages into one.
-        //
-        int virtualSize = foundAt1 + (buffer._keyBlockEnd - foundAt2) + (_bufferSize - _alloc) - _slack
-                + (buffer._bufferSize - buffer._alloc) - buffer._slack;
+        int oldSize = decodeTailBlockSize(tbData);
+        int newSize = oldSize + (oldEbc - newEbc);
+        int adjustmentForNewEbc = ((newSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
+                - ((oldSize + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
+
+        /*
+         * Size and number of keys in the virtual page that would result from
+         * joining all non-removed records.
+         */
+        final int virtualSize = inUseSize() + buffer.inUseSize() - (int) measureLeft - (int) measureRight
+                + adjustmentForNewEbc + KEY_BLOCK_START;
+
         final int virtualKeyCount = ((foundAt1 - KEY_BLOCK_START) + (buffer.getKeyBlockEnd() - foundAt2))
                 / KEYBLOCK_LENGTH;
+
         boolean okayToRejoin = virtualKeyCount < _pool.getMaxKeys() && policy.acceptJoin(this, virtualSize);
+
         boolean result;
 
         if (okayToRejoin) {
-            // REJOIN CASE
-            // -----------
-            // This is the case where according to the JoinPolicy, the records
-            // from the right page can be merged into the left page. The caller
-            // will then deallocate the right page.
-            //
+            /*
+             * REJOIN CASE
+             * 
+             * -----------
+             * 
+             * This is the case where according to the JoinPolicy, the records
+             * from the right page can be merged into the left page. The caller
+             * will then deallocate the right page.
+             */
             Debug.$assert0.t(virtualSize <= _bufferSize);
-            //
-            // Now we need to process each keyblock from the right buffer,
-            // copying its tail block to the left buffer.
-            //
-            setKeyBlockEnd(foundAt1);
+            /*
+             * Deallocate the records being removed from the left page
+             */
+            joinDeallocateTails(foundAt1, _keyBlockEnd);
 
-            moveRecords(buffer, foundAt2, buffer._keyBlockEnd, _keyBlockEnd, false);
+            if (newEbc < oldEbc) {
+                /*
+                 * Deallocate the records being removed from the right page and
+                 * then reduce the ebc of the first remaining key as needed. The
+                 * only reason for deallocating tail blocks in the right page is
+                 * that reduceEbc may need some addition space. Later the right
+                 * page will be cleared.
+                 */
+                buffer.joinDeallocateTails(KEY_BLOCK_START, foundAt2);
+                buffer.reduceEbc(foundAt2, newEbc, spareKeyBytes);
+            }
+
+            setKeyBlockEnd(foundAt1);
+            /*
+             * Move non-removed records from the right page to the left page.
+             */
+            moveRecords(buffer, foundAt2, buffer._keyBlockEnd, foundAt1, false);
+
+            /*
+             * Now set the right page to have no key blocks; this allows all the
+             * remaining tail block space to be deallocated if the page is
+             * subsequently written to disk.
+             */
             buffer.setKeyBlockEnd(KEY_BLOCK_START);
-            //
-            // unsplice the right buffer from the right sibling chain.
-            //
+            buffer.clearBytes(KEY_BLOCK_START, _bufferSize);
+            buffer.setAlloc(_bufferSize);
+            /*
+             * unsplice the right buffer from the right sibling chain.
+             */
             long rightSibling = buffer.getRightSibling();
             setRightSibling(rightSibling);
+            if (hasMVV) {
+                _mvvCount = Integer.MAX_VALUE;
+            }
             invalidateFastIndex();
             result = false;
         }
 
         else {
-            // REBALANCE CASE
-            // --------------
-            // This is the case where the records of the two pages cannot be
-            // combined into one page, and therefore we will rebalance the
-            // records between the two.
-            //
-            // There is a further possible wrinkle, in that removing a key
-            // that falls at the beginning of the right page may in rare
-            // circumstances cause a condition in which the pages cannot be
-            // rebalanced at all. This happens if the key being removed is
-            // short and the one following it is very long. In this event
-            // the method throws a RebalanceException. The caller must then
-            // split the left page and then retry the join operation. Ugly,
-            // but necessary.
-            //
-            boolean moveLeft = false;
-            int joinBest = 0;
-            int joinOffset = -1;
-            int leftSize = 0;
-            int indexKeySize = 0;
-            byte[] spareKeyBytes = spareKey.getEncodedBytes();
-            //
-            // Search the left page for good rebalance point.
-            //
-            for (int p = KEY_BLOCK_START; p < foundAt1; p += KEYBLOCK_LENGTH) {
-                kbData = getInt(p);
-                int db = decodeKeyBlockDb(kbData);
-                int ebc = decodeKeyBlockEbc(kbData);
-                tail = decodeKeyBlockTail(kbData);
-                tbData = getInt(tail);
-                int size = decodeTailBlockSize(tbData);
-                klength = decodeTailBlockKLength(tbData);
+            /*
+             * REBALANCE CASE
+             * 
+             * --------------
+             * 
+             * The remaining records still require two pages. Some key must be
+             * chosen to serve as the edge between the pages. Use the JoinPolicy
+             * to find the optimal location.
+             */
+            int joinOffset = joinMeasureRebalanceOffset(buffer, virtualSize, foundAt1, foundAt2, adjustmentForNewEbc,
+                    policy);
 
-                spareKeyBytes[ebc] = (byte) db;
-                System.arraycopy(_bytes, tail + _tailHeaderSize, spareKeyBytes, ebc + 1, klength);
-                int keySize = ebc + klength + 1;
-
-                int delta = ((size + ebc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
-                        - ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
-
-                int candidateRightSize = virtualSize - leftSize + delta;
-
-                int candidateLeftSize = leftSize + KEYBLOCK_LENGTH + ((klength + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
-                        + _tailHeaderSize;
-
-                int rightKeyCount = ((buffer.getKeyBlockEnd() - foundAt2) + (foundAt1 - p)) / KEYBLOCK_LENGTH;
-
-                int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1, foundAt2, virtualSize, candidateLeftSize,
-                        candidateRightSize, _bufferSize - KEY_BLOCK_START);
-
-                if (joinFit > joinBest && rightKeyCount < _pool.getMaxKeys()) {
-                    joinBest = joinFit;
-                    joinOffset = p;
-
-                    indexKeySize = keySize;
-
-                    System.arraycopy(spareKeyBytes, 0, indexKeyBytes, 0, indexKeySize);
-                }
-
-                leftSize += KEYBLOCK_LENGTH + ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
-            }
-
-            //
-            // Search the right page for good rebalance point.
-            //
-            for (int p = foundAt2; p < buffer._keyBlockEnd; p += KEYBLOCK_LENGTH) {
-                kbData = buffer.getInt(p);
-                int db = decodeKeyBlockDb(kbData);
-                int ebc = decodeKeyBlockEbc(kbData);
-                tail = decodeKeyBlockTail(kbData);
-                tbData = buffer.getInt(tail);
-                int size = decodeTailBlockSize(tbData);
-                klength = decodeTailBlockKLength(tbData);
-
-                spareKeyBytes[ebc] = (byte) db;
-                System.arraycopy(buffer._bytes, tail + _tailHeaderSize, spareKeyBytes, ebc + 1, klength);
-
-                int keySize = ebc + klength + 1;
-                //
-                // This is the ebc for this key if it were to be inserted
-                // as the right edge key of the left page.
-                //
-                int adjustedEbc = p == foundAt2 ? newEbc : ebc;
-                //
-                // This is the amount by which the tailblock for the candidate
-                // rebalance key would have to grow if it became the first
-                // key on the right page and its ebc became zero.
-                //
-                int delta = ((size + ebc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
-                        - ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
-
-                int candidateRightSize = virtualSize - leftSize + delta;
-
-                int candidateLeftSize = leftSize + ((klength + (ebc - adjustedEbc) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
-                        + _tailHeaderSize + KEYBLOCK_LENGTH;
-
-                int leftKeyCount = ((foundAt1 - KEY_BLOCK_START) + (p - foundAt2)) / KEYBLOCK_LENGTH;
-
-                int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1, foundAt2, virtualSize, candidateLeftSize,
-                        candidateRightSize, _bufferSize);
-
-                if (joinFit > joinBest && leftKeyCount < _pool.getMaxKeys()) {
-                    joinBest = joinFit;
-                    joinOffset = p;
-                    moveLeft = true;
-
-                    indexKeySize = keySize;
-
-                    System.arraycopy(spareKeyBytes, 0, indexKeyBytes, 0, indexKeySize);
-                }
-
-                leftSize += KEYBLOCK_LENGTH + ((ebc - adjustedEbc + size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
-            }
-
-            if (joinBest <= 0)
-                throw RebalanceException.SINGLETON;
-            if (moveLeft) {
-                //
-                // In this case we are moving records from the right page
-                // to the left page.
-                //
+            if (joinOffset == 0) {
+                /*
+                 * Rebalancing is infeasible
+                 */
+                throw new RebalanceException();
+            } else if (joinOffset < 0) {
+                /*
+                 * Move records from the right page to the left page.
+                 */
+                joinOffset = -joinOffset;
+                buffer.keyAt(joinOffset, indexKey);
+                /*
+                 * Remove records from the left page
+                 */
+                joinDeallocateTails(foundAt1, _keyBlockEnd);
+                clearBytes(foundAt1, _keyBlockEnd);
                 setKeyBlockEnd(foundAt1);
+
+                /*
+                 * Deallocate the records being removed from the right page and
+                 * then reduce the ebc of the first remaining key as needed.
+                 */
+                buffer.joinDeallocateTails(KEY_BLOCK_START, foundAt2);
+                buffer.clearBytes(KEY_BLOCK_START, foundAt2);
+                buffer.reduceEbc(foundAt2, newEbc, spareKeyBytes);
                 int rightSize = buffer._keyBlockEnd - joinOffset;
 
                 moveRecords(buffer, foundAt2, joinOffset, _keyBlockEnd, true);
 
                 System.arraycopy(buffer._bytes, joinOffset, buffer._bytes, KEY_BLOCK_START, rightSize);
-
                 buffer.clearBytes(KEY_BLOCK_START + rightSize, buffer._keyBlockEnd);
                 buffer.setKeyBlockEnd(KEY_BLOCK_START + rightSize);
-
                 buffer.reduceEbc(KEY_BLOCK_START, 0, indexKeyBytes);
+
             } else {
-                //
-                // We will move records from the left page to the right page.
-                //
+                /*
+                 * We will move records from the left page to the right page.
+                 */
+                keyAt(joinOffset, indexKey);
+                joinDeallocateTails(foundAt1, _keyBlockEnd);
+                clearBytes(foundAt1, _keyBlockEnd);
+                setKeyBlockEnd(foundAt1);
+
+                buffer.joinDeallocateTails(KEY_BLOCK_START, foundAt2);
+
                 int rightSize = buffer._keyBlockEnd - foundAt2;
-
                 System.arraycopy(buffer._bytes, foundAt2, buffer._bytes, KEY_BLOCK_START, rightSize);
-
                 buffer.clearBytes(KEY_BLOCK_START + rightSize, buffer._keyBlockEnd);
-
                 buffer.setKeyBlockEnd(KEY_BLOCK_START + rightSize);
+                buffer.reduceEbc(KEY_BLOCK_START, newEbc, spareKeyBytes);
 
                 if (joinOffset != foundAt1) {
                     buffer.moveRecords(this, joinOffset, foundAt1, KEY_BLOCK_START, false);
+                    setKeyBlockEnd(joinOffset);
                 }
-                setKeyBlockEnd(joinOffset);
-                //
-                // Now set up the edge key in the left page.
-                //
+                /*
+                 * Set up the edge key in the left page.
+                 */
                 moveRecords(buffer, KEY_BLOCK_START, KEY_BLOCK_START, joinOffset, true);
-
+                /*
+                 * Fix the left key of the right page so that its ebc is zero.
+                 */
                 buffer.reduceEbc(KEY_BLOCK_START, 0, indexKeyBytes);
             }
-            //
-            // This is now the key that will be reinserted into the index
-            // to point to the newly rebalanced right page.
-            //
-            indexKey.setEncodedSize(indexKeySize);
 
             setRightSibling(buffer.getPageAddress());
 
             invalidateFastIndex();
             buffer.invalidateFastIndex();
 
+            if (hasMVV) {
+                _mvvCount = Integer.MAX_VALUE;
+                buffer._mvvCount = Integer.MAX_VALUE;
+            }
             result = true;
         }
 
         Debug.$assert0.t(KEY_BLOCK_START + KEYBLOCK_LENGTH < _keyBlockEnd);
+
         if (result) {
             Debug.$assert0.t(KEY_BLOCK_START + KEYBLOCK_LENGTH < buffer._keyBlockEnd);
         }
-        //
-        // Indicate that both buffers have changed
-        //
+        /*
+         * Indicate that both buffers have changed
+         */
         bumpGeneration();
         buffer.bumpGeneration();
 
         if (Debug.ENABLED) {
             assertVerify();
-            buffer.assertVerify();
+            if (result) {
+                buffer.assertVerify();
+            }
         }
         return result;
+    }
+
+    /**
+     * Compute total size used by key blocks and tail blocks within a page. Does
+     * not include the size of the page header.
+     * 
+     * @return computed size
+     */
+    int inUseSize() {
+        return (_keyBlockEnd - KEY_BLOCK_START) + (_bufferSize - _alloc) - _slack;
+    }
+
+    /**
+     * <p>
+     * Measure the number of bytes in the buffer that will be freed by removing
+     * a range of key blocks and their associated tail blocks. Also determine
+     * the minimum ebc value among of all the key blocks being deleted. For
+     * example, if <code>from</code> and <code>to</code> delimit exactly one key
+     * block, then the value will reflect the size of that key block
+     * (KEYBLOCK_LENGTH) plus the size of its associated tail block. The minimum
+     * ebc value will the ebc encoded in that key block.
+     * </p>
+     * <p>
+     * This method returns a long which encoded these two values as <code><pre>
+     *     (minimumEbc << 32) | totalDeallocatedSize
+     * </pre></code>
+     * </p>
+     * <p>
+     * DOES NOT MODIFY BUFFER
+     * </p>
+     * 
+     * @param from
+     *            offset of first key block being deleted
+     * @param to
+     *            offset of the next key block not being deleted
+     * @return long encoding the size being deleted and the minimum ebc
+     * 
+     */
+    long joinMeasure(int from, int to) {
+        int minimumEbc = Integer.MAX_VALUE;
+        int totalDeallocatedSize = 0;
+        for (int index = from; index < to; index += KEYBLOCK_LENGTH) {
+            int kbData = getInt(index);
+            int ebc = decodeKeyBlockEbc(kbData);
+            if (index != KEY_BLOCK_START && ebc < minimumEbc) {
+                minimumEbc = ebc;
+            }
+            int tail = decodeKeyBlockTail(kbData);
+            int tbData = getInt(tail);
+            int size = decodeTailBlockSize(tbData);
+            totalDeallocatedSize += ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK) + KEYBLOCK_LENGTH;
+        }
+        return (((long) minimumEbc) << 32) | totalDeallocatedSize;
+    }
+
+    /**
+     * <p>
+     * Deallocate tail blocks associated with all key blocks delimited by key
+     * block offsets <code>from</code> and <code>to</code>.
+     * </p>
+     * <p>
+     * MODIFIES THIS BUFFER
+     * </p>
+     * 
+     * @param from
+     *            offset of first key block being deleted
+     * @param to
+     *            offset of the next key block not being deleted
+     */
+    void joinDeallocateTails(int from, int to) {
+        for (int index = from; index < to; index += KEYBLOCK_LENGTH) {
+            int kbData = getInt(index);
+            int tail = decodeKeyBlockTail(kbData);
+            int tbData = getInt(tail);
+            int size = (decodeTailBlockSize(tbData) + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+            deallocTail(tail, size);
+        }
+    }
+
+    /**
+     * <p>
+     * Compute the offset of key block at which two pages from which keys are
+     * being removed will be rebalanced. Uses the supplied
+     * <code>JoinPolicy</code> to compute a cost value for each possible offset
+     * and returns the optimal one.
+     * </p>
+     * <p>
+     * Let p be the result. If p is positive, the records starting at p in the
+     * current page should be moved into <code>buffer</code>. If the p is
+     * negative, records starting at offset -p in <code>buffer</code> should be
+     * moved into this buffer. If p is zero, there is no offset at which
+     * rebalancing is possible.
+     * </p>
+     * <p>
+     * The last case is possible (albeit extremely rare) because removing a key
+     * that falls at the beginning of the right page may cause a condition in
+     * which the both pages remain extremely full and any key elected to become
+     * the new right edge key of the left page is unable to fit in the left
+     * page. This happens if the key being removed is shorter than the one
+     * following it and both pages are nearly full.
+     * </p>
+     * <p>
+     * DOES NOT MODIFY EITHER BUFFER
+     * </p>
+     * 
+     * @param buffer
+     *            The buffer containing the right sibling page
+     * @param virtualSize
+     *            Size of a virtual page constructed by merging all records not
+     *            being deleted
+     * @param foundAt1
+     *            Offset in the current buffer of the first key block being
+     *            removed
+     * @param foundAt2
+     *            Offset in <code>buffer</code> of the next key block not being
+     *            removed
+     * @param adjustmentForNewEbc
+     *            amount by which the tail block of the record at foundAt2 must
+     *            increase to allow for a reduced ebc value
+     * @param indexKey
+     *            Key in which the newly elected edge key will be returned
+     * @param spareKey
+     *            A spare Key in which intermediate key values can be
+     *            accumulated
+     * @param policy
+     *            JoinPolicy used to choose optimal rebalance point
+     * @return the join offset as described above
+     */
+
+    int joinMeasureRebalanceOffset(final Buffer buffer, final int virtualSize, final int foundAt1, final int foundAt2,
+            final int adjustmentForNewEbc, final JoinPolicy policy) {
+
+        int joinBest = 0;
+        int joinOffset = 0;
+        int leftSize = 0;
+
+        //
+        // Working variables
+        //
+        int kbData; // content of a key block
+        int tbData; // content of a tail block header
+        int tail; // offset within page of a tail block
+        int klength; // length of the key portion of a tail block
+        //
+        // Search the left page for good rebalance point.
+        //
+        for (int p = KEY_BLOCK_START; p < foundAt1; p += KEYBLOCK_LENGTH) {
+            kbData = getInt(p);
+            int ebc = decodeKeyBlockEbc(kbData);
+            tail = decodeKeyBlockTail(kbData);
+            tbData = getInt(tail);
+            int size = decodeTailBlockSize(tbData);
+            klength = decodeTailBlockKLength(tbData);
+
+            int delta = ((size + ebc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK) - ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
+
+            int candidateRightSize = virtualSize - leftSize + delta;
+
+            int candidateLeftSize = leftSize + KEYBLOCK_LENGTH + ((klength + ~TAILBLOCK_MASK) & TAILBLOCK_MASK)
+                    + _tailHeaderSize;
+
+            int rightKeyCount = ((buffer.getKeyBlockEnd() - foundAt2) + (foundAt1 - p)) / KEYBLOCK_LENGTH;
+
+            int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1, foundAt2, virtualSize, candidateLeftSize,
+                    candidateRightSize, _bufferSize - KEY_BLOCK_START);
+
+            if (joinFit > joinBest && rightKeyCount < _pool.getMaxKeys()) {
+                joinBest = joinFit;
+                joinOffset = p;
+            }
+
+            leftSize += KEYBLOCK_LENGTH + ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
+        }
+
+        /*
+         * Search the right page for good rebalance point.
+         */
+        for (int p = foundAt2; p < buffer._keyBlockEnd; p += KEYBLOCK_LENGTH) {
+            kbData = buffer.getInt(p);
+            int ebc = decodeKeyBlockEbc(kbData);
+            tail = decodeKeyBlockTail(kbData);
+            tbData = buffer.getInt(tail);
+            int size = decodeTailBlockSize(tbData);
+            klength = decodeTailBlockKLength(tbData);
+
+            /*
+             * This is the amount by which the tail block for the candidate
+             * rebalance key would have to grow if it became the first key on
+             * the right page and its ebc became zero.
+             */
+            int delta = ((size + ebc + ~TAILBLOCK_MASK) & TAILBLOCK_MASK) - ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK);
+
+            /*
+             * Amount by which the current tail block needs to grow to
+             * accommodate reduced ebc.
+             */
+            int adjustment = (p == foundAt2) ? adjustmentForNewEbc : 0;
+
+            int candidateRightSize = virtualSize - leftSize + delta;
+
+            int candidateLeftSize = leftSize + ((klength + ~TAILBLOCK_MASK) & TAILBLOCK_MASK) + adjustment
+                    + _tailHeaderSize + KEYBLOCK_LENGTH;
+
+            int leftKeyCount = ((foundAt1 - KEY_BLOCK_START) + (p - foundAt2)) / KEYBLOCK_LENGTH;
+
+            int joinFit = policy.rebalanceFit(this, buffer, p, foundAt1, foundAt2, virtualSize, candidateLeftSize,
+                    candidateRightSize, _bufferSize - KEY_BLOCK_START);
+
+            if (joinFit > joinBest && leftKeyCount < _pool.getMaxKeys()) {
+                joinBest = joinFit;
+                joinOffset = -p;
+            }
+
+            leftSize += KEYBLOCK_LENGTH + ((size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK) + adjustment;
+        }
+        return joinOffset;
+
     }
 
     void invalidateFastIndex() {
@@ -2682,8 +2888,6 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         if (!_fastIndex.isValid()) {
             _fastIndex.recompute();
         }
-        // TODO - rename and get rid of argument. This means this FastIndex has
-        // been "touched"
         _fastIndex.setTouched();
         return _fastIndex;
     }
@@ -2738,7 +2942,8 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                     newTail = wedgeTail(tail, delta);
 
                     if (newTail == -1) {
-                        throw new IllegalStateException("Can't wedge enough space");
+                        _persistit
+                        .fatal("Insufficient space for reduceEbc records in " + this + " at =" + p, null);
                     }
                 }
                 wedged = true;
@@ -2777,7 +2982,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
      * @param insertAt
      * @param includeRightEdge
      */
-    private void moveRecords(Buffer buffer, int p1, int p2, int insertAt, boolean includesRightEdge) {
+    void moveRecords(Buffer buffer, int p1, int p2, int insertAt, boolean includesRightEdge) {
         if (p2 - p1 + _keyBlockEnd > _alloc) {
             repack();
         }
@@ -2812,7 +3017,10 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                 newTail = allocTail(newSize);
             }
 
-            Debug.$assert0.t(newTail != -1);
+            if (newTail == -1) {
+                _persistit
+                        .fatal("Insufficient space to move records in " + this + "from " + buffer + " at =" + p, null);
+            }
 
             System.arraycopy(buffer._bytes, tail + 4, _bytes, newTail + 4, newSize - 4);
 
@@ -3186,6 +3394,10 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
         return _type == PAGE_TYPE_LONG_RECORD;
     }
 
+    static int tailBlockSize(final int size) {
+        return (size + ~TAILBLOCK_MASK) & TAILBLOCK_MASK;
+    }
+
     static int encodeKeyBlock(int ebc, int db, int tail) {
         return ((ebc << EBC_SHIFT) & EBC_MASK) | ((db /* << DB_SHIFT */) & DB_MASK)
                 | ((tail << TAIL_SHIFT) & TAIL_MASK);
@@ -3460,7 +3672,6 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
 
                     if (valueByte == MVV.TYPE_ANTIVALUE) {
                         if (p == KEY_BLOCK_START) {
-                            // TODO : enqueue background pruner
                             if (tree != null) {
                                 _persistit.getCleanupManager().offer(
                                         new CleanupAntiValue(tree.getHandle(), getPageAddress()));
@@ -3485,7 +3696,7 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                     setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
                 }
             }
-            
+
             Buffer.deallocatePrunedVersions(_persistit, _vol, prunedVersions);
         }
 
@@ -3540,8 +3751,8 @@ public final class Buffer extends SharedResource implements Comparable<Buffer> {
                     _keyBlockEnd, getTimestamp(), getGeneration(), getRightSibling(), _pool.hashIndex(_vol, _page)));
 
             try {
-                final Key key = new Key((Persistit) null);
-                final Value value = new Value((Persistit) null);
+                final Key key = new Key(_persistit);
+                final Value value = new Value(_persistit);
                 final RecordInfo[] records = getRecords();
                 BitSet bits = new BitSet();
                 if (isIndexPage() && findPointer >= 0) {

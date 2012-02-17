@@ -15,13 +15,15 @@
 
 package com.persistit;
 
-import com.persistit.exception.PersistitException;
-import com.persistit.unit.PersistitUnitTestCase;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.TreeSet;
+
+import com.persistit.exception.PersistitException;
+import com.persistit.exception.PersistitInterruptedException;
+import com.persistit.unit.PersistitUnitTestCase;
+import com.persistit.util.Util;
 
 public abstract class MVCCTestBase extends PersistitUnitTestCase {
     protected static final String TEST_VOLUME_NAME = "persistit";
@@ -67,7 +69,19 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
     
     protected int countClaims(boolean writer) {
         final Volume vol = ex1.getVolume();
-        return _persistit.getBufferPool(vol.getPageSize()).countInUse(vol, writer);
+        int count;
+        int retries = 5;
+        while ((count = _persistit.getBufferPool(vol.getPageSize()).countInUse(vol, writer)) != 0) {
+            try {
+                if (--retries < 0) {
+                    break;
+                }
+                Util.sleep(100);
+            } catch (PersistitInterruptedException e) {
+                break;
+            }
+        }
+        return count;
     }
 
     protected static class KVPair implements Comparable<KVPair> {
