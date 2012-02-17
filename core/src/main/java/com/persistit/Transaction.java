@@ -32,8 +32,7 @@ import com.persistit.util.Util;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit},
- * {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <code>commit</code> is performed. At that
  * point, all the updates are written atomically - that is, completely or not at
@@ -337,13 +336,12 @@ public class Transaction {
             }
         }
         /*
-         * The background rollback cleanup should be stopped before
-         * calling this method so the following check is deterministic.
+         * The background rollback cleanup should be stopped before calling this
+         * method so the following check is deterministic.
          */
         TransactionStatus status = _persistit.getTransactionIndex().getStatus(_startTimestamp);
         if (status != null && status.getMvvCount() > 0) {
-            flushTransactionBuffer();
-            _previousJournalAddress = 0;
+            flushTransactionBuffer(false);
         }
     }
 
@@ -413,7 +411,7 @@ public class Transaction {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
-            flushTransactionBuffer();
+            flushTransactionBuffer(false);
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerTransaction();
             } catch (InterruptedException e) {
@@ -424,7 +422,6 @@ public class Transaction {
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
-            _previousJournalAddress = 0;
             _threadName = Thread.currentThread().getName();
         } else {
             checkPendingRollback();
@@ -437,7 +434,7 @@ public class Transaction {
             throw new IllegalStateException("Attempt to begin a committed transaction " + this);
         }
         if (_nestedDepth == 0) {
-            flushTransactionBuffer();
+            flushTransactionBuffer(false);
             try {
                 _transactionStatus = _persistit.getTransactionIndex().registerCheckpointTransaction();
             } catch (InterruptedException e) {
@@ -448,8 +445,6 @@ public class Transaction {
             _startTimestamp = _transactionStatus.getTs();
             _commitTimestamp = 0;
             _step = 0;
-            _buffer.clear();
-            _previousJournalAddress = 0;
         } else {
             checkPendingRollback();
         }
@@ -469,7 +464,8 @@ public class Transaction {
      * Updates are committed only if the <code>commit</code> method completes
      * successfully.
      * </p>
-     * @throws PersistitIOException 
+     * 
+     * @throws PersistitIOException
      * 
      * @throws IllegalStateException
      *             if there is no current transaction scope.
@@ -516,7 +512,8 @@ public class Transaction {
      * all enclosing transactions to roll back. This ensures that the outermost
      * transaction will not commit if any inner transaction has rolled back.
      * </p>
-     * @throws PersistitIOException 
+     * 
+     * @throws PersistitIOException
      * 
      * @throws IllegalStateException
      *             if there is no transaction scope or the current scope has
@@ -537,12 +534,20 @@ public class Transaction {
         if (!_rollbackCompleted) {
             _rollbackCount++;
             _rollbacksSinceLastCommit++;
-
             _transactionStatus.abort();
-            _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
-                    _persistit.getTimestampAllocator().getCurrentTimestamp());
+            try {
+                /*
+                 * Necessary to enable rollback pruning
+                 */
+                flushTransactionBuffer(false);
+            } catch (PersistitIOException e) {
+                _persistit.getLogBase().exception.log(e);
+            } finally {
+                _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
+                        _persistit.getTimestampAllocator().getCurrentTimestamp());
+                _rollbackCompleted = true;
 
-            _rollbackCompleted = true;
+            }
         }
     }
 
@@ -639,8 +644,7 @@ public class Transaction {
                  * will want to mark the transaction status as ABORTED in that
                  * case, but need to go look hard at TransactionIndex.
                  */
-                flushTransactionBuffer();
-                _previousJournalAddress = 0;
+                flushTransactionBuffer(false);
                 if (toDisk) {
                     _persistit.getJournalManager().force();
                 }
@@ -904,7 +908,7 @@ public class Transaction {
 
     synchronized private void prepare(final int recordSize) throws PersistitIOException {
         if (recordSize > _buffer.remaining()) {
-            flushTransactionBuffer();
+            flushTransactionBuffer(true);
         }
         if (recordSize > _buffer.remaining()) {
             throw new IllegalStateException("Record size " + recordSize + " is too long for Transaction buffer in "
@@ -912,11 +916,16 @@ public class Transaction {
         }
     }
 
-    synchronized void flushTransactionBuffer() throws PersistitIOException {
+    synchronized void flushTransactionBuffer(final boolean chain) throws PersistitIOException {
         if (_buffer.position() > 0 || _previousJournalAddress != 0) {
-            _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
+            long previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, _commitTimestamp, _previousJournalAddress);
             _buffer.clear();
+            if (chain) {
+                _previousJournalAddress = previousJournalAddress;
+            } else {
+                _previousJournalAddress = 0;
+            }
         }
     }
 

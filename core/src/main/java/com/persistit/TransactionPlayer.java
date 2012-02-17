@@ -76,6 +76,7 @@ public class TransactionPlayer {
         long startTimestamp;
         long commitTimestamp;
         long backchainAddress;
+        int appliedUpdates = 0;
 
         for (;;) {
             _support.read(address, TX.OVERHEAD);
@@ -106,7 +107,7 @@ public class TransactionPlayer {
         }
 
         listener.startTransaction(address, startTimestamp, commitTimestamp);
-        applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp, commitTimestamp,
+        appliedUpdates += applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp, commitTimestamp,
                 listener);
 
         for (Long continuation : chainedAddress) {
@@ -119,20 +120,21 @@ public class TransactionPlayer {
                         + " has invalid length " + recordSize + " or type " + type);
             }
             _support.read(address, recordSize);
-            applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp, commitTimestamp,
+            appliedUpdates += applyTransactionUpdates(_support.getReadBuffer(), address, recordSize, startTimestamp, commitTimestamp,
                     listener);
         }
         listener.endTransaction(address, startTimestamp);
 
     }
 
-    void applyTransactionUpdates(final ByteBuffer byteBuffer, final long address, final int recordSize,
+    int applyTransactionUpdates(final ByteBuffer byteBuffer, final long address, final int recordSize,
             final long startTimestamp, final long commitTimestamp, final TransactionPlayerListener listener)
             throws PersistitException {
         ByteBuffer bb = byteBuffer;
         final int start = bb.position();
         int end = start + recordSize;
         int position = start + TX.OVERHEAD;
+        int appliedUpdates = 0;
 
         while (position < end) {
             bb.position(position);
@@ -172,6 +174,7 @@ public class TransactionPlayer {
                 }
 
                 listener.store(address, startTimestamp, exchange);
+                appliedUpdates++;
                 // Don't keep exchanges with enlarged value - let them be GC'd
                 if (exchange.getValue().getMaximumSize() < Value.DEFAULT_MAXIMUM_SIZE) {
                     releaseExchange(exchange);
@@ -195,6 +198,7 @@ public class TransactionPlayer {
                 key2.setEncodedSize(key2Size + elisionCount);
                 listener.removeKeyRange(address, startTimestamp, exchange, exchange.getAuxiliaryKey1(), exchange
                         .getAuxiliaryKey2());
+                appliedUpdates++;
                 releaseExchange(exchange);
                 break;
             }
@@ -202,6 +206,7 @@ public class TransactionPlayer {
             case DT.TYPE: {
                 final Exchange exchange = getExchange(DT.getTreeHandle(bb), address, startTimestamp);
                 listener.removeTree(address, startTimestamp, exchange);
+                appliedUpdates++;
                 releaseExchange(exchange);
                 break;
             }
@@ -210,6 +215,7 @@ public class TransactionPlayer {
                 final Exchange exchange = getExchange(D0.getTreeHandle(bb), address, startTimestamp);
                 listener.delta(address, startTimestamp, exchange.getTree(), D0.getIndex(bb), D0
                         .getAccumulatorTypeOrdinal(bb), 1);
+                appliedUpdates++;
                 break;
             }
 
@@ -217,6 +223,7 @@ public class TransactionPlayer {
                 final Exchange exchange = getExchange(D1.getTreeHandle(bb), address, startTimestamp);
                 listener.delta(address, startTimestamp, exchange.getTree(), D1.getIndex(bb), D1
                         .getAccumulatorTypeOrdinal(bb), D1.getValue(bb));
+                appliedUpdates++;
                 break;
             }
 
@@ -228,14 +235,14 @@ public class TransactionPlayer {
             }
             position += innerSize;
         }
-
+        return appliedUpdates;
     }
 
-    public String addressToString(final long address) {
+    public static String addressToString(final long address) {
         return String.format("JournalAddress %,d", address);
     }
 
-    public String addressToString(final long address, final long timestamp) {
+    public static String addressToString(final long address, final long timestamp) {
         return String.format("JournalAddress %,d{%,d}", address, timestamp);
     }
 

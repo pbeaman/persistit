@@ -513,7 +513,7 @@ public class MVV {
                         if (isMarked(bytes, from)) {
                             System.arraycopy(bytes, from + LENGTH_PER_VERSION, bytes, offset, vlength);
                             marked--;
-                            Debug.$assert0.t(bytes[offset] != TYPE_MVV_BYTE);
+                            Debug.$assert0.t(vlength == 0 || bytes[offset] != TYPE_MVV_BYTE);
                             return vlength;
                         }
                         from += vlength + LENGTH_PER_VERSION;
