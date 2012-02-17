@@ -30,7 +30,7 @@ import org.junit.Test;
 import com.persistit.CheckpointManager.Checkpoint;
 import com.persistit.JournalManager.PageNode;
 import com.persistit.JournalManager.TreeDescriptor;
-import com.persistit.RecoveryManager.RecoveryListener;
+import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
 import com.persistit.exception.TransactionFailedException;
@@ -45,6 +45,12 @@ public class RecoveryTest extends PersistitUnitTestCase {
 
     private String journalSize = "10000000";
     private String _volumeName = "persistit";
+    
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
+        _persistit.getJournalManager().setRollbackPruningEnabled(false);
+    }
 
     @Override
     protected Properties getProperties(final boolean cleanup) {
@@ -103,7 +109,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         assertEquals(15, plan.getCommittedCount());
         plan.setRecoveryDisabledForTestMode(false);
         final Set<Long> recoveryTimestamps = new HashSet<Long>();
-        final RecoveryListener actor = new RecoveryListener() {
+        final TransactionPlayerListener actor = new TransactionPlayerListener() {
 
             @Override
             public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
@@ -145,7 +151,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
             }
 
         };
-        plan.applyAllCommittedTransactions(actor, plan.getDefaultRollbackListener());
+        plan.applyAllRecoveredTransactions(actor, plan.getDefaultRollbackListener());
         assertEquals(15, recoveryTimestamps.size());
     }
 
@@ -165,7 +171,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         _persistit.initialize(saveProperties);
         assertTrue(rman.getCommittedCount() > 0);
         rman.setRecoveryDisabledForTestMode(false);
-        rman.applyAllCommittedTransactions(rman.getDefaultCommitListener(), rman.getDefaultRollbackListener());
+        rman.applyAllRecoveredTransactions(rman.getDefaultCommitListener(), rman.getDefaultRollbackListener());
         fetch3();
     }
 
@@ -192,7 +198,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         // prevent journal cleanup.
         txn.begin();
         store0();
-        txn.flushTransactionBuffer();
+        txn.flushTransactionBuffer(true);
         txn.rollback();
         txn.end();
 

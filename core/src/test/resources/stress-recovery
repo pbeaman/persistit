@@ -22,7 +22,7 @@
 # consistency.
 #-----------------------------
 
-sleep_time=60
+sleep_time=180
 datapath="/tmp/persistit_test_data"
 scriptpath="core/src/test/resources/tscripts"
 jvm_options="-Xmx2G -Xrunjdwp:transport=dt_socket,address=8000,suspend=n,server=y"
@@ -37,11 +37,19 @@ echo "Sleeping for $sleep_time seconds"
 sleep $sleep_time
 
 background_pid=`pgrep -f "stress_recovery_test_signature=1"`
-echo "Killing pid $background_pid"
+echo "kill -9 $background_pid"
 kill -9 $background_pid
-sleep 2
+sleep 1
+echo "kill -9 $background_pid"
+kill -9 $background_pid
+sleep 1
+echo "kill -9 $background_pid"
+kill -9 $background_pid
+sleep 1
+echo -----
 
 command="$testrunner_command script=$scriptpath/recovery_2.plan datapath=$datapath"
 echo $command
 $command
+sleep 2
 

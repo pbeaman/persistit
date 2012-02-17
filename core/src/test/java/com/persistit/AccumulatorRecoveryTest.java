@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.Test;
 
-import com.persistit.RecoveryManager.RecoveryListener;
+import com.persistit.TransactionPlayer.TransactionPlayerListener;
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.RollbackException;
 import com.persistit.unit.PersistitUnitTestCase;
@@ -101,7 +101,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
         final Set<Long> recoveryTimestamps = new HashSet<Long>();
         final AtomicLong recoveredRowCount = new AtomicLong();
         final AtomicLong expectedRowCount = new AtomicLong();
-        final RecoveryListener commitListener = new RecoveryListener() {
+        final TransactionPlayerListener commitListener = new TransactionPlayerListener() {
 
             @Override
             public void store(final long address, final long timestamp, Exchange exchange) throws PersistitException {
@@ -157,7 +157,7 @@ public class AccumulatorRecoveryTest extends PersistitUnitTestCase {
             }
 
         };
-        plan.applyAllCommittedTransactions(commitListener, plan.getDefaultRollbackListener());
+        plan.applyAllRecoveredTransactions(commitListener, plan.getDefaultRollbackListener());
         assertEquals(15, recoveryTimestamps.size());
         assertEquals(expectedRowCount.get(), recoveredRowCount.get());
     }

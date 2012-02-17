@@ -50,6 +50,10 @@ public class TestShim {
     public static TimestampAllocator timestampAllocator(final Persistit persistit) {
         return persistit.getTimestampAllocator();
     }
+    
+    public static CleanupManager cleanupManager(final Persistit persistit) {
+        return persistit.getCleanupManager();
+    }
 
     public static void closeTransaction(Transaction t) throws PersistitException {
         t.close();
@@ -61,5 +65,25 @@ public class TestShim {
     
     public static void ignoreMVCC(final boolean doIgnore, final Exchange ex) {
         ex.ignoreMVCCFetch(doIgnore);
+    }
+    
+    public static long allocateCheckpointTimestamp(final Persistit persistit) {
+        return persistit.getTimestampAllocator().allocateCheckpointTimestamp();
+    }
+    
+    public static void prune(final Exchange ex) throws PersistitException {
+        ex.prune();
+    }
+    
+    public static void flushTransactionBuffer(final Transaction txn, final boolean chain) throws PersistitException {
+        txn.flushTransactionBuffer(chain);
+    }
+    
+    public static void setMinimumPruningDelay(final Persistit persistit, final long delay) {
+        persistit.getCleanupManager().setMinimumPruningDelay(delay);
+    }
+    
+    public static SessionId newSessionId() {
+        return new SessionId();
     }
 }

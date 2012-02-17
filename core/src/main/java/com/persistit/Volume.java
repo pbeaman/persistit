@@ -437,12 +437,17 @@ public class Volume {
      *             if the handle has already been set
      */
     int setHandle(final int handle) {
-        if (handle == 0) {
-            _handle.set(0);
-        } else if (!_handle.compareAndSet(0, handle)) {
-            throw new IllegalStateException("Tree handle already set");
+        if (!_handle.compareAndSet(0, handle)) {
+            throw new IllegalStateException("Volume handle already set");
         }
         return handle;
+    }
+
+    /**
+     * Resets the handle to zero. Intended for use only by tests.
+     */
+    void resetHandle() {
+        _handle.set(0);
     }
 
     @Override

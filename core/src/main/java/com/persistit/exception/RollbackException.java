@@ -25,8 +25,6 @@ package com.persistit.exception;
 public class RollbackException extends RuntimeException {
     private static final long serialVersionUID = 4146025543886888181L;
 
-    Throwable _cause;
-
     public RollbackException() {
         super();
     }
@@ -36,16 +34,6 @@ public class RollbackException extends RuntimeException {
     }
 
     public RollbackException(Throwable t) {
-        _cause = t;
+        super(t);
     }
-
-    /**
-     * Provides an implementation for JDK1.3 and below. This simply overrides
-     * the JDK1.4 implementation of this method.
-     */
-    @Override
-    public Throwable getCause() {
-        return _cause;
-    }
-
 }

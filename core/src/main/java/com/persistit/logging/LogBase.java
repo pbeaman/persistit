@@ -187,7 +187,7 @@ public class LogBase {
     @Message("INFO|Waited %,d seconds for IO operations to finish")
     public final LogItem waitForClose = PersistitLogMessage.empty();
 
-    @Message("WARNING|Checkpoint %s written to journal before dirty page %d")
+    @Message("ERROR|Checkpoint %s written to journal before dirty page %d")
     public final LogItem lateWrite = PersistitLogMessage.empty();
 
     @Message("WARNING|%s has %,d stranded pages")
@@ -201,6 +201,12 @@ public class LogBase {
 
     @Message("WARNING|%s while performing cleanup action %s")
     public final LogItem cleanupException = PersistitLogMessage.empty();
+
+    @Message("WARNING|%s while pruning transaction record %s")
+    public final LogItem pruneException = PersistitLogMessage.empty();
+
+    @Message("WARNING|Transaction %s pruning incomplete at %s after rollback")
+    public final LogItem pruningIncomplete = PersistitLogMessage.empty();
 
     @Message ("WARNING|Crash retried %,d times on %s")
     public final LogItem crashRetry = PersistitLogMessage.empty();

@@ -93,6 +93,9 @@ public class TreeSelector {
 
     public static TreeSelector parseSelector(final String spec, final boolean regex, final char quote) {
         TreeSelector treeSelector = new TreeSelector();
+        if ("*".equals(spec)) {
+            return treeSelector;
+        }
         Selector s = new Selector();
         State state = State.V;
         StringBuilder sb = new StringBuilder();
@@ -179,7 +182,7 @@ public class TreeSelector {
 
     private final List<Selector> _terms = new ArrayList<Selector>();
 
-    public boolean isEmpty() {
+    public boolean isSelectAll() {
         return _terms.isEmpty();
     }
 

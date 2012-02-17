@@ -243,6 +243,10 @@ public class TransactionStatus {
         }
         _notified = true;
     }
+    
+    boolean isLocked() {
+        return _wwLock.isLocked();
+    }
 
     Delta getDelta() {
         return _delta;
@@ -352,9 +356,7 @@ public class TransactionStatus {
      * Initialize this <code>TransactionStatus</code> instance for a new
      * transaction.
      * 
-     * @param ts
-     * @throws InterruptedException
-     * @throws TimeoutException
+     * @param ts Start time of this status.
      */
     void initialize(final long ts) {
         _ts = ts;
@@ -366,11 +368,35 @@ public class TransactionStatus {
         _notified = false;
     }
 
+    /**
+     * Initialize this <code>TransactionStatus</code> instance for an
+     * artificial transaction known to be aborted. The initial state
+     * is aborted, infinite MVV count, and notified.
+     *
+     * @param ts Start time of this status.
+     */
+    void initializeAsAborted(final long ts) {
+        initialize(ts);
+        abort();
+        setMvvCount(Integer.MAX_VALUE);
+        _notified = true;
+    }
+
     @Override
     public String toString() {
         return String.format("<ts=%,d tc=%s mvv=%,d>", _ts, tcString(_tc), _mvvCount.get());
     }
 
+    static String versionString(final long version) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("%,d", TransactionIndex.vh2ts(version)));
+        int step = TransactionIndex.vh2step(version);
+        if (step > 0) {
+            sb.append(String.format("#%02d", step));
+        }
+        return sb.toString();
+    }
+    
     static String tcString(final long ts) {
         if (ts == ABORTED) {
             return "ABORTED";

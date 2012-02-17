@@ -1271,9 +1271,6 @@ public class BufferPool {
 
         @Override
         public void runTask() throws PersistitException {
-            _persistit.getIOMeter().poll();
-            _persistit.cleanup();
-
             int cleanCount = _bufferCount - _dirtyPageCount.get();
             if (cleanCount > PAGE_WRITER_TRANCHE_SIZE * 2 && cleanCount > _bufferCount / 8 && !isFlushing()
                     && getEarliestDirtyTimestamp() > _persistit.getCurrentCheckpoint().getTimestamp()) {

@@ -324,6 +324,18 @@ public class Persistit {
     private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
 
+    private final static int MAX_FATAL_ERROR_MESSAGES = 10;
+
+    public static class FatalErrorException extends RuntimeException {
+
+        final String _threadName = Thread.currentThread().getName();
+        final long _systemTime = System.currentTimeMillis();
+
+        private FatalErrorException(String msg, Throwable cause) {
+            super(msg, cause);
+        }
+    }
+
     private final long _availableHeap = availableHeap();
 
     private PersistitLogger _logger;
@@ -338,6 +350,7 @@ public class Persistit {
 
     private AtomicBoolean _initialized = new AtomicBoolean();
     private AtomicBoolean _closed = new AtomicBoolean();
+    private AtomicBoolean _fatal = new AtomicBoolean();
 
     private long _beginCloseTime;
     private long _nextCloseTime;
@@ -389,6 +402,8 @@ public class Persistit {
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
     private JoinPolicy _defaultJoinPolicy = DEFAULT_JOIN_POLICY;
+
+    private List<FatalErrorException> _fatalErrors = new ArrayList<FatalErrorException>();
 
     /**
      * <p>
@@ -672,7 +687,7 @@ public class Persistit {
     }
 
     void finishRecovery() throws PersistitException, TestException {
-        _recoveryManager.applyAllCommittedTransactions(_recoveryManager.getDefaultCommitListener(), _recoveryManager
+        _recoveryManager.applyAllRecoveredTransactions(_recoveryManager.getDefaultCommitListener(), _recoveryManager
                 .getDefaultRollbackListener());
         _recoveryManager.close();
         flush();
@@ -1502,8 +1517,9 @@ public class Persistit {
 
     /**
      * @return The most recently proposed Checkpoint.
+     * @throws PersistitInterruptedException
      */
-    public Checkpoint getCurrentCheckpoint() {
+    public Checkpoint getCurrentCheckpoint() throws PersistitInterruptedException {
         return _checkpointManager.getCurrentCheckpoint();
     }
 
@@ -1547,6 +1563,14 @@ public class Persistit {
             throw new PersistitClosedException();
         }
     }
+
+    /**
+     * @return whether a fatal error has occurred
+     */
+    public boolean isFatal() {
+        return _fatal.get();
+    }
+    
 
     /**
      * Looks up a volume by name.
@@ -1736,6 +1760,13 @@ public class Persistit {
             }
         }
 
+        /*
+         * The copier is responsible for background pruning of aborted
+         * transactions. Halt it so Transaction#close() can be called without
+         * being concerned about its state changing.
+         */
+        _journalManager.stopCopier();
+
         getTransaction().close();
         cleanup();
 
@@ -1761,6 +1792,22 @@ public class Persistit {
 
         for (final BufferPool pool : _bufferPoolTable.values()) {
             pool.close();
+        }
+
+        /*
+         * Close (and abort) all remaining transactions.
+         */
+        Set<Transaction> transactions;
+        synchronized (_transactionSessionMap) {
+            transactions = new HashSet<Transaction>(_transactionSessionMap.values());
+            _transactionSessionMap.clear();
+        }
+        for (final Transaction txn : transactions) {
+            try {
+                txn.close();
+            } catch (PersistitException e) {
+                _logBase.exception.log(e);
+            }
         }
 
         _journalManager.close();
@@ -1825,25 +1872,36 @@ public class Persistit {
         shutdownGUI();
     }
 
+    /**
+     * Record the cause of a fatal Persistit error, such as imminent data
+     * corruption, and set Persistit to the closed and fatal state. We expect this
+     * method never to be called except by tests.
+     * 
+     * @param msg
+     *            Explanatory message
+     * @param cause
+     *            Throwable cause of condition
+     */
+    void fatal(final String msg, final Throwable cause) {
+        _fatal.set(true);
+        _closed.set(true);
+        final FatalErrorException exception = new FatalErrorException(msg, cause);
+        synchronized (_fatalErrors) {
+            if (_fatalErrors.size() < MAX_FATAL_ERROR_MESSAGES) {
+                _fatalErrors.add(exception);
+            }
+        }
+        throw exception;
+    }
+
     private void releaseAllResources() {
 
         _accumulators.clear();
         _volumes.clear();
         _exchangePoolMap.clear();
         _cleanupManager.clear();
-
-        Set<Transaction> transactions;
-        synchronized (_transactionSessionMap) {
-            transactions = new HashSet<Transaction>(_transactionSessionMap.values());
-            _transactionSessionMap.clear();
-        }
-        for (final Transaction txn : transactions) {
-            try {
-                txn.close();
-            } catch (PersistitException e) {
-                _logBase.exception.log(e);
-            }
-        }
+        _transactionSessionMap.clear();
+        _fatalErrors.clear();
 
         unregisterMXBeans();
 
@@ -1894,14 +1952,14 @@ public class Persistit {
             pool.flush(timestamp);
         }
     }
-    
+
     void flushTransactions(final long checkpointTimestamp) throws PersistitException {
         final List<Transaction> transactions;
         synchronized (_transactionSessionMap) {
             transactions = new ArrayList<Transaction>(_transactionSessionMap.values());
         }
-        
-        for (final Transaction transaction: transactions) {
+
+        for (final Transaction transaction : transactions) {
             transaction.flushOnCheckpoint(checkpointTimestamp);
         }
     }
@@ -1951,6 +2009,7 @@ public class Persistit {
 
     void checkClosed() throws PersistitClosedException, PersistitInterruptedException {
         if (isClosed()) {
+            checkFatal();
             throw new PersistitClosedException();
         }
         if (Thread.currentThread().isInterrupted()) {
@@ -1958,6 +2017,12 @@ public class Persistit {
         }
     }
 
+    void checkFatal() throws FatalErrorException {
+        if (isFatal()) {
+            throw _fatalErrors.get(0);
+        }
+    }
+    
     /**
      * Waits until updates are no longer suspended. The
      * {@link #setUpdateSuspended} method controls whether update operations are
@@ -2560,46 +2625,48 @@ public class Persistit {
     }
 
     void addAccumulator(final Accumulator accumulator) throws PersistitException {
+        int checkpointCount = 0;
         synchronized (_accumulators) {
             _accumulators.add(accumulator.getAccumulatorRef());
             /*
-             * Count the checkpoint references. When the count is a multiple
-             * of ACCUMULATOR_CHECKPOINT_THRESHOLD, then call create a
-             * checkpoint which will write a checkpoint transaction and
-             * remove the checkpoint references. The threshold value is
-             * chosen to be large enough prevent creating too many checkpoints,
-             * but small enough that the number of excess Accumulators is
-             * kept to a reasonable number.
+             * Count the checkpoint references. When the count is a multiple of
+             * ACCUMULATOR_CHECKPOINT_THRESHOLD, then call create a checkpoint
+             * which will write a checkpoint transaction and remove the
+             * checkpoint references. The threshold value is chosen to be large
+             * enough prevent creating too many checkpoints, but small enough
+             * that the number of excess Accumulators is kept to a reasonable
+             * number.
              */
-            int checkpointCount = 0;
             for (AccumulatorRef ref : _accumulators) {
                 if (ref._checkpointRef != null) {
                     checkpointCount++;
                 }
             }
-            if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
-                try {
-                    _checkpointManager.createCheckpoint();
-                } catch (PersistitException e) {
-                    _logBase.exception.log(e);
-                }
+        }
+        if ((checkpointCount % ACCUMULATOR_CHECKPOINT_THRESHOLD) == 0) {
+            try {
+                _checkpointManager.createCheckpoint();
+            } catch (PersistitException e) {
+                _logBase.exception.log(e);
             }
         }
     }
 
-    synchronized List<Accumulator> getCheckpointAccumulators() {
+    List<Accumulator> getCheckpointAccumulators() {
         final List<Accumulator> result = new ArrayList<Accumulator>();
-        for (final Iterator<AccumulatorRef> refIterator = _accumulators.iterator(); refIterator.hasNext();) {
-            final AccumulatorRef ref = refIterator.next();
-            if (!ref.isLive()) {
-                refIterator.remove();
+        synchronized (_accumulators) {
+            for (final Iterator<AccumulatorRef> refIterator = _accumulators.iterator(); refIterator.hasNext();) {
+                final AccumulatorRef ref = refIterator.next();
+                if (!ref.isLive()) {
+                    refIterator.remove();
+                }
+                final Accumulator acc = ref.takeCheckpointRef();
+                if (acc != null) {
+                    result.add(acc);
+                }
             }
-            final Accumulator acc = ref.takeCheckpointRef();
-            if (acc != null) {
-                result.add(acc);
-            }
+            Collections.sort(result, Accumulator.SORT_COMPARATOR);
         }
-        Collections.sort(result, Accumulator.SORT_COMPARATOR);
         return result;
     }
 
@@ -2685,4 +2752,5 @@ public class Persistit {
             }
         }
     }
+
 }

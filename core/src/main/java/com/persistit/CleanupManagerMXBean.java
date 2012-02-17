@@ -72,4 +72,18 @@ public interface CleanupManagerMXBean {
     public long getPollInterval();
     
     public void setPollInterval(final long interval);
+    
+    /**
+     * @return The minimum interval in milliseconds between attempts to enqueue a page needing to be
+     * pruned to the {@link CleanupManager}.
+     */
+    public long getMinimumPruningDelay();
+    
+    /**
+     * Set the minimum interval in milliseconds between attempts to enqueue a page needing to be
+     * pruned to the {@link CleanupManager}.
+     * @param delay
+     */
+    public void setMinimumPruningDelay(long delay);
+
 }

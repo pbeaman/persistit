@@ -124,12 +124,16 @@ class CheckpointManager extends IOTaskRunnable {
         _closed.set(true);
     }
 
-    public Checkpoint getCurrentCheckpoint() {
+    public Checkpoint getCurrentCheckpoint() throws PersistitInterruptedException {
         return _currentCheckpoint;
     }
 
     long getCheckpointInterval() {
         return _checkpointInterval;
+    }
+
+    void setCheckpointInterval(long interval) {
+        _checkpointInterval = interval;
     }
 
     Checkpoint checkpoint() throws PersistitException {
@@ -195,7 +199,6 @@ class CheckpointManager extends IOTaskRunnable {
             Transaction txn = _persistit.getTransaction();
 
             _lastCheckpointNanos = System.nanoTime();
-            _currentCheckpoint = UNAVALABLE_CHECKPOINT;
 
             txn.beginCheckpoint();
             try {
@@ -225,10 +228,8 @@ class CheckpointManager extends IOTaskRunnable {
     void pollFlushCheckpoint() {
         Checkpoint checkpoint = _currentCheckpoint;
         if (!checkpoint.isCompleted()) {
-            final long earliestLiveTransaction = _persistit.earliestLiveTransaction();
             final long earliestDirtyTimestamp = _persistit.earliestDirtyTimestamp();
-            long earliest = Math.min(earliestDirtyTimestamp, earliestLiveTransaction);
-            if (checkpoint.getTimestamp() <= earliest) {
+            if (checkpoint.getTimestamp() <= earliestDirtyTimestamp) {
                 try {
                     _persistit.getJournalManager().writeCheckpointToJournal(checkpoint);
                 } catch (PersistitIOException e) {
