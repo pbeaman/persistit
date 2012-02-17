@@ -968,6 +968,35 @@ public class MVCCBasicTest extends MVCCTestBase {
         }
     }
 
+    public void testHigherVersionWithLowerStep() throws PersistitException {
+        trx1.begin();
+        try {
+            trx1.setStep(5);
+            store(ex1, KEY1, VALUE1);
+            assertEquals("fetch after store from trx1, step 5", VALUE1, fetch(ex1, KEY1));
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+        
+        // Concurrent txn to prevent prune
+        trx1.begin();
+        try {
+            trx2.begin();
+            try {
+                trx2.setStep(0);
+                store(ex2, KEY1, VALUE2);
+                assertEquals("fetch after store from tx2, step 0", VALUE2, fetch(ex2, KEY1));
+                trx2.commit();
+            } finally {
+                trx2.end();
+            }
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
+
     public void testStoreReallyLongRecord() throws PersistitException {
         // Enough that if the length portion of the MVV is signed we fail
         final String LONG_STR = createString(Short.MAX_VALUE + 2);
