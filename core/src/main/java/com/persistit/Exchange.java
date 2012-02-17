@@ -2638,7 +2638,7 @@ public class Exchange {
      * then calling {@link #mvccFetch(Value, int)}. See the latter for details.
      */
     private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
-        buffer.fetch(foundAt, value);
+        fetchInternal(buffer, value, foundAt, minimumBytes);
         if (MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
             buffer.enqueuePruningAction(_tree.getHandle());
         }
@@ -2664,10 +2664,7 @@ public class Exchange {
      */
     private boolean mvccFetch(Value value, int minimumBytes) throws PersistitException {
         if (_ignoreMVCCFetch) {
-            fetchFixupForLongRecords(value, minimumBytes);
             return true;
-        } else {
-            fetchFixupForLongRecords(value, Integer.MAX_VALUE);
         }
 
         final TransactionStatus status;
@@ -2740,9 +2737,27 @@ public class Exchange {
         if (minimumBytes < 0) {
             minimumBytes = 0;
         }
-        fetchInternal(value);
+        fetchInternal(value, minimumBytes);
         mvccFetch(value, minimumBytes);
         return this;
+    }
+
+    /**
+     * Helper for fully pulling a value out of a Buffer. That is, if
+     * the value is a LONG_RECORD it will also be fetched.
+     * @param buffer Buffer to read from.
+     * @param value Value to write to.
+     * @param foundAt Location within <code>buffer</code>.
+     * @param minimumBytes Minimum amount of LONG_RECORD to fetch. If
+     *            the value is &lt;0, the <code>value</code> will
+     *            contain just the descriptor.
+     * @throws PersistitException
+     */
+    private void fetchInternal(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
+        buffer.fetch(foundAt, value);
+        if (minimumBytes >= 0) {
+            fetchFixupForLongRecords(value, minimumBytes);
+        }    
     }
 
     /**
@@ -2752,16 +2767,19 @@ public class Exchange {
      * 
      * @param value
      *            The value as found on the page.
+     * @param minimumBytes
+     *            If >= 0 and stored value is a LONG_RECORD, fetch at least
+     *            this many bytes.
      * @throws PersistitException
      *             As thrown from {@link #search(Key, boolean)}
      */
-    private void fetchInternal(Value value) throws PersistitException {
+    private void fetchInternal(Value value, int minimumBytes) throws PersistitException {
         Buffer buffer = null;
         try {
             int foundAt = search(_key, false);
             LevelCache lc = _levelCache[0];
             buffer = lc._buffer;
-            buffer.fetch(foundAt, value);
+            fetchInternal(buffer, value, foundAt, minimumBytes);
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
         } finally {
@@ -4068,7 +4086,7 @@ public class Exchange {
      *             Any error during fetch
      */
     boolean isValueLongRecord() throws PersistitException {
-        fetchInternal(_spareValue);
+        fetchInternal(_spareValue, -1);
         final boolean wasLong = isLongRecord(_spareValue);
         _spareValue.clear();
         return wasLong;
