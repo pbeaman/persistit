@@ -163,7 +163,7 @@ public class Persistit {
     /**
      * Property name prefix for specifying buffer memory allocation. The full
      * property name should be one of "1024", "2048", "4096", "8192" or "16384"
-     * appended to this string, e.g., "buffer.count.8192". This property is an
+     * appended to this string, e.g., "buffer.memory.8192". This property is an
      * alternative to "buffer.count.nnnn", and only one of these may be used in
      * a configuration per buffer size. With the buffer.memory property
      * Persistit computes a buffer count that will consume approximately the

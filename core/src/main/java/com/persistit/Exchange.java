@@ -209,7 +209,7 @@ public class Exchange {
                     if (status >= 0 && status != TransactionStatus.UNCOMMITTED && status >= _foundVersion) {
                         assert status <= ts;
                         int step = TransactionIndex.vh2step(version);
-                        if (step >= _foundStep) {
+                        if (step >= _foundStep || status > _foundVersion) {
                             _foundOffset = offset;
                             _foundLength = valueLength;
                             _foundVersion = status;
