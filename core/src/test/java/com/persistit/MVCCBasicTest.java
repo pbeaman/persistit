@@ -925,7 +925,7 @@ public class MVCCBasicTest extends MVCCTestBase {
             final List<KVPair> traversedStep2 = traverseAllFoward(ex1, true);
             
             assertEquals("traversed only originals from step 0", originalList, traversedStep0);
-            assertEquals("traversed only originals from step 1", originalList, traversedStep1);
+            assertEquals("traversed only originals from step 1", updatedList, traversedStep1);
             assertEquals("traversed only updated from step 2", updatedList, traversedStep2);
 
             trx1.commit();
@@ -958,11 +958,39 @@ public class MVCCBasicTest extends MVCCTestBase {
             
             for (int i = 0; i < STEP_COUNT; ++i) {
                 trx1.setStep(i);
-                final int expected = (i == 0) ? 0 : i - 1;
                 fetch(ex1, KEY1, false);
-                assertEquals("fetched value from step " + i, expected, ex1.getValue().getInt());
+                assertEquals("fetched value from step " + i, i, ex1.getValue().getInt());
             }
             
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+    }
+
+    public void testHigherVersionWithLowerStep() throws PersistitException {
+        trx1.begin();
+        try {
+            trx1.setStep(5);
+            store(ex1, KEY1, VALUE1);
+            assertEquals("fetch after store from trx1, step 5", VALUE1, fetch(ex1, KEY1));
+            trx1.commit();
+        } finally {
+            trx1.end();
+        }
+        
+        // Concurrent txn to prevent prune
+        trx1.begin();
+        try {
+            trx2.begin();
+            try {
+                trx2.setStep(0);
+                store(ex2, KEY1, VALUE2);
+                assertEquals("fetch after store from tx2, step 0", VALUE2, fetch(ex2, KEY1));
+                trx2.commit();
+            } finally {
+                trx2.end();
+            }
             trx1.commit();
         } finally {
             trx1.end();
