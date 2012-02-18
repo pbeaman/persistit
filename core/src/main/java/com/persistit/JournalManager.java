@@ -1461,7 +1461,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     status = _persistit.getTransactionIndex().getStatus(item.getStartTimestamp());
                     if (status == null || status.getTs() != item.getStartTimestamp()) {
                         iterator.remove();
-                    } else if (status.getTc() == ABORTED) {
+                    } else if (status.getTc() == ABORTED && status.isNotified()) {
                         if (status.getMvvCount() == 0) {
                             iterator.remove();
                         } else {
