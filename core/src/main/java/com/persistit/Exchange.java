@@ -2137,7 +2137,7 @@ public class Exchange {
                         index = _key.getEncodedSize();
 
                         if (matches) {
-                            matches = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                            matches = fetchInternal(buffer, outValue, foundAt, minimumBytes);
                             if (!matches && direction != EQ) {
                                 nudged = false;
                                 nudgeForMVCC = (direction == GTEQ || direction == LTEQ);
@@ -2157,7 +2157,7 @@ public class Exchange {
                         if (matches) {
                             index = _key.nextElementIndex(parentIndex);
                             if (index > 0) {
-                                boolean isVisibleMatch = mvccFetch(buffer, outValue, foundAt, minimumBytes);
+                                boolean isVisibleMatch = fetchInternal(buffer, outValue, foundAt, minimumBytes);
                                 //
                                 // In any case (matching sibling, child or
                                 // niece/nephew) we need to ignore this
@@ -2634,22 +2634,14 @@ public class Exchange {
     }
 
     /**
-     * Convenience method that calls {@link Buffer#fetch(int, Value)} before
-     * then calling {@link #mvccFetch(Value, int)}. See the latter for details.
-     */
-    private boolean mvccFetch(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
-        buffer.fetch(foundAt, value);
-        if (MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
-            buffer.enqueuePruningAction(_tree.getHandle());
-        }
-        return mvccFetch(value, minimumBytes);
-    }
-
-    /**
      * Fetch a single version of a value from a <code>Buffer</code> that is
      * assumed, but not required, to be an MVV. The correct version is
      * determined by the current transactions start timestamp. If no transaction
      * is active, the highest committed version is returned.
+     *
+     * <p><b>Note</b>: This method only determines the visible version and
+     * copies it into <code>value</code>, or clears it if there isn't one.
+     * It may still be a LONG_RECORD or AntiValue</p>.
      * 
      * @param value
      *            The <code>Value</code> into which the value should be fetched.
@@ -2663,13 +2655,6 @@ public class Exchange {
      *             for any internal error
      */
     private boolean mvccFetch(Value value, int minimumBytes) throws PersistitException {
-        if (_ignoreMVCCFetch) {
-            fetchFixupForLongRecords(value, minimumBytes);
-            return true;
-        } else {
-            fetchFixupForLongRecords(value, Integer.MAX_VALUE);
-        }
-
         final TransactionStatus status;
         final int step;
         if (_transaction.isActive()) {
@@ -2688,12 +2673,6 @@ public class Exchange {
         if (_mvvVisitor.foundVersion()) {
             int finalSize = MVV.fetchVersionByOffset(valueBytes, valueSize, _mvvVisitor.getOffset(), valueBytes);
             value.setEncodedSize(finalSize);
-            // Need at least enough to determine if it is an AntiValue
-            fetchFixupForLongRecords(value, Math.max(minimumBytes, 1));
-            if (value.isDefined() && value.isAntiValue()) {
-                value.clear();
-                return false;
-            }
             return true;
         } else {
             if (minimumBytes > 0) {
@@ -2740,9 +2719,43 @@ public class Exchange {
         if (minimumBytes < 0) {
             minimumBytes = 0;
         }
-        fetchInternal(value);
-        mvccFetch(value, minimumBytes);
+        fetchInternal(value, minimumBytes);
         return this;
+    }
+
+    /**
+     * Helper for fully pulling a value out of a Buffer. That is, if
+     * the value is a LONG_RECORD it will also be fetched.
+     * @param buffer Buffer to read from.
+     * @param value Value to write to.
+     * @param foundAt Location within <code>buffer</code>.
+     * @param minimumBytes Minimum amount of LONG_RECORD to fetch. If &lt;0, the
+     *            <code>value</code> will contain just the descriptor portion.
+     * @throws PersistitException
+     *             As thrown from any internal method.
+     * @return <code>true</code> if the value was visible.
+     */
+    private boolean fetchInternal(Buffer buffer, Value value, int foundAt, int minimumBytes) throws PersistitException {
+        boolean visible = true;
+        buffer.fetch(foundAt, value);
+        /*
+         * We must fetch the full LONG_RECORD, if needed, while buffer is
+         * claimed from calling code so that it can't be de-allocated
+         * as we are reading it.
+         */
+        fetchFixupForLongRecords(value, minimumBytes);
+        if (!_ignoreMVCCFetch) {
+            if(MVV.isArrayMVV(value.getEncodedBytes(), 0, value.getEncodedSize())) {
+                buffer.enqueuePruningAction(_tree.getHandle());
+                visible = mvccFetch(value, minimumBytes);
+                fetchFixupForLongRecords(value, minimumBytes);
+            }
+            if (value.isDefined() && value.isAntiValue()) {
+                value.clear();
+                visible = false;
+            }
+        }
+        return visible;
     }
 
     /**
@@ -2752,16 +2765,19 @@ public class Exchange {
      * 
      * @param value
      *            The value as found on the page.
+     * @param minimumBytes
+     *            If >= 0 and stored value is a LONG_RECORD, fetch at least
+     *            this many bytes.
      * @throws PersistitException
      *             As thrown from {@link #search(Key, boolean)}
      */
-    private void fetchInternal(Value value) throws PersistitException {
+    private void fetchInternal(Value value, int minimumBytes) throws PersistitException {
         Buffer buffer = null;
         try {
             int foundAt = search(_key, false);
             LevelCache lc = _levelCache[0];
             buffer = lc._buffer;
-            buffer.fetch(foundAt, value);
+            fetchInternal(buffer, value, foundAt, minimumBytes);
             _volume.getStatistics().bumpFetchCounter();
             _tree.getStatistics().bumpFetchCounter();
         } finally {
@@ -2782,7 +2798,7 @@ public class Exchange {
     }
 
     void fetchFixupForLongRecords(Value value, int minimumBytes) throws PersistitException {
-        if (isLongRecord(value)) {
+        if (minimumBytes >= 0 && isLongRecord(value)) {
             //
             // This will potential require numerous pages: the buffer
             // claim is held for the duration to prevent a non-atomic
@@ -3701,11 +3717,6 @@ public class Exchange {
             value.setEncodedSize(remainingSize);
 
             int offset = 0;
-            //
-            // This is a workaround for an egregious bug in the AIX JRE 1.4.0
-            // and JRE 1.4.2 System.arraycopy implementation. Without this, the
-            // arraycopy method corrupts the array.
-            //
             System.arraycopy(rawBytes, LONGREC_PREFIX_OFFSET, value.getEncodedBytes(), offset, LONGREC_PREFIX_SIZE);
 
             offset += LONGREC_PREFIX_SIZE;
@@ -4068,9 +4079,15 @@ public class Exchange {
      *             Any error during fetch
      */
     boolean isValueLongRecord() throws PersistitException {
-        fetchInternal(_spareValue);
-        final boolean wasLong = isLongRecord(_spareValue);
-        _spareValue.clear();
-        return wasLong;
+        boolean savedIgnore = _ignoreMVCCFetch;
+        try {
+            _ignoreMVCCFetch = true;
+            fetchInternal(_spareValue, -1);
+            final boolean wasLong = isLongRecord(_spareValue);
+            _spareValue.clear();
+            return wasLong;
+        } finally {
+            _ignoreMVCCFetch = savedIgnore;
+        }
     }
 }
