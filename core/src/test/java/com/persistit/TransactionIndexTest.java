@@ -51,10 +51,11 @@ public class TransactionIndexTest extends TestCase {
          */
         assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()), ts2.getTs(), 0)));
         /*
-         * Step policy
+         * Step policy - see my updates and previous updates, but not future
          */
-        assertFalse(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()) + 1, ts2.getTs(), 1)));
+        assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()) + 1, ts2.getTs(), 1)));
         assertTrue(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()) + 1, ts2.getTs(), 2)));
+        assertFalse(isCommitted(ti.commitStatus(TransactionIndex.ts2vh(ts2.getTs()) + 2, ts2.getTs(), 1)));
 
         TransactionStatus ts3 = ti.registerTransaction();
         TransactionStatus ts4 = ti.registerTransaction();
