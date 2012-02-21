@@ -27,6 +27,7 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
+import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**
@@ -285,9 +286,9 @@ public class Transaction {
     private long _commitCount = 0;
     private int _rollbacksSinceLastCommit = 0;
 
-    private TransactionStatus _transactionStatus;
-    private long _startTimestamp;
-    private long _commitTimestamp;
+    private volatile TransactionStatus _transactionStatus;
+    private volatile long _startTimestamp;
+    private volatile long _commitTimestamp;
 
     private final ByteBuffer _buffer = ByteBuffer.allocate(TRANSACTION_BUFFER_SIZE);
 
@@ -636,7 +637,9 @@ public class Transaction {
                 writeDeltaToJournal(delta);
             }
             _transactionStatus.commit(_persistit.getTimestampAllocator().getCurrentTimestamp());
+            Debug.await("flushOnCheckpoint_a");
             _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+            Debug.awaken("flushOnCheckpoint_b");
             boolean committed = false;
             try {
                 /*
@@ -931,8 +934,10 @@ public class Transaction {
 
     synchronized void flushOnCheckpoint(final long timestamp) throws PersistitIOException {
         if (_startTimestamp > 0 && _startTimestamp < timestamp && _commitTimestamp == 0 && _buffer.position() > 0) {
+            Debug.awaken("flushOnCheckpoint_a");
+            Debug.await("flushOnCheckpoint_b");
             _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
-                    _startTimestamp, _commitTimestamp, _previousJournalAddress);
+                    _startTimestamp, 0, _previousJournalAddress);
             _buffer.clear();
         }
     }

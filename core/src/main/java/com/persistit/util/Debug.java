@@ -18,8 +18,12 @@ package com.persistit.util;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.StringTokenizer;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Debug {
@@ -31,6 +35,8 @@ public class Debug {
     public final static Random RANDOM = new Random(123);
 
     private final static AtomicLong PAUSES = new AtomicLong();
+
+    private static volatile Interleave _interleave = new DisabledInterleave();
 
     public interface Dbg {
         void t(boolean b);
@@ -173,6 +179,86 @@ public class Debug {
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
+        }
+    }
+
+    public static void await(String semaphoreName) {
+        _interleave.await(semaphoreName);
+    }
+
+    public static void awaken(String semaphoreName) {
+        _interleave.awaken(semaphoreName);
+    }
+
+    public static String sequence() {
+        return _interleave.sequence();
+    }
+
+    public static void enableInterleave() {
+        _interleave = new EnabledInterleave();
+    }
+
+    public static void disableInterleave() {
+        _interleave = new DisabledInterleave();
+    }
+
+    interface Interleave {
+        void await(String semaphoreName);
+
+        void awaken(String semaphoreName);
+
+        String sequence();
+    }
+
+    static class DisabledInterleave implements Interleave {
+
+        public void await(String semaphoreName) {
+        }
+
+        public void awaken(String semaphoreName) {
+        }
+
+        public String sequence() {
+            return null;
+        }
+    }
+
+    static class EnabledInterleave implements Interleave {
+        private final Map<String, Semaphore> _awaitMap = new HashMap<String, Semaphore>();
+        private StringBuilder _sequence = new StringBuilder();
+
+        public void await(final String semaphoreName) {
+            Semaphore s = null;
+            synchronized (_awaitMap) {
+                s = _awaitMap.get(semaphoreName);
+                if (s == null) {
+                    s = new Semaphore(0);
+                }
+                _awaitMap.put(semaphoreName, s);
+            }
+            try {
+                _sequence.append("acquire:" + semaphoreName + ",");
+                s.acquire();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        public void awaken(final String semaphoreName) {
+            Semaphore s = null;
+            synchronized (_awaitMap) {
+                s = _awaitMap.get(semaphoreName);
+                if (s == null) {
+                    s = new Semaphore(0);
+                }
+                _awaitMap.put(semaphoreName, s);
+            }
+            _sequence.append("release:" + semaphoreName + ",");
+            s.release();
+        }
+
+        public String sequence() {
+            return _sequence.toString();
         }
     }
 }
