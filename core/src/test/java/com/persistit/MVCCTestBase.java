@@ -33,7 +33,7 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
     protected Transaction trx1, trx2;
     protected SessionId session1, session2;
 
-    public final void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
 
         ex1 = createUniqueExchange();
@@ -45,7 +45,7 @@ public abstract class MVCCTestBase extends PersistitUnitTestCase {
         session2 = _persistit.getSessionId();
     }
 
-    public final void tearDown() throws Exception {
+    public void tearDown() throws Exception {
         try {
             assertEquals("open read claims",  0, countClaims(false));
             assertEquals("open write claims", 0, countClaims(true));

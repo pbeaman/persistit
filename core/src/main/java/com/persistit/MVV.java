@@ -456,8 +456,8 @@ public class MVV {
                             marked++;
                             primordial = false;
                         }
-                        assert versionHandle > lastVersionHandle;
-                        // Note: tc == lastVersionTc when there are multiple steps
+                        // Note: versions and tcs can be the same when there are multiple steps
+                        assert versionHandle >= lastVersionHandle || vh2ts(versionHandle) == vh2ts(lastVersionHandle);
                         assert tc >= lastVersionTc || lastVersionTc == UNCOMMITTED;
                         lastVersionIndex = from;
                         lastVersionHandle = versionHandle;
