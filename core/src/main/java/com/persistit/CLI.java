@@ -628,89 +628,112 @@ public class CLI {
             throw new NotOpenException();
         }
     }
-
+    
+    /**
+     * Open files on disk and attempt to make a read-only Persistit instance.
+     * This method does not return a Task and cannot be executed in a live 
+     * @param datapath
+     * @param journalpath
+     * @param volumepath
+     * @param rmiport
+     * @param y
+     * @return
+     * @throws Exception
+     */
     @Cmd("open")
-    Task open(final @Arg("datapath|string|Data path") String datapath,
-            final @Arg("journalpath|string|Journal path") String journalpath,
-            final @Arg("volumepath|string|Volume file") String volumepath,
-            final @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport,
-            final @Arg("_flag|y|Recover committed transactions") boolean recover) throws Exception {
-        return new Task() {
+    String open(@Arg("datapath|string|Data path") String datapath,
+            @Arg("journalpath|string|Journal path") String journalpath,
+            @Arg("volumepath|string|Volume file") String volumepath,
+            @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport,
+            @Arg("_flag|y|Recover committed transactions") boolean y) throws Exception {
+        
+        if (_live) {
+            return "Cannot open another Persistit instance within a live system";
+        }
+        close(false);
 
-            @Override
-            public void runTask() throws Exception {
-                close(false);
-
-                String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath : journalpath));
-                List<VolumeSpecification> volumeSpecifications = volumeSpecifications(filesOnPath(volumepath.isEmpty() ? datapath
-                        : volumepath));
-                Set<Integer> bufferSizes = new HashSet<Integer>();
-                for (final VolumeSpecification vs : volumeSpecifications) {
-                    bufferSizes.add(vs.getPageSize());
-                }
-                final Properties properties = new Properties();
-                long bpoolMemory = availableMemory() / 2;
-                for (final Integer size : bufferSizes) {
-                    int alloc = (int) (size * 1.25);
-                    final int count = (int) ((bpoolMemory / bufferSizes.size()) / alloc);
-                    properties.put(Persistit.BUFFERS_PROPERTY_NAME + size, Integer.toString(count));
-                }
-                int index = 0;
-                for (final VolumeSpecification vs : volumeSpecifications) {
-                    String value = vs.toString();
-                    if (!recover) {
-                        value += ",readOnly";
-                    }
-                    properties.put(Persistit.VOLUME_PROPERTY_PREFIX + (++index), value);
-                }
-                if (jpath != null) {
-                    properties.put(Persistit.JOURNAL_PATH_PROPERTY_NAME, jpath);
-                }
-                properties.put(Persistit.APPEND_ONLY_PROPERTY, "true");
-
-                if (rmiport > 0) {
-                    properties.put(Persistit.RMI_REGISTRY_PORT, Integer.toString(rmiport));
-                }
-                properties.put(Persistit.JMX_PARAMS, "true");
-
-                final Persistit persistit = new Persistit();
-                if (!recover) {
-                    persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
-                }
-                persistit.initialize(properties);
-
-                /**
-                 * Following is a hack to figure ought whether there is a
-                 * classIndex in exactly one volume, and if so, make is the
-                 * system volume. There should be an API in the Persistit class
-                 * itself to do this, but currently there isn't one.
-                 */
-                Volume sysvol = null;
-                for (final Volume volume : persistit.getVolumes()) {
-                    if (volume.getTree(ClassIndex.CLASS_INDEX_TREE_NAME, false) != null) {
-                        if (sysvol == null) {
-                            sysvol = volume;
-                        } else {
-                            sysvol = null;
-                            break;
-                        }
-                    }
-                }
-                if (sysvol != null) {
-                    properties.put(Persistit.SYSTEM_VOLUME_PROPERTY, sysvol.getName());
-                }
-
-                CLI.this._persistit = persistit;
-                postMessage("Last valid checkpoint="
-                        + persistit.getRecoveryManager().getLastValidCheckpoint().toString(), LOG_NORMAL);
-                return;
+        String jpath = journalPath(filesOnPath(journalpath.isEmpty() ? datapath : journalpath));
+        List<VolumeSpecification> volumeSpecifications = volumeSpecifications(filesOnPath(volumepath.isEmpty() ? datapath
+                : volumepath));
+        Set<Integer> bufferSizes = new HashSet<Integer>();
+        for (final VolumeSpecification vs : volumeSpecifications) {
+            bufferSizes.add(vs.getPageSize());
+        }
+        final Properties properties = new Properties();
+        long bpoolMemory = availableMemory() / 2;
+        for (final Integer size : bufferSizes) {
+            int alloc = (int) (size * 1.25);
+            final int count = (int) ((bpoolMemory / bufferSizes.size()) / alloc);
+            properties.put(Persistit.BUFFERS_PROPERTY_NAME + size, Integer.toString(count));
+        }
+        int index = 0;
+        for (final VolumeSpecification vs : volumeSpecifications) {
+            String value = vs.toString();
+            if (!y) {
+                value += ",readOnly";
             }
+            properties.put(Persistit.VOLUME_PROPERTY_PREFIX + (++index), value);
+        }
+        if (jpath != null) {
+            properties.put(Persistit.JOURNAL_PATH_PROPERTY_NAME, jpath);
+        }
+        properties.put(Persistit.APPEND_ONLY_PROPERTY, "true");
 
-            @Override
-            public String getStatus() {
-                return "";
+        if (rmiport > 0) {
+            properties.put(Persistit.RMI_REGISTRY_PORT, Integer.toString(rmiport));
+        }
+        properties.put(Persistit.JMX_PARAMS, "true");
+
+        final Persistit persistit = new Persistit();
+        if (!y) {
+            persistit.getRecoveryManager().setRecoveryDisabledForTestMode(true);
+        }
+        persistit.initialize(properties);
+
+        /**
+         * Following is a hack to figure ought whether there is a classIndex in
+         * exactly one volume, and if so, make is the system volume. There
+         * should be an API in the Persistit class itself to do this, but
+         * currently there isn't one.
+         */
+        Volume sysvol = null;
+        for (final Volume volume : persistit.getVolumes()) {
+            if (volume.getTree(ClassIndex.CLASS_INDEX_TREE_NAME, false) != null) {
+                if (sysvol == null) {
+                    sysvol = volume;
+                } else {
+                    sysvol = null;
+                    break;
+                }
             }
-        };
+        }
+        if (sysvol != null) {
+            properties.put(Persistit.SYSTEM_VOLUME_PROPERTY, sysvol.getName());
+        }
+
+        _persistit = persistit;
+        return "Last valid checkpoint=" + persistit.getRecoveryManager().getLastValidCheckpoint().toString();
+    }
+
+    @Cmd("close")
+    String close(@Arg("_flag|f|Flush modifications to disk") boolean flush) throws Exception {
+        if (_persistit != null) {
+            try {
+                if (_live) {
+                    return "Detaching from live Persistit instance without closing it";
+                } else {
+                    _persistit.shutdownGUI();
+                    _persistit.close(flush);
+                }
+            } catch (Exception e) {
+                return e.toString();
+            } finally {
+                _persistit = null;
+                _currentVolume = null;
+                _currentTree = null;
+            }
+        }
+        return "ok";
     }
 
     @Cmd("list")
@@ -807,41 +830,6 @@ public class CLI {
 
     }
 
-    @Cmd("close")
-    Task close(final @Arg("_flag|f|Flush modifications to disk") boolean flush) throws Exception {
-        return new Task() {
-
-            @Override
-            public void runTask() throws Exception {
-                if (_persistit != null) {
-                    try {
-                        if (_live) {
-                            _persistit.clearSessionCLI();
-                            postMessage("Detaching from live Persistit instance without closing it", LOG_NORMAL);
-                            return;
-                        } else {
-                            _persistit.shutdownGUI();
-                            _persistit.close(flush);
-                        }
-                    } catch (Exception e) {
-                        postMessage(e.toString(), LOG_NORMAL);
-                        return;
-                    } finally {
-                        CLI.this._persistit = null;
-                        _currentVolume = null;
-                        _currentTree = null;
-                    }
-                }
-                postMessage("ok", LOG_NORMAL);
-                return;
-            }
-
-            @Override
-            public String getStatus() {
-                return "";
-            }
-        };
-    }
 
     @Cmd("adminui")
     Task adminui(final @Arg("_flag|g|Start") boolean g, final @Arg("_flag|x|Stop") boolean x) throws Exception {

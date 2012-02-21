@@ -34,7 +34,7 @@ public class CommandLineTest extends PersistitUnitTestCase {
         assertNotNull(CLI.parseTask(_persistit, "backup file=somefile -a -y -z"));
         assertNotNull(CLI.parseTask(_persistit, "save trees=persistit file=somefile"));
         assertNotNull(CLI.parseTask(_persistit, "load trees=persistit:*{1:2} file=somefile -t -n"));
-        assertNotNull(CLI.parseTask(_persistit, "open datapath=somefile"));
+        assertNull(CLI.parseTask(_persistit, "open datapath=somefile"));
         try {
             CLI.parseTask(_persistit, "backup file=somefile -s -y -z wrong=parameter");
             fail();

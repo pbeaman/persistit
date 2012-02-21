@@ -73,6 +73,7 @@ public class IntegrityCheck extends Task {
     private boolean _fixHoles;
     private boolean _prune;
     private boolean _pruneAndClear;
+    private boolean _csv;
 
     private ArrayList<Fault> _faults = new ArrayList<Fault>();
     private ArrayList<CleanupIndexHole> _holes = new ArrayList<CleanupIndexHole>();
@@ -148,6 +149,16 @@ public class IntegrityCheck extends Task {
                     _mvvCount, _mvvOverhead, _mvvAntiValues, _indexHoleCount, _prunedPageCount);
         }
 
+        private String toCSV() {
+            return String.format("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d", _indexPageCount, _indexBytesInUse,
+                    _dataPageCount, _dataBytesInUse, _longRecordPageCount, _longRecordBytesInUse, _mvvPageCount,
+                    _mvvCount, _mvvOverhead, _mvvAntiValues, _indexHoleCount, _prunedPageCount);
+        }
+
+        private final static String CSV_HEADERS = "IndexPages,IndexBytes,"
+                + "DataPages,DataBytes,LongRecordPages,LongRecordBytes,MvvPages,"
+                + "MvvRecords,MvvOverhead,MvvAntiValues,IndexHoles,PrunedPages";
+
     }
 
     private static class MVVVisitor implements MVV.VersionVisitor {
@@ -194,13 +205,15 @@ public class IntegrityCheck extends Task {
             @Arg("_flag|u|Don't freeze updates (Default is to freeze updates)") boolean dontSuspendUpdates,
             @Arg("_flag|h|Fix index holes") boolean fixHoles, @Arg("_flag|p|Prune MVV values") boolean prune,
             @Arg("_flag|P|Prune MVV values and clear TransactionIndex") boolean pruneAndClear,
-            @Arg("_flag|v|Verbose results") boolean verbose) throws Exception {
+            @Arg("_flag|v|Verbose results") boolean verbose, @Arg("_flag|c|Format as CSV") boolean csv)
+            throws Exception {
         final IntegrityCheck task = new IntegrityCheck();
         task._treeSelector = TreeSelector.parseSelector(treeSelectorString, regex, '\\');
         task._fixHoles = fixHoles;
         task._prune = prune | pruneAndClear;
         task._pruneAndClear = pruneAndClear;
         task._suspendUpdates = !dontSuspendUpdates;
+        task._csv = csv;
         task.setMessageLogVerbosity(verbose ? LOG_VERBOSE : LOG_NORMAL);
         return task;
     }
@@ -227,6 +240,9 @@ public class IntegrityCheck extends Task {
         if (freeze) {
             _persistit.setUpdateSuspended(true);
             needsToDrain = true;
+        }
+        if (_csv) {
+            postMessage("Volume,Tree,Faults," + Counters.CSV_HEADERS, LOG_NORMAL);
         }
         long startTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
         try {
@@ -272,6 +288,15 @@ public class IntegrityCheck extends Task {
             }
             _currentVolume = null;
             _currentTree = null;
+            int faults = _faults.size();
+            if (_csv) {
+                postMessage(String.format("\"%s\",\"%s\",", "*", "*"), LOG_NORMAL);
+                appendMessage(String.format("%d,", faults), LOG_NORMAL);
+                appendMessage(_counters.toCSV(), LOG_NORMAL);
+
+            } else {
+                postMessage("Total " + toString(), LOG_NORMAL);
+            }
             if (_pruneAndClear) {
                 if (_faults.isEmpty() && _counters._mvvPageCount == _counters._prunedPageCount
                         && _counters._pruningErrorCount == 0) {
@@ -281,9 +306,10 @@ public class IntegrityCheck extends Task {
                     postMessage("PruneAndClear failed to remove all aborted MMVs", LOG_NORMAL);
                 }
             }
-            postMessage(toString(), LOG_NORMAL);
+            endMessage(LOG_NORMAL);
         } catch (PersistitException e) {
             postMessage(e.toString(), LOG_NORMAL);
+            endMessage(LOG_NORMAL);
         } finally {
             if (freeze) {
                 _persistit.setUpdateSuspended(false);
@@ -596,7 +622,7 @@ public class IntegrityCheck extends Task {
      */
 
     public String toString(boolean details) {
-        StringBuilder sb = new StringBuilder(String.format("Faults: %,5d %s", _faults.size(), _counters));
+        StringBuilder sb = new StringBuilder(String.format("Faults:%,3d %s", _faults.size(), _counters));
         if (details) {
             for (int index = 0; index < _faults.size(); index++) {
                 sb.append(Util.NEW_LINE);
@@ -727,7 +753,9 @@ public class IntegrityCheck extends Task {
     public boolean checkVolume(Volume volume) throws PersistitException {
         reset();
         int faults = _faults.size();
-        postMessage("Volume " + resourceName(volume) + " - checking", LOG_VERBOSE);
+        if (!_csv) {
+            postMessage("Volume " + resourceName(volume) + " - checking", LOG_VERBOSE);
+        }
         Counters counters = new Counters(_counters);
 
         _currentVolume = volume;
@@ -747,8 +775,13 @@ public class IntegrityCheck extends Task {
         checkGarbage(garbageRoot);
         counters.difference(_counters);
         faults = _faults.size() - faults;
-        postMessage("Volume " + resourceName(volume) + String.format(" %,d Faults", faults), LOG_VERBOSE);
-        postMessage("  " + counters.toString(), LOG_VERBOSE);
+        if (_csv) {
+            postMessage(String.format("\"%s\",\"%s\",", resourceName(volume), "*"), LOG_NORMAL);
+            appendMessage(String.format("%d,", faults), LOG_NORMAL);
+            appendMessage(counters.toCSV(), LOG_NORMAL);
+        } else {
+            postMessage("Volume " + resourceName(volume) + String.format(" Faults:%,3d ", faults) + counters.toString(), LOG_VERBOSE);
+        }
 
         return faults == 0;
     }
@@ -763,7 +796,11 @@ public class IntegrityCheck extends Task {
      * @throws PersistitException
      */
     public boolean checkTree(Tree tree) throws PersistitException {
-        postMessage("  Tree " + resourceName(tree) + " - checking", LOG_VERBOSE);
+        if (_csv) {
+            postMessage(String.format("\"%s\",\"%s\",", tree.getVolume().getName(), tree.getName()), LOG_NORMAL);
+        } else {
+            postMessage("  Tree " + resourceName(tree) + " - ", LOG_VERBOSE);
+        }
         Counters treeCounters = new Counters(_counters);
         int faults = _faults.size();
         if (!tree.claim(true)) {
@@ -806,9 +843,13 @@ public class IntegrityCheck extends Task {
 
         faults = _faults.size() - faults;
         treeCounters.difference(_counters);
-        postMessage("  Tree " + resourceName(tree) + " " + faults + " faults", LOG_VERBOSE);
-        postMessage("    " + treeCounters.toString(), LOG_VERBOSE);
 
+        if (_csv) {
+            appendMessage(String.format("%d,", faults), LOG_NORMAL);
+            appendMessage(treeCounters.toCSV(), LOG_NORMAL);
+        } else {
+            appendMessage(String.format(" Faults:%,3d ", faults) + treeCounters.toString(), LOG_VERBOSE);
+        }
         return faults == 0;
     }
 
