@@ -399,6 +399,8 @@ public class Persistit {
 
     private final Set<AccumulatorRef> _accumulators = new HashSet<AccumulatorRef>();
 
+    private final WeakHashMap<SessionId, CLI> _cliSessionMap = new WeakHashMap<SessionId, CLI>();
+
     private SplitPolicy _defaultSplitPolicy = DEFAULT_SPLIT_POLICY;
 
     private JoinPolicy _defaultJoinPolicy = DEFAULT_JOIN_POLICY;
@@ -1570,7 +1572,6 @@ public class Persistit {
     public boolean isFatal() {
         return _fatal.get();
     }
-    
 
     /**
      * Looks up a volume by name.
@@ -1746,86 +1747,85 @@ public class Persistit {
      *         invocation closed it, otherwise false.
      */
     public void close(final boolean flush) throws PersistitException {
-        if (_closed.get() || !_initialized.get()) {
-            return;
-        }
-        synchronized (this) {
-            // Wait for UI to go down.
-            while (_suspendShutdown.get()) {
-                try {
-                    wait(SHORT_DELAY);
-                } catch (InterruptedException ie) {
-                    throw new PersistitInterruptedException(ie);
+        if (_initialized.get() && !_closed.get()) {
+            synchronized (this) {
+                // Wait for UI to go down.
+                while (_suspendShutdown.get()) {
+                    try {
+                        wait(SHORT_DELAY);
+                    } catch (InterruptedException ie) {
+                        throw new PersistitInterruptedException(ie);
+                    }
                 }
             }
-        }
 
-        /*
-         * The copier is responsible for background pruning of aborted
-         * transactions. Halt it so Transaction#close() can be called without
-         * being concerned about its state changing.
-         */
-        _journalManager.stopCopier();
+            /*
+             * The copier is responsible for background pruning of aborted
+             * transactions. Halt it so Transaction#close() can be called
+             * without being concerned about its state changing.
+             */
+            _journalManager.stopCopier();
 
-        getTransaction().close();
-        cleanup();
+            getTransaction().close();
+            cleanup();
 
-        final List<Volume> volumes;
-        synchronized (this) {
-            volumes = new ArrayList<Volume>(_volumes);
-        }
-
-        if (flush) {
-            for (final Volume volume : volumes) {
-                volume.getStructure().flushStatistics();
-                volume.getStorage().flush();
+            final List<Volume> volumes;
+            synchronized (this) {
+                volumes = new ArrayList<Volume>(_volumes);
             }
-        }
 
-        _cleanupManager.close(flush);
-        waitForIOTaskStop(_cleanupManager);
-
-        _checkpointManager.close(flush);
-        waitForIOTaskStop(_checkpointManager);
-
-        _closed.set(true);
-
-        for (final BufferPool pool : _bufferPoolTable.values()) {
-            pool.close();
-        }
-
-        /*
-         * Close (and abort) all remaining transactions.
-         */
-        Set<Transaction> transactions;
-        synchronized (_transactionSessionMap) {
-            transactions = new HashSet<Transaction>(_transactionSessionMap.values());
-            _transactionSessionMap.clear();
-        }
-        for (final Transaction txn : transactions) {
-            try {
-                txn.close();
-            } catch (PersistitException e) {
-                _logBase.exception.log(e);
+            if (flush) {
+                for (final Volume volume : volumes) {
+                    volume.getStructure().flushStatistics();
+                    volume.getStorage().flush();
+                }
             }
-        }
 
-        _journalManager.close();
-        _transactionIndex.close();
+            _cleanupManager.close(flush);
+            waitForIOTaskStop(_cleanupManager);
 
-        for (final Volume volume : volumes) {
-            volume.close();
-        }
+            _checkpointManager.close(flush);
+            waitForIOTaskStop(_checkpointManager);
 
-        if (flush) {
+            _closed.set(true);
+
             for (final BufferPool pool : _bufferPoolTable.values()) {
-                int count = pool.getDirtyPageCount();
-                if (count > 0) {
-                    _logBase.strandedPages.log(pool, count);
+                pool.close();
+            }
+
+            /*
+             * Close (and abort) all remaining transactions.
+             */
+            Set<Transaction> transactions;
+            synchronized (_transactionSessionMap) {
+                transactions = new HashSet<Transaction>(_transactionSessionMap.values());
+                _transactionSessionMap.clear();
+            }
+            for (final Transaction txn : transactions) {
+                try {
+                    txn.close();
+                } catch (PersistitException e) {
+                    _logBase.exception.log(e);
+                }
+            }
+
+            _journalManager.close();
+            IOTaskRunnable task = _transactionIndex.close();
+            waitForIOTaskStop(task);
+
+            for (final Volume volume : volumes) {
+                volume.close();
+            }
+
+            if (flush) {
+                for (final BufferPool pool : _bufferPoolTable.values()) {
+                    int count = pool.getDirtyPageCount();
+                    if (count > 0) {
+                        _logBase.strandedPages.log(pool, count);
+                    }
                 }
             }
         }
-
         releaseAllResources();
     }
 
@@ -1874,8 +1874,8 @@ public class Persistit {
 
     /**
      * Record the cause of a fatal Persistit error, such as imminent data
-     * corruption, and set Persistit to the closed and fatal state. We expect this
-     * method never to be called except by tests.
+     * corruption, and set Persistit to the closed and fatal state. We expect
+     * this method never to be called except by tests.
      * 
      * @param msg
      *            Explanatory message
@@ -1901,6 +1901,8 @@ public class Persistit {
         _exchangePoolMap.clear();
         _cleanupManager.clear();
         _transactionSessionMap.clear();
+        _cliSessionMap.clear();
+        _sessionIdThreadLocal = null;
         _fatalErrors.clear();
 
         unregisterMXBeans();
@@ -1913,8 +1915,10 @@ public class Persistit {
         }
 
         try {
-            _logBase.end.log(System.currentTimeMillis());
-            _logger.close();
+            if (_logger != null) {
+                _logBase.end.log(System.currentTimeMillis());
+                _logger.close();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -2022,7 +2026,7 @@ public class Persistit {
             throw _fatalErrors.get(0);
         }
     }
-    
+
     /**
      * Waits until updates are no longer suspended. The
      * {@link #setUpdateSuspended} method controls whether update operations are
@@ -2668,6 +2672,19 @@ public class Persistit {
             Collections.sort(result, Accumulator.SORT_COMPARATOR);
         }
         return result;
+    }
+
+    synchronized CLI getSessionCLI() {
+        CLI cli = _cliSessionMap.get(getSessionId());
+        if (cli == null) {
+            cli = new CLI(this);
+            _cliSessionMap.put(getSessionId(), cli);
+        }
+        return cli;
+    }
+
+    synchronized void clearSessionCLI() {
+        _cliSessionMap.remove(getSessionId());
     }
 
     private final static String[] ARG_TEMPLATE = { "_flag|g|Start AdminUI",

@@ -52,6 +52,7 @@ public abstract class PersistitUnitTestCase extends TestCase {
         if (ref.get() != null) {
             System.out.println("Persistit has a leftover strong reference");
         }
+        checkNoPersistitThreads();
     }
 
     public void runAllTests() throws Exception {
@@ -74,7 +75,7 @@ public abstract class PersistitUnitTestCase extends TestCase {
     }
 
     private final static String[] PERSISTIT_THREAD_NAMES = { "CHECKPOINT_WRITER", "JOURNAL_COPIER", "JOURNAL_FLUSHER",
-            "PAGE_WRITER" };
+            "PAGE_WRITER", "TXN_UPDATE" };
 
     protected boolean checkNoPersistitThreads() {
         boolean alive = false;

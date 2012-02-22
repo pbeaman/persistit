@@ -462,6 +462,12 @@ public abstract class Task implements Runnable {
             }
         }
     }
+    
+    protected void endMessage(int level) {
+        if (level <= _messageLogVerbosity && _messageWriter != null) {
+            _messageWriter.println();
+        }
+    }
 
     /**
      * Appends a String to the final message of the log.

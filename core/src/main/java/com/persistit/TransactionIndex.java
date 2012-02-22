@@ -1232,12 +1232,13 @@ public class TransactionIndex implements TransactionIndexMXBean {
         _activeTransactionCachePollTask.start(POLLING_TASK_NAME, POLLING_TASK_INTERVAL);
     }
 
-    void close() {
+    ActiveTransactionCachePollTask close() {
         ActiveTransactionCachePollTask task = _activeTransactionCachePollTask;
         if (task != null) {
             task.close();
             _activeTransactionCachePollTask = null;
         }
+        return task;
     }
 
     void crash() {
