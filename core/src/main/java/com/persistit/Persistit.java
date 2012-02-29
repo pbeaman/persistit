@@ -1902,7 +1902,7 @@ public class Persistit {
         _cleanupManager.clear();
         _transactionSessionMap.clear();
         _cliSessionMap.clear();
-        _sessionIdThreadLocal.set(null);
+        _sessionIdThreadLocal.remove();
         _fatalErrors.clear();
 
         unregisterMXBeans();
