@@ -366,7 +366,7 @@ public class Persistit {
 
     private ClassIndex _classIndex = new ClassIndex(this);
 
-    private ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
+    private final ThreadLocal<SessionId> _sessionIdThreadLocal = new ThreadLocal<SessionId>() {
         @Override
         protected SessionId initialValue() {
             return new SessionId();
@@ -1902,7 +1902,7 @@ public class Persistit {
         _cleanupManager.clear();
         _transactionSessionMap.clear();
         _cliSessionMap.clear();
-        _sessionIdThreadLocal = null;
+        _sessionIdThreadLocal.remove();
         _fatalErrors.clear();
 
         unregisterMXBeans();
