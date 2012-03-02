@@ -688,6 +688,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @throws PersistitIOException
      */
     synchronized void writeJournalHeader() throws PersistitIOException {
+        checkBaseAddress();
         JH.putType(_writeBuffer);
         JournalRecord.putTimestamp(_writeBuffer, epochalTimestamp());
         JH.putVersion(_writeBuffer, VERSION);
@@ -711,6 +712,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @throws PersistitIOException
      */
     synchronized void writeJournalEnd() throws PersistitIOException {
+        checkBaseAddress();
         if (_writeBufferAddress != Long.MAX_VALUE) {
             //
             // prepareWriteBuffer contract guarantees there's always room in
@@ -794,6 +796,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     synchronized void writeTransactionMap() throws PersistitIOException {
+    	long lowestAddress = Long.MAX_VALUE;
         int count = _liveTransactionMap.size();
         final int recordSize = TM.OVERHEAD + TM.ENTRY_SIZE * count;
         prepareWriteBuffer(recordSize);
@@ -803,6 +806,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         advance(TM.OVERHEAD);
         int offset = 0;
         for (final TransactionMapItem ts : _liveTransactionMap.values()) {
+        	lowestAddress = Math.min(lowestAddress, ts.getStartAddress());
             TM.putEntry(_writeBuffer, offset / TM.ENTRY_SIZE, ts.getStartTimestamp(), ts.getCommitTimestamp(), ts
                     .getStartAddress(), ts.getLastRecordAddress());
             offset += TM.ENTRY_SIZE;
@@ -815,6 +819,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 flush();
             }
         }
+        assert lowestAddress >= _baseAddress;
 
         Debug.$assert0.t(count == 0);
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize, _currentAddress - recordSize);
@@ -831,6 +836,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         // started a new journal file then there's no need to write another
         // CP record.
         //
+        checkBaseAddress();
         if (!prepareWriteBuffer(CP.OVERHEAD)) {
             final long address = _currentAddress;
             JournalRecord.putLength(_writeBuffer, CP.OVERHEAD);
@@ -851,6 +857,15 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         _lastValidCheckpoint = checkpoint;
         _lastValidCheckpointJournalAddress = _currentAddress - CP.OVERHEAD;
         _lastValidCheckpointBaseAddress = _baseAddress;
+    }
+    
+    void checkBaseAddress() {
+    	long lowest = Long.MAX_VALUE;
+    	for (final TransactionMapItem item : _liveTransactionMap.values()) {
+    		lowest = Math.min(item.getStartAddress(), _baseAddress);
+    	}
+    	assert lowest >= _baseAddress;
+    	assert _baseAddress >= _lastValidCheckpointBaseAddress;
     }
 
     void writePageToJournal(final Buffer buffer) throws PersistitIOException, PersistitInterruptedException {
@@ -1217,6 +1232,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @throws PersistitIOException
      */
     private boolean prepareWriteBuffer(final int size) throws PersistitIOException {
+    	assert _currentAddress >= _baseAddress;
         _persistit.checkFatal();
         boolean newJournalFile = false;
         if (_currentAddress % _blockSize == 0) {

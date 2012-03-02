@@ -274,7 +274,7 @@ public class TreeAndVolumeSelector extends AdminPanel implements AdminCommand {
         }
     }
 
-    private static class TreeItemListCellRenderer extends DefaultListCellRenderer implements ListCellRenderer {
+    private static class TreeItemListCellRenderer extends DefaultListCellRenderer {
 
         private static final long serialVersionUID = 1L;
 
