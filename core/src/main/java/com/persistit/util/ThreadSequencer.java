@@ -299,6 +299,7 @@ public class ThreadSequencer implements SequencerConstants {
         public synchronized void clear() {
             _schedule.clear();
             _waiting = 0;
+            _enabled = 0;
             _history = null;
             for (int index = 0; index < _semaphores.length; index++) {
                 _semaphores[index].release(Integer.MAX_VALUE);
