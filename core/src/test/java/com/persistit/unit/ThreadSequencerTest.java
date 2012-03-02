@@ -103,6 +103,8 @@ public class ThreadSequencerTest {
              */
             assertTrue(history.contains("+A"));
         }
+        
+        disableSequencer();
     }
 
 }

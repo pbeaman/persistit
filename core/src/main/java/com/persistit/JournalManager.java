@@ -2074,6 +2074,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 }
             }
 
+            if (recoveryBoundary < _baseAddress) {
+                throw new IllegalStateException(String.format("Retrograde base address %,d is less than current %,d",
+                        recoveryBoundary, _baseAddress));
+            }
+            
             _baseAddress = recoveryBoundary;
             for (deleteBoundary = _deleteBoundaryAddress; deleteBoundary + _blockSize <= _lastValidCheckpointBaseAddress; deleteBoundary += _blockSize) {
                 final long generation = deleteBoundary / _blockSize;
