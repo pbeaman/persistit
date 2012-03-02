@@ -15,7 +15,10 @@
 
 package com.persistit.bug;
 
-import static com.persistit.util.ThreadSequencer.*;
+import static com.persistit.util.SequencerConstants.RECOVERY_PRUNING_SCHEDULE;
+import static com.persistit.util.ThreadSequencer.addSchedules;
+import static com.persistit.util.ThreadSequencer.disableSequencer;
+import static com.persistit.util.ThreadSequencer.enableSequencer;
 
 import java.util.Properties;
 
@@ -101,11 +104,22 @@ public class Bug942669Test extends PersistitUnitTestCase {
         
         _persistit.initialize(properties);
         _persistit.copyBackPages();
-        System.out.println(sequencerHistory());
+        disableSequencer();
     }
     
-    @Test
-    public void testRetrogradeBaseAddress() throws Exception {
+   
+    /**
+     * Note that journal file 1345 has a length of zero. The issue is that
+     * JournalManager.pruneObsoleteTransactions is attempting to prune two
+     * aborted transactions that once upon a time lived in file 1345. Those
+     * transactions were successfully pruned before the system was shut down,
+     * and then incorrectly resurrected into the new new epoch. The solution is
+     * to avoid resurrecting transactions which started before the base address
+     * during startup. Prior to the fix, this code fails with an
+     * IllegalArgumentException in the JOURNAL_COPIER thread.
+     */
+
+    public void testResurrectedTransactions() throws Exception {
         /*
          * Create a journal with an uncommitted transaction
          */
@@ -117,18 +131,28 @@ public class Bug942669Test extends PersistitUnitTestCase {
         for (int k = 1; k < 10; k++) {
             ex.clear().append(k).store();
         }
-        TestShim.flushBuffers(_persistit, Long.MAX_VALUE);
-        TestShim.copyPages(_persistit.getJournalManager());
-        
+
         _persistit.checkpoint();
         TestShim.rollover(_persistit.getJournalManager());
+
         txn.rollback();
         txn.end();
-        TestShim.rollover(_persistit.getJournalManager());
+
+        /*
+         * copyBackPages creates a checkpoint, prunes obsolete transactions,
+         * copies pages from the journal back to the volume and then deletes
+         * obsolete journal files. We need to call it twice so that the results
+         * of pruning get checkpointed.
+         */
+        _persistit.copyBackPages();
+        _persistit.copyBackPages();
+
         _persistit.close();
+
         Properties properties = _persistit.getProperties();
         _persistit = new Persistit();
         _persistit.initialize(properties);
-        System.out.println("boo");
+        _persistit.copyBackPages();
+        assertNull(_persistit.getJournalManager().getLastCopierException());
     }
 }

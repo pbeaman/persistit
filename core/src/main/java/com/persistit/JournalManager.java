@@ -15,9 +15,9 @@
 
 package com.persistit;
 
-import static com.persistit.util.ThreadSequencer.*;
-
 import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.util.SequencerConstants.RECOVERY_PRUNING_B;
+import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.io.File;
 import java.io.IOException;
@@ -176,10 +176,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private AtomicBoolean _rollbackPruning = new AtomicBoolean(true);
 
-    private void setBaseAddress(long address) {
-        assert address >= _baseAddress;
-        _baseAddress = address;
-    }
     /**
      * <p>
      * Initialize the new journal. This method takes its information from the
@@ -219,15 +215,17 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _journalFilePath = rman.getJournalFilePath();
             _blockSize = rman.getBlockSize();
             _currentAddress = rman.getKeystoneAddress() + _blockSize;
-            setBaseAddress(rman.getBaseAddress());
+            _baseAddress = rman.getBaseAddress();
             _journalCreatedTime = rman.getJournalCreatedTime();
             _lastValidCheckpoint = rman.getLastValidCheckpoint();
             rman.collectRecoveredPages(_pageMap, _branchMap);
             rman.collectRecoveredVolumeMaps(_handleToVolumeMap, _volumeToHandleMap);
             rman.collectRecoveredTreeMaps(_handleToTreeMap, _treeToHandleMap);
             rman.collectRecoveredTransactionMap(_liveTransactionMap);
-            // Set _handleCount so that newly created handles are do not
-            // conflict with existing resources.
+            /*
+             * Set _handleCount so that newly created handles do not conflict
+             * with existing resources.
+             */
             for (Integer handle : _handleToTreeMap.keySet()) {
                 _handleCounter = Math.max(_handleCounter, handle + 1);
             }
@@ -406,6 +404,16 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     @Override
     public long getLastValidCheckpointTimestamp() {
         return _lastValidCheckpoint.getTimestamp();
+    }
+
+    @Override
+    public String getLastCopierException() {
+        return Util.toString(_copier.getLastException());
+    }
+
+    @Override
+    public String getLastFlusherException() {
+        return Util.toString(_flusher.getLastException());
     }
 
     /**
@@ -688,7 +696,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @throws PersistitIOException
      */
     synchronized void writeJournalHeader() throws PersistitIOException {
-        checkBaseAddress();
         JH.putType(_writeBuffer);
         JournalRecord.putTimestamp(_writeBuffer, epochalTimestamp());
         JH.putVersion(_writeBuffer, VERSION);
@@ -712,7 +719,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @throws PersistitIOException
      */
     synchronized void writeJournalEnd() throws PersistitIOException {
-        checkBaseAddress();
         if (_writeBufferAddress != Long.MAX_VALUE) {
             //
             // prepareWriteBuffer contract guarantees there's always room in
@@ -726,8 +732,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             JE.putJournalCreatedTime(_writeBuffer, _journalCreatedTime);
             _persistit.getIOMeter().chargeWriteOtherToJournal(JE.OVERHEAD, _currentAddress);
             advance(JE.OVERHEAD);
-            
-            assert _baseAddress >= _lastValidCheckpointBaseAddress;
         }
     }
 
@@ -796,7 +800,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     }
 
     synchronized void writeTransactionMap() throws PersistitIOException {
-    	long lowestAddress = Long.MAX_VALUE;
         int count = _liveTransactionMap.size();
         final int recordSize = TM.OVERHEAD + TM.ENTRY_SIZE * count;
         prepareWriteBuffer(recordSize);
@@ -806,7 +809,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         advance(TM.OVERHEAD);
         int offset = 0;
         for (final TransactionMapItem ts : _liveTransactionMap.values()) {
-        	lowestAddress = Math.min(lowestAddress, ts.getStartAddress());
             TM.putEntry(_writeBuffer, offset / TM.ENTRY_SIZE, ts.getStartTimestamp(), ts.getCommitTimestamp(), ts
                     .getStartAddress(), ts.getLastRecordAddress());
             offset += TM.ENTRY_SIZE;
@@ -819,7 +821,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 flush();
             }
         }
-        assert lowestAddress >= _baseAddress;
 
         Debug.$assert0.t(count == 0);
         _persistit.getIOMeter().chargeWriteOtherToJournal(recordSize, _currentAddress - recordSize);
@@ -836,7 +837,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         // started a new journal file then there's no need to write another
         // CP record.
         //
-        checkBaseAddress();
         if (!prepareWriteBuffer(CP.OVERHEAD)) {
             final long address = _currentAddress;
             JournalRecord.putLength(_writeBuffer, CP.OVERHEAD);
@@ -857,15 +857,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         _lastValidCheckpoint = checkpoint;
         _lastValidCheckpointJournalAddress = _currentAddress - CP.OVERHEAD;
         _lastValidCheckpointBaseAddress = _baseAddress;
-    }
-    
-    void checkBaseAddress() {
-    	long lowest = Long.MAX_VALUE;
-    	for (final TransactionMapItem item : _liveTransactionMap.values()) {
-    		lowest = Math.min(item.getStartAddress(), lowest);
-    	}
-    	assert lowest >= _baseAddress;
-    	assert _baseAddress >= _lastValidCheckpointBaseAddress;
     }
 
     void writePageToJournal(final Buffer buffer) throws PersistitIOException, PersistitInterruptedException {
@@ -1232,7 +1223,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * @throws PersistitIOException
      */
     private boolean prepareWriteBuffer(final int size) throws PersistitIOException {
-    	assert _currentAddress >= _baseAddress;
         _persistit.checkFatal();
         boolean newJournalFile = false;
         if (_currentAddress % _blockSize == 0) {
@@ -1369,7 +1359,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     synchronized FileChannel getFileChannel(long address) throws PersistitIOException {
         if (address < _deleteBoundaryAddress || address > _currentAddress + _blockSize) {
             throw new IllegalArgumentException("Invalid journal address " + address + " outside of range ("
-                    + _baseAddress + ":" + (_currentAddress + _blockSize) + ")");
+                    + _deleteBoundaryAddress + ":" + (_currentAddress + _blockSize) + ")");
         }
         final long generation = address / _blockSize;
         FileChannel channel = _journalFileChannels.get(generation);
@@ -1393,12 +1383,17 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * 
      * @throws PersistitException
      */
-    public void copyBack() throws PersistitException {
+    @Override
+    public void copyBack() throws Exception {
         if (!_appendOnly.get()) {
             _copyFast.set(true);
+            int exceptionCount = _copier.getExceptionCount();
             while (_copyFast.get()) {
                 _copier.kick();
                 Util.sleep(Persistit.SHORT_DELAY);
+                if (_copier.getExceptionCount() != exceptionCount) {
+                    throw _copier.getLastException();
+                }
             }
         }
     }
@@ -1778,11 +1773,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         @Override
         public void runTask() throws Exception {
 
-            pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
-
-            if (!_appendOnly.get()) {
-                _copying.set(true);
-                try {
+            _copying.set(true);
+            try {
+                pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
+                if (!_appendOnly.get()) {
                     selectForCopy(_copyList);
                     if (!_copyList.isEmpty()) {
                         readForCopy(_copyList, _bb);
@@ -1795,9 +1789,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     if (_copyList.isEmpty()) {
                         _copyFast.set(false);
                     }
-                } finally {
-                    _copying.set(false);
                 }
+            } finally {
+                _copying.set(false);
             }
         }
 
@@ -2080,7 +2074,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 }
             }
 
-            setBaseAddress(recoveryBoundary);
+            _baseAddress = recoveryBoundary;
             for (deleteBoundary = _deleteBoundaryAddress; deleteBoundary + _blockSize <= _lastValidCheckpointBaseAddress; deleteBoundary += _blockSize) {
                 final long generation = deleteBoundary / _blockSize;
                 final FileChannel channel = _journalFileChannels.remove(generation);
@@ -2106,7 +2100,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 }
                 obsoleteFiles.add(addressToFile(_currentAddress));
                 rollover();
-                setBaseAddress(_currentAddress);
+                _baseAddress = _currentAddress;
             }
         }
 

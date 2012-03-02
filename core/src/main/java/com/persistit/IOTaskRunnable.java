@@ -37,6 +37,8 @@ abstract class IOTaskRunnable implements Runnable {
 
     private long _pollInterval;
 
+    private int _exceptionCount = 0;
+    
     private Exception _lastException;
 
     protected IOTaskRunnable(final Persistit persistit) {
@@ -72,8 +74,13 @@ abstract class IOTaskRunnable implements Runnable {
     public synchronized Exception getLastException() {
         return _lastException;
     }
+    
+    public synchronized int getExceptionCount() {
+        return _exceptionCount;
+    }
 
     synchronized boolean lastException(Exception exception) {
+        _exceptionCount ++;
         if (_lastException == null || exception == null || !_lastException.getClass().equals(exception.getClass())) {
             _lastException = exception;
             return true;

@@ -530,4 +530,7 @@ public class Util {
         sleep(1);
     }
 
+    public static String toString(Object object) {
+        return object == null ? null : object.toString();
+    }
 }

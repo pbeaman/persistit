@@ -24,20 +24,20 @@ import static com.persistit.util.ThreadSequencer.sequencerHistory;
 import com.persistit.Exchange;
 import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
-import com.persistit.util.Debug;
+import com.persistit.util.ThreadSequencer;
 
 public class Bug937877Test extends PersistitUnitTestCase {
 
     /**
      * Test for a race condition that probably caused 937877. This test depends
-     * on strategic placement of {@link Debug#await} and {@link Debug#awaken}
-     * statements in the Transaction class. If those statements are moved or
-     * modified, this test will probably need to be changed.
+     * on strategic placement of {@link ThreadSequencer#sequence(long)} statements
+     * in the Transaction class. If those statements are moved or modified, this
+     * test will probably need to be changed.
      * 
      * @throws Exception
      */
-    public void testInCommitRaceCondition() throws Exception {
-        
+    public void testCommitRaceCondition() throws Exception {
+
         enableSequencer(true);
         addSchedules(COMMIT_FLUSH_SCHEDULE);
 
@@ -48,7 +48,7 @@ public class Bug937877Test extends PersistitUnitTestCase {
         for (int k = 1; k < 10; k++) {
             ex.clear().append(k).store();
         }
-        
+
         Thread thread = new Thread(new Runnable() {
             public void run() {
                 try {
@@ -61,10 +61,10 @@ public class Bug937877Test extends PersistitUnitTestCase {
         thread.start();
         txn.commit();
         txn.end();
-        
+
         String history = sequencerHistory();
         disableSequencer();
-        
+
         // prevents spurious "MissingThreadException" from background thread
         thread.join();
 

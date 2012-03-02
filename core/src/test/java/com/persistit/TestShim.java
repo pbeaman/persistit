@@ -95,7 +95,7 @@ public class TestShim {
         }
     }
 
-    public static void copyPages(final JournalManager jman) throws PersistitException {
+    public static void copyPages(final JournalManager jman) throws Exception {
         jman.copyBack();
     }
 }
