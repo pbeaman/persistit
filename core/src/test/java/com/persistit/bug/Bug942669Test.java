@@ -14,14 +14,18 @@
  */
 
 package com.persistit.bug;
+
 import static com.persistit.util.ThreadSequencer.*;
+
+import java.util.Properties;
+
 import org.junit.Test;
 
 import com.persistit.Exchange;
+import com.persistit.Persistit;
 import com.persistit.TestShim;
 import com.persistit.Transaction;
 import com.persistit.unit.PersistitUnitTestCase;
-import com.persistit.util.Debug;
 
 public class Bug942669Test extends PersistitUnitTestCase {
 
@@ -47,7 +51,7 @@ public class Bug942669Test extends PersistitUnitTestCase {
     // -rw-r--r-- 1 akiban akiban 954M Feb 27 11:09 akiban_journal.000000001349
 
     /**
-     * Test for a race condition that probably caused 942669. Note that file
+     * Test for a possible race condition examined in diagnosing 942669. Note that file
      * 1535 is empty, suggesting that the JOURNAL_COPIER thread decided it was
      * obsolete and deleted it. Hypothesis:
      * 
@@ -74,17 +78,57 @@ public class Bug942669Test extends PersistitUnitTestCase {
     @Test
     public void testRecoveryRace() throws Exception {
         
-        enableSequencer(true);
-
-
-        final Exchange ex = _persistit.getExchange("persistit", "test", true);
-        final Transaction txn = ex.getTransaction();
+        /*
+         * Create a journal with an uncommitted transaction
+         */
+        Exchange ex = _persistit.getExchange("persistit", "test", true);
+        Transaction txn = ex.getTransaction();
         txn.begin();
         ex.getValue().put(RED_FOX);
         for (int k = 1; k < 10; k++) {
             ex.clear().append(k).store();
         }
+        _persistit.checkpoint();
         txn.commit();
         txn.end();
+        _persistit.crash();
+        Properties properties = _persistit.getProperties();
+        _persistit = new Persistit();
+        
+        
+        enableSequencer(true);
+        addSchedules(RECOVERY_PRUNING_SCHEDULE);
+        
+        _persistit.initialize(properties);
+        _persistit.copyBackPages();
+        System.out.println(sequencerHistory());
+    }
+    
+    @Test
+    public void testRetrogradeBaseAddress() throws Exception {
+        /*
+         * Create a journal with an uncommitted transaction
+         */
+        Exchange ex = _persistit.getExchange("persistit", "test", true);
+        _persistit.flush();
+        Transaction txn = ex.getTransaction();
+        txn.begin();
+        ex.getValue().put(RED_FOX);
+        for (int k = 1; k < 10; k++) {
+            ex.clear().append(k).store();
+        }
+        TestShim.flushBuffers(_persistit, Long.MAX_VALUE);
+        TestShim.copyPages(_persistit.getJournalManager());
+        
+        _persistit.checkpoint();
+        TestShim.rollover(_persistit.getJournalManager());
+        txn.rollback();
+        txn.end();
+        TestShim.rollover(_persistit.getJournalManager());
+        _persistit.close();
+        Properties properties = _persistit.getProperties();
+        _persistit = new Persistit();
+        _persistit.initialize(properties);
+        System.out.println("boo");
     }
 }

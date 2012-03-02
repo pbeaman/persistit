@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import static com.persistit.util.ThreadSequencer.*;
 import static com.persistit.JournalRecord.OVERHEAD;
 import static com.persistit.JournalRecord.getLength;
 import static com.persistit.JournalRecord.getTimestamp;
@@ -305,11 +306,13 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         public void endTransaction(long address, long timestamp) throws PersistitException {
             final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
             assert ts != null : "Missing TransactionStatus for timestamp " + timestamp;
-            // Having pruned all pages involved in this transaction, now
-            // declare
-            // it has no MVVs left. This will allow the cleanup process to
-            // remove it entirely.
+            /*
+             * Having pruned all pages involved in this transaction, now declare
+             * it has no MVVs left. This will allow the cleanup process to
+             * remove it entirely.
+             */
             ts.setMvvCount(0);
+            sequence(RECOVERY_PRUNING_A);
             _persistit.getJournalManager().writeTransactionToJournal(ByteBuffer.allocate(0), timestamp, ABORTED, 0);
         }
 
@@ -332,7 +335,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         @Override
-        public  void convertToLongRecord(Value value, int treeHandle, long address, long commitTimestamp)
+        public void convertToLongRecord(Value value, int treeHandle, long address, long commitTimestamp)
                 throws PersistitException {
             RecoveryManager.this.convertToLongRecord(value, treeHandle, address, commitTimestamp);
         }
@@ -1603,8 +1606,6 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
         return pn;
     }
-
-
 
     boolean analyze() throws Exception {
         findAndValidateKeystone();

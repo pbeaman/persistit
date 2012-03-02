@@ -185,6 +185,7 @@ public class ThreadSequencer implements SequencerConstants {
         private final List<Long> _schedule = new ArrayList<Long>();
         private final Semaphore[] _semaphores = new Semaphore[64];
         private long _waiting = 0;
+        private long _enabled = 0;
         private int[] _waitingCount = new int[64];
         private List<Integer> _history;
 
@@ -200,6 +201,10 @@ public class ThreadSequencer implements SequencerConstants {
             Semaphore semaphore = null;
 
             synchronized (this) {
+                if ((_enabled & (1L << location)) == 0) {
+                    return;
+                }
+                
                 _waiting |= (1L << location);
                 _waitingCount[location]++;
                 semaphore = _semaphores[location];
@@ -255,7 +260,7 @@ public class ThreadSequencer implements SequencerConstants {
         }
 
         @Override
-        public void addSchedule(long await, long release) {
+        public synchronized void addSchedule(long await, long release) {
             for (int index = 0; index < _schedule.size(); index += 2) {
                 long current = _schedule.get(index);
                 assert (current & await) != current : "Schedules may not overlap";
@@ -264,13 +269,14 @@ public class ThreadSequencer implements SequencerConstants {
             }
             _schedule.add(await);
             _schedule.add(release);
+            _enabled |= release;
         }
 
         private void enableHistory() {
             _history = new ArrayList<Integer>();
         }
 
-        public String history() {
+        public synchronized String history() {
             StringBuilder sb = new StringBuilder();
             if (_history != null) {
                 for (Integer location : _history) {

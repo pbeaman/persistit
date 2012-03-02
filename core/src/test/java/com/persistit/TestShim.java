@@ -19,13 +19,14 @@ import java.nio.channels.FileChannel;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
+import com.persistit.exception.PersistitInterruptedException;
 
 /**
  * Accessors for package-private methods in com.persistit so that unit tests can
  * be in a different package.
- *
+ * 
  * @author peter
- *
+ * 
  */
 public class TestShim {
 
@@ -50,7 +51,7 @@ public class TestShim {
     public static TimestampAllocator timestampAllocator(final Persistit persistit) {
         return persistit.getTimestampAllocator();
     }
-    
+
     public static CleanupManager cleanupManager(final Persistit persistit) {
         return persistit.getCleanupManager();
     }
@@ -58,32 +59,43 @@ public class TestShim {
     public static void closeTransaction(Transaction t) throws PersistitException {
         t.close();
     }
-    
+
     public static FileChannel getVolumeChannel(Volume volume) throws PersistitException {
         return volume.getStorage().getChannel();
     }
-    
+
     public static void ignoreMVCC(final boolean doIgnore, final Exchange ex) {
         ex.ignoreMVCCFetch(doIgnore);
     }
-    
+
     public static long allocateCheckpointTimestamp(final Persistit persistit) {
         return persistit.getTimestampAllocator().allocateCheckpointTimestamp();
     }
-    
+
     public static void prune(final Exchange ex) throws PersistitException {
         ex.prune();
     }
-    
+
     public static void flushTransactionBuffer(final Transaction txn, final boolean chain) throws PersistitException {
         txn.flushTransactionBuffer(chain);
     }
-    
+
     public static void setMinimumPruningDelay(final Persistit persistit, final long delay) {
         persistit.getCleanupManager().setMinimumPruningDelay(delay);
     }
-    
+
     public static SessionId newSessionId() {
         return new SessionId();
+    }
+
+    public static void flushBuffers(final Persistit persistit, final long timestamp)
+            throws PersistitInterruptedException {
+        for (final BufferPool pool : persistit.getBufferPoolHashMap().values()) {
+            pool.flush(timestamp);
+        }
+    }
+
+    public static void copyPages(final JournalManager jman) throws PersistitException {
+        jman.copyBack();
     }
 }

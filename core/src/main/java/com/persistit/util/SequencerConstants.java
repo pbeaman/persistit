@@ -20,6 +20,9 @@ import static com.persistit.util.ThreadSequencer.array;
 
 public interface SequencerConstants {
     
+    /*
+     * Used in testing a race condition between Checkpoint and Transaction commit, bug 937877
+     */
     int COMMIT_FLUSH_A = allocate("COMMIT_FLUSH_A");
     int COMMIT_FLUSH_B = allocate("COMMIT_FLUSH_B");
     int COMMIT_FLUSH_C = allocate("COMMIT_FLUSH_C");
@@ -28,4 +31,17 @@ public interface SequencerConstants {
             array(COMMIT_FLUSH_A, COMMIT_FLUSH_B), array(COMMIT_FLUSH_A),
             array(COMMIT_FLUSH_B, COMMIT_FLUSH_C), array(COMMIT_FLUSH_B, COMMIT_FLUSH_C),
     };
+    
+    /*
+     * Used in testing a race condition during recovery between main and JOURNAL_COPIER
+     */
+    
+    int RECOVERY_PRUNING_A = allocate("RECOVERY_PRUNING_A");
+    int RECOVERY_PRUNING_B = allocate("RECOVERY_PRUNING_B");
+
+    int[][] RECOVERY_PRUNING_SCHEDULE = new int[][] {
+            array(RECOVERY_PRUNING_B), array(RECOVERY_PRUNING_A, RECOVERY_PRUNING_B),
+    };
+    
+
 }

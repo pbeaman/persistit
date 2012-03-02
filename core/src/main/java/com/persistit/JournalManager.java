@@ -15,6 +15,8 @@
 
 package com.persistit;
 
+import static com.persistit.util.ThreadSequencer.*;
+
 import static com.persistit.TransactionStatus.ABORTED;
 
 import java.io.File;
@@ -174,6 +176,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private AtomicBoolean _rollbackPruning = new AtomicBoolean(true);
 
+    private void setBaseAddress(long address) {
+        assert address >= _baseAddress;
+        _baseAddress = address;
+    }
     /**
      * <p>
      * Initialize the new journal. This method takes its information from the
@@ -213,7 +219,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _journalFilePath = rman.getJournalFilePath();
             _blockSize = rman.getBlockSize();
             _currentAddress = rman.getKeystoneAddress() + _blockSize;
-            _baseAddress = rman.getBaseAddress();
+            setBaseAddress(rman.getBaseAddress());
             _journalCreatedTime = rman.getJournalCreatedTime();
             _lastValidCheckpoint = rman.getLastValidCheckpoint();
             rman.collectRecoveredPages(_pageMap, _branchMap);
@@ -718,6 +724,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             JE.putJournalCreatedTime(_writeBuffer, _journalCreatedTime);
             _persistit.getIOMeter().chargeWriteOtherToJournal(JE.OVERHEAD, _currentAddress);
             advance(JE.OVERHEAD);
+            
+            assert _baseAddress >= _lastValidCheckpointBaseAddress;
         }
     }
 
@@ -1464,10 +1472,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     } else if (status.getTc() == ABORTED && status.isNotified()) {
                         if (status.getMvvCount() == 0) {
                             iterator.remove();
-                        } else {
-                            if (rollbackPruningEnabled) {
-                                toPrune.add(item);
-                            }
+                            sequence(RECOVERY_PRUNING_B);
+                        } else if (rollbackPruningEnabled) {
+                            toPrune.add(item);
                         }
                     }
                 }
@@ -2057,7 +2064,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 }
             }
 
-            _baseAddress = recoveryBoundary;
+            setBaseAddress(recoveryBoundary);
             for (deleteBoundary = _deleteBoundaryAddress; deleteBoundary + _blockSize <= _lastValidCheckpointBaseAddress; deleteBoundary += _blockSize) {
                 final long generation = deleteBoundary / _blockSize;
                 final FileChannel channel = _journalFileChannels.remove(generation);
@@ -2083,7 +2090,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 }
                 obsoleteFiles.add(addressToFile(_currentAddress));
                 rollover();
-                _baseAddress = _currentAddress;
+                setBaseAddress(_currentAddress);
             }
         }
 
@@ -2201,7 +2208,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
              */
             if (ts != null) {
                 if (ts.getMvvCount() > 0 && _persistit.isInitialized()) {
-                    _persistit.getLogBase().pruningIncomplete.log(ts, TransactionPlayer.addressToString(address, timestamp));
+                    _persistit.getLogBase().pruningIncomplete.log(ts, TransactionPlayer.addressToString(address,
+                            timestamp));
                 }
             }
         }
