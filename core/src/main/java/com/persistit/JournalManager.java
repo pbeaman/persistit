@@ -862,7 +862,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     void checkBaseAddress() {
     	long lowest = Long.MAX_VALUE;
     	for (final TransactionMapItem item : _liveTransactionMap.values()) {
-    		lowest = Math.min(item.getStartAddress(), _baseAddress);
+    		lowest = Math.min(item.getStartAddress(), lowest);
     	}
     	assert lowest >= _baseAddress;
     	assert _baseAddress >= _lastValidCheckpointBaseAddress;
