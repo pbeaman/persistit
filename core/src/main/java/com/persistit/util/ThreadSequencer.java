@@ -23,7 +23,7 @@ import java.util.concurrent.Semaphore;
  * <p>
  * Utility allows tests to define execution sequences to confirm specific
  * concurrent execution patterns. Application code incorporates calls to the
- * static method {@link #sequence(long)}. Each usage in the application code
+ * static method {@link #sequence(int)}. Each usage in the application code
  * should follow this pattern:
  * </p>
  * <ul>
@@ -49,8 +49,9 @@ import java.util.concurrent.Semaphore;
  * </li>
  * </ul>
  * <p>
- * The {@link #allocate()} method simply allocates a unique integer. Currently
- * the maximum number of allocated locations is 64.
+ * The {@link #allocate(String)} method simply allocates a unique integer and
+ * stores an associated location name. Currently the maximum number of allocated
+ * locations is 64.
  * </p>
  * <p>
  * The {@link #sequence(int)} method blocks on a Semaphore until a condition for
@@ -59,12 +60,40 @@ import java.util.concurrent.Semaphore;
  * </p>
  * <p>
  * The entire ThreadSequence mechanism must be enabled via
- * {@link #enableSequencer(boolean))}. By default the calls to {@link #sequence(int)}
- * invoke an empty method in the NullSequencer subclass, which is fast.
+ * {@link #enableSequencer(boolean))}. By default all calls to
+ * {@link #sequence(int)} invoke an empty method in the NullSequencer subclass,
+ * which is fast.
  * </p>
  * <p>
- * Note: a missing or malformed schedule will cause threads blocked within the
- * sequence method to remain blocked forever.
+ * In conjunction with enabling the sequencer, a test must also add one or more
+ * sequencing schedules. Each schedule denotes two sets: the "join set" and the
+ * "release set". When a thread calls sequence(x), the thread adds location x to
+ * a list of blocked locations. It then determines whether that set covers any
+ * join set, and if so, it releases all threads in the associated release set.
+ * For example, suppose there are three location A, B and C. Consider two
+ * sections of code executed by two different threads: <code><pre>
+ *   sequence(A)
+ *   // do this before B
+ *   sequence(C)
+ * </pre></code> and <code><pre>
+ *   sequence(B)
+ *   // do this after A
+ * </pre></code> A suitable schedule might include the
+ * pairs (A, B)->(A) and (B, C)->(B, C). In this example one thread blocks until
+ * both sequence(A) and sequence(B) have been called. Then the schedule (A,
+ * B)->(A) releases the call to sequence(A) so that the first thread runs. When
+ * the first thread calls sequence(C), the schedule (B,C)->(B,C) runs, releasing
+ * the second thread's call to sequence(B) and allowing the first thread to
+ * continue without blocking.
+ * </p>
+ * <p>
+ * Follow existing usage in {@link SequencerConstants} for defining schedules.
+ * Test classes should invoke the static method {@link #addSchedules(int[][])}
+ * to add schedules defined in SequencerConstants.
+ * </p>
+ * <p>
+ * Note: a malformed schedule can cause threads blocked within the sequence
+ * method to remain blocked forever.
  * </p>
  * 
  * @author peter
@@ -90,10 +119,25 @@ public class ThreadSequencer implements SequencerConstants {
         return value;
     }
 
+    /**
+     * Possibly block (only when ThreadSequencer is enabled for tests) until a
+     * scheduling condition is met. This method is called from strategically
+     * selected places in the main code to enable concurrency tests. See above
+     * for details.
+     * 
+     * @param location
+     *            integer uniquely identifying a location in code
+     */
     public static void sequence(final int location) {
         _sequencer.sequence(location);
     }
 
+    /**
+     * Enable sequencer debugging.
+     * 
+     * @param history
+     *            indicates whether to maintain a schedule history
+     */
     public static void enableSequencer(final boolean history) {
         ENABLED_SEQUENCER.clear();
         if (history) {
@@ -102,6 +146,9 @@ public class ThreadSequencer implements SequencerConstants {
         _sequencer = ENABLED_SEQUENCER;
     }
 
+    /**
+     * Disable sequencer debugging.
+     */
     public static void disableSequencer() {
         _sequencer = DISABLED_SEQUENCER;
         ENABLED_SEQUENCER.clear();
@@ -111,14 +158,14 @@ public class ThreadSequencer implements SequencerConstants {
         ENABLED_SEQUENCER.addSchedule(bits(awaitLocations), bits(releaseLocations));
     }
 
-    public static String sequencerHistory() {
-        return ENABLED_SEQUENCER.history();
-    }
-
     public static void addSchedules(final int[][] pairs) {
         for (int index = 0; index < pairs.length; index += 2) {
             addSchedule(pairs[index], pairs[index + 1]);
         }
+    }
+
+    public static String sequencerHistory() {
+        return ENABLED_SEQUENCER.history();
     }
 
     public static int[] array(int... args) {
@@ -204,7 +251,7 @@ public class ThreadSequencer implements SequencerConstants {
                 if ((_enabled & (1L << location)) == 0) {
                     return;
                 }
-                
+
                 _waiting |= (1L << location);
                 _waitingCount[location]++;
                 semaphore = _semaphores[location];

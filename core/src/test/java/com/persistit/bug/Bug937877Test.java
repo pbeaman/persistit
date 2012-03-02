@@ -30,7 +30,7 @@ public class Bug937877Test extends PersistitUnitTestCase {
 
     /**
      * Test for a race condition that probably caused 937877. This test depends
-     * on strategic placement of {@link ThreadSequencer#sequence(long)} statements
+     * on strategic placement of {@link ThreadSequencer#sequence(int)} statements
      * in the Transaction class. If those statements are moved or modified, this
      * test will probably need to be changed.
      * 
