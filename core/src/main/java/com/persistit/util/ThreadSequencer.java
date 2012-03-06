@@ -109,12 +109,14 @@ public class ThreadSequencer implements SequencerConstants {
 
     private final static List<String> LOCATIONS = new ArrayList<String>();
 
+    private final static int MAX_LOCATIONS = 64;
+    
     public synchronized static int allocate(final String locationName) {
         for (final String alreadyRegistered : LOCATIONS) {
             assert !alreadyRegistered.equals(locationName) : "Location name " + locationName + " is already in use";
         }
         int value = LOCATIONS.size();
-        assert value < 64 : "Too many ThreadSequence locations";
+        assert value < MAX_LOCATIONS : "Too many ThreadSequence locations";
         LOCATIONS.add(locationName);
         return value;
     }
@@ -175,7 +177,7 @@ public class ThreadSequencer implements SequencerConstants {
     private static long bits(final int[] locations) {
         long bits = 0;
         for (final int location : locations) {
-            assert location >= 0 && location < 64 : "Location must be between 0 and 63, inclusive";
+            assert location >= 0 && location < MAX_LOCATIONS : "Location must be between 0 and 63, inclusive";
             bits |= (1L << location);
         }
 
@@ -184,7 +186,7 @@ public class ThreadSequencer implements SequencerConstants {
 
     interface Sequencer {
         /**
-         * A location is a long with one bit set that denotes one of 64 possible
+         * A location is a long with one bit set that denotes one of MAX_LOCATIONS possible
          * locations in code where a join point can occur.
          * 
          * @param location
@@ -230,10 +232,10 @@ public class ThreadSequencer implements SequencerConstants {
 
     private static class EnabledSequencer implements Sequencer {
         private final List<Long> _schedule = new ArrayList<Long>();
-        private final Semaphore[] _semaphores = new Semaphore[64];
+        private final Semaphore[] _semaphores = new Semaphore[MAX_LOCATIONS];
         private long _waiting = 0;
         private long _enabled = 0;
-        private int[] _waitingCount = new int[64];
+        private int[] _waitingCount = new int[MAX_LOCATIONS];
         private List<Integer> _history;
 
         {
@@ -244,7 +246,7 @@ public class ThreadSequencer implements SequencerConstants {
 
         @Override
         public void sequence(int location) {
-            assert location >= 0 && location < 64 : "Location must be between 0 and 63, inclusive";
+            assert location >= 0 && location < MAX_LOCATIONS : "Location must be between 0 and 63, inclusive";
             Semaphore semaphore = null;
 
             synchronized (this) {
@@ -263,7 +265,7 @@ public class ThreadSequencer implements SequencerConstants {
                         break;
                     }
                 }
-                for (int index = 0; index < 64; index++) {
+                for (int index = 0; index < MAX_LOCATIONS; index++) {
                     if ((release & (1L << index)) != 0) {
                         if (location == index) {
                             semaphore = null;
@@ -332,10 +334,10 @@ public class ThreadSequencer implements SequencerConstants {
                         sb.append(',');
                     }
                     int l = location;
-                    if (l < 64) {
+                    if (l < MAX_LOCATIONS) {
                         sb.append('+');
                         sb.append(LOCATIONS.get(l));
-                    } else if ((l = Integer.MAX_VALUE - l) < 64) {
+                    } else if ((l = Integer.MAX_VALUE - l) < MAX_LOCATIONS) {
                         sb.append('-');
                         sb.append(LOCATIONS.get(l));
                     }

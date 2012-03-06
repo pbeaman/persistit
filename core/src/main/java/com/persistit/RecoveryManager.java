@@ -805,6 +805,15 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     private long addressUp(final long address) {
         return ((address / _blockSize) + 1) * _blockSize;
     }
+    
+    /*
+     * Bug 942669 - a transaction found during recovery that has a start address less than the
+     * base address recorded during the keystone checkpoint has already been pruned.  Simply ignore
+     * it during recovery.
+     */
+    private boolean isZombieTransaction(final long address) {
+        return address < _baseAddress;
+    }
 
     private void read(final long address, final int size) throws PersistitIOException {
         if (_readBufferAddress >= 0 && address >= _readBufferAddress
@@ -1142,12 +1151,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             final long commitTimestamp = TM.getEntryCommitTimestamp(_readBuffer, index);
             final long journalAddress = TM.getEntryJournalAddress(_readBuffer, index);
             final long lastRecordAddress = TM.getLastRecordAddress(_readBuffer, index);
-            /*
-             * Bug 942669 - simply ignore any transaction that started before
-             * the base address since the larger base address proves we already
-             * pruned this transaction.
-             */
-            if (journalAddress >= _baseAddress) {
+
+            if (!isZombieTransaction(journalAddress )) {
                 TransactionMapItem ts = new TransactionMapItem(startTimestamp, journalAddress);
                 final Long key = Long.valueOf(startTimestamp);
                 ts.setCommitTimestamp(commitTimestamp);
@@ -1162,6 +1167,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             index++;
         }
     }
+
 
     void scanJournalEnd(final long address, final long timestamp, final int recordSize) throws PersistitIOException {
         if (recordSize != JE.OVERHEAD) {
@@ -1209,12 +1215,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             } else if (_abortedTransactionMap.get(ts.getStartTimestamp()) != null) {
                 iterator.remove();
                 _abortedTransactionMap.remove(ts.getStartTimestamp());
-            } else if (ts.getStartAddress() < baseAddress) {
-                /*
-                 * Bug 942669 - simply ignore any transaction that started
-                 * before the base address since the larger base address proves
-                 * we already pruned this transaction.
-                 */
+            } else if (isZombieTransaction(ts.getStartAddress())) {
                 iterator.remove();
             }
         }
@@ -1371,12 +1372,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final long commitTimestamp = TX.getCommitTimestamp(_readBuffer);
         final long backchainAddress = TX.getBackchainAddress(_readBuffer);
 
-        /*
-         * Bug 942669 - simply ignore any transaction that started before the
-         * base address since the larger base address proves we already pruned
-         * this transaction.
-         */
-        if (address < _baseAddress) {
+        if (isZombieTransaction(address)) {
             return;
         }
         if (commitTimestamp == ABORTED) {
