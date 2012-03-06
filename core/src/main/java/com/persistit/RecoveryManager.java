@@ -15,6 +15,7 @@
 
 package com.persistit;
 
+import static com.persistit.util.ThreadSequencer.*;
 import static com.persistit.JournalRecord.OVERHEAD;
 import static com.persistit.JournalRecord.getLength;
 import static com.persistit.JournalRecord.getTimestamp;
@@ -305,11 +306,13 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         public void endTransaction(long address, long timestamp) throws PersistitException {
             final TransactionStatus ts = _persistit.getTransactionIndex().getStatus(timestamp);
             assert ts != null : "Missing TransactionStatus for timestamp " + timestamp;
-            // Having pruned all pages involved in this transaction, now
-            // declare
-            // it has no MVVs left. This will allow the cleanup process to
-            // remove it entirely.
+            /*
+             * Having pruned all pages involved in this transaction, now declare
+             * it has no MVVs left. This will allow the cleanup process to
+             * remove it entirely.
+             */
             ts.setMvvCount(0);
+            sequence(RECOVERY_PRUNING_A);
             _persistit.getJournalManager().writeTransactionToJournal(ByteBuffer.allocate(0), timestamp, ABORTED, 0);
         }
 
@@ -332,7 +335,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
 
         @Override
-        public  void convertToLongRecord(Value value, int treeHandle, long address, long commitTimestamp)
+        public void convertToLongRecord(Value value, int treeHandle, long address, long commitTimestamp)
                 throws PersistitException {
             RecoveryManager.this.convertToLongRecord(value, treeHandle, address, commitTimestamp);
         }
@@ -802,6 +805,15 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
     private long addressUp(final long address) {
         return ((address / _blockSize) + 1) * _blockSize;
     }
+    
+    /*
+     * Bug 942669 - a transaction found during recovery that has a start address less than the
+     * base address recorded during the keystone checkpoint has already been pruned.  Simply ignore
+     * it during recovery.
+     */
+    private boolean isZombieTransaction(final long address) {
+        return address < _baseAddress;
+    }
 
     private void read(final long address, final int size) throws PersistitIOException {
         if (_readBufferAddress >= 0 && address >= _readBufferAddress
@@ -1139,19 +1151,23 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             final long commitTimestamp = TM.getEntryCommitTimestamp(_readBuffer, index);
             final long journalAddress = TM.getEntryJournalAddress(_readBuffer, index);
             final long lastRecordAddress = TM.getLastRecordAddress(_readBuffer, index);
-            TransactionMapItem ts = new TransactionMapItem(startTimestamp, journalAddress);
-            final Long key = Long.valueOf(startTimestamp);
-            ts.setCommitTimestamp(commitTimestamp);
-            ts.setLastRecordAddress(lastRecordAddress);
-            if (_recoveredTransactionMap.put(key, ts) != null) {
-                throw new CorruptJournalException("Redundant record in TransactionMap record " + ts + " entry "
-                        + (count - remaining + 1) + " at " + addressToString(address, startTimestamp));
 
+            if (!isZombieTransaction(journalAddress )) {
+                TransactionMapItem ts = new TransactionMapItem(startTimestamp, journalAddress);
+                final Long key = Long.valueOf(startTimestamp);
+                ts.setCommitTimestamp(commitTimestamp);
+                ts.setLastRecordAddress(lastRecordAddress);
+                if (_recoveredTransactionMap.put(key, ts) != null) {
+                    throw new CorruptJournalException("Redundant record in TransactionMap record " + ts + " entry "
+                            + (count - remaining + 1) + " at " + addressToString(address, startTimestamp));
+
+                }
+                _persistit.getTimestampAllocator().updateTimestamp(commitTimestamp);
             }
-            _persistit.getTimestampAllocator().updateTimestamp(commitTimestamp);
             index++;
         }
     }
+
 
     void scanJournalEnd(final long address, final long timestamp, final int recordSize) throws PersistitIOException {
         if (recordSize != JE.OVERHEAD) {
@@ -1167,7 +1183,8 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                 + " %3$,d: expected %4$,d at %1$s:%2$,d");
         validate(currentAddress, _keystoneFile, address, address,
                 "JE record currentAddress %3$,d mismatch at %1$s:%2$,d");
-        _baseAddress = baseAddress;
+        validate(baseAddress, _keystoneFile, address, _baseAddress,
+                "JE record wrong base address %3$,d: expected %4$,d at %1$s:%2$,d");
     }
 
     void scanCheckpoint(final long address, final long timestamp, final int recordSize) throws PersistitIOException {
@@ -1184,7 +1201,6 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             throw new CorruptJournalException("Invalid base journal address " + baseAddress + " for CP record at "
                     + addressToString(address, timestamp));
         }
-
         _baseAddress = baseAddress;
         _persistit.getTimestampAllocator().updateTimestamp(timestamp);
         _lastValidCheckpoint = checkpoint;
@@ -1196,11 +1212,11 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
             final TransactionMapItem ts = entry.getValue();
             if (ts.isCommitted() && ts.getCommitTimestamp() < timestamp) {
                 iterator.remove();
-            } else {
-                if (_abortedTransactionMap.get(ts.getStartTimestamp()) != null) {
-                    iterator.remove();
-                    _abortedTransactionMap.remove(ts.getStartTimestamp());
-                }
+            } else if (_abortedTransactionMap.get(ts.getStartTimestamp()) != null) {
+                iterator.remove();
+                _abortedTransactionMap.remove(ts.getStartTimestamp());
+            } else if (isZombieTransaction(ts.getStartAddress())) {
+                iterator.remove();
             }
         }
 
@@ -1356,6 +1372,9 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         final long commitTimestamp = TX.getCommitTimestamp(_readBuffer);
         final long backchainAddress = TX.getBackchainAddress(_readBuffer);
 
+        if (isZombieTransaction(address)) {
+            return;
+        }
         if (commitTimestamp == ABORTED) {
             TransactionMapItem item = _abortedTransactionMap.get(key);
             if (item == null) {
@@ -1603,8 +1622,6 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
         }
         return pn;
     }
-
-
 
     boolean analyze() throws Exception {
         findAndValidateKeystone();

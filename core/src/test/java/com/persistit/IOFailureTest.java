@@ -100,7 +100,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
             while (exchange.next()) {
                 count++;
             }
-            assertEquals(i <= at ? 5000 : 0, count);
+            assertEquals("Incorrect number of keys in tree", i <= at ? 5000 : 0, count);
         }
     }
 
@@ -114,6 +114,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
      * @throws Exception
      */
     public void testJournalUnreadable() throws Exception {
+        final String reason = "Read Failure";
         store1(0);
         final Volume volume = _persistit.getVolume(_volumeName);
         /*
@@ -130,16 +131,16 @@ public class IOFailureTest extends PersistitUnitTestCase {
         Exchange ex = _persistit.getExchange(_volumeName, "IOFailureTest", false);
 
         final MediatedFileChannel mfc = (MediatedFileChannel) _persistit.getJournalManager().getFileChannel(0);
-        mfc.injectTestIOException(new IOException("Read Failure"), "r");
+        mfc.injectTestIOException(new IOException(reason), "r");
         try {
             ex.clear().append(0).next();
             fail("Should have gotten an IOException");
         } catch (PersistitIOException ioe) {
-            assertEquals("Read Failure", ioe.getCause().getMessage());
+            assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
         }
         mfc.injectTestIOException(null, "");
-        assertEquals(true, ex.clear().append(Key.BEFORE).next());
-        
+        assertEquals("Expected key not found", true, ex.clear().append(Key.BEFORE).next());
+
         store1(1);
 
         /*
@@ -147,7 +148,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
          */
         volume.getPool().flush(Long.MAX_VALUE);
         /*
-         * Push all pages back to the Volume file. 
+         * Push all pages back to the Volume file.
          */
         /*
          * Make sure the pages can't be read back from the journal's write
@@ -155,31 +156,29 @@ public class IOFailureTest extends PersistitUnitTestCase {
          */
         _persistit.getJournalManager().force();
         /*
-         * Inject IOException on journal reads. This should stall the copier process until
-         * the error condition is cleared.
+         * Inject IOException on journal reads. This should stall the copier
+         * process until the error condition is cleared.
          */
         final MediatedFileChannel mfcj = (MediatedFileChannel) _persistit.getJournalManager().getFileChannel(0);
-        mfcj.injectTestIOException(new IOException("Read Failure"), "r");
+        mfcj.injectTestIOException(new IOException(reason), "r");
+        final long start = System.currentTimeMillis();
         new Timer().schedule(new TimerTask() {
             public void run() {
                 mfcj.injectTestIOException(null, "");
             }
         }, 2000);
-        final long start = System.currentTimeMillis();
-        _persistit.copyBackPages();
-        final long elapsed = System.currentTimeMillis() - start;
-        assertTrue(elapsed > 2000);
-        assertEquals(_persistit.getJournalManager().getCurrentAddress(), _persistit.getJournalManager().getBaseAddress());
-
+        copyBackEventuallySucceeds(start, reason);
     }
 
     /**
      * Simulate IOException on reading from a Volume. Inserts a bunch of data,
-     * runs copyBack to get it all written to the volume, then clears the buffer pool
-     * and attempts to read it back.
+     * runs copyBack to get it all written to the volume, then clears the buffer
+     * pool and attempts to read it back.
+     * 
      * @throws Exception
      */
     public void testVolumeUnreadable() throws Exception {
+        final String reason = "Read Failure";
         store1(0);
 
         Exchange ex = _persistit.getExchange(_volumeName, "IOFailureTest", false);
@@ -196,21 +195,22 @@ public class IOFailureTest extends PersistitUnitTestCase {
         _persistit.getJournalManager().force();
         final MediatedFileChannel mfcj = (MediatedFileChannel) _persistit.getJournalManager().getFileChannel(0);
         /*
-         * Push all pages back to the Volume file. 
+         * Push all pages back to the Volume file.
          */
         _persistit.copyBackPages();
-        
+
         volume.getPool().invalidate(volume);
         ex.initCache();
         /*
-         * Inject IOException on journal reads. This prevents pages from being read back from
-         * the journal. However, because copyBackPages has written all page images back to
-         * the Volume, no reads against the journal should occur.
+         * Inject IOException on journal reads. This prevents pages from being
+         * read back from the journal. However, because copyBackPages has
+         * written all page images back to the Volume, no reads against the
+         * journal should occur.
          */
-        mfcj.injectTestIOException(new IOException("Read Failure"), "r");
+        mfcj.injectTestIOException(new IOException(reason), "r");
         /*
-         * This should succeed because the journal has been fully copied, therefore reads are
-         * coming from the Volume file itself.
+         * This should succeed because the journal has been fully copied,
+         * therefore reads are coming from the Volume file itself.
          */
         assertEquals(true, ex.clear().append(Key.BEFORE).next());
         /*
@@ -218,25 +218,26 @@ public class IOFailureTest extends PersistitUnitTestCase {
          */
         volume.getPool().invalidate(volume);
         ex.initCache();
-        
-        final MediatedFileChannel mfcv = (MediatedFileChannel)volume.getStorage().getChannel();
-        mfcv.injectTestIOException(new IOException("Read Failure"), "r");
-        
+
+        final MediatedFileChannel mfcv = (MediatedFileChannel) volume.getStorage().getChannel();
+        mfcv.injectTestIOException(new IOException(reason), "r");
+
         try {
             ex.clear().append(0).next();
             fail("Should have gotten an IOException");
         } catch (PersistitIOException ioe) {
-            assertEquals("Read Failure", ioe.getCause().getMessage());
+            assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
         }
         mfcv.injectTestIOException(null, "");
-        assertEquals(true, ex.clear().append(Key.BEFORE).next());
+        assertEquals("Expected key not found", true, ex.clear().append(Key.BEFORE).next());
 
     }
 
     public void testVolumeUnwritable() throws Exception {
+        final String reason = "Write Failure";
         final Volume volume = _persistit.getVolume(_volumeName);
-        final MediatedFileChannel mfcv = (MediatedFileChannel)volume.getStorage().getChannel();
-        mfcv.injectTestIOException(new IOException("Write Failure"), "w");
+        final MediatedFileChannel mfcv = (MediatedFileChannel) volume.getStorage().getChannel();
+        mfcv.injectTestIOException(new IOException(reason), "w");
         /*
          * Should succeed since writes to volume are delayed
          */
@@ -249,25 +250,16 @@ public class IOFailureTest extends PersistitUnitTestCase {
         /*
          * This method should stall until we clear the injected IOException
          */
+        final long start = System.currentTimeMillis();
         new Timer().schedule(new TimerTask() {
             public void run() {
                 mfcv.injectTestIOException(null, "");
             }
         }, 2000);
-        final long start = System.currentTimeMillis();
-        _persistit.copyBackPages();
-        final long elapsed = System.currentTimeMillis() - start;
-        assertTrue(elapsed > 2000);
-        /*
-         * Verify that copyBackPages finished copying all pages.
-         */
-        assertEquals(_persistit.getJournalManager().getCurrentAddress(), _persistit.getJournalManager().getBaseAddress());
-
-        
+        copyBackEventuallySucceeds(start, reason);
         volume.getPool().invalidate(volume);
-
     }
-
+    
     public void testJournalEOFonRecovery() throws Exception {
         final Properties properties = _persistit.getProperties();
         final JournalManager jman = _persistit.getJournalManager();
@@ -288,22 +280,22 @@ public class IOFailureTest extends PersistitUnitTestCase {
         }
         final long currentAddress = jman.getCurrentAddress();
         _persistit.close();
-        
+
         final File file0 = jman.addressToFile(currentAddress - jman.getBlockSize());
         final FileChannel channel0 = new RandomAccessFile(file0, "rw").getChannel();
         final long size0 = channel0.size();
         channel0.truncate(100);
-        
+
         final File file1 = jman.addressToFile(currentAddress);
         final FileChannel channel1 = new RandomAccessFile(file1, "rw").getChannel();
         final long size1 = channel1.size();
         channel1.truncate(100);
-        
+
         channel1.close();
-        
+
         _persistit = new Persistit();
         try {
-        _persistit.initialize(properties);
+            _persistit.initialize(properties);
         } catch (CorruptJournalException cje) {
             // expected
         }
@@ -311,8 +303,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
 
         _persistit = new Persistit();
         _persistit.initialize(properties);
-        
-        
+
     }
 
     private void store1(final int at) throws PersistitException {
@@ -327,6 +318,24 @@ public class IOFailureTest extends PersistitUnitTestCase {
             exchange.getValue().put("Record #" + at + "_" + i);
             exchange.store();
         }
+    }
+    
+    private void copyBackEventuallySucceeds(final long start, final String reason) throws Exception {
+        final long expires = System.currentTimeMillis() + 10000;
+        boolean done = false;
+        while (System.currentTimeMillis() < expires) {
+            try {
+                _persistit.copyBackPages();
+                done = true;
+                break;
+            } catch (PersistitIOException ioe) {
+                assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
+            }
+        }
+        long elapsed = System.currentTimeMillis() - start;
+        assertTrue(done ? "Copyback took too long" : "Copyback did not complete", done && elapsed >= 2000);
+        assertEquals("Copyback did not move base address to end of journal", _persistit.getJournalManager().getCurrentAddress(), _persistit.getJournalManager()
+                .getBaseAddress());
     }
 
 }

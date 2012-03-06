@@ -98,51 +98,55 @@ public interface JournalManagerMXBean {
 
     final static int MAX_CONCURRENT_TRANSACTIONS = 10000;
 
-    public int getPageMapSize();
+    int getPageMapSize();
 
-    public long getBaseAddress();
+    long getBaseAddress();
 
-    public long getCurrentAddress();
+    long getCurrentAddress();
 
-    public long getBlockSize();
+    long getBlockSize();
 
-    public boolean isAppendOnly();
+    boolean isAppendOnly();
 
-    public boolean isCopyingFast();
+    boolean isCopyingFast();
 
-    public void setAppendOnly(boolean appendOnly);
+    void setAppendOnly(boolean appendOnly);
 
-    public void setCopyingFast(boolean fast);
+    void setCopyingFast(boolean fast);
 
-    public long getFlushInterval();
+    long getFlushInterval();
 
-    public void setFlushInterval(long flushInterval);
+    void setFlushInterval(long flushInterval);
 
-    public long getCopierInterval();
+    long getCopierInterval();
 
-    public void setCopierInterval(long copierInterval);
+    void setCopierInterval(long copierInterval);
 
-    public boolean isClosed();
+    boolean isClosed();
 
-    public boolean isCopying();
+    boolean isCopying();
 
-    public String getJournalFilePath();
+    String getJournalFilePath();
 
-    public long getJournaledPageCount();
+    long getJournaledPageCount();
 
-    public long getCopiedPageCount();
+    long getCopiedPageCount();
 
-    public long getJournalCreatedTime();
+    long getJournalCreatedTime();
 
-    public long getLastValidCheckpointTimestamp();
+    long getLastValidCheckpointTimestamp();
     
-    public void setRollbackPruningEnabled(boolean rollbackPruning);
+    void setRollbackPruningEnabled(boolean rollbackPruning);
     
-    public boolean isRollbackPruningEnabled();
+    boolean isRollbackPruningEnabled();
 
-    public int urgency();
+    int urgency();
 
-    public void force() throws PersistitIOException;
+    void force() throws PersistitIOException;
 
-    public void copyBack() throws PersistitException;
+    void copyBack() throws Exception;
+
+    String getLastCopierException();
+
+    String getLastFlusherException();
 }

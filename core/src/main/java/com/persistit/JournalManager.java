@@ -16,6 +16,8 @@
 package com.persistit;
 
 import static com.persistit.TransactionStatus.ABORTED;
+import static com.persistit.util.SequencerConstants.RECOVERY_PRUNING_B;
+import static com.persistit.util.ThreadSequencer.sequence;
 
 import java.io.File;
 import java.io.IOException;
@@ -220,8 +222,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             rman.collectRecoveredVolumeMaps(_handleToVolumeMap, _volumeToHandleMap);
             rman.collectRecoveredTreeMaps(_handleToTreeMap, _treeToHandleMap);
             rman.collectRecoveredTransactionMap(_liveTransactionMap);
-            // Set _handleCount so that newly created handles are do not
-            // conflict with existing resources.
+            /*
+             * Set _handleCount so that newly created handles do not conflict
+             * with existing resources.
+             */
             for (Integer handle : _handleToTreeMap.keySet()) {
                 _handleCounter = Math.max(_handleCounter, handle + 1);
             }
@@ -400,6 +404,16 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     @Override
     public long getLastValidCheckpointTimestamp() {
         return _lastValidCheckpoint.getTimestamp();
+    }
+
+    @Override
+    public String getLastCopierException() {
+        return Util.toString(_copier.getLastException());
+    }
+
+    @Override
+    public String getLastFlusherException() {
+        return Util.toString(_flusher.getLastException());
     }
 
     /**
@@ -1345,7 +1359,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     synchronized FileChannel getFileChannel(long address) throws PersistitIOException {
         if (address < _deleteBoundaryAddress || address > _currentAddress + _blockSize) {
             throw new IllegalArgumentException("Invalid journal address " + address + " outside of range ("
-                    + _baseAddress + ":" + (_currentAddress + _blockSize) + ")");
+                    + _deleteBoundaryAddress + ":" + (_currentAddress + _blockSize) + ")");
         }
         final long generation = address / _blockSize;
         FileChannel channel = _journalFileChannels.get(generation);
@@ -1369,12 +1383,17 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * 
      * @throws PersistitException
      */
-    public void copyBack() throws PersistitException {
+    @Override
+    public void copyBack() throws Exception {
         if (!_appendOnly.get()) {
             _copyFast.set(true);
+            int exceptionCount = _copier.getExceptionCount();
             while (_copyFast.get()) {
                 _copier.kick();
                 Util.sleep(Persistit.SHORT_DELAY);
+                if (_copier.getExceptionCount() != exceptionCount) {
+                    throw _copier.getLastException();
+                }
             }
         }
     }
@@ -1464,10 +1483,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     } else if (status.getTc() == ABORTED && status.isNotified()) {
                         if (status.getMvvCount() == 0) {
                             iterator.remove();
-                        } else {
-                            if (rollbackPruningEnabled) {
-                                toPrune.add(item);
-                            }
+                            sequence(RECOVERY_PRUNING_B);
+                        } else if (rollbackPruningEnabled) {
+                            toPrune.add(item);
                         }
                     }
                 }
@@ -1755,11 +1773,10 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         @Override
         public void runTask() throws Exception {
 
-            pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
-
-            if (!_appendOnly.get()) {
-                _copying.set(true);
-                try {
+            _copying.set(true);
+            try {
+                pruneObsoleteTransactions(_lastValidCheckpoint.getTimestamp(), isRollbackPruningEnabled());
+                if (!_appendOnly.get()) {
                     selectForCopy(_copyList);
                     if (!_copyList.isEmpty()) {
                         readForCopy(_copyList, _bb);
@@ -1772,9 +1789,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                     if (_copyList.isEmpty()) {
                         _copyFast.set(false);
                     }
-                } finally {
-                    _copying.set(false);
                 }
+            } finally {
+                _copying.set(false);
             }
         }
 
@@ -2057,6 +2074,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 }
             }
 
+            if (recoveryBoundary < _baseAddress) {
+                throw new IllegalStateException(String.format("Retrograde base address %,d is less than current %,d",
+                        recoveryBoundary, _baseAddress));
+            }
+            
             _baseAddress = recoveryBoundary;
             for (deleteBoundary = _deleteBoundaryAddress; deleteBoundary + _blockSize <= _lastValidCheckpointBaseAddress; deleteBoundary += _blockSize) {
                 final long generation = deleteBoundary / _blockSize;
@@ -2201,7 +2223,8 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
              */
             if (ts != null) {
                 if (ts.getMvvCount() > 0 && _persistit.isInitialized()) {
-                    _persistit.getLogBase().pruningIncomplete.log(ts, TransactionPlayer.addressToString(address, timestamp));
+                    _persistit.getLogBase().pruningIncomplete.log(ts, TransactionPlayer.addressToString(address,
+                            timestamp));
                 }
             }
         }

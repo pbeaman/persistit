@@ -15,6 +15,11 @@
 
 package com.persistit;
 
+import static com.persistit.util.SequencerConstants.COMMIT_FLUSH_A;
+import static com.persistit.util.SequencerConstants.COMMIT_FLUSH_B;
+import static com.persistit.util.SequencerConstants.COMMIT_FLUSH_C;
+import static com.persistit.util.ThreadSequencer.sequence;
+
 import java.nio.ByteBuffer;
 
 import com.persistit.Accumulator.Delta;
@@ -27,7 +32,6 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.exception.RollbackException;
-import com.persistit.util.Debug;
 import com.persistit.util.Util;
 
 /**
@@ -297,7 +301,7 @@ public class Transaction {
     private int _step;
 
     private String _threadName;
-
+    
     /**
      * Creates a new transaction context. Any transaction performed within this
      * context will be isolated from all other transactions.
@@ -637,9 +641,9 @@ public class Transaction {
                 writeDeltaToJournal(delta);
             }
             _transactionStatus.commit(_persistit.getTimestampAllocator().getCurrentTimestamp());
-            Debug.await("flushOnCheckpoint_a");
+            sequence(COMMIT_FLUSH_A);
             _commitTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
-            Debug.awaken("flushOnCheckpoint_b");
+            sequence(COMMIT_FLUSH_C);
             boolean committed = false;
             try {
                 /*
@@ -934,8 +938,8 @@ public class Transaction {
 
     synchronized void flushOnCheckpoint(final long timestamp) throws PersistitIOException {
         if (_startTimestamp > 0 && _startTimestamp < timestamp && _commitTimestamp == 0 && _buffer.position() > 0) {
-            Debug.awaken("flushOnCheckpoint_a");
-            Debug.await("flushOnCheckpoint_b");
+            sequence(COMMIT_FLUSH_B);
+
             _previousJournalAddress = _persistit.getJournalManager().writeTransactionToJournal(_buffer,
                     _startTimestamp, 0, _previousJournalAddress);
             _buffer.clear();
