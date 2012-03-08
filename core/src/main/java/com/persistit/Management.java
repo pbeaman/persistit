@@ -606,14 +606,18 @@ public interface Management extends Remote, ManagementMXBean {
      *            <code>true</code> to populate each returned
      *            <code>TaskStatus</code> object with all new messages posted by
      *            the task.
-     * @param clear
+     * @param clearMessages
      *            <code>true</code> to clear all received messages from the
      *            task.
+     * @param clearTasks
+     *            <code>true</code> to clear all completed tasks after reporting
+     *            status
      * @return Array of <code>TaskStatus</code> objects indicating status of
      *         selected task(s).
      * @throws RemoteException
      */
-    public TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clear) throws RemoteException;
+    public TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages, boolean clearTasks)
+            throws RemoteException;
 
     /**
      * Suspend or resume the task(s) identified by <code>taskId</code>. If

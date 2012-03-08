@@ -33,17 +33,17 @@ public class TaskCheck extends Task {
 
     @Cmd("task")
     static Task createTaskCheckTask(@Arg("taskId|long:-1:-1|Task ID to to check, or -1 for all") long taskId,
-            @Arg("_flag|v|Verbose") boolean verbose, @Arg("_flag|c|Remove completed tasks") boolean removeTasks,
-            @Arg("_flag|m|Remove delivered messages") boolean removeMessages,
-            @Arg("_flag|k|Keep task even if completed") boolean keep, @Arg("_flag|x|Stop the task") boolean stop,
+            @Arg("_flag|v|Verbose") boolean verbose,
+            @Arg("_flag|m|Keep previously delivered messages") boolean keepMessages,
+            @Arg("_flag|k|Keep task even if completed") boolean keepTasks, @Arg("_flag|x|Stop the task") boolean stop,
             @Arg("_flag|u|Suspend the task") boolean suspend, @Arg("_flag|r|Resume the task") boolean resume)
             throws Exception {
 
         TaskCheck task = new TaskCheck();
         task._taskId = taskId;
         task._details = verbose;
-        task._clearTasks = removeTasks;
-        task._clearMessages = removeMessages;
+        task._clearTasks = !keepTasks;
+        task._clearMessages = !keepMessages;
         task._stop = stop;
         task._suspend = suspend;
         task._resume = resume;
@@ -75,16 +75,16 @@ public class TaskCheck extends Task {
         } else if (_resume) {
             _persistit.getManagement().setTaskSuspended(_taskId, false);
         }
-        TaskStatus[] status = _persistit.getManagement().queryTaskStatus(_taskId, _details, _clearMessages);
+        TaskStatus[] status = _persistit.getManagement().queryTaskStatus(_taskId, _details, _clearMessages, _clearTasks);
         final StringBuilder sb = new StringBuilder();
         for (final TaskStatus ts : status) {
-            if (sb.length() > 0) {
-                sb.append(Util.NEW_LINE);
+            final String s = ts.toString(_details);
+            if (!s.isEmpty()) {
+                if (sb.length() > 0) {
+                    sb.append(Util.NEW_LINE);
+                }
+                sb.append(s);
             }
-            sb.append(ts.toString(_details));
-        }
-        if (_clearTasks) {
-            _persistit.getManagement().removeFinishedTasks(_taskId);
         }
         _status = sb.toString();
 

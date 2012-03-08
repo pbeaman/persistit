@@ -1009,18 +1009,14 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public long startTask(String description, String owner, String commandLine, long maximumTime, int verbosity)
+    public synchronized long startTask(String description, String owner, String commandLine, long maximumTime, int verbosity)
             throws RemoteException {
-        long taskId;
-        synchronized (this) {
-            taskId = ++_taskIdCounter;
-        }
-
         try {
             Task task = CLI.parseTask(_persistit, commandLine);
             if (task == null) {
                 throw new WrappedRemoteException(new IllegalArgumentException("Unknown task " + commandLine));
             }
+            long taskId = ++_taskIdCounter;
             task.setPersistit(_persistit);
             task.setup(taskId, description, owner, maximumTime, verbosity);
             _tasks.put(new Long(taskId), task);
@@ -1042,7 +1038,7 @@ class ManagementImpl implements Management {
      *            <code>true</code> to populate each returned
      *            <code>TaskStatus</code> object with all new messages posted by
      *            the task.
-     * @param clear
+     * @param clearMessages
      *            <code>true</code> to clear all received messages from the
      *            task.
      * @param remove
@@ -1051,17 +1047,19 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clear) {
+    public synchronized TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages, boolean clearTasks) {
         if (taskId == -1) {
             int size = _tasks.size();
             int index = 0;
             TaskStatus[] result = new TaskStatus[size];
-            for (Iterator iterator = _tasks.values().iterator(); iterator.hasNext();) {
+            for (Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
                 Task task = (Task) iterator.next();
                 TaskStatus ts = new TaskStatus();
-                task.populateTaskStatus(ts, details, clear);
+                task.populateTaskStatus(ts, details, clearMessages);
                 result[index++] = ts;
-
+                if (clearTasks && Task.isFinalStatus(task._state)) {
+                    iterator.remove();
+                }
             }
             return result;
         } else {
@@ -1070,7 +1068,7 @@ class ManagementImpl implements Management {
                 return new TaskStatus[0];
             } else {
                 TaskStatus ts = new TaskStatus();
-                task.populateTaskStatus(ts, details, clear);
+                task.populateTaskStatus(ts, details, clearMessages);
                 return new TaskStatus[] { ts };
             }
         }
@@ -1088,9 +1086,9 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public void setTaskSuspended(long taskId, boolean suspend) {
+    public synchronized void setTaskSuspended(long taskId, boolean suspend) {
         if (taskId == -1) {
-            for (Iterator iterator = _tasks.values().iterator(); iterator.hasNext();) {
+            for (Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
                 Task task = (Task) iterator.next();
                 if (suspend)
                     task.suspend();
@@ -1120,7 +1118,7 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public void stopTask(long taskId, boolean remove) {
+    public synchronized void stopTask(long taskId, boolean remove) {
         if (taskId == -1) {
             for (Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
                 Task task = iterator.next();
@@ -1133,8 +1131,9 @@ class ManagementImpl implements Management {
             Task task = _tasks.get(new Long(taskId));
             if (task != null) {
                 task.stop();
-                if (remove)
+                if (remove) {
                     _tasks.remove(new Long(task._taskId));
+                }
             }
         }
     }
@@ -1149,7 +1148,7 @@ class ManagementImpl implements Management {
      * @throws RemoteException
      */
     @Override
-    public void removeFinishedTasks(long taskId) {
+    public synchronized void removeFinishedTasks(long taskId) {
         if (taskId == -1) {
             for (Iterator<Task> iterator = _tasks.values().iterator(); iterator.hasNext();) {
                 Task task = iterator.next();
@@ -1251,7 +1250,7 @@ class ManagementImpl implements Management {
     }
 
     @Override
-    public String launch(final Task task, final String description) throws RemoteException {
+    public synchronized String launch(final Task task, final String description) throws RemoteException {
         try {
             long taskId = taskId();
             task.setup(taskId, description, Thread.currentThread().getName(), 0, 5);

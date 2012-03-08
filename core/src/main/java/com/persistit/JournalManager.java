@@ -32,6 +32,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -1501,7 +1503,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         return earliest;
     }
 
-    static class TreeDescriptor {
+    public static class TreeDescriptor {
 
         final int _volumeHandle;
 
@@ -1512,11 +1514,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _treeName = treeName;
         }
 
-        int getVolumeHandle() {
+        public int getVolumeHandle() {
             return _volumeHandle;
         }
 
-        String getTreeName() {
+        public String getTreeName() {
             return _treeName;
         }
 
@@ -1555,7 +1557,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * forming a sorted set of PageNodes so that we can copy pages in roughly
      * sequential order to each Volume file.
      */
-    static class PageNode {
+    public static class PageNode {
 
         final int _volumeHandle;
 
@@ -1574,6 +1576,22 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             this._pageAddress = pageAddress;
             this._journalAddress = journalAddress;
             this._timestamp = timestamp;
+        }
+        
+        /**
+         * Construct a copy, also copying members of the linked list. Used
+         * by #queryPageMap.
+         */
+        PageNode(final PageNode pageNode) {
+            _volumeHandle = pageNode._volumeHandle;
+            _pageAddress = pageNode._pageAddress;
+            _journalAddress = pageNode._journalAddress;
+            _timestamp = pageNode._timestamp;
+            _offset = pageNode._offset;
+            PageNode previous = pageNode._previous;
+            if (previous != null) {
+                _previous = new PageNode(previous);
+            }
         }
 
         /**
@@ -1688,7 +1706,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         };
     }
 
-    static class TransactionMapItem implements Comparable<TransactionMapItem> {
+    public static class TransactionMapItem implements Comparable<TransactionMapItem> {
 
         private final long _startAddress;
 
@@ -1704,20 +1722,27 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _startAddress = address;
             _lastRecordAddress = address;
         }
+        
+        TransactionMapItem(final TransactionMapItem item) {
+            _startAddress = item._startAddress;
+            _startTimestamp = item._startTimestamp;
+            _commitTimestamp = item._commitTimestamp;
+            _lastRecordAddress = item._lastRecordAddress;
+        }
 
-        long getStartAddress() {
+        public long getStartAddress() {
             return _startAddress;
         }
 
-        long getStartTimestamp() {
+        public long getStartTimestamp() {
             return _startTimestamp;
         }
 
-        long getCommitTimestamp() {
+        public long getCommitTimestamp() {
             return _commitTimestamp;
         }
 
-        long getLastRecordAddress() {
+        public long getLastRecordAddress() {
             return _lastRecordAddress;
         }
 
@@ -1729,11 +1754,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _lastRecordAddress = address;
         }
 
-        boolean isCommitted() {
+        public boolean isCommitted() {
             return _commitTimestamp > 0;
         }
 
-        boolean isAborted() {
+        public boolean isAborted() {
             return _commitTimestamp == ABORTED;
         }
 
@@ -2274,5 +2299,40 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     synchronized boolean unitTestTxnExistsInLiveMap(Long startTimestamp) {
         return _liveTransactionMap.containsKey(startTimestamp);
+    }
+    
+    public PageNode queryPageNode(final int volumeHandle, final long pageAddress) {
+        PageNode pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
+        if (pn != null) {
+            return new PageNode(pn);
+        } else {
+            return null;
+        }
+    }
+    
+    public PageNode queryBranchNode(final int volumeHandle, final long pageAddress) {
+        PageNode pn = _branchMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
+        if (pn != null) {
+            return new PageNode(pn);
+        } else {
+            return null;
+        }
+    }
+    
+    public TransactionMapItem queryTransactionMap(final long timestamp) {
+        final TransactionMapItem item = _liveTransactionMap.get(timestamp);
+        if (item != null) {
+            return new TransactionMapItem(item);
+        } else {
+            return null;
+        }
+    }
+    
+    public SortedMap<Integer, Volume> queryVolumeMap() {
+        return new TreeMap<Integer, Volume>(_handleToVolumeMap);
+    }
+    
+    public SortedMap<Integer, TreeDescriptor> queryTreeMap() {
+        return new TreeMap<Integer, TreeDescriptor> (_handleToTreeMap);
     }
 }

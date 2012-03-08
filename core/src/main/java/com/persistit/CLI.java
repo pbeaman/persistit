@@ -53,6 +53,9 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import com.persistit.JournalManager.PageNode;
+import com.persistit.JournalManager.TransactionMapItem;
+import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.JH;
 import com.persistit.exception.PersistitException;
@@ -137,6 +140,7 @@ public class CLI {
     private final static long HUGE_BLOCK_SIZE = 1000L * 1000L * 1000L * 1000L;
     private final static char DEFAULT_COMMAND_DELIMITER = ' ';
     private final static char DEFAULT_QUOTE = '\\';
+    private final static int MAX_PAGE_NODES = 10000;
 
     private final static Map<String, Command> COMMANDS = new TreeMap<String, Command>();
 
@@ -628,10 +632,11 @@ public class CLI {
             throw new NotOpenException();
         }
     }
-    
+
     /**
      * Open files on disk and attempt to make a read-only Persistit instance.
-     * This method does not return a Task and cannot be executed in a live 
+     * This method does not return a Task and cannot be executed in a live
+     * 
      * @param datapath
      * @param journalpath
      * @param volumepath
@@ -646,7 +651,7 @@ public class CLI {
             @Arg("volumepath|string|Volume file") String volumepath,
             @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport,
             @Arg("_flag|y|Recover committed transactions") boolean y) throws Exception {
-        
+
         if (_live) {
             return "Cannot open another Persistit instance within a live system";
         }
@@ -792,6 +797,11 @@ public class CLI {
             @Override
             public void runTask() throws Exception {
                 final JournalTool jt = new JournalTool(_persistit);
+                jt.setAction(jt.new SimpleDumpAction() {
+                    protected void write(final String msg) {
+                        postMessage(msg, LOG_NORMAL);
+                    }
+                });
                 jt.init(path, start, end, types, pages, timestamps, maxkey, maxvalue, v);
                 jt.setWriter(new PrintWriter(System.out));
                 jt.scan();
@@ -829,7 +839,6 @@ public class CLI {
         };
 
     }
-
 
     @Cmd("adminui")
     Task adminui(final @Arg("_flag|g|Start") boolean g, final @Arg("_flag|x|Stop") boolean x) throws Exception {
@@ -1086,6 +1095,70 @@ public class CLI {
             public String getStatus() {
                 return "";
             }
+        };
+    }
+
+    @Cmd("jquery")
+    Task jquery(final @Arg("page|long:-1|Page address for PageNode to look up") long pageAddress,
+            final @Arg("volumeHandle|int:-1|Volume handle for PageNode to look up") int volumeHandle,
+            final @Arg("ts|long:-1|Start timestamp of TransactionMapItem to look up") long ts,
+            final @Arg("_flag|v|Verbose") boolean verbose,
+            final @Arg("_flag|V|Show volume handle map") boolean showTreeMap,
+            final @Arg("_flag|T|Show tree handle map") boolean showVolumeMap) {
+        return new Task() {
+            public void runTask() throws Exception {
+                if (!showVolumeMap && !showTreeMap && pageAddress == -1 && ts == -1) {
+                    postMessage("No items requested", LOG_NORMAL);
+                    return;
+                }
+                if (showVolumeMap) {
+                    postMessage("Volume Handle Map", LOG_NORMAL);
+                    Map<Integer, Volume> map = _persistit.getJournalManager().queryVolumeMap();
+                    for (final Map.Entry<Integer, Volume> entry : map.entrySet()) {
+                        postMessage(String.format("%,5d -> %s", entry.getKey(), entry.getValue()), LOG_NORMAL);
+                    }
+                }
+                if (showVolumeMap) {
+                    postMessage("Tree Handle Map", LOG_NORMAL);
+                    Map<Integer, TreeDescriptor> map = _persistit.getJournalManager().queryTreeMap();
+                    for (final Map.Entry<Integer, TreeDescriptor> entry : map.entrySet()) {
+                        postMessage(String.format("%,5d -> %s", entry.getKey(), entry.getValue()), LOG_NORMAL);
+                    }
+                }
+                if (ts != -1) {
+                    TransactionMapItem item = _persistit.getJournalManager().queryTransactionMap(ts);
+                    postMessage(String.format("TransactionMapItem for ts=%,d -> %s", ts, item), LOG_NORMAL);
+                }
+                if (pageAddress != -1) {
+                    postMessage("Page Nodes", LOG_NORMAL);
+                    if (volumeHandle != -1) {
+                        queryPageNode(volumeHandle, pageAddress, verbose);
+                    } else {
+                        Map<Integer, Volume> volumeMap = _persistit.getJournalManager().queryVolumeMap();
+                        for (final int handle : volumeMap.keySet()) {
+                            queryPageNode(handle, pageAddress, verbose);
+                        }
+                    }
+                }
+            }
+
+            private void queryPageNode(final int volumeHandle, final long page, final boolean verbose) {
+                PageNode pn = _persistit.getJournalManager().queryPageNode(volumeHandle, pageAddress);
+                int count = 0;
+                while (pn != null && count++ < MAX_PAGE_NODES) {
+                    postMessage(String.format("%,5d: %s", count, pn), LOG_NORMAL);
+                    if (!verbose) {
+                        break;
+                    }
+                    pn = pn.getPrevious();
+                }
+            }
+
+            @Override
+            public String getStatus() {
+                return "";
+            }
+
         };
     }
 
