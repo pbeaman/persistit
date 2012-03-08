@@ -1,19 +1,19 @@
 [[Management]]
 = Management
 
-Akiban Persistit provides two main avenues for measuring and managing its internal resources: an RMI interface and a JMX interface. 
+Akiban Persistit provides three main avenues for measuring and managing its internal resources: an RMI interface, a JMX interface. and a command-line interface (CLI) through which you can issue various commands. 
 
-The RMI interface is primarily intended for the com.persistit.ui.AdminUI utility. AdminUI is a Java Swing program that runs on a device with graphical UI capabilities.  For example, in Linux and Unix it requires an XServer. Since production servers are often headless it is often necessary to run AdminUI remotely, via its RMI interface. To do this, the Persistit configuration must specify either the +rmiport+ or +rmihost+ property so that it can start an RMI server.
+The RMI interface is primarily intended for the com.persistit.ui.AdminUI utility. AdminUI is a Java JFC Swing program that runs on a device with graphical UI capabilities. For example, in Linux and Unix it requires an XServer. Since production servers are often headless it is often necessary to run AdminUI remotely, via its RMI interface. To do this, the Persistit configuration must specify either the +rmiport+ or +rmihost+ property so that it can start an RMI server.
 
-Suppose a Persistit-based application is running on a host named “myhost” and has specified the configuration property +rmiport=1099+ in its configuration.  Then the AdminUI can be launched as follows to connect with it:
+Assuming a Persistit-based application is running on a host named “myhost” and has specified the configuration property +rmiport=1099+ in its configuration then the AdminUI can be launched as follows to connect with it:
 
 ----
-java -cp <classpath>  com.persistit.ui.AdminUI myhost:1099
+java -cp <classpath> com.persistit.ui.AdminUI myhost:1099
 ----
 
 where <classpath> includes the Persistit com.persistit.ui package. 
 
-The JMX interface can be used by third-party management utilities, from applications such as +jconsole+ and +visualvm+, and from command-line JMX clients such as +jmxterm+. To enable JMX access, the configuration must specify the property +jmx=true+.  This causes Persistit to register several MBeans with the platform MBean server during initialization.
+The JMX interface can be used by third-party management utilities, from applications such as +jconsole+ and +visualvm+, from JMX-aware system monitoring tools and from q command-line JMX client such as +jmxterm+. To enable JMX access, the configuration must specify the property +jmx=true+. This causes Persistit to register several MBeans with the platform MBean server during initialization.
 
 == MBeans
 
@@ -22,6 +22,8 @@ The following MBeans are available:
 [horizontal]
 +com.persistit:type=Persistit+:: See com.persistit.ManagementMXBean
 +com.persistit:type=Persistit,class=IOMeter+:: See com.persistit.IOMeterMXBean
++com.persistit:type=Persistit,class=CleanupManager+:: See com.persistit.CleanupManagerMXBean
++com.persistit:type=Persistit,class=TransactionIndex+:: See com.persistit.TransactionIndexMXBean
 +com.persistit.type=Persistit,class=JournalManager+:: See com.persistit.JournalManagerMXBean
 +com.persistit.type=Persistit,class=RecoveryManager+:: See com.persistit.RecoveryManager.MXBean
 +com.persistit.type=Persistit,class=BufferPool._SSSS_+:: where _SSSS_ is a buffer size (512, 1024, 2048, 4096 or 16394) See com.persistit.BufferPoolMXBean
@@ -77,12 +79,12 @@ peter:~/workspace/sandbox$ jmxterm-execute 1234 ‘stat\ -a’
 hit=3942334 miss=14 new=7364 evict=0 jwrite=81810 jread=2 jcopy=63848 tcommit=0 troll=0 CC=0 RV=12 RJ=2 WJ=81810 EV=0 FJ=529 IOkbytes=1134487 TOTAL
 ----
 
-This command invokes the +stat+ task with the flag +-a+ on a JVM running with process id 1234.  Note that white-space must be quoted by backslash (‘\’) even though the argument list is also enclosed in single-quotes.  The backslash marshals the space character through +jmxterm+’s parser. Commas and other delimiters also need to be quoted.
+This command invokes the +stat+ task with the flag +-a+ on a JVM running with process id 1234.  Note that white-space must be quoted by backslash (‘\’) even though the argument list is also enclosed in single-quotes. The backslash marshals the space character through +jmxterm+’s parser. Commas and other delimiters also need to be quoted.
 
 
 === Using the Built-In +cliserver+
 
-+cliserver+ is a simple text-based server that receives a command line as a text string and emits the generated output as its response. To start it, enter the command
++cliserver+ is a simple single-threaded text-based server that receives a command line as a text string and emits the generated output as its response. To start it, enter the command
 ----
 cliserver port=9999
 ----
@@ -121,19 +123,25 @@ Performs a com.persistit.IntegrityCheck task. Arguments:
 +trees+:: specifies trees to check. See com.persistit.TreeSelector for details syntax. Default is all trees in all volumes.
 +-r+:: Tree specification uses Java RegEx syntax
 +-u+:: Don't freeze updates (Default is to freeze updates)
-+-h+:: Don't fix holes (Default is to fix index holes)
++-h+:: Fix index holes
++-p+:: Prune obsolete multi-version values (MVVs)
++-P+:: Prune obsolete multi-version values and delete all MVV history from the system. This operation may only be performed if all trees in all volumes are selected.
++-v+:: Verbose output - displays information about each tree
++-c+:: Write output in CSV (comma-separated variable) format which can be imported into spreadsheet programs for analysis
 
-By default,IntegrityCheck suspends all threads attempting to modify the tree being checked, and repairs any index holes.  (An _index hole_ is an anomaly that occurs rarely in normal operation such that a page does not have an index entry in the index page level immediately above it.)  The flags suppress these options.
+By default,IntegrityCheck suspends all threads attempting to modify the tree being checked and does not fix index holes or prune multi-version values.  (An _index hole_ is an anomaly that occurs rarely in normal operation such that a page does not have an index entry in the index page level immediately above it.)
 
 Example:
 ----
-icheck trees=vehicles/* -h
+icheck trees=vehicles -h
 ----
-Checks all trees in the +vehicles+ volume and does not repair index holes.
+Checks all trees in the +vehicles+ volume and repairs any index holes it may find.
+
+See com.persistit.TreeSelector for detailed volume and tree selection syntax.
 
 === Command: +save+
 
-Starts a com.persistit.StreamSaver task. Arguments:
+Starts a com.persistit.StreamSaver task to export key-value pairs to a save file. Arguments:
 
 [horizontal]
 +file+:: Name of file to save records to (required)
@@ -141,44 +149,55 @@ Starts a com.persistit.StreamSaver task. Arguments:
 
 Example:
 ----
-save file=/home/akiban/save.dat trees=vehicles/*{[“Edsel”:”Yugo”]}
+save file=/home/akiban/save.dat trees=vehicles:*{[“Edsel”:”Yugo”]}
 ----
 
-Saves the records for “Edsel” through “Yugo”, inclusive, from any tree in the volume named +vehicles+. See com.persistit.TreeSelector for selection syntax details.
+Saves the records for “Edsel” through “Yugo”, inclusive, from every tree in the volume named +vehicles+. See com.persistit.TreeSelector for selection syntax details.
 
 === Command: +load+
 
-Starts a com.persistit.StreamLoader task. Arguments:
+Starts a com.persistit.StreamLoader task to import data from a save file. Arguments:
 
 [horizontal]
 +file+:: Name of file to load records from
 +trees+:: volume/tree/key filter expression selecting records to load.
- +-v+:: Don't create missing Volumes (Default is to create them)
- +-t+::  Don't create missing Trees (Default is to create them)
++-v+:: Don't create missing Volumes (Default is to create them)
++-t+:: Don't create missing Trees (Default is to create them)
 
 Example:
 ----
-load file=/home/akiban/save.dat trees=*/*{[“Falcon”:”Firebird”]}
+load file=/home/akiban/save.dat trees=*:*{[“Falcon”:”Firebird”]}
 ----
 
 For any tree in any volume, this command loads all records having keys between “Falcon” and “Firebird”, inclusive.
 
 === Command: +backup+
 
-Starts a com.persistit.BackupTask task.  Arguments:
+Starts a com.persistit.BackupTask task. The general backup strategy is to set Persistit to run in append-only mode, copy the database files, and then restore normal journaling. In append-only mode the data volume files remain unchanged, and all B-Tree modifications are written only to end of the journal. During this time the volume file and journal files may be copied. The +backup+ task provides a internal method for copying these files, but production sites are likely use external backup software. For use with external backup software, the +backup+ command provides flags that enable and/or disable append-only mode, request a checkpoint, perform journal copy-back, and list the files currently required for a full backup.
+
+Note that Persistit does not provide an intrinsic incremental backup facility, but an external backup process that performs incremental backup can be used when copying the files.
+
+Arguments:
 
 [horizontal]
-+file+:: Archive file path. If this argument is specified, BackupTask will back up the database in .zip format to the specified file.  This is intended only for small databases. It is expected that +backup+ will be used in conjunction with high-speed third-party data copying utilities for production use. The +-a+ and +-e+ flags are incompatible with operation when the +file+ argument is specified and are ignored.
-+-a+:: Start appendOnly mode - for use with third-party backup tools.  +backup -a+ should be invoked before data copying begins.
-+-e+:: End appendOnly mode - for use with third-party backup tools.  +backup -e+ should be invoked after data copying ends.
-+-c+:: Request checkpoint before backup.
++file+:: Archive file path. If this argument is specified, BackupTask will archive the database in .zip format to the specified file. This facility is intended only for small databases. It is expected that +backup+ will be used in conjunction with high-speed third-party data copying utilities for production use.
++-a+:: Start appendOnly mode.  +backup -a+ should be invoked before data copying begins.
++-e+:: End appendOnly mode.  +backup -e+ should be invoked after data copying ends.
++-c+:: Request checkpoint before backup. This defines a known time after the invocation of the backup command at which recovered b-trees will be current.
 +-z+:: Compress output to ZIP format - meaningful only in conjunction with the +file+ argument.
-+-f+:: Emit a list of files that need to be copied. In this form the task immediately returns with a list of files currently comprising the Persistit database, including Volume and journal files.
-+-y+:: Copy pages from journal to Volumes before starting backup.  This reduces the number of journal files in the backup set.
++-f+:: Emit a list of files that need to be copied.
++-y+:: Copy pages from journal to volumes before starting backup to reduce the number of journal files in the backup set.
 
-Example:
+Examples:
+
+Perform backup using internal copy tool. The result is a ZIP-formatted file (compressed if the -z option is specified) containing the data volumes and journal files:
 ----
-backup -y -a -c -y -f
+backup -a -e -z file=my_backup_file.zip
+----
+
+Perform backup using an external backup tool. The -f option creates list of files that need to be copied.
+----
+backup -y -c -a -f
 … invoke third-party backup tool to copy the database files
 backup -e
 ----
@@ -190,8 +209,8 @@ Queries, stops, suspends or resumes a background task.  Arguments:
 [horizontal]
 +taskId+:: Task ID to to check, or -1 for all
 +-v+:: Verbose - returns detailed status messages from the selected task(s)
-+-m+:: Remove delivered messages
-+-c+:: Remove completed tasks
++-m+:: Do not remove messages already delivered during a previous invocation of +task+
++-c+:: Do not remove completed tasks from the task set
 +-x+:: Stop task(s)
 +-u+:: Suspend the task(s)
 +-r+:: Resume task(s)
@@ -201,10 +220,11 @@ Unlike other commands, the +task+ command always runs immediately even if invoke
 You can use the +task+ command to poll and display progress of long-running tasks. Invoke
 
 ----
-task  -v -m -c taskId=nnn
+task -v taskId=123
 ----
 
-until the result is empty.
+While the task is running each invocation emits a one-line status indicator followed by any newly written messages from the running task. For example, the +icheck+ task posts one or more more messages for each tree it examines. Once the task finishes, the +task+ command returns a final status and then for any subsequent calls, an empty result. A polling process can check for an empty result to terminate.
+
 
 === Command: +exit+
 
@@ -216,25 +236,25 @@ The following commands execute immediately, even if invoked through the +launch+
 
 === Command: +select+
 
-Selects a volume and optionally a tree for subsequent operations such as +view+. Arguments:
+Selects a volume and optionally a tree for subsequent operations such as +pview+. Arguments:
 
 [horizontal]
-+volume+:: volume name, optionally with wildcards
-+tree+:: tree name, optionally with wildcards
++tree+:: volume and/or tree specification
 +-r+:: use regular expressions. Without this flag, the wildcard characters ‘?’ and ‘*’ represent exactly one, or an indefinite number of characters.  When -r is specified, then the values specified for the volume and tree parameters are interpreted as Java regular expressions.
+
+See com.persistit.TreeSelector for tree selection syntax. The result must match exactly one volume or one tree.
 
 === Command: +list+
 
 Lists volumes and trees.  Arguments:
 
 [horizontal]
-+volume+:: volume specification, optionally with wildcards
-+tree+:: tree specification, optionally with wildcards
++trees+:: tree specification, optionally with wildcards
 +-r+:: use regular expressions. Without this flag, the wildcard characters ‘?’ and ‘*’ represent exactly one, or an indefinite number of characters.  When -r is specified, then the values specified for the volume and tree parameters are interpreted as Java regular expressions.
 
 All volumes, and all trees within those volumes, that match the volume and/or tree specification are listed. By default, this command lists all trees in all volumes.
 
-=== Command: +view+
+=== Command: +pview+
 
 Displays contents of a database page. Arguments:
 
@@ -247,26 +267,26 @@ Displays contents of a database page. Arguments:
 +-a+:: all records. If specified, all records in the page will be displayed.  Otherwise the output is abbreviated to no more than 20 lines.
 +-s+:: summary - only header information in the page is displayed
 
-The +view+ command identifies a page in one of three distinct ways: by page address, by journal address, or by key.  Only one of the three parameters +page+, +jaddr+ and +key+ (with +level+) may be used.
+The +pview+ command identifies a page in one of three distinct ways: by page address, by journal address, or by key.  Only one of the three parameters +page+, +jaddr+ and +key+ (with +level+) may be used.
 
-+page+ specifies the current version of a page having the specified address.  If there is a copy of the page in the buffer pool, that copy is displayed even if it contains updates that are not yet written to disk.
++page+ specifies the current version of a page having the specified address. If there is a copy of the page in the buffer pool, that copy is displayed even if it contains updates that are not yet written to disk. You must first use the +select+ command to select a volume from which the page will be gotten.
 
-+jaddr+ specifies an address in the journal. Typical use is to invoke the +journal+ command to view a list of journal records, and then to see a detailed view of one page record in the journal, invoke the +view+ command with its journal address.
++jaddr+ specifies an address in the journal. Typical use is to invoke the +jview+ command to view a list of journal records, and then to see a detailed view of one page record in the journal, invoke the +pview+ command with its journal address.
 
-+key+ specifies a key. By default the data page associated with that key will be displayed.  The data page is defined as level 0. The +level+ parameter allows pages at various index levels to be viewed; for example +level=1+ refers to the index page that points to the data page containing the specified key.
++key+ specifies a key. By default the data page associated with that key will be displayed. The data page is defined as level 0. The +level+ parameter allows pages at various index levels to be viewed; for example +level=1+ refers to the index page that points to the data page containing the specified key. You must first use the +select+ command to select a tree in which the key will be looked up.
 
-When examining an index page with potentially hundreds of records it is sometimes convenient to find the record that points to a particular child page, and also the records immediately before and after. Specifying the +find+ parameter when viewing an index page abbreviates the displayed records to include just the first and last records in the page, plus a small range of records surrounding the one that points to the specified page. This mechanism provides a convenient way to find sibling pages.
+When examining an index page with potentially hundreds of records it is sometimes convenient to find the record that points to a particular child page in the context of records immediately before and after. Specifying the +find+ parameter when viewing an index page abbreviates the displayed records to include just the first and last records in the page, plus a small range of records surrounding the one that points to the specified page. This mechanism provides a convenient way to find sibling pages.
 
 
 === Command: +path+
 
-For a specified key displays the sequence of pages from root of the tree to the data page containing they key. Argument:
+For a specified key displays the sequence of pages from root of the tree to the data page containing they key. You must first use the +select+ command to select a tree. Argument:
 
 [horizontal]
 +key+:: a key specified as a String defined in the com.persistit.Key class
 
 
-=== Command: +journal+
+=== Command: +jview+
 
 Displays journal records.  Arguments:
 
@@ -279,10 +299,10 @@ Displays journal records.  Arguments:
 +maxkey+:: maximum display length of key values in the output. Default value is 42.
 +maxvalue+:: maximum display length of values in the output. Default value is 42.
 +path+:: journal file path. Default is the journal file path of the currently instantiated Persistit instance.
-+-v+:: verbose format. If specified, causes PM (Page Map) and TM (TransactionMap) records to be be display all map elements.
++-v+:: verbose format. If specified, causes PM (Page Map) and TM (TransactionMap) records to display all map elements.
 
 
-Note that the journal on a busy system contains a large number of records, so entering the +journal+ command without constraining the address range or record types may result in extremely lengthy output.
+Note that the journal on a busy system contains a large number of records, so entering the +jview+ command without constraining the address range or record types may result in extremely lengthy output.
 
 === Command: +open+
 
@@ -314,3 +334,4 @@ Take command lines from a specified text file. Argument:
 
 [horizontal]
 +file+:: file name of command input file
+

@@ -1063,12 +1063,15 @@ class ManagementImpl implements Management {
             }
             return result;
         } else {
-            Task task = _tasks.get(new Long(taskId));
+            Task task = _tasks.get(taskId);
             if (task == null) {
                 return new TaskStatus[0];
             } else {
                 TaskStatus ts = new TaskStatus();
                 task.populateTaskStatus(ts, details, clearMessages);
+                if (clearTasks && Task.isFinalStatus(task._state)) {
+                    _tasks.remove(taskId);
+                }
                 return new TaskStatus[] { ts };
             }
         }

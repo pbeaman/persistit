@@ -70,6 +70,7 @@ public class CommandLineTest extends PersistitUnitTestCase {
         
         status = management.launch("jquery -T -V -v page=1");
         waitForCompletion(taskId(status));
+
     }
 
     @Test
@@ -92,30 +93,19 @@ public class CommandLineTest extends PersistitUnitTestCase {
         assertTrue(result.contains("data"));
     }
     
-    @Test
-    public void testJQueryCommand() throws Exception {
-        final PersistitMap<Integer, String> pmap = new PersistitMap<Integer, String>(_persistit.getExchange(
-                "persistit", "CommandLineTest", true));
-        for (int index = 0; index < 500; index++) {
-            pmap.put(new Integer(index), "This is the record for index=" + index);
-        }
-        
-    }
-
     private long taskId(final String status) {
         return Long.parseLong(status);
     }
 
     private void waitForCompletion(final long taskId) throws Exception {
         for (int waiting = 0; waiting < 60; waiting++) {
-            final String status = _persistit.getManagement().execute("task -v taskId=" + taskId);
+            final String status = _persistit.getManagement().execute("task taskId=" + taskId);
             if (!status.isEmpty()) {
                 String[] s = status.split(Util.NEW_LINE, 2);
                 if (s.length == 2) {
                     System.out.println(s[1]);
                 }
-            } 
-            if (status.contains("done")) {
+            } else {
                 return;
             }
             
