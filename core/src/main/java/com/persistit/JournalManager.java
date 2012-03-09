@@ -1354,7 +1354,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     /**
      * Return the <code>FileChannel</code> for the journal file containing the
      * supplied <code>address</code>. If necessary, create a new
-     * {@link ErrorInjectingFileChannel}.
+     * {@link MediatedFileChannel}.
      * 
      * @param address
      *            the journal address of a record in the journal for which the
