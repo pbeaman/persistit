@@ -108,7 +108,7 @@ class VolumeStorageT2 extends VolumeStorage {
     /**
      * @return the channel used to read and write pages of this volume.
      */
-    FileChannel getChannel() throws PersistitIOException {
+    synchronized FileChannel getChannel() throws PersistitIOException {
         if (_channel == null) {
             try {
                 final String directoryName = _persistit.getProperty(Persistit.TEMPORARY_VOLUME_DIR_NAME, null);
