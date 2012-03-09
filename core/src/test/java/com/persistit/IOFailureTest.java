@@ -141,7 +141,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
             ex.clear().append(0).next();
             fail("Should have gotten an IOException");
         } catch (PersistitIOException ioe) {
-            assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getMessage());
+            assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
         }
         eifc.injectTestIOException(null, "");
         assertEquals("Expected key not found", true, ex.clear().append(Key.BEFORE).next());
@@ -231,7 +231,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
             ex.clear().append(0).next();
             fail("Should have gotten an IOException");
         } catch (PersistitIOException ioe) {
-            assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getMessage());
+            assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
         }
         mfcv.injectTestIOException(null, "");
         assertEquals("Expected key not found", true, ex.clear().append(Key.BEFORE).next());
@@ -310,6 +310,20 @@ public class IOFailureTest extends PersistitUnitTestCase {
         _persistit.initialize(properties);
 
     }
+    
+    public void testPersistitIOExceptionReportsCauseMessage() throws Exception {
+        final ErrorInjectingFileChannel eifc = errorInjectingChannel(_persistit.getJournalManager().getFileChannel(0));
+        eifc.injectTestIOException(new IOException(RED_FOX), "w");
+        try {
+            _persistit.getJournalManager().writePageMap();
+            _persistit.getJournalManager().flush();
+        } catch (PersistitIOException ioe) {
+            final String detail = ioe.getMessage();
+            assertTrue("Message does not include cause's message", detail.endsWith(RED_FOX));
+        } finally {
+            eifc.injectTestIOException(null, "");
+        }
+    }
 
     private void store1(final int at) throws PersistitException {
         final Exchange exchange = _persistit.getExchange(_volumeName, "IOFailureTest", true);
@@ -334,7 +348,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
                 done = true;
                 break;
             } catch (PersistitIOException ioe) {
-                assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getMessage());
+                assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
             }
         }
         long elapsed = System.currentTimeMillis() - start;
