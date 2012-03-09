@@ -384,7 +384,9 @@ class VolumeStorageV2 extends VolumeStorage {
             // Lay down the initial version of the header page so that the
             // volume file will be valid on restart
             //
-            writePage(_headBuffer.getByteBuffer(), _headBuffer.getPageAddress());
+            final ByteBuffer bb = _headBuffer.getByteBuffer();
+            bb.limit(_headBuffer.getBufferSize()).position(0);
+            writePage(bb, _headBuffer.getPageAddress());
             //
             // Now create directory root page, etc.
             //

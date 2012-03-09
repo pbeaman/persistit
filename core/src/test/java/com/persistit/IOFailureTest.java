@@ -46,6 +46,11 @@ public class IOFailureTest extends PersistitUnitTestCase {
         return p;
     }
 
+    private ErrorInjectingFileChannel errorInjectingChannel(final FileChannel channel) {
+        final ErrorInjectingFileChannel eimfc = new ErrorInjectingFileChannel();
+        ((MediatedFileChannel)channel).setErrorInjectingChannelForTests(eimfc);
+        return eimfc;
+    }
     /**
      * Simulate IOException on attempt to append to the journal. This simulates
      * bug #878346. Sets an injected IOException on journal file .000000000001
@@ -57,11 +62,11 @@ public class IOFailureTest extends PersistitUnitTestCase {
      */
     public void testJournalUnwritable() throws Exception {
         final Transaction txn = _persistit.getTransaction();
-        final MediatedFileChannel mfc = (MediatedFileChannel) _persistit.getJournalManager().getFileChannel(BLOCKSIZE);
+        final ErrorInjectingFileChannel eifc = errorInjectingChannel( _persistit.getJournalManager().getFileChannel(BLOCKSIZE));
         /*
          * Will cause any attempt to write into the second journal file to fail.
          */
-        mfc.injectTestIOException(new IOException("Disk Full"), "wf");
+        eifc.injectDiskFullLimit(100000);
         int at = 0;
         for (;; at++) {
             try {
@@ -73,7 +78,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
                     txn.end();
                 }
             } catch (PersistitIOException e) {
-                if (e.getCause().getMessage().contains("Disk Full")) {
+                if (e.getMessage().contains("Disk Full")) {
                     break;
                     // okay
                 } else {
@@ -83,9 +88,9 @@ public class IOFailureTest extends PersistitUnitTestCase {
         }
         Thread.sleep(1000);
         /*
-         * Stop throwing exceptions. The transaction should now succeed.
+         * Now remove the disk full condition. Transaction should now succeed.
          */
-        mfc.injectTestIOException(null, "");
+        eifc.injectDiskFullLimit(Long.MAX_VALUE);
         txn.begin();
         try {
             store1(at);
@@ -130,15 +135,15 @@ public class IOFailureTest extends PersistitUnitTestCase {
 
         Exchange ex = _persistit.getExchange(_volumeName, "IOFailureTest", false);
 
-        final MediatedFileChannel mfc = (MediatedFileChannel) _persistit.getJournalManager().getFileChannel(0);
-        mfc.injectTestIOException(new IOException(reason), "r");
+        final ErrorInjectingFileChannel eifc = errorInjectingChannel(_persistit.getJournalManager().getFileChannel(0));
+        eifc.injectTestIOException(new IOException(reason), "r");
         try {
             ex.clear().append(0).next();
             fail("Should have gotten an IOException");
         } catch (PersistitIOException ioe) {
-            assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
+            assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getMessage());
         }
-        mfc.injectTestIOException(null, "");
+        eifc.injectTestIOException(null, "");
         assertEquals("Expected key not found", true, ex.clear().append(Key.BEFORE).next());
 
         store1(1);
@@ -159,7 +164,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
          * Inject IOException on journal reads. This should stall the copier
          * process until the error condition is cleared.
          */
-        final MediatedFileChannel mfcj = (MediatedFileChannel) _persistit.getJournalManager().getFileChannel(0);
+        final ErrorInjectingFileChannel mfcj = errorInjectingChannel(_persistit.getJournalManager().getFileChannel(0));
         mfcj.injectTestIOException(new IOException(reason), "r");
         final long start = System.currentTimeMillis();
         new Timer().schedule(new TimerTask() {
@@ -193,7 +198,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
          * buffer
          */
         _persistit.getJournalManager().force();
-        final MediatedFileChannel mfcj = (MediatedFileChannel) _persistit.getJournalManager().getFileChannel(0);
+        final ErrorInjectingFileChannel mfcj = errorInjectingChannel(_persistit.getJournalManager().getFileChannel(0));
         /*
          * Push all pages back to the Volume file.
          */
@@ -219,14 +224,14 @@ public class IOFailureTest extends PersistitUnitTestCase {
         volume.getPool().invalidate(volume);
         ex.initCache();
 
-        final MediatedFileChannel mfcv = (MediatedFileChannel) volume.getStorage().getChannel();
+        final ErrorInjectingFileChannel mfcv = errorInjectingChannel(volume.getStorage().getChannel());
         mfcv.injectTestIOException(new IOException(reason), "r");
 
         try {
             ex.clear().append(0).next();
             fail("Should have gotten an IOException");
         } catch (PersistitIOException ioe) {
-            assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
+            assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getMessage());
         }
         mfcv.injectTestIOException(null, "");
         assertEquals("Expected key not found", true, ex.clear().append(Key.BEFORE).next());
@@ -236,7 +241,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
     public void testVolumeUnwritable() throws Exception {
         final String reason = "Write Failure";
         final Volume volume = _persistit.getVolume(_volumeName);
-        final MediatedFileChannel mfcv = (MediatedFileChannel) volume.getStorage().getChannel();
+        final ErrorInjectingFileChannel mfcv = errorInjectingChannel(volume.getStorage().getChannel());
         mfcv.injectTestIOException(new IOException(reason), "w");
         /*
          * Should succeed since writes to volume are delayed
@@ -329,7 +334,7 @@ public class IOFailureTest extends PersistitUnitTestCase {
                 done = true;
                 break;
             } catch (PersistitIOException ioe) {
-                assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getCause().getMessage());
+                assertEquals("Incorrect Exception thrown: " + ioe, reason, ioe.getMessage());
             }
         }
         long elapsed = System.currentTimeMillis() - start;
