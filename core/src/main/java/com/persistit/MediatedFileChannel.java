@@ -16,7 +16,6 @@
 package com.persistit;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.io.RandomAccessFile;
@@ -76,9 +75,6 @@ class MediatedFileChannel extends FileChannel {
 
     volatile FileChannel _channel;
     volatile FileChannel _lockChannel;
-
-    volatile IOException _injectedIOException;
-    volatile String _injectedIOExceptionFlags;
 
     MediatedFileChannel(final String path, final String mode) throws IOException {
         this(new File(path), mode);
@@ -143,43 +139,8 @@ class MediatedFileChannel extends FileChannel {
      */
     private synchronized void openChannel() throws IOException {
         if (isOpen() && (_channel == null || !_channel.isOpen())) {
-            injectFailure('o');
             _channel = new RandomAccessFile(_file, _mode).getChannel();
         }
-    }
-
-    private void injectFailure(final char type) throws IOException {
-        final IOException e = _injectedIOException;
-        if (e != null && _injectedIOExceptionFlags.indexOf(type) >= 0) {
-            throw e;
-        }
-    }
-
-    /**
-     * Set an IOException to be thrown on subsequent I/O operations. This method
-     * is intended for use only for unit tests. The <code>flags</code> parameter
-     * determines which I/O operations throw exceptions:
-     * <ul>
-     * <li>o - open</li>
-     * <li>c - close</li>
-     * <li>r - read</li>
-     * <li>w - write</li>
-     * <li>f - force</li>
-     * <li>t - truncate</li>
-     * <li>l - lock</li>
-     * <li>e - extending Volume file</li>
-     * </ul>
-     * For example, if flags is "wt" then write and truncate operations with
-     * throw the injected IOException.
-     * 
-     * @param exception
-     *            The IOException to throw
-     * @param flags
-     *            Selected operations
-     */
-    void injectTestIOException(final IOException exception, final String flags) {
-        _injectedIOException = exception;
-        _injectedIOExceptionFlags = flags;
     }
 
     /*
@@ -195,7 +156,6 @@ class MediatedFileChannel extends FileChannel {
     public void force(boolean metaData) throws IOException {
         while (true) {
             try {
-                injectFailure('f');
                 _channel.force(metaData);
                 break;
             } catch (ClosedChannelException e) {
@@ -209,7 +169,6 @@ class MediatedFileChannel extends FileChannel {
         final int offset = byteBuffer.position();
         while (true) {
             try {
-                injectFailure('r');
                 return _channel.read(byteBuffer, position);
             } catch (ClosedChannelException e) {
                 handleClosedChannelException(e);
@@ -222,7 +181,6 @@ class MediatedFileChannel extends FileChannel {
     public long size() throws IOException {
         while (true) {
             try {
-                injectFailure('s');
                 return _channel.size();
             } catch (ClosedChannelException e) {
                 handleClosedChannelException(e);
@@ -234,7 +192,6 @@ class MediatedFileChannel extends FileChannel {
     public FileChannel truncate(long size) throws IOException {
         while (true) {
             try {
-                injectFailure('t');
                 return _channel.truncate(size);
             } catch (ClosedChannelException e) {
                 handleClosedChannelException(e);
@@ -245,7 +202,6 @@ class MediatedFileChannel extends FileChannel {
     @Override
     public synchronized FileLock tryLock(long position, long size, boolean shared) throws IOException {
         if (_lockChannel == null) {
-            injectFailure('l');
             try {
                 _lockChannel = new RandomAccessFile(_lockFile, "rw").getChannel();
             } catch (IOException ioe) {
@@ -268,10 +224,6 @@ class MediatedFileChannel extends FileChannel {
         final int offset = byteBuffer.position();
         while (true) {
             try {
-                injectFailure('w');
-                if (byteBuffer.remaining() == 1) {
-                    injectFailure('e');
-                }
                 return _channel.write(byteBuffer, position);
             } catch (ClosedChannelException e) {
                 handleClosedChannelException(e);
@@ -301,7 +253,6 @@ class MediatedFileChannel extends FileChannel {
             try {
                 if (_channel != null) {
                     _channel.close();
-                    injectFailure('c');
                 }
             } catch (IOException e) {
                 exception = e;
@@ -373,6 +324,37 @@ class MediatedFileChannel extends FileChannel {
     @Override
     public long write(ByteBuffer[] arg0, int arg1, int arg2) throws IOException {
         throw new UnsupportedOperationException();
+    }
+
+    /*
+     * --------------------------------
+     *
+     * Method and interface intended solely for unit tests.
+     *
+     * --------------------------------
+     */
+
+    /**
+     * Method used by unit tests to rewire the FileChannel delegation. The
+     * replacement delegate simulates various IOExceptions. The FileChannel
+     * provided as an argument must implement TestChannelInjector so that this
+     * method can hook it up properly.
+     * 
+     * @param channel
+     */
+    void setErrorInjectingChannelForTests(final FileChannel channel) {
+        ((TestChannelInjector) channel).setChannel(_channel);
+        _channel = channel;
+    }
+
+    /**
+     * Interface implemented by an error-injecting FileChannel subclass used
+     * in unit tests.
+     * @author peter
+     *
+     */
+    interface TestChannelInjector {
+        void setChannel(FileChannel channel);
     }
 
 }

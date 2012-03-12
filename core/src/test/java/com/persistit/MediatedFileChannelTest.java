@@ -36,6 +36,7 @@ public class MediatedFileChannelTest extends TestCase {
         final File file = File.createTempFile("bug882219", null);
         file.deleteOnExit();
         MediatedFileChannel fc = new MediatedFileChannel(file, "rw");
+        
         assertEquals(0, fc.size());
         final ByteBuffer bb = ByteBuffer.allocate(65536);
         for (int i = 0; i < 65536; i++) {

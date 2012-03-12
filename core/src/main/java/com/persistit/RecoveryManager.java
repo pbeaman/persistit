@@ -845,7 +845,7 @@ public class RecoveryManager implements RecoveryManagerMXBean, VolumeHandleLooku
                     throw new CorruptJournalException("End of file at " + addressToString(address));
                 }
             } catch (IOException e) {
-                throw new PersistitIOException("Exception while reading from " + addressToString(address), e);
+                throw new PersistitIOException("Reading from " + addressToString(address), e);
             }
         }
     }

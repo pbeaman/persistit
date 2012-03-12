@@ -26,16 +26,38 @@ import java.io.IOException;
  */
 public class PersistitIOException extends PersistitException {
     private static final long serialVersionUID = 9108205596568958490L;
+    
+    private final String _detail;
 
     public PersistitIOException(IOException ioe) {
         super(ioe);
+        _detail = null;
     }
 
     public PersistitIOException(String msg) {
         super(msg);
+        _detail = null;
     }
 
     public PersistitIOException(String msg, IOException exception) {
-        super(msg, exception);
+        super(exception);
+        _detail = msg;
+    }
+
+    /**
+     * Override default implementation in {@link Throwable#getMessage()} to
+     * return the detail message of the wrapped IOException.
+     * 
+     * @return the detail message string, including that of the cause
+     */
+    @Override
+    public String getMessage() {
+        if (getCause() == null) {
+            return super.getMessage();
+        } else if (_detail == null) {
+            return getCause().toString();
+        } else {
+            return _detail + ":" + getCause().toString();
+        }
     }
 }
