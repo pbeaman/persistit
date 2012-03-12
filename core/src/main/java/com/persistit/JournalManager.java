@@ -495,7 +495,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         if (volume == null) {
             return null;
         }
-        return volume.getTree(td.getTreeName(), true);
+        return volume.getStructure().getTreeInternal(td.getTreeName());
     }
 
     Volume volumeForHandle(final int handle) throws PersistitException {

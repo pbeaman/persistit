@@ -3667,6 +3667,7 @@ public class Exchange {
     }
 
     boolean fixIndexHole(final long page, final int level) throws PersistitException {
+        _ignoreTransactions = true;
         Buffer buffer = null;
         if (!_treeHolder.claim(false, Persistit.SHORT_DELAY)) {
             return false;
