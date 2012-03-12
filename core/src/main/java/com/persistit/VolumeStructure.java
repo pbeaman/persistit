@@ -182,6 +182,21 @@ class VolumeStructure {
         _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
         return tree;
     }
+    
+    /**
+     * Helper method used by pruning.  Allows access to directory tree
+     * by name.
+     * @param name
+     * @return
+     * @throws PersistitException
+     */
+    Tree getTreeInternal(final String name) throws PersistitException {
+        if (DIRECTORY_TREE_NAME.equals(name)) {
+            return _directoryTree;
+        } else {
+            return getTree(name, true);
+        }
+    }
 
     void updateDirectoryTree(Tree tree) throws PersistitException {
         if (tree == _directoryTree) {
@@ -243,9 +258,9 @@ class VolumeStructure {
             page = rootPage;
             depth = tree.getDepth();
             Exchange ex = directoryExchange();
-            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove();
-            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove();
-            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove();
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
+            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
         } finally {
             tree.release();
         }

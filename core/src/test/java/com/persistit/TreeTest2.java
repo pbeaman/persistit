@@ -90,7 +90,7 @@ public class TreeTest2 extends PersistitUnitTestCase {
             }
         }
     }
-
+    
     public static void pause(final String prompt) {
         System.out.print(prompt + "  Press ENTER to continue");
         System.out.flush();
