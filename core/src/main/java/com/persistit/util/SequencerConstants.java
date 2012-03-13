@@ -43,5 +43,16 @@ public interface SequencerConstants {
             array(RECOVERY_PRUNING_B), array(RECOVERY_PRUNING_A, RECOVERY_PRUNING_B),
     };
     
+    /*
+     * Used in testing sequencing between write-write dependencies 
+     */
+    int WRITE_WRITE_STORE_A = allocate("WRITE_WRITE_STORE_A");
+    int WRITE_WRITE_STORE_B = allocate("WRITE_WRITE_STORE_B");
+    int WRITE_WRITE_STORE_C = allocate("WRITE_WRITE_STORE_C");
+
+    int[][] WRITE_WRITE_STORE_SCHEDULE = new int[][] {
+            array(WRITE_WRITE_STORE_A, WRITE_WRITE_STORE_C), array(WRITE_WRITE_STORE_A, WRITE_WRITE_STORE_C),
+            array(WRITE_WRITE_STORE_B, WRITE_WRITE_STORE_C), array(WRITE_WRITE_STORE_B, WRITE_WRITE_STORE_C)
+    };
 
 }
