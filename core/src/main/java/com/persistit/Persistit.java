@@ -331,7 +331,7 @@ public class Persistit {
 
     private final static SplitPolicy DEFAULT_SPLIT_POLICY = SplitPolicy.PACK_BIAS;
     private final static JoinPolicy DEFAULT_JOIN_POLICY = JoinPolicy.EVEN_BIAS;
-    private final static CommitPolicy DEFAULT_TRANSACTION_COMMIT_POLICY = CommitPolicy.GROUP;
+    private final static CommitPolicy DEFAULT_TRANSACTION_COMMIT_POLICY = CommitPolicy.SOFT;
     private final static long DEFAULT_COMMIT_LEAD_TIME = 100;
     private final static long DEFAULT_COMMIT_STALL_TIME = 10;
     private final static long MAX_COMMIT_LEAD_TIME = 5000;
@@ -2155,7 +2155,7 @@ public class Persistit {
     }
     
     void setTransactionCommitStallTime(final long time) {
-        _commitStallTime = Util.rangeCheck(time, 0, MAX_COMMIT_LEAD_TIME);
+        _commitStallTime = Util.rangeCheck(time, 0, MAX_COMMIT_STALL_TIME);
     }
 
     /**
