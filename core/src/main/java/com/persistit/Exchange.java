@@ -40,6 +40,9 @@ import static com.persistit.Key.LT;
 import static com.persistit.Key.LTEQ;
 import static com.persistit.Key.RIGHT_GUARD_KEY;
 import static com.persistit.Key.maxStorableKeySize;
+import static com.persistit.util.ThreadSequencer.sequence;
+import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_A;
+import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_B;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -1616,10 +1619,10 @@ public class Exchange {
                         buffer = null;
                     }
                     try {
+                        sequence(WRITE_WRITE_STORE_A);
+                        // TODO - timeout?
                         long depends = _persistit.getTransactionIndex().wwDependency(re.getVersionHandle(),
-                                _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME); // TODO
-                                                                                                            // -
-                                                                                                            // timeout
+                                _transaction.getTransactionStatus(), SharedResource.DEFAULT_MAX_WAIT_TIME);
                         if (depends != 0 && depends != TransactionStatus.ABORTED) {
                             // version is from concurrent txn that already
                             // committed
@@ -1628,6 +1631,7 @@ public class Exchange {
                             _transaction.rollback();
                             throw new RollbackException();
                         }
+                        sequence(WRITE_WRITE_STORE_B);
                     } catch (InterruptedException ie) {
                         throw new PersistitInterruptedException(ie);
                     }
