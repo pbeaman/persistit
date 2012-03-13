@@ -598,6 +598,29 @@ public interface Management extends Remote, ManagementMXBean {
     /**
      * Queries the current status of one or all tasks. If the specified taskId
      * value is -1, this method returns status information for all currently
+     * active tasks. This method clears all completed tasks after reporting their
+     * final status.
+     * 
+     * @param taskId
+     *            Task ID for a selected Task, or -1 for all Tasks.
+     * @param details
+     *            <code>true</code> to populate each returned
+     *            <code>TaskStatus</code> object with all new messages posted by
+     *            the task.
+     * @param clearMessages
+     *            <code>true</code> to clear all received messages from the
+     *            task.
+
+     * @return Array of <code>TaskStatus</code> objects indicating status of
+     *         selected task(s).
+     * @throws RemoteException
+     */
+    public TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages)
+            throws RemoteException;
+
+    /**
+     * Queries the current status of one or all tasks. If the specified taskId
+     * value is -1, this method returns status information for all currently
      * active tasks.
      * 
      * @param taskId

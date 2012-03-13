@@ -1026,7 +1026,29 @@ class ManagementImpl implements Management {
             throw new WrappedRemoteException(ex);
         }
     }
-
+    
+    
+    /**
+     * Queries the current status of one or all tasks. If the specified taskId
+     * value is -1, this method returns status information for all currently
+     * active tasks and clears any tasks that have completed.
+     * 
+     * @param taskId
+     *            Task ID for a selected Task, or -1 for all Tasks.
+     * @param details
+     *            <code>true</code> to populate each returned
+     *            <code>TaskStatus</code> object with all new messages posted by
+     *            the task.
+     * @param clearMessages
+     *            <code>true</code> to clear all received messages from the
+     *            task.
+     * @throws RemoteException
+     */
+    @Override
+    public synchronized TaskStatus[] queryTaskStatus(long taskId, boolean details, boolean clearMessages) {
+        return queryTaskStatus(taskId, details, clearMessages, true);
+    }
+    
     /**
      * Queries the current status of one or all tasks. If the specified taskId
      * value is -1, this method returns status information for all currently
@@ -1041,7 +1063,7 @@ class ManagementImpl implements Management {
      * @param clearMessages
      *            <code>true</code> to clear all received messages from the
      *            task.
-     * @param remove
+     * @param clearTasks
      *            <code>true</code> to remove the task's status if it has
      *            finished, failed or expired.
      * @throws RemoteException
