@@ -616,6 +616,10 @@ public class TransactionIndexBucket {
 
     private void free(final TransactionStatus status) {
         assert _lock.isHeldByCurrentThread();
+        if (status.isLocked()) {
+            String s = status.toString();
+            System.out.println(s);
+        }
         assert !status.isLocked();
         if (_freeCount < _transactionIndex.getMaxFreeListSize()) {
             status.setNext(_free);

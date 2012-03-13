@@ -17,6 +17,7 @@ package com.persistit.stress;
 
 import com.persistit.Key;
 import com.persistit.Transaction;
+import com.persistit.Transaction.CommitPolicy;
 import com.persistit.TransactionRunnable;
 import com.persistit.Value;
 import com.persistit.exception.PersistitException;
@@ -141,7 +142,7 @@ public class Stress2txn extends StressBase {
                                 _exs.store();
                                 _ex.store();
                             }
-                        }, 10, 0, false);
+                        }, 10, 0, CommitPolicy.SOFT);
                         if (passes > 1) {
                             verboseln("Transaction completed in " + passes + " passes");
                         }
@@ -180,7 +181,7 @@ public class Stress2txn extends StressBase {
                                     forceStop();
                                 }
                             }
-                        }, 10, 0, false);
+                        }, 10, 0, CommitPolicy.SOFT);
                     } catch (final Exception e) {
                         handleThrowable(e);
                     }

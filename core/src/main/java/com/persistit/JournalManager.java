@@ -32,7 +32,10 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -68,6 +71,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     final static int URGENT = 10;
     final static int ALMOST_URGENT = 8;
     final static int HALF_URGENT = 5;
+    private final static long START_NANOS = System.nanoTime();
+    private final static long NS_PER_MS = 1000000L;
+    private final static int IO_MEASUREMENT_CYCLES = 4;
 
     /**
      * REGEX expression that recognizes the name of a journal file.
@@ -152,6 +158,14 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private volatile long _readPageCount = 0;
 
     private volatile long _copiedPageCount = 0;
+
+    private AtomicLong _totalCommits = new AtomicLong();
+
+    private AtomicLong _totalCommitWaitTime = new AtomicLong();
+    
+    private AtomicLong _totalFlushCycles = new AtomicLong();
+    
+    private AtomicLong _totalFlushIoTime = new AtomicLong();
 
     /**
      * Tunable parameters that determine how vigorously the copyBack thread
@@ -1106,7 +1120,6 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                 _writeBuffer = null;
             }
         }
-
     }
 
     private void closeAllChannels() throws IOException {
@@ -1507,6 +1520,34 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         return earliest;
     }
 
+    /**
+     * General method used to wait for durability. This method is used by all
+     * three commit modes: SOFT, HARD and GROUP. The two parameters represent
+     * time intervals in milliseconds.
+     * 
+     * @param anticipation
+     *            time interval in milliseconds by which to anticipate I/O
+     *            completion; the method will return as soon as the I/O
+     *            operation that will flush the current generation of data is
+     *            expected to complete within that time interval
+     * @param procrastination
+     *            time interval in milliseconds that this thread is willing to
+     *            wait for I/O completion. If if the JOURNAL_FLUSHER is
+     *            currently pausing, the pause time may be shortened to try to
+     *            complete the I/O when requested. In particular, a value of
+     *            zero indicates the I/O should start immediately.
+     * @throws PersistitInterruptedException
+     */
+
+    void waitForDurability(final long anticipation, final long procrastination) throws PersistitException {
+        JournalFlusher flusher = _flusher;
+        if (flusher != null) {
+            flusher.waitForDurability(anticipation, procrastination);
+        } else {
+            throw new IllegalStateException("JOURNAL_FLUSHER is not running");
+        }
+    }
+
     static class TreeDescriptor {
 
         final int _volumeHandle;
@@ -1845,8 +1886,19 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     private class JournalFlusher extends IOTaskRunnable {
 
+        final ReentrantReadWriteLock _lock = new ReentrantReadWriteLock();
         long _lastLogMessageTime = 0;
-        Exception _lastException = null;
+
+        volatile long _lastExceptionTimestamp = 0;
+        volatile Exception _lastException = null;
+
+        long[] _ioTimes = new long[IO_MEASUREMENT_CYCLES];
+        int _ioCycle;
+        volatile long _ioTimeAverage;
+        volatile long _startTime;
+        volatile long _endTime;
+        volatile long _startTimestamp;
+        volatile long _endTimestamp;
 
         JournalFlusher() {
             super(JournalManager.this._persistit);
@@ -1856,21 +1908,158 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             start("JOURNAL_FLUSHER", _flushInterval);
         }
 
+        /**
+         * General method used to wait for durability. {@See
+         * JournalManager#waitForDurability(long, long)}.
+         * 
+         * @throws PersistitInterruptedException
+         */
+        private void waitForDurability(final long anticipation, final long procrastination) throws PersistitException {
+
+            /*
+             * Commit is known durable once the JOURNAL_FLUSHER thread has
+             * posted a timestamp value to _endTimestamp larger than this.
+             */
+            final long timestamp = _persistit.getTimestampAllocator().getCurrentTimestamp();
+            final long now = System.nanoTime() - START_NANOS;
+
+            while (true) {
+                /*
+                 * Detect whether an I/O cycle is in progress; if so estimate
+                 * how much more time (in nanoseconds) it will require to
+                 * complete.
+                 */
+                long estimatedRemainingIoNanos = -1;
+                long startTime;
+                long endTime;
+                long startTimestamp;
+                long endTimestamp;
+
+                /*
+                 * Spin until values are stable
+                 */
+                while (true) {
+                    startTimestamp = _startTimestamp;
+                    endTimestamp = _endTimestamp;
+                    startTime = _startTime;
+                    endTime = _endTime;
+                    if (timestamp > startTimestamp && startTimestamp > endTimestamp) {
+                        estimatedRemainingIoNanos = Math.max(startTime + _ioTimeAverage - now, 0);
+                    }
+                    if (startTimestamp == _startTimestamp && endTimestamp == _endTimestamp) {
+                        break;
+                    }
+                    Util.spinSleep();
+                }
+
+                /*
+                 * Done - commit is durable
+                 */
+                if (endTimestamp > timestamp) {
+                    break;
+                }
+
+                long remainingSleepNanos = -1;
+                if (estimatedRemainingIoNanos == -1) {
+                    remainingSleepNanos = Math.max(0, _flushInterval - (now - endTime));
+                }
+
+                long estimatedNanosToFinish = Math.max(estimatedRemainingIoNanos, 0);
+                if (startTimestamp < timestamp) {
+                    estimatedNanosToFinish += remainingSleepNanos + _ioTimeAverage;
+                }
+
+                if (anticipation * NS_PER_MS >= estimatedNanosToFinish) {
+                    /*
+                     * If the caller specified an anticipation interval larger
+                     * than the estimated time remaining in the cycle, then
+                     * return immediately. This handles the "soft" commit case.
+                     */
+                    break;
+                } else if (estimatedRemainingIoNanos == -1) {
+                    /*
+                     * If there is no I/O in progress, then wait as long as
+                     * possible (determined by procrastination) before kicking
+                     * the JOURNAL_FLUSHER to write the caller's transaction.
+                     */
+                    long delay = procrastination * NS_PER_MS - estimatedNanosToFinish;
+                    if (delay > 0) {
+                        Util.sleep(delay / NS_PER_MS);
+                    }
+                    kick();
+                } else {
+                    /*
+                     * Otherwise, wait until the I/O is done (or nearly done if
+                     * anticipation > 0).
+                     */
+                    long delay = estimatedNanosToFinish - anticipation * NS_PER_MS;
+                    try {
+                        if (delay > 0 && _lock.readLock().tryLock(delay, TimeUnit.NANOSECONDS)) {
+                            _lock.readLock().unlock();
+                        }
+                    } catch (InterruptedException e) {
+                        throw new PersistitInterruptedException(e);
+                    }
+                }
+            }
+            if (_lastExceptionTimestamp > timestamp) {
+                final Exception e = _lastException;
+                if (e instanceof PersistitException) {
+                    throw (PersistitException)e;
+                } else {
+                    throw new PersistitException(e);
+                }
+            }
+            _totalCommits.incrementAndGet();
+            _totalCommitWaitTime.addAndGet(System.nanoTime() - now);
+        }
+
         @Override
         protected void runTask() {
             _flushing.set(true);
             final long now = System.nanoTime();
             try {
                 try {
-                    force();
+                    /*
+                     * This lock is intended only to help other threads in waitForDurability
+                     * to know when the I/O operation has finished.
+                     */
+                    _lock.writeLock().lock();
+                    try {
+                        _startTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                        _startTime = System.nanoTime() - START_NANOS;
+                        /*
+                         * Flush the write buffer and call FileChannel.force().
+                         */
+                        force();
+                        
+                    } finally {
+                        _endTime = System.nanoTime() - START_NANOS;
+                        _endTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
+                        _lock.writeLock().unlock();
+                    }
+
+                    final long elapsed = _endTime - _startTime;
+                    _totalFlushCycles.incrementAndGet();
+                    _totalFlushIoTime.addAndGet(elapsed);
+                    _ioTimes[_ioCycle] = elapsed;
+                    _ioCycle = (_ioCycle + 1) % _ioTimes.length;
+
+                    long total = 0;
+                    for (int index = 0; index < _ioTimes.length; index++) {
+                        total += _ioTimes[index];
+                    }
+                    _ioTimeAverage = total / _ioTimes.length;
+
                 } catch (Exception e) {
                     if (e instanceof InterruptedException || e instanceof FatalErrorException) {
                         _closed.set(true);
                     }
                     if (_lastException == null || !e.getClass().equals(_lastException.getClass())
                             || now - _lastLogMessageTime > -_logRepeatInterval) {
-                        _lastLogMessageTime = now;
                         _lastException = e;
+                        _lastLogMessageTime = now;
+                        _lastExceptionTimestamp = _endTimestamp;
                         _persistit.getLogBase().journalWriteError.log(e, addressToFile(_writeBufferAddress));
                     }
                 }

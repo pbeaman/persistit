@@ -37,21 +37,17 @@ import com.persistit.util.Util;
 /**
  * <p>
  * Represents the transaction context for atomic units of work performed by
- * Persistit. The application determines when to {@link #begin}, {@link #commit}, {@link #rollback} and {@link #end} transactions. Once a transaction has
+ * Persistit.
+ * </p>
+ * <p>
+ * The application determines when to {@link #begin}, {@link #commit},
+ * {@link #rollback} and {@link #end} transactions. Once a transaction has
  * started, no update operation performed within its context will actually be
  * written to the database until <code>commit</code> is performed. At that
  * point, all the updates are written atomically - that is, completely or not at
  * all. If the application is abruptly terminated while <code>commit</code> is
  * writing updates to the database, they will be completed during recovery
  * processing when the Persistit is next initialized.
- * </p>
- * <p>
- * All Persistit database operations are performed in the context of a
- * <code>Transaction</code>. If the <code>begin</code> operation has not
- * explicitly been called then Persistit behaves as if each database update
- * operation is implicitly preceded by invocation of <code>begin</code> and
- * concluded by invocation of <code>commit</code> and <code>end</code> to
- * perform a memory commit.
  * </p>
  * <h2>Lexical Scoping</h2>
  * <p>
@@ -301,7 +297,38 @@ public class Transaction {
     private int _step;
 
     private String _threadName;
-    
+
+    public static enum CommitPolicy {
+        /**
+         * Committed transactions are flushed to durable within a fraction of a
+         * second but the Transaction#commit method returns before this is done.
+         * This policy is a compromise that offers much better throughput does
+         * not provide durability for every committed transactions; some
+         * recently committed transactions may be lost after a crash/recovery
+         * cycle.
+         */
+        SOFT,
+        /**
+         * Every committed transaction is flushed synchronously to durable
+         * storage before the {@link Transaction#commit()} method returns. With
+         * this policy every transaction is durable before commit completes.
+         */
+        HARD,
+        /**
+         * Every committed transaction is flushed to durable storage before
+         * {@link Transaction#commit()} returns. Persistit attempts to
+         * coordinate the I/O needed to do this with other pending transactions;
+         * as a consequence, the commit method may pause briefly waiting for
+         * other transactions to reach their commit points. In general this
+         * option provides the slowest rate of sequential commits, but the
+         * aggregate transaction throughput across many threads may be much
+         * higher than with the HARD policy.
+         */
+        GROUP
+    }
+
+    private CommitPolicy _defaultCommitPolicy = CommitPolicy.SOFT;
+
     /**
      * Creates a new transaction context. Any transaction performed within this
      * context will be isolated from all other transactions.
@@ -581,9 +608,10 @@ public class Transaction {
      * 
      * @throws PersistitException
      * @throws RollbackException
+     * @throws PersistitInterruptedException
      */
-    public void commit() throws PersistitException, RollbackException {
-        commit(false);
+    public void commit() throws PersistitException {
+        commit(_persistit.getDefaultTransactionCommitPolicy());
     }
 
     /**
@@ -619,13 +647,17 @@ public class Transaction {
      *             be rolled back.
      * 
      * @throws RollbackException
+     * @throws PersistitInterruptedException
      * 
      * @throws IllegalStateException
      *             if no transaction scope is active or this transaction scope
      *             has already called <code>commit</code>.
      */
-    public void commit(boolean toDisk) throws PersistitIOException, RollbackException {
+    public void commit(boolean toDisk) throws PersistitException {
+        commit(toDisk ? CommitPolicy.HARD : CommitPolicy.SOFT);
+    }
 
+    public void commit(CommitPolicy policy) throws PersistitException {
         if (_nestedDepth < 1) {
             throw new IllegalStateException("No transaction scope: begin() not called in " + this);
         } else if (_commitCompleted) {
@@ -646,15 +678,10 @@ public class Transaction {
             sequence(COMMIT_FLUSH_C);
             boolean committed = false;
             try {
-                /*
-                 * TODO - figure out what to do if writes fail - I believe we
-                 * will want to mark the transaction status as ABORTED in that
-                 * case, but need to go look hard at TransactionIndex.
-                 */
                 flushTransactionBuffer(false);
-                if (toDisk) {
-                    _persistit.getJournalManager().force();
-                }
+                _persistit.getJournalManager().waitForDurability(
+                        policy == CommitPolicy.SOFT ? _persistit.getTransactionCommitLeadTime() : 0,
+                        policy == CommitPolicy.GROUP ? _persistit.getTransactionCommitStallTime() : 0);
                 committed = true;
             } finally {
                 _persistit.getTransactionIndex().notifyCompleted(_transactionStatus,
@@ -706,7 +733,7 @@ public class Transaction {
      * @throws PersistitException
      */
     public int run(TransactionRunnable runnable) throws PersistitException {
-        return run(runnable, 0, 0, false);
+        return run(runnable, 0, 0, _persistit.getDefaultTransactionCommitPolicy());
     }
 
     /**
@@ -740,9 +767,9 @@ public class Transaction {
      *            Time, in milliseconds, to wait before the next retry attempt.
      * 
      * @param toDisk
-     *            <code>true</code> to commit the transaction to <a
-     *            href="#diskVsMemoryCommit">disk</a>, or <code>false</code> to
-     *            commit to <a href="#diskVsMemoryCommit">memory</a>
+     *            <code>SOFT</code>, <code>HARD</code> or <code>GROUP</code> to
+     *            commit achieve durability or throughput, as required by the
+     *            application.
      * 
      * @return Count of attempts needed to complete the transaction
      * 
@@ -752,7 +779,13 @@ public class Transaction {
      *             cannot be completed or committed due to concurrent updated
      *             performed by other threads.
      */
+
     public int run(TransactionRunnable runnable, int retryCount, long retryDelay, boolean toDisk)
+            throws PersistitException {
+        return run(runnable, retryCount, retryDelay, toDisk ? CommitPolicy.HARD : CommitPolicy.SOFT);
+    }
+
+    public int run(TransactionRunnable runnable, int retryCount, long retryDelay, CommitPolicy toDisk)
             throws PersistitException {
         if (retryCount < 0)
             throw new IllegalArgumentException();
@@ -800,6 +833,22 @@ public class Transaction {
         } else {
             return "<not running>";
         }
+    }
+
+    /**
+     * @return the current default policy
+     */
+    public CommitPolicy getDefaultCommitPolicy() {
+        return _defaultCommitPolicy;
+    }
+
+    /**
+     * Set the current default policy
+     * 
+     * @param policy
+     */
+    public void setDefaultCommitPolicy(final CommitPolicy policy) {
+        _defaultCommitPolicy = policy;
     }
 
     /**
@@ -1045,14 +1094,14 @@ public class Transaction {
      * values written by updates within this transaction are visible (within
      * this transaction) only if they were written with earlier or equal step
      * indexes. In other words, a transaction that writes an update at step N
-     * can see the result of that update when reading the database and any
-     * step <= N. This mechanism helps solve the "Halloween" problem in which
-     * a SELECT query producing values to UPDATE should not be able to read
-     * back those update values.
+     * can see the result of that update when reading the database and any step
+     * <= N. This mechanism helps solve the "Halloween" problem in which a
+     * SELECT query producing values to UPDATE should not be able to read back
+     * those update values.
      * 
      * @throws IllegalStateException
-     *             if this method is called {@link #MAXIMUM_STEP} times
-     *             or more within the scope of one transaction.
+     *             if this method is called {@link #MAXIMUM_STEP} times or more
+     *             within the scope of one transaction.
      * @return The previous value of the step.
      */
     public int incrementStep() {
