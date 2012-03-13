@@ -3172,10 +3172,10 @@ public class Exchange {
                                         if (fetchFirst) {
                                             removeFetchFirst(buffer, foundAt1, buffer, foundAt2);
                                         }
-                                        _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2);
 
                                         final long timestamp = timestamp();
                                         buffer.writePageOnCheckpoint(timestamp);
+                                        _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2);
 
                                         boolean removed = buffer.removeKeys(foundAt1, foundAt2, _spareKey1);
                                         if (removed) {
