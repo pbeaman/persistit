@@ -53,6 +53,9 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import com.persistit.JournalManager.PageNode;
+import com.persistit.JournalManager.TransactionMapItem;
+import com.persistit.JournalManager.TreeDescriptor;
 import com.persistit.JournalRecord.CP;
 import com.persistit.JournalRecord.JH;
 import com.persistit.exception.PersistitException;
@@ -137,6 +140,7 @@ public class CLI {
     private final static long HUGE_BLOCK_SIZE = 1000L * 1000L * 1000L * 1000L;
     private final static char DEFAULT_COMMAND_DELIMITER = ' ';
     private final static char DEFAULT_QUOTE = '\\';
+    private final static int MAX_PAGE_NODES = 10000;
 
     private final static Map<String, Command> COMMANDS = new TreeMap<String, Command>();
 
@@ -628,10 +632,11 @@ public class CLI {
             throw new NotOpenException();
         }
     }
-    
+
     /**
      * Open files on disk and attempt to make a read-only Persistit instance.
-     * This method does not return a Task and cannot be executed in a live 
+     * This method does not return a Task and cannot be executed in a live
+     * 
      * @param datapath
      * @param journalpath
      * @param volumepath
@@ -646,7 +651,7 @@ public class CLI {
             @Arg("volumepath|string|Volume file") String volumepath,
             @Arg("rmiport|int:1099:0:99999|RMI Management port") int rmiport,
             @Arg("_flag|y|Recover committed transactions") boolean y) throws Exception {
-        
+
         if (_live) {
             return "Cannot open another Persistit instance within a live system";
         }
@@ -737,9 +742,8 @@ public class CLI {
     }
 
     @Cmd("list")
-    Task list(final @Arg("volume|string|Volume name") String vstring,
-            final @Arg("tree|string|Tree name") String tstring, final @Arg("_flag|r|Regular expression") boolean r)
-            throws Exception {
+    Task list(final @Arg("trees|string:*|Volume and/or tree specification") String tstring,
+            final @Arg("_flag|r|Regular expression") boolean r) throws Exception {
         return new Task() {
 
             @Override
@@ -748,15 +752,16 @@ public class CLI {
                     postMessage("Persistit not loaded", LOG_NORMAL);
                     return;
                 }
-                final Pattern vpattern = toRegEx(vstring, !r);
-                final Pattern tpattern = toRegEx(vstring, !r);
+
+                final TreeSelector selector = TreeSelector.parseSelector(tstring, r, '\\');
+
                 final StringBuilder sb = new StringBuilder();
                 for (final Volume volume : _persistit.getVolumes()) {
-                    if (vpattern.matcher(volume.getName()).matches()) {
+                    if (selector.isVolumeNameSelected(volume.getName())) {
                         sb.append(volume);
                         sb.append(Util.NEW_LINE);
                         for (final String treeName : volume.getTreeNames()) {
-                            if (tpattern.matcher(treeName).matches()) {
+                            if (selector.isTreeNameSelected(volume.getName(), treeName)) {
                                 final Tree tree = volume.getTree(treeName, false);
                                 sb.append("   ");
                                 sb.append(tree);
@@ -776,8 +781,8 @@ public class CLI {
         };
     }
 
-    @Cmd("journal")
-    Task journal(final @Arg("path|string:|Journal file name") String path,
+    @Cmd("jview")
+    Task jview(final @Arg("path|string:|Journal file name") String path,
             final @Arg("start|long:0:0:10000000000000|Start journal address") long start,
             final @Arg("end|long:1000000000000000000:0:1000000000000000000|End journal address") long end,
             final @Arg("types|String:*|Selected record types, for example, \"PA,PM,CP\"") String types,
@@ -792,6 +797,11 @@ public class CLI {
             @Override
             public void runTask() throws Exception {
                 final JournalTool jt = new JournalTool(_persistit);
+                jt.setAction(jt.new SimpleDumpAction() {
+                    protected void write(final String msg) {
+                        postMessage(msg, LOG_NORMAL);
+                    }
+                });
                 jt.init(path, start, end, types, pages, timestamps, maxkey, maxvalue, v);
                 jt.setWriter(new PrintWriter(System.out));
                 jt.scan();
@@ -830,7 +840,6 @@ public class CLI {
 
     }
 
-
     @Cmd("adminui")
     Task adminui(final @Arg("_flag|g|Start") boolean g, final @Arg("_flag|x|Stop") boolean x) throws Exception {
         return new Task() {
@@ -864,9 +873,8 @@ public class CLI {
     }
 
     @Cmd("select")
-    Task select(final @Arg("volume|string|Volume name") String vstring,
-            final @Arg("tree|string|Tree name") String tstring, final @Arg("_flag|r|Regular expression") boolean r)
-            throws Exception {
+    Task select(final @Arg("tree|string:*|Volume and and/or tree specification") String tstring,
+            final @Arg("_flag|r|Regular expression") boolean r) throws Exception {
 
         return new Task() {
 
@@ -878,72 +886,40 @@ public class CLI {
                     return;
                 }
 
-                final StringBuilder sb = new StringBuilder();
+                List<Object> selected = new ArrayList<Object>();
+                final TreeSelector selector = TreeSelector.parseSelector(tstring, r, '\\');
 
-                Volume selectedVolume = null;
-                Tree selectedTree = null;
-
-                boolean tooMany = false;
-
-                final Pattern vpattern = toRegEx(vstring, !r);
-                final Pattern tpattern = toRegEx(tstring, !r);
                 for (final Volume volume : _persistit.getVolumes()) {
-                    if (vpattern.matcher(volume.getName()).matches()) {
-                        if (selectedVolume == null) {
-                            selectedVolume = volume;
-                        } else if (!tooMany) {
-                            tooMany = true;
-                            sb.append("Multiple volumes - select one");
-                            sb.append(Util.NEW_LINE);
-                            sb.append(selectedVolume);
-                            sb.append(Util.NEW_LINE);
+                    if (selector.isVolumeNameSelected(volume.getName())) {
+                        if (selector.isVolumeOnlySelection(volume.getName())) {
+                            selected.add(volume);
                         }
-                        sb.append(volume);
-                        sb.append(Util.NEW_LINE);
+                    } else {
+                        for (final String treeName : volume.getTreeNames()) {
+                            if (selector.isTreeNameSelected(volume.getName(), treeName)) {
+                                selected.add(volume.getTree(treeName, false));
+                            }
+                        }
                     }
                 }
-                if (tooMany) {
-                    postMessage(sb.toString(), LOG_NORMAL);
+                if (selected.isEmpty()) {
+                    postMessage("No volumes or trees selected", LOG_NORMAL);
+                }
+                if (selected.size() > 1) {
+                    postMessage("Too many volumes or trees selected: " + selected, LOG_NORMAL);
                     return;
                 }
-                if (selectedVolume != null) {
-                    _currentVolume = selectedVolume;
-                }
-                if (_currentVolume == null) {
-                    postMessage("No volume selected", LOG_NORMAL);
-                    return;
-                }
-                sb.setLength(0);
-                for (final String treeName : _currentVolume.getTreeNames()) {
-                    if (tpattern.matcher(treeName).matches()) {
-                        final Tree tree = _currentVolume.getTree(treeName, false);
-                        if (selectedTree == null) {
-                            selectedTree = tree;
-                        } else if (!tooMany) {
-                            tooMany = true;
-                            sb.append("Multiple trees - select one");
-                            sb.append(Util.NEW_LINE);
-                            sb.append(selectedTree);
-                            sb.append(Util.NEW_LINE);
-                        }
-                        sb.append(tree);
-                        sb.append(Util.NEW_LINE);
-                    }
-                }
-                if (tooMany) {
-                    postMessage(sb.toString(), LOG_NORMAL);
-                    return;
-                }
-                if (selectedTree != null) {
-                    _currentTree = selectedTree;
-                }
-                if (_currentTree == null) {
+
+                if (selected.get(0) instanceof Volume) {
+                    _currentVolume = (Volume) selected.get(0);
+                    _currentTree = null;
                     postMessage(String.format("Volume %s selected", _currentVolume), LOG_NORMAL);
-                    return;
                 } else {
+                    _currentTree = (Tree) selected.get(0);
+                    _currentVolume = _currentTree.getVolume();
                     postMessage(String.format("Volume %s tree %s selected", _currentVolume, _currentTree), LOG_NORMAL);
-                    return;
                 }
+
             }
 
             @Override
@@ -994,8 +970,8 @@ public class CLI {
         };
     }
 
-    @Cmd("view")
-    Task view(final @Arg("page|long:-1:-1:99999999999999999|Page address") long pageAddress,
+    @Cmd("pview")
+    Task pview(final @Arg("page|long:-1:-1:99999999999999999|Page address") long pageAddress,
             final @Arg("jaddr|long:-1:-1:99999999999999999|Journal address of a PA page record") long journalAddress,
             final @Arg("index|int:-1:-1:999999999|Buffer pool index") int index,
             final @Arg("pageSize|int:16384:1024:16384|Buffer pool index") int pageSize,
@@ -1086,6 +1062,70 @@ public class CLI {
             public String getStatus() {
                 return "";
             }
+        };
+    }
+
+    @Cmd("jquery")
+    Task jquery(final @Arg("page|long:-1|Page address for PageNode to look up") long pageAddress,
+            final @Arg("volumeHandle|int:-1|Volume handle for PageNode to look up") int volumeHandle,
+            final @Arg("ts|long:-1|Start timestamp of TransactionMapItem to look up") long ts,
+            final @Arg("_flag|v|Verbose") boolean verbose,
+            final @Arg("_flag|V|Show volume handle map") boolean showTreeMap,
+            final @Arg("_flag|T|Show tree handle map") boolean showVolumeMap) {
+        return new Task() {
+            public void runTask() throws Exception {
+                if (!showVolumeMap && !showTreeMap && pageAddress == -1 && ts == -1) {
+                    postMessage("No items requested", LOG_NORMAL);
+                    return;
+                }
+                if (showVolumeMap) {
+                    postMessage("Volume Handle Map", LOG_NORMAL);
+                    Map<Integer, Volume> map = _persistit.getJournalManager().queryVolumeMap();
+                    for (final Map.Entry<Integer, Volume> entry : map.entrySet()) {
+                        postMessage(String.format("%,5d -> %s", entry.getKey(), entry.getValue()), LOG_NORMAL);
+                    }
+                }
+                if (showVolumeMap) {
+                    postMessage("Tree Handle Map", LOG_NORMAL);
+                    Map<Integer, TreeDescriptor> map = _persistit.getJournalManager().queryTreeMap();
+                    for (final Map.Entry<Integer, TreeDescriptor> entry : map.entrySet()) {
+                        postMessage(String.format("%,5d -> %s", entry.getKey(), entry.getValue()), LOG_NORMAL);
+                    }
+                }
+                if (ts != -1) {
+                    TransactionMapItem item = _persistit.getJournalManager().queryTransactionMap(ts);
+                    postMessage(String.format("TransactionMapItem for ts=%,d -> %s", ts, item), LOG_NORMAL);
+                }
+                if (pageAddress != -1) {
+                    postMessage("Page Nodes", LOG_NORMAL);
+                    if (volumeHandle != -1) {
+                        queryPageNode(volumeHandle, pageAddress, verbose);
+                    } else {
+                        Map<Integer, Volume> volumeMap = _persistit.getJournalManager().queryVolumeMap();
+                        for (final int handle : volumeMap.keySet()) {
+                            queryPageNode(handle, pageAddress, verbose);
+                        }
+                    }
+                }
+            }
+
+            private void queryPageNode(final int volumeHandle, final long page, final boolean verbose) {
+                PageNode pn = _persistit.getJournalManager().queryPageNode(volumeHandle, pageAddress);
+                int count = 0;
+                while (pn != null && count++ < MAX_PAGE_NODES) {
+                    postMessage(String.format("%,5d: %s", count, pn), LOG_NORMAL);
+                    if (!verbose) {
+                        break;
+                    }
+                    pn = pn.getPrevious();
+                }
+            }
+
+            @Override
+            public String getStatus() {
+                return "";
+            }
+
         };
     }
 
