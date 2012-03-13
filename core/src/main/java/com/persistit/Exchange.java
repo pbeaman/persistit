@@ -1389,6 +1389,12 @@ public class Exchange {
                     Debug.suspend();
                 }
 
+                /*
+                 * Can't save the old pointer as the state may have changed
+                 * since the last claim, could have even been de-allocated,
+                 * and just as equally can't hold onto the new one either.
+                 */
+                oldLongRecordPointerMVV = 0;
                 if (!committed && newLongRecordPointerMVV != 0) {
                     _volume.getStructure().deallocateGarbageChain(newLongRecordPointerMVV, 0);
                     newLongRecordPointerMVV = 0;
