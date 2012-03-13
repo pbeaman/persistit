@@ -626,7 +626,7 @@ public class JournalTool {
         }
     }
 
-    class SimpleDumpAction implements Action {
+    protected class SimpleDumpAction implements Action {
 
         final static String ELIPSES = "...";
 
@@ -638,16 +638,16 @@ public class JournalTool {
 
         final Value value = new Value(_persistit);
 
-        private void start(long address, long timestamp, String type, int recordSize) {
+        protected void start(long address, long timestamp, String type, int recordSize) {
             sb.setLength(0);
             sb.append(String.format("%,18d%,16d %2s (%8d) ", address, timestamp, type, recordSize));
         }
 
-        private void appendf(final String format, final Object... args) {
+        protected void appendf(final String format, final Object... args) {
             sb.append(String.format(format, args));
         }
 
-        private void keyf(final Key key) {
+        protected void keyf(final Key key) {
             String s = null;
             try {
                 s = key.toString();
@@ -657,7 +657,7 @@ public class JournalTool {
             padf(s, _keyDisplayLength);
         }
 
-        private void valuef(final Value value) {
+        protected void valuef(final Value value) {
             String s = null;
             try {
                 if (value.getEncodedSize() >= Buffer.LONGREC_SIZE
@@ -674,7 +674,7 @@ public class JournalTool {
             padf(s, _valueDisplayLength);
         }
 
-        private void padf(final String s, final int length) {
+        protected void padf(final String s, final int length) {
             if (s.length() < length) {
                 sb.append(s);
                 for (int i = length - s.length(); --i >= 0;) {
@@ -686,8 +686,12 @@ public class JournalTool {
             }
         }
 
-        private void end() {
-            _writer.println(sb.toString());
+        protected void flush() {
+            write(sb.toString());
+        }
+        
+        protected void write(final String msg) {
+            _writer.println(msg);
         }
 
         // -----------------------
@@ -704,7 +708,7 @@ public class JournalTool {
             appendf(" version %,3d blockSize %,14d baseAddress %,18d journalCreated %24s fileCreated %24s", version,
                     blockSize, baseAddress, journalCreated, fileCreated);
             _blockSize = blockSize;
-            end();
+            flush();
         }
 
         @Override
@@ -716,7 +720,7 @@ public class JournalTool {
             final String journalCreated = SDF.format(new Date(JE.getJournalCreatedTime(_readBuffer)));
             appendf(" baseAddress %,18d currentAddress %,18d journalCreated %24s", baseAddress, currentAddress,
                     journalCreated);
-            end();
+            flush();
         }
 
         @Override
@@ -727,7 +731,7 @@ public class JournalTool {
             final String name = IV.getVolumeName(_readBuffer);
             start(address, timestamp, "IV", recordSize);
             appendf(" handle %05d id %,22d name %s", handle, id, name);
-            end();
+            flush();
         }
 
         @Override
@@ -738,7 +742,7 @@ public class JournalTool {
             final String treeName = IT.getTreeName(_readBuffer);
             start(address, timestamp, "IT", recordSize);
             appendf(" handle %05d volume %05d treeName %s", handle, vhandle, treeName);
-            end();
+            flush();
         }
 
         @Override
@@ -748,7 +752,7 @@ public class JournalTool {
             final String wallTime = SDF.format(new Date(CP.getSystemTimeMillis(_readBuffer)));
             start(address, timestamp, "CP", recordSize);
             appendf(" baseAddress %,18d at %24s", baseAddress, wallTime);
-            end();
+            flush();
         }
 
         @Override
@@ -757,7 +761,7 @@ public class JournalTool {
             start(address, timestamp, "TX", recordSize);
             appendf(" committed %,d backchain %,d", TX.getCommitTimestamp(_readBuffer), TX
                     .getBackchainAddress(_readBuffer));
-            end();
+            flush();
             int start = _readBuffer.position();
             int end = start + recordSize;
             _readBuffer.position(_readBuffer.position() + TX.OVERHEAD);
@@ -789,7 +793,7 @@ public class JournalTool {
             keyf(key1);
             sb.append("->");
             keyf(key2);
-            end();
+            flush();
         }
 
         @Override
@@ -810,7 +814,7 @@ public class JournalTool {
             keyf(key1);
             sb.append(" : ");
             valuef(value);
-            end();
+            flush();
         }
 
         @Override
@@ -819,7 +823,7 @@ public class JournalTool {
             final int thandle = DT.getTreeHandle(_readBuffer);
             start(address, timestamp, "DT", recordSize);
             appendf(" tree %05d", thandle);
-            end();
+            flush();
         }
 
         @Override
@@ -836,7 +840,7 @@ public class JournalTool {
             final long rightSibling = pageAddress == 0 ? 0 : JournalRecord.getLong(_readBuffer, PA.OVERHEAD
                     + Buffer.RIGHT_SIBLING_OFFSET);
             appendf(" page %5d:%,12d type %10s right %,12d", volumeHandle, pageAddress, typeString, rightSibling);
-            end();
+            flush();
         }
 
         @Override
@@ -845,7 +849,7 @@ public class JournalTool {
             start(address, timestamp, "PM", recordSize);
             final int count = PM.getEntryCount(_readBuffer);
             appendf(" entries %,10d", count);
-            end();
+            flush();
             if (_verbose) {
                 dumpPageMap(count, address, timestamp, recordSize);
             }
@@ -857,7 +861,7 @@ public class JournalTool {
             start(address, timestamp, "TM", recordSize);
             final int count = TM.getEntryCount(_readBuffer);
             appendf(" entries %,10d", count);
-            end();
+            flush();
             if (_verbose) {
                 dumpTransactionMap(count, address, timestamp, recordSize);
             }
@@ -870,7 +874,7 @@ public class JournalTool {
             final int thandle = D0.getTreeHandle(_readBuffer);
             final int index = D0.getIndex(_readBuffer);
             appendf(" tree %05d index %2d value %,5d", thandle, index, 1);
-            end();
+            flush();
         }
 
         @Override
@@ -881,13 +885,13 @@ public class JournalTool {
             final int index = D1.getIndex(_readBuffer);
             final long value = D1.getValue(_readBuffer);
             appendf(" tree %05d index %2d value %,5d", thandle, index, value);
-            end();
+            flush();
         }
 
         @Override
         public void eof(final long address) throws Exception {
             start(address, 0, "~~", 0);
-            end();
+            flush();
         }
 
         void dumpPageMap(final int count, final long from, final long timestamp, final int recordSize)
@@ -922,7 +926,7 @@ public class JournalTool {
                 if (_selectedPages.isSelected(pageAddress) && _selectedTimestamps.isSelected(pageTimestamp)) {
                     if (pageAddress != lastPage) {
                         if (sb.length() > 0) {
-                            end();
+                            flush();
                             sb.setLength(0);
                         }
                         lastPage = pageAddress;
@@ -961,7 +965,7 @@ public class JournalTool {
                 final boolean isCommitted = commitTimestamp != 0;
                 appendf("--  start %,12d  commit %,12d  @%,18d %s", startTimestamp, commitTimestamp, journalAddress,
                         isCommitted ? "committed" : "uncommitted");
-                end();
+                flush();
                 sb.setLength(0);
                 index++;
             }

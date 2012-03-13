@@ -1,0 +1,82 @@
+/**
+ * Copyright (C) 2011 Akiban Technologies Inc.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License, version 3,
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see http://www.gnu.org/licenses.
+ */
+
+package com.persistit.bug;
+
+import static com.persistit.util.SequencerConstants.RECOVERY_PRUNING_SCHEDULE;
+import static com.persistit.util.ThreadSequencer.addSchedules;
+import static com.persistit.util.ThreadSequencer.disableSequencer;
+import static com.persistit.util.ThreadSequencer.enableSequencer;
+
+import java.util.Properties;
+
+import org.junit.Test;
+
+import com.persistit.Accumulator;
+import com.persistit.Exchange;
+import com.persistit.Key;
+import com.persistit.Persistit;
+import com.persistit.TestShim;
+import com.persistit.Transaction;
+import com.persistit.unit.PersistitUnitTestCase;
+
+public class Bug920754Test extends PersistitUnitTestCase {
+    /*
+     * https://bugs.launchpad.net/akiban-persistit/+bug/920754
+     * 
+     * While working on my "ApiTestBase turbo" branch, I noticed the volume file
+     * growing faster than I expected. I put a debug point in ApiTestBase's
+     * @After method, when it should be compressing journals and such. When I
+     * looked in the persistit UI, I saw that there were a few trees still
+     * defined but with nothing in them; the AIS (which I looked into via the
+     * DXL jmx bean) had only the primordial tables. But _directory contained
+     * what looked like "a whole ton" of accumulators, for trees that no longer
+     * existed.
+     * 
+     * To reproduce: - lp:~yshavit/akiban-server/ApiTestBase_turbo -r 1440 -
+     * conditional breakpoint at ApiTestBase #274
+     * ("System.out.println("flushing");"), to be triggered when size >= 400 *
+     * 1024 * 1024. - look in persistit UI at the _directory tree. It should be
+     * empty; it's very full.
+     * 
+     * From within the debugger, I invoked a checkpoint. Judging from write
+     * time, the journal file did seem to have been written to; but the
+     * accumulators didn't go away.
+     */
+
+    public void testAccumumulatorTreeIsDeleted() throws Exception {
+        final Exchange exchange = _persistit.getExchange("persistit", "Bug920754Test", true);
+        final Transaction txn = _persistit.getTransaction();
+        final Accumulator[] accumulators = new Accumulator[10];
+        for (int i = 0; i < 10; i++) {
+            accumulators[i] = exchange.getTree().getAccumulator(Accumulator.Type.SUM, 1);
+        }
+        txn.begin();
+        for (int i = 0; i < 10; i++) {
+            accumulators[i].update(1, txn);
+        }
+        txn.commit();
+        txn.end();
+        _persistit.checkpoint();
+        final Exchange dir = TestShim.directoryExchange(exchange.getVolume());
+        exchange.removeTree();
+        int keys = 0;
+        dir.to(Key.BEFORE);
+        while (dir.next(true)) {
+            keys++;
+        }
+        assertEquals("There should be no remaining keys in the directory tree", 0, keys);
+    }
+}

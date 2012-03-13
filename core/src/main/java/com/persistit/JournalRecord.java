@@ -399,7 +399,7 @@ import com.persistit.util.Util;
  * @author peter
  * 
  */
-class JournalRecord {
+public class JournalRecord {
 
     /**
      * Minimum length of first-level record

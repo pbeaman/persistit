@@ -32,6 +32,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -162,9 +164,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
     private AtomicLong _totalCommits = new AtomicLong();
 
     private AtomicLong _totalCommitWaitTime = new AtomicLong();
-    
+
     private AtomicLong _totalFlushCycles = new AtomicLong();
-    
+
     private AtomicLong _totalFlushIoTime = new AtomicLong();
 
     /**
@@ -509,7 +511,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         if (volume == null) {
             return null;
         }
-        return volume.getTree(td.getTreeName(), true);
+        return volume.getStructure().getTreeInternal(td.getTreeName());
     }
 
     Volume volumeForHandle(final int handle) throws PersistitException {
@@ -1548,7 +1550,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         }
     }
 
-    static class TreeDescriptor {
+    public static class TreeDescriptor {
 
         final int _volumeHandle;
 
@@ -1559,11 +1561,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _treeName = treeName;
         }
 
-        int getVolumeHandle() {
+        public int getVolumeHandle() {
             return _volumeHandle;
         }
 
-        String getTreeName() {
+        public String getTreeName() {
             return _treeName;
         }
 
@@ -1602,7 +1604,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
      * forming a sorted set of PageNodes so that we can copy pages in roughly
      * sequential order to each Volume file.
      */
-    static class PageNode {
+    public static class PageNode {
 
         final int _volumeHandle;
 
@@ -1621,6 +1623,22 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             this._pageAddress = pageAddress;
             this._journalAddress = journalAddress;
             this._timestamp = timestamp;
+        }
+
+        /**
+         * Construct a copy, also copying members of the linked list. Used by
+         * #queryPageMap.
+         */
+        PageNode(final PageNode pageNode) {
+            _volumeHandle = pageNode._volumeHandle;
+            _pageAddress = pageNode._pageAddress;
+            _journalAddress = pageNode._journalAddress;
+            _timestamp = pageNode._timestamp;
+            _offset = pageNode._offset;
+            PageNode previous = pageNode._previous;
+            if (previous != null) {
+                _previous = new PageNode(previous);
+            }
         }
 
         /**
@@ -1735,7 +1753,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         };
     }
 
-    static class TransactionMapItem implements Comparable<TransactionMapItem> {
+    public static class TransactionMapItem implements Comparable<TransactionMapItem> {
 
         private final long _startAddress;
 
@@ -1752,19 +1770,26 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _lastRecordAddress = address;
         }
 
-        long getStartAddress() {
+        TransactionMapItem(final TransactionMapItem item) {
+            _startAddress = item._startAddress;
+            _startTimestamp = item._startTimestamp;
+            _commitTimestamp = item._commitTimestamp;
+            _lastRecordAddress = item._lastRecordAddress;
+        }
+
+        public long getStartAddress() {
             return _startAddress;
         }
 
-        long getStartTimestamp() {
+        public long getStartTimestamp() {
             return _startTimestamp;
         }
 
-        long getCommitTimestamp() {
+        public long getCommitTimestamp() {
             return _commitTimestamp;
         }
 
-        long getLastRecordAddress() {
+        public long getLastRecordAddress() {
             return _lastRecordAddress;
         }
 
@@ -1776,11 +1801,11 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             _lastRecordAddress = address;
         }
 
-        boolean isCommitted() {
+        public boolean isCommitted() {
             return _commitTimestamp > 0;
         }
 
-        boolean isAborted() {
+        public boolean isAborted() {
             return _commitTimestamp == ABORTED;
         }
 
@@ -2005,7 +2030,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             if (_lastExceptionTimestamp > timestamp) {
                 final Exception e = _lastException;
                 if (e instanceof PersistitException) {
-                    throw (PersistitException)e;
+                    throw (PersistitException) e;
                 } else {
                     throw new PersistitException(e);
                 }
@@ -2021,8 +2046,9 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
             try {
                 try {
                     /*
-                     * This lock is intended only to help other threads in waitForDurability
-                     * to know when the I/O operation has finished.
+                     * This lock is intended only to help other threads in
+                     * waitForDurability to know when the I/O operation has
+                     * finished.
                      */
                     _lock.writeLock().lock();
                     try {
@@ -2032,7 +2058,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
                          * Flush the write buffer and call FileChannel.force().
                          */
                         force();
-                        
+
                     } finally {
                         _endTime = System.nanoTime() - START_NANOS;
                         _endTimestamp = _persistit.getTimestampAllocator().updateTimestamp();
@@ -2469,5 +2495,40 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
 
     synchronized boolean unitTestTxnExistsInLiveMap(Long startTimestamp) {
         return _liveTransactionMap.containsKey(startTimestamp);
+    }
+
+    public PageNode queryPageNode(final int volumeHandle, final long pageAddress) {
+        PageNode pn = _pageMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
+        if (pn != null) {
+            return new PageNode(pn);
+        } else {
+            return null;
+        }
+    }
+
+    public PageNode queryBranchNode(final int volumeHandle, final long pageAddress) {
+        PageNode pn = _branchMap.get(new PageNode(volumeHandle, pageAddress, -1, -1));
+        if (pn != null) {
+            return new PageNode(pn);
+        } else {
+            return null;
+        }
+    }
+
+    public TransactionMapItem queryTransactionMap(final long timestamp) {
+        final TransactionMapItem item = _liveTransactionMap.get(timestamp);
+        if (item != null) {
+            return new TransactionMapItem(item);
+        } else {
+            return null;
+        }
+    }
+
+    public SortedMap<Integer, Volume> queryVolumeMap() {
+        return new TreeMap<Integer, Volume>(_handleToVolumeMap);
+    }
+
+    public SortedMap<Integer, TreeDescriptor> queryTreeMap() {
+        return new TreeMap<Integer, TreeDescriptor>(_handleToTreeMap);
     }
 }

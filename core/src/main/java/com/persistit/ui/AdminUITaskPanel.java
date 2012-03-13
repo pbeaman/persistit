@@ -233,7 +233,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
             updateDetailedTaskStatus(null);
         } else {
             try {
-                TaskStatus[] array = management.queryTaskStatus(_selectedTaskId, true, false);
+                TaskStatus[] array = management.queryTaskStatus(_selectedTaskId, true, false, false);
                 if (array.length == 1) {
                     updateDetailedTaskStatus(array[0]);
                 }
@@ -315,7 +315,7 @@ public class AdminUITaskPanel extends AdminPanel implements AdminCommand {
             boolean stillSelected = false;
             Management management = _adminUI.getManagement();
             if (management != null) {
-                TaskStatus[] taskStatusArray = management.queryTaskStatus(-1, false, false);
+                TaskStatus[] taskStatusArray = management.queryTaskStatus(-1, false, false, false);
                 _taskStatusArrayModel.setInfoArray(taskStatusArray);
                 setTaskActionEnabledState(_taskTable.getSelectedRowCount() > 0);
                 for (int index = 0; index < taskStatusArray.length; index++) {

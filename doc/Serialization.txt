@@ -47,7 +47,7 @@ You may create and register a value coder for almost any class, including classe
 When required to serialize or deserialize class with no explicitly define ValueCoder, Persistit automatically creates and registers one of the following two default ValueCoder implementations:
 
 +com.persistit.DefaultValueCoder+::  uses introspection to determine which fields to serialize, and reflection to access and update the fields
-+com.persistit.SerialValueCoder+:: creates instances of ObjectInputStream and ObjectOutputStream to serialize and deserialize the object.
++com.persistit.encoding.SerialValueCoder+:: creates instances of ObjectInputStream and ObjectOutputStream to serialize and deserialize the object.
 
 DefaultValueCoder uses a more compact storage format and is significantly faster than standard Java serialization; however, it imposes certain limitations and trade-offs described below. By default, Persistit will use a DefaultValueCoder. However, you can identify classes that should instead be serialized and deserialized by SerialValueCoder by specifying the serialOverride property, which is described below.
 

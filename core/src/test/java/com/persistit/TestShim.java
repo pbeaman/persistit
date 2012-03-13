@@ -40,6 +40,10 @@ public class TestShim {
         return Key.maxStorableKeySize(bufferSize);
     }
 
+    public static int maxStorableValueSize(final Exchange ex, final int keySize) {
+        return ex.maxValueSize(keySize);
+    }
+
     public static int maxKeys(final Volume volume) {
         return volume.getPool().getMaxKeys();
     }
@@ -97,5 +101,13 @@ public class TestShim {
 
     public static void copyPages(final JournalManager jman) throws Exception {
         jman.copyBack();
+    }
+    
+    public static Exchange directoryExchange(final Volume volume) {
+        return volume.getStructure().directoryExchange();
+    }
+    
+    public static boolean isValueLongRecord(final Exchange ex) throws PersistitException {
+        return ex.isValueLongRecord();
     }
 }
