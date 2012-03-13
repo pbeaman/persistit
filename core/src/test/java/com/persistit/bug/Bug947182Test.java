@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_C;
 import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_SCHEDULE;
 import static com.persistit.util.ThreadSequencer.addSchedules;
+import static com.persistit.util.ThreadSequencer.disableSequencer;
 import static com.persistit.util.ThreadSequencer.enableSequencer;
 import static com.persistit.util.ThreadSequencer.sequence;
 import static com.persistit.util.ThreadSequencer.sequencerHistory;
@@ -44,6 +45,11 @@ public class Bug947182Test extends PersistitUnitTestCase {
     private static final String OUT_A = "-" + WWS + "A";
     private static final String OUT_B = "-" + WWS + "B";
     private static final String OUT_C = "-" + WWS + "C";
+
+    public void tearDown() throws Exception {
+        disableSequencer();
+        super.tearDown();
+    }
 
     /*
      * Bug seen many times but only in a large (100 terminal), long running
@@ -69,7 +75,7 @@ public class Bug947182Test extends PersistitUnitTestCase {
      *  3) txn2 releases latches and sleeps for short period
      *  4) txn1 aborts
      *  5) txn2 wakes, sees tx1n aborted, and retries
-     *  6) Buffer containing A is converted to short record (pruned, stored again, etc)
+     *  6) A is converted to short record (pruned, short stored, etc)
      *  7) txn2 re-acquires page and successfully stores value at A
      *
      *  If the value during step 2 was a long MVV and was reduced to a
@@ -165,11 +171,10 @@ public class Bug947182Test extends PersistitUnitTestCase {
         thread1.join();
         thread2.join();
 
-        assertEquals("Threads had no excretions", "[]", throwableList.toString());
+        assertEquals("Threads had no exceptions", "[]", throwableList.toString());
         
         final String expected = IN_C +","+ IN_A +","+ OUT_A +","+ OUT_C +","+ IN_B +","+ IN_C +","+ OUT_C +","+ OUT_B;
         assertEquals("Sequence order", expected, sequencerHistory());
-
     }
     
     private static Exchange getExchange(Persistit persistit) throws PersistitException {
