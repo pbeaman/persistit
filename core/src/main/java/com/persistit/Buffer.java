@@ -1675,8 +1675,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                 //
                 newTail = allocTail(newTailSize);
                 if (newTail == -1) {
-                    _persistit
-                            .fatal("Insufficient space to replace records in " + this + " at =" + p, null);
+                    _persistit.fatal("Insufficient space to replace records in " + this + " at =" + p, null);
                 }
             }
             putInt(p, encodeKeyBlockTail(kbData, newTail));
@@ -1822,10 +1821,10 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                         freeNextTailBlock = true;
                     }
                     if (newNextTail == -1) {
-                        _persistit.fatal("Can't wedge enough space in " + this + " foundAt1=" + foundAt1
-                                + " foundAt2=" + foundAt2 + " spareKey=" + spareKey + " nextTailBlockSize="
-                                + nextTailBlockSize + " newNextTailBlockSize=" + newNextTailBlockSize + " ebc=" + ebc
-                                + " ebcNext=" + ebcNext, null);
+                        _persistit.fatal("Can't wedge enough space in " + this + " foundAt1=" + foundAt1 + " foundAt2="
+                                + foundAt2 + " spareKey=" + spareKey + " nextTailBlockSize=" + nextTailBlockSize
+                                + " newNextTailBlockSize=" + newNextTailBlockSize + " ebc=" + ebc + " ebcNext="
+                                + ebcNext, null);
                     }
                 }
                 //
@@ -2942,8 +2941,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                     newTail = wedgeTail(tail, delta);
 
                     if (newTail == -1) {
-                        _persistit
-                        .fatal("Insufficient space for reduceEbc records in " + this + " at =" + p, null);
+                        _persistit.fatal("Insufficient space for reduceEbc records in " + this + " at =" + p, null);
                     }
                 }
                 wedged = true;
@@ -3631,6 +3629,8 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
             throw new IllegalStateException("Exclusive claim required " + this);
         }
         if (isDataPage() && _mvvCount != 0) {
+            final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
+            writePageOnCheckpoint(timestamp);
             _mvvCount = 0;
             List<PrunedVersion> prunedVersions = new ArrayList<PrunedVersion>();
             for (int p = KEY_BLOCK_START; p < _keyBlockEnd; p += KEYBLOCK_LENGTH) {
@@ -3692,9 +3692,7 @@ public class Buffer extends SharedResource implements Comparable<Buffer> {
                 }
             }
             if (changed) {
-                if (!isDirty()) {
-                    setDirtyAtTimestamp(_persistit.getTimestampAllocator().updateTimestamp());
-                }
+                setDirtyAtTimestamp(timestamp);
             }
 
             Buffer.deallocatePrunedVersions(_persistit, _vol, prunedVersions);
