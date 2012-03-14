@@ -1637,7 +1637,6 @@ public class Exchange {
                             _transaction.rollback();
                             throw new RollbackException();
                         }
-                        sequence(WRITE_WRITE_STORE_B);
                     } catch (InterruptedException ie) {
                         throw new PersistitInterruptedException(ie);
                     }

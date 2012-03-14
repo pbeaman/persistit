@@ -51,8 +51,8 @@ public interface SequencerConstants {
     int WRITE_WRITE_STORE_C = allocate("WRITE_WRITE_STORE_C");
 
     int[][] WRITE_WRITE_STORE_SCHEDULE = new int[][] {
-            array(WRITE_WRITE_STORE_A, WRITE_WRITE_STORE_C), array(WRITE_WRITE_STORE_A, WRITE_WRITE_STORE_C),
-            array(WRITE_WRITE_STORE_B, WRITE_WRITE_STORE_C), array(WRITE_WRITE_STORE_B, WRITE_WRITE_STORE_C)
+            array(WRITE_WRITE_STORE_A, WRITE_WRITE_STORE_B), array(WRITE_WRITE_STORE_B),
+            array(WRITE_WRITE_STORE_A, WRITE_WRITE_STORE_C), array(WRITE_WRITE_STORE_A, WRITE_WRITE_STORE_C)
     };
 
 }

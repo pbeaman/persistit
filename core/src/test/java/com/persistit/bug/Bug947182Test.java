@@ -27,24 +27,27 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_A;
+import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_B;
 import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_C;
 import static com.persistit.util.SequencerConstants.WRITE_WRITE_STORE_SCHEDULE;
 import static com.persistit.util.ThreadSequencer.addSchedules;
+import static com.persistit.util.ThreadSequencer.array;
+import static com.persistit.util.ThreadSequencer.describeHistory;
+import static com.persistit.util.ThreadSequencer.describePartialOrdering;
 import static com.persistit.util.ThreadSequencer.disableSequencer;
 import static com.persistit.util.ThreadSequencer.enableSequencer;
+import static com.persistit.util.ThreadSequencer.historyMeetsPartialOrdering;
+import static com.persistit.util.ThreadSequencer.out;
+import static com.persistit.util.ThreadSequencer.rawSequenceHistoryCopy;
 import static com.persistit.util.ThreadSequencer.sequence;
-import static com.persistit.util.ThreadSequencer.sequencerHistory;
 
 public class Bug947182Test extends PersistitUnitTestCase {
     private static final String TREE_NAME = "Bug947182Test";
     private static final String KEY = "key1";
-    private static final String WWS = "WRITE_WRITE_STORE_";
-    private static final String IN_A = "+" + WWS + "A";
-    private static final String IN_B = "+" + WWS + "B";
-    private static final String IN_C = "+" + WWS + "C";
-    private static final String OUT_A = "-" + WWS + "A";
-    private static final String OUT_B = "-" + WWS + "B";
-    private static final String OUT_C = "-" + WWS + "C";
+    private static final int A = WRITE_WRITE_STORE_A;
+    private static final int B = WRITE_WRITE_STORE_B;
+    private static final int C = WRITE_WRITE_STORE_C;
 
     public void tearDown() throws Exception {
         disableSequencer();
@@ -107,7 +110,7 @@ public class Bug947182Test extends PersistitUnitTestCase {
                         ex.clear().append(KEY);
                         storeLongMVV(ex);
                         firstStore.release();
-                        sequence(WRITE_WRITE_STORE_C);
+                        sequence(WRITE_WRITE_STORE_B);
                         txn.rollback();
                     } finally {
                         txn.end();
@@ -172,9 +175,13 @@ public class Bug947182Test extends PersistitUnitTestCase {
         thread2.join();
 
         assertEquals("Threads had no exceptions", "[]", throwableList.toString());
-        
-        final String expected = IN_C +","+ IN_A +","+ OUT_A +","+ OUT_C +","+ IN_B +","+ IN_C +","+ OUT_C +","+ OUT_B;
-        assertEquals("Sequence order", expected, sequencerHistory());
+
+        final int[] history = rawSequenceHistoryCopy();
+        final int[][] expectedOrdering = { array(A, B), array(out(B)), array(C), array(out(A), out(C)) };
+        if(!historyMeetsPartialOrdering(history, expectedOrdering)) {
+            assertEquals("History did not meet partial ordering",
+                         describePartialOrdering(expectedOrdering), describeHistory(history));
+        }
     }
     
     private static Exchange getExchange(Persistit persistit) throws PersistitException {
