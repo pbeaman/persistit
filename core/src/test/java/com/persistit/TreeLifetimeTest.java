@@ -13,21 +13,27 @@
  * along with this program.  If not, see http://www.gnu.org/licenses.
  */
 
-package com.persistit.unit;
+package com.persistit;
 
-import com.persistit.Exchange;
-import com.persistit.TestShim;
-import com.persistit.Transaction;
-import com.persistit.Volume;
 import com.persistit.exception.PersistitException;
+import com.persistit.exception.TreeNotFoundException;
+import com.persistit.unit.PersistitUnitTestCase;
+import com.persistit.unit.UnitTestProperties;
 
+import java.util.Arrays;
 import java.util.List;
+
+import static com.persistit.JournalManager.TreeDescriptor;
 
 public class TreeLifetimeTest extends PersistitUnitTestCase {
     private static final String TREE_NAME = "tree_one";
     
+    public Volume getVolume() {
+        return _persistit.getVolume(UnitTestProperties.VOLUME_NAME);
+    }
+
     public Exchange getExchange(boolean create) throws PersistitException {
-        return _persistit.getExchange(UnitTestProperties.VOLUME_NAME, TREE_NAME, create);
+        return _persistit.getExchange(getVolume(), TREE_NAME, create);
     }
 
     public void testRemovedTreeGoesToGarbageChain() throws PersistitException {
@@ -47,15 +53,41 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         txn.begin();
         ex = getExchange(false);
         final long treeRoot = ex.getTree().getRootPageAddr();
-        final Volume volume = ex.getVolume();
         ex.removeTree();
         txn.commit();
         txn.end();
         _persistit.releaseExchange(ex);
         ex = null;
 
-        final List<Long> garbage = TestShim.getGarbageList(volume);
+        final List<Long> garbage = getVolume().getStructure().getGarbageList();
         assertTrue("Expected tree root <"+treeRoot+"> in garbage list <"+garbage.toString()+">",
                    garbage.contains(treeRoot));
+    }
+    
+    public void testGetTreeWithoutCreateShouldCreate() throws PersistitException {
+        Transaction txn = _persistit.getTransaction();
+
+        txn.begin();
+        try {
+            getExchange(false);
+            fail("Tree should not have existed!");
+        } catch (TreeNotFoundException e) {
+            // expected
+        }
+        
+        final Volume volume = getVolume();
+
+        // Check on disk knowledge
+        List<String> treeNames = Arrays.asList(volume.getTreeNames());
+        assertFalse("Tree <"+TREE_NAME+"> should not be in Volume list <"+treeNames+">", treeNames.contains(TREE_NAME));
+
+        // Check in-memory maps
+        assertFalse("Volume should not know about tree", volume.getStructure().treeMapContainsName(TREE_NAME));
+        assertEquals("Journal should not have handle for tree",
+                     -1,
+                     _persistit.getJournalManager().handleForTree(new TreeDescriptor(volume.getHandle(), TREE_NAME), false));
+
+        txn.commit();
+        txn.end();
     }
 }

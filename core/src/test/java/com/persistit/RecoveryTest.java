@@ -368,7 +368,7 @@ public class RecoveryTest extends PersistitUnitTestCase {
         // create a junk tree to make sure the internal handle count is bumped
         // up
         TreeDescriptor td = new TreeDescriptor(volumeHandle, "gray");
-        _persistit.getJournalManager().handleForTree(td);
+        _persistit.getJournalManager().handleForTree(td, false);
         int updatedHandleValue = _persistit.getJournalManager().getHandleCount();
         _persistit.close();
         saveProperties = _persistit.getProperties();

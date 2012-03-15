@@ -637,4 +637,8 @@ class VolumeStructure {
         }
         return "@<" + buffer.getPageAddress() + ":" + buffer.getAlloc() + ">";
     }
+    
+    synchronized boolean treeMapContainsName(String treeName) {
+        return _treeNameHashMap.containsKey(treeName);
+    }
 }

@@ -16,7 +16,6 @@
 package com.persistit;
 
 import java.nio.channels.FileChannel;
-import java.util.List;
 
 import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitIOException;
@@ -110,9 +109,5 @@ public class TestShim {
     
     public static boolean isValueLongRecord(final Exchange ex) throws PersistitException {
         return ex.isValueLongRecord();
-    }
-    
-    public static List<Long> getGarbageList(final Volume volume) throws PersistitException {
-        return volume.getStructure().getGarbageList();
     }
 }
