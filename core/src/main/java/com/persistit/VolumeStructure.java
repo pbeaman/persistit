@@ -194,7 +194,7 @@ class VolumeStructure {
         if (DIRECTORY_TREE_NAME.equals(name)) {
             return _directoryTree;
         } else {
-            return getTree(name, true);
+            return getTree(name, false);
         }
     }
 
