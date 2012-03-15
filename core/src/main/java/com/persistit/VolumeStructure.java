@@ -581,6 +581,33 @@ class VolumeStructure {
     public long getGarbageRoot() {
         return _garbageRoot;
     }
+    
+    public List<Long> getGarbageList() throws PersistitException {
+        List<Long> garbageList = new ArrayList<Long>();
+        _volume.getStorage().claimHeadBuffer();
+        try {
+            long root = getGarbageRoot();
+            if (root != 0) {
+                garbageList.add(root);
+                Buffer buffer = _pool.get(_volume, root, true, true);
+                try {
+                    for(Management.RecordInfo rec : buffer.getRecords()) {
+                        if (rec._garbageLeftPage > 0) {
+                            garbageList.add(rec._garbageLeftPage);
+                        }
+                        if (rec._garbageRightPage> 0) {
+                            garbageList.add(rec._garbageRightPage);
+                        }
+                    }
+                } finally {
+                    buffer.release();
+                }
+            }
+        } finally {
+            _volume.getStorage().releaseHeadBuffer();
+        }
+        return garbageList;
+    }
 
     private void setGarbageRoot(long garbagePage) throws PersistitException {
         _garbageRoot = garbagePage;
