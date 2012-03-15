@@ -16,6 +16,7 @@
 package com.persistit.util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 
@@ -170,10 +171,105 @@ public class ThreadSequencer implements SequencerConstants {
         return ENABLED_SEQUENCER.history();
     }
 
+    public static int[] rawSequenceHistoryCopy() {
+        return ENABLED_SEQUENCER.rawHistoryCopy();
+    }
+
+    public static void appendHistoryElement(StringBuilder sb, int location) {
+        if (location < MAX_LOCATIONS) {
+            sb.append('+');
+            sb.append(LOCATIONS.get(location));
+        } else if ((location = out(location)) < MAX_LOCATIONS) {
+            sb.append('-');
+            sb.append(LOCATIONS.get(location));
+        }
+    }
+    
+    public static String describeHistory(int[] history) {
+        StringBuilder sb = new StringBuilder();
+        if (history != null) {
+            for (Integer location : history) {
+                if (sb.length() > 0) {
+                    sb.append(',');
+                }
+                appendHistoryElement(sb, location);
+            }
+        }
+        return sb.toString();
+    }
+
+    public static String describePartialOrdering(int[]... args) {
+        StringBuilder builder = new StringBuilder();
+        for(int i = 0; i < args.length; ++i) {
+            if(i != 0) {
+                builder.append(',');
+            }
+            builder.append('{');
+            for(int location : args[i]) {
+                appendHistoryElement(builder, location);
+            }
+            builder.append('}');
+        }
+        return builder.toString();
+    }
+
+    /**
+     * Compare a particular sequence history to a collection of required
+     * subsets. That is, compare the total ordering of the history as
+     * specified by the given ranges where the elements within a given
+     * range can be in any order.
+     * <p>
+     * For example, a <code>partialOrderings</code> of:
+     *     <ul><li><pre>{ { A_IN, B_IN }, { OUT_B }, { IN_C } }</pre></li></ul>
+     * Could be satisfied by either of these <code>history</code>:
+     *     <ul>
+     *         <li><pre>{ A_IN, B_IN, OUT_B, IN_C }</pre></li>
+     *         <li><pre>{ B_IN, A_IN, OUT_B, IN_C }</pre></li>
+     *     </ul>
+     * But not by any that contains IN_C before OUT_B.
+     * </p>
+     * <p>
+     *     <b>Note:</b> Both parameters will be modified by sorting.
+     * </p>
+     *
+     * @param history
+     *            An ordered history, e.g. from {@link #rawSequenceHistoryCopy()}.
+     * @param partialOrderings
+     *            Total ordering specification of unordered subsets
+     *
+     * @return <code>true</code> if the history fulfilled the required orderings.
+     */
+    public static boolean historyMeetsPartialOrdering(int[] history, int[]... partialOrderings) {
+        /*
+        * Sort each subset and equivalent ranges in the actual history.
+        * Then a simple element wise comparison.
+        */
+        int offset = 0;
+        for(int[] subset : partialOrderings) {
+            Arrays.sort(subset);
+            int nextOffset = offset + subset.length;
+            if(nextOffset > history.length) {
+                return false;
+            }
+            Arrays.sort(history, offset, nextOffset);
+            for(int i = 0; i < subset.length; ++i) {
+                if(subset[i] != history[offset + i]) {
+                    return false;
+                }
+            }
+            offset = nextOffset;
+        }
+        return true;
+    }
+
     public static int[] array(int... args) {
         return args;
     }
 
+    public static int out(int location) {
+        return Integer.MAX_VALUE - location;
+    }
+    
     private static long bits(final int[] locations) {
         long bits = 0;
         for (final int location : locations) {
@@ -201,16 +297,17 @@ public class ThreadSequencer implements SequencerConstants {
         /**
          * Add an element to the schedule. The arguments each represent a set of
          * locations in code. A schedule element affects the behavior of the
-         * {@link #sequence(long)} method. When a thread calls
+         * {@link #sequence(int)} method. When a thread calls
          * sequence(location), that thread blocks until the set of all currently
          * blocked threads covers the await field of one of the schedule
          * elements. Once the await field is covered, then the threads waiting
          * at locations denoted by the release field of that schedule element
          * are allowed to continue.
          * 
-         * @param from
-         *            bit map of locations
-         * @param to
+         * @param await
+         *            bit map of locations required to meet schedule
+         * @param release
+         *            bit map of locations to release after schedule is met
          */
         public void addSchedule(final long await, final long release);
     }
@@ -228,7 +325,7 @@ public class ThreadSequencer implements SequencerConstants {
         @Override
         public void addSchedule(long await, long release) {
         }
-    };
+    }
 
     private static class EnabledSequencer implements Sequencer {
         private final List<Long> _schedule = new ArrayList<Long>();
@@ -289,7 +386,7 @@ public class ThreadSequencer implements SequencerConstants {
 
             synchronized (this) {
                 if (_history != null) {
-                    _history.add(Integer.MAX_VALUE - location);
+                    _history.add(out(location));
                 }
                 if (--_waitingCount[location] == 0) {
                     _waiting &= ~(1L << location);
@@ -327,25 +424,24 @@ public class ThreadSequencer implements SequencerConstants {
         }
 
         public synchronized String history() {
-            StringBuilder sb = new StringBuilder();
+            String desc = "";
             if (_history != null) {
-                for (Integer location : _history) {
-                    if (sb.length() > 0) {
-                        sb.append(',');
-                    }
-                    int l = location;
-                    if (l < MAX_LOCATIONS) {
-                        sb.append('+');
-                        sb.append(LOCATIONS.get(l));
-                    } else if ((l = Integer.MAX_VALUE - l) < MAX_LOCATIONS) {
-                        sb.append('-');
-                        sb.append(LOCATIONS.get(l));
-                    }
-                }
+                int[] copy = rawHistoryCopy();
+                desc = describeHistory(copy);
+                _history.clear();
             }
-            _history.clear();
-            return sb.toString();
+            return desc;
         }
 
+        public synchronized int[] rawHistoryCopy() {
+            int[] historyCopy = null;
+            if (_history != null) {
+                historyCopy = new int[_history.size()];
+                for(int i = 0; i < _history.size(); ++i) {
+                    historyCopy[i] = _history.get(i);
+                }
+            }
+            return historyCopy;
+        }
     }
 }

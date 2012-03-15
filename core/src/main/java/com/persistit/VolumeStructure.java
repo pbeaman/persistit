@@ -427,7 +427,8 @@ class VolumeStructure {
                         _persistit.getLogBase().allocateFromGarbageChain.log(page, garbageBufferInfo(garbageBuffer));
                         boolean solitaire = rightPage == -1;
                         buffer = _pool.get(_volume, page, true, !solitaire);
-
+                        buffer.writePageOnCheckpoint(timestamp);
+                        
                         Debug.$assert0.t(buffer.getPageAddress() > 0);
 
                         long nextGarbagePage = solitaire ? -1 : buffer.getRightSibling();
@@ -478,6 +479,7 @@ class VolumeStructure {
         _volume.getStorage().claimHeadBuffer();
 
         Buffer garbageBuffer = null;
+        final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
 
         try {
             long garbagePage = getGarbageRoot();
@@ -489,8 +491,6 @@ class VolumeStructure {
                 }
 
                 garbageBuffer = _pool.get(_volume, garbagePage, true, true);
-
-                final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
                 garbageBuffer.writePageOnCheckpoint(timestamp);
 
                 boolean fits = garbageBuffer.addGarbageChain(left, right, -1);
@@ -506,8 +506,6 @@ class VolumeStructure {
             }
             boolean solitaire = (right == -1);
             garbageBuffer = _pool.get(_volume, left, true, !solitaire);
-
-            final long timestamp = _persistit.getTimestampAllocator().updateTimestamp();
             garbageBuffer.writePageOnCheckpoint(timestamp);
 
             Debug.$assert0.t((garbageBuffer.isDataPage() || garbageBuffer.isIndexPage())

@@ -1637,7 +1637,6 @@ public class Exchange {
                             _transaction.rollback();
                             throw new RollbackException();
                         }
-                        sequence(WRITE_WRITE_STORE_B);
                     } catch (InterruptedException ie) {
                         throw new PersistitInterruptedException(ie);
                     }
@@ -3172,10 +3171,10 @@ public class Exchange {
                                         if (fetchFirst) {
                                             removeFetchFirst(buffer, foundAt1, buffer, foundAt2);
                                         }
-                                        _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2);
 
                                         final long timestamp = timestamp();
                                         buffer.writePageOnCheckpoint(timestamp);
+                                        _volume.getStructure().harvestLongRecords(buffer, foundAt1, foundAt2);
 
                                         boolean removed = buffer.removeKeys(foundAt1, foundAt2, _spareKey1);
                                         if (removed) {
