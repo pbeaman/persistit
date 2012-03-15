@@ -90,4 +90,28 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         txn.commit();
         txn.end();
     }
+
+    public void testCleanupManagerShouldNotInstantiateTrees() throws Exception {
+        Exchange ex = getExchange(true);
+        _persistit.releaseExchange(ex);
+
+        assertNotNull("Tree should exist after create", getVolume().getTree(TREE_NAME, false));
+
+        ex = getExchange(false);
+        final int treeHandle = ex.getTree().getHandle();
+        final long rootPage = ex.getTree().getRootPageAddr();
+        ex.removeTree();
+        _persistit.releaseExchange(ex);
+
+        assertNull("Tree should not exist after remove", getVolume().getTree(TREE_NAME, false));
+        
+        CleanupManager cm = _persistit.getCleanupManager();
+        boolean accepted = cm.offer(new CleanupManager.CleanupPruneAction(treeHandle, rootPage));
+        assertTrue("CleanupPruneAction was accepted", accepted);
+        cm.kick();
+        while(cm.getEnqueuedCount() > 0) {
+            Thread.sleep(50);
+        }
+        assertNull("Tree should not exist after cleanup action", getVolume().getTree(TREE_NAME, false));
+    }
 }
