@@ -239,12 +239,12 @@ class VolumeStructure {
         }
         _persistit.checkSuspended();
 
-        int depth = -1;
-        long page = -1;
-
         if (!tree.claim(true)) {
             throw new InUseException("Unable to acquire writer claim on " + tree);
         }
+        
+        final int treeDepth = tree.getDepth();
+        final long treeRootPage = tree.getRootPageAddr();
 
         synchronized (this) {
             _treeNameHashMap.remove(tree.getName());
@@ -253,10 +253,7 @@ class VolumeStructure {
         }
 
         try {
-            final long rootPage = tree.getRootPageAddr();
             tree.changeRootPageAddr(-1, 0);
-            page = rootPage;
-            depth = tree.getDepth();
             Exchange ex = directoryExchange();
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
             ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
@@ -264,11 +261,14 @@ class VolumeStructure {
         } finally {
             tree.release();
         }
+
         // The Tree is now gone. The following deallocates the
         // pages formerly associated with it. If this fails we'll be
         // left with allocated pages that are not available on the garbage
         // chain for reuse.
 
+        int depth = treeDepth;
+        long page = treeRootPage;
         while (page != -1) {
             Buffer buffer = null;
             long deallocate = -1;
