@@ -249,19 +249,19 @@ class VolumeStructure {
         final int treeDepth = tree.getDepth();
         final long treeRootPage = tree.getRootPageAddr();
 
-        synchronized (this) {
-            _treeNameHashMap.remove(tree.getName());
-            tree.bumpGeneration();
-            tree.invalidate();
-        }
-        sequence(TREE_CREATE_REMOVE_A);
-
         try {
-            tree.changeRootPageAddr(-1, 0);
-            Exchange ex = directoryExchange();
-            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
-            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
-            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
+            synchronized (this) {
+                _treeNameHashMap.remove(tree.getName());
+                tree.bumpGeneration();
+                tree.invalidate();
+
+                tree.changeRootPageAddr(-1, 0);
+                Exchange ex = directoryExchange();
+                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
+                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
+                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
+            }
+            sequence(TREE_CREATE_REMOVE_A);
         } finally {
             tree.release();
         }
