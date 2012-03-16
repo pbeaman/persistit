@@ -27,6 +27,9 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
 
+import static com.persistit.util.ThreadSequencer.sequence;
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_A;
+
 class VolumeStructure {
     /**
      * Designated Tree name for the special directory "tree of trees".
@@ -165,7 +168,6 @@ class VolumeStructure {
         ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(name);
         Value value = ex.fetch().getValue();
         tree = new Tree(_persistit, _volume, name);
-        _persistit.getJournalManager().handleForTree(tree);
         if (value.isDefined()) {
             value.get(tree);
             loadTreeStatistics(tree);
@@ -179,6 +181,7 @@ class VolumeStructure {
         } else {
             return null;
         }
+        _persistit.getJournalManager().handleForTree(tree);
         _treeNameHashMap.put(name, new WeakReference<Tree>(tree));
         return tree;
     }
@@ -194,7 +197,7 @@ class VolumeStructure {
         if (DIRECTORY_TREE_NAME.equals(name)) {
             return _directoryTree;
         } else {
-            return getTree(name, true);
+            return getTree(name, false);
         }
     }
 
@@ -239,36 +242,37 @@ class VolumeStructure {
         }
         _persistit.checkSuspended();
 
-        int depth = -1;
-        long page = -1;
-
         if (!tree.claim(true)) {
             throw new InUseException("Unable to acquire writer claim on " + tree);
         }
-
-        synchronized (this) {
-            _treeNameHashMap.remove(tree.getName());
-            tree.bumpGeneration();
-            tree.invalidate();
-        }
+        
+        final int treeDepth = tree.getDepth();
+        final long treeRootPage = tree.getRootPageAddr();
 
         try {
-            final long rootPage = tree.getRootPageAddr();
-            tree.changeRootPageAddr(-1, 0);
-            page = rootPage;
-            depth = tree.getDepth();
-            Exchange ex = directoryExchange();
-            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
-            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
-            ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
+            synchronized (this) {
+                _treeNameHashMap.remove(tree.getName());
+                tree.bumpGeneration();
+                tree.invalidate();
+
+                tree.changeRootPageAddr(-1, 0);
+                Exchange ex = directoryExchange();
+                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ROOT).append(tree.getName()).remove(Key.GTEQ);
+                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_STATS).append(tree.getName()).remove(Key.GTEQ);
+                ex.clear().append(DIRECTORY_TREE_NAME).append(TREE_ACCUMULATOR).append(tree.getName()).remove(Key.GTEQ);
+            }
+            sequence(TREE_CREATE_REMOVE_A);
         } finally {
             tree.release();
         }
+
         // The Tree is now gone. The following deallocates the
         // pages formerly associated with it. If this fails we'll be
         // left with allocated pages that are not available on the garbage
         // chain for reuse.
 
+        int depth = treeDepth;
+        long page = treeRootPage;
         while (page != -1) {
             Buffer buffer = null;
             long deallocate = -1;
@@ -581,6 +585,33 @@ class VolumeStructure {
     public long getGarbageRoot() {
         return _garbageRoot;
     }
+    
+    List<Long> getGarbageList() throws PersistitException {
+        List<Long> garbageList = new ArrayList<Long>();
+        _volume.getStorage().claimHeadBuffer();
+        try {
+            long root = getGarbageRoot();
+            if (root != 0) {
+                garbageList.add(root);
+                Buffer buffer = _pool.get(_volume, root, true, true);
+                try {
+                    for(Management.RecordInfo rec : buffer.getRecords()) {
+                        if (rec._garbageLeftPage > 0) {
+                            garbageList.add(rec._garbageLeftPage);
+                        }
+                        if (rec._garbageRightPage> 0) {
+                            garbageList.add(rec._garbageRightPage);
+                        }
+                    }
+                } finally {
+                    buffer.release();
+                }
+            }
+        } finally {
+            _volume.getStorage().releaseHeadBuffer();
+        }
+        return garbageList;
+    }
 
     private void setGarbageRoot(long garbagePage) throws PersistitException {
         _garbageRoot = garbagePage;
@@ -609,5 +640,9 @@ class VolumeStructure {
             return "!!!" + buffer.getPageAddress() + " is not a garbage page!!!";
         }
         return "@<" + buffer.getPageAddress() + ":" + buffer.getAlloc() + ">";
+    }
+    
+    synchronized boolean treeMapContainsName(String treeName) {
+        return _treeNameHashMap.containsKey(treeName);
     }
 }
