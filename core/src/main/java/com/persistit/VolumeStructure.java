@@ -27,6 +27,9 @@ import com.persistit.exception.PersistitException;
 import com.persistit.exception.PersistitInterruptedException;
 import com.persistit.util.Debug;
 
+import static com.persistit.util.ThreadSequencer.sequence;
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_A;
+
 class VolumeStructure {
     /**
      * Designated Tree name for the special directory "tree of trees".
@@ -251,6 +254,7 @@ class VolumeStructure {
             tree.bumpGeneration();
             tree.invalidate();
         }
+        sequence(TREE_CREATE_REMOVE_A);
 
         try {
             tree.changeRootPageAddr(-1, 0);

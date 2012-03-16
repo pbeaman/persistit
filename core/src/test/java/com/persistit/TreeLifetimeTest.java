@@ -22,17 +22,27 @@ import com.persistit.unit.UnitTestProperties;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static com.persistit.JournalManager.TreeDescriptor;
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_A;
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_B;
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_C;
+import static com.persistit.util.SequencerConstants.TREE_CREATE_REMOVE_SCHEDULE;
+import static com.persistit.util.ThreadSequencer.*;
 
 public class TreeLifetimeTest extends PersistitUnitTestCase {
     private static final String TREE_NAME = "tree_one";
-    
-    public Volume getVolume() {
+    final int A = TREE_CREATE_REMOVE_A;
+    final int B = TREE_CREATE_REMOVE_B;
+    final int C = TREE_CREATE_REMOVE_C;
+
+
+    private Volume getVolume() {
         return _persistit.getVolume(UnitTestProperties.VOLUME_NAME);
     }
 
-    public Exchange getExchange(boolean create) throws PersistitException {
+    private Exchange getExchange(boolean create) throws PersistitException {
         return _persistit.getExchange(getVolume(), TREE_NAME, create);
     }
 
@@ -77,11 +87,11 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
         
         final Volume volume = getVolume();
 
-        // Check on disk knowledge
+        // Check on disk
         List<String> treeNames = Arrays.asList(volume.getTreeNames());
         assertFalse("Tree <"+TREE_NAME+"> should not be in Volume list <"+treeNames+">", treeNames.contains(TREE_NAME));
 
-        // Check in-memory maps
+        // Check in-memory
         assertFalse("Volume should not know about tree", volume.getStructure().treeMapContainsName(TREE_NAME));
         assertEquals("Journal should not have handle for tree",
                      -1,
@@ -113,5 +123,72 @@ public class TreeLifetimeTest extends PersistitUnitTestCase {
             Thread.sleep(50);
         }
         assertNull("Tree should not exist after cleanup action", getVolume().getTree(TREE_NAME, false));
+    }
+
+    public void testReanimatedTreeCreateAndRemoveSynchronization() throws PersistitException, InterruptedException {
+        enableSequencer(true);
+        addSchedules(TREE_CREATE_REMOVE_SCHEDULE);
+
+        final ConcurrentLinkedQueue<Throwable> threadErrors = new ConcurrentLinkedQueue<Throwable>();
+
+        Exchange origEx = getExchange(true);
+        for (int i = 0; i < 5; ++i) {
+            origEx.clear().append(i).store();
+        }
+        _persistit.releaseExchange(origEx);
+
+        final Thread thread1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Exchange ex = null;
+                try {
+                    ex = getExchange(false);
+                    ex.removeTree();
+                } catch(Throwable t) {
+                    threadErrors.add(t);
+                }
+                if (ex != null) {
+                    _persistit.releaseExchange(ex);
+                }
+            }
+        });
+
+        final Thread thread2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                sequence(TREE_CREATE_REMOVE_B);
+                Exchange ex = null;
+                try {
+                    ex = getExchange(true);
+                    int count = 0;
+                    while (ex.next(true)) {
+                        ++count;
+                    }
+                    sequence(TREE_CREATE_REMOVE_C);
+                    assertEquals("New tree has zero keys in it", 0, count);
+                } catch(Throwable t) {
+                    threadErrors.add(t);
+                }
+                if (ex != null) {
+                    _persistit.releaseExchange(ex);
+                }
+            }
+        });
+
+        thread1.start();
+        thread2.start();
+
+        thread1.join();
+        thread2.join();
+
+        assertEquals("Threads had no exceptions", "[]", threadErrors.toString());
+
+        final int[] actual = rawSequenceHistoryCopy();
+        final int[][] expectedSequence = { array(A, B), array(out(B)), array(C), array(out(A), out(C)) };
+        if (!historyMeetsPartialOrdering(actual, expectedSequence)) {
+            assertEquals("Unexpected sequencing", describePartialOrdering(expectedSequence), describeHistory(actual));
+        }
+
+        disableSequencer();
     }
 }
