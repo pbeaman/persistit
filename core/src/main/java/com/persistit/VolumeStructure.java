@@ -586,7 +586,7 @@ class VolumeStructure {
         return _garbageRoot;
     }
     
-    public List<Long> getGarbageList() throws PersistitException {
+    List<Long> getGarbageList() throws PersistitException {
         List<Long> garbageList = new ArrayList<Long>();
         _volume.getStorage().claimHeadBuffer();
         try {
