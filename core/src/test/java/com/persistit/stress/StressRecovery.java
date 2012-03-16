@@ -276,7 +276,7 @@ public class StressRecovery extends StressBase {
                     _exs.getValue().putString("ticket " + ticketId + " value");
                     _exs.clear().append(ticketId % SCALE).append(ticketId / SCALE);
                     _exs.store();
-                    txn.commit(false);
+                    txn.commit();
                     break;
                 } catch (RollbackException e) {
                     continue;
@@ -336,7 +336,7 @@ public class StressRecovery extends StressBase {
                     }
                     _exs.store();
 
-                    txn.commit(false);
+                    txn.commit();
                     break;
                 } catch (RollbackException e) {
                     continue;
