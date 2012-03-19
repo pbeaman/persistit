@@ -149,4 +149,8 @@ public interface JournalManagerMXBean {
     String getLastCopierException();
 
     String getLastFlusherException();
+
+    long getCheckpointIntervalNanos();
+
+    long getLastValidCheckpointTimestampMillis();
 }

@@ -418,6 +418,16 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         return Util.toString(_flusher.getLastException());
     }
 
+    @Override
+    public long getCheckpointIntervalNanos() {
+        return _persistit.getCheckpointIntervalNanos();
+    }
+
+    @Override
+    public long getLastValidCheckpointTimestampMillis() {
+        return _lastValidCheckpoint.getSystemTimeMillis();
+    }
+
     /**
      * Computes an "urgency" factor that determines how vigorously the copyBack
      * thread should perform I/O. This number is computed on a scale of 0 to 10;
