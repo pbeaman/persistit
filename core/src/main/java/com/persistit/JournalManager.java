@@ -385,6 +385,7 @@ public class JournalManager implements JournalManagerMXBean, VolumeHandleLookup 
         return _writePageCount;
     }
 
+    @Override
     public long getReadPageCount() {
         return _readPageCount;
     }

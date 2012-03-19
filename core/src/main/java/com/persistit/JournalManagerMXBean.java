@@ -128,6 +128,8 @@ public interface JournalManagerMXBean {
 
     String getJournalFilePath();
 
+    long getReadPageCount();
+
     long getJournaledPageCount();
 
     long getCopiedPageCount();
